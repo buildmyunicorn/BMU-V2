@@ -67,6 +67,9 @@ import {
   getDefaultDemoSession,
   type BmuLocalSession,
   type SavedConceptCanvas,
+  type SavedFounderMotivation,
+  type FounderMotivationType,
+  type FounderWeeklyHours,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -185,10 +188,16 @@ export default function WorkspacePage() {
     null
   );
 
-  // Module A Step 2 & Step 4 Live State
+  // Module A Step 2, Step 3 & Step 4 Live State
   const [conceptCanvas, setConceptCanvas] = useState<SavedConceptCanvas | null>(
     null
   );
+  const [founderMotivation, setFounderMotivation] =
+    useState<SavedFounderMotivation>({
+      primaryMotivation: 'LEAVE_JOB',
+      weeklyHoursAvailable: '15_TO_25_HRS',
+      twelveMonthSuccessVision: '',
+    });
   const [thingsToConsider, setThingsToConsider] = useState<BlindSpotItem[]>([]);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [isEditingCanvas, setIsEditingCanvas] = useState(false);
@@ -208,6 +217,9 @@ export default function WorkspacePage() {
       }
       if (activePlan.conceptCanvas) {
         setConceptCanvas(activePlan.conceptCanvas);
+      }
+      if (activePlan.founderMotivation) {
+        setFounderMotivation(activePlan.founderMotivation);
       }
       if (activePlan.thingsToConsider?.length) {
         setThingsToConsider(activePlan.thingsToConsider);
@@ -234,6 +246,9 @@ export default function WorkspacePage() {
             }
             if (dbPlan.conceptCanvas) {
               setConceptCanvas(dbPlan.conceptCanvas);
+            }
+            if (dbPlan.founderMotivation) {
+              setFounderMotivation(dbPlan.founderMotivation);
             }
             if (dbPlan.thingsToConsider?.length) {
               setThingsToConsider(dbPlan.thingsToConsider);
@@ -378,6 +393,13 @@ export default function WorkspacePage() {
     setSelectedCountry(found.hqCountryCode);
     if (found.brainDumpText) setBrainDumpText(found.brainDumpText);
     setConceptCanvas(found.conceptCanvas || null);
+    setFounderMotivation(
+      found.founderMotivation || {
+        primaryMotivation: 'LEAVE_JOB',
+        weeklyHoursAvailable: '15_TO_25_HRS',
+        twelveMonthSuccessVision: '',
+      }
+    );
     setThingsToConsider(found.thingsToConsider || []);
     if (found.openQuestions) setOpenQuestions(found.openQuestions);
     setPlanDropdownOpen(false);
@@ -402,29 +424,17 @@ export default function WorkspacePage() {
   }
 
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
-    coreProblem: brainDumpText.slice(0, 180),
-    targetCustomer: `Primary buyers in ${countryPack.countryName} within ${currentPlan.industryCategory} (${
-      currentPlan.exportPotential === 'EXPORTING_INTERNATIONALLY'
-        ? 'Targeting International Export'
-        : 'Domestic Focus'
-    }).`,
-    proposedSolution:
-      currentPlan.oneLinerSummary ||
-      `${currentPlan.title} automates the workflow so customers save time and margin.`,
-    unfairAdvantage:
-      'Zero manual data entry for busy staff; delivers measurable ROI within the first 30 days.',
-    revenueAndGrantFit: `Priced in ${countryPack.defaultCurrency} (${formatPlanCurrency(
-      299,
-      countryPack.defaultCurrency
-    )}/mo benchmark). Eligible to explore ${
-      countryGrants[0]?.grantName || 'Regional Innovation Support'
-    } (${countryPack.taxName} ${countryPack.standardTaxRatePercent}%).`,
+    coreProblem: '',
+    targetCustomer: '',
+    proposedSolution: '',
+    unfairAdvantage: '',
+    revenueAndGrantFit: '',
   };
 
-  async function handleSynthesizeConceptCanvas() {
+  async function handleTidyUpNotesWithAi() {
     if (!aiCreditCheck.allowed) {
       setPaywallModalFeature(
-        `AI Concept Canvas Synthesis (${aiCreditCheck.reason})`
+        `AI Note Tidying (${aiCreditCheck.reason})`
       );
       return;
     }
@@ -441,6 +451,8 @@ export default function WorkspacePage() {
         industryCategory: currentPlan.industryCategory,
         hqCountryCode: selectedCountry,
         exportPotential: currentPlan.exportPotential,
+        draftCanvas: effectiveCanvas,
+        founderMotivation,
       });
 
       setConceptCanvas(result.canvas);
@@ -453,6 +465,7 @@ export default function WorkspacePage() {
               ...p,
               brainDumpText,
               conceptCanvas: result.canvas,
+              founderMotivation,
               thingsToConsider: result.thingsToConsider,
             }
           : p
@@ -470,19 +483,7 @@ export default function WorkspacePage() {
       setSession(updatedSession);
       saveBmuSession(updatedSession);
 
-      setSynthesisBanner(
-        result.persistedToCloudSql
-          ? `✅ Concept Canvas & Blind Spots synthesized (${
-              result.engineMode === 'gemini-2.5-flash'
-                ? 'Gemini 2.5 Flash'
-                : 'BMU Smart Synthesizer'
-            }) and saved to Cloud SQL!`
-          : `✅ Concept Canvas synthesized (${
-              result.engineMode === 'gemini-2.5-flash'
-                ? 'Gemini 2.5 Flash'
-                : 'BMU Smart Synthesizer'
-            })!`
-      );
+      setSynthesisBanner('✨ Your notes have been tidied up and saved!');
     } finally {
       setIsSynthesizing(false);
     }
@@ -493,29 +494,31 @@ export default function WorkspacePage() {
     setSynthesisBanner(null);
     try {
       const toSave = effectiveCanvas;
-      const res = await saveModuleACanvasEditsAction({
+      await saveModuleACanvasEditsAction({
         planId: currentPlan.id,
         brainDumpText,
         exportPotential: currentPlan.exportPotential,
         canvas: toSave,
+        founderMotivation,
       });
       setConceptCanvas(toSave);
       setIsEditingCanvas(false);
 
       const updatedPlans = session.plans.map((p) =>
         p.id === currentPlan.id
-          ? { ...p, brainDumpText, conceptCanvas: toSave }
+          ? {
+              ...p,
+              brainDumpText,
+              conceptCanvas: toSave,
+              founderMotivation,
+            }
           : p
       );
       const updatedSession = { ...session, plans: updatedPlans };
       setSession(updatedSession);
       saveBmuSession(updatedSession);
 
-      setSynthesisBanner(
-        res.persistedToCloudSql
-          ? '✅ Your Concept Canvas edits have been saved to Cloud SQL!'
-          : '✅ Your Concept Canvas edits have been saved!'
-      );
+      setSynthesisBanner('✅ Your notes have been saved!');
     } finally {
       setIsSavingCanvas(false);
     }
@@ -771,32 +774,6 @@ export default function WorkspacePage() {
               })}
             </div>
           </div>
-
-          {/* Layer 3 Momentum Protection: "Open Questions Parking Lot" */}
-          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
-                <BookmarkPlus className="h-4 w-4 text-amber-600" />
-                Open Questions Parking Lot
-              </span>
-              <Badge variant="warning">{openQuestions.length}</Badge>
-            </div>
-            <p className="mt-1 text-[11px] text-amber-800">
-              Not sure of a number or technical detail yet? Park it here so you
-              never lose momentum.
-            </p>
-            <ul className="mt-2.5 space-y-1.5">
-              {openQuestions.map((q, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-start gap-2 rounded-lg bg-white/90 p-2 text-xs text-slate-700 shadow-2xs"
-                >
-                  <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
-                  <span>{q}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
         </aside>
 
         {/* CENTER WORKSPACE: Module A Guided Step + 4-Layer Support + 1-Page Mirror + Blind-Spot Engine */}
@@ -1016,16 +993,6 @@ export default function WorkspacePage() {
                     <Wand2 className="h-3.5 w-3.5" />
                     I&apos;m Stuck — Break This Into 3 Easy Questions
                   </button>
-
-                  {/* Layer 3: "Park It in Open Questions" */}
-                  <button
-                    type="button"
-                    onClick={handleParkQuestion}
-                    className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-                  >
-                    <BookmarkPlus className="h-3.5 w-3.5" />
-                    Park a Question for Later
-                  </button>
                 </div>
               </div>
 
@@ -1053,44 +1020,107 @@ export default function WorkspacePage() {
 
               <textarea
                 rows={4}
-                disabled={activeEntitlement.isVaultReadonly || isSynthesizing}
+                disabled={activeEntitlement.isVaultReadonly || isSavingCanvas}
                 value={brainDumpText}
                 onChange={(e) => setBrainDumpText(e.target.value)}
-                placeholder="Write your idea in plain English — who is struggling, what costs them time or money today, and how your product fixes it..."
+                placeholder="Write your idea in your own words — who is struggling, what costs them time or money today, and how your product helps..."
                 className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
               />
 
-              {/* Primary Action Bar: Synthesize 1-Page Concept Canvas + Cloud SQL Save */}
+              {/* Step 1 Save Bar: Keep Founder's Exact Words */}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="text-xs text-slate-500">
-                  Saves directly to your{' '}
-                  <strong className="text-slate-700">
-                    {currentPlan.title}
-                  </strong>{' '}
-                  vault &amp; builds your 5-block Concept Canvas below.
+                  💬 <strong>Your exact words stay here.</strong> There are no
+                  right or wrong answers — just get your initial thoughts down.
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={
-                    activeEntitlement.isVaultReadonly ||
-                    isSynthesizing ||
-                    brainDumpText.trim().length < 10
-                  }
-                  onClick={handleSynthesizeConceptCanvas}
-                >
-                  {isSynthesizing ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Synthesizing Your 1-Page Mirror...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Synthesize My 1-Page Concept Canvas (AI)
-                    </>
-                  )}
-                </Button>
+                {!activeEntitlement.isVaultReadonly && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isSavingCanvas}
+                    onClick={handleSaveCanvasEdits}
+                  >
+                    {isSavingCanvas ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3.5 w-3.5" />
+                        Save My Raw Idea
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* STEP 2: FLESH OUT YOUR IDEA (USER-TYPED 5-BLOCK CONCEPT CANVAS + AI TIDY UP) */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Sparkles className="h-4 w-4 text-indigo-600" />
+                    Step 2: Flesh Out Your Idea (1-Page Concept Canvas)
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Type your thoughts into the 5 boxes below to help you think
+                    through how your idea works.{' '}
+                    <strong className="text-slate-700">
+                      There are no right or wrong answers
+                    </strong>{' '}
+                    — write in plain English, save your exact notes, or click{' '}
+                    <strong className="text-indigo-700">
+                      Tidy Up My Notes with AI
+                    </strong>{' '}
+                    anytime to polish your wording.
+                  </CardDescription>
+                </div>
+                {!activeEntitlement.isVaultReadonly && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isSavingCanvas || isSynthesizing}
+                      onClick={handleSaveCanvasEdits}
+                    >
+                      {isSavingCanvas ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-3.5 w-3.5" />
+                          Save My Notes
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isSynthesizing || isSavingCanvas}
+                      onClick={handleTidyUpNotesWithAi}
+                    >
+                      {isSynthesizing ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Tidying Up Your Notes...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Tidy Up My Notes with AI
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {synthesisBanner && (
@@ -1105,185 +1135,338 @@ export default function WorkspacePage() {
                   </button>
                 </div>
               )}
-            </div>
-          </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Box 1: The Core Problem */}
+                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      1. The Core Problem
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      What frustrating problem are people dealing with today,
+                      and what does it cost them?
+                    </p>
+                  </div>
+                  <textarea
+                    rows={4}
+                    disabled={activeEntitlement.isVaultReadonly}
+                    value={effectiveCanvas.coreProblem}
+                    onChange={(e) =>
+                      setConceptCanvas({
+                        ...effectiveCanvas,
+                        coreProblem: e.target.value,
+                      })
+                    }
+                    placeholder="Type your answer here... (e.g., Shop owners waste 3 hours every Friday checking expiry dates by hand)"
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                  />
+                </div>
 
-          {/* STEP 2: AI "1-PAGE MIRROR" CONCEPT CANVAS */}
+                {/* Box 2: Target Customer */}
+                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      2. Target Customer
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Who is the very first type of customer you want to help in{' '}
+                      {countryPack.countryName} (or beyond)?
+                    </p>
+                  </div>
+                  <textarea
+                    rows={4}
+                    disabled={activeEntitlement.isVaultReadonly}
+                    value={effectiveCanvas.targetCustomer}
+                    onChange={(e) =>
+                      setConceptCanvas({
+                        ...effectiveCanvas,
+                        targetCustomer: e.target.value,
+                      })
+                    }
+                    placeholder={`Type your answer here... (e.g., Independent grocers and convenience stores in ${countryPack.countryName})`}
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                  />
+                </div>
+
+                {/* Box 3: Your Solution */}
+                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      3. Your Solution
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      In plain English, how does your product or service fix the
+                      problem for them?
+                    </p>
+                  </div>
+                  <textarea
+                    rows={4}
+                    disabled={activeEntitlement.isVaultReadonly}
+                    value={effectiveCanvas.proposedSolution}
+                    onChange={(e) =>
+                      setConceptCanvas({
+                        ...effectiveCanvas,
+                        proposedSolution: e.target.value,
+                      })
+                    }
+                    placeholder="Type your answer here... (e.g., A simple phone app that scans shelf labels and alerts staff 48 hours before items expire)"
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                  />
+                </div>
+
+                {/* Box 4: Why You Win (Unfair Edge) */}
+                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      4. Why Customers Pick You
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Why will customers choose your idea over doing nothing or
+                      using spreadsheets?
+                    </p>
+                  </div>
+                  <textarea
+                    rows={4}
+                    disabled={activeEntitlement.isVaultReadonly}
+                    value={effectiveCanvas.unfairAdvantage}
+                    onChange={(e) =>
+                      setConceptCanvas({
+                        ...effectiveCanvas,
+                        unfairAdvantage: e.target.value,
+                      })
+                    }
+                    placeholder="Type your answer here... (e.g., Takes 5 minutes to set up with no complicated IT systems needed)"
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                  />
+                </div>
+
+                {/* Box 5: How You Make Money & Grant Fit */}
+                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 md:col-span-2 lg:col-span-2">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                      5. How You Charge &amp; Funding Thoughts (
+                      {countryPack.countryName} — {countryPack.defaultCurrency})
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      How do you think you&apos;ll charge customers (e.g.,
+                      monthly fee, one-off sale, commission)? Any rough price in{' '}
+                      {countryPack.defaultCurrency} is fine!
+                    </p>
+                  </div>
+                  <textarea
+                    rows={4}
+                    disabled={activeEntitlement.isVaultReadonly}
+                    value={effectiveCanvas.revenueAndGrantFit}
+                    onChange={(e) =>
+                      setConceptCanvas({
+                        ...effectiveCanvas,
+                        revenueAndGrantFit: e.target.value,
+                      })
+                    }
+                    placeholder={`Type your answer here... (e.g., Monthly subscription around ${formatPlanCurrency(99, countryPack.defaultCurrency)}/month per shop, plus exploring ${countryGrants[0]?.grantName || 'local startup grants'})`}
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* STEP 3: YOUR PERSONAL "WHY" & AMBITION (FOUNDER MOTIVATION) */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Sparkles className="h-4 w-4 text-indigo-600" />
-                    Step 2: Your AI &ldquo;1-Page Mirror&rdquo; Concept Canvas
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                      3
+                    </span>
+                    Step 3: Your Personal &ldquo;Why&rdquo; &amp; Ambition
+                    <Badge variant="success">No Right or Wrong Answer</Badge>
                   </CardTitle>
-                  <CardDescription>
-                    We structured your raw notes into 5 investor-clear blocks.
-                    Click <strong>Edit Canvas</strong> anytime to fine-tune any
-                    card in plain English.
+                  <CardDescription className="mt-1">
+                    Build My Unicorn adapts its coaching to match <strong>your</strong> personal goals — whether you want to replace your 9-to-5 salary, build a weekend side hustle, champion a mission, or scale a venture-backed company.
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="success">
-                    {conceptCanvas
-                      ? 'Saved to Cloud SQL Vault'
-                      : 'Auto-Synthesized by Gemini 2.5'}
-                  </Badge>
-                  {!activeEntitlement.isVaultReadonly && (
-                    <Button
-                      type="button"
-                      variant={isEditingCanvas ? 'default' : 'outline'}
-                      size="sm"
-                      disabled={isSavingCanvas}
-                      onClick={() => {
-                        if (isEditingCanvas) {
-                          handleSaveCanvasEdits();
-                        } else {
-                          if (!conceptCanvas) {
-                            setConceptCanvas(effectiveCanvas);
-                          }
-                          setIsEditingCanvas(true);
-                        }
-                      }}
-                    >
-                      {isSavingCanvas ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Saving...
-                        </>
-                      ) : isEditingCanvas ? (
-                        <>
-                          <Save className="h-3.5 w-3.5" />
-                          Save Canvas Edits
-                        </>
-                      ) : (
-                        <>
-                          <Pencil className="h-3.5 w-3.5" />
-                          Edit Canvas
-                        </>
-                      )}
-                    </Button>
-                  )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isSavingCanvas || activeEntitlement.isVaultReadonly}
+                    onClick={handleSaveCanvasEdits}
+                  >
+                    {isSavingCanvas ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3.5 w-3.5" />
+                        Save My Motivation
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                    1. The Core Problem
-                  </div>
-                  {isEditingCanvas ? (
-                    <textarea
-                      rows={3}
-                      value={effectiveCanvas.coreProblem}
-                      onChange={(e) =>
-                        setConceptCanvas({
-                          ...effectiveCanvas,
-                          coreProblem: e.target.value,
-                        })
-                      }
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
-                    />
-                  ) : (
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                      {effectiveCanvas.coreProblem}
-                    </p>
-                  )}
+            <CardContent className="space-y-5">
+              {/* 1. Primary Motivation Cards */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  1. What is driving you to build this? (Pick what fits best right now)
+                </label>
+                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  {(
+                    [
+                      {
+                        id: 'LEAVE_JOB' as FounderMotivationType,
+                        emoji: '💼',
+                        title: 'Leave My 9-to-5 & Be My Own Boss',
+                        subtitle:
+                          'Replace my current income, gain freedom over my schedule, and build a sustainable business I own.',
+                      },
+                      {
+                        id: 'SIDE_HUSTLE' as FounderMotivationType,
+                        emoji: '🌙',
+                        title: 'Build a Profitable Side Hustle',
+                        subtitle:
+                          'Keep my day job for now while building a low-overhead extra income stream on evenings and weekends.',
+                      },
+                      {
+                        id: 'SAVE_THE_WORLD' as FounderMotivationType,
+                        emoji: '🌍',
+                        title: 'Solve a Mission I Care About',
+                        subtitle:
+                          'Fix a broken problem in my community or industry and create meaningful social, environmental, or human impact.',
+                      },
+                      {
+                        id: 'SCALE_STARTUP' as FounderMotivationType,
+                        emoji: '🚀',
+                        title: 'Scale a High-Growth Startup',
+                        subtitle:
+                          'Build a fast-growing company, hire a team, and potentially apply for state grants or raise investor funding.',
+                      },
+                      {
+                        id: 'BUILD_TO_SELL' as FounderMotivationType,
+                        emoji: '🏆',
+                        title: 'Build a Company & Sell It',
+                        subtitle:
+                          'Create a valuable, systemised business asset with recurring revenue that an acquirer or competitor will want to buy.',
+                      },
+                    ] as const
+                  ).map((option) => {
+                    const isSelected =
+                      founderMotivation.primaryMotivation === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() =>
+                          setFounderMotivation({
+                            ...founderMotivation,
+                            primaryMotivation: option.id,
+                          })
+                        }
+                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        } disabled:opacity-60`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xl">{option.emoji}</span>
+                            {isSelected && (
+                              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-2 text-xs font-bold text-slate-900">
+                            {option.title}
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            {option.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                    2. Target Customer
-                  </div>
-                  {isEditingCanvas ? (
-                    <textarea
-                      rows={3}
-                      value={effectiveCanvas.targetCustomer}
-                      onChange={(e) =>
-                        setConceptCanvas({
-                          ...effectiveCanvas,
-                          targetCustomer: e.target.value,
-                        })
-                      }
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
-                    />
-                  ) : (
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                      {effectiveCanvas.targetCustomer}
-                    </p>
-                  )}
+              {/* 2. Weekly Hours Available */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  2. How much time can you realistically give this each week?
+                </label>
+                <div className="mt-2 flex flex-wrap gap-2.5">
+                  {(
+                    [
+                      {
+                        id: '5_TO_10_HRS' as FounderWeeklyHours,
+                        label: '⏰ 5–10 hrs / week (Evenings & Weekends)',
+                      },
+                      {
+                        id: '15_TO_25_HRS' as FounderWeeklyHours,
+                        label: '⚡ 15–25 hrs / week (Part-Time Focus)',
+                      },
+                      {
+                        id: '40_PLUS_HRS' as FounderWeeklyHours,
+                        label: '🔥 40+ hrs / week (Full-Time All-In)',
+                      },
+                    ] as const
+                  ).map((pill) => {
+                    const isSelected =
+                      founderMotivation.weeklyHoursAvailable === pill.id;
+                    return (
+                      <button
+                        key={pill.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() =>
+                          setFounderMotivation({
+                            ...founderMotivation,
+                            weeklyHoursAvailable: pill.id,
+                          })
+                        }
+                        className={`rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                        } disabled:opacity-60`}
+                      >
+                        {pill.label}
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                    3. Your Solution
-                  </div>
-                  {isEditingCanvas ? (
-                    <textarea
-                      rows={3}
-                      value={effectiveCanvas.proposedSolution}
-                      onChange={(e) =>
-                        setConceptCanvas({
-                          ...effectiveCanvas,
-                          proposedSolution: e.target.value,
-                        })
-                      }
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
-                    />
-                  ) : (
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                      {effectiveCanvas.proposedSolution}
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                    4. Why You Win (Unfair Edge)
-                  </div>
-                  {isEditingCanvas ? (
-                    <textarea
-                      rows={3}
-                      value={effectiveCanvas.unfairAdvantage}
-                      onChange={(e) =>
-                        setConceptCanvas({
-                          ...effectiveCanvas,
-                          unfairAdvantage: e.target.value,
-                        })
-                      }
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
-                    />
-                  ) : (
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                      {effectiveCanvas.unfairAdvantage}
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 md:col-span-2 lg:col-span-2">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                    5. Revenue Model &amp; Localized Grant Fit (
-                    {countryPack.countryName})
-                  </div>
-                  {isEditingCanvas ? (
-                    <textarea
-                      rows={3}
-                      value={effectiveCanvas.revenueAndGrantFit}
-                      onChange={(e) =>
-                        setConceptCanvas({
-                          ...effectiveCanvas,
-                          revenueAndGrantFit: e.target.value,
-                        })
-                      }
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
-                    />
-                  ) : (
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                      {effectiveCanvas.revenueAndGrantFit}
-                    </p>
-                  )}
-                </div>
+              {/* 3. Personal 12-Month Success Vision */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  3. In your own words: What does &ldquo;success&rdquo; look like for you 12 months from today?
+                </label>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Be honest with yourself — e.g., &ldquo;Making {formatPlanCurrency(4000, countryPack.defaultCurrency)}/month so I can hand in my notice&rdquo;, &ldquo;10 paying local shops using it every week&rdquo;, or &ldquo;Helping 500 families in my community&rdquo;.
+                </p>
+                <textarea
+                  rows={3}
+                  disabled={activeEntitlement.isVaultReadonly}
+                  value={founderMotivation.twelveMonthSuccessVision}
+                  onChange={(e) =>
+                    setFounderMotivation({
+                      ...founderMotivation,
+                      twelveMonthSuccessVision: e.target.value,
+                    })
+                  }
+                  placeholder="Write what 12-month success looks like for your life and business..."
+                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                />
               </div>
             </CardContent>
           </Card>
@@ -1301,8 +1484,8 @@ export default function WorkspacePage() {
                     (Blind-Spot Engine)
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Generated after capturing your vision — supportive questions
-                    to sharpen your plan before Module B.
+                    Tailored to your concept and personal ambition — supportive
+                    questions to sharpen your plan before Module B.
                   </p>
                 </div>
               </div>
@@ -1333,15 +1516,59 @@ export default function WorkspacePage() {
                       suggestedAction:
                         'Separating end-user pain from budget-holder ROI prevents stalled B2B pilots.',
                     },
-                    {
-                      id: 'default-bs-3',
-                      category: 'OPEN_QUESTION',
-                      severity: 'INFO',
-                      title: `🏛️ 3. ${countryPack.countryName} Grant Readiness`,
-                      explanation: `To qualify for ${countryGrants[0]?.providerAgency || 'State'} funding, highlight export scalability beyond ${countryPack.countryName} early in Module B.`,
-                      suggestedAction:
-                        'State innovation agencies prioritize job creation and international export potential.',
-                    },
+                    founderMotivation.primaryMotivation === 'SIDE_HUSTLE'
+                      ? {
+                          id: 'default-bs-3',
+                          category: 'OPERATIONAL_REALITY',
+                          severity: 'INFO',
+                          title: '🌙 3. Protecting Your Side-Hustle Hours',
+                          explanation:
+                            'With limited evening/weekend hours, avoid custom manual work or 24/7 support promises. How can you keep delivery simple and repeatable from day one?',
+                          suggestedAction:
+                            'Pick one narrow customer problem you can deliver asynchronously without burning out.',
+                        }
+                      : founderMotivation.primaryMotivation === 'SAVE_THE_WORLD'
+                        ? {
+                            id: 'default-bs-3',
+                            category: 'OPEN_QUESTION',
+                            severity: 'INFO',
+                            title: '🌍 3. Balancing Mission Impact & Revenue',
+                            explanation:
+                              'Even the most meaningful mission needs a self-sustaining revenue engine so you don’t rely purely on donations or burnout.',
+                            suggestedAction:
+                              'Identify which buyer has the budget to pay for the outcome your mission creates.',
+                          }
+                        : founderMotivation.primaryMotivation === 'SCALE_STARTUP'
+                          ? {
+                              id: 'default-bs-3',
+                              category: 'OPEN_QUESTION',
+                              severity: 'INFO',
+                              title: `🚀 3. ${countryPack.countryName} Grant & Scale Readiness`,
+                              explanation: `To qualify for ${countryGrants[0]?.providerAgency || 'State'} funding or angel investment, highlight export scalability beyond ${countryPack.countryName} early in Module B.`,
+                              suggestedAction:
+                                'State innovation agencies and investors prioritize repeatable acquisition and international potential.',
+                            }
+                          : founderMotivation.primaryMotivation === 'BUILD_TO_SELL'
+                            ? {
+                                id: 'default-bs-3',
+                                category: 'OPERATIONAL_REALITY',
+                                severity: 'INFO',
+                                title: '🏆 3. Building an Asset Someone Can Buy',
+                                explanation:
+                                  'Buyers pay a premium for businesses with recurring revenue and systems that do not depend on the founder doing every job personally.',
+                                suggestedAction:
+                                  'Focus on repeatable contracts and clean processes so the business is transferable.',
+                              }
+                            : {
+                              id: 'default-bs-3',
+                              category: 'OPERATIONAL_REALITY',
+                              severity: 'INFO',
+                              title: '💼 3. Your "Leave the 9-to-5" Freedom Number',
+                              explanation:
+                                'To comfortably leave your job, focus on how many paying customers you need to cover your baseline monthly living costs first.',
+                              suggestedAction:
+                                'Prioritize fast-paying customers and upfront cashflow over complex features.',
+                            },
                   ] satisfies BlindSpotItem[])
               ).map((item, idx) => (
                 <div
@@ -1361,18 +1588,6 @@ export default function WorkspacePage() {
                       </p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleParkSpecificQuestion(
-                        `${item.title}: ${item.explanation}`
-                      )
-                    }
-                    className="mt-2.5 inline-flex items-center gap-1 self-start text-[11px] font-semibold text-amber-800 hover:text-amber-950 hover:underline"
-                  >
-                    <BookmarkPlus className="h-3 w-3" />
-                    Park in Open Questions
-                  </button>
                 </div>
               ))}
             </div>

@@ -11,6 +11,24 @@ import {
 } from '@/lib/localization';
 import type { StartupHat, BlindSpotItem } from '@/db/schema';
 
+export type FounderMotivationType =
+  | 'LEAVE_JOB'
+  | 'SIDE_HUSTLE'
+  | 'SAVE_THE_WORLD'
+  | 'SCALE_STARTUP'
+  | 'BUILD_TO_SELL';
+
+export type FounderWeeklyHours =
+  | '5_TO_10_HRS'
+  | '15_TO_25_HRS'
+  | '40_PLUS_HRS';
+
+export interface SavedFounderMotivation {
+  primaryMotivation: FounderMotivationType;
+  weeklyHoursAvailable: FounderWeeklyHours;
+  twelveMonthSuccessVision: string;
+}
+
 export interface SavedConceptCanvas {
   coreProblem: string;
   targetCustomer: string;
@@ -63,6 +81,7 @@ export interface ActiveStartupPlan {
   isPivot?: boolean;
   brainDumpText?: string;
   conceptCanvas?: SavedConceptCanvas;
+  founderMotivation?: SavedFounderMotivation;
   thingsToConsider?: BlindSpotItem[];
   openQuestions: string[];
 }

@@ -14,6 +14,7 @@ import {
   formatPlanCurrency,
   type SupportedCountryCode,
 } from '@/lib/localization';
+import type { SavedFounderMotivation } from '@/lib/auth/session-store';
 
 export interface ConceptCanvasBlocks {
   coreProblem: string;
@@ -36,8 +37,18 @@ export interface ModuleASynthesisResult {
 
 const DEFAULT_SYSTEM_PROMPT = `You are the Build My Unicorn (BMU) 2.0 Supportive Co-Founder & Blind-Spot Engine.
 Always follow the "Capture First, Expand Second" philosophy:
-1. Never criticize the founder's raw idea upfront. Extract and structure their vision into a clear, investor-ready 5-Block "1-Page Mirror" Concept Canvas.
+1. Never criticize the founder's raw idea upfront. When tidying up the founder's Step 2 Concept Canvas notes, preserve their exact core ideas and voice while making their notes clear, well-structured, and easy to read. Remember there are no right or wrong answers.
 2. Second, generate 3 constructive, encouraging "Things to Consider" blind spots (operational realities, industry traps, or validation questions) framed as supportive coaching prompts.`;
+
+function tidyFounderSentence(rawText: string | undefined, fallbackText: string): string {
+  const cleaned = (rawText || '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return fallbackText;
+  // Capitalize the first letter of each sentence and ensure ending punctuation
+  const capitalized = cleaned.replace(/(^\s*[a-z]|[.!?]\s+[a-z])/g, (match) =>
+    match.toUpperCase()
+  );
+  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
+}
 
 function hasConfiguredGeminiKey(customKey?: string | null): string | null {
   if (customKey && customKey.trim().length > 15) {
@@ -55,8 +66,8 @@ function hasConfiguredGeminiKey(customKey?: string | null): string | null {
 }
 
 /**
- * Smart deterministic synthesizer used when GEMINI_API_KEY is not yet set in .env,
- * ensuring Module A works 100% reliably out-of-the-box and uses the founder's actual inputs & country rules.
+ * Smart deterministic note-tidier used when GEMINI_API_KEY is not yet set in .env,
+ * preserving the founder's own typed Step 2 notes while tidying grammar and punctuation.
  */
 function buildSmartFallbackSynthesis(params: {
   planTitle: string;
@@ -64,13 +75,15 @@ function buildSmartFallbackSynthesis(params: {
   industryCategory: string;
   hqCountryCode: SupportedCountryCode;
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
+  draftCanvas?: Partial<ConceptCanvasBlocks>;
+  founderMotivation?: SavedFounderMotivation;
 }): { canvas: ConceptCanvasBlocks; thingsToConsider: BlindSpotItem[] } {
   const countryPack = getCountryRulePack(params.hqCountryCode);
   const grants = getGrantsForCountry(params.hqCountryCode);
   const topGrant = grants[0]?.grantName || 'National Innovation Support';
   const raw = params.brainDumpText.trim();
 
-  // Extract sentences from the founder's raw brain dump
+  // Extract sentences from the founder's raw brain dump as helpful fallbacks only if a box was left blank
   const sentences = raw
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
@@ -81,7 +94,7 @@ function buildSmartFallbackSynthesis(params: {
     `Customers in ${params.industryCategory} face manual workflow bottlenecks, wasted time, and hidden margin loss.`;
   const secondSentence =
     sentences.slice(1).join(' ') ||
-    `${params.planTitle} automates the core workflow so buyers get measurable ROI within their first 30 days.`;
+    `${params.planTitle} solves this problem simply and saves customers time and money.`;
 
   const benchmarkPrice =
     params.industryCategory.includes('SaaS') ||
@@ -90,50 +103,105 @@ function buildSmartFallbackSynthesis(params: {
       : formatPlanCurrency(85, countryPack.defaultCurrency) +
         ' average order value';
 
+  const draft = params.draftCanvas || {};
+
   const canvas: ConceptCanvasBlocks = {
-    coreProblem: firstSentence,
-    targetCustomer: `Decision-makers in ${params.industryCategory} starting in ${countryPack.countryName} (${
-      params.exportPotential === 'EXPORTING_INTERNATIONALLY'
-        ? 'with international export expansion to UK/EU/US'
-        : `focused on the domestic ${countryPack.countryName} market`
-    }).`,
-    proposedSolution: `${params.planTitle}: ${secondSentence}`,
-    unfairAdvantage: `Built specifically for ${params.industryCategory} operators with zero-friction onboarding, localized ${countryPack.countryName} compliance (${countryPack.taxName} ${countryPack.standardTaxRatePercent}%), and fast time-to-value.`,
-    revenueAndGrantFit: `Priced in ${countryPack.defaultCurrency} (benchmark: ${benchmarkPrice}). Positioned to explore ${topGrant} (${
-      grants[0]?.maxAmountFormatted || 'Co-funded support'
-    }).`,
+    coreProblem: tidyFounderSentence(draft.coreProblem, firstSentence),
+    targetCustomer: tidyFounderSentence(
+      draft.targetCustomer,
+      `Customers in ${countryPack.countryName} within ${params.industryCategory} (${
+        params.exportPotential === 'EXPORTING_INTERNATIONALLY'
+          ? 'with international export potential'
+          : `focused on the ${countryPack.countryName} market`
+      }).`
+    ),
+    proposedSolution: tidyFounderSentence(draft.proposedSolution, secondSentence),
+    unfairAdvantage: tidyFounderSentence(
+      draft.unfairAdvantage,
+      `Simple to adopt for ${params.industryCategory} customers with fast, measurable results.`
+    ),
+    revenueAndGrantFit: tidyFounderSentence(
+      draft.revenueAndGrantFit,
+      `Charged in ${countryPack.defaultCurrency} (e.g., ${benchmarkPrice}), with potential to explore ${topGrant}.`
+    ),
     lastSynthesizedAt: new Date().toISOString(),
     aiEngineUsed: 'smart-synthesizer',
   };
+
+  const mot = params.founderMotivation?.primaryMotivation || 'LEAVE_JOB';
+  const motivationBlindSpot: BlindSpotItem =
+    mot === 'SIDE_HUSTLE'
+      ? {
+          id: `bs-${Date.now()}-3`,
+          category: 'OPERATIONAL_REALITY',
+          severity: 'INFO',
+          title: '🌱 3. Protecting Your Evening & Weekend Time',
+          explanation:
+            'Because you are building this as a side hustle alongside your main commitments, make sure customers can buy and use the product without needing live daytime phone support.',
+          suggestedAction:
+            'Design self-serve onboarding or automated scheduling from Day 1.',
+        }
+      : mot === 'SAVE_THE_WORLD'
+        ? {
+            id: `bs-${Date.now()}-3`,
+            category: 'OPEN_QUESTION',
+            severity: 'INFO',
+            title: '🌍 3. Fueling Your Mission with Sustainable Revenue',
+            explanation:
+              'Mission-driven businesses make the biggest impact when they are financially self-sustaining. Who has the budget to pay for this today so your mission can grow without running out of cash?',
+            suggestedAction: `Explore both paying pilot customers and ${topGrant} support.`,
+          }
+        : mot === 'SCALE_STARTUP'
+          ? {
+              id: `bs-${Date.now()}-3`,
+              category: 'OPEN_QUESTION',
+              severity: 'INFO',
+              title: `🚀 3. High-Growth & Grant Readiness (${topGrant})`,
+              explanation: `${
+                grants[0]?.reimbursementWarning ||
+                'Investors and grant agencies look for repeatable customer acquisition and international export potential.'
+              } Can you line up 5 paying pilot customers to prove demand early?`,
+              suggestedAction: `Highlight export scalability beyond ${countryPack.countryName} in Module B.`,
+            }
+          : mot === 'BUILD_TO_SELL'
+            ? {
+                id: `bs-${Date.now()}-3`,
+                category: 'OPERATIONAL_REALITY',
+                severity: 'INFO',
+                title: '🏆 3. Building an Asset Someone Can Buy',
+                explanation:
+                  'Acquirers buy businesses that run without the founder doing every job personally. From Day 1, aim for recurring contracts and documented processes rather than one-off personal favours.',
+                suggestedAction:
+                  'Design the business so a future buyer can step in and run it smoothly.',
+              }
+            : {
+              id: `bs-${Date.now()}-3`,
+              category: 'OPEN_QUESTION',
+              severity: 'INFO',
+              title: '🏃 3. Your Path to Replacing Your 9-to-5 Income',
+              explanation: `To safely leave your job, recurring monthly revenue is your best friend. How many paying customers at ${benchmarkPrice} would you need to cover your core monthly living expenses?`,
+              suggestedAction:
+                'Focus on fast-paying customers with a short sales cycle in Module B.',
+            };
 
   const thingsToConsider: BlindSpotItem[] = [
     {
       id: `bs-${Date.now()}-1`,
       category: 'OPERATIONAL_REALITY',
       severity: 'INFO',
-      title: '🔌 1. Integration & Day-1 Onboarding Friction',
-      explanation: `In ${params.industryCategory}, buyers rarely rip-and-replace their existing tools on Day 1. Can a customer test ${params.planTitle} in under 15 minutes using a simple CSV upload, WhatsApp alert, or lightweight plugin before full system integration?`,
-      suggestedAction: 'Avoids a 6-month engineering bottleneck before proving customer willingness to pay.',
+      title: '🔌 1. Keep Day-1 Setup Simple',
+      explanation: `In ${params.industryCategory}, buyers rarely rip-and-replace their existing tools on Day 1. Can a customer test ${params.planTitle} in under 15 minutes before any complex setup?`,
+      suggestedAction: 'Avoids a 6-month build before proving customer willingness to pay.',
     },
     {
       id: `bs-${Date.now()}-2`,
       category: 'INDUSTRY_TRAP',
       severity: 'WARNING',
       title: `🎯 2. Who Holds the Budget in ${countryPack.countryName}?`,
-      explanation: `Make sure the person feeling the daily pain is also the person authorized to sign off on ${benchmarkPrice}. How much money or staff time does the buyer lose every single week by doing nothing?`,
+      explanation: `Make sure the person feeling the daily pain is also the person authorized to sign off on ${benchmarkPrice}. How much money or time does the buyer lose every week by doing nothing?`,
       suggestedAction: 'Test ROI directly with the budget owner in Module B.',
     },
-    {
-      id: `bs-${Date.now()}-3`,
-      category: 'OPEN_QUESTION',
-      severity: 'INFO',
-      title: `🏛️ 3. Grant & Cashflow Timing (${topGrant})`,
-      explanation: `${
-        grants[0]?.reimbursementWarning ||
-        'Most government grants reimburse vouchered expenditure after you spend the cash.'
-      } Can you validate 5 paying pilot customers before relying on grant funding?`,
-      suggestedAction: `Highlight international export scalability from ${countryPack.countryName} early in Module B.`,
-    },
+    motivationBlindSpot,
   ];
 
   return { canvas, thingsToConsider };
@@ -152,6 +220,8 @@ export async function synthesizeModuleAConceptCanvasViaRouter(params: {
   industryCategory: string;
   hqCountryCode: SupportedCountryCode;
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
+  draftCanvas?: Partial<ConceptCanvasBlocks>;
+  founderMotivation?: SavedFounderMotivation;
 }): Promise<ModuleASynthesisResult> {
   const countryPack = getCountryRulePack(params.hqCountryCode);
   const grants = getGrantsForCountry(params.hqCountryCode);
@@ -234,6 +304,7 @@ export async function synthesizeModuleAConceptCanvasViaRouter(params: {
       }
 
       const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const draft = params.draftCanvas || {};
       const userPrompt = `
 Founder Startup Title: ${params.planTitle}
 Industry Category: ${params.industryCategory}
@@ -242,18 +313,30 @@ Indirect Tax: ${countryPack.taxName} (${countryPack.standardTaxRatePercent}%)
 Export Ambition: ${params.exportPotential}
 Matched Local Grants: ${grants.map((g) => `${g.grantName} (${g.maxAmountFormatted})`).join('; ')}
 
-Founder's Raw Brain Dump:
+Founder's Raw Idea (Step 1):
 """
 ${params.brainDumpText}
 """
 
+Founder's Draft Notes in Step 2 (Tidy up their grammar and clarity while keeping their own meaning and voice; if a field is empty, helpfully suggest a simple starting note based on their raw idea):
+- 1. Core Problem: ${draft.coreProblem || '(not filled in yet)'}
+- 2. Target Customer: ${draft.targetCustomer || '(not filled in yet)'}
+- 3. Your Solution: ${draft.proposedSolution || '(not filled in yet)'}
+- 4. Why You Win: ${draft.unfairAdvantage || '(not filled in yet)'}
+- 5. Revenue & Grant Fit: ${draft.revenueAndGrantFit || '(not filled in yet)'}
+
+Founder's Motivation (Step 3):
+- Primary Motivation: ${params.founderMotivation?.primaryMotivation || 'LEAVE_JOB'}
+- Weekly Hours Available: ${params.founderMotivation?.weeklyHoursAvailable || '15_TO_25_HRS'}
+- 12-Month Success Vision: ${params.founderMotivation?.twelveMonthSuccessVision || '(not filled in yet)'}
+
 Return STRICT JSON matching this exact shape (no markdown fences):
 {
-  "coreProblem": "2 concise sentences describing the painful customer problem and what it costs them.",
-  "targetCustomer": "2 concise sentences identifying the exact beachhead buyer in ${countryPack.countryName} and expansion market.",
-  "proposedSolution": "2 concise sentences explaining how ${params.planTitle} solves the problem simply.",
-  "unfairAdvantage": "2 concise sentences on why this wins against status-quo manual workarounds.",
-  "revenueAndGrantFit": "2 concise sentences on pricing in ${countryPack.defaultCurrency} and fit for ${grants[0]?.grantName || 'local grants'}.",
+  "coreProblem": "Tidied, clear version of the founder's Core Problem note in plain English.",
+  "targetCustomer": "Tidied, clear version of the founder's Target Customer note in plain English.",
+  "proposedSolution": "Tidied, clear version of the founder's Solution note in plain English.",
+  "unfairAdvantage": "Tidied, clear version of the founder's Why You Win note in plain English.",
+  "revenueAndGrantFit": "Tidied, clear version of the founder's Revenue & Grant Fit note in plain English.",
   "thingsToConsider": [
     {
       "category": "OPERATIONAL_REALITY",

@@ -14,6 +14,7 @@ import {
   type ConceptCanvasBlocks,
 } from '@/lib/ai/router';
 import type { SupportedCountryCode } from '@/lib/localization';
+import type { SavedFounderMotivation } from '@/lib/auth/session-store';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,6 +27,8 @@ export async function generateModuleAConceptCanvasAction(input: {
   industryCategory: string;
   hqCountryCode: SupportedCountryCode;
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
+  draftCanvas?: Partial<ConceptCanvasBlocks>;
+  founderMotivation?: SavedFounderMotivation;
 }): Promise<{
   ok: boolean;
   error?: string;
@@ -46,6 +49,8 @@ export async function generateModuleAConceptCanvasAction(input: {
     industryCategory: input.industryCategory,
     hqCountryCode: input.hqCountryCode,
     exportPotential: input.exportPotential,
+    draftCanvas: input.draftCanvas,
+    founderMotivation: input.founderMotivation,
   });
 
   if (!aiResult.allowed) {
@@ -79,6 +84,7 @@ export async function generateModuleAConceptCanvasAction(input: {
         brainDumpText: input.brainDumpText,
         exportPotential: input.exportPotential,
         conceptCanvas: aiResult.canvas,
+        founderMotivation: input.founderMotivation,
       };
 
       if (existingMod.length > 0) {
@@ -136,6 +142,7 @@ export async function saveModuleACanvasEditsAction(input: {
   brainDumpText: string;
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
   canvas: ConceptCanvasBlocks;
+  founderMotivation?: SavedFounderMotivation;
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
     return { ok: true, persistedToCloudSql: false };
@@ -160,6 +167,7 @@ export async function saveModuleACanvasEditsAction(input: {
         ...input.canvas,
         lastSynthesizedAt: new Date().toISOString(),
       },
+      founderMotivation: input.founderMotivation,
     };
 
     if (existingMod.length > 0) {

@@ -35,6 +35,7 @@ import type {
   IndustryCategory,
   TeamStructure,
   ActiveStartupPlan,
+  SavedFounderMotivation,
 } from '@/lib/auth/session-store';
 
 export interface AuthActionResult {
@@ -117,6 +118,7 @@ async function buildSessionFromDbUser(
         lastSynthesizedAt?: string;
         aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
       };
+      founderMotivation?: SavedFounderMotivation;
     };
 
     const questionRows = await db
@@ -146,6 +148,7 @@ async function buildSessionFromDbUser(
       isPivot: Boolean(plan.parentPlanId),
       brainDumpText: structuredInputs.brainDumpText || plan.oneLinerSummary || '',
       conceptCanvas: structuredInputs.conceptCanvas,
+      founderMotivation: structuredInputs.founderMotivation,
       thingsToConsider: Array.isArray(modA?.aiThingsToConsiderJsonb)
         ? modA.aiThingsToConsiderJsonb
         : undefined,
