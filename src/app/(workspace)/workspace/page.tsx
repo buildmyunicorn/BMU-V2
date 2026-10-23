@@ -32,6 +32,9 @@ import {
   UserCheck,
   LogOut,
   Wrench,
+  Loader2,
+  Pencil,
+  Save,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -63,11 +66,18 @@ import {
   saveBmuSession,
   getDefaultDemoSession,
   type BmuLocalSession,
+  type SavedConceptCanvas,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
   logoutFounderAction,
 } from '@/app/actions/auth';
+import {
+  generateModuleAConceptCanvasAction,
+  saveModuleACanvasEditsAction,
+  parkOpenQuestionAction,
+} from '@/app/actions/module-a';
+import type { BlindSpotItem } from '@/db/schema';
 
 const MODULES_LIST: Array<{
   code: ModuleCode;
@@ -175,6 +185,16 @@ export default function WorkspacePage() {
     null
   );
 
+  // Module A Step 2 & Step 4 Live State
+  const [conceptCanvas, setConceptCanvas] = useState<SavedConceptCanvas | null>(
+    null
+  );
+  const [thingsToConsider, setThingsToConsider] = useState<BlindSpotItem[]>([]);
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [isEditingCanvas, setIsEditingCanvas] = useState(false);
+  const [isSavingCanvas, setIsSavingCanvas] = useState(false);
+  const [synthesisBanner, setSynthesisBanner] = useState<string | null>(null);
+
   // Hydrate from localStorage first, then sync with Cloud SQL PostgreSQL session cookie if present
   useEffect(() => {
     const loaded = loadBmuSession();
@@ -185,6 +205,12 @@ export default function WorkspacePage() {
       setSelectedCountry(activePlan.hqCountryCode);
       if (activePlan.brainDumpText) {
         setBrainDumpText(activePlan.brainDumpText);
+      }
+      if (activePlan.conceptCanvas) {
+        setConceptCanvas(activePlan.conceptCanvas);
+      }
+      if (activePlan.thingsToConsider?.length) {
+        setThingsToConsider(activePlan.thingsToConsider);
       }
       if (activePlan.openQuestions?.length) {
         setOpenQuestions(activePlan.openQuestions);
@@ -205,6 +231,12 @@ export default function WorkspacePage() {
             setSelectedCountry(dbPlan.hqCountryCode);
             if (dbPlan.brainDumpText) {
               setBrainDumpText(dbPlan.brainDumpText);
+            }
+            if (dbPlan.conceptCanvas) {
+              setConceptCanvas(dbPlan.conceptCanvas);
+            }
+            if (dbPlan.thingsToConsider?.length) {
+              setThingsToConsider(dbPlan.thingsToConsider);
             }
             if (dbPlan.openQuestions?.length) {
               setOpenQuestions(dbPlan.openQuestions);
@@ -345,15 +377,147 @@ export default function WorkspacePage() {
     saveBmuSession(updated);
     setSelectedCountry(found.hqCountryCode);
     if (found.brainDumpText) setBrainDumpText(found.brainDumpText);
+    setConceptCanvas(found.conceptCanvas || null);
+    setThingsToConsider(found.thingsToConsider || []);
     if (found.openQuestions) setOpenQuestions(found.openQuestions);
     setPlanDropdownOpen(false);
   }
 
+  async function handleParkSpecificQuestion(questionText: string) {
+    const clean = questionText.trim();
+    if (!clean) return;
+    if (!openQuestions.includes(clean)) {
+      const next = [...openQuestions, clean];
+      setOpenQuestions(next);
+      await parkOpenQuestionAction({
+        planId: currentPlan.id,
+        questionText: clean,
+      });
+    }
+  }
+
   function handleParkQuestion() {
     const newQ = `Confirm urgent customer pain point & average unit price (${countryPack.defaultCurrency}) with 3 target buyers in ${countryPack.countryName}.`;
-    if (!openQuestions.includes(newQ)) {
-      const next = [...openQuestions, newQ];
-      setOpenQuestions(next);
+    handleParkSpecificQuestion(newQ);
+  }
+
+  const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
+    coreProblem: brainDumpText.slice(0, 180),
+    targetCustomer: `Primary buyers in ${countryPack.countryName} within ${currentPlan.industryCategory} (${
+      currentPlan.exportPotential === 'EXPORTING_INTERNATIONALLY'
+        ? 'Targeting International Export'
+        : 'Domestic Focus'
+    }).`,
+    proposedSolution:
+      currentPlan.oneLinerSummary ||
+      `${currentPlan.title} automates the workflow so customers save time and margin.`,
+    unfairAdvantage:
+      'Zero manual data entry for busy staff; delivers measurable ROI within the first 30 days.',
+    revenueAndGrantFit: `Priced in ${countryPack.defaultCurrency} (${formatPlanCurrency(
+      299,
+      countryPack.defaultCurrency
+    )}/mo benchmark). Eligible to explore ${
+      countryGrants[0]?.grantName || 'Regional Innovation Support'
+    } (${countryPack.taxName} ${countryPack.standardTaxRatePercent}%).`,
+  };
+
+  async function handleSynthesizeConceptCanvas() {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Concept Canvas Synthesis (${aiCreditCheck.reason})`
+      );
+      return;
+    }
+
+    setIsSynthesizing(true);
+    setSynthesisBanner(null);
+
+    try {
+      const result = await generateModuleAConceptCanvasAction({
+        userId: session.user.id,
+        planId: currentPlan.id,
+        planTitle: currentPlan.title,
+        brainDumpText,
+        industryCategory: currentPlan.industryCategory,
+        hqCountryCode: selectedCountry,
+        exportPotential: currentPlan.exportPotential,
+      });
+
+      setConceptCanvas(result.canvas);
+      setThingsToConsider(result.thingsToConsider);
+
+      // Update local session store as well
+      const updatedPlans = session.plans.map((p) =>
+        p.id === currentPlan.id
+          ? {
+              ...p,
+              brainDumpText,
+              conceptCanvas: result.canvas,
+              thingsToConsider: result.thingsToConsider,
+            }
+          : p
+      );
+      const updatedSession: BmuLocalSession = {
+        ...session,
+        entitlement: {
+          ...session.entitlement,
+          aiCreditsUsedThisMonth:
+            result.creditsUsedAfter ??
+            session.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+        plans: updatedPlans,
+      };
+      setSession(updatedSession);
+      saveBmuSession(updatedSession);
+
+      setSynthesisBanner(
+        result.persistedToCloudSql
+          ? `✅ Concept Canvas & Blind Spots synthesized (${
+              result.engineMode === 'gemini-2.5-flash'
+                ? 'Gemini 2.5 Flash'
+                : 'BMU Smart Synthesizer'
+            }) and saved to Cloud SQL!`
+          : `✅ Concept Canvas synthesized (${
+              result.engineMode === 'gemini-2.5-flash'
+                ? 'Gemini 2.5 Flash'
+                : 'BMU Smart Synthesizer'
+            })!`
+      );
+    } finally {
+      setIsSynthesizing(false);
+    }
+  }
+
+  async function handleSaveCanvasEdits() {
+    setIsSavingCanvas(true);
+    setSynthesisBanner(null);
+    try {
+      const toSave = effectiveCanvas;
+      const res = await saveModuleACanvasEditsAction({
+        planId: currentPlan.id,
+        brainDumpText,
+        exportPotential: currentPlan.exportPotential,
+        canvas: toSave,
+      });
+      setConceptCanvas(toSave);
+      setIsEditingCanvas(false);
+
+      const updatedPlans = session.plans.map((p) =>
+        p.id === currentPlan.id
+          ? { ...p, brainDumpText, conceptCanvas: toSave }
+          : p
+      );
+      const updatedSession = { ...session, plans: updatedPlans };
+      setSession(updatedSession);
+      saveBmuSession(updatedSession);
+
+      setSynthesisBanner(
+        res.persistedToCloudSql
+          ? '✅ Your Concept Canvas edits have been saved to Cloud SQL!'
+          : '✅ Your Concept Canvas edits have been saved!'
+      );
+    } finally {
+      setIsSavingCanvas(false);
     }
   }
 
@@ -764,35 +928,74 @@ export default function WorkspacePage() {
             {/* Collapsible Industry Examples Card */}
             {showExamples && (
               <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs md:grid-cols-3">
-                <div className="rounded-lg bg-white p-3 shadow-2xs">
-                  <div className="font-bold text-emerald-800">
-                    1. B2B SaaS Example
+                <div className="flex flex-col justify-between rounded-lg bg-white p-3 shadow-2xs">
+                  <div>
+                    <div className="font-bold text-emerald-800">
+                      1. B2B SaaS Example
+                    </div>
+                    <p className="mt-1 text-slate-600">
+                      &ldquo;Independent grocers lose{' '}
+                      {formatPlanCurrency(1800, countryPack.defaultCurrency)}/wk
+                      in expired fresh food because staff check dates manually on
+                      Friday nights.&rdquo;
+                    </p>
                   </div>
-                  <p className="mt-1 text-slate-600">
-                    &ldquo;Independent grocers lose{' '}
-                    {formatPlanCurrency(1800, countryPack.defaultCurrency)}/wk
-                    in expired fresh food because staff check dates manually on
-                    Friday nights.&rdquo;
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBrainDumpText(
+                        `Independent grocers lose ${formatPlanCurrency(1800, countryPack.defaultCurrency)}/wk in expired fresh food because staff check dates manually on Friday nights. Our mobile app scans shelf labels and automatically triggers 40% markdown alerts 48 hours before expiry.`
+                      )
+                    }
+                    className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
+                  >
+                    Use This Example →
+                  </button>
                 </div>
-                <div className="rounded-lg bg-white p-3 shadow-2xs">
-                  <div className="font-bold text-emerald-800">
-                    2. Service / Agency Example
+                <div className="flex flex-col justify-between rounded-lg bg-white p-3 shadow-2xs">
+                  <div>
+                    <div className="font-bold text-emerald-800">
+                      2. Service / Agency Example
+                    </div>
+                    <p className="mt-1 text-slate-600">
+                      &ldquo;Local dental clinics miss 30% of new patient calls
+                      during lunch hours. We provide a 24/7 AI WhatsApp booking
+                      concierge.&rdquo;
+                    </p>
                   </div>
-                  <p className="mt-1 text-slate-600">
-                    &ldquo;Local dental clinics miss 30% of new patient calls
-                    during lunch hours. We provide a 24/7 AI WhatsApp booking
-                    concierge.&rdquo;
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBrainDumpText(
+                        'Local dental clinics miss 30% of new patient calls during lunch hours and evenings. We provide a 24/7 AI WhatsApp booking concierge that books hygiene & emergency slots directly into their calendar.'
+                      )
+                    }
+                    className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
+                  >
+                    Use This Example →
+                  </button>
                 </div>
-                <div className="rounded-lg bg-white p-3 shadow-2xs">
-                  <div className="font-bold text-emerald-800">
-                    3. Physical / Consumer Product
+                <div className="flex flex-col justify-between rounded-lg bg-white p-3 shadow-2xs">
+                  <div>
+                    <div className="font-bold text-emerald-800">
+                      3. Physical / Consumer Product
+                    </div>
+                    <p className="mt-1 text-slate-600">
+                      &ldquo;Commuters in rainy cities ruin leather work shoes. We
+                      make breathable waterproof merino slip-ons.&rdquo;
+                    </p>
                   </div>
-                  <p className="mt-1 text-slate-600">
-                    &ldquo;Commuters in rainy cities ruin leather work shoes. We
-                    make breathable waterproof merino slip-ons.&rdquo;
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBrainDumpText(
+                        'Urban bike and rail commuters in rainy cities ruin smart leather work shoes or have to carry a spare pair in their backpack. We make breathable waterproof merino wool dress slip-ons.'
+                      )
+                    }
+                    className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
+                  >
+                    Use This Example →
+                  </button>
                 </div>
               </div>
             )}
@@ -850,11 +1053,58 @@ export default function WorkspacePage() {
 
               <textarea
                 rows={4}
-                disabled={activeEntitlement.isVaultReadonly}
+                disabled={activeEntitlement.isVaultReadonly || isSynthesizing}
                 value={brainDumpText}
                 onChange={(e) => setBrainDumpText(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none"
+                placeholder="Write your idea in plain English — who is struggling, what costs them time or money today, and how your product fixes it..."
+                className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
               />
+
+              {/* Primary Action Bar: Synthesize 1-Page Concept Canvas + Cloud SQL Save */}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-xs text-slate-500">
+                  Saves directly to your{' '}
+                  <strong className="text-slate-700">
+                    {currentPlan.title}
+                  </strong>{' '}
+                  vault &amp; builds your 5-block Concept Canvas below.
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={
+                    activeEntitlement.isVaultReadonly ||
+                    isSynthesizing ||
+                    brainDumpText.trim().length < 10
+                  }
+                  onClick={handleSynthesizeConceptCanvas}
+                >
+                  {isSynthesizing ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Synthesizing Your 1-Page Mirror...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Synthesize My 1-Page Concept Canvas (AI)
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {synthesisBanner && (
+                <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-medium text-emerald-900">
+                  <span>{synthesisBanner}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSynthesisBanner(null)}
+                    className="ml-3 text-[11px] font-bold underline opacity-75 hover:opacity-100"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -869,10 +1119,52 @@ export default function WorkspacePage() {
                   </CardTitle>
                   <CardDescription>
                     We structured your raw notes into 5 investor-clear blocks.
-                    Click any card to refine it in plain English.
+                    Click <strong>Edit Canvas</strong> anytime to fine-tune any
+                    card in plain English.
                   </CardDescription>
                 </div>
-                <Badge variant="success">Auto-Synthesized by Gemini 2.5</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="success">
+                    {conceptCanvas
+                      ? 'Saved to Cloud SQL Vault'
+                      : 'Auto-Synthesized by Gemini 2.5'}
+                  </Badge>
+                  {!activeEntitlement.isVaultReadonly && (
+                    <Button
+                      type="button"
+                      variant={isEditingCanvas ? 'default' : 'outline'}
+                      size="sm"
+                      disabled={isSavingCanvas}
+                      onClick={() => {
+                        if (isEditingCanvas) {
+                          handleSaveCanvasEdits();
+                        } else {
+                          if (!conceptCanvas) {
+                            setConceptCanvas(effectiveCanvas);
+                          }
+                          setIsEditingCanvas(true);
+                        }
+                      }}
+                    >
+                      {isSavingCanvas ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Saving...
+                        </>
+                      ) : isEditingCanvas ? (
+                        <>
+                          <Save className="h-3.5 w-3.5" />
+                          Save Canvas Edits
+                        </>
+                      ) : (
+                        <>
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit Canvas
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -881,58 +1173,116 @@ export default function WorkspacePage() {
                   <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
                     1. The Core Problem
                   </div>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                    {brainDumpText.slice(0, 140)}...
-                  </p>
+                  {isEditingCanvas ? (
+                    <textarea
+                      rows={3}
+                      value={effectiveCanvas.coreProblem}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          coreProblem: e.target.value,
+                        })
+                      }
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
+                    />
+                  ) : (
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
+                      {effectiveCanvas.coreProblem}
+                    </p>
+                  )}
                 </div>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
                     2. Target Customer
                   </div>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                    Primary buyer in{' '}
-                    <strong>{countryPack.countryName}</strong> within{' '}
-                    <strong>{currentPlan.industryCategory}</strong> (
-                    {currentPlan.exportPotential ===
-                    'EXPORTING_INTERNATIONALLY'
-                      ? 'Targeting International Export'
-                      : 'Domestic Focus'}
-                    ).
-                  </p>
+                  {isEditingCanvas ? (
+                    <textarea
+                      rows={3}
+                      value={effectiveCanvas.targetCustomer}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          targetCustomer: e.target.value,
+                        })
+                      }
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
+                    />
+                  ) : (
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
+                      {effectiveCanvas.targetCustomer}
+                    </p>
+                  )}
                 </div>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
                     3. Your Solution
                   </div>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                    {currentPlan.oneLinerSummary}
-                  </p>
+                  {isEditingCanvas ? (
+                    <textarea
+                      rows={3}
+                      value={effectiveCanvas.proposedSolution}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          proposedSolution: e.target.value,
+                        })
+                      }
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
+                    />
+                  ) : (
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
+                      {effectiveCanvas.proposedSolution}
+                    </p>
+                  )}
                 </div>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
                     4. Why You Win (Unfair Edge)
                   </div>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                    Zero manual data entry for busy staff; delivers measurable
-                    ROI within the first 30 days.
-                  </p>
+                  {isEditingCanvas ? (
+                    <textarea
+                      rows={3}
+                      value={effectiveCanvas.unfairAdvantage}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          unfairAdvantage: e.target.value,
+                        })
+                      }
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
+                    />
+                  ) : (
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
+                      {effectiveCanvas.unfairAdvantage}
+                    </p>
+                  )}
                 </div>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 md:col-span-2 lg:col-span-2">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                     5. Revenue Model &amp; Localized Grant Fit (
                     {countryPack.countryName})
                   </div>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
-                    Priced in <strong>{countryPack.defaultCurrency}</strong> (
-                    {formatPlanCurrency(299, countryPack.defaultCurrency)}/mo
-                    benchmark). Eligible to explore{' '}
-                    <strong>
-                      {countryGrants[0]?.grantName ||
-                        'Regional Innovation Support'}
-                    </strong>{' '}
-                    ({countryPack.taxName} {countryPack.standardTaxRatePercent}
-                    %).
-                  </p>
+                  {isEditingCanvas ? (
+                    <textarea
+                      rows={3}
+                      value={effectiveCanvas.revenueAndGrantFit}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          revenueAndGrantFit: e.target.value,
+                        })
+                      }
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none"
+                    />
+                  ) : (
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-700">
+                      {effectiveCanvas.revenueAndGrantFit}
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -960,39 +1310,71 @@ export default function WorkspacePage() {
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
-                <div className="text-xs font-bold text-slate-900">
-                  🔌 1. Workflow Integration Friction
+              {(thingsToConsider.length > 0
+                ? thingsToConsider
+                : ([
+                    {
+                      id: 'default-bs-1',
+                      category: 'OPERATIONAL_REALITY',
+                      severity: 'INFO',
+                      title: '🔌 1. Workflow Integration Friction',
+                      explanation:
+                        'Many legacy businesses run closed software. Could you launch an MVP using a simple daily CSV/photo upload first before building deep integrations?',
+                      suggestedAction:
+                        'Avoids a 6-month engineering bottleneck before proving customer willingness to pay.',
+                    },
+                    {
+                      id: 'default-bs-2',
+                      category: 'INDUSTRY_TRAP',
+                      severity: 'WARNING',
+                      title: '🎯 2. Who Champions the Purchase?',
+                      explanation:
+                        'Staff feel the daily pain, but the Owner signs the cheque. Make sure your Module B survey tests ROI with owners, not just end-users.',
+                      suggestedAction:
+                        'Separating end-user pain from budget-holder ROI prevents stalled B2B pilots.',
+                    },
+                    {
+                      id: 'default-bs-3',
+                      category: 'OPEN_QUESTION',
+                      severity: 'INFO',
+                      title: `🏛️ 3. ${countryPack.countryName} Grant Readiness`,
+                      explanation: `To qualify for ${countryGrants[0]?.providerAgency || 'State'} funding, highlight export scalability beyond ${countryPack.countryName} early in Module B.`,
+                      suggestedAction:
+                        'State innovation agencies prioritize job creation and international export potential.',
+                    },
+                  ] satisfies BlindSpotItem[])
+              ).map((item, idx) => (
+                <div
+                  key={item.id || idx}
+                  className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs"
+                >
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">
+                      {item.title}
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                      {item.explanation}
+                    </p>
+                    {item.suggestedAction && (
+                      <p className="mt-1.5 text-[11px] text-indigo-700">
+                        <strong>Co-Founder Tip:</strong> {item.suggestedAction}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleParkSpecificQuestion(
+                        `${item.title}: ${item.explanation}`
+                      )
+                    }
+                    className="mt-2.5 inline-flex items-center gap-1 self-start text-[11px] font-semibold text-amber-800 hover:text-amber-950 hover:underline"
+                  >
+                    <BookmarkPlus className="h-3 w-3" />
+                    Park in Open Questions
+                  </button>
                 </div>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                  Many legacy businesses run closed software. Could you launch
-                  an MVP using a simple daily CSV/photo upload first before
-                  building deep integrations?
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
-                <div className="text-xs font-bold text-slate-900">
-                  🎯 2. Who Champions the Purchase?
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                  Staff feel the daily pain, but the Owner signs the cheque.
-                  Make sure your Module B survey tests ROI with owners, not just
-                  end-users.
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
-                <div className="text-xs font-bold text-slate-900">
-                  🏛️ 3. {countryPack.countryName} Grant Readiness
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                  To qualify for{' '}
-                  <strong>
-                    {countryGrants[0]?.providerAgency || 'State'}
-                  </strong>{' '}
-                  funding, highlight export scalability beyond{' '}
-                  {countryPack.countryName} early in Module B.
-                </p>
-              </div>
+              ))}
             </div>
 
             {/* Conversion Hook CTA into Module B */}

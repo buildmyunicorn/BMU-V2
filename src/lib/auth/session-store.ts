@@ -9,7 +9,17 @@ import {
   getCountryRulePack,
   type SupportedCountryCode,
 } from '@/lib/localization';
-import type { StartupHat } from '@/db/schema';
+import type { StartupHat, BlindSpotItem } from '@/db/schema';
+
+export interface SavedConceptCanvas {
+  coreProblem: string;
+  targetCustomer: string;
+  proposedSolution: string;
+  unfairAdvantage: string;
+  revenueAndGrantFit: string;
+  lastSynthesizedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
 
 export type FounderStage =
   | 'IDEA_EXPLORER'
@@ -52,6 +62,8 @@ export interface ActiveStartupPlan {
   currentModuleStep: string;
   isPivot?: boolean;
   brainDumpText?: string;
+  conceptCanvas?: SavedConceptCanvas;
+  thingsToConsider?: BlindSpotItem[];
   openQuestions: string[];
 }
 

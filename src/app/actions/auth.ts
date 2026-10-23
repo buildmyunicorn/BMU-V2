@@ -108,6 +108,15 @@ async function buildSessionFromDbUser(
     const structuredInputs = (modA?.structuredInputsJsonb ?? {}) as {
       brainDumpText?: string;
       exportPotential?: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
+      conceptCanvas?: {
+        coreProblem: string;
+        targetCustomer: string;
+        proposedSolution: string;
+        unfairAdvantage: string;
+        revenueAndGrantFit: string;
+        lastSynthesizedAt?: string;
+        aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+      };
     };
 
     const questionRows = await db
@@ -136,6 +145,10 @@ async function buildSessionFromDbUser(
       currentModuleStep: plan.currentModuleStep || 'MOD_A_STEP_1',
       isPivot: Boolean(plan.parentPlanId),
       brainDumpText: structuredInputs.brainDumpText || plan.oneLinerSummary || '',
+      conceptCanvas: structuredInputs.conceptCanvas,
+      thingsToConsider: Array.isArray(modA?.aiThingsToConsiderJsonb)
+        ? modA.aiThingsToConsiderJsonb
+        : undefined,
       openQuestions:
         questionRows.length > 0
           ? questionRows.map((q) => q.questionText)
