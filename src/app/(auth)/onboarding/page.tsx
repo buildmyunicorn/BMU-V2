@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Coins,
   Building2,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,11 +26,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
   loadBmuSession,
+  saveBmuSession,
   completeFounderOnboarding,
   type FounderStage,
   type TeamStructure,
   type IndustryCategory,
 } from '@/lib/auth/session-store';
+import { completeOnboardingAction } from '@/app/actions/auth';
 import {
   getCountryRulePack,
   getGrantsForCountry,
@@ -103,6 +106,7 @@ export default function OnboardingPage() {
   const [exportPotential, setExportPotential] = useState<
     'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY'
   >('EXPORTING_INTERNATIONALLY');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const session = loadBmuSession();
@@ -114,9 +118,11 @@ export default function OnboardingPage() {
   const countryPack = getCountryRulePack(hqCountryCode);
   const countryGrants = getGrantsForCountry(hqCountryCode);
 
-  function handleCompleteOnboarding(e: React.FormEvent) {
+  async function handleCompleteOnboarding(e: React.FormEvent) {
     e.preventDefault();
-    completeFounderOnboarding({
+    setIsSubmitting(true);
+
+    const payload = {
       founderStage,
       teamStructure,
       primaryHat,
@@ -128,7 +134,19 @@ export default function OnboardingPage() {
       hqCountryCode,
       industryCategory,
       exportPotential,
-    });
+    };
+
+    try {
+      const result = await completeOnboardingAction(payload);
+      if (result.session) {
+        saveBmuSession(result.session);
+      } else {
+        completeFounderOnboarding(payload);
+      }
+    } catch {
+      completeFounderOnboarding(payload);
+    }
+
     router.push('/workspace');
   }
 
@@ -420,9 +438,18 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex items-center justify-end border-t border-slate-100 pt-4">
-                <Button type="submit" size="lg">
-                  Launch My Startup Workspace (Module A)
-                  <ArrowRight className="h-4 w-4" />
+                <Button type="submit" size="lg" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving Workspace to Cloud...
+                    </>
+                  ) : (
+                    <>
+                      Launch My Startup Workspace (Module A)
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>

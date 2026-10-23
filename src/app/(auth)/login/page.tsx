@@ -11,6 +11,7 @@ import {
   GraduationCap,
   ShieldAlert,
   Wrench,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,73 +27,64 @@ import {
   getDefaultDemoSession,
   saveBmuSession,
   type BmuLocalSession,
-  type IndustryCategory,
 } from '@/lib/auth/session-store';
 import {
   calculateAppSumoTierLimits,
   calculatePassLimits,
 } from '@/lib/entitlements';
-import { loginUserAction } from '@/app/actions/bmu-actions';
+import { loginFounderAction } from '@/app/actions/auth';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleStandardLogin(e: React.FormEvent) {
     e.preventDefault();
-    setIsLoggingIn(true);
+    setErrorMsg(null);
+
+    if (!email.trim() || !password.trim()) {
+      setErrorMsg('Please enter both your email address and password.');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
+      const result = await loginFounderAction({
+        email,
+        password,
+      });
+
+      if (!result.ok) {
+        setErrorMsg(result.error || 'Invalid login credentials.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (result.session) {
+        saveBmuSession(result.session);
+        if (!result.session.user.onboardingCompleted) {
+          router.push('/onboarding');
+        } else {
+          router.push('/workspace');
+        }
+        return;
+      }
+
+      // Offline / local fallback
+      const base = getDefaultDemoSession();
+      base.user.email = email.trim();
+      saveBmuSession(base);
+      router.push('/workspace');
+    } catch {
       const base = getDefaultDemoSession();
       if (email.trim()) {
-        const dbRes = await loginUserAction({ email: email.trim() });
-        if (dbRes.foundInDb && dbRes.user && dbRes.entitlement) {
-          const loadedPlans =
-            dbRes.plans && dbRes.plans.length > 0
-              ? dbRes.plans.map((p) => ({
-                  id: p.id,
-                  title: p.title,
-                  oneLinerSummary: p.oneLinerSummary,
-                  industryCategory:
-                    (p.industryCategory as IndustryCategory) ||
-                    'B2B SaaS / AI App',
-                  hqCountryCode: p.hqCountryCode,
-                  baseCurrency: p.baseCurrency,
-                  targetMarketsArray: p.targetMarketsArray,
-                  exportPotential:
-                    p.targetMarketsArray.length > 1
-                      ? ('EXPORTING_INTERNATIONALLY' as const)
-                      : ('DOMESTIC_ONLY' as const),
-                  currentModuleStep: p.currentModuleStep,
-                  brainDumpText: p.brainDumpText,
-                  openQuestions: p.openQuestions,
-                }))
-              : base.plans;
-
-          saveBmuSession({
-            user: {
-              ...base.user,
-              id: dbRes.user.id,
-              name: dbRes.user.name,
-              email: dbRes.user.email,
-              role: dbRes.user.role,
-              onboardingCompleted: true,
-            },
-            entitlement: dbRes.entitlement,
-            redeemedCodes: [],
-            plans: loadedPlans,
-            activePlanId: loadedPlans[0].id,
-          });
-          router.push('/workspace');
-          return;
-        }
         base.user.email = email.trim();
       }
       saveBmuSession(base);
       router.push('/workspace');
-    } finally {
-      setIsLoggingIn(false);
     }
   }
 
@@ -260,9 +252,30 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full" size="lg">
-                  Sign In to Workspace
-                  <ArrowRight className="h-4 w-4" />
+
+                {errorMsg && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-800">
+                    {errorMsg}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="lg"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Signing In...
+                    </>
+                  ) : (
+                    <>
+                      Sign In to Workspace
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </form>
 

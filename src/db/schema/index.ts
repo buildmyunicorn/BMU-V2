@@ -131,6 +131,15 @@ export const users = pgTable('users', {
   cohortId: uuid('cohort_id').references(() => cohorts.id),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
+  passwordHash: text('password_hash'),
+  founderProfileJson: jsonb('founder_profile_json')
+    .$type<{
+      founderStage?: string;
+      teamStructure?: string;
+      primaryHat?: StartupHat;
+      regionOrCounty?: string;
+    }>()
+    .default({}),
   emailVerified: boolean('email_verified').default(false).notNull(),
   image: text('image'),
   role: userRoleEnum('role').default('FOUNDER').notNull(),

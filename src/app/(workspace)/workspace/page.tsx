@@ -64,6 +64,10 @@ import {
   getDefaultDemoSession,
   type BmuLocalSession,
 } from '@/lib/auth/session-store';
+import {
+  getCurrentCloudSessionAction,
+  logoutFounderAction,
+} from '@/app/actions/auth';
 
 const MODULES_LIST: Array<{
   code: ModuleCode;
@@ -167,8 +171,11 @@ export default function WorkspacePage() {
   const [brainDumpText, setBrainDumpText] = useState(
     'Independent grocery stores throw away 4–6% of fresh produce every week because staff manually walk the aisles with sticker guns too late in the evening. GreenCart AI connects to their inventory system, predicts which fresh items will expire 72 hours early, and pushes automatic markdowns to electronic shelf labels and local wholesale buyers.'
   );
+  const [cloudDbConnected, setCloudDbConnected] = useState<boolean | null>(
+    null
+  );
 
-  // Hydrate from localStorage on mount so onboarding & login state flows right in
+  // Hydrate from localStorage first, then sync with Cloud SQL PostgreSQL session cookie if present
   useEffect(() => {
     const loaded = loadBmuSession();
     setSession(loaded);
@@ -183,6 +190,31 @@ export default function WorkspacePage() {
         setOpenQuestions(activePlan.openQuestions);
       }
     }
+
+    getCurrentCloudSessionAction()
+      .then((res) => {
+        setCloudDbConnected(res.dbConnected);
+        if (res.authenticated && res.session) {
+          setSession(res.session);
+          saveBmuSession(res.session);
+          const dbPlan =
+            res.session.plans.find(
+              (p) => p.id === res.session?.activePlanId
+            ) || res.session.plans[0];
+          if (dbPlan) {
+            setSelectedCountry(dbPlan.hqCountryCode);
+            if (dbPlan.brainDumpText) {
+              setBrainDumpText(dbPlan.brainDumpText);
+            }
+            if (dbPlan.openQuestions?.length) {
+              setOpenQuestions(dbPlan.openQuestions);
+            }
+          }
+        }
+      })
+      .catch(() => {
+        setCloudDbConnected(false);
+      });
   }, []);
 
   const currentPlan =
@@ -373,7 +405,12 @@ export default function WorkspacePage() {
               </Button>
             </Link>
 
-            <Link href="/login">
+            <Link
+              href="/login"
+              onClick={() => {
+                logoutFounderAction().catch(() => {});
+              }}
+            >
               <Button variant="ghost" size="sm" className="text-xs text-slate-600">
                 <LogOut className="h-3.5 w-3.5 text-slate-500" />
                 Sign Out
@@ -997,13 +1034,28 @@ export default function WorkspacePage() {
       <footer className="mt-12 border-t border-slate-200 bg-slate-900 text-slate-300">
         <div className="mx-auto max-w-7xl space-y-4 px-6 py-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               <Wrench className="h-4 w-4 text-indigo-400" />
               <span className="font-bold text-white">
                 Developer &amp; Demo Simulator Controls (Footer):
               </span>
-              <span className="text-slate-400">
-                Test how the workspace reacts to different tiers &amp; countries
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+                  cloudDbConnected
+                    ? 'border-emerald-500/40 bg-emerald-950/60 text-emerald-300'
+                    : 'border-amber-500/40 bg-amber-950/60 text-amber-300'
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    cloudDbConnected ? 'bg-emerald-400' : 'bg-amber-400'
+                  }`}
+                />
+                {cloudDbConnected === null
+                  ? 'Checking PostgreSQL...'
+                  : cloudDbConnected
+                    ? 'PostgreSQL / Cloud SQL Connected'
+                    : 'Local Preview Fallback (PostgreSQL Offline)'}
               </span>
             </div>
 

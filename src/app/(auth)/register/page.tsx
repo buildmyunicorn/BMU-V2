@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Wrench,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,7 +27,7 @@ import {
   registerNewFounderSession,
   saveBmuSession,
 } from '@/lib/auth/session-store';
-import { registerUserAction } from '@/app/actions/bmu-actions';
+import { registerFounderAction } from '@/app/actions/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -47,6 +48,11 @@ export default function RegisterPage() {
       return;
     }
 
+    if (password.trim().length < 6) {
+      setErrorMsg('Password must be at least 6 characters.');
+      return;
+    }
+
     if (
       voucherCode.trim() &&
       !voucherCode.trim().toUpperCase().startsWith('SUMO-') &&
@@ -60,33 +66,37 @@ export default function RegisterPage() {
 
     setIsSubmitting(true);
     try {
-      const localSession = registerNewFounderSession({
-        name: fullName,
-        email,
-        voucherOrCohortCode: voucherCode,
-      });
-
-      const dbRes = await registerUserAction({
+      const result = await registerFounderAction({
         name: fullName,
         email,
         password,
         voucherOrCohortCode: voucherCode,
       });
 
-      if (dbRes.userId) {
-        saveBmuSession({
-          ...localSession,
-          user: {
-            ...localSession.user,
-            id: dbRes.userId,
-          },
-          entitlement: dbRes.entitlement,
+      if (!result.ok) {
+        setErrorMsg(result.error || 'Could not create your account.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (result.session) {
+        saveBmuSession(result.session);
+      } else {
+        registerNewFounderSession({
+          name: fullName,
+          email,
+          voucherOrCohortCode: voucherCode,
         });
       }
 
       router.push('/onboarding');
-    } finally {
-      setIsSubmitting(false);
+    } catch {
+      registerNewFounderSession({
+        name: fullName,
+        email,
+        voucherOrCohortCode: voucherCode,
+      });
+      router.push('/onboarding');
     }
   }
 
@@ -227,7 +237,7 @@ export default function RegisterPage() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="At least 8 characters"
+                    placeholder="At least 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -275,10 +285,17 @@ export default function RegisterPage() {
                   size="lg"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting
-                    ? 'Creating Your Account...'
-                    : 'Continue to 60-Second Idea Setup'}
-                  <ArrowRight className="h-4 w-4" />
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Creating Account...
+                    </>
+                  ) : (
+                    <>
+                      Continue to 60-Second Idea Setup
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </form>
 
