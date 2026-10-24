@@ -28,6 +28,12 @@ import {
   Search,
   Calculator,
   Copy,
+  Download,
+  Printer,
+  AlertTriangle,
+  FileText,
+  CheckCircle2,
+  Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,12 +44,20 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import type { BlindSpotItem } from '@/db/schema';
 import {
   getCountryRulePack,
   getGrantsForCountry,
   formatPlanCurrency,
   type SupportedCountryCode,
 } from '@/lib/localization';
+import { buildDynamicModuleBBlindSpots } from '@/lib/ai/module-b-blindspots';
+import {
+  buildModuleBMarkdownBrief,
+  buildModuleBStandaloneHtmlDocument,
+  BUYER_MODEL_LABELS,
+  type ModuleBBriefData,
+} from '@/lib/export/module-b-brief';
 import type {
   ActiveStartupPlan,
   BeachheadMarketData,
@@ -60,6 +74,11 @@ import type {
   MarketSizingSegmentEntry,
   WiderMarketScalePreset,
   MarketSizingData,
+  ComparisonScoreLevel,
+  CompetitiveComparisonRow,
+  SwitchingFrictionReducerType,
+  UnfairAdvantageMoatType,
+  CompetitiveWedgeData,
 } from '@/lib/auth/session-store';
 
 const BUYER_MODEL_OPTIONS: Array<{
@@ -95,6 +114,13 @@ const BUYER_MODEL_OPTIONS: Array<{
     subtitle:
       'Universities, state enterprise agencies (LEOs), schools, hospitals, or councils.',
     icon: Landmark,
+  },
+  {
+    value: 'OTHER',
+    label: 'Other (Custom Buyer Model)',
+    subtitle:
+      'Channel partners, franchises, associations, charities, or another buyer model.',
+    icon: Sparkles,
   },
 ];
 
@@ -132,6 +158,12 @@ const BUYING_TRIGGER_OPTIONS: Array<{
     label: '🚀 New Launch, Hire or Life Event',
     description:
       'Opening a new location, hiring a team, moving house, or starting a new chapter.',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Trigger Moment)',
+    description:
+      'Another specific event or pain point makes them look for a solution — describe it below.',
   },
 ];
 
@@ -179,9 +211,9 @@ const TARGET_MARKET_GEOGRAPHIES: Array<{
   },
   {
     code: 'ROW',
-    name: 'Global / Rest of World',
+    name: 'Other / Global Markets',
     flag: '🌍',
-    regionHint: 'International exporting corridors',
+    regionHint: 'Specify any other countries or regions',
   },
 ];
 
@@ -290,6 +322,12 @@ const CUSTOMER_WORKAROUND_OPTIONS: Array<{
     description:
       'Putting up with the wasted hours, lost revenue, or missed opportunities.',
   },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Current Habit)',
+    description:
+      'They handle it in another way today — describe their current habit below.',
+  },
 ];
 
 const COMPETITOR_CATEGORY_OPTIONS: Array<{
@@ -299,6 +337,7 @@ const COMPETITOR_CATEGORY_OPTIONS: Array<{
   { value: 'DIRECT_COMPETITOR', label: 'Direct Competitor' },
   { value: 'INDIRECT_ALTERNATIVE', label: 'Indirect / Everyday Tool' },
   { value: 'MANUAL_SERVICE_AGENCY', label: 'Consultant / Agency / Service' },
+  { value: 'OTHER', label: 'Other (Custom Alternative)' },
 ];
 
 const WHY_SWITCH_EDGE_OPTIONS: Array<{
@@ -328,6 +367,10 @@ const WHY_SWITCH_EDGE_OPTIONS: Array<{
   {
     value: 'PROVEN_RESULTS_OR_COMPLIANCE',
     label: '🛡️ Higher Trust, Vetting or Compliance',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Reason They Switch)',
   },
 ];
 
@@ -392,6 +435,13 @@ const WIDER_MARKET_SCALE_OPTIONS: Array<{
     description:
       'Long-term global opportunity across all English-speaking & EU markets.',
   },
+  {
+    value: 'OTHER',
+    multiplier: 5,
+    label: '✨ Other (Custom Expansion Scale)',
+    description:
+      'Custom long-term expansion scope — describe your wider market scale below.',
+  },
 ];
 
 function getIndustryMarketSizingExamples(industry: IndustryCategory): {
@@ -418,6 +468,133 @@ function getIndustryMarketSizingExamples(industry: IndustryCategory): {
         weakExample: 'Everyone needs this product so the market is billions.',
         strongExample:
           'We multiplied the realistic number of target buyers in our selected countries by what a typical customer pays per year, and set a practical Year 1–2 customer goal we can reach with our current team.',
+      };
+  }
+}
+
+const SWITCHING_FRICTION_REDUCER_OPTIONS: Array<{
+  value: SwitchingFrictionReducerType;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'FREE_TRIAL_OR_FIRST_STEP',
+    label: '🎁 Free First Step or Low-Risk Trial',
+    description:
+      'Customers can try the first module, sample, or audit for free before paying.',
+  },
+  {
+    value: 'FAST_SETUP_UNDER_15_MINS',
+    label: '⚡ Setup in Under 15 Minutes',
+    description:
+      'No weeks of training or IT setup — they get their first win on Day 1.',
+  },
+  {
+    value: 'WORKS_WITH_EXISTING_TOOLS',
+    label: '🔌 Works Alongside What They Already Use',
+    description:
+      'No painful migration needed; complements their existing workflow or exports cleanly.',
+  },
+  {
+    value: 'DONE_FOR_YOU_MIGRATION',
+    label: '🤝 Done-For-You Setup / White-Glove Onboarding',
+    description:
+      'You personally help early customers get set up so they do zero heavy lifting.',
+  },
+  {
+    value: 'IMMEDIATE_COST_SAVING',
+    label: '💷 Saves Money From Month 1',
+    description:
+      'Costs a fraction of the consultant, agency, or bloated software they pay today.',
+  },
+  {
+    value: 'NO_LONG_CONTRACT',
+    label: '🔓 No Long Lock-In Contract',
+    description:
+      'Simple transparent pricing without trapping buyers in a scary 12-month deal.',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Easy First Step)',
+    description:
+      'Another way you make it effortless and low-risk for customers to switch to you.',
+  },
+];
+
+const UNFAIR_ADVANTAGE_MOAT_OPTIONS: Array<{
+  value: UnfairAdvantageMoatType;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'FOUNDER_INSIDER_EXPERIENCE',
+    label: '🧠 Founder Insider Experience & Network',
+    description:
+      'You have lived this problem firsthand and know the industry buyers personally.',
+  },
+  {
+    value: 'PROPRIETARY_DATA_OR_TEMPLATES',
+    label: '🔐 Purpose-Built Playbooks, Data, Recipes or IP',
+    description:
+      'Specialist workflows, templates, or formulations that generic tools cannot easily copy.',
+  },
+  {
+    value: 'LOCAL_COMPLIANCE_OR_GRANTS',
+    label: '🌍 Deep Local Rules, Grants & Regional Fit',
+    description:
+      'Built natively around local tax, grant agencies, and rules in your target markets.',
+  },
+  {
+    value: 'WORKFLOW_HABIT_LOCK_IN',
+    label: '🔄 Living Workspace & System of Record',
+    description:
+      'Once a customer builds their live plan, data, or routine with you, they stay.',
+  },
+  {
+    value: 'COMMUNITY_OR_NETWORK_EFFECTS',
+    label: '🕸️ Community, Cohorts or Network Effects',
+    description:
+      'Every new user, mentor, or partner makes the platform more valuable for everyone.',
+  },
+  {
+    value: 'EXCLUSIVE_PARTNERSHIPS_OR_ACCREDITATION',
+    label: '🏅 Institutional Partnerships or Vetted Supply',
+    description:
+      'Relationships with universities, accelerators, or suppliers that take years to replicate.',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Unfair Advantage)',
+    description:
+      'Another defensible advantage or moat that stops competitors from easily copying you.',
+  },
+];
+
+function getIndustryCompetitiveEdgeExamples(industry: IndustryCategory): {
+  weakExample: string;
+  strongExample: string;
+} {
+  switch (industry) {
+    case 'B2B SaaS / AI App':
+      return {
+        weakExample:
+          'We will beat competitors because our AI is smarter and our UI looks nicer.',
+        strongExample:
+          'Customers switch to us because our free first module gives them an instant 1-page plan in 10 minutes without hiring a €2,500 consultant. Competitors cannot easily copy us because our platform combines localized grant rules (LEO, Enterprise Ireland, Innovate UK) with an interactive 9-module workspace that universities and accelerators run their cohorts on.',
+      };
+    case 'Consumer App / Marketplace':
+      return {
+        weakExample:
+          'We will win because our app has more features and lower fees.',
+        strongExample:
+          'Customers switch from chaotic Facebook groups to us because every provider is pre-vetted and bookable in 60 seconds. Copycats struggle to catch up because we lock in the highest-rated local providers first.',
+      };
+    default:
+      return {
+        weakExample:
+          'We offer higher quality and better customer service than everyone else.',
+        strongExample:
+          'Customers switch to us because we remove the risk with a fast, low-cost first step, and we protect our lead through deep local market fit and specialist domain expertise.',
       };
   }
 }
@@ -457,6 +634,26 @@ export interface ModuleBWorkspaceProps {
     sourceAndAssumptionNotes: string;
     engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
   } | null>;
+  onSaveStep4CompetitiveWedge: (
+    competitiveWedge: CompetitiveWedgeData,
+    progressPercent: number
+  ) => Promise<void>;
+  onGenerateCompetitiveEdgeWithAi: (params: {
+    targetCustomerDescription: string;
+    targetMarketsArray: string[];
+    competitorNames: string[];
+  }) => Promise<{
+    comparisonRows: CompetitiveComparisonRow[];
+    switchingFrictionReducers: SwitchingFrictionReducerType[];
+    switchingFrictionPlanNotes: string;
+    unfairAdvantages: UnfairAdvantageMoatType[];
+    competitiveEdgeSummary: string;
+    engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  } | null>;
+  onSaveStep5Complete: (thingsToConsider: BlindSpotItem[]) => Promise<void>;
+  onContinueToModuleC: () => void;
+  founderName?: string;
+  whiteLabelEnabled?: boolean;
   onParkQuestion: (questionText: string) => void;
   onBackToModuleA: () => void;
 }
@@ -470,6 +667,12 @@ export function ModuleBWorkspace({
   onScoutCompetitorsWithAi,
   onSaveStep3MarketSizing,
   onEstimateMarketSizingWithAi,
+  onSaveStep4CompetitiveWedge,
+  onGenerateCompetitiveEdgeWithAi,
+  onSaveStep5Complete,
+  onContinueToModuleC,
+  founderName = 'Founder',
+  whiteLabelEnabled = false,
   onParkQuestion,
   onBackToModuleA,
 }: ModuleBWorkspaceProps) {
@@ -480,6 +683,9 @@ export function ModuleBWorkspace({
     plan.industryCategory
   );
   const marketSizingExamples = getIndustryMarketSizingExamples(
+    plan.industryCategory
+  );
+  const competitiveEdgeExamples = getIndustryCompetitiveEdgeExamples(
     plan.industryCategory
   );
 
@@ -535,6 +741,14 @@ export function ModuleBWorkspace({
         ? plan.targetMarketsArray
         : [selectedCountry]
   );
+  const [otherBuyerModelText, setOtherBuyerModelText] = useState<string>(
+    savedBeachhead?.otherBuyerModelText ?? ''
+  );
+  const [otherDecisionMakerSetupText, setOtherDecisionMakerSetupText] =
+    useState<string>(savedBeachhead?.otherDecisionMakerSetupText ?? '');
+  const [otherGeographyText, setOtherGeographyText] = useState<string>(
+    savedBeachhead?.otherGeographyText ?? ''
+  );
 
   // Sync state when plan changes or Cloud SQL hydrates savedBeachhead
   useEffect(() => {
@@ -568,6 +782,11 @@ export function ModuleBWorkspace({
           ? plan.targetMarketsArray
           : [selectedCountry]
     );
+    setOtherBuyerModelText(savedBeachhead?.otherBuyerModelText ?? '');
+    setOtherDecisionMakerSetupText(
+      savedBeachhead?.otherDecisionMakerSetupText ?? ''
+    );
+    setOtherGeographyText(savedBeachhead?.otherGeographyText ?? '');
   }, [
     plan.id,
     savedBeachhead?.lastSavedAt,
@@ -636,6 +855,12 @@ export function ModuleBWorkspace({
   const [whySwitchOneSentence, setWhySwitchOneSentence] = useState<string>(
     savedStep2?.whySwitchOneSentence ?? ''
   );
+  const [otherWorkaroundText, setOtherWorkaroundText] = useState<string>(
+    savedStep2?.otherWorkaroundText ?? ''
+  );
+  const [otherWhySwitchEdgeText, setOtherWhySwitchEdgeText] = useState<string>(
+    savedStep2?.otherWhySwitchEdgeText ?? ''
+  );
 
   // Step 2 Layer 1–2 Coaching States
   const [showStep2WhyCard, setShowStep2WhyCard] = useState(true);
@@ -677,6 +902,8 @@ export function ModuleBWorkspace({
     useState<WiderMarketScalePreset>(
       savedStep3?.widerMarketMultiplier ?? '5X'
     );
+  const [otherWiderMarketScaleText, setOtherWiderMarketScaleText] =
+    useState<string>(savedStep3?.otherWiderMarketScaleText ?? '');
   const [sourceAndAssumptionNotes, setSourceAndAssumptionNotes] =
     useState<string>(savedStep3?.sourceAndAssumptionNotes ?? '');
 
@@ -698,8 +925,273 @@ export function ModuleBWorkspace({
           )
     );
     setWiderMarketMultiplier(savedStep3?.widerMarketMultiplier ?? '5X');
+    setOtherWiderMarketScaleText(savedStep3?.otherWiderMarketScaleText ?? '');
     setSourceAndAssumptionNotes(savedStep3?.sourceAndAssumptionNotes ?? '');
   }, [plan.id, savedStep3?.lastSavedAt, savedBeachhead?.buyerTypes?.length]);
+
+  // =========================================================================
+  // STEP 4 STATE (COMPETITIVE EDGE & DEFENSIBILITY MATRIX)
+  // =========================================================================
+  const savedStep4 = plan.moduleBData?.competitiveWedge;
+
+  const createDefaultComparisonRows = (): CompetitiveComparisonRow[] => {
+    const base: CompetitiveComparisonRow[] = [
+      {
+        rowId: 'row-your-startup',
+        label: `${plan.title || 'Your Startup'} (You)`,
+        isYourStartup: true,
+        priceValueScore: 'HIGH',
+        speedTimeSavedScore: 'HIGH',
+        easeOfUseScore: 'HIGH',
+        specialistQualityScore: 'HIGH',
+      },
+      {
+        rowId: 'row-current-habit',
+        label: 'Current Habit (Doing It Manually / Spreadsheets)',
+        priceValueScore: 'HIGH',
+        speedTimeSavedScore: 'LOW',
+        easeOfUseScore: 'LOW',
+        specialistQualityScore: 'LOW',
+      },
+    ];
+    const step2Comps = (savedStep2?.competitors ?? []).filter(
+      (c) => c.name.trim().length > 0
+    );
+    step2Comps.forEach((c, idx) => {
+      base.push({
+        rowId: `row-step2-${idx + 1}`,
+        label: c.name.trim(),
+        priceValueScore: 'MEDIUM',
+        speedTimeSavedScore: 'MEDIUM',
+        easeOfUseScore: 'LOW',
+        specialistQualityScore: 'MEDIUM',
+      });
+    });
+    return base;
+  };
+
+  const [comparisonRows, setComparisonRows] = useState<
+    CompetitiveComparisonRow[]
+  >(() =>
+    savedStep4?.comparisonRows?.length
+      ? savedStep4.comparisonRows
+      : createDefaultComparisonRows()
+  );
+  const [switchingFrictionReducers, setSwitchingFrictionReducers] = useState<
+    SwitchingFrictionReducerType[]
+  >(savedStep4?.switchingFrictionReducers ?? []);
+  const [switchingFrictionPlanNotes, setSwitchingFrictionPlanNotes] =
+    useState<string>(savedStep4?.switchingFrictionPlanNotes ?? '');
+  const [otherSwitchingFrictionText, setOtherSwitchingFrictionText] =
+    useState<string>(savedStep4?.otherSwitchingFrictionText ?? '');
+  const [unfairAdvantages, setUnfairAdvantages] = useState<
+    UnfairAdvantageMoatType[]
+  >(savedStep4?.unfairAdvantages ?? []);
+  const [otherUnfairAdvantageText, setOtherUnfairAdvantageText] =
+    useState<string>(savedStep4?.otherUnfairAdvantageText ?? '');
+  const [competitiveEdgeSummary, setCompetitiveEdgeSummary] = useState<string>(
+    savedStep4?.competitiveEdgeSummary ?? ''
+  );
+
+  // Step 4 Layer 1–2 Coaching & Action States
+  const [showStep4WhyCard, setShowStep4WhyCard] = useState(true);
+  const [showStep4Examples, setShowStep4Examples] = useState(false);
+  const [showStep4ImStuck, setShowStep4ImStuck] = useState(false);
+  const [stuckStep4EasyFirstStep, setStuckStep4EasyFirstStep] = useState('');
+  const [stuckStep4WhyHardToCopy, setStuckStep4WhyHardToCopy] = useState('');
+  const [isGeneratingStep4Ai, setIsGeneratingStep4Ai] = useState(false);
+  const [isSavingStep4, setIsSavingStep4] = useState(false);
+  const [copiedEdgeSummary, setCopiedEdgeSummary] = useState(false);
+
+  useEffect(() => {
+    setComparisonRows(
+      savedStep4?.comparisonRows?.length
+        ? savedStep4.comparisonRows
+        : createDefaultComparisonRows()
+    );
+    setSwitchingFrictionReducers(savedStep4?.switchingFrictionReducers ?? []);
+    setSwitchingFrictionPlanNotes(savedStep4?.switchingFrictionPlanNotes ?? '');
+    setOtherSwitchingFrictionText(savedStep4?.otherSwitchingFrictionText ?? '');
+    setUnfairAdvantages(savedStep4?.unfairAdvantages ?? []);
+    setOtherUnfairAdvantageText(savedStep4?.otherUnfairAdvantageText ?? '');
+    setCompetitiveEdgeSummary(savedStep4?.competitiveEdgeSummary ?? '');
+  }, [plan.id, savedStep4?.lastSavedAt]);
+
+  function handleUpdateComparisonScore(
+    rowId: string,
+    field:
+      | 'priceValueScore'
+      | 'speedTimeSavedScore'
+      | 'easeOfUseScore'
+      | 'specialistQualityScore',
+    score: ComparisonScoreLevel
+  ) {
+    if (isVaultReadonly) return;
+    setComparisonRows((prev) =>
+      prev.map((r) => (r.rowId === rowId ? { ...r, [field]: score } : r))
+    );
+  }
+
+  function handleUpdateComparisonLabel(rowId: string, label: string) {
+    if (isVaultReadonly) return;
+    setComparisonRows((prev) =>
+      prev.map((r) => (r.rowId === rowId ? { ...r, label } : r))
+    );
+  }
+
+  function handleAddComparisonRow() {
+    if (isVaultReadonly) return;
+    setComparisonRows((prev) => [
+      ...prev,
+      {
+        rowId: `row-custom-${Date.now()}`,
+        label: '',
+        priceValueScore: 'MEDIUM',
+        speedTimeSavedScore: 'MEDIUM',
+        easeOfUseScore: 'LOW',
+        specialistQualityScore: 'MEDIUM',
+      },
+    ]);
+  }
+
+  function handleRemoveComparisonRow(rowId: string) {
+    if (isVaultReadonly) return;
+    setComparisonRows((prev) =>
+      prev.filter((r) => r.isYourStartup || r.rowId !== rowId)
+    );
+  }
+
+  function handleSyncCompetitorsFromStep2() {
+    if (isVaultReadonly) return;
+    const namedCompetitors = competitors.filter(
+      (c) => c.name.trim().length > 0
+    );
+    if (namedCompetitors.length === 0) {
+      setSaveBanner(
+        'ℹ️ Add or scout competitors in Step 2 first so we can pull their names into your comparison table.'
+      );
+      return;
+    }
+    setComparisonRows((prev) => {
+      const existingLabels = new Set(
+        prev.map((r) => r.label.trim().toLowerCase())
+      );
+      const added: CompetitiveComparisonRow[] = [];
+      namedCompetitors.forEach((c, idx) => {
+        if (!existingLabels.has(c.name.trim().toLowerCase())) {
+          added.push({
+            rowId: `row-sync-${Date.now()}-${idx}`,
+            label: c.name.trim(),
+            priceValueScore: 'MEDIUM',
+            speedTimeSavedScore: 'MEDIUM',
+            easeOfUseScore: 'LOW',
+            specialistQualityScore: 'MEDIUM',
+          });
+        }
+      });
+      return [...prev, ...added];
+    });
+    setSaveBanner(
+      '✨ Synced your competitors from Step 2 into the comparison table!'
+    );
+  }
+
+  function toggleSwitchingFrictionReducer(item: SwitchingFrictionReducerType) {
+    if (isVaultReadonly) return;
+    setSwitchingFrictionReducers((prev) =>
+      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
+    );
+  }
+
+  function toggleUnfairAdvantage(item: UnfairAdvantageMoatType) {
+    if (isVaultReadonly) return;
+    setUnfairAdvantages((prev) =>
+      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
+    );
+  }
+
+  function handleDraftSummaryFromSelections() {
+    if (isVaultReadonly) return;
+    const switchLabels = SWITCHING_FRICTION_REDUCER_OPTIONS.filter((o) =>
+      switchingFrictionReducers.includes(o.value)
+    ).map((o) => o.label.replace(/^[^\w]+/, '').toLowerCase());
+    const moatLabels = UNFAIR_ADVANTAGE_MOAT_OPTIONS.filter((o) =>
+      unfairAdvantages.includes(o.value)
+    ).map((o) => o.label.replace(/^[^\w]+/, '').toLowerCase());
+
+    const switchPart =
+      switchLabels.length > 0
+        ? switchLabels.join(' and ')
+        : 'a fast, low-risk onboarding experience';
+    const moatPart =
+      moatLabels.length > 0
+        ? moatLabels.join(', ')
+        : `deep focus on ${targetMarkets.join(' & ')} customers`;
+
+    const summary = `Customers switch from manual workarounds and legacy alternatives to ${plan.title} because we offer ${switchPart} with higher speed and ease of use. Over time, our position in ${targetMarkets.join(' & ')} is protected against copycats through ${moatPart}.`;
+    setCompetitiveEdgeSummary(summary);
+    setSaveBanner(
+      '✨ Drafted your 2-sentence Competitive Edge Summary from your selected cards!'
+    );
+  }
+
+  function handleDraftStep4FromStuckHelper() {
+    const firstStepPart =
+      stuckStep4EasyFirstStep.trim() ||
+      'try a free first step in under 15 minutes with zero risk';
+    const hardToCopyPart =
+      stuckStep4WhyHardToCopy.trim() ||
+      `our deep local market fit and insider focus in ${targetMarkets.join(' & ')}`;
+
+    setSwitchingFrictionPlanNotes(
+      `We make switching effortless by letting customers ${firstStepPart}.`
+    );
+    setCompetitiveEdgeSummary(
+      `Customers switch to ${plan.title} because they can ${firstStepPart} instead of wrestling with manual spreadsheets or expensive consultants. Bigger competitors cannot easily copy us because of ${hardToCopyPart}.`
+    );
+    setShowStep4ImStuck(false);
+    setSaveBanner(
+      '✨ Drafted your Switching Plan and Competitive Edge Summary from your 2 quick answers!'
+    );
+  }
+
+  async function handleRunAiCompetitiveEdge() {
+    if (isVaultReadonly) return;
+    setIsGeneratingStep4Ai(true);
+    setSaveBanner(null);
+    try {
+      const compNames = competitors
+        .map((c) => c.name.trim())
+        .filter((n) => n.length > 0);
+      const result = await onGenerateCompetitiveEdgeWithAi({
+        targetCustomerDescription: beachheadSegment,
+        targetMarketsArray: targetMarkets,
+        competitorNames: compNames,
+      });
+      if (result) {
+        if (result.comparisonRows.length > 0) {
+          setComparisonRows(result.comparisonRows);
+        }
+        if (result.switchingFrictionReducers.length > 0) {
+          setSwitchingFrictionReducers(result.switchingFrictionReducers);
+        }
+        if (result.switchingFrictionPlanNotes) {
+          setSwitchingFrictionPlanNotes(result.switchingFrictionPlanNotes);
+        }
+        if (result.unfairAdvantages.length > 0) {
+          setUnfairAdvantages(result.unfairAdvantages);
+        }
+        if (result.competitiveEdgeSummary) {
+          setCompetitiveEdgeSummary(result.competitiveEdgeSummary);
+        }
+        setSaveBanner(
+          `✨ Generated your Competitive Comparison Matrix and 2-Sentence Edge Summary! Feel free to tweak any score or card below.`
+        );
+      }
+    } finally {
+      setIsGeneratingStep4Ai(false);
+    }
+  }
 
   function handleAddMarketSegment() {
     if (isVaultReadonly) return;
@@ -831,6 +1323,8 @@ export function ModuleBWorkspace({
     setCompetitors(savedStep2?.competitors ?? []);
     setWhySwitchEdges(savedStep2?.whySwitchEdges ?? []);
     setWhySwitchOneSentence(savedStep2?.whySwitchOneSentence ?? '');
+    setOtherWorkaroundText(savedStep2?.otherWorkaroundText ?? '');
+    setOtherWhySwitchEdgeText(savedStep2?.otherWhySwitchEdgeText ?? '');
   }, [plan.id, savedStep2?.lastSavedAt]);
 
   function toggleWorkaround(item: CustomerWorkaroundType) {
@@ -1075,8 +1569,260 @@ export function ModuleBWorkspace({
     (step3Checkpoints.filter(Boolean).length / step3Checkpoints.length) * 20
   );
 
-  const totalModuleBProgress =
-    step1Completion + step2Completion + step3Completion;
+  const step4Checkpoints = [
+    comparisonRows.length >= 2,
+    switchingFrictionReducers.length > 0,
+    switchingFrictionPlanNotes.trim().length > 5,
+    unfairAdvantages.length > 0,
+    competitiveEdgeSummary.trim().length > 12,
+  ];
+  const step4Completion = Math.round(
+    (step4Checkpoints.filter(Boolean).length / step4Checkpoints.length) * 20
+  );
+
+  // Live 6-Card Blind-Spot Review for Module B Step 5
+  const liveModuleBThingsToConsider: BlindSpotItem[] =
+    buildDynamicModuleBBlindSpots({
+      planTitle: plan.title,
+      industryCategory: plan.industryCategory,
+      hqCountryCode: selectedCountry,
+      targetMarketsArray: targetMarkets,
+      beachhead: {
+        buyerType,
+        buyerTypes,
+        beachheadSegment,
+        endUserVsDecisionMaker,
+        decisionMakerRole,
+        buyingTriggerPreset,
+        buyingTriggerNotes,
+        targetMarketsArray: targetMarkets,
+        otherBuyerModelText: otherBuyerModelText.trim() || undefined,
+        otherDecisionMakerSetupText:
+          otherDecisionMakerSetupText.trim() || undefined,
+        otherGeographyText: otherGeographyText.trim() || undefined,
+      },
+      competitorsAndStatusQuo: {
+        currentWorkarounds,
+        workaroundFrustrationNotes,
+        competitors,
+        whySwitchEdges,
+        whySwitchOneSentence,
+        otherWorkaroundText: otherWorkaroundText.trim() || undefined,
+        otherWhySwitchEdgeText: otherWhySwitchEdgeText.trim() || undefined,
+      },
+      marketSizing: {
+        segments: marketSegments,
+        widerMarketMultiplier,
+        otherWiderMarketScaleText:
+          otherWiderMarketScaleText.trim() || undefined,
+        sourceAndAssumptionNotes,
+      },
+      competitiveWedge: {
+        comparisonRows,
+        switchingFrictionReducers,
+        switchingFrictionPlanNotes,
+        otherSwitchingFrictionText:
+          otherSwitchingFrictionText.trim() || undefined,
+        unfairAdvantages,
+        otherUnfairAdvantageText: otherUnfairAdvantageText.trim() || undefined,
+        competitiveEdgeSummary,
+      },
+    });
+
+  const [isSavingStep5, setIsSavingStep5] = useState(false);
+  const [copiedModuleBBrief, setCopiedModuleBBrief] = useState(false);
+  const [showModuleBBriefPreview, setShowModuleBBriefPreview] = useState(true);
+  const [step5MarkedComplete, setStep5MarkedComplete] = useState<boolean>(
+    Boolean(plan.moduleBData?.thingsToConsider?.length)
+  );
+
+  const briefGeneratedDate = new Date().toLocaleDateString('en-IE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  const moduleBReadinessSteps = [
+    {
+      stepNumber: 1,
+      label: 'Target Customers & Markets',
+      isComplete: beachheadSegment.trim().length > 10,
+      summary:
+        beachheadSegment.trim() ||
+        'Define your first priority customer group in Step 1',
+    },
+    {
+      stepNumber: 2,
+      label: 'Competitors & Current Habits',
+      isComplete:
+        competitors.length > 0 || whySwitchOneSentence.trim().length > 8,
+      summary:
+        competitors.length > 0
+          ? `${competitors.length} competitor/alternative(s) mapped`
+          : whySwitchOneSentence.trim() ||
+            'Map current customer habits & competitors in Step 2',
+    },
+    {
+      stepNumber: 3,
+      label: `Market Sizing (${countryPack.defaultCurrency})`,
+      isComplete: totalYear1To2RevenueSom > 0,
+      summary:
+        totalYear1To2RevenueSom > 0
+          ? `Year 1–2 Goal: ${formatPlanCurrency(totalYear1To2RevenueSom, countryPack.defaultCurrency)}/yr`
+          : 'Enter price & customer counts in Step 3',
+    },
+    {
+      stepNumber: 4,
+      label: 'Competitive Edge & Stand Out',
+      isComplete:
+        competitiveEdgeSummary.trim().length > 10 ||
+        unfairAdvantages.length > 0,
+      summary:
+        competitiveEdgeSummary.trim() ||
+        'Define how you stand out & lower switching friction in Step 4',
+    },
+    {
+      stepNumber: 5,
+      label: 'Blind-Spot Review',
+      isComplete: liveModuleBThingsToConsider.length >= 6,
+      summary: `${liveModuleBThingsToConsider.length} market & customer blind spots reviewed`,
+    },
+  ];
+
+  const completedModuleBReadinessCount = moduleBReadinessSteps.filter(
+    (s) => s.isComplete
+  ).length;
+
+  const step5Completion =
+    step5MarkedComplete ||
+    step1Completion + step2Completion + step3Completion + step4Completion >= 60
+      ? 20
+      : 10;
+
+  const totalModuleBProgress = Math.min(
+    100,
+    step1Completion +
+      step2Completion +
+      step3Completion +
+      step4Completion +
+      step5Completion
+  );
+
+  const moduleBBriefData: ModuleBBriefData = {
+    planTitle: plan.title,
+    founderName,
+    industryCategory: plan.industryCategory,
+    hqCountryCode: selectedCountry,
+    targetMarketsArray: targetMarkets,
+    beachhead: {
+      buyerType,
+      buyerTypes,
+      beachheadSegment,
+      endUserVsDecisionMaker,
+      decisionMakerRole,
+      buyingTriggerPreset,
+      buyingTriggerNotes,
+      targetMarketsArray: targetMarkets,
+      otherBuyerModelText: otherBuyerModelText.trim() || undefined,
+      otherDecisionMakerSetupText:
+        otherDecisionMakerSetupText.trim() || undefined,
+      otherGeographyText: otherGeographyText.trim() || undefined,
+    },
+    competitorsAndStatusQuo: {
+      currentWorkarounds,
+      workaroundFrustrationNotes,
+      competitors,
+      whySwitchEdges,
+      whySwitchOneSentence,
+      otherWorkaroundText: otherWorkaroundText.trim() || undefined,
+      otherWhySwitchEdgeText: otherWhySwitchEdgeText.trim() || undefined,
+    },
+    marketSizing: {
+      segments: marketSegments,
+      widerMarketMultiplier,
+      otherWiderMarketScaleText: otherWiderMarketScaleText.trim() || undefined,
+      sourceAndAssumptionNotes,
+    },
+    competitiveWedge: {
+      comparisonRows,
+      switchingFrictionReducers,
+      switchingFrictionPlanNotes,
+      otherSwitchingFrictionText:
+        otherSwitchingFrictionText.trim() || undefined,
+      unfairAdvantages,
+      otherUnfairAdvantageText: otherUnfairAdvantageText.trim() || undefined,
+      competitiveEdgeSummary,
+    },
+    thingsToConsider: liveModuleBThingsToConsider,
+    grantReadySummaryParagraph,
+    totalYear1To2RevenueSom,
+    totalReachableMarketSam,
+    totalWiderMarketTam,
+    whiteLabelEnabled,
+  };
+
+  function handleDownloadModuleBBriefHtml() {
+    const htmlContent = buildModuleBStandaloneHtmlDocument(moduleBBriefData);
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeSlug =
+      plan.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'startup';
+    link.href = url;
+    link.download = `${safeSlug}-market-research-brief.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setSaveBanner(
+      '📄 Downloaded your standalone Market Research & Competitive Intelligence Brief (.html)!'
+    );
+  }
+
+  function handlePrintModuleBBriefPdf() {
+    const htmlContent = buildModuleBStandaloneHtmlDocument(moduleBBriefData);
+    const printWindow = window.open('', '_blank', 'width=960,height=800');
+    if (!printWindow) {
+      handleDownloadModuleBBriefHtml();
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  }
+
+  async function handleCopyModuleBBriefMarkdown() {
+    const md = buildModuleBMarkdownBrief(moduleBBriefData);
+    try {
+      await navigator.clipboard.writeText(md);
+      setCopiedModuleBBrief(true);
+      setSaveBanner(
+        '📋 Copied your complete Module B Market Research & Competitive Brief to clipboard!'
+      );
+      setTimeout(() => setCopiedModuleBBrief(false), 2500);
+    } catch {
+      // Ignore clipboard restriction
+    }
+  }
+
+  async function handleSaveStep5AndComplete() {
+    if (isVaultReadonly) return;
+    setIsSavingStep5(true);
+    setSaveBanner(null);
+    await onSaveStep5Complete(liveModuleBThingsToConsider);
+    setStep5MarkedComplete(true);
+    setIsSavingStep5(false);
+    setSaveBanner(
+      '🎉 Module B (Market Research & Competitive Intelligence) is 100% saved!'
+    );
+  }
 
   async function handleSaveStep1() {
     if (isVaultReadonly) return;
@@ -1091,6 +1837,10 @@ export function ModuleBWorkspace({
       buyingTriggerPreset,
       buyingTriggerNotes: buyingTriggerNotes.trim(),
       targetMarketsArray: targetMarkets,
+      otherBuyerModelText: otherBuyerModelText.trim() || undefined,
+      otherDecisionMakerSetupText:
+        otherDecisionMakerSetupText.trim() || undefined,
+      otherGeographyText: otherGeographyText.trim() || undefined,
       lastSavedAt: new Date().toISOString(),
     };
     await onSaveStep1Beachhead(
@@ -1118,6 +1868,8 @@ export function ModuleBWorkspace({
       ),
       whySwitchEdges,
       whySwitchOneSentence: whySwitchOneSentence.trim(),
+      otherWorkaroundText: otherWorkaroundText.trim() || undefined,
+      otherWhySwitchEdgeText: otherWhySwitchEdgeText.trim() || undefined,
       lastSavedAt: new Date().toISOString(),
     };
     await onSaveStep2Competitors(
@@ -1137,6 +1889,8 @@ export function ModuleBWorkspace({
     const payload: MarketSizingData = {
       segments: marketSegments,
       widerMarketMultiplier,
+      otherWiderMarketScaleText:
+        otherWiderMarketScaleText.trim() || undefined,
       sourceAndAssumptionNotes: sourceAndAssumptionNotes.trim(),
       lastSavedAt: new Date().toISOString(),
     };
@@ -1147,6 +1901,31 @@ export function ModuleBWorkspace({
     setIsSavingStep3(false);
     setSaveBanner(
       `✅ Saved Step 3 (Market Sizing in ${countryPack.defaultCurrency})!`
+    );
+  }
+
+  async function handleSaveStep4() {
+    if (isVaultReadonly) return;
+    setIsSavingStep4(true);
+    setSaveBanner(null);
+    const payload: CompetitiveWedgeData = {
+      comparisonRows,
+      switchingFrictionReducers,
+      switchingFrictionPlanNotes: switchingFrictionPlanNotes.trim(),
+      otherSwitchingFrictionText:
+        otherSwitchingFrictionText.trim() || undefined,
+      unfairAdvantages,
+      otherUnfairAdvantageText: otherUnfairAdvantageText.trim() || undefined,
+      competitiveEdgeSummary: competitiveEdgeSummary.trim(),
+      lastSavedAt: new Date().toISOString(),
+    };
+    await onSaveStep4CompetitiveWedge(
+      payload,
+      Math.max(80, totalModuleBProgress)
+    );
+    setIsSavingStep4(false);
+    setSaveBanner(
+      '✅ Saved Step 4 (Competitive Edge & How You Stand Out)!'
     );
   }
 
@@ -1187,8 +1966,8 @@ export function ModuleBWorkspace({
               Back to Module A Canvas
             </Button>
             <div className="text-right text-[11px] text-indigo-200">
-              Module B Progress: <strong>{totalModuleBProgress}%</strong> (Steps
-              1–3 of 5 Active)
+              Module B Progress: <strong>{totalModuleBProgress}%</strong> (All 5
+              Steps Active)
             </div>
           </div>
         </div>
@@ -1220,16 +1999,16 @@ export function ModuleBWorkspace({
             {
               step: 'Step 4',
               title: 'Competitive Edge & Stand Out',
-              targetId: '',
-              active: false,
-              done: false,
+              targetId: 'module-b-step-4',
+              active: true,
+              done: step4Completion >= 20,
             },
             {
               step: 'Step 5',
               title: 'Market Things to Consider',
-              targetId: '',
-              active: false,
-              done: false,
+              targetId: 'module-b-step-5',
+              active: true,
+              done: step5Completion >= 20,
             },
           ].map((item) => (
             <button
@@ -1486,7 +2265,7 @@ export function ModuleBWorkspace({
                   : 'Click multiple cards if you sell to both individuals & institutions/businesses'}
               </span>
             </div>
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
               {BUYER_MODEL_OPTIONS.map((opt) => {
                 const IconComp = opt.icon;
                 const selectedIndex = buyerTypes.indexOf(opt.value);
@@ -1531,6 +2310,22 @@ export function ModuleBWorkspace({
                 );
               })}
             </div>
+
+            {buyerTypes.includes('OTHER') && (
+              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+                  Describe your custom or hybrid customer model:
+                </label>
+                <input
+                  type="text"
+                  disabled={isVaultReadonly}
+                  value={otherBuyerModelText}
+                  onChange={(e) => setOtherBuyerModelText(e.target.value)}
+                  placeholder="e.g., B2B2C via Channel Partners, Non-Profits, Licensing, Franchisees, or Public Sector..."
+                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                />
+              </div>
+            )}
 
             {buyerTypes.length > 1 && (
               <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/60 px-3.5 py-2.5 text-xs text-indigo-950">
@@ -1596,7 +2391,7 @@ export function ModuleBWorkspace({
                   different from the person who signs the cheque.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   disabled={isVaultReadonly}
@@ -1623,8 +2418,38 @@ export function ModuleBWorkspace({
                 >
                   Separate Budget Holder / Boss
                 </button>
+                <button
+                  type="button"
+                  disabled={isVaultReadonly}
+                  onClick={() => setEndUserVsDecisionMaker('OTHER')}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+                    endUserVsDecisionMaker === 'OTHER'
+                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Other / Shared Setup
+                </button>
               </div>
             </div>
+
+            {endUserVsDecisionMaker === 'OTHER' && (
+              <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/40 p-2.5">
+                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+                  Describe your custom user vs. buyer setup:
+                </label>
+                <input
+                  type="text"
+                  disabled={isVaultReadonly}
+                  value={otherDecisionMakerSetupText}
+                  onChange={(e) =>
+                    setOtherDecisionMakerSetupText(e.target.value)
+                  }
+                  placeholder="e.g., Reimbursed via employer stipend, insurance-funded, or split between parent & school..."
+                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                />
+              </div>
+            )}
 
             <div className="mt-3">
               <label
@@ -1775,6 +2600,22 @@ export function ModuleBWorkspace({
                 );
               })}
             </div>
+
+            {targetMarkets.includes('ROW') && (
+              <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3">
+                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+                  Specify your other target countries or regions:
+                </label>
+                <input
+                  type="text"
+                  disabled={isVaultReadonly}
+                  value={otherGeographyText}
+                  onChange={(e) => setOtherGeographyText(e.target.value)}
+                  placeholder="e.g., UAE, Singapore, Japan, Latin America, Nordics, or Worldwide Digital..."
+                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                />
+              </div>
+            )}
 
             {/* Dynamic Export Grant & Cross-Border Tax Insight Box */}
             <div className="mt-3.5 rounded-xl border border-indigo-200 bg-white p-3.5 text-xs">
@@ -2077,6 +2918,22 @@ export function ModuleBWorkspace({
               })}
             </div>
 
+            {currentWorkarounds.includes('OTHER') && (
+              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+                  Describe the other habit or workaround your customers use today:
+                </label>
+                <input
+                  type="text"
+                  disabled={isVaultReadonly}
+                  value={otherWorkaroundText}
+                  onChange={(e) => setOtherWorkaroundText(e.target.value)}
+                  placeholder="e.g., Using physical paper logbooks, borrowing equipment, or relying on word-of-mouth..."
+                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                />
+              </div>
+            )}
+
             <div className="mt-3">
               <label
                 htmlFor="workaround-frustration-input"
@@ -2331,6 +3188,22 @@ export function ModuleBWorkspace({
                 );
               })}
             </div>
+
+            {whySwitchEdges.includes('OTHER') && (
+              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+                  Describe your other key switching advantage:
+                </label>
+                <input
+                  type="text"
+                  disabled={isVaultReadonly}
+                  value={otherWhySwitchEdgeText}
+                  onChange={(e) => setOtherWhySwitchEdgeText(e.target.value)}
+                  placeholder="e.g., Certified sustainability, offline-first reliability, or exclusive community access..."
+                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                />
+              </div>
+            )}
 
             <div className="mt-3">
               <label
@@ -2783,7 +3656,7 @@ export function ModuleBWorkspace({
                       <label className="mb-1 block text-xs font-semibold text-slate-800">
                         How does this group pay you?
                       </label>
-                      <div className="grid grid-cols-2 gap-1.5">
+                      <div className="grid grid-cols-3 gap-1.5">
                         <button
                           type="button"
                           disabled={isVaultReadonly}
@@ -2794,13 +3667,13 @@ export function ModuleBWorkspace({
                               'MONTHLY_SUBSCRIPTION'
                             )
                           }
-                          className={`rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition-all ${
+                          className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition-all ${
                             seg.billingCadence === 'MONTHLY_SUBSCRIPTION'
                               ? 'border-indigo-600 bg-indigo-600 text-white'
                               : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
                           }`}
                         >
-                          Monthly Subscription (×12)
+                          Monthly (×12)
                         </button>
                         <button
                           type="button"
@@ -2812,15 +3685,49 @@ export function ModuleBWorkspace({
                               'YEARLY_OR_ONE_OFF'
                             )
                           }
-                          className={`rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition-all ${
+                          className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition-all ${
                             seg.billingCadence === 'YEARLY_OR_ONE_OFF'
                               ? 'border-indigo-600 bg-indigo-600 text-white'
                               : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
                           }`}
                         >
-                          Annual / One-Off Pass
+                          Annual / One-Off
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isVaultReadonly}
+                          onClick={() =>
+                            handleUpdateMarketSegment(
+                              seg.id,
+                              'billingCadence',
+                              'OTHER'
+                            )
+                          }
+                          className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition-all ${
+                            seg.billingCadence === 'OTHER'
+                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          Other / Custom
                         </button>
                       </div>
+                      {seg.billingCadence === 'OTHER' && (
+                        <input
+                          type="text"
+                          disabled={isVaultReadonly}
+                          value={seg.otherBillingCadenceText ?? ''}
+                          onChange={(e) =>
+                            handleUpdateMarketSegment(
+                              seg.id,
+                              'otherBillingCadenceText',
+                              e.target.value
+                            )
+                          }
+                          placeholder="Describe pricing model (e.g., per-transaction, commission, usage-based)..."
+                          className="mt-1.5 w-full rounded-lg border border-indigo-200 bg-indigo-50/40 px-2.5 py-1.5 text-[11px] text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -2968,7 +3875,7 @@ export function ModuleBWorkspace({
               {targetMarkets.join(', ')})?
             </p>
 
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
               {WIDER_MARKET_SCALE_OPTIONS.map((opt) => {
                 const selected = widerMarketMultiplier === opt.value;
                 return (
@@ -2998,6 +3905,22 @@ export function ModuleBWorkspace({
                 );
               })}
             </div>
+
+            {widerMarketMultiplier === 'OTHER' && (
+              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+                  Describe your custom long-term expansion scale or horizon:
+                </label>
+                <input
+                  type="text"
+                  disabled={isVaultReadonly}
+                  value={otherWiderMarketScaleText}
+                  onChange={(e) => setOtherWiderMarketScaleText(e.target.value)}
+                  placeholder="e.g., Staying hyper-focused on our domestic niche for 3 years, or expanding 15× via licensing..."
+                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                />
+              </div>
+            )}
 
             <div className="mt-4">
               <label
@@ -3195,44 +4118,1148 @@ export function ModuleBWorkspace({
       </Card>
 
       {/* =================================================================== */}
-      {/* UPCOMING MODULE B STEPS PREVIEW (STEPS 4–5)                         */}
+      {/* STEP 4 OF 5: COMPETITIVE EDGE & HOW YOU STAND OUT                   */}
       {/* =================================================================== */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="border-slate-200/90 bg-white/80">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary">Step 4 of 5 • Next Piece</Badge>
-              <ShieldCheck className="h-4 w-4 text-indigo-600" />
+      <Card
+        id="module-b-step-4"
+        className="scroll-mt-6 border-indigo-200 shadow-sm"
+      >
+        <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge variant="default">Step 4 of 5</Badge>
+                <span className="text-xs font-semibold text-indigo-700">
+                  Why Customers Switch &amp; What Stops Copycats
+                </span>
+              </div>
+              <CardTitle className="mt-1.5 text-lg">
+                Step 4: Competitive Edge &amp; How You Stand Out
+              </CardTitle>
+              <CardDescription className="mt-0.5 text-xs">
+                Show side-by-side how you win against current customer habits
+                and competitors, how you make switching effortless, and what
+                protects your business as you grow.
+              </CardDescription>
             </div>
-            <CardTitle className="mt-1 text-base">
-              Step 4: Competitive Edge &amp; Defensibility Matrix
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Compare how you win against competitors &amp; habits across Price,
-              Speed, Ease of Use, and Trust — and define why giants can&apos;t
-              easily copy you. (Surveys now live in dedicated{' '}
-              <strong>Module C</strong>!)
-            </CardDescription>
-          </CardHeader>
-        </Card>
 
-        <Card className="border-slate-200/90 bg-white/80">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary">Step 5 of 5 • Upcoming</Badge>
-              <Sparkles className="h-4 w-4 text-indigo-600" />
+            {/* Layer 1 & 2 Support Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStep4WhyCard((v) => !v)}
+              >
+                <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
+                {showStep4WhyCard
+                  ? 'Hide Coaching'
+                  : 'Why Are We Asking This?'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStep4Examples((v) => !v)}
+              >
+                <Lightbulb className="h-3.5 w-3.5 text-amber-600" />
+                {showStep4Examples
+                  ? 'Hide Examples'
+                  : `Show ${plan.industryCategory} Example`}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isVaultReadonly || isGeneratingStep4Ai}
+                onClick={handleRunAiCompetitiveEdge}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                {isGeneratingStep4Ai ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Drafting Edge...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-3.5 w-3.5" />
+                    Auto-Draft Competitive Edge with AI
+                  </>
+                )}
+              </Button>
             </div>
-            <CardTitle className="mt-1 text-base">
-              Step 5: Market &ldquo;Things to Consider&rdquo; &amp; Validation
-              Brief
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Switching-friction audit, Vitamin vs. Painkiller reality check,
-              and printable Market Validation Brief.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+          </div>
+
+          {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
+          {showStep4WhyCard && (
+            <div className="mt-3 rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+              <div className="font-bold text-indigo-900">
+                💡 Why Are We Asking This? (Co-Founder Coaching)
+              </div>
+              <p className="mt-1 leading-relaxed text-indigo-900/90">
+                Being <em>&ldquo;slightly better&rdquo;</em> isn&apos;t enough to
+                get busy customers to abandon a habit they already know. First,
+                you need a <strong>low-risk way for them to switch</strong>.
+                Second, investors and grant boards always ask:{' '}
+                <em>
+                  &ldquo;What stops an existing software company or competitor
+                  from copying this next month?&rdquo;
+                </em>{' '}
+                This step gives you a clear, visual answer to both questions.
+              </p>
+            </div>
+          )}
+
+          {/* Layer 1: Industry-Tailored Weak vs Strong Example */}
+          {showStep4Examples && (
+            <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs md:grid-cols-2">
+              <div className="rounded-lg border border-rose-200 bg-white p-3">
+                <div className="font-bold text-rose-700">
+                  ❌ Vague Claim (What Grant Boards &amp; Buyers Doubt)
+                </div>
+                <p className="mt-1 text-slate-600">
+                  &ldquo;{competitiveEdgeExamples.weakExample}&rdquo;
+                </p>
+              </div>
+              <div className="rounded-lg border border-emerald-200 bg-white p-3">
+                <div className="font-bold text-emerald-800">
+                  ✅ Clear Competitive Edge ({plan.industryCategory})
+                </div>
+                <p className="mt-1 text-slate-700">
+                  &ldquo;{competitiveEdgeExamples.strongExample}&rdquo;
+                </p>
+              </div>
+            </div>
+          )}
+        </CardHeader>
+
+        <CardContent className="space-y-6 pt-6">
+          {/* =============================================================== */}
+          {/* 4.1 SIDE-BY-SIDE COMPARISON SCORER                              */}
+          {/* =============================================================== */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  1. Side-by-Side Comparison: How Do You Stack Up?
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Click <strong>Low</strong>, <strong>Medium</strong>, or{' '}
+                  <strong>High</strong> on each column to compare your startup
+                  against current customer habits and competitors.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {competitors.some((c) => c.name.trim().length > 0) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isVaultReadonly}
+                    onClick={handleSyncCompetitorsFromStep2}
+                  >
+                    <Copy className="h-3.5 w-3.5 text-indigo-600" />
+                    Sync Competitors from Step 2
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isVaultReadonly}
+                  onClick={handleAddComparisonRow}
+                >
+                  <Plus className="h-3.5 w-3.5 text-indigo-600" />
+                  Add Competitor Row
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className="py-2.5 pr-3">Option / Competitor</th>
+                    <th className="px-2 py-2.5 text-center">
+                      💷 Value for Money
+                    </th>
+                    <th className="px-2 py-2.5 text-center">
+                      ⚡ Speed / Time Saved
+                    </th>
+                    <th className="px-2 py-2.5 text-center">
+                      🎯 Ease of Use
+                    </th>
+                    <th className="px-2 py-2.5 text-center">
+                      🛡️ Specialist Quality &amp; Trust
+                    </th>
+                    <th className="w-10 py-2.5 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {comparisonRows.map((row) => {
+                    const scoreFields: Array<{
+                      key:
+                        | 'priceValueScore'
+                        | 'speedTimeSavedScore'
+                        | 'easeOfUseScore'
+                        | 'specialistQualityScore';
+                      val: ComparisonScoreLevel;
+                    }> = [
+                      { key: 'priceValueScore', val: row.priceValueScore },
+                      {
+                        key: 'speedTimeSavedScore',
+                        val: row.speedTimeSavedScore,
+                      },
+                      { key: 'easeOfUseScore', val: row.easeOfUseScore },
+                      {
+                        key: 'specialistQualityScore',
+                        val: row.specialistQualityScore,
+                      },
+                    ];
+
+                    return (
+                      <tr
+                        key={row.rowId}
+                        className={
+                          row.isYourStartup
+                            ? 'bg-indigo-50/70 font-semibold'
+                            : 'bg-white'
+                        }
+                      >
+                        <td className="py-3 pr-3 pl-2">
+                          {row.isYourStartup ? (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="default">You</Badge>
+                              <span className="font-bold text-indigo-950">
+                                {plan.title || 'Your Startup'}
+                              </span>
+                            </div>
+                          ) : (
+                            <input
+                              type="text"
+                              disabled={isVaultReadonly}
+                              value={row.label}
+                              onChange={(e) =>
+                                handleUpdateComparisonLabel(
+                                  row.rowId,
+                                  e.target.value
+                                )
+                              }
+                              placeholder="e.g., Competitor name or manual habit..."
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                            />
+                          )}
+                        </td>
+
+                        {scoreFields.map((f) => (
+                          <td key={f.key} className="px-2 py-3 text-center">
+                            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+                              {(['LOW', 'MEDIUM', 'HIGH'] as const).map(
+                                (lvl) => {
+                                  const active = f.val === lvl;
+                                  const activeStyle =
+                                    lvl === 'HIGH'
+                                      ? 'bg-emerald-600 text-white shadow-2xs'
+                                      : lvl === 'MEDIUM'
+                                        ? 'bg-amber-500 text-white shadow-2xs'
+                                        : 'bg-slate-600 text-white shadow-2xs';
+                                  return (
+                                    <button
+                                      key={lvl}
+                                      type="button"
+                                      disabled={isVaultReadonly}
+                                      onClick={() =>
+                                        handleUpdateComparisonScore(
+                                          row.rowId,
+                                          f.key,
+                                          lvl
+                                        )
+                                      }
+                                      className={`rounded-md px-2 py-1 text-[10px] font-bold transition-all ${
+                                        active
+                                          ? activeStyle
+                                          : 'text-slate-600 hover:text-slate-900'
+                                      }`}
+                                    >
+                                      {lvl === 'LOW'
+                                        ? 'Low'
+                                        : lvl === 'MEDIUM'
+                                          ? 'Med'
+                                          : 'High'}
+                                    </button>
+                                  );
+                                }
+                              )}
+                            </div>
+                          </td>
+                        ))}
+
+                        <td className="py-3 pr-2 text-right">
+                          {!row.isYourStartup && (
+                            <button
+                              type="button"
+                              disabled={isVaultReadonly}
+                              onClick={() =>
+                                handleRemoveComparisonRow(row.rowId)
+                              }
+                              title="Remove row"
+                              className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* =============================================================== */}
+          {/* 4.2 MAKING IT EFFORTLESS TO SWITCH (SWITCHING FRICTION)         */}
+          {/* =============================================================== */}
+          <div className="space-y-3">
+            <label className="block text-sm font-bold text-slate-900">
+              2. How Do You Make It Effortless &amp; Low-Risk for Customers to
+              Switch to You?
+              <span className="ml-1.5 text-xs font-normal text-slate-500">
+                (Select all that apply)
+              </span>
+            </label>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {SWITCHING_FRICTION_REDUCER_OPTIONS.map((opt) => {
+                const isSelected = switchingFrictionReducers.includes(
+                  opt.value
+                );
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={isVaultReadonly}
+                    onClick={() => toggleSwitchingFrictionReducer(opt.value)}
+                    className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
+                      isSelected
+                        ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/15'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex w-full items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">
+                        {opt.label}
+                      </span>
+                      {isSelected && (
+                        <Check className="h-3.5 w-3.5 text-indigo-600" />
+                      )}
+                    </div>
+                    <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                      {opt.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {switchingFrictionReducers.includes('OTHER') && (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+                  Describe your other way of lowering switching friction:
+                </label>
+                <input
+                  type="text"
+                  disabled={isVaultReadonly}
+                  value={otherSwitchingFrictionText}
+                  onChange={(e) =>
+                    setOtherSwitchingFrictionText(e.target.value)
+                  }
+                  placeholder="e.g., Free hardware loaner kit, buyout of existing competitor contract, or co-funded pilot..."
+                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                />
+              </div>
+            )}
+
+            <div className="pt-1">
+              <label
+                htmlFor="switching-friction-notes-input"
+                className="mb-1 block text-xs font-semibold text-slate-800"
+              >
+                What is the easy &ldquo;First Step&rdquo; a customer takes when
+                trying you?
+              </label>
+              <input
+                id="switching-friction-notes-input"
+                type="text"
+                disabled={isVaultReadonly}
+                value={switchingFrictionPlanNotes}
+                onChange={(e) => setSwitchingFrictionPlanNotes(e.target.value)}
+                placeholder="e.g., Customers can complete Module A for free in 10 minutes with zero credit card required..."
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-hidden focus:ring-2 focus:ring-indigo-600/20 disabled:bg-slate-100"
+              />
+            </div>
+          </div>
+
+          {/* =============================================================== */}
+          {/* 4.3 YOUR UNFAIR ADVANTAGE / WHAT STOPS COPYCATS                 */}
+          {/* =============================================================== */}
+          <div className="space-y-3">
+            <label className="block text-sm font-bold text-slate-900">
+              3. Your Unfair Advantage: What Stops Competitors From Easily
+              Copying You?
+              <span className="ml-1.5 text-xs font-normal text-slate-500">
+                (Select all that apply)
+              </span>
+            </label>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {UNFAIR_ADVANTAGE_MOAT_OPTIONS.map((opt) => {
+                const isSelected = unfairAdvantages.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={isVaultReadonly}
+                    onClick={() => toggleUnfairAdvantage(opt.value)}
+                    className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
+                      isSelected
+                        ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/15'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex w-full items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">
+                        {opt.label}
+                      </span>
+                      {isSelected && (
+                        <Check className="h-3.5 w-3.5 text-emerald-700" />
+                      )}
+                    </div>
+                    <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                      {opt.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {unfairAdvantages.includes('OTHER') && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
+                <label className="mb-1 block text-xs font-semibold text-emerald-950">
+                  Describe your other unfair advantage or defensive moat:
+                </label>
+                <input
+                  type="text"
+                  disabled={isVaultReadonly}
+                  value={otherUnfairAdvantageText}
+                  onChange={(e) => setOtherUnfairAdvantageText(e.target.value)}
+                  placeholder="e.g., Exclusive supply agreement, proprietary dataset, or regulatory certification..."
+                  className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* =============================================================== */}
+          {/* 4.4 TWO-SENTENCE COMPETITIVE EDGE SUMMARY (FOR BUSINESS PLAN)   */}
+          {/* =============================================================== */}
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <label
+                  htmlFor="competitive-edge-summary-input"
+                  className="block text-sm font-bold text-slate-900"
+                >
+                  4. Your 2-Sentence Competitive Edge Summary (For Grant &amp;
+                  Investor Applications)
+                </label>
+                <p className="text-xs text-slate-600">
+                  Combine why customers switch to you + why competitors struggle
+                  to copy you.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isVaultReadonly}
+                  onClick={() => setShowStep4ImStuck((v) => !v)}
+                >
+                  <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
+                  {showStep4ImStuck ? 'Close Helper' : "I'm Stuck — Help Me"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isVaultReadonly}
+                  onClick={handleDraftSummaryFromSelections}
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                  Draft from Selected Cards
+                </Button>
+                {competitiveEdgeSummary.trim() && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(competitiveEdgeSummary);
+                      setCopiedEdgeSummary(true);
+                      setTimeout(() => setCopiedEdgeSummary(false), 2500);
+                    }}
+                  >
+                    {copiedEdgeSummary ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        Copy Summary
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {showStep4ImStuck && (
+              <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-4 space-y-3">
+                <div className="text-xs font-bold text-indigo-950">
+                  ✨ Quick 2-Question Edge Builder
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-700">
+                      1. What is the easiest first step a customer can try with
+                      you?
+                    </label>
+                    <input
+                      type="text"
+                      value={stuckStep4EasyFirstStep}
+                      onChange={(e) =>
+                        setStuckStep4EasyFirstStep(e.target.value)
+                      }
+                      placeholder="e.g., use our free Module A canvas in 10 minutes"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-700">
+                      2. What do you have (experience, local rules, partners)
+                      that a generic competitor lacks?
+                    </label>
+                    <input
+                      type="text"
+                      value={stuckStep4WhyHardToCopy}
+                      onChange={(e) =>
+                        setStuckStep4WhyHardToCopy(e.target.value)
+                      }
+                      placeholder="e.g., built-in Irish/UK grant rules and university cohort partnerships"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleDraftStep4FromStuckHelper}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Build My 2-Sentence Summary
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <textarea
+              id="competitive-edge-summary-input"
+              rows={3}
+              disabled={isVaultReadonly}
+              value={competitiveEdgeSummary}
+              onChange={(e) => setCompetitiveEdgeSummary(e.target.value)}
+              placeholder="Write 2 clear sentences summarizing your competitive edge (or click 'Draft from Selected Cards' or 'Auto-Draft Competitive Edge with AI' above)..."
+              className="mt-3 w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-hidden focus:ring-2 focus:ring-indigo-600/20 disabled:bg-slate-100"
+            />
+          </div>
+
+          {/* Step 4 Action Bar: Park Question + Save Step 4 */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isVaultReadonly}
+              onClick={() => {
+                onParkQuestion(
+                  `Module B Step 4: Test our "First Step" switching offer with 5 target customers in [${targetMarkets.join(', ')}] to confirm they find it effortless to switch from their current habit.`
+                );
+                setSaveBanner(
+                  '📌 Added switching-friction test to your Open Questions Parking Lot!'
+                );
+              }}
+            >
+              <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
+              Unsure what stops copycats? Park in Open Questions
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              disabled={isVaultReadonly || isSavingStep4}
+              onClick={handleSaveStep4}
+              className="bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              {isSavingStep4 ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving Step 4...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Step 4 (Competitive Edge &amp; Stand Out)
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* =================================================================== */}
+      {/* STEP 5 OF 5: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARD      */}
+      {/* (Matches Module A Step 6 Design 100%)                               */}
+      {/* =================================================================== */}
+      <div
+        id="module-b-step-5"
+        className="scroll-mt-6 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 p-5 shadow-xs"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Step 5: Constructive &ldquo;Things to Consider&rdquo;
+                (Blind-Spot Engine)
+              </h3>
+              <p className="text-xs text-slate-500">
+                Updates live as you fill in Steps 1–4 — combining your target
+                customer, competitors, {countryPack.defaultCurrency} market
+                sizing, and competitive edge.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-900">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+              Live-Synced with Steps 1–4
+            </span>
+            <Badge variant="default">Co-Founder Perspective</Badge>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
+          {liveModuleBThingsToConsider.map((item, idx) => (
+            <div
+              key={item.id || idx}
+              className={`flex flex-col justify-between rounded-xl border p-4 shadow-2xs transition-all ${
+                item.severity === 'WARNING'
+                  ? 'border-amber-300 bg-amber-50/40'
+                  : 'border-slate-200/90 bg-white'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                      item.severity === 'WARNING'
+                        ? 'bg-amber-100 text-amber-900'
+                        : 'bg-indigo-50 text-indigo-800'
+                    }`}
+                  >
+                    {item.severity === 'WARNING'
+                      ? '⚠️ Priority Blind Spot'
+                      : '💡 Co-Founder Check'}
+                  </span>
+                </div>
+                <div className="mt-2 text-xs font-bold text-slate-900">
+                  {item.title}
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+                  {item.explanation}
+                </p>
+                {item.suggestedAction && (
+                  <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-indigo-900 ring-1 ring-slate-200/70">
+                    <strong>Action Step:</strong> {item.suggestedAction}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 flex justify-end border-t border-slate-100 pt-2">
+                <button
+                  type="button"
+                  disabled={isVaultReadonly}
+                  onClick={() => {
+                    onParkQuestion(
+                      `Module B Blind-Spot Action: ${item.suggestedAction}`
+                    );
+                    setSaveBanner(
+                      `📌 Parked "${item.title}" in your Open Questions Parking Lot!`
+                    );
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+                >
+                  <BookmarkPlus className="h-3 w-3" />
+                  Park in Open Questions
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Step 5 Bottom Save Bar */}
+        {!isVaultReadonly && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/90 px-4 py-3">
+            <div className="text-xs text-slate-600">
+              ✨ Change any option or add notes in Steps 1–4 above and watch
+              these 6 cards adapt immediately.
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={isSavingStep5}
+                onClick={handleSaveStep5AndComplete}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                {isSavingStep5 ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Saving Module B...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-3.5 w-3.5" />
+                    Save All Module B Progress
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* =================================================================== */}
+      {/* MODULE B SUMMARY DOCUMENT: MARKET & CUSTOMER VALIDATION BRIEF       */}
+      {/* (Matches Module A Step 7 Document Preview & Download Card 100%)     */}
+      {/* =================================================================== */}
+      <Card className="border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="default">
+                  Module B Summary Document
+                </Badge>
+                <Badge
+                  variant={
+                    completedModuleBReadinessCount === 5
+                      ? 'success'
+                      : 'secondary'
+                  }
+                  className="text-[10px]"
+                >
+                  {completedModuleBReadinessCount}/5 Sections Ready
+                </Badge>
+              </div>
+              <CardTitle className="mt-2 flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-indigo-600" />
+                Your Market &amp; Customer Validation Brief
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Everything you captured across Steps 1–5 is compiled below into
+                a clean executive summary document you can download, print to
+                PDF, or share with a co-founder, mentor, or grant advisor before
+                moving into Module C.
+              </CardDescription>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setShowModuleBBriefPreview(!showModuleBBriefPreview)
+              }
+              className="text-xs"
+            >
+              <Eye className="h-3.5 w-3.5 text-indigo-600" />
+              {showModuleBBriefPreview
+                ? 'Hide Live Document Preview'
+                : 'Show Live Document Preview'}
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-5">
+          {/* 5-STEP MODULE B READINESS CHECKLIST */}
+          <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Module B Readiness Checklist (Steps 1–5 Included in Your Brief)
+              </div>
+              <span className="text-xs font-semibold text-indigo-700">
+                Live-Synced with Your Answers Above
+              </span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {moduleBReadinessSteps.map((step) => (
+                <div
+                  key={step.stepNumber}
+                  className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs transition-all ${
+                    step.isComplete
+                      ? 'border-emerald-200 bg-emerald-50/40'
+                      : 'border-amber-200 bg-amber-50/40'
+                  }`}
+                >
+                  <CheckCircle2
+                    className={`mt-0.5 h-4 w-4 shrink-0 ${
+                      step.isComplete ? 'text-emerald-600' : 'text-amber-500'
+                    }`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-slate-900">
+                      Step {step.stepNumber}: {step.label}
+                    </div>
+                    <p className="mt-0.5 truncate text-[11px] text-slate-600">
+                      {step.summary}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* LIVE EXECUTIVE BRIEF DOCUMENT PREVIEW (Matches Module A 100%) */}
+          {showModuleBBriefPreview && (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              {/* Document Header Banner */}
+              <div className="border-b border-slate-200 bg-slate-900 px-6 py-5 text-white">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-300">
+                    {whiteLabelEnabled
+                      ? 'Market & Customer Validation Brief'
+                      : 'Build My Unicorn 2.0 • Market & Customer Validation Brief'}
+                  </span>
+                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-slate-200">
+                    {countryPack.countryName} ({countryPack.defaultCurrency}) •{' '}
+                    {plan.industryCategory}
+                  </span>
+                </div>
+                <h2 className="mt-1.5 text-lg font-bold text-white">
+                  {plan.title}
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-300">
+                  Prepared by {founderName} • Target Markets:{' '}
+                  {targetMarkets.join(', ')} • {briefGeneratedDate}
+                </p>
+              </div>
+
+              {/* Document Body Sections */}
+              <div className="divide-y divide-slate-100 p-6 text-xs">
+                {/* Section 1: Target Customers & Buying Triggers */}
+                <div className="pb-5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    1. Target Customers &amp; Buying Triggers (Step 1)
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 p-3">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        First Priority Customer Group
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-800">
+                        {beachheadSegment.trim() || 'Not yet specified.'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 p-3">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Customer Model &amp; Selling Geographies
+                      </div>
+                      <p className="mt-1 font-semibold text-slate-800">
+                        {buyerTypes.length > 0
+                          ? buyerTypes
+                              .map((t) => BUYER_MODEL_LABELS[t] || t)
+                              .join(' + ')
+                          : BUYER_MODEL_LABELS[buyerType]}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-slate-600">
+                        Selling in: {targetMarkets.join(', ')}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 p-3">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Decision-Maker / Budget Sign-Off
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-800">
+                        {decisionMakerRole.trim() || 'Not yet specified.'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 p-3">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Urgent Buying Trigger
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-800">
+                        {buyingTriggerNotes.trim() || 'Not yet specified.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Competitors & Current Customer Habits */}
+                <div className="py-5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    2. Competitors &amp; How Customers Deal With This Today
+                    (Step 2)
+                  </div>
+                  <div className="mt-2.5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                      <div className="text-[10px] font-bold uppercase text-slate-400">
+                        Frustration With Current Habits
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-800">
+                        {workaroundFrustrationNotes.trim() ||
+                          'Not yet specified.'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                      <div className="text-[10px] font-bold uppercase text-slate-400">
+                        Why Customers Switch to Us
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-800">
+                        {whySwitchOneSentence.trim() || 'Not yet specified.'}
+                      </p>
+                    </div>
+                  </div>
+                  {competitors.length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                      {competitors.map((comp) => (
+                        <div
+                          key={comp.id}
+                          className="rounded-xl border border-slate-200 p-3"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-slate-900">
+                              {comp.name || 'Alternative'}
+                            </span>
+                            {comp.typicalPriceText && (
+                              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                                {comp.typicalPriceText}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-[11px] text-slate-600">
+                            <strong>Strength:</strong>{' '}
+                            {comp.whatTheyDoWell || '—'}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-600">
+                            <strong>Weakness:</strong>{' '}
+                            {comp.whereTheyFallShort || '—'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 3: Bottom-Up Market Sizing */}
+                <div className="py-5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    3. Bottom-Up Market Sizing ({countryPack.defaultCurrency} —
+                    Step 3)
+                  </div>
+                  <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3">
+                      <div className="text-[10px] font-bold uppercase text-indigo-700">
+                        1. Year 1–2 Revenue Goal (SOM)
+                      </div>
+                      <div className="mt-1 text-base font-extrabold text-slate-900">
+                        {formatPlanCurrency(
+                          totalYear1To2RevenueSom,
+                          countryPack.defaultCurrency
+                        )}
+                        /yr
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-[10px] font-bold uppercase text-slate-500">
+                        2. Reachable Market (SAM)
+                      </div>
+                      <div className="mt-1 text-base font-extrabold text-slate-900">
+                        {formatPlanCurrency(
+                          totalReachableMarketSam,
+                          countryPack.defaultCurrency
+                        )}
+                        /yr
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-[10px] font-bold uppercase text-slate-500">
+                        3. Wider Long-Term Market (TAM)
+                      </div>
+                      <div className="mt-1 text-base font-extrabold text-slate-900">
+                        {formatPlanCurrency(
+                          totalWiderMarketTam,
+                          countryPack.defaultCurrency
+                        )}
+                        /yr
+                      </div>
+                    </div>
+                  </div>
+                  {grantReadySummaryParagraph && (
+                    <div className="mt-3 rounded-xl bg-slate-50 p-3.5 text-slate-700 ring-1 ring-slate-200/70">
+                      <span className="font-semibold text-slate-900">
+                        Grant &amp; Investor Summary:{' '}
+                      </span>
+                      &ldquo;{grantReadySummaryParagraph}&rdquo;
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 4: Competitive Edge & Defensibility */}
+                <div className="py-5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    4. Competitive Edge &amp; How You Stand Out (Step 4)
+                  </div>
+                  <div className="mt-2.5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 p-3">
+                      <div className="text-[10px] font-bold uppercase text-slate-400">
+                        Easy First Step (Lowering Switching Friction)
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-800">
+                        {switchingFrictionPlanNotes.trim() ||
+                          'Not yet specified.'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 p-3">
+                      <div className="text-[10px] font-bold uppercase text-slate-400">
+                        2-Sentence Competitive Edge &amp; Defensibility
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-800">
+                        {competitiveEdgeSummary.trim() || 'Not yet specified.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 5: Co-Founder Blind-Spot Takeaways */}
+                <div className="pt-5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    5. Co-Founder Blind-Spot Review &amp; Next Validation Steps
+                    (Step 5)
+                  </div>
+                  <div className="mt-2.5 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                    {liveModuleBThingsToConsider.map((item, idx) => (
+                      <div
+                        key={item.id || idx}
+                        className="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
+                      >
+                        <div className="font-bold text-slate-900">
+                          {item.title}
+                        </div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          {item.suggestedAction || item.explanation}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* BOTTOM ACTION BAR: DOWNLOAD, PRINT TO PDF, OR COPY BRIEF (Matches Module A 100%) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
+            <div className="text-xs text-slate-600">
+              📥{' '}
+              <strong>
+                Take your Market &amp; Customer Validation Brief with you:
+              </strong>{' '}
+              Download a standalone file, print/save as PDF, or copy for your
+              notes.
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCopyModuleBBriefMarkdown}
+              >
+                {copiedModuleBBrief ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    Copied to Clipboard!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5 text-slate-600" />
+                    Copy Summary
+                  </>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadModuleBBriefHtml}
+              >
+                <Download className="h-3.5 w-3.5 text-indigo-600" />
+                Download Brief (.html)
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={handlePrintModuleBBriefPdf}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                Print / Save as PDF
+              </Button>
+            </div>
+          </div>
+
+          {/* Conversion / Handoff CTA Bar into Module C (Matches Module A Dark Footer Bar 100%) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
+            <div className="text-xs">
+              <span className="font-semibold text-indigo-300">
+                Ready to test {plan.title} with real customers?
+              </span>{' '}
+              Continue to Module C to generate your unbiased Customer Validation
+              Survey link (<code>/v/my-startup</code>), collect real buyer
+              feedback, and build your early waitlist.
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={async () => {
+                if (!isVaultReadonly) {
+                  await handleSaveStep5AndComplete();
+                }
+                onContinueToModuleC();
+              }}
+              className="bg-indigo-600 text-white hover:bg-indigo-500"
+            >
+              Continue to Module C: Customer Surveys &amp; Waitlist
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

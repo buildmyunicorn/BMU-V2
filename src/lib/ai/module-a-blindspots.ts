@@ -31,6 +31,7 @@ const DEALBREAKER_SHORT_LABELS: Record<FounderDealbreakerType, string> = {
   NO_COLD_SALES: 'doing cold-calling or high-pressure enterprise sales',
   NO_OUTSIDE_INVESTORS: 'answering to outside VCs/investors',
   NO_WEEKEND_SUPPORT: 'handling 24/7 weekend customer emergencies',
+  OTHER: 'custom lifestyle dealbreakers',
 };
 
 /**
@@ -107,7 +108,10 @@ export function buildDynamicModuleABlindSpots(
       ? '5–10 hrs/week (evenings & weekends)'
       : motivation.weeklyHoursAvailable === '15_TO_25_HRS'
         ? '15–25 hrs/week (part-time focus)'
-        : '40+ hrs/week (full-time all-in)';
+        : motivation.weeklyHoursAvailable === 'OTHER' &&
+            motivation.otherWeeklyHoursText?.trim()
+          ? motivation.otherWeeklyHoursText.trim()
+          : '40+ hrs/week (full-time all-in)';
 
   const visionNote = motivation.twelveMonthSuccessVision?.trim();
   const visionSentence = visionNote
@@ -144,6 +148,11 @@ export function buildDynamicModuleABlindSpots(
     card2Explanation = `Your goal is to build a valuable asset you can eventually sell while committing ${hoursLabel}.${visionSentence} Acquirers pay a multiple for recurring contracts and documented systems that run without the founder doing every job personally.`;
     card2Action =
       'Avoid one-off custom projects; lock in repeatable monthly or annual customer agreements.';
+  } else if (motivation.primaryMotivation === 'OTHER') {
+    const customMot = motivation.otherMotivationText?.trim() || 'your personal goals';
+    card2Title = `✨ 2. Aligning Your ${hoursLabel} Schedule With Your Ambition (Step 3)`;
+    card2Explanation = `You are committing ${hoursLabel} toward ${customMot}.${visionSentence} Make sure your Version 1 business model fits your weekly schedule and personal priorities.`;
+    card2Action = `Validate 5 target buyers at ${benchmarkPrice} in Module B to confirm demand.`;
   }
 
   const card2: BlindSpotItem = {
@@ -169,7 +178,10 @@ export function buildDynamicModuleABlindSpots(
         ? 'Solo (Looking for a Co-Founder)'
         : team.teamStructureType === 'COFOUNDER_TEAM'
           ? 'a Co-Founder Team (2+ Founders)'
-          : 'Solo + Freelancers/Contractors';
+          : team.teamStructureType === 'OTHER' &&
+              team.otherTeamStructureText?.trim()
+            ? team.otherTeamStructureText.trim()
+            : 'Solo + Freelancers/Contractors';
 
   const teamNotes = team.teamAndFundingNotes?.trim();
   const teamNotesSentence = teamNotes
@@ -187,9 +199,12 @@ export function buildDynamicModuleABlindSpots(
     card3Explanation = `You indicated you are ${teamLabel} and will need an external builder or technical partner to build Version 1.${teamNotesSentence} The #1 trap here is paying an agency thousands upfront or giving away 50% equity before proving customers will pay.`;
     card3Action =
       'Validate demand using a clickable mockup or manual "Concierge MVP" in Module B first — 5 pre-orders will make recruiting a builder 10x easier.';
-  } else if (team.skillCoverage === 'PARTIAL_SKILLS') {
+  } else if (
+    team.skillCoverage === 'PARTIAL_SKILLS' ||
+    team.skillCoverage === 'OTHER'
+  ) {
     card3Title = `🧩 3. Covering Your Missing Skill Gaps (${teamLabel} • Step 4)`;
-    card3Explanation = `You are operating as ${teamLabel} with strong domain/commercial skills, but need support on part of the build.${teamNotesSentence} Keep Version 1 lean using no-code/off-the-shelf tools for the parts outside your core skillset.`;
+    card3Explanation = `You are operating as ${teamLabel}${team.skillCoverage === 'OTHER' && team.otherSkillCoverageText?.trim() ? ` (${team.otherSkillCoverageText.trim()})` : ' with strong domain/commercial skills, but need support on part of the build'}.${teamNotesSentence} Keep Version 1 lean using no-code/off-the-shelf tools for the parts outside your core skillset.`;
     card3Action =
       team.teamStructureType === 'SEEKING_COFOUNDER'
         ? 'Use Module C to define the exact Startup Hats your future co-founder must own.'
@@ -224,7 +239,10 @@ export function buildDynamicModuleABlindSpots(
           ? `${formatPlanCurrency(1000, currency)}–${formatPlanCurrency(5000, currency)}`
           : team.startingBudgetBracket === '5K_TO_25K'
             ? `${formatPlanCurrency(5000, currency)}–${formatPlanCurrency(25000, currency)}`
-            : `${formatPlanCurrency(25000, currency)}+`;
+            : team.startingBudgetBracket === 'OTHER' &&
+                team.otherBudgetText?.trim()
+              ? team.otherBudgetText.trim()
+              : `${formatPlanCurrency(25000, currency)}+`;
 
   const tradeoffLabel =
     reality.growthTradeoff === 'BOOTSTRAP_100_CONTROL'
@@ -233,7 +251,10 @@ export function buildDynamicModuleABlindSpots(
         ? `combining customer sales with non-dilutive ${countryPack.countryName} grants`
         : reality.growthTradeoff === 'SHARE_EQUITY_COFOUNDER'
           ? 'sharing equity with a co-founder'
-          : 'raising Angel/VC investment';
+          : reality.growthTradeoff === 'OTHER' &&
+              reality.otherGrowthTradeoffText?.trim()
+            ? reality.otherGrowthTradeoffText.trim()
+            : 'raising Angel/VC investment';
 
   const isLeanBudget =
     team.startingBudgetBracket === 'ZERO_SWEAT_EQUITY' ||
@@ -263,18 +284,30 @@ export function buildDynamicModuleABlindSpots(
       ? 'an Industry Insider with firsthand experience'
       : reality.industryConnection === 'WARM_CONNECTIONS'
         ? 'connected to 3–5 warm industry contacts'
-        : 'starting cold as an industry outsider';
+        : reality.industryConnection === 'OTHER' &&
+            reality.otherIndustryConnectionText?.trim()
+          ? reality.otherIndustryConnectionText.trim()
+          : 'starting cold as an industry outsider';
 
   const urgencyText =
     reality.personalIncomeUrgency === 'URGENT_1_TO_3M'
       ? 'need personal income within 1–3 months'
       : reality.personalIncomeUrgency === 'MEDIUM_6_TO_12M'
         ? 'aim to draw a personal wage within 6–12 months'
-        : 'have 12+ months of personal runway with no immediate wage pressure';
+        : reality.personalIncomeUrgency === 'OTHER' &&
+            reality.otherIncomeUrgencyText?.trim()
+          ? reality.otherIncomeUrgencyText.trim()
+          : 'have 12+ months of personal runway with no immediate wage pressure';
 
   const dealbreakerList =
     reality.dealbreakers.length > 0
-      ? reality.dealbreakers.map((d) => DEALBREAKER_SHORT_LABELS[d]).join(', ')
+      ? reality.dealbreakers
+          .map((d) =>
+            d === 'OTHER' && reality.otherDealbreakerText?.trim()
+              ? reality.otherDealbreakerText.trim()
+              : DEALBREAKER_SHORT_LABELS[d]
+          )
+          .join(', ')
       : 'no strict lifestyle dealbreakers selected yet';
 
   const card5: BlindSpotItem = {
@@ -348,6 +381,12 @@ export function buildDynamicModuleABlindSpots(
       explanation: `Founder burnout happens when you try to do 20 things at once without clear validation milestones.${customWorrySuffix} With ${hoursLabel} and ${budgetLabel}, your superpower is ruthless focus.`,
       action:
         'Focus on one milestone at a time: validate 5 buyers in Module B before spending cash or late nights building.',
+    },
+    OTHER: {
+      title: '✨ 6. Tackling Your Custom #1 Worry (Step 5)',
+      explanation: `Every founder carries a specific question mark around their idea.${customWorrySuffix} The fastest way to de-risk an unknown is to test it directly with 5 real target buyers before committing major budget.`,
+      action:
+        'Turn your #1 worry into a specific validation question in Module B and test it with 5 target customers this week.',
     },
   };
 

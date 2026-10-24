@@ -17,6 +17,7 @@
   2. **Context-Aware AI Sidekick ("Ask Unicorn"):** Persistent slide-out drawer aware of the active `planId` and `currentModuleStep`, plus an **"I'm Stuck"** breakdown button on inputs.
   3. **Momentum Protection:** Include a **"Park It in Open Questions"** button and **"Use Industry Benchmark"** fallback on quantitative steps so founders never get blocked.
   4. **Smart Bug/Mentor Escalation:** Captures current Plan ID and step context.
+  5. **Always Include an "Other" Option on Tile/Pill Selectors (Edge-Case Protection):** Every single-select or multi-select tile, card, button, or pill option group across all modules (Modules A–I) **must** include an `"OTHER"` option that reveals an inline custom text input when selected, persisted in the plan data and reflected in AI blind-spot reviews and exported briefs so founders with non-standard or hybrid models never feel boxed in.
 
 ## 2. Tech Stack & Coding Standards (Strict Rules for Argon)
 * **Framework:** Next.js (App Router, TypeScript, strict mode) with React Server Components (RSC) and Server Actions.

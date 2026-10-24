@@ -89,6 +89,7 @@ import {
   type BeachheadMarketData,
   type CompetitorsAndStatusQuoData,
   type MarketSizingData,
+  type CompetitiveWedgeData,
   type BuyerModelType,
 } from '@/lib/auth/session-store';
 import {
@@ -106,6 +107,9 @@ import {
   scoutModuleBCompetitorsWithAiAction,
   saveModuleBStep3MarketSizingAction,
   estimateModuleBMarketSizingWithAiAction,
+  saveModuleBStep4CompetitiveWedgeAction,
+  generateModuleBCompetitiveEdgeWithAiAction,
+  saveModuleBStep5CompleteAction,
   parkModuleBOpenQuestionAction,
 } from '@/app/actions/module-b';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
@@ -733,6 +737,110 @@ export default function WorkspacePage() {
     };
   }
 
+  async function handleSaveModuleBStep4(
+    competitiveWedge: CompetitiveWedgeData,
+    progressPercent: number
+  ) {
+    const updatedPlans = session.plans.map((p) => {
+      if (p.id !== currentPlan.id) return p;
+      return {
+        ...p,
+        currentModuleStep: 'MOD_B_STEP_4',
+        moduleBData: {
+          ...(p.moduleBData || {}),
+          competitiveWedge,
+        },
+      };
+    });
+
+    const nextSession: BmuLocalSession = {
+      ...session,
+      plans: updatedPlans,
+    };
+    setSession(nextSession);
+    saveBmuSession(nextSession);
+
+    await saveModuleBStep4CompetitiveWedgeAction({
+      planId: currentPlan.id,
+      competitiveWedge,
+      completionPercentage: progressPercent,
+    });
+  }
+
+  async function handleGenerateModuleBCompetitiveEdge(params: {
+    targetCustomerDescription: string;
+    targetMarketsArray: string[];
+    competitorNames: string[];
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Competitive Edge Builder (${aiCreditCheck.reason})`
+      );
+      return null;
+    }
+
+    const result = await generateModuleBCompetitiveEdgeWithAiAction({
+      userId: session.user.id,
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      brainDumpText,
+      targetCustomerDescription: params.targetCustomerDescription,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      targetMarketsArray: params.targetMarketsArray,
+      competitorNames: params.competitorNames,
+    });
+
+    const updatedSession: BmuLocalSession = {
+      ...session,
+      entitlement: {
+        ...session.entitlement,
+        aiCreditsUsedThisMonth:
+          result.creditsUsedAfter ??
+          session.entitlement.aiCreditsUsedThisMonth + 1,
+      },
+    };
+    setSession(updatedSession);
+    saveBmuSession(updatedSession);
+
+    return {
+      comparisonRows: result.comparisonRows,
+      switchingFrictionReducers: result.switchingFrictionReducers,
+      switchingFrictionPlanNotes: result.switchingFrictionPlanNotes,
+      unfairAdvantages: result.unfairAdvantages,
+      competitiveEdgeSummary: result.competitiveEdgeSummary,
+      engineMode: result.engineMode,
+    };
+  }
+
+  async function handleSaveModuleBStep5(thingsToConsider: BlindSpotItem[]) {
+    if (!session || !currentPlan || activeEntitlement.isVaultReadonly) return;
+
+    const updatedPlans = session.plans.map((p) => {
+      if (p.id !== currentPlan.id) return p;
+      return {
+        ...p,
+        moduleBData: {
+          ...p.moduleBData,
+          thingsToConsider,
+        },
+        updatedAtIso: new Date().toISOString(),
+      };
+    });
+
+    const updatedSession: BmuLocalSession = {
+      ...session,
+      plans: updatedPlans,
+    };
+    setSession(updatedSession);
+    saveBmuSession(updatedSession);
+
+    await saveModuleBStep5CompleteAction({
+      planId: currentPlan.id,
+      thingsToConsider,
+    });
+  }
+
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
     coreProblem: '',
     targetCustomer: '',
@@ -989,6 +1097,7 @@ export default function WorkspacePage() {
   const savedStep2Competitors =
     currentPlan.moduleBData?.competitorsAndStatusQuo;
   const savedStep3MarketSizing = currentPlan.moduleBData?.marketSizing;
+  const savedStep4CompetitiveWedge = currentPlan.moduleBData?.competitiveWedge;
   const step1ModBScore = savedBeachhead?.beachheadSegment ? 20 : 0;
   const step2ModBScore =
     savedStep2Competitors?.competitors?.length ||
@@ -1000,9 +1109,22 @@ export default function WorkspacePage() {
   )
     ? 20
     : 0;
+  const step4ModBScore =
+    savedStep4CompetitiveWedge?.competitiveEdgeSummary?.trim() ||
+    savedStep4CompetitiveWedge?.unfairAdvantages?.length
+      ? 20
+      : 0;
+  const step5ModBScore =
+    (currentPlan.moduleBData?.thingsToConsider?.length ?? 0) > 0 ? 20 : 0;
+  const totalModBScore =
+    step1ModBScore +
+    step2ModBScore +
+    step3ModBScore +
+    step4ModBScore +
+    step5ModBScore;
   const moduleBProgressPercent =
-    step1ModBScore + step2ModBScore + step3ModBScore > 0
-      ? step1ModBScore + step2ModBScore + step3ModBScore
+    totalModBScore > 0
+      ? totalModBScore
       : activeModule === 'MOD_B_MARKET'
         ? 10
         : 0;
@@ -1266,10 +1388,10 @@ export default function WorkspacePage() {
             )}
           </div>
 
-          {/* Module A - G Navigation List */}
+          {/* Module A - I Navigation List */}
           <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
             <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Founder Journey (Modules A–G)
+              Founder Journey (Modules A–I)
             </div>
             <div className="space-y-1">
               {MODULES_LIST.map((mod) => {
@@ -1430,13 +1552,37 @@ export default function WorkspacePage() {
               }}
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
+              founderName={session.user.name}
+              whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
               onSaveStep1Beachhead={handleSaveModuleBStep1}
               onSaveStep2Competitors={handleSaveModuleBStep2}
               onScoutCompetitorsWithAi={handleScoutModuleBCompetitors}
               onSaveStep3MarketSizing={handleSaveModuleBStep3}
               onEstimateMarketSizingWithAi={handleEstimateModuleBMarketSizing}
+              onSaveStep4CompetitiveWedge={handleSaveModuleBStep4}
+              onGenerateCompetitiveEdgeWithAi={
+                handleGenerateModuleBCompetitiveEdge
+              }
+              onSaveStep5Complete={handleSaveModuleBStep5}
               onParkQuestion={handleParkModuleBQuestion}
               onBackToModuleA={() => setActiveModule('MOD_A_IDEATION')}
+              onContinueToModuleC={() => {
+                const modCAccess = canAccessModule(
+                  activeEntitlement,
+                  'MOD_C_SURVEYS_FEEDBACK'
+                );
+                if (!modCAccess.allowed) {
+                  setPendingModuleAfterUnlock('MOD_C_SURVEYS_FEEDBACK');
+                  setPaywallModalFeature(
+                    `Module C: Customer Surveys, Feedback & Early Waitlist — ${modCAccess.reason}`
+                  );
+                  return;
+                }
+                setSynthesisBanner(
+                  '✅ Module B Market & Customer Validation saved! Ready for Module C: Customer Surveys, Feedback & Early Waitlist.'
+                );
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
           ) : (
             <>
@@ -2044,7 +2190,7 @@ export default function WorkspacePage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                   1. What is driving you to build this? (Pick what fits best right now)
                 </label>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {(
                     [
                       {
@@ -2081,6 +2227,13 @@ export default function WorkspacePage() {
                         title: 'Build a Company & Sell It',
                         subtitle:
                           'Create a valuable, systemised business asset with recurring revenue that an acquirer or competitor will want to buy.',
+                      },
+                      {
+                        id: 'OTHER' as FounderMotivationType,
+                        emoji: '✨',
+                        title: 'Other (Write Your Own Goal)',
+                        subtitle:
+                          'My motivation or situation doesn’t fit neatly into the boxes above — I’ll describe it in my own words.',
                       },
                     ] as const
                   ).map((option) => {
@@ -2123,6 +2276,26 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
+                {founderMotivation.primaryMotivation === 'OTHER' && (
+                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-[11px] font-bold text-indigo-950">
+                      ✨ Tell us what is driving you in your own words:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={founderMotivation.otherMotivationText || ''}
+                      onChange={(e) =>
+                        setFounderMotivation({
+                          ...founderMotivation,
+                          otherMotivationText: e.target.value,
+                        })
+                      }
+                      placeholder="E.g., Spinning out a tool we built inside our family business, or creating a seasonal lifestyle business..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 2. Weekly Hours Available */}
@@ -2144,6 +2317,10 @@ export default function WorkspacePage() {
                       {
                         id: '40_PLUS_HRS' as FounderWeeklyHours,
                         label: '🔥 40+ hrs / week (Full-Time All-In)',
+                      },
+                      {
+                        id: 'OTHER' as FounderWeeklyHours,
+                        label: '✨ Other (Custom Schedule)',
                       },
                     ] as const
                   ).map((pill) => {
@@ -2171,6 +2348,26 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
+                {founderMotivation.weeklyHoursAvailable === 'OTHER' && (
+                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-[11px] font-bold text-indigo-950">
+                      ✨ Describe your weekly schedule or availability:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={founderMotivation.otherWeeklyHoursText || ''}
+                      onChange={(e) =>
+                        setFounderMotivation({
+                          ...founderMotivation,
+                          otherWeeklyHoursText: e.target.value,
+                        })
+                      }
+                      placeholder="E.g., 2 full days a week (Thurs/Fri), or seasonal sprints between client projects..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 3. Personal 12-Month Success Vision */}
@@ -2251,7 +2448,7 @@ export default function WorkspacePage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                   1. Who is building this right now? (Solo vs. Team)
                 </label>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   {(
                     [
                       {
@@ -2281,6 +2478,13 @@ export default function WorkspacePage() {
                         title: 'Solo + Freelancers / Agency',
                         subtitle:
                           'I own it solo, bringing in paid contractors or specialists for specific tasks.',
+                      },
+                      {
+                        id: 'OTHER' as PlanTeamStructureType,
+                        emoji: '✨',
+                        title: 'Other (Custom Team Setup)',
+                        subtitle:
+                          'Family business, spin-out, cooperative, or another structure — I’ll describe it below.',
                       },
                     ] as const
                   ).map((option) => {
@@ -2323,6 +2527,26 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
+                {teamAndBudget.teamStructureType === 'OTHER' && (
+                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-[11px] font-bold text-indigo-950">
+                      ✨ Describe your team setup in your own words:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={teamAndBudget.otherTeamStructureText || ''}
+                      onChange={(e) =>
+                        setTeamAndBudget({
+                          ...teamAndBudget,
+                          otherTeamStructureText: e.target.value,
+                        })
+                      }
+                      placeholder="E.g., University research spin-out with 2 advisors, or husband-and-wife part-time partnership..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 2. In-House Skill Coverage Check */}
@@ -2347,6 +2571,10 @@ export default function WorkspacePage() {
                         id: 'NEED_EXTERNAL_BUILDER' as TeamSkillCoverageType,
                         label:
                           '🚨 No — I/we will need to hire someone or find a co-founder to build it',
+                      },
+                      {
+                        id: 'OTHER' as TeamSkillCoverageType,
+                        label: '✨ Other (Custom Skill Setup)',
                       },
                     ] as const
                   ).map((pill) => {
@@ -2374,6 +2602,26 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
+                {teamAndBudget.skillCoverage === 'OTHER' && (
+                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-[11px] font-bold text-indigo-950">
+                      ✨ Describe your skill coverage or build arrangement:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={teamAndBudget.otherSkillCoverageText || ''}
+                      onChange={(e) =>
+                        setTeamAndBudget({
+                          ...teamAndBudget,
+                          otherSkillCoverageText: e.target.value,
+                        })
+                      }
+                      placeholder="E.g., Using white-label software + our own consulting team, or partnering with a contract manufacturer..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 3. Starting Capital / Investment Buckets */}
@@ -2384,7 +2632,7 @@ export default function WorkspacePage() {
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   Pick the bucket that feels realistic for your personal savings or current team kitty — we use this to protect your cashflow and check grant match-funding rules.
                 </p>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {(
                     [
                       {
@@ -2421,6 +2669,13 @@ export default function WorkspacePage() {
                         amountLabel: `${formatPlanCurrency(25000, countryPack.defaultCurrency)}+`,
                         subtitle:
                           'Well capitalized with personal funds or early backing ready to deploy carefully.',
+                      },
+                      {
+                        id: 'OTHER' as StartingBudgetBracket,
+                        emoji: '✨',
+                        amountLabel: 'Other (Custom Budget Setup)',
+                        subtitle:
+                          'Grant voucher, revenue from an existing business, or another funding setup.',
                       },
                     ] as const
                   ).map((bucket) => {
@@ -2463,6 +2718,26 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
+                {teamAndBudget.startingBudgetBracket === 'OTHER' && (
+                  <div className="mt-2.5 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
+                    <label className="block text-[11px] font-bold text-emerald-950">
+                      ✨ Describe your starting budget or funding arrangement ({countryPack.defaultCurrency}):
+                    </label>
+                    <input
+                      type="text"
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={teamAndBudget.otherBudgetText || ''}
+                      onChange={(e) =>
+                        setTeamAndBudget({
+                          ...teamAndBudget,
+                          otherBudgetText: e.target.value,
+                        })
+                      }
+                      placeholder={`E.g., Funded out of cashflow from our existing consultancy, or ${formatPlanCurrency(10000, countryPack.defaultCurrency)} innovation voucher...`}
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 4. Deeper Team & Funding Notes */}
@@ -2542,7 +2817,7 @@ export default function WorkspacePage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                   1. The Monday Morning Test: How well do you know this industry &amp; your first 5 buyers?
                 </label>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {(
                     [
                       {
@@ -2565,6 +2840,13 @@ export default function WorkspacePage() {
                         title: 'Starting Cold (Outsider)',
                         subtitle:
                           'I spotted this opportunity from the outside and don’t personally know target buyers yet.',
+                      },
+                      {
+                        id: 'OTHER' as IndustryConnectionLevel,
+                        emoji: '✨',
+                        title: 'Other (Custom Industry Access)',
+                        subtitle:
+                          'Channel partner, trade association, co-founder network, or another setup — I’ll describe it below.',
                       },
                     ] as const
                   ).map((option) => {
@@ -2607,6 +2889,28 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
+                {founderRealityCheck.industryConnection === 'OTHER' && (
+                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-[11px] font-bold text-indigo-950">
+                      ✨ Describe your connection to this industry or target buyers:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={
+                        founderRealityCheck.otherIndustryConnectionText || ''
+                      }
+                      onChange={(e) =>
+                        setFounderRealityCheck({
+                          ...founderRealityCheck,
+                          otherIndustryConnectionText: e.target.value,
+                        })
+                      }
+                      placeholder="E.g., My advisor runs a trade body with 400 members, or we already serve an adjacent market..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 2. Personal Income Urgency */}
@@ -2631,6 +2935,10 @@ export default function WorkspacePage() {
                         id: 'URGENT_1_TO_3M' as PersonalIncomeUrgency,
                         label:
                           '⚡ Urgent (Within 1–3 Months) — I need fast cashflow from customers now',
+                      },
+                      {
+                        id: 'OTHER' as PersonalIncomeUrgency,
+                        label: '✨ Other (Custom Income Timeline)',
                       },
                     ] as const
                   ).map((pill) => {
@@ -2658,6 +2966,26 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
+                {founderRealityCheck.personalIncomeUrgency === 'OTHER' && (
+                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-[11px] font-bold text-indigo-950">
+                      ✨ Describe your personal income timeline or runway:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={founderRealityCheck.otherIncomeUrgencyText || ''}
+                      onChange={(e) =>
+                        setFounderRealityCheck({
+                          ...founderRealityCheck,
+                          otherIncomeUrgencyText: e.target.value,
+                        })
+                      }
+                      placeholder="E.g., On Back to Work Enterprise Allowance for 12 months, or reinvesting all profits for 2 years..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 3. Lifestyle Dealbreakers / Anti-Goals (Multi-Select) */}
@@ -2695,6 +3023,10 @@ export default function WorkspacePage() {
                         label:
                           '🚫 I don’t want 24/7 customer emergencies on weekends',
                       },
+                      {
+                        id: 'OTHER' as FounderDealbreakerType,
+                        label: '✨ Other (Add My Own Boundary)',
+                      },
                     ] as const
                   ).map((item) => {
                     const isChecked =
@@ -2731,6 +3063,26 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
+                {founderRealityCheck.dealbreakers.includes('OTHER') && (
+                  <div className="mt-2.5 rounded-xl border border-rose-200 bg-rose-50/40 p-3">
+                    <label className="block text-[11px] font-bold text-rose-950">
+                      ✨ Write any other boundaries or things you refuse to do:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={founderRealityCheck.otherDealbreakerText || ''}
+                      onChange={(e) =>
+                        setFounderRealityCheck({
+                          ...founderRealityCheck,
+                          otherDealbreakerText: e.target.value,
+                        })
+                      }
+                      placeholder="E.g., No international travel away from family, or no holding perishable inventory..."
+                      className="mt-1.5 w-full rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-rose-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 4. Ownership, Grants & Control Trade-Off */}
@@ -2738,7 +3090,7 @@ export default function WorkspacePage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                   4. Ownership &amp; Funding Philosophy: How do you feel about sharing equity vs. staying 100% in control?
                 </label>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   {(
                     [
                       {
@@ -2767,6 +3119,13 @@ export default function WorkspacePage() {
                         title: 'Open to Angel / VC Investment',
                         subtitle:
                           'Willing to trade a slice of equity for capital and mentorship to grow much faster.',
+                      },
+                      {
+                        id: 'OTHER' as GrowthTradeoffPreference,
+                        emoji: '✨',
+                        title: 'Other (Custom Ownership View)',
+                        subtitle:
+                          'Revenue-share, community-owned, strategic joint venture, or still deciding.',
                       },
                     ] as const
                   ).map((option) => {
@@ -2809,6 +3168,26 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
+                {founderRealityCheck.growthTradeoff === 'OTHER' && (
+                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-[11px] font-bold text-indigo-950">
+                      ✨ Describe your ownership or funding preference:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={founderRealityCheck.otherGrowthTradeoffText || ''}
+                      onChange={(e) =>
+                        setFounderRealityCheck({
+                          ...founderRealityCheck,
+                          otherGrowthTradeoffText: e.target.value,
+                        })
+                      }
+                      placeholder="E.g., Open to strategic industry partner taking a minority stake, or revenue-based financing..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 5. Your #1 Secret Worry (Honest Gut-Check) */}
@@ -2829,6 +3208,8 @@ export default function WorkspacePage() {
                           'Define our unfair advantage so a bigger competitor or generic AI tool cannot easily copy us.',
                         TIME_AND_ENERGY:
                           'Design a repeatable weekly workflow so we can launch without burning out or running out of cash.',
+                        OTHER:
+                          'Validate and de-risk my #1 custom worry with 5 target customers before committing major budget.',
                       };
                       const customText =
                         founderRealityCheck.biggestWorryNotes.trim();
@@ -2846,7 +3227,7 @@ export default function WorkspacePage() {
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   Every founder has a secret worry. Naming it now lets us turn it into your #1 validation test in Module B.
                 </p>
-                <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {(
                     [
                       {
@@ -2883,6 +3264,13 @@ export default function WorkspacePage() {
                         title: 'Running Out of Time or Cash',
                         subtitle:
                           'Trying to juggle this alongside life/work without burning out.',
+                      },
+                      {
+                        id: 'OTHER' as BiggestWorryPreset,
+                        emoji: '✨',
+                        title: 'Other (Write Your Own Worry)',
+                        subtitle:
+                          'Something else is on my mind — I’ll write it in the box directly below.',
                       },
                     ] as const
                   ).map((worry) => {
@@ -3265,11 +3653,12 @@ export default function WorkspacePage() {
                             Primary Motivation
                           </div>
                           <div className="mt-1 font-semibold text-slate-900">
-                            {
-                              MOTIVATION_LABELS[
-                                founderMotivation.primaryMotivation
-                              ]
-                            }
+                            {founderMotivation.primaryMotivation === 'OTHER' &&
+                            founderMotivation.otherMotivationText?.trim()
+                              ? `✨ Other: ${founderMotivation.otherMotivationText.trim()}`
+                              : MOTIVATION_LABELS[
+                                  founderMotivation.primaryMotivation
+                                ]}
                           </div>
                         </div>
                         <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
@@ -3277,11 +3666,13 @@ export default function WorkspacePage() {
                             Weekly Bandwidth
                           </div>
                           <div className="mt-1 font-semibold text-slate-900">
-                            {
-                              WEEKLY_HOURS_LABELS[
-                                founderMotivation.weeklyHoursAvailable
-                              ]
-                            }
+                            {founderMotivation.weeklyHoursAvailable ===
+                              'OTHER' &&
+                            founderMotivation.otherWeeklyHoursText?.trim()
+                              ? `✨ Other: ${founderMotivation.otherWeeklyHoursText.trim()}`
+                              : WEEKLY_HOURS_LABELS[
+                                  founderMotivation.weeklyHoursAvailable
+                                ]}
                           </div>
                         </div>
                         <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
@@ -3289,14 +3680,20 @@ export default function WorkspacePage() {
                             Team &amp; Version 1 Skills
                           </div>
                           <div className="mt-1 font-semibold text-slate-900">
-                            {
-                              TEAM_STRUCTURE_LABELS[
-                                teamAndBudget.teamStructureType
-                              ]
-                            }
+                            {teamAndBudget.teamStructureType === 'OTHER' &&
+                            teamAndBudget.otherTeamStructureText?.trim()
+                              ? `✨ Other: ${teamAndBudget.otherTeamStructureText.trim()}`
+                              : TEAM_STRUCTURE_LABELS[
+                                  teamAndBudget.teamStructureType
+                                ]}
                           </div>
                           <div className="mt-0.5 text-[11px] text-slate-600">
-                            {SKILL_COVERAGE_LABELS[teamAndBudget.skillCoverage]}
+                            {teamAndBudget.skillCoverage === 'OTHER' &&
+                            teamAndBudget.otherSkillCoverageText?.trim()
+                              ? `✨ Other: ${teamAndBudget.otherSkillCoverageText.trim()}`
+                              : SKILL_COVERAGE_LABELS[
+                                  teamAndBudget.skillCoverage
+                                ]}
                           </div>
                         </div>
                         <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
@@ -3306,7 +3703,8 @@ export default function WorkspacePage() {
                           <div className="mt-1 font-semibold text-emerald-800">
                             {formatStartingBudgetBracket(
                               teamAndBudget.startingBudgetBracket,
-                              countryPack.defaultCurrency
+                              countryPack.defaultCurrency,
+                              teamAndBudget.otherBudgetText
                             )}
                           </div>
                         </div>
@@ -3351,11 +3749,13 @@ export default function WorkspacePage() {
                             Industry Access
                           </div>
                           <div className="mt-1 font-medium text-slate-800">
-                            {
-                              INDUSTRY_CONNECTION_LABELS[
-                                founderRealityCheck.industryConnection
-                              ]
-                            }
+                            {founderRealityCheck.industryConnection ===
+                              'OTHER' &&
+                            founderRealityCheck.otherIndustryConnectionText?.trim()
+                              ? `✨ Other: ${founderRealityCheck.otherIndustryConnectionText.trim()}`
+                              : INDUSTRY_CONNECTION_LABELS[
+                                  founderRealityCheck.industryConnection
+                                ]}
                           </div>
                         </div>
                         <div className="rounded-xl border border-slate-200 p-3">
@@ -3363,11 +3763,13 @@ export default function WorkspacePage() {
                             Personal Income Timeline
                           </div>
                           <div className="mt-1 font-medium text-slate-800">
-                            {
-                              INCOME_URGENCY_LABELS[
-                                founderRealityCheck.personalIncomeUrgency
-                              ]
-                            }
+                            {founderRealityCheck.personalIncomeUrgency ===
+                              'OTHER' &&
+                            founderRealityCheck.otherIncomeUrgencyText?.trim()
+                              ? `✨ Other: ${founderRealityCheck.otherIncomeUrgencyText.trim()}`
+                              : INCOME_URGENCY_LABELS[
+                                  founderRealityCheck.personalIncomeUrgency
+                                ]}
                           </div>
                         </div>
                         <div className="rounded-xl border border-slate-200 p-3">
@@ -3375,11 +3777,12 @@ export default function WorkspacePage() {
                             Control vs. Speed Trade-Off
                           </div>
                           <div className="mt-1 font-medium text-slate-800">
-                            {
-                              GROWTH_TRADEOFF_LABELS[
-                                founderRealityCheck.growthTradeoff
-                              ]
-                            }
+                            {founderRealityCheck.growthTradeoff === 'OTHER' &&
+                            founderRealityCheck.otherGrowthTradeoffText?.trim()
+                              ? `✨ Other: ${founderRealityCheck.otherGrowthTradeoffText.trim()}`
+                              : GROWTH_TRADEOFF_LABELS[
+                                  founderRealityCheck.growthTradeoff
+                                ]}
                           </div>
                         </div>
                       </div>
@@ -3393,7 +3796,10 @@ export default function WorkspacePage() {
                             key={db}
                             className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-medium text-indigo-900 ring-1 ring-indigo-200"
                           >
-                            {DEALBREAKER_LABELS[db]}
+                            {db === 'OTHER' &&
+                            founderRealityCheck.otherDealbreakerText?.trim()
+                              ? `✨ Other: ${founderRealityCheck.otherDealbreakerText.trim()}`
+                              : DEALBREAKER_LABELS[db]}
                           </span>
                         ))}
                       </div>

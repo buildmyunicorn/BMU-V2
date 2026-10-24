@@ -6,11 +6,13 @@ import {
   startupPlans,
   planModulesData,
   openQuestionsParkingLot,
+  type BlindSpotItem,
 } from '@/db';
 import type {
   BeachheadMarketData,
   CompetitorsAndStatusQuoData,
   MarketSizingData,
+  CompetitiveWedgeData,
   BuyerModelType,
   SavedModuleBData,
 } from '@/lib/auth/session-store';
@@ -18,8 +20,10 @@ import type { SupportedCountryCode } from '@/lib/localization';
 import {
   scoutModuleBCompetitorsViaRouter,
   estimateModuleBMarketSizingViaRouter,
+  generateModuleBCompetitiveEdgeViaRouter,
   type ModuleBMarketScoutResult,
   type ModuleBMarketSizingEstimateResult,
+  type ModuleBCompetitiveEdgeEstimateResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -323,4 +327,170 @@ export async function estimateModuleBMarketSizingWithAiAction(input: {
   buyerTypes?: BuyerModelType[];
 }): Promise<ModuleBMarketSizingEstimateResult> {
   return estimateModuleBMarketSizingViaRouter(input);
+}
+
+/**
+ * Persists Module B Step 4 (Competitive Edge & Defensibility Matrix)
+ * to `plan_modules_data` (MOD_B_MARKET).
+ */
+export async function saveModuleBStep4CompetitiveWedgeAction(input: {
+  planId: string;
+  competitiveWedge: CompetitiveWedgeData;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  try {
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_B_MARKET')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleBData;
+
+    const updatedPayload: SavedModuleBData = {
+      ...existingPayload,
+      competitiveWedge: {
+        ...input.competitiveWedge,
+        lastSavedAt: new Date().toISOString(),
+      },
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage ?? 0,
+      input.completionPercentage ?? 90
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_B_MARKET',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_B_STEP_4',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module B] Could not persist Step 4 Competitive Edge to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Calls the central AI router (`generateModuleBCompetitiveEdgeViaRouter`) to suggest
+ * a Competitive Comparison Matrix, switching friction plan, and 2-sentence Competitive Edge Summary.
+ */
+export async function generateModuleBCompetitiveEdgeWithAiAction(input: {
+  userId?: string;
+  planId?: string;
+  planTitle: string;
+  brainDumpText?: string;
+  targetCustomerDescription?: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  targetMarketsArray: string[];
+  competitorNames: string[];
+}): Promise<ModuleBCompetitiveEdgeEstimateResult> {
+  return generateModuleBCompetitiveEdgeViaRouter(input);
+}
+
+/**
+ * Persists Module B Step 5 (Market "Things to Consider" Blind-Spot Review)
+ * to `plan_modules_data` (MOD_B_MARKET) and marks Module B 100% complete.
+ */
+export async function saveModuleBStep5CompleteAction(input: {
+  planId: string;
+  thingsToConsider: BlindSpotItem[];
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  try {
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_B_MARKET')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleBData;
+
+    const updatedPayload: SavedModuleBData = {
+      ...existingPayload,
+      thingsToConsider: input.thingsToConsider,
+    };
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          aiThingsToConsiderJsonb: input.thingsToConsider,
+          completionPercentage: 100,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_B_MARKET',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: input.thingsToConsider,
+        completionPercentage: 100,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_B_STEP_5',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module B] Could not persist Step 5 Things to Consider to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
 }

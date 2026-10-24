@@ -24,6 +24,10 @@ import type {
   MarketSizingSegmentEntry,
   CustomerBillingCadence,
   WiderMarketScalePreset,
+  CompetitiveComparisonRow,
+  ComparisonScoreLevel,
+  SwitchingFrictionReducerType,
+  UnfairAdvantageMoatType,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -1203,6 +1207,335 @@ Return STRICT JSON matching this exact structure (numbers as plain digit strings
     segments: segmentsResult,
     widerMarketMultiplier: multiplierResult,
     sourceAndAssumptionNotes: notesResult,
+    creditsUsedAfter,
+    engineMode,
+  };
+}
+
+export interface ModuleBCompetitiveEdgeEstimateResult {
+  allowed: boolean;
+  reason?: string;
+  comparisonRows: CompetitiveComparisonRow[];
+  switchingFrictionReducers: SwitchingFrictionReducerType[];
+  switchingFrictionPlanNotes: string;
+  unfairAdvantages: UnfairAdvantageMoatType[];
+  competitiveEdgeSummary: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+function buildSmartFallbackCompetitiveEdge(params: {
+  planTitle: string;
+  brainDumpText?: string;
+  targetCustomerDescription?: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  targetMarketsArray: string[];
+  competitorNames: string[];
+}): {
+  comparisonRows: CompetitiveComparisonRow[];
+  switchingFrictionReducers: SwitchingFrictionReducerType[];
+  switchingFrictionPlanNotes: string;
+  unfairAdvantages: UnfairAdvantageMoatType[];
+  competitiveEdgeSummary: string;
+} {
+  const countryPack = getCountryRulePack(params.hqCountryCode);
+  const marketsText =
+    params.targetMarketsArray.length > 0
+      ? params.targetMarketsArray.join(', ')
+      : countryPack.countryName;
+
+  const baseRows: CompetitiveComparisonRow[] = [
+    {
+      rowId: 'row-your-startup',
+      label: `${params.planTitle || 'Your Startup'} (You)`,
+      isYourStartup: true,
+      priceValueScore: 'HIGH',
+      speedTimeSavedScore: 'HIGH',
+      easeOfUseScore: 'HIGH',
+      specialistQualityScore: 'HIGH',
+    },
+    {
+      rowId: 'row-current-habit',
+      label: 'Current Habit (Spreadsheets / Doing It Manually)',
+      priceValueScore: 'HIGH',
+      speedTimeSavedScore: 'LOW',
+      easeOfUseScore: 'LOW',
+      specialistQualityScore: 'LOW',
+    },
+  ];
+
+  const compNames =
+    params.competitorNames.length > 0
+      ? params.competitorNames.slice(0, 3)
+      : [
+          'Traditional / Legacy Competitor',
+          'Outsourced Consultant / Agency',
+        ];
+
+  compNames.forEach((name, idx) => {
+    const isAgency =
+      name.toLowerCase().includes('consultant') ||
+      name.toLowerCase().includes('agency');
+    baseRows.push({
+      rowId: `row-comp-${idx + 1}`,
+      label: name,
+      priceValueScore: isAgency ? 'LOW' : 'MEDIUM',
+      speedTimeSavedScore: isAgency ? 'MEDIUM' : 'MEDIUM',
+      easeOfUseScore: 'LOW',
+      specialistQualityScore: isAgency ? 'HIGH' : 'MEDIUM',
+    });
+  });
+
+  return {
+    comparisonRows: baseRows,
+    switchingFrictionReducers: [
+      'FREE_TRIAL_OR_FIRST_STEP',
+      'FAST_SETUP_UNDER_15_MINS',
+      'NO_LONG_CONTRACT',
+    ],
+    switchingFrictionPlanNotes: `Customers can try their first step on ${params.planTitle} in under 15 minutes without migrating old systems or signing a long-term lock-in contract.`,
+    unfairAdvantages: [
+      'FOUNDER_INSIDER_EXPERIENCE',
+      'LOCAL_COMPLIANCE_OR_GRANTS',
+      'WORKFLOW_HABIT_LOCK_IN',
+    ],
+    competitiveEdgeSummary: `${params.planTitle} wins against manual spreadsheets and expensive legacy alternatives by delivering specialist results in minutes at an accessible price point tailored for ${marketsText}. Once customers build their workflow and data inside our platform, switching back to manual workarounds or generic tools becomes unattractive.`,
+  };
+}
+
+/**
+ * Module B Step 4 AI Competitive Edge & Defensibility Synthesizer (`generateModuleBCompetitiveEdgeViaRouter`).
+ * Routes through `src/lib/ai/router.ts`, checks `user_entitlements.ai_credits_used_this_month`,
+ * calls `gemini-2.5-flash` (or smart synthesizer fallback), and logs token usage to `ai_usage_logs`.
+ */
+export async function generateModuleBCompetitiveEdgeViaRouter(params: {
+  userId?: string;
+  planId?: string;
+  planTitle: string;
+  brainDumpText?: string;
+  targetCustomerDescription?: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  targetMarketsArray: string[];
+  competitorNames: string[];
+}): Promise<ModuleBCompetitiveEdgeEstimateResult> {
+  const isUuid =
+    params.userId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      params.userId
+    );
+
+  let customByokKey: string | null = null;
+  let creditsUsedAfter = 0;
+
+  if (isUuid && params.userId) {
+    try {
+      const [ent] = await db
+        .select()
+        .from(userEntitlements)
+        .where(eq(userEntitlements.userId, params.userId))
+        .limit(1);
+
+      if (ent) {
+        const snapshot: EntitlementSnapshot = {
+          userId: ent.userId,
+          planType: ent.planType,
+          stackedCodesCount: ent.stackedCodesCount,
+          maxStartupPlans: ent.maxStartupPlans,
+          maxSeatsPerPlan: ent.maxSeatsPerPlan,
+          monthlyAiCreditsLimit: ent.monthlyAiCreditsLimit,
+          aiCreditsUsedThisMonth: ent.aiCreditsUsedThisMonth,
+          whiteLabelExportEnabled: ent.whiteLabelExportEnabled,
+          customApiKeyEncrypted: ent.customApiKeyEncrypted,
+          accessExpiresAt: ent.accessExpiresAt,
+          isVaultReadonly: ent.isVaultReadonly,
+        };
+
+        const check = canConsumeAiCredits(snapshot, 1);
+        if (!check.allowed) {
+          const fallback = buildSmartFallbackCompetitiveEdge(params);
+          return {
+            allowed: false,
+            reason: check.reason,
+            ...fallback,
+            creditsUsedAfter: ent.aiCreditsUsedThisMonth,
+            engineMode: 'smart-synthesizer',
+          };
+        }
+        customByokKey = ent.customApiKeyEncrypted;
+        creditsUsedAfter = ent.aiCreditsUsedThisMonth;
+      }
+    } catch {
+      // Offline / local fallback
+    }
+  }
+
+  const apiKey = customByokKey || process.env.GEMINI_API_KEY;
+  let engineMode: 'gemini-2.5-flash' | 'smart-synthesizer' =
+    'smart-synthesizer';
+  let resultPayload: ReturnType<typeof buildSmartFallbackCompetitiveEdge> | null =
+    null;
+  let inputTokensCount = 260;
+  let outputTokensCount = 320;
+
+  if (apiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const countryPack = getCountryRulePack(params.hqCountryCode);
+      const marketsText =
+        params.targetMarketsArray.length > 0
+          ? params.targetMarketsArray.join(', ')
+          : countryPack.countryName;
+
+      const systemInstruction =
+        'You are the Build My Unicorn (BMU) 2.0 Competitive Strategy Co-Founder. Generate a realistic, plain-English competitive comparison matrix, switching friction plan, and 2-sentence competitive edge summary. Never use startup jargon like Beachhead or TAM/SAM/SOM. Always return valid JSON.';
+
+      const userPrompt = `
+Startup Title: ${params.planTitle}
+Industry Category: ${params.industryCategory}
+HQ Country: ${countryPack.countryName} (${params.hqCountryCode})
+Target Selling Markets: ${marketsText}
+Target Customers: ${params.targetCustomerDescription || 'Not specified yet'}
+Known Competitors: ${params.competitorNames.join(', ') || 'Generic alternatives & manual workarounds'}
+Founder Idea Context: ${params.brainDumpText || 'Not specified'}
+
+Return JSON with this exact structure:
+{
+  "comparisonRows": [
+    {
+      "label": "${params.planTitle} (You)",
+      "isYourStartup": true,
+      "priceValueScore": "LOW" | "MEDIUM" | "HIGH",
+      "speedTimeSavedScore": "LOW" | "MEDIUM" | "HIGH",
+      "easeOfUseScore": "LOW" | "MEDIUM" | "HIGH",
+      "specialistQualityScore": "LOW" | "MEDIUM" | "HIGH"
+    }
+  ],
+  "switchingFrictionReducers": ["FREE_TRIAL_OR_FIRST_STEP", "FAST_SETUP_UNDER_15_MINS"],
+  "switchingFrictionPlanNotes": "1-2 plain-English sentences explaining how you make it effortless and low-risk for a customer to switch from their current habit to you.",
+  "unfairAdvantages": ["FOUNDER_INSIDER_EXPERIENCE", "LOCAL_COMPLIANCE_OR_GRANTS"],
+  "competitiveEdgeSummary": "2 crisp sentences ready for an investor or grant board explaining why customers choose you over competitors and what protects your business from copycats."
+}
+Include 3 to 4 rows in comparisonRows: Row 1 MUST be the founder's startup ("isYourStartup": true), Row 2 MUST be "Current Habit (Doing It Manually / Spreadsheets)", and Rows 3-4 should be the known competitors or typical alternatives.
+`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: userPrompt,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          temperature: 0.35,
+        },
+      });
+
+      const rawText = response.text;
+      if (rawText) {
+        const parsed = JSON.parse(rawText) as {
+          comparisonRows?: Array<{
+            label?: string;
+            isYourStartup?: boolean;
+            priceValueScore?: string;
+            speedTimeSavedScore?: string;
+            easeOfUseScore?: string;
+            specialistQualityScore?: string;
+          }>;
+          switchingFrictionReducers?: SwitchingFrictionReducerType[];
+          switchingFrictionPlanNotes?: string;
+          unfairAdvantages?: UnfairAdvantageMoatType[];
+          competitiveEdgeSummary?: string;
+        };
+
+        const normalizeScore = (s?: string): ComparisonScoreLevel =>
+          s === 'HIGH' || s === 'MEDIUM' || s === 'LOW' ? s : 'MEDIUM';
+
+        if (
+          Array.isArray(parsed.comparisonRows) &&
+          parsed.comparisonRows.length >= 2
+        ) {
+          const fallback = buildSmartFallbackCompetitiveEdge(params);
+          resultPayload = {
+            comparisonRows: parsed.comparisonRows.slice(0, 5).map((r, idx) => ({
+              rowId: idx === 0 ? 'row-your-startup' : `row-comp-${Date.now()}-${idx}`,
+              label: r.label || (idx === 0 ? `${params.planTitle} (You)` : `Alternative ${idx}`),
+              isYourStartup: idx === 0 || Boolean(r.isYourStartup),
+              priceValueScore: normalizeScore(r.priceValueScore),
+              speedTimeSavedScore: normalizeScore(r.speedTimeSavedScore),
+              easeOfUseScore: normalizeScore(r.easeOfUseScore),
+              specialistQualityScore: normalizeScore(r.specialistQualityScore),
+            })),
+            switchingFrictionReducers: Array.isArray(
+              parsed.switchingFrictionReducers
+            )
+              ? parsed.switchingFrictionReducers
+              : fallback.switchingFrictionReducers,
+            switchingFrictionPlanNotes:
+              parsed.switchingFrictionPlanNotes ||
+              fallback.switchingFrictionPlanNotes,
+            unfairAdvantages: Array.isArray(parsed.unfairAdvantages)
+              ? parsed.unfairAdvantages
+              : fallback.unfairAdvantages,
+            competitiveEdgeSummary:
+              parsed.competitiveEdgeSummary || fallback.competitiveEdgeSummary,
+          };
+          engineMode = 'gemini-2.5-flash';
+          inputTokensCount =
+            response.usageMetadata?.promptTokenCount ?? inputTokensCount;
+          outputTokensCount =
+            response.usageMetadata?.candidatesTokenCount ?? outputTokensCount;
+        }
+      }
+    } catch (err) {
+      console.warn(
+        '[BMU AI Router] Module B Competitive Edge Gemini call failed, using smart synthesizer fallback:',
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  if (!resultPayload) {
+    resultPayload = buildSmartFallbackCompetitiveEdge(params);
+  }
+
+  if (isUuid && params.userId) {
+    try {
+      const [updatedEnt] = await db
+        .update(userEntitlements)
+        .set({
+          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(userEntitlements.userId, params.userId))
+        .returning();
+
+      if (updatedEnt) {
+        creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
+      }
+
+      const isPlanUuid =
+        params.planId &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          params.planId
+        );
+
+      await db.insert(aiUsageLogs).values({
+        userId: params.userId,
+        planId: isPlanUuid ? params.planId : null,
+        promptKey: 'MOD_B_COMPETITIVE_EDGE',
+        modelUsed: engineMode,
+        inputTokens: inputTokensCount,
+        outputTokens: outputTokensCount,
+        usedByokKey: Boolean(customByokKey),
+      });
+    } catch {
+      // Ignore logging error in offline fallback
+    }
+  }
+
+  return {
+    allowed: true,
+    ...resultPayload,
     creditsUsedAfter,
     engineMode,
   };

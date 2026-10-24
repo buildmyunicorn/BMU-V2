@@ -16,16 +16,20 @@ export type FounderMotivationType =
   | 'SIDE_HUSTLE'
   | 'SAVE_THE_WORLD'
   | 'SCALE_STARTUP'
-  | 'BUILD_TO_SELL';
+  | 'BUILD_TO_SELL'
+  | 'OTHER';
 
 export type FounderWeeklyHours =
   | '5_TO_10_HRS'
   | '15_TO_25_HRS'
-  | '40_PLUS_HRS';
+  | '40_PLUS_HRS'
+  | 'OTHER';
 
 export interface SavedFounderMotivation {
   primaryMotivation: FounderMotivationType;
+  otherMotivationText?: string;
   weeklyHoursAvailable: FounderWeeklyHours;
+  otherWeeklyHoursText?: string;
   twelveMonthSuccessVision: string;
 }
 
@@ -33,62 +37,78 @@ export type PlanTeamStructureType =
   | 'SOLO_FOUNDER'
   | 'SEEKING_COFOUNDER'
   | 'COFOUNDER_TEAM'
-  | 'SOLO_PLUS_CONTRACTORS';
+  | 'SOLO_PLUS_CONTRACTORS'
+  | 'OTHER';
 
 export type TeamSkillCoverageType =
   | 'BUILD_IN_HOUSE'
   | 'PARTIAL_SKILLS'
-  | 'NEED_EXTERNAL_BUILDER';
+  | 'NEED_EXTERNAL_BUILDER'
+  | 'OTHER';
 
 export type StartingBudgetBracket =
   | 'ZERO_SWEAT_EQUITY'
   | 'UNDER_1K'
   | '1K_TO_5K'
   | '5K_TO_25K'
-  | 'OVER_25K';
+  | 'OVER_25K'
+  | 'OTHER';
 
 export interface SavedTeamAndBudget {
   teamStructureType: PlanTeamStructureType;
+  otherTeamStructureText?: string;
   skillCoverage: TeamSkillCoverageType;
+  otherSkillCoverageText?: string;
   startingBudgetBracket: StartingBudgetBracket;
+  otherStartingBudgetText?: string;
+  otherBudgetText?: string;
   teamAndFundingNotes: string;
 }
 
 export type IndustryConnectionLevel =
   | 'LIVED_IT_INSIDER'
   | 'WARM_CONNECTIONS'
-  | 'STARTING_COLD';
+  | 'STARTING_COLD'
+  | 'OTHER';
 
 export type PersonalIncomeUrgency =
   | 'NO_RUSH_12M_PLUS'
   | 'MEDIUM_6_TO_12M'
-  | 'URGENT_1_TO_3M';
+  | 'URGENT_1_TO_3M'
+  | 'OTHER';
 
 export type FounderDealbreakerType =
   | 'NO_BIG_TEAM'
   | 'NO_PHYSICAL_PREMISES'
   | 'NO_COLD_SALES'
   | 'NO_OUTSIDE_INVESTORS'
-  | 'NO_WEEKEND_SUPPORT';
+  | 'NO_WEEKEND_SUPPORT'
+  | 'OTHER';
 
 export type GrowthTradeoffPreference =
   | 'BOOTSTRAP_100_CONTROL'
   | 'SHARE_EQUITY_COFOUNDER'
   | 'NON_DILUTIVE_GRANTS'
-  | 'RAISE_INVESTMENT';
+  | 'RAISE_INVESTMENT'
+  | 'OTHER';
 
 export type BiggestWorryPreset =
   | 'WILL_THEY_PAY'
   | 'HOW_TO_BUILD'
   | 'FINDING_FIRST_10'
   | 'COMPETITION_OR_AI'
-  | 'TIME_AND_ENERGY';
+  | 'TIME_AND_ENERGY'
+  | 'OTHER';
 
 export interface SavedFounderRealityCheck {
   industryConnection: IndustryConnectionLevel;
+  otherIndustryConnectionText?: string;
   personalIncomeUrgency: PersonalIncomeUrgency;
+  otherIncomeUrgencyText?: string;
   dealbreakers: FounderDealbreakerType[];
+  otherDealbreakerText?: string;
   growthTradeoff: GrowthTradeoffPreference;
+  otherGrowthTradeoffText?: string;
   biggestWorryPreset: BiggestWorryPreset;
   biggestWorryNotes: string;
 }
@@ -107,28 +127,36 @@ export type BuyerModelType =
   | 'B2B_BUSINESSES'
   | 'B2C_CONSUMERS'
   | 'TWO_SIDED_MARKETPLACE'
-  | 'B2G_PUBLIC_SECTOR';
+  | 'B2G_PUBLIC_SECTOR'
+  | 'OTHER';
 
 export type EndUserVsDecisionMakerType =
   | 'SAME_PERSON'
-  | 'DIFFERENT_DECISION_MAKER';
+  | 'DIFFERENT_DECISION_MAKER'
+  | 'OTHER';
 
 export type BuyingTriggerPreset =
   | 'LOSING_MONEY_WASTE'
   | 'MANUAL_TIME_BOTTLENECK'
   | 'COMPLIANCE_OR_PENALTY'
   | 'LOST_CUSTOMERS_CHURN'
-  | 'LIFE_OR_BUSINESS_MILESTONE';
+  | 'LIFE_OR_BUSINESS_MILESTONE'
+  | 'OTHER';
 
 export interface BeachheadMarketData {
   buyerType: BuyerModelType;
   buyerTypes?: BuyerModelType[];
+  otherBuyerModelText?: string;
   beachheadSegment: string;
   endUserVsDecisionMaker: EndUserVsDecisionMakerType;
+  otherDecisionMakerSetupText?: string;
   decisionMakerRole: string;
   buyingTriggerPreset: BuyingTriggerPreset;
+  otherBuyingTriggerText?: string;
   buyingTriggerNotes: string;
   targetMarketsArray: string[];
+  otherTargetMarketsText?: string;
+  otherGeographyText?: string;
   lastSavedAt?: string;
 }
 
@@ -137,12 +165,14 @@ export type CustomerWorkaroundType =
   | 'WHATSAPP_EMAIL_PHONE'
   | 'FREE_GENERIC_TOOLS'
   | 'EXPENSIVE_CONSULTANTS_AGENCIES'
-  | 'DOING_NOTHING_LIVING_WITH_PAIN';
+  | 'DOING_NOTHING_LIVING_WITH_PAIN'
+  | 'OTHER';
 
 export type CompetitorCategoryType =
   | 'DIRECT_COMPETITOR'
   | 'INDIRECT_ALTERNATIVE'
-  | 'MANUAL_SERVICE_AGENCY';
+  | 'MANUAL_SERVICE_AGENCY'
+  | 'OTHER';
 
 export interface CompetitorEntry {
   id: string;
@@ -159,13 +189,16 @@ export type WhySwitchEdgeType =
   | 'BUILT_FOR_LOCAL_MARKET'
   | 'EASIER_NO_TRAINING'
   | 'ALL_IN_ONE_WORKFLOW'
-  | 'PROVEN_RESULTS_OR_COMPLIANCE';
+  | 'PROVEN_RESULTS_OR_COMPLIANCE'
+  | 'OTHER';
 
 export interface CompetitorsAndStatusQuoData {
   currentWorkarounds: CustomerWorkaroundType[];
+  otherWorkaroundText?: string;
   workaroundFrustrationNotes: string;
   competitors: CompetitorEntry[];
   whySwitchEdges: WhySwitchEdgeType[];
+  otherWhySwitchEdgeText?: string;
   whySwitchOneSentence: string;
   lastSavedAt?: string;
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
@@ -173,23 +206,68 @@ export interface CompetitorsAndStatusQuoData {
 
 export type CustomerBillingCadence =
   | 'YEARLY_OR_ONE_OFF'
-  | 'MONTHLY_SUBSCRIPTION';
+  | 'MONTHLY_SUBSCRIPTION'
+  | 'OTHER';
 
 export interface MarketSizingSegmentEntry {
   id: string;
   segmentName: string;
   billingCadence: CustomerBillingCadence;
+  otherBillingCadenceText?: string;
   pricePerCustomerInput: string;
   year1To2CustomerGoalInput: string;
   reachableCustomersInTargetMarketsInput: string;
 }
 
-export type WiderMarketScalePreset = '3X' | '5X' | '10X' | '20X';
+export type WiderMarketScalePreset = '3X' | '5X' | '10X' | '20X' | 'OTHER';
 
 export interface MarketSizingData {
   segments: MarketSizingSegmentEntry[];
   widerMarketMultiplier: WiderMarketScalePreset;
+  otherWiderMarketScaleText?: string;
   sourceAndAssumptionNotes: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type ComparisonScoreLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface CompetitiveComparisonRow {
+  rowId: string;
+  label: string;
+  isYourStartup?: boolean;
+  priceValueScore: ComparisonScoreLevel;
+  speedTimeSavedScore: ComparisonScoreLevel;
+  easeOfUseScore: ComparisonScoreLevel;
+  specialistQualityScore: ComparisonScoreLevel;
+}
+
+export type SwitchingFrictionReducerType =
+  | 'FREE_TRIAL_OR_FIRST_STEP'
+  | 'WORKS_WITH_EXISTING_TOOLS'
+  | 'FAST_SETUP_UNDER_15_MINS'
+  | 'DONE_FOR_YOU_MIGRATION'
+  | 'IMMEDIATE_COST_SAVING'
+  | 'NO_LONG_CONTRACT'
+  | 'OTHER';
+
+export type UnfairAdvantageMoatType =
+  | 'FOUNDER_INSIDER_EXPERIENCE'
+  | 'PROPRIETARY_DATA_OR_TEMPLATES'
+  | 'LOCAL_COMPLIANCE_OR_GRANTS'
+  | 'COMMUNITY_OR_NETWORK_EFFECTS'
+  | 'WORKFLOW_HABIT_LOCK_IN'
+  | 'EXCLUSIVE_PARTNERSHIPS_OR_ACCREDITATION'
+  | 'OTHER';
+
+export interface CompetitiveWedgeData {
+  comparisonRows: CompetitiveComparisonRow[];
+  switchingFrictionReducers: SwitchingFrictionReducerType[];
+  otherSwitchingFrictionText?: string;
+  switchingFrictionPlanNotes: string;
+  unfairAdvantages: UnfairAdvantageMoatType[];
+  otherUnfairAdvantageText?: string;
+  competitiveEdgeSummary: string;
   lastSavedAt?: string;
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
@@ -198,6 +276,7 @@ export interface SavedModuleBData {
   beachhead?: BeachheadMarketData;
   competitorsAndStatusQuo?: CompetitorsAndStatusQuoData;
   marketSizing?: MarketSizingData;
+  competitiveWedge?: CompetitiveWedgeData;
   thingsToConsider?: BlindSpotItem[];
 }
 

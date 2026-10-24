@@ -5,6 +5,10 @@ import {
   formatPlanCurrency,
   type SupportedCountryCode,
 } from '@/lib/localization';
+import {
+  escapeDocumentHtml as escapeHtml,
+  renderBmuStandaloneHtmlDocument,
+} from '@/lib/export/document-shell';
 import type {
   SavedConceptCanvas,
   SavedFounderMotivation,
@@ -44,12 +48,14 @@ export const MOTIVATION_LABELS: Record<FounderMotivationType, string> = {
   SAVE_THE_WORLD: '🌍 Solve a Mission I Care About',
   SCALE_STARTUP: '🚀 Scale a High-Growth Startup',
   BUILD_TO_SELL: '🏆 Build a Company & Sell It',
+  OTHER: '✨ Other (Custom Goal)',
 };
 
 export const WEEKLY_HOURS_LABELS: Record<FounderWeeklyHours, string> = {
   '5_TO_10_HRS': '⏰ 5–10 hrs / week (Evenings & Weekends)',
   '15_TO_25_HRS': '⚡ 15–25 hrs / week (Part-Time Focus)',
   '40_PLUS_HRS': '🔥 40+ hrs / week (Full-Time All-In)',
+  OTHER: '✨ Other (Custom Schedule)',
 };
 
 export const TEAM_STRUCTURE_LABELS: Record<PlanTeamStructureType, string> = {
@@ -57,6 +63,7 @@ export const TEAM_STRUCTURE_LABELS: Record<PlanTeamStructureType, string> = {
   SEEKING_COFOUNDER: '🤝 Solo, Looking for a Co-Founder',
   COFOUNDER_TEAM: '👥 Co-Founder Team (2+ Founders)',
   SOLO_PLUS_CONTRACTORS: '🛠️ Solo + Freelancers / Agency',
+  OTHER: '✨ Other (Custom Team Setup)',
 };
 
 export const SKILL_COVERAGE_LABELS: Record<TeamSkillCoverageType, string> = {
@@ -65,6 +72,7 @@ export const SKILL_COVERAGE_LABELS: Record<TeamSkillCoverageType, string> = {
     '🧩 Mostly — Have domain/sales skills, need help with tech/build',
   NEED_EXTERNAL_BUILDER:
     '🚨 Need External Builder — Will need to hire or find a technical co-founder',
+  OTHER: '✨ Other (Custom Skill Setup)',
 };
 
 export const INDUSTRY_CONNECTION_LABELS: Record<
@@ -75,6 +83,7 @@ export const INDUSTRY_CONNECTION_LABELS: Record<
   WARM_CONNECTIONS:
     '🤝 Warm Network (Can message 3–5 target buyers on Monday morning)',
   STARTING_COLD: '🧭 Starting Cold (Spotted opportunity from the outside)',
+  OTHER: '✨ Other (Custom Industry Access)',
 };
 
 export const INCOME_URGENCY_LABELS: Record<PersonalIncomeUrgency, string> = {
@@ -84,6 +93,7 @@ export const INCOME_URGENCY_LABELS: Record<PersonalIncomeUrgency, string> = {
     '⏳ Within 6–12 Months (Steady progress toward replacing income)',
   URGENT_1_TO_3M:
     '⚡ Urgent (Within 1–3 Months — need fast customer cashflow now)',
+  OTHER: '✨ Other (Custom Income Timeline)',
 };
 
 export const DEALBREAKER_LABELS: Record<FounderDealbreakerType, string> = {
@@ -92,6 +102,7 @@ export const DEALBREAKER_LABELS: Record<FounderDealbreakerType, string> = {
   NO_COLD_SALES: '🚫 No cold calling & high-pressure B2B enterprise sales',
   NO_OUTSIDE_INVESTORS: '🚫 No VCs or outside investors telling me what to do',
   NO_WEEKEND_SUPPORT: '🚫 No 24/7 customer emergencies on weekends',
+  OTHER: '✨ Other (Custom Dealbreaker)',
 };
 
 export const GROWTH_TRADEOFF_LABELS: Record<GrowthTradeoffPreference, string> =
@@ -100,6 +111,7 @@ export const GROWTH_TRADEOFF_LABELS: Record<GrowthTradeoffPreference, string> =
     NON_DILUTIVE_GRANTS: '🏛️ Customer Sales + Non-Dilutive State Grants',
     SHARE_EQUITY_COFOUNDER: '🤝 Share Equity with the Right Co-Founder',
     RAISE_INVESTMENT: '📈 Open to Angel / VC Investment to Scale Faster',
+    OTHER: '✨ Other (Custom Funding & Ownership Path)',
   };
 
 export const BIGGEST_WORRY_LABELS: Record<BiggestWorryPreset, string> = {
@@ -108,11 +120,13 @@ export const BIGGEST_WORRY_LABELS: Record<BiggestWorryPreset, string> = {
   HOW_TO_BUILD: '🛠️ How to Actually Build Version 1',
   COMPETITION_OR_AI: '🦈 Big Competitors or AI Copying Us',
   TIME_AND_ENERGY: '🔋 Running Out of Time or Cash Before Traction',
+  OTHER: '✨ Other (Custom Worry)',
 };
 
 export function formatStartingBudgetBracket(
   bracket: StartingBudgetBracket,
-  currency: 'EUR' | 'GBP' | 'USD' | 'AUD' | 'CAD'
+  currency: 'EUR' | 'GBP' | 'USD' | 'AUD' | 'CAD',
+  otherBudgetText?: string
 ): string {
   switch (bracket) {
     case 'ZERO_SWEAT_EQUITY':
@@ -125,16 +139,11 @@ export function formatStartingBudgetBracket(
       return `🚀 ${formatPlanCurrency(5000, currency)} – ${formatPlanCurrency(25000, currency)}`;
     case 'OVER_25K':
       return `🏦 ${formatPlanCurrency(25000, currency)}+`;
+    case 'OTHER':
+      return otherBudgetText?.trim()
+        ? `✨ Other: ${otherBudgetText.trim()}`
+        : `✨ Other (${currency} Custom Budget)`;
   }
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -153,12 +162,52 @@ export function buildModuleAMarkdownBrief(data: ModuleABriefData): string {
 
   const budgetText = formatStartingBudgetBracket(
     data.teamAndBudget.startingBudgetBracket,
-    currency
+    currency,
+    data.teamAndBudget.otherBudgetText
   );
+  const motivationText =
+    data.founderMotivation.primaryMotivation === 'OTHER' &&
+    data.founderMotivation.otherMotivationText?.trim()
+      ? `✨ Other: ${data.founderMotivation.otherMotivationText.trim()}`
+      : MOTIVATION_LABELS[data.founderMotivation.primaryMotivation];
+  const weeklyHoursText =
+    data.founderMotivation.weeklyHoursAvailable === 'OTHER' &&
+    data.founderMotivation.otherWeeklyHoursText?.trim()
+      ? `✨ Other: ${data.founderMotivation.otherWeeklyHoursText.trim()}`
+      : WEEKLY_HOURS_LABELS[data.founderMotivation.weeklyHoursAvailable];
+  const teamSetupText =
+    data.teamAndBudget.teamStructureType === 'OTHER' &&
+    data.teamAndBudget.otherTeamStructureText?.trim()
+      ? `✨ Other: ${data.teamAndBudget.otherTeamStructureText.trim()}`
+      : TEAM_STRUCTURE_LABELS[data.teamAndBudget.teamStructureType];
+  const skillCoverageText =
+    data.teamAndBudget.skillCoverage === 'OTHER' &&
+    data.teamAndBudget.otherSkillCoverageText?.trim()
+      ? `✨ Other: ${data.teamAndBudget.otherSkillCoverageText.trim()}`
+      : SKILL_COVERAGE_LABELS[data.teamAndBudget.skillCoverage];
+  const industryConnectionText =
+    data.founderRealityCheck.industryConnection === 'OTHER' &&
+    data.founderRealityCheck.otherIndustryConnectionText?.trim()
+      ? `✨ Other: ${data.founderRealityCheck.otherIndustryConnectionText.trim()}`
+      : INDUSTRY_CONNECTION_LABELS[data.founderRealityCheck.industryConnection];
+  const incomeUrgencyText =
+    data.founderRealityCheck.personalIncomeUrgency === 'OTHER' &&
+    data.founderRealityCheck.otherIncomeUrgencyText?.trim()
+      ? `✨ Other: ${data.founderRealityCheck.otherIncomeUrgencyText.trim()}`
+      : INCOME_URGENCY_LABELS[data.founderRealityCheck.personalIncomeUrgency];
+  const growthTradeoffText =
+    data.founderRealityCheck.growthTradeoff === 'OTHER' &&
+    data.founderRealityCheck.otherGrowthTradeoffText?.trim()
+      ? `✨ Other: ${data.founderRealityCheck.otherGrowthTradeoffText.trim()}`
+      : GROWTH_TRADEOFF_LABELS[data.founderRealityCheck.growthTradeoff];
   const dealbreakersText =
     data.founderRealityCheck.dealbreakers.length > 0
       ? data.founderRealityCheck.dealbreakers
-          .map((d) => `  - ${DEALBREAKER_LABELS[d]}`)
+          .map((d) =>
+            d === 'OTHER' && data.founderRealityCheck.otherDealbreakerText?.trim()
+              ? `  - ✨ Other: ${data.founderRealityCheck.otherDealbreakerText.trim()}`
+              : `  - ${DEALBREAKER_LABELS[d]}`
+          )
           .join('\n')
       : '  - None selected';
 
@@ -184,24 +233,24 @@ ${data.brainDumpText.trim() || 'Not yet entered.'}
 ---
 
 ## 3. Personal Ambition & Weekly Commitment (Step 3)
-- **Primary Motivation:** ${MOTIVATION_LABELS[data.founderMotivation.primaryMotivation]}
-- **Weekly Time Commitment:** ${WEEKLY_HOURS_LABELS[data.founderMotivation.weeklyHoursAvailable]}
+- **Primary Motivation:** ${motivationText}
+- **Weekly Time Commitment:** ${weeklyHoursText}
 - **12-Month Success Vision:** ${data.founderMotivation.twelveMonthSuccessVision?.trim() || 'Build a validated, sustainable business with paying customers.'}
 
 ---
 
 ## 4. Day-1 Team & Starting Budget (Step 4)
-- **Team Setup:** ${TEAM_STRUCTURE_LABELS[data.teamAndBudget.teamStructureType]}
-- **In-House V1 Build Skills:** ${SKILL_COVERAGE_LABELS[data.teamAndBudget.skillCoverage]}
+- **Team Setup:** ${teamSetupText}
+- **In-House V1 Build Skills:** ${skillCoverageText}
 - **Starting Capital Bucket (${currency}):** ${budgetText}
 - **Team & Funding Notes:** ${data.teamAndBudget.teamAndFundingNotes?.trim() || 'No extra notes added.'}
 
 ---
 
 ## 5. Founder Reality Check & Dealbreakers (Step 5)
-- **Industry Access (Monday Morning Test):** ${INDUSTRY_CONNECTION_LABELS[data.founderRealityCheck.industryConnection]}
-- **Personal Income Pressure:** ${INCOME_URGENCY_LABELS[data.founderRealityCheck.personalIncomeUrgency]}
-- **Ownership & Funding Philosophy:** ${GROWTH_TRADEOFF_LABELS[data.founderRealityCheck.growthTradeoff]}
+- **Industry Access (Monday Morning Test):** ${industryConnectionText}
+- **Personal Income Pressure:** ${incomeUrgencyText}
+- **Ownership & Funding Philosophy:** ${growthTradeoffText}
 - **#1 Secret Worry:** ${BIGGEST_WORRY_LABELS[data.founderRealityCheck.biggestWorryPreset]}${data.founderRealityCheck.biggestWorryNotes?.trim() ? ` — "${data.founderRealityCheck.biggestWorryNotes.trim()}"` : ''}
 - **Lifestyle Dealbreakers (What I Refuse To Do):**
 ${dealbreakersText}
@@ -241,191 +290,50 @@ export function buildModuleAStandaloneHtmlDocument(
 
   const budgetText = formatStartingBudgetBracket(
     data.teamAndBudget.startingBudgetBracket,
-    currency
+    currency,
+    data.teamAndBudget.otherBudgetText
   );
+  const motivationText =
+    data.founderMotivation.primaryMotivation === 'OTHER' &&
+    data.founderMotivation.otherMotivationText?.trim()
+      ? `✨ Other: ${data.founderMotivation.otherMotivationText.trim()}`
+      : MOTIVATION_LABELS[data.founderMotivation.primaryMotivation];
+  const weeklyHoursText =
+    data.founderMotivation.weeklyHoursAvailable === 'OTHER' &&
+    data.founderMotivation.otherWeeklyHoursText?.trim()
+      ? `✨ Other: ${data.founderMotivation.otherWeeklyHoursText.trim()}`
+      : WEEKLY_HOURS_LABELS[data.founderMotivation.weeklyHoursAvailable];
+  const teamSetupText =
+    data.teamAndBudget.teamStructureType === 'OTHER' &&
+    data.teamAndBudget.otherTeamStructureText?.trim()
+      ? `✨ Other: ${data.teamAndBudget.otherTeamStructureText.trim()}`
+      : TEAM_STRUCTURE_LABELS[data.teamAndBudget.teamStructureType];
+  const skillCoverageText =
+    data.teamAndBudget.skillCoverage === 'OTHER' &&
+    data.teamAndBudget.otherSkillCoverageText?.trim()
+      ? `✨ Other: ${data.teamAndBudget.otherSkillCoverageText.trim()}`
+      : SKILL_COVERAGE_LABELS[data.teamAndBudget.skillCoverage];
+  const industryConnectionText =
+    data.founderRealityCheck.industryConnection === 'OTHER' &&
+    data.founderRealityCheck.otherIndustryConnectionText?.trim()
+      ? `✨ Other: ${data.founderRealityCheck.otherIndustryConnectionText.trim()}`
+      : INDUSTRY_CONNECTION_LABELS[data.founderRealityCheck.industryConnection];
+  const incomeUrgencyText =
+    data.founderRealityCheck.personalIncomeUrgency === 'OTHER' &&
+    data.founderRealityCheck.otherIncomeUrgencyText?.trim()
+      ? `✨ Other: ${data.founderRealityCheck.otherIncomeUrgencyText.trim()}`
+      : INCOME_URGENCY_LABELS[data.founderRealityCheck.personalIncomeUrgency];
+  const growthTradeoffText =
+    data.founderRealityCheck.growthTradeoff === 'OTHER' &&
+    data.founderRealityCheck.otherGrowthTradeoffText?.trim()
+      ? `✨ Other: ${data.founderRealityCheck.otherGrowthTradeoffText.trim()}`
+      : GROWTH_TRADEOFF_LABELS[data.founderRealityCheck.growthTradeoff];
 
   const brandHeader = data.whiteLabelEnabled
     ? 'CONFIDENTIAL STARTUP CONCEPT & READINESS BRIEF'
     : 'BUILD MY UNICORN 2.0 • MODULE A CONCEPT & READINESS BRIEF';
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(data.planTitle)} — Startup Concept & Readiness Brief</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #0f172a;
-      background: #f8fafc;
-      line-height: 1.55;
-      padding: 32px 16px;
-    }
-    .page {
-      max-width: 860px;
-      margin: 0 auto;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 40px;
-      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
-    }
-    .header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 2px solid #4f46e5;
-      padding-bottom: 20px;
-      margin-bottom: 28px;
-      gap: 16px;
-    }
-    .eyebrow {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #4f46e5;
-      margin-bottom: 6px;
-    }
-    h1 {
-      font-size: 26px;
-      font-weight: 800;
-      color: #0f172a;
-      letter-spacing: -0.02em;
-    }
-    .meta-line {
-      font-size: 13px;
-      color: #475569;
-      margin-top: 4px;
-    }
-    .badge-box {
-      text-align: right;
-      font-size: 12px;
-      color: #475569;
-      background: #f1f5f9;
-      padding: 10px 14px;
-      border-radius: 10px;
-      white-space: nowrap;
-    }
-    .section {
-      margin-bottom: 26px;
-      page-break-inside: avoid;
-    }
-    .section-title {
-      font-size: 13px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #1e293b;
-      background: #f1f5f9;
-      padding: 8px 12px;
-      border-left: 4px solid #4f46e5;
-      border-radius: 4px;
-      margin-bottom: 12px;
-    }
-    .quote-box {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 14px 16px;
-      font-size: 14px;
-      color: #1e293b;
-    }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
-    .card {
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 12px 14px;
-      background: #ffffff;
-    }
-    .card-warning {
-      border-color: #fcd34d;
-      background: #fffbeb;
-    }
-    .card-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #4f46e5;
-      margin-bottom: 4px;
-    }
-    .card-value {
-      font-size: 13px;
-      color: #1e293b;
-    }
-    .pill-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 6px;
-    }
-    .pill {
-      display: inline-block;
-      background: #fff1f2;
-      border: 1px solid #fecdd3;
-      color: #9f1239;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 999px;
-    }
-    .checklist-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 8px 0;
-      border-bottom: 1px dashed #e2e8f0;
-      font-size: 13px;
-    }
-    .checkbox {
-      width: 16px;
-      height: 16px;
-      border: 2px solid #6366f1;
-      border-radius: 4px;
-      margin-top: 2px;
-      flex-shrink: 0;
-    }
-    .footer-cta {
-      margin-top: 28px;
-      background: #0f172a;
-      color: #ffffff;
-      border-radius: 12px;
-      padding: 18px 20px;
-      font-size: 13px;
-    }
-    .footer-cta strong {
-      color: #a5b4fc;
-    }
-    @media print {
-      body { background: #ffffff; padding: 0; }
-      .page { border: none; box-shadow: none; padding: 16px; max-width: 100%; }
-      .no-print { display: none !important; }
-    }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <div class="header-bar">
-      <div>
-        <div class="eyebrow">${escapeHtml(brandHeader)}</div>
-        <h1>${escapeHtml(data.planTitle)}</h1>
-        <div class="meta-line">
-          Prepared for <strong>${escapeHtml(data.founderName)}</strong> • ${escapeHtml(countryPack.countryName)} (${escapeHtml(currency)}) • ${escapeHtml(data.industryCategory)}
-        </div>
-      </div>
-      <div class="badge-box">
-        <div><strong>Date:</strong> ${escapeHtml(dateStr)}</div>
-        <div><strong>Scope:</strong> ${data.exportPotential === 'EXPORTING_INTERNATIONALLY' ? 'International Export' : `Domestic (${escapeHtml(countryPack.countryName)})`}</div>
-      </div>
-    </div>
-
+  const sectionsHtml = `
     <!-- 1. RAW IDEA -->
     <div class="section">
       <div class="section-title">1. Raw Startup Idea (Step 1)</div>
@@ -465,11 +373,11 @@ export function buildModuleAStandaloneHtmlDocument(
       <div class="grid-2">
         <div class="card">
           <div class="card-label">Primary Motivation</div>
-          <div class="card-value">${escapeHtml(MOTIVATION_LABELS[data.founderMotivation.primaryMotivation])}</div>
+          <div class="card-value">${escapeHtml(motivationText)}</div>
         </div>
         <div class="card">
           <div class="card-label">Realistic Weekly Hours</div>
-          <div class="card-value">${escapeHtml(WEEKLY_HOURS_LABELS[data.founderMotivation.weeklyHoursAvailable])}</div>
+          <div class="card-value">${escapeHtml(weeklyHoursText)}</div>
         </div>
       </div>
       <div class="card" style="margin-top: 12px;">
@@ -484,7 +392,7 @@ export function buildModuleAStandaloneHtmlDocument(
       <div class="grid-2">
         <div class="card">
           <div class="card-label">Team Setup</div>
-          <div class="card-value">${escapeHtml(TEAM_STRUCTURE_LABELS[data.teamAndBudget.teamStructureType])}</div>
+          <div class="card-value">${escapeHtml(teamSetupText)}</div>
         </div>
         <div class="card">
           <div class="card-label">Starting Capital Bucket (${escapeHtml(currency)})</div>
@@ -493,7 +401,7 @@ export function buildModuleAStandaloneHtmlDocument(
       </div>
       <div class="card" style="margin-top: 12px;">
         <div class="card-label">In-House Version 1 Skill Coverage</div>
-        <div class="card-value">${escapeHtml(SKILL_COVERAGE_LABELS[data.teamAndBudget.skillCoverage])}</div>
+        <div class="card-value">${escapeHtml(skillCoverageText)}</div>
       </div>
       ${
         data.teamAndBudget.teamAndFundingNotes?.trim()
@@ -511,15 +419,15 @@ export function buildModuleAStandaloneHtmlDocument(
       <div class="grid-2">
         <div class="card">
           <div class="card-label">Monday Morning Test (Industry Access)</div>
-          <div class="card-value">${escapeHtml(INDUSTRY_CONNECTION_LABELS[data.founderRealityCheck.industryConnection])}</div>
+          <div class="card-value">${escapeHtml(industryConnectionText)}</div>
         </div>
         <div class="card">
           <div class="card-label">Personal Income Urgency</div>
-          <div class="card-value">${escapeHtml(INCOME_URGENCY_LABELS[data.founderRealityCheck.personalIncomeUrgency])}</div>
+          <div class="card-value">${escapeHtml(incomeUrgencyText)}</div>
         </div>
         <div class="card">
           <div class="card-label">Ownership &amp; Funding Philosophy</div>
-          <div class="card-value">${escapeHtml(GROWTH_TRADEOFF_LABELS[data.founderRealityCheck.growthTradeoff])}</div>
+          <div class="card-value">${escapeHtml(growthTradeoffText)}</div>
         </div>
         <div class="card">
           <div class="card-label">#1 Secret Worry (Honest Gut-Check)</div>
@@ -541,7 +449,12 @@ export function buildModuleAStandaloneHtmlDocument(
               ? data.founderRealityCheck.dealbreakers
                   .map(
                     (d) =>
-                      `<span class="pill">${escapeHtml(DEALBREAKER_LABELS[d])}</span>`
+                      `<span class="pill">${escapeHtml(
+                        d === 'OTHER' &&
+                          data.founderRealityCheck.otherDealbreakerText?.trim()
+                          ? `✨ Other: ${data.founderRealityCheck.otherDealbreakerText.trim()}`
+                          : DEALBREAKER_LABELS[d]
+                      )}</span>`
                   )
                   .join('')
               : '<span style="font-size: 13px; color: #64748b;">No specific lifestyle dealbreakers selected.</span>'
@@ -571,13 +484,26 @@ export function buildModuleAStandaloneHtmlDocument(
           )
           .join('')}
       </div>
-    </div>
+    </div>`;
 
-    <div class="footer-cta">
-      <strong>Ready for Module B (Market &amp; Validation Survey)?</strong>
-      Your Module A Concept Brief is complete. Unlock Module B inside Build My Unicorn to auto-generate your public Customer Validation Survey, AI Market Scout, and ${escapeHtml(countryPack.countryName)} TAM/SAM/SOM sizing.
-    </div>
-  </div>
-</body>
-</html>`;
+  const footerCtaHtml = `<strong>Ready for Module B (Market &amp; Competitor Intelligence)?</strong>
+      Your Module A Concept &amp; Readiness Brief is complete. Continue to Module B inside Build My Unicorn to map your Target Customers, Competitors, ${escapeHtml(countryPack.countryName)} Market Sizing, and Competitive Edge.`;
+
+  return renderBmuStandaloneHtmlDocument({
+    documentTitle: `${data.planTitle} — Startup Concept & Readiness Brief`,
+    eyebrow: brandHeader,
+    planTitle: data.planTitle,
+    founderName: data.founderName,
+    countryName: countryPack.countryName,
+    currency,
+    industryCategory: data.industryCategory,
+    dateStr,
+    scopeLabel: 'Scope',
+    scopeValue:
+      data.exportPotential === 'EXPORTING_INTERNATIONALLY'
+        ? 'International Export'
+        : `Domestic (${countryPack.countryName})`,
+    sectionsHtml,
+    footerCtaHtml,
+  });
 }
