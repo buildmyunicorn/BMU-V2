@@ -312,40 +312,6 @@ export default function RegisterPage() {
           </Card>
         </div>
       </main>
-
-      {/* Demo Test Codes Moved to Footer */}
-      <footer className="border-t border-slate-200 bg-slate-900 px-6 py-4 text-slate-400">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-slate-300">
-            <Wrench className="h-4 w-4 text-indigo-400" />
-            <span className="font-semibold text-white">
-              Demo Voucher &amp; Cohort Test Codes (Click to Fill):
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowVoucherField(true);
-                setVoucherCode('SUMO-BMU-1001-ALPHA');
-              }}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 font-mono text-amber-300 hover:border-amber-500"
-            >
-              SUMO-BMU-1001-ALPHA (AppSumo Tier 1)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowVoucherField(true);
-                setVoucherCode('BMU-UCD-2027');
-              }}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 font-mono text-emerald-300 hover:border-emerald-500"
-            >
-              BMU-UCD-2027 (UCD Nova Cohort)
-            </button>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

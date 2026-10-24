@@ -264,10 +264,10 @@ export default function LandingPage() {
         </section>
       </main>
 
-      {/* Footer with Demo / Developer Shortcuts Moved to Bottom */}
+      {/* Clean Production Footer */}
       <footer className="border-t border-slate-200 bg-slate-900 text-slate-400">
         <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
                 <Sparkles className="h-4 w-4" />
@@ -291,48 +291,6 @@ export default function LandingPage() {
                 Redeem Voucher
               </Link>
             </div>
-          </div>
-
-          {/* Developer / Demo Controls Box in Footer */}
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs">
-            <div className="flex items-center gap-2 text-slate-300">
-              <Wrench className="h-4 w-4 text-indigo-400" />
-              <span className="font-semibold text-white">
-                Developer &amp; Demo Shortcuts:
-              </span>
-              <span>
-                1.{' '}
-                <Link href="/register" className="text-indigo-400 underline">
-                  /register
-                </Link>{' '}
-                → 2.{' '}
-                <Link href="/onboarding" className="text-indigo-400 underline">
-                  /onboarding
-                </Link>{' '}
-                → 3.{' '}
-                <Link href="/workspace" className="text-indigo-400 underline">
-                  /workspace
-                </Link>
-              </span>
-            </div>
-
-            {session && (
-              <div className="flex items-center gap-3">
-                <span className="text-slate-400">
-                  Active Demo Session:{' '}
-                  <strong className="text-slate-200">
-                    {session.user.name}
-                  </strong>{' '}
-                  ({session.entitlement.planType})
-                </span>
-                <Link
-                  href="/workspace"
-                  className="rounded-lg bg-indigo-600/20 px-2.5 py-1 font-semibold text-indigo-300 hover:bg-indigo-600/30"
-                >
-                  Jump to Workspace →
-                </Link>
-              </div>
-            )}
           </div>
         </div>
       </footer>

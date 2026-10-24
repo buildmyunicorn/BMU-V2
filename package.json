@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "tsx src/db/seed.ts",
+    "deploy:cloud": "CLOUDSDK_PYTHON=/Library/GoogleCorpSupport/Python/3.11/bin/python3.11 $HOME/google-cloud-sdk/bin/gcloud run deploy bmu-v2 --source . --project=bmu-v3 --region=europe-west1 --allow-unauthenticated --add-cloudsql-instances=bmu-v3:europe-west1:bmu-postgres --set-env-vars=NODE_ENV=production,BETTER_AUTH_SECRET=bmu-v3-prod-secret-2026,DATABASE_URL=postgresql://bmu_user:Clanmahonrd01!@localhost/bmu_prod?host=/cloudsql/bmu-v3:europe-west1:bmu-postgres"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",

@@ -292,56 +292,6 @@ export default function LoginPage() {
           </Card>
         </div>
       </main>
-
-      {/* Developer & Demo Persona Switcher Moved to Footer */}
-      <footer className="border-t border-slate-200 bg-slate-900 px-6 py-5 text-slate-400">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-slate-300">
-            <Wrench className="h-4 w-4 text-indigo-400" />
-            <span className="font-semibold text-white">
-              Demo Persona Quick-Login (Dev Mode):
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => loginWithDevPersona('FREE')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 font-medium text-slate-200 hover:border-indigo-500 hover:text-white"
-            >
-              <UserCheck className="h-3.5 w-3.5 text-indigo-400" />
-              Aoife (Free Hook)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => loginWithDevPersona('APPSUMO_T2')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 font-medium text-slate-200 hover:border-amber-500 hover:text-white"
-            >
-              <Ticket className="h-3.5 w-3.5 text-amber-400" />
-              Liam (AppSumo Tier 2)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => loginWithDevPersona('UCD_COHORT')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 font-medium text-slate-200 hover:border-emerald-500 hover:text-white"
-            >
-              <GraduationCap className="h-3.5 w-3.5 text-emerald-400" />
-              Ciara (UCD Nova Cohort)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => loginWithDevPersona('SUPER_ADMIN')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 font-medium text-slate-200 hover:border-violet-500 hover:text-white"
-            >
-              <ShieldAlert className="h-3.5 w-3.5 text-violet-400" />
-              Tomo (Super Admin • BYOK)
-            </button>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

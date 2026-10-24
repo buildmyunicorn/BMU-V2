@@ -271,38 +271,6 @@ export default function RedeemPage() {
           </CardContent>
         </Card>
       </main>
-
-      {/* Demo Seed Codes Moved to Footer */}
-      <footer className="border-t border-slate-200 bg-slate-900 px-6 py-4 text-slate-400">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-slate-300">
-            <Wrench className="h-4 w-4 text-indigo-400" />
-            <span className="font-semibold text-white">
-              Available Demo Seed Codes (Click to Fill):
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {VALID_DEMO_CODES.map((code) => {
-              const used = redeemedCodes.includes(code);
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  disabled={used}
-                  onClick={() => setInputCode(code)}
-                  className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] ${
-                    used
-                      ? 'border-slate-800 bg-slate-950 text-slate-600 line-through'
-                      : 'border-slate-700 bg-slate-800 text-amber-300 hover:border-amber-500'
-                  }`}
-                >
-                  {code}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

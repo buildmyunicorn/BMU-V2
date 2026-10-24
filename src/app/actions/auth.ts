@@ -401,6 +401,15 @@ export async function loginFounderAction(input: {
       };
     }
 
+    if (foundUser.status === 'SOFT_DELETED') {
+      return {
+        ok: false,
+        error:
+          'This account has been deactivated and moved to trash. Please contact support to restore your account.',
+        mode: 'cloud_sql',
+      };
+    }
+
     // If user was seeded before passwordHash was set, allow setting/verifying demo password
     if (foundUser.passwordHash) {
       const isValid = verifyPassword(input.password, foundUser.passwordHash);
@@ -588,7 +597,10 @@ export async function getCurrentCloudSessionAction(): Promise<{
       .where(eq(users.id, cookiePayload.userId))
       .limit(1);
 
-    if (!dbUser) {
+    if (!dbUser || dbUser.status === 'SUSPENDED' || dbUser.status === 'SOFT_DELETED') {
+      if (dbUser && (dbUser.status === 'SUSPENDED' || dbUser.status === 'SOFT_DELETED')) {
+        await clearServerSessionCookie();
+      }
       return {
         dbConnected: true,
         authenticated: false,

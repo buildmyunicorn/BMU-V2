@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { cookies } from 'next/headers';
 
 const SESSION_COOKIE_NAME = 'bmu_session_token';
+const ADMIN_SESSION_COOKIE_NAME = 'bmu_super_admin_token';
 const SESSION_SECRET =
   process.env.BETTER_AUTH_SECRET ||
   process.env.AUTH_SECRET ||
@@ -10,6 +11,7 @@ const SESSION_SECRET =
 export interface SessionTokenPayload {
   userId: string;
   email: string;
+  role?: 'SUPER_ADMIN' | 'FOUNDER';
   iat: number;
 }
 
@@ -97,6 +99,48 @@ export async function clearServerSessionCookie(): Promise<void> {
   try {
     const cookieStore = await cookies();
     cookieStore.delete(SESSION_COOKIE_NAME);
+  } catch {
+    // Ignore if called outside request context
+  }
+}
+
+export async function setAdminSessionCookie(payload: {
+  userId: string;
+  email: string;
+}): Promise<void> {
+  const token = signPayload({
+    userId: payload.userId,
+    email: payload.email,
+    role: 'SUPER_ADMIN',
+    iat: Date.now(),
+  });
+  const cookieStore = await cookies();
+  cookieStore.set(ADMIN_SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 12, // 12 hours for admin session security
+  });
+}
+
+export async function getAdminSessionCookie(): Promise<SessionTokenPayload | null> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value;
+    if (!token) return null;
+    const payload = verifyPayload(token);
+    if (!payload || payload.role !== 'SUPER_ADMIN') return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearAdminSessionCookie(): Promise<void> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(ADMIN_SESSION_COOKIE_NAME);
   } catch {
     // Ignore if called outside request context
   }
