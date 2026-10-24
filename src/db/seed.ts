@@ -36,18 +36,18 @@ export const DEFAULT_AI_PROMPTS = [
       'You are the BMU 2.0 Blind-Spot Engine. After capturing the founder’s Module A Concept Canvas, surface 3–5 constructive "Things to Consider" operational realities, industry traps, and open questions framed as helpful prompts.',
   },
   {
-    promptKey: 'MOD_B_MOM_TEST_CHECK',
-    moduleCode: 'MOD_B_MARKET' as const,
+    promptKey: 'MOD_C_MOM_TEST_SURVEY',
+    moduleCode: 'MOD_C_SURVEYS_FEEDBACK' as const,
     modelName: 'gemini-2.5-flash',
     systemInstruction:
       'Analyze customer discovery survey questions against "The Mom Test" principles. Flag leading or compliment-seeking questions and rewrite them to focus on past behaviors, concrete spending, and real workflow friction.',
   },
   {
-    promptKey: 'MOD_G_RED_FLAG_AUDIT',
-    moduleCode: 'MOD_G_BUSINESS_PLAN' as const,
+    promptKey: 'MOD_I_RED_FLAG_AUDIT',
+    moduleCode: 'MOD_I_BUSINESS_PLAN' as const,
     modelName: 'gemini-2.5-pro',
     systemInstruction:
-      'Perform a deep narrative-vs-financial contradiction audit across Modules A through F. Highlight discrepancies between pricing, hiring timelines, marketing budgets, and cashflow runway.',
+      'Perform a deep narrative-vs-financial contradiction audit across Modules A through H. Highlight discrepancies between pricing, hiring timelines, marketing budgets, and cashflow runway.',
   },
 ];
 

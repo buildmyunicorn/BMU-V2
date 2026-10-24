@@ -59,11 +59,13 @@ export const collaboratorRoleEnum = pgEnum('collaborator_role', [
 export const moduleCodeEnum = pgEnum('module_code', [
   'MOD_A_IDEATION',
   'MOD_B_MARKET',
-  'MOD_C_OPERATIONS_TEAM',
-  'MOD_D_REVENUE',
-  'MOD_E_MARKETING',
-  'MOD_F_FINANCE_GRANTS',
-  'MOD_G_BUSINESS_PLAN',
+  'MOD_C_SURVEYS_FEEDBACK',
+  'MOD_D_PRODUCT_BUILD',
+  'MOD_E_OPERATIONS_TEAM',
+  'MOD_F_REVENUE',
+  'MOD_G_MARKETING',
+  'MOD_H_FINANCE_GRANTS',
+  'MOD_I_BUSINESS_PLAN',
 ]);
 
 export const questionStatusEnum = pgEnum('question_status', [
@@ -201,9 +203,13 @@ export const startupPlans = pgTable('startup_plans', {
   title: text('title').notNull(),
   oneLinerSummary: text('one_liner_summary'),
   industryCategory: text('industry_category'),
+  productVehicleType: text('product_vehicle_type'), // 'PHYSICAL', 'SOFTWARE', 'SERVICE', 'CONTENT_COMMUNITY', 'HYBRID'
+  primarySalesChannel: text('primary_sales_channel'), // 'AMAZON_MARKETPLACE', 'OWN_SHOPIFY_D2C', 'HYBRID_TROJAN_HORSE', 'WEB_SAAS', 'MOBILE_APP_STORE', 'B2B_DIRECT'
+  selectedBuildTier: text('selected_build_tier'), // 'TIER_1_CONCIERGE_NOCODE', 'TIER_2_LOWCODE_WHITELABEL', 'TIER_3_CUSTOM_CODE_MANUFACTURING'
   hqCountryCode: text('hq_country_code').default('IE').notNull(), // 'IE', 'GB', 'US', 'AU', 'CA', 'EU', 'ROW'
   baseCurrency: text('base_currency').default('EUR').notNull(), // 'EUR', 'GBP', 'USD', 'AUD', 'CAD'
   targetMarketsArray: jsonb('target_markets_array').$type<string[]>().default(['IE']),
+  targetLaunchDate: timestamp('target_launch_date'), // Used by the Reverse-Engineered Launch Calendar
   currentModuleStep: text('current_module_step').default('MOD_A_STEP_1').notNull(),
   ideaComparatorScoresJson: jsonb('idea_comparator_scores_json')
     .$type<{
@@ -297,7 +303,7 @@ export const openQuestionsParkingLot = pgTable('open_questions_parking_lot', {
 });
 
 // ==========================================
-// 6. MODULE B: HOSTED VALIDATION SURVEY ENGINE
+// 6. MODULE C: STANDALONE CUSTOMER SURVEYS, FEEDBACK & WAITLIST ENGINE
 // ==========================================
 export const validationSurveys = pgTable('validation_surveys', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -309,6 +315,7 @@ export const validationSurveys = pgTable('validation_surveys', {
   introDescription: text('intro_description'),
   isActive: boolean('is_active').default(true).notNull(), // Auto-disabled if user is suspended
   collectLeadEmails: boolean('collect_lead_emails').default(true).notNull(),
+  waitlistIncentiveText: text('waitlist_incentive_text'), // e.g., 'Join the early-bird waitlist for 30% off at launch'
   questionsJsonb: jsonb('questions_jsonb')
     .$type<
       Array<{
@@ -321,6 +328,24 @@ export const validationSurveys = pgTable('validation_surveys', {
     >()
     .default([])
     .notNull(),
+  outreachTemplatesJsonb: jsonb('outreach_templates_jsonb')
+    .$type<{
+      linkedinDm?: string;
+      communityPost?: string;
+      whatsappBlurb?: string;
+    }>()
+    .default({}),
+  interviewLogsJsonb: jsonb('interview_logs_jsonb')
+    .$type<
+      Array<{
+        id: string;
+        intervieweeNameOrRole: string;
+        date: string;
+        rawNotes: string;
+        keyTakeaway: string;
+      }>
+    >()
+    .default([]),
   aiInsightsSummaryJsonb: jsonb('ai_insights_summary_jsonb').default({}),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -332,6 +357,7 @@ export const surveyResponses = pgTable('survey_responses', {
     .notNull(),
   answersJsonb: jsonb('answers_jsonb').notNull(),
   respondentEmail: text('respondent_email'),
+  joinedWaitlist: boolean('joined_waitlist').default(false).notNull(),
   submittedAt: timestamp('submitted_at').defaultNow().notNull(),
 });
 

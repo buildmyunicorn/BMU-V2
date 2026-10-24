@@ -10,13 +10,16 @@ import {
 import type {
   BeachheadMarketData,
   CompetitorsAndStatusQuoData,
+  MarketSizingData,
   BuyerModelType,
   SavedModuleBData,
 } from '@/lib/auth/session-store';
 import type { SupportedCountryCode } from '@/lib/localization';
 import {
   scoutModuleBCompetitorsViaRouter,
+  estimateModuleBMarketSizingViaRouter,
   type ModuleBMarketScoutResult,
+  type ModuleBMarketSizingEstimateResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -224,4 +227,100 @@ export async function scoutModuleBCompetitorsWithAiAction(input: {
   buyerTypes?: BuyerModelType[];
 }): Promise<ModuleBMarketScoutResult> {
   return scoutModuleBCompetitorsViaRouter(input);
+}
+
+/**
+ * Persists Module B Step 3 (Market Sizing Without the Maths Headache)
+ * to `plan_modules_data` (MOD_B_MARKET).
+ */
+export async function saveModuleBStep3MarketSizingAction(input: {
+  planId: string;
+  marketSizing: MarketSizingData;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  try {
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_B_MARKET')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleBData;
+
+    const updatedPayload: SavedModuleBData = {
+      ...existingPayload,
+      marketSizing: {
+        ...input.marketSizing,
+        lastSavedAt: new Date().toISOString(),
+      },
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage ?? 0,
+      input.completionPercentage ?? 70
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_B_MARKET',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_B_STEP_3',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module B] Could not persist Step 3 Market Sizing to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Calls the central AI router (`estimateModuleBMarketSizingViaRouter`) to suggest
+ * realistic bottom-up customer counts and annual pricing across 1 or 2 customer groups.
+ */
+export async function estimateModuleBMarketSizingWithAiAction(input: {
+  userId?: string;
+  planId?: string;
+  planTitle: string;
+  brainDumpText?: string;
+  targetCustomerDescription?: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  targetMarketsArray: string[];
+  buyerTypes?: BuyerModelType[];
+}): Promise<ModuleBMarketSizingEstimateResult> {
+  return estimateModuleBMarketSizingViaRouter(input);
 }

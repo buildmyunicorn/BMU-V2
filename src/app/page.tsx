@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Compass,
   BarChart3,
+  MessageSquare,
   Briefcase,
   DollarSign,
   Megaphone,
@@ -42,41 +43,55 @@ const MODULES_PREVIEW = [
   },
   {
     short: 'Module B',
-    title: 'Market Scout & Public Validation Survey',
-    desc: 'AI competitor mapping, bottom-up TAM/SAM/SOM calculator, and a shareable /v/[slug] customer survey that kills confirmation bias.',
+    title: 'Market & Competitive Intelligence',
+    desc: 'Target customer groups, AI competitor & customer habit mapping, plain-English market sizing, and your competitive edge matrix.',
     icon: BarChart3,
     badge: 'Full Pass',
   },
   {
     short: 'Module C',
-    title: 'Operations, 7 Hats & Co-Founder Alignment',
-    desc: 'Ruthless MVP scope filter, 7 Startup Hats delegation map, and our Blind-Reveal Co-Founder Alignment Interview.',
-    icon: Briefcase,
+    title: 'Customer Surveys, Feedback & Waitlist',
+    desc: 'Shareable /v/[slug] customer validation survey that kills confirmation bias, plus early waitlist capture and 1-on-1 interview logs.',
+    icon: MessageSquare,
     badge: 'Full Pass',
   },
   {
     short: 'Module D',
-    title: 'Selling & Single-Sale Pocket Profit',
-    desc: 'Map real B2B/B2C buying friction and calculate exact gross margin and pocket profit on 1 unit sold before building spreadsheets.',
-    icon: DollarSign,
+    title: 'What Are We Building? (Product & Build)',
+    desc: 'Choose your product vehicle, Own vs. Rent sales channel, 3-Tier Build-vs-Buy path, and ruthless V1 feature/SKU filter.',
+    icon: Wrench,
     badge: 'Full Pass',
   },
   {
     short: 'Module E',
-    title: 'Marketing & First 100 Customers',
-    desc: '3-Second Value Hook, zero-budget guerrilla hustle checklist, and a reverse-engineered monthly marketing funnel.',
-    icon: Megaphone,
+    title: 'Operations, 7 Hats & Co-Founder Alignment',
+    desc: 'Day-to-day fulfillment blueprint, 7 Startup Hats delegation map, and our Blind-Reveal Co-Founder Alignment Interview.',
+    icon: Briefcase,
     badge: 'Full Pass',
   },
   {
     short: 'Module F',
+    title: 'Selling & Single-Sale Pocket Profit',
+    desc: 'Design your pricing model, map real B2B/B2C buying friction, and calculate exact gross margin and pocket profit on 1 unit sold.',
+    icon: DollarSign,
+    badge: 'Full Pass',
+  },
+  {
+    short: 'Module G',
+    title: 'Marketing & First 10 Customers Playbook',
+    desc: '3-Second Value Hook, zero-budget Day-1 hustle playbook, and a reverse-engineered monthly marketing funnel.',
+    icon: Megaphone,
+    badge: 'Full Pass',
+  },
+  {
+    short: 'Module H',
     title: '36-Month Cashflow, Grants & Legal Shield',
     desc: 'Plain-English 3-year projections, localized Ireland/UK/US/AU/CA non-dilutive grant matcher, and IP/equity hygiene.',
     icon: Scale,
     badge: 'Full Pass',
   },
   {
-    short: 'Module G',
+    short: 'Module I',
     title: 'Living Business Plan & Contradiction Audit',
     desc: 'One-click Investor, Bank/LEO Grant, or Internal Roadmap compilation with Gemini 2.5 Pro cross-module contradiction checks.',
     icon: FileText,
@@ -215,11 +230,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* The 7-Module Journey Overview */}
+        {/* The 9-Module Journey Overview */}
         <section className="border-t border-slate-200 bg-white py-16">
           <div className="mx-auto max-w-7xl px-6">
             <div className="text-center">
-              <Badge variant="default">7-Module Guided Architecture</Badge>
+              <Badge variant="default">9-Module Guided Architecture</Badge>
               <h2 className="mt-2 text-2xl font-bold text-slate-900">
                 Everything from Day-1 Brain Dump to Grant-Ready Business Plan
               </h2>

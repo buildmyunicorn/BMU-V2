@@ -21,6 +21,9 @@ import type {
   CompetitorEntry,
   CompetitorCategoryType,
   BuyerModelType,
+  MarketSizingSegmentEntry,
+  CustomerBillingCadence,
+  WiderMarketScalePreset,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -849,6 +852,357 @@ Return STRICT JSON matching this exact structure (no markdown fences):
     allowed: true,
     competitors: competitorsResult,
     suggestedWhySwitchSentence: suggestedEdgeSentence,
+    creditsUsedAfter,
+    engineMode,
+  };
+}
+
+export interface ModuleBMarketSizingEstimateResult {
+  allowed: boolean;
+  reason?: string;
+  segments: MarketSizingSegmentEntry[];
+  widerMarketMultiplier: WiderMarketScalePreset;
+  sourceAndAssumptionNotes: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+function buildSmartFallbackMarketSizing(params: {
+  planTitle: string;
+  brainDumpText?: string;
+  targetCustomerDescription?: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  targetMarketsArray: string[];
+  buyerTypes?: BuyerModelType[];
+}): {
+  segments: MarketSizingSegmentEntry[];
+  widerMarketMultiplier: WiderMarketScalePreset;
+  sourceAndAssumptionNotes: string;
+} {
+  const countryPack = getCountryRulePack(params.hqCountryCode);
+  const marketsText =
+    params.targetMarketsArray.length > 0
+      ? params.targetMarketsArray.join(', ')
+      : countryPack.countryName;
+  const combinedContext = `${params.planTitle} ${params.brainDumpText || ''} ${params.targetCustomerDescription || ''}`.toLowerCase();
+
+  const isStartupOrBusinessPlanTool =
+    combinedContext.includes('unicorn') ||
+    combinedContext.includes('founder') ||
+    combinedContext.includes('startup') ||
+    combinedContext.includes('business plan') ||
+    combinedContext.includes('accelerator') ||
+    combinedContext.includes('university');
+
+  const hasMultipleBuyerModels = (params.buyerTypes?.length || 0) > 1;
+
+  if (isStartupOrBusinessPlanTool || hasMultipleBuyerModels) {
+    return {
+      segments: [
+        {
+          id: `seg-${Date.now()}-1`,
+          segmentName: 'Individual Founders & Solo Builders',
+          billingCadence: 'YEARLY_OR_ONE_OFF',
+          pricePerCustomerInput: '29',
+          year1To2CustomerGoalInput: '350',
+          reachableCustomersInTargetMarketsInput: '25000',
+        },
+        {
+          id: `seg-${Date.now()}-2`,
+          segmentName: 'Universities, Accelerators & Enterprise Hubs',
+          billingCadence: 'YEARLY_OR_ONE_OFF',
+          pricePerCustomerInput: '2500',
+          year1To2CustomerGoalInput: '8',
+          reachableCustomersInTargetMarketsInput: '180',
+        },
+      ],
+      widerMarketMultiplier: '10X',
+      sourceAndAssumptionNotes: `Bottom-up estimate for ${marketsText}: combines individual self-serve passes with annual cohort licences for universities, incubators, and local enterprise programmes.`,
+    };
+  }
+
+  switch (params.industryCategory) {
+    case 'Consumer App / Marketplace':
+      return {
+        segments: [
+          {
+            id: `seg-${Date.now()}-1`,
+            segmentName: 'Active Individual Customers / Households',
+            billingCadence: 'YEARLY_OR_ONE_OFF',
+            pricePerCustomerInput: '120',
+            year1To2CustomerGoalInput: '400',
+            reachableCustomersInTargetMarketsInput: '35000',
+          },
+        ],
+        widerMarketMultiplier: '5X',
+        sourceAndAssumptionNotes: `Based on active target households in ${marketsText} spending an average of ${countryPack.defaultCurrency} 120 per year on bookings/subscriptions.`,
+      };
+
+    case 'E-Commerce / Physical Product / Food & Drink':
+      return {
+        segments: [
+          {
+            id: `seg-${Date.now()}-1`,
+            segmentName: 'Direct-to-Consumer Repeat Buyers',
+            billingCadence: 'YEARLY_OR_ONE_OFF',
+            pricePerCustomerInput: '180',
+            year1To2CustomerGoalInput: '300',
+            reachableCustomersInTargetMarketsInput: '40000',
+          },
+          {
+            id: `seg-${Date.now()}-2`,
+            segmentName: 'Retail Stockists / Wholesale Accounts',
+            billingCadence: 'YEARLY_OR_ONE_OFF',
+            pricePerCustomerInput: '2400',
+            year1To2CustomerGoalInput: '12',
+            reachableCustomersInTargetMarketsInput: '600',
+          },
+        ],
+        widerMarketMultiplier: '5X',
+        sourceAndAssumptionNotes: `Bottom-up estimate in ${marketsText} combining online repeat buyers (3–4 orders/year) with independent wholesale stockists.`,
+      };
+
+    default:
+      return {
+        segments: [
+          {
+            id: `seg-${Date.now()}-1`,
+            segmentName: 'Target Business Customers (SMEs)',
+            billingCadence: 'MONTHLY_SUBSCRIPTION',
+            pricePerCustomerInput: '99',
+            year1To2CustomerGoalInput: '45',
+            reachableCustomersInTargetMarketsInput: '3500',
+          },
+        ],
+        widerMarketMultiplier: '5X',
+        sourceAndAssumptionNotes: `Bottom-up count of target SMEs in ${marketsText} matching your Step 1 customer profile, priced on a monthly subscription.`,
+      };
+  }
+}
+
+/**
+ * Module B Step 3 AI Market Sizing Estimator (`estimateModuleBMarketSizingViaRouter`).
+ * Routes through `src/lib/ai/router.ts`, checks `user_entitlements.ai_credits_used_this_month`,
+ * calls `gemini-2.5-flash` (or smart synthesizer fallback), and logs token usage to `ai_usage_logs`.
+ */
+export async function estimateModuleBMarketSizingViaRouter(params: {
+  userId?: string;
+  planId?: string;
+  planTitle: string;
+  brainDumpText?: string;
+  targetCustomerDescription?: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  targetMarketsArray: string[];
+  buyerTypes?: BuyerModelType[];
+}): Promise<ModuleBMarketSizingEstimateResult> {
+  const countryPack = getCountryRulePack(params.hqCountryCode);
+  let customByokKey: string | null = null;
+  let creditsUsedAfter = 1;
+
+  const isUuid =
+    params.userId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      params.userId
+    );
+
+  if (isUuid && params.userId) {
+    try {
+      const [entRow] = await db
+        .select()
+        .from(userEntitlements)
+        .where(eq(userEntitlements.userId, params.userId))
+        .limit(1);
+
+      if (entRow) {
+        const snapshot: EntitlementSnapshot = {
+          userId: entRow.userId,
+          planType: entRow.planType,
+          stackedCodesCount: entRow.stackedCodesCount,
+          maxStartupPlans: entRow.maxStartupPlans,
+          maxSeatsPerPlan: entRow.maxSeatsPerPlan,
+          monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
+          aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
+          whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
+          customApiKeyEncrypted: entRow.customApiKeyEncrypted,
+          accessExpiresAt: entRow.accessExpiresAt,
+          isVaultReadonly: entRow.isVaultReadonly,
+        };
+
+        const creditCheck = canConsumeAiCredits(snapshot, 1);
+        if (!creditCheck.allowed) {
+          const fallback = buildSmartFallbackMarketSizing(params);
+          return {
+            allowed: false,
+            reason: creditCheck.reason,
+            segments: fallback.segments,
+            widerMarketMultiplier: fallback.widerMarketMultiplier,
+            sourceAndAssumptionNotes: fallback.sourceAndAssumptionNotes,
+            creditsUsedAfter: entRow.aiCreditsUsedThisMonth,
+            engineMode: 'smart-synthesizer',
+          };
+        }
+
+        customByokKey = entRow.customApiKeyEncrypted;
+      }
+    } catch {
+      // Continue if DB check fails in offline preview
+    }
+  }
+
+  const activeApiKey = hasConfiguredGeminiKey(customByokKey);
+  let segmentsResult: MarketSizingSegmentEntry[] | null = null;
+  let multiplierResult: WiderMarketScalePreset = '5X';
+  let notesResult = '';
+  let engineMode: 'gemini-2.5-flash' | 'smart-synthesizer' = 'smart-synthesizer';
+  let inputTokensCount = 210;
+  let outputTokensCount = 310;
+
+  if (activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const marketsText =
+        params.targetMarketsArray.length > 0
+          ? params.targetMarketsArray.join(', ')
+          : countryPack.countryName;
+      const shouldUseTwoGroups = (params.buyerTypes?.length || 0) > 1;
+
+      const userPrompt = `
+You are the "Supportive Co-Founder & Plain-English Market Sizing Coach" inside Build My Unicorn 2.0.
+Estimate realistic bottom-up customer counts and annual/monthly pricing in ${countryPack.defaultCurrency} for this startup in [${marketsText}].
+${shouldUseTwoGroups ? 'Because the founder selected multiple customer models, return 2 distinct customer groups (for example: Group 1 for individual users/customers, and Group 2 for business/institutional/accelerator customers).' : 'Return 1 or 2 clear customer groups.'}
+
+Startup Name: ${params.planTitle}
+Industry Category: ${params.industryCategory}
+Customer Models Selected: ${params.buyerTypes?.join(', ') || 'Not specified'}
+Target Customer Description: ${params.targetCustomerDescription || '(not specified yet)'}
+Raw Idea Notes: ${params.brainDumpText || '(not specified yet)'}
+
+Return STRICT JSON matching this exact structure (numbers as plain digit strings without commas or currency symbols):
+{
+  "segments": [
+    {
+      "segmentName": "Plain-English name of Customer Group 1",
+      "billingCadence": "YEARLY_OR_ONE_OFF",
+      "pricePerCustomerInput": "29",
+      "year1To2CustomerGoalInput": "300",
+      "reachableCustomersInTargetMarketsInput": "20000"
+    }
+  ],
+  "widerMarketMultiplier": "5X",
+  "sourceAndAssumptionNotes": "1 short, plain-English sentence explaining how you estimated the number of potential customers in ${marketsText}."
+}`.trim();
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: userPrompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+        },
+      });
+
+      const rawText = response.text || '';
+      const parsed = JSON.parse(rawText) as {
+        segments?: Array<{
+          segmentName?: string;
+          billingCadence?: CustomerBillingCadence;
+          pricePerCustomerInput?: string | number;
+          year1To2CustomerGoalInput?: string | number;
+          reachableCustomersInTargetMarketsInput?: string | number;
+        }>;
+        widerMarketMultiplier?: WiderMarketScalePreset;
+        sourceAndAssumptionNotes?: string;
+      };
+
+      if (Array.isArray(parsed.segments) && parsed.segments.length > 0) {
+        engineMode = 'gemini-2.5-flash';
+        segmentsResult = parsed.segments.slice(0, 3).map((seg, idx) => ({
+          id: `seg-${Date.now()}-${idx + 1}`,
+          segmentName: seg.segmentName || `Customer Group #${idx + 1}`,
+          billingCadence:
+            seg.billingCadence === 'MONTHLY_SUBSCRIPTION'
+              ? 'MONTHLY_SUBSCRIPTION'
+              : 'YEARLY_OR_ONE_OFF',
+          pricePerCustomerInput: String(seg.pricePerCustomerInput ?? '').replace(
+            /[^0-9.]/g,
+            ''
+          ),
+          year1To2CustomerGoalInput: String(
+            seg.year1To2CustomerGoalInput ?? ''
+          ).replace(/[^0-9]/g, ''),
+          reachableCustomersInTargetMarketsInput: String(
+            seg.reachableCustomersInTargetMarketsInput ?? ''
+          ).replace(/[^0-9]/g, ''),
+        }));
+        if (
+          parsed.widerMarketMultiplier === '3X' ||
+          parsed.widerMarketMultiplier === '5X' ||
+          parsed.widerMarketMultiplier === '10X' ||
+          parsed.widerMarketMultiplier === '20X'
+        ) {
+          multiplierResult = parsed.widerMarketMultiplier;
+        }
+        notesResult = parsed.sourceAndAssumptionNotes || '';
+        inputTokensCount = response.usageMetadata?.promptTokenCount || 220;
+        outputTokensCount = response.usageMetadata?.candidatesTokenCount || 320;
+      }
+    } catch (err) {
+      console.warn(
+        '[BMU AI Router] Module B Market Sizing Gemini call failed, using smart synthesizer fallback:',
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  if (!segmentsResult) {
+    const fallback = buildSmartFallbackMarketSizing(params);
+    segmentsResult = fallback.segments;
+    multiplierResult = fallback.widerMarketMultiplier;
+    notesResult = fallback.sourceAndAssumptionNotes;
+  }
+
+  if (isUuid && params.userId) {
+    try {
+      const [updatedEnt] = await db
+        .update(userEntitlements)
+        .set({
+          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(userEntitlements.userId, params.userId))
+        .returning();
+
+      if (updatedEnt) {
+        creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
+      }
+
+      const isPlanUuid =
+        params.planId &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          params.planId
+        );
+
+      await db.insert(aiUsageLogs).values({
+        userId: params.userId,
+        planId: isPlanUuid ? params.planId : null,
+        promptKey: 'MOD_B_MARKET_SIZING',
+        modelUsed: engineMode,
+        inputTokens: inputTokensCount,
+        outputTokens: outputTokensCount,
+        usedByokKey: Boolean(customByokKey),
+      });
+    } catch {
+      // Ignore logging error in offline fallback
+    }
+  }
+
+  return {
+    allowed: true,
+    segments: segmentsResult,
+    widerMarketMultiplier: multiplierResult,
+    sourceAndAssumptionNotes: notesResult,
     creditsUsedAfter,
     engineMode,
   };

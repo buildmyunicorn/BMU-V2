@@ -171,9 +171,33 @@ export interface CompetitorsAndStatusQuoData {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type CustomerBillingCadence =
+  | 'YEARLY_OR_ONE_OFF'
+  | 'MONTHLY_SUBSCRIPTION';
+
+export interface MarketSizingSegmentEntry {
+  id: string;
+  segmentName: string;
+  billingCadence: CustomerBillingCadence;
+  pricePerCustomerInput: string;
+  year1To2CustomerGoalInput: string;
+  reachableCustomersInTargetMarketsInput: string;
+}
+
+export type WiderMarketScalePreset = '3X' | '5X' | '10X' | '20X';
+
+export interface MarketSizingData {
+  segments: MarketSizingSegmentEntry[];
+  widerMarketMultiplier: WiderMarketScalePreset;
+  sourceAndAssumptionNotes: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface SavedModuleBData {
   beachhead?: BeachheadMarketData;
   competitorsAndStatusQuo?: CompetitorsAndStatusQuoData;
+  marketSizing?: MarketSizingData;
   thingsToConsider?: BlindSpotItem[];
 }
 

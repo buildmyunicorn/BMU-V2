@@ -26,6 +26,8 @@ import {
   Plus,
   Trash2,
   Search,
+  Calculator,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +41,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   getCountryRulePack,
   getGrantsForCountry,
+  formatPlanCurrency,
   type SupportedCountryCode,
 } from '@/lib/localization';
 import type {
@@ -53,6 +56,10 @@ import type {
   CompetitorEntry,
   WhySwitchEdgeType,
   CompetitorsAndStatusQuoData,
+  CustomerBillingCadence,
+  MarketSizingSegmentEntry,
+  WiderMarketScalePreset,
+  MarketSizingData,
 } from '@/lib/auth/session-store';
 
 const BUYER_MODEL_OPTIONS: Array<{
@@ -351,6 +358,70 @@ function getIndustryCompetitorExamples(industry: IndustryCategory): {
   }
 }
 
+const WIDER_MARKET_SCALE_OPTIONS: Array<{
+  value: WiderMarketScalePreset;
+  multiplier: number;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: '3X',
+    multiplier: 3,
+    label: '3x Bigger (Adjacent Regions / Sectors)',
+    description:
+      'Expanding into neighbouring regions or one adjacent customer group.',
+  },
+  {
+    value: '5X',
+    multiplier: 5,
+    label: '5x Bigger (Multi-Country Expansion)',
+    description:
+      'Expanding across 3–5 international markets with similar buyers.',
+  },
+  {
+    value: '10X',
+    multiplier: 10,
+    label: '10x Bigger (International Category Scale)',
+    description:
+      'Scaling across Europe, UK, North America, and institutional segments.',
+  },
+  {
+    value: '20X',
+    multiplier: 20,
+    label: '20x Bigger (Global Category Opportunity)',
+    description:
+      'Long-term global opportunity across all English-speaking & EU markets.',
+  },
+];
+
+function getIndustryMarketSizingExamples(industry: IndustryCategory): {
+  weakExample: string;
+  strongExample: string;
+} {
+  switch (industry) {
+    case 'B2B SaaS / AI App':
+      return {
+        weakExample:
+          'The global software market is worth €500 Billion, and if we get just 1% of it we will make €5 Billion.',
+        strongExample:
+          'Group 1 (Individual Users): 25,000 potential founders in Ireland & the UK at €29/year (€725k). Group 2 (Universities & Accelerators): 180 programmes at €2,500/year (€450k). In Year 1–2 we aim to win 350 individual users and 8 university programmes (€30,150/year).',
+      };
+    case 'Consumer App / Marketplace':
+      return {
+        weakExample:
+          'There are 10 million pet owners in the UK & Ireland so our market is huge.',
+        strongExample:
+          'There are 35,000 hybrid-working dog owners in our target commuter towns spending €120/year on platform fees (€4.2M reachable market). Our realistic Year 1–2 goal is 400 active households (€48,000/year).',
+      };
+    default:
+      return {
+        weakExample: 'Everyone needs this product so the market is billions.',
+        strongExample:
+          'We multiplied the realistic number of target buyers in our selected countries by what a typical customer pays per year, and set a practical Year 1–2 customer goal we can reach with our current team.',
+      };
+  }
+}
+
 export interface ModuleBWorkspaceProps {
   plan: ActiveStartupPlan;
   selectedCountry: SupportedCountryCode;
@@ -372,6 +443,20 @@ export interface ModuleBWorkspaceProps {
     suggestedWhySwitchSentence?: string;
     engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
   } | null>;
+  onSaveStep3MarketSizing: (
+    marketSizing: MarketSizingData,
+    progressPercent: number
+  ) => Promise<void>;
+  onEstimateMarketSizingWithAi: (params: {
+    targetCustomerDescription: string;
+    targetMarketsArray: string[];
+    buyerTypes: BuyerModelType[];
+  }) => Promise<{
+    segments: MarketSizingSegmentEntry[];
+    widerMarketMultiplier: WiderMarketScalePreset;
+    sourceAndAssumptionNotes: string;
+    engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  } | null>;
   onParkQuestion: (questionText: string) => void;
   onBackToModuleA: () => void;
 }
@@ -383,6 +468,8 @@ export function ModuleBWorkspace({
   onSaveStep1Beachhead,
   onSaveStep2Competitors,
   onScoutCompetitorsWithAi,
+  onSaveStep3MarketSizing,
+  onEstimateMarketSizingWithAi,
   onParkQuestion,
   onBackToModuleA,
 }: ModuleBWorkspaceProps) {
@@ -390,6 +477,9 @@ export function ModuleBWorkspace({
   const localGrants = getGrantsForCountry(selectedCountry);
   const industryExamples = getIndustryBeachheadExamples(plan.industryCategory);
   const competitorExamples = getIndustryCompetitorExamples(
+    plan.industryCategory
+  );
+  const marketSizingExamples = getIndustryMarketSizingExamples(
     plan.industryCategory
   );
 
@@ -558,6 +648,180 @@ export function ModuleBWorkspace({
   const [isScoutingAi, setIsScoutingAi] = useState(false);
   const [isSavingStep2, setIsSavingStep2] = useState(false);
 
+  // =========================================================================
+  // STEP 3 STATE: MARKET SIZING WITHOUT THE MATHS HEADACHE (MULTI-GROUP)
+  // =========================================================================
+  const savedStep3 = plan.moduleBData?.marketSizing;
+
+  function createDefaultBlankSegments(
+    count: number
+  ): MarketSizingSegmentEntry[] {
+    return Array.from({ length: count }, (_, idx) => ({
+      id: `seg-init-${idx + 1}`,
+      segmentName: '',
+      billingCadence: 'YEARLY_OR_ONE_OFF' as CustomerBillingCadence,
+      pricePerCustomerInput: '',
+      year1To2CustomerGoalInput: '',
+      reachableCustomersInTargetMarketsInput: '',
+    }));
+  }
+
+  const [marketSegments, setMarketSegments] = useState<
+    MarketSizingSegmentEntry[]
+  >(
+    savedStep3?.segments?.length
+      ? savedStep3.segments
+      : createDefaultBlankSegments(initialBuyerTypes.length > 1 ? 2 : 1)
+  );
+  const [widerMarketMultiplier, setWiderMarketMultiplier] =
+    useState<WiderMarketScalePreset>(
+      savedStep3?.widerMarketMultiplier ?? '5X'
+    );
+  const [sourceAndAssumptionNotes, setSourceAndAssumptionNotes] =
+    useState<string>(savedStep3?.sourceAndAssumptionNotes ?? '');
+
+  // Step 3 Layer 1–2 Coaching & Action States
+  const [showStep3WhyCard, setShowStep3WhyCard] = useState(true);
+  const [showStep3Examples, setShowStep3Examples] = useState(false);
+  const [showStep3ImStuck, setShowStep3ImStuck] = useState(false);
+  const [isEstimatingStep3Ai, setIsEstimatingStep3Ai] = useState(false);
+  const [isSavingStep3, setIsSavingStep3] = useState(false);
+  const [copiedGrantSummary, setCopiedGrantSummary] = useState(false);
+
+  // Sync Step 3 state when plan changes or Cloud SQL hydrates
+  useEffect(() => {
+    setMarketSegments(
+      savedStep3?.segments?.length
+        ? savedStep3.segments
+        : createDefaultBlankSegments(
+            (savedBeachhead?.buyerTypes?.length || 1) > 1 ? 2 : 1
+          )
+    );
+    setWiderMarketMultiplier(savedStep3?.widerMarketMultiplier ?? '5X');
+    setSourceAndAssumptionNotes(savedStep3?.sourceAndAssumptionNotes ?? '');
+  }, [plan.id, savedStep3?.lastSavedAt, savedBeachhead?.buyerTypes?.length]);
+
+  function handleAddMarketSegment() {
+    if (isVaultReadonly) return;
+    setMarketSegments((prev) => [
+      ...prev,
+      {
+        id: `seg-${Date.now()}-${prev.length + 1}`,
+        segmentName: '',
+        billingCadence: 'YEARLY_OR_ONE_OFF',
+        pricePerCustomerInput: '',
+        year1To2CustomerGoalInput: '',
+        reachableCustomersInTargetMarketsInput: '',
+      },
+    ]);
+  }
+
+  function handleUpdateMarketSegment(
+    id: string,
+    field: keyof MarketSizingSegmentEntry,
+    value: string
+  ) {
+    if (isVaultReadonly) return;
+    setMarketSegments((prev) =>
+      prev.map((seg) => (seg.id === id ? { ...seg, [field]: value } : seg))
+    );
+  }
+
+  function handleRemoveMarketSegment(id: string) {
+    if (isVaultReadonly) return;
+    setMarketSegments((prev) => {
+      if (prev.length <= 1) return prev; // Keep at least 1 customer group
+      return prev.filter((seg) => seg.id !== id);
+    });
+  }
+
+  function handleUseIndustryBenchmark() {
+    if (isVaultReadonly) return;
+    const hasTwoGroups = buyerTypes.length > 1 || marketSegments.length > 1;
+    if (hasTwoGroups) {
+      setMarketSegments([
+        {
+          id: `seg-bench-${Date.now()}-1`,
+          segmentName: 'Individual Users / Self-Serve Customers',
+          billingCadence: 'YEARLY_OR_ONE_OFF',
+          pricePerCustomerInput: '29',
+          year1To2CustomerGoalInput: '350',
+          reachableCustomersInTargetMarketsInput: '25000',
+        },
+        {
+          id: `seg-bench-${Date.now()}-2`,
+          segmentName: 'Universities, Accelerators & Business Accounts',
+          billingCadence: 'YEARLY_OR_ONE_OFF',
+          pricePerCustomerInput: '2500',
+          year1To2CustomerGoalInput: '8',
+          reachableCustomersInTargetMarketsInput: '180',
+        },
+      ]);
+      setWiderMarketMultiplier('10X');
+      setSourceAndAssumptionNotes(
+        `Industry benchmark for ${targetMarkets.join(', ')}: combines individual user passes with annual institutional/business cohort licences.`
+      );
+    } else if (plan.industryCategory === 'Consumer App / Marketplace') {
+      setMarketSegments([
+        {
+          id: `seg-bench-${Date.now()}-1`,
+          segmentName: 'Active Individual Users / Households',
+          billingCadence: 'YEARLY_OR_ONE_OFF',
+          pricePerCustomerInput: '120',
+          year1To2CustomerGoalInput: '400',
+          reachableCustomersInTargetMarketsInput: '35000',
+        },
+      ]);
+      setWiderMarketMultiplier('5X');
+      setSourceAndAssumptionNotes(
+        `Industry benchmark for ${targetMarkets.join(', ')}: based on active households spending ${countryPack.defaultCurrency} 120/year.`
+      );
+    } else {
+      setMarketSegments([
+        {
+          id: `seg-bench-${Date.now()}-1`,
+          segmentName: 'Target Business Customers (SMEs)',
+          billingCadence: 'MONTHLY_SUBSCRIPTION',
+          pricePerCustomerInput: '99',
+          year1To2CustomerGoalInput: '45',
+          reachableCustomersInTargetMarketsInput: '3500',
+        },
+      ]);
+      setWiderMarketMultiplier('5X');
+      setSourceAndAssumptionNotes(
+        `Industry benchmark for ${targetMarkets.join(', ')}: bottom-up count of target SMEs on a monthly subscription.`
+      );
+    }
+    setSaveBanner(
+      '📊 Loaded typical industry benchmark numbers! Feel free to adjust any number to match your plan.'
+    );
+  }
+
+  async function handleRunAiMarketSizing() {
+    if (isVaultReadonly) return;
+    setIsEstimatingStep3Ai(true);
+    setSaveBanner(null);
+    try {
+      const result = await onEstimateMarketSizingWithAi({
+        targetCustomerDescription: beachheadSegment,
+        targetMarketsArray: targetMarkets,
+        buyerTypes,
+      });
+      if (result && result.segments.length > 0) {
+        setMarketSegments(result.segments);
+        setWiderMarketMultiplier(result.widerMarketMultiplier);
+        if (result.sourceAndAssumptionNotes) {
+          setSourceAndAssumptionNotes(result.sourceAndAssumptionNotes);
+        }
+        setSaveBanner(
+          `✨ Estimated realistic customer counts and pricing in ${countryPack.defaultCurrency} for ${targetMarkets.join(', ')}! You can tweak any box below.`
+        );
+      }
+    } finally {
+      setIsEstimatingStep3Ai(false);
+    }
+  }
+
   // Sync Step 2 state when plan changes or Cloud SQL hydrates
   useEffect(() => {
     setCurrentWorkarounds(savedStep2?.currentWorkarounds ?? []);
@@ -698,6 +962,85 @@ export function ModuleBWorkspace({
     targetMarkets.includes('EU') ||
     targetMarkets.includes('ROW');
 
+  // =========================================================================
+  // LIVE BOTTOM-UP MARKET SIZING CALCULATIONS (ACROSS ALL CUSTOMER GROUPS)
+  // =========================================================================
+  const computedSegments = marketSegments.map((seg, idx) => {
+    const rawPrice =
+      parseFloat(seg.pricePerCustomerInput.replace(/[^0-9.]/g, '')) || 0;
+    const annualRevenuePerCustomer =
+      seg.billingCadence === 'MONTHLY_SUBSCRIPTION' ? rawPrice * 12 : rawPrice;
+    const year1To2GoalCustomers =
+      parseInt(seg.year1To2CustomerGoalInput.replace(/[^0-9]/g, ''), 10) || 0;
+    const reachableCustomersInMarkets =
+      parseInt(
+        seg.reachableCustomersInTargetMarketsInput.replace(/[^0-9]/g, ''),
+        10
+      ) || 0;
+
+    const year1To2AnnualRevenue =
+      annualRevenuePerCustomer * year1To2GoalCustomers;
+    const reachableMarketAnnualValue =
+      annualRevenuePerCustomer * reachableCustomersInMarkets;
+
+    return {
+      ...seg,
+      displayLabel: seg.segmentName.trim() || `Customer Group #${idx + 1}`,
+      rawPrice,
+      annualRevenuePerCustomer,
+      year1To2GoalCustomers,
+      reachableCustomersInMarkets,
+      year1To2AnnualRevenue,
+      reachableMarketAnnualValue,
+    };
+  });
+
+  const totalYear1To2Customers = computedSegments.reduce(
+    (sum, s) => sum + s.year1To2GoalCustomers,
+    0
+  );
+  const totalReachableCustomers = computedSegments.reduce(
+    (sum, s) => sum + s.reachableCustomersInMarkets,
+    0
+  );
+  const totalYear1To2RevenueSom = computedSegments.reduce(
+    (sum, s) => sum + s.year1To2AnnualRevenue,
+    0
+  );
+  const totalReachableMarketSam = computedSegments.reduce(
+    (sum, s) => sum + s.reachableMarketAnnualValue,
+    0
+  );
+
+  const selectedScaleMultiplierObj =
+    WIDER_MARKET_SCALE_OPTIONS.find(
+      (opt) => opt.value === widerMarketMultiplier
+    ) || WIDER_MARKET_SCALE_OPTIONS[1];
+  const totalWiderMarketTam =
+    totalReachableMarketSam * selectedScaleMultiplierObj.multiplier;
+
+  const hasEnteredMarketSizingNumbers =
+    totalYear1To2RevenueSom > 0 && totalReachableMarketSam > 0;
+
+  const grantReadySummaryParagraph = hasEnteredMarketSizingNumbers
+    ? computedSegments.length > 1
+      ? `Across ${targetMarkets.join(' & ')}, our reachable market combines ${computedSegments
+          .filter((s) => s.reachableMarketAnnualValue > 0)
+          .map(
+            (s) =>
+              `${s.reachableCustomersInMarkets.toLocaleString()} ${s.displayLabel} (${formatPlanCurrency(s.annualRevenuePerCustomer, countryPack.defaultCurrency)}/yr = ${formatPlanCurrency(s.reachableMarketAnnualValue, countryPack.defaultCurrency)})`
+          )
+          .join(
+            ' and '
+          )}, totaling a ${formatPlanCurrency(totalReachableMarketSam, countryPack.defaultCurrency)}/yr reachable market (SAM) and a ${formatPlanCurrency(totalWiderMarketTam, countryPack.defaultCurrency)}/yr wider expansion opportunity (TAM). In Year 1–2, our realistic target (SOM) is ${computedSegments
+          .filter((s) => s.year1To2GoalCustomers > 0)
+          .map(
+            (s) => `${s.year1To2GoalCustomers.toLocaleString()} ${s.displayLabel}`
+          )
+          .join(' + ')}, generating ${formatPlanCurrency(totalYear1To2RevenueSom, countryPack.defaultCurrency)}/yr.`
+      : `In ${targetMarkets.join(' & ')}, there are approximately ${totalReachableCustomers.toLocaleString()} target customers (${computedSegments[0]?.displayLabel || 'primary buyers'}) worth ${formatPlanCurrency(computedSegments[0]?.annualRevenuePerCustomer || 0, countryPack.defaultCurrency)}/year each, representing a ${formatPlanCurrency(totalReachableMarketSam, countryPack.defaultCurrency)}/yr reachable market (SAM) and a ${formatPlanCurrency(totalWiderMarketTam, countryPack.defaultCurrency)}/yr wider long-term market (TAM). Our realistic Year 1–2 goal (SOM) is to win ${totalYear1To2Customers.toLocaleString()} paying customers, generating ${formatPlanCurrency(totalYear1To2RevenueSom, countryPack.defaultCurrency)}/year.`
+    : '';
+
   const step1Checkpoints = [
     buyerTypes.length > 0,
     beachheadSegment.trim().length > 12,
@@ -707,7 +1050,7 @@ export function ModuleBWorkspace({
     targetMarkets.length > 0,
   ];
   const step1Completion = Math.round(
-    (step1Checkpoints.filter(Boolean).length / step1Checkpoints.length) * 25
+    (step1Checkpoints.filter(Boolean).length / step1Checkpoints.length) * 20
   );
 
   const step2Checkpoints = [
@@ -718,10 +1061,22 @@ export function ModuleBWorkspace({
     whySwitchOneSentence.trim().length > 10,
   ];
   const step2Completion = Math.round(
-    (step2Checkpoints.filter(Boolean).length / step2Checkpoints.length) * 25
+    (step2Checkpoints.filter(Boolean).length / step2Checkpoints.length) * 20
   );
 
-  const totalModuleBProgress = step1Completion + step2Completion;
+  const step3Checkpoints = [
+    computedSegments.some((s) => s.segmentName.trim().length > 1),
+    computedSegments.some((s) => s.annualRevenuePerCustomer > 0),
+    totalYear1To2Customers > 0,
+    totalReachableCustomers > 0,
+    sourceAndAssumptionNotes.trim().length > 5,
+  ];
+  const step3Completion = Math.round(
+    (step3Checkpoints.filter(Boolean).length / step3Checkpoints.length) * 20
+  );
+
+  const totalModuleBProgress =
+    step1Completion + step2Completion + step3Completion;
 
   async function handleSaveStep1() {
     if (isVaultReadonly) return;
@@ -767,11 +1122,31 @@ export function ModuleBWorkspace({
     };
     await onSaveStep2Competitors(
       payload,
-      Math.max(35, totalModuleBProgress)
+      Math.max(40, totalModuleBProgress)
     );
     setIsSavingStep2(false);
     setSaveBanner(
       '✅ Saved Step 2 (Competitors & How Customers Deal With This Today)!'
+    );
+  }
+
+  async function handleSaveStep3() {
+    if (isVaultReadonly) return;
+    setIsSavingStep3(true);
+    setSaveBanner(null);
+    const payload: MarketSizingData = {
+      segments: marketSegments,
+      widerMarketMultiplier,
+      sourceAndAssumptionNotes: sourceAndAssumptionNotes.trim(),
+      lastSavedAt: new Date().toISOString(),
+    };
+    await onSaveStep3MarketSizing(
+      payload,
+      Math.max(60, totalModuleBProgress)
+    );
+    setIsSavingStep3(false);
+    setSaveBanner(
+      `✅ Saved Step 3 (Market Sizing in ${countryPack.defaultCurrency})!`
     );
   }
 
@@ -791,13 +1166,12 @@ export function ModuleBWorkspace({
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-              Module B: Market Research &amp; Validation
+              Module B: Market Research &amp; Competitive Intelligence
             </h1>
             <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
               Move from <em>&ldquo;I think everyone needs this&rdquo;</em> to a
               clear first customer group, real competitor research,
-              plain-English market sizing, and a shareable Customer Validation
-              Survey.
+              plain-English market sizing, and your unfair competitive edge.
             </p>
           </div>
 
@@ -814,7 +1188,7 @@ export function ModuleBWorkspace({
             </Button>
             <div className="text-right text-[11px] text-indigo-200">
               Module B Progress: <strong>{totalModuleBProgress}%</strong> (Steps
-              1–2 of 5 Active)
+              1–3 of 5 Active)
             </div>
           </div>
         </div>
@@ -827,25 +1201,25 @@ export function ModuleBWorkspace({
               title: 'Customers & Target Markets',
               targetId: 'module-b-step-1',
               active: true,
-              done: step1Completion >= 25,
+              done: step1Completion >= 20,
             },
             {
               step: 'Step 2',
               title: 'Competitors & Current Habits',
               targetId: 'module-b-step-2',
               active: true,
-              done: step2Completion >= 25,
+              done: step2Completion >= 20,
             },
             {
               step: 'Step 3',
               title: 'Plain-English Market Sizing',
-              targetId: '',
-              active: false,
-              done: false,
+              targetId: 'module-b-step-3',
+              active: true,
+              done: step3Completion >= 20,
             },
             {
               step: 'Step 4',
-              title: 'Hosted Validation Survey',
+              title: 'Competitive Edge & Stand Out',
               targetId: '',
               active: false,
               done: false,
@@ -2022,39 +2396,822 @@ export function ModuleBWorkspace({
       </Card>
 
       {/* =================================================================== */}
-      {/* UPCOMING MODULE B STEPS PREVIEW (STEPS 3–5)                         */}
+      {/* STEP 3: MARKET SIZING WITHOUT THE MATHS HEADACHE                    */}
       {/* =================================================================== */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card className="border-slate-200/90 bg-white/80">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary">Step 3 of 5 • Next Piece</Badge>
-              <BarChart3 className="h-4 w-4 text-indigo-600" />
+      <Card
+        id="module-b-step-3"
+        className="border-indigo-200 bg-white shadow-xs"
+      >
+        <CardHeader className="border-b border-slate-100 bg-slate-50/60">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-indigo-600 text-white">
+                  Step 3 of 5 • Active Step
+                </Badge>
+                <Badge variant="outline">
+                  Bottom-Up Calculator ({countryPack.defaultCurrency})
+                </Badge>
+                {marketSegments.length > 1 && (
+                  <Badge variant="secondary">
+                    {marketSegments.length} Customer Groups Combined
+                  </Badge>
+                )}
+              </div>
+              <CardTitle className="text-lg">
+                Step 3: Market Sizing Without the Maths Headache
+              </CardTitle>
+              <CardDescription>
+                Skip the fake &ldquo;1% of a $50 Billion global industry&rdquo;
+                guessing game. Answer 3 simple questions per customer group and
+                we&apos;ll calculate your{' '}
+                <strong>Year 1–2 Revenue Goal</strong>,{' '}
+                <strong>Reachable Market</strong>, and{' '}
+                <strong>Wider Long-Term Market</strong> automatically in{' '}
+                <strong>{countryPack.defaultCurrency}</strong>.
+              </CardDescription>
             </div>
-            <CardTitle className="mt-1 text-base">
-              Step 3: Market Sizing Without the Maths Headache
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Plain-English Bottom-Up Calculator in{' '}
-              {countryPack.defaultCurrency} paired with industry benchmarks for
-              grant &amp; investor decks.
-            </CardDescription>
-          </CardHeader>
-        </Card>
 
+            {/* Layer 1 + Layer 2 + Layer 3 Support Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStep3WhyCard((v) => !v)}
+              >
+                <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
+                {showStep3WhyCard ? 'Hide Why' : 'Why Ask This?'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStep3Examples((v) => !v)}
+              >
+                <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+                {showStep3Examples ? 'Hide Examples' : 'Show Example'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStep3ImStuck((v) => !v)}
+                className="border-amber-200 bg-amber-50/80 text-amber-900 hover:bg-amber-100"
+              >
+                <Compass className="h-3.5 w-3.5 text-amber-600" />
+                I&apos;m Stuck
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isVaultReadonly}
+                onClick={handleUseIndustryBenchmark}
+                className="border-emerald-200 bg-emerald-50/80 text-emerald-900 hover:bg-emerald-100"
+              >
+                <BarChart3 className="h-3.5 w-3.5 text-emerald-600" />
+                Use Industry Benchmark
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isVaultReadonly || isEstimatingStep3Ai}
+                onClick={handleRunAiMarketSizing}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                {isEstimatingStep3Ai ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Estimating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Estimate Customer Counts with AI
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-6 pt-5">
+          {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
+          {showStep3WhyCard && (
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+              <div className="flex items-start gap-2.5">
+                <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                <div className="space-y-1.5">
+                  <div className="font-bold">
+                    Why do grant panels and investors prefer &ldquo;Bottom-Up
+                    Maths&rdquo; over big industry reports?
+                  </div>
+                  <p className="leading-relaxed text-indigo-900/90">
+                    When a founder says{' '}
+                    <em>
+                      &ldquo;The global software market is €100 Billion and we
+                      only need 1%&rdquo;
+                    </em>
+                    , reviewers immediately push back because it doesn&apos;t
+                    show how many real customers you need to win. Instead,
+                    counting <strong>Number of Customers × Price Paid</strong>{' '}
+                    proves your Year 1–2 revenue goal is grounded in reality —
+                    especially if you sell to{' '}
+                    <strong>more than one customer group</strong> (for example,
+                    individual users <em>plus</em> universities or business
+                    teams).
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Layer 1: Industry-Tailored Example Drawer */}
+          {showStep3Examples && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="font-bold">
+                  💡 How a Multi-Group Startup Sizes Their Market (Example in{' '}
+                  {countryPack.defaultCurrency})
+                </span>
+                <Badge variant="warning">Real-World Example</Badge>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="rounded-lg border border-amber-200/80 bg-white p-3">
+                  <div className="font-bold text-slate-900">
+                    Group 1: Individual Founders (Self-Serve)
+                  </div>
+                  <ul className="mt-1.5 space-y-1 text-slate-700">
+                    <li>
+                      • <strong>Price:</strong> {countryPack.defaultCurrency} 29
+                      per year/pass
+                    </li>
+                    <li>
+                      • <strong>Year 1–2 Customer Goal:</strong> 400 founders ={' '}
+                      <strong>
+                        {formatPlanCurrency(11600, countryPack.defaultCurrency)}
+                        /yr
+                      </strong>
+                    </li>
+                    <li>
+                      • <strong>Reachable Customers in Markets:</strong> 25,000
+                      founders ={' '}
+                      <strong>
+                        {formatPlanCurrency(
+                          725000,
+                          countryPack.defaultCurrency
+                        )}
+                        /yr
+                      </strong>
+                    </li>
+                  </ul>
+                </div>
+                <div className="rounded-lg border border-amber-200/80 bg-white p-3">
+                  <div className="font-bold text-slate-900">
+                    Group 2: Universities &amp; Accelerators (B2B / Cohort)
+                  </div>
+                  <ul className="mt-1.5 space-y-1 text-slate-700">
+                    <li>
+                      • <strong>Price:</strong> {countryPack.defaultCurrency}{' '}
+                      2,500 per annual cohort licence
+                    </li>
+                    <li>
+                      • <strong>Year 1–2 Customer Goal:</strong> 10 programmes ={' '}
+                      <strong>
+                        {formatPlanCurrency(25000, countryPack.defaultCurrency)}
+                        /yr
+                      </strong>
+                    </li>
+                    <li>
+                      • <strong>Reachable Customers in Markets:</strong> 200
+                      programmes ={' '}
+                      <strong>
+                        {formatPlanCurrency(
+                          500000,
+                          countryPack.defaultCurrency
+                        )}
+                        /yr
+                      </strong>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <p className="mt-2.5 text-[11px] text-amber-900">
+                Combined Year 1–2 Revenue Goal:{' '}
+                <strong>
+                  {formatPlanCurrency(36600, countryPack.defaultCurrency)}/yr
+                </strong>{' '}
+                • Combined Reachable Market:{' '}
+                <strong>
+                  {formatPlanCurrency(1225000, countryPack.defaultCurrency)}/yr
+                </strong>
+                . Click{' '}
+                <button
+                  type="button"
+                  onClick={handleUseIndustryBenchmark}
+                  className="font-bold underline hover:text-amber-950"
+                >
+                  Use Industry Benchmark
+                </button>{' '}
+                or{' '}
+                <button
+                  type="button"
+                  onClick={handleRunAiMarketSizing}
+                  className="font-bold underline hover:text-amber-950"
+                >
+                  Estimate Customer Counts with AI
+                </button>{' '}
+                if you want a starting point!
+              </p>
+            </div>
+          )}
+
+          {/* Layer 2: "I'm Stuck" Breakdown Helper */}
+          {showStep3ImStuck && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 text-xs text-slate-900">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="font-bold text-amber-950">
+                  🧭 Not sure how many customers exist in{' '}
+                  {targetMarkets.join(', ')}? No problem!
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowStep3ImStuck(false)}
+                  className="text-amber-900 underline"
+                >
+                  Close
+                </button>
+              </div>
+              <p className="mb-3 text-slate-700">
+                You don&apos;t need an expensive research report. Pick either
+                option below so you never lose momentum:
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isVaultReadonly || isEstimatingStep3Ai}
+                  onClick={handleRunAiMarketSizing}
+                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Let AI Estimate Customer Counts for {plan.title}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isVaultReadonly}
+                  onClick={handleUseIndustryBenchmark}
+                  className="border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-50"
+                >
+                  <BarChart3 className="h-3.5 w-3.5 text-emerald-600" />
+                  Load Typical Industry Benchmark
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isVaultReadonly}
+                  onClick={() => {
+                    onParkQuestion(
+                      `Module B Step 3: Check official customer counts in [${targetMarkets.join(', ')}] to verify our ${countryPack.defaultCurrency} reachable market.`
+                    );
+                    setShowStep3ImStuck(false);
+                    setSaveBanner(
+                      '📌 Parked market count verification in your Open Questions Parking Lot!'
+                    );
+                  }}
+                >
+                  <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
+                  Park in Open Questions
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* =============================================================== */}
+          {/* 1. CUSTOMER GROUP BOTTOM-UP CALCULATOR CARDS (1 OR MORE GROUPS) */}
+          {/* =============================================================== */}
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  1. Your Customer Groups &amp; Bottom-Up Calculator (
+                  {countryPack.defaultCurrency})
+                </h3>
+                <p className="text-xs text-slate-600">
+                  Enter your realistic price and customer numbers below. Selling
+                  to both individuals and organisations (like universities or
+                  accelerators)? Add a second customer group and we&apos;ll add
+                  them together automatically.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isVaultReadonly || marketSegments.length >= 4}
+                onClick={handleAddMarketSegment}
+                className="border-indigo-200 bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100"
+              >
+                <Plus className="h-3.5 w-3.5 text-indigo-600" />
+                Add Customer Group (e.g., Universities / B2B)
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {computedSegments.map((seg, index) => (
+                <div
+                  key={seg.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 shadow-2xs"
+                >
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-indigo-950 text-white">
+                        Customer Group #{index + 1}
+                      </Badge>
+                      <span className="text-xs font-semibold text-slate-700">
+                        {index === 0
+                          ? 'Primary Customer Group'
+                          : 'Additional Customer Group (e.g., Institutional / B2B / Partner)'}
+                      </span>
+                    </div>
+                    {marketSegments.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isVaultReadonly}
+                        onClick={() => handleRemoveMarketSegment(seg.id)}
+                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Remove Group
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Group Name + Billing Cadence Row */}
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+                    <div className="md:col-span-7">
+                      <label className="mb-1 block text-xs font-semibold text-slate-800">
+                        Who is in Customer Group #{index + 1}?
+                      </label>
+                      <input
+                        type="text"
+                        disabled={isVaultReadonly}
+                        value={seg.segmentName}
+                        onChange={(e) =>
+                          handleUpdateMarketSegment(
+                            seg.id,
+                            'segmentName',
+                            e.target.value
+                          )
+                        }
+                        placeholder={
+                          index === 0
+                            ? 'e.g., Individual Founders & Early-Stage Creators'
+                            : 'e.g., Universities, Accelerators & Local Enterprise Programmes'
+                        }
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div className="md:col-span-5">
+                      <label className="mb-1 block text-xs font-semibold text-slate-800">
+                        How does this group pay you?
+                      </label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          disabled={isVaultReadonly}
+                          onClick={() =>
+                            handleUpdateMarketSegment(
+                              seg.id,
+                              'billingCadence',
+                              'MONTHLY_SUBSCRIPTION'
+                            )
+                          }
+                          className={`rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition-all ${
+                            seg.billingCadence === 'MONTHLY_SUBSCRIPTION'
+                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          Monthly Subscription (×12)
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isVaultReadonly}
+                          onClick={() =>
+                            handleUpdateMarketSegment(
+                              seg.id,
+                              'billingCadence',
+                              'YEARLY_OR_ONE_OFF'
+                            )
+                          }
+                          className={`rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition-all ${
+                            seg.billingCadence === 'YEARLY_OR_ONE_OFF'
+                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          Annual / One-Off Pass
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3 Plain-English Number Inputs */}
+                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {/* Box A: Price */}
+                    <div className="rounded-lg border border-slate-200 bg-white p-3">
+                      <label className="block text-xs font-semibold text-slate-900">
+                        A. Typical Price ({countryPack.defaultCurrency}){' '}
+                        {seg.billingCadence === 'MONTHLY_SUBSCRIPTION'
+                          ? 'per Month'
+                          : 'per Year'}
+                      </label>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        What does 1 customer in this group typically pay?
+                      </p>
+                      <div className="relative mt-2">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-bold text-slate-500">
+                          {countryPack.defaultCurrency}
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          disabled={isVaultReadonly}
+                          value={seg.pricePerCustomerInput}
+                          onChange={(e) =>
+                            handleUpdateMarketSegment(
+                              seg.id,
+                              'pricePerCustomerInput',
+                              e.target.value
+                            )
+                          }
+                          placeholder={index === 0 ? 'e.g., 29' : 'e.g., 2500'}
+                          className="w-full rounded-lg border border-slate-300 bg-white py-2 pr-3 pl-12 text-sm font-semibold text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                        />
+                      </div>
+                      {seg.annualRevenuePerCustomer > 0 && (
+                        <div className="mt-1.5 text-[11px] font-medium text-indigo-700">
+                          ={' '}
+                          <strong>
+                            {formatPlanCurrency(
+                              seg.annualRevenuePerCustomer,
+                              countryPack.defaultCurrency
+                            )}
+                          </strong>{' '}
+                          per customer / year
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Box B: Year 1–2 Realistic Customer Goal */}
+                    <div className="rounded-lg border border-slate-200 bg-white p-3">
+                      <label className="block text-xs font-semibold text-slate-900">
+                        B. Your Year 1–2 Customer Goal
+                      </label>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        How many paying customers in this group can you
+                        realistically win in Year 1–2?
+                      </p>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        disabled={isVaultReadonly}
+                        value={seg.year1To2CustomerGoalInput}
+                        onChange={(e) =>
+                          handleUpdateMarketSegment(
+                            seg.id,
+                            'year1To2CustomerGoalInput',
+                            e.target.value
+                          )
+                        }
+                        placeholder={index === 0 ? 'e.g., 300' : 'e.g., 10'}
+                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                      />
+                      {seg.year1To2AnnualRevenue > 0 && (
+                        <div className="mt-1.5 text-[11px] font-medium text-emerald-700">
+                          Year 1–2 Revenue:{' '}
+                          <strong>
+                            {formatPlanCurrency(
+                              seg.year1To2AnnualRevenue,
+                              countryPack.defaultCurrency
+                            )}
+                            /yr
+                          </strong>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Box C: Total Reachable Customers in Selected Countries */}
+                    <div className="rounded-lg border border-slate-200 bg-white p-3">
+                      <label className="block text-xs font-semibold text-slate-900">
+                        C. Total Reachable Customers in{' '}
+                        {targetMarkets.join(', ')}
+                      </label>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        Roughly how many potential customers like this exist in{' '}
+                        {targetMarkets.join(', ')}?
+                      </p>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        disabled={isVaultReadonly}
+                        value={seg.reachableCustomersInTargetMarketsInput}
+                        onChange={(e) =>
+                          handleUpdateMarketSegment(
+                            seg.id,
+                            'reachableCustomersInTargetMarketsInput',
+                            e.target.value
+                          )
+                        }
+                        placeholder={index === 0 ? 'e.g., 25000' : 'e.g., 200'}
+                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                      />
+                      {seg.reachableMarketAnnualValue > 0 && (
+                        <div className="mt-1.5 text-[11px] font-medium text-indigo-700">
+                          Reachable Group Market:{' '}
+                          <strong>
+                            {formatPlanCurrency(
+                              seg.reachableMarketAnnualValue,
+                              countryPack.defaultCurrency
+                            )}
+                            /yr
+                          </strong>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* =============================================================== */}
+          {/* 2. WIDER LONG-TERM MARKET SCALE & ASSUMPTION NOTES              */}
+          {/* =============================================================== */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <h3 className="text-sm font-bold text-slate-900">
+              2. Wider Long-Term Expansion Scale &amp; Where Your Numbers Come
+              From
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-600">
+              If you later expand into new regions or adjacent customer types
+              over the next 3–5 years, how much larger is the wider long-term
+              market compared to your current reachable markets (
+              {targetMarkets.join(', ')})?
+            </p>
+
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {WIDER_MARKET_SCALE_OPTIONS.map((opt) => {
+                const selected = widerMarketMultiplier === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={isVaultReadonly}
+                    onClick={() => setWiderMarketMultiplier(opt.value)}
+                    className={`rounded-xl border p-3 text-left transition-all ${
+                      selected
+                        ? 'border-indigo-600 bg-indigo-50/90 ring-2 ring-indigo-600/15'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">
+                        {opt.label}
+                      </span>
+                      {selected && (
+                        <Check className="h-3.5 w-3.5 text-indigo-600" />
+                      )}
+                    </div>
+                    <p className="mt-1 text-[11px] leading-snug text-slate-600">
+                      {opt.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4">
+              <label
+                htmlFor="market-sizing-assumptions-input"
+                className="mb-1 block text-xs font-semibold text-slate-800"
+              >
+                Quick note on how you estimated these customer numbers (great
+                for grant &amp; investor questions)
+              </label>
+              <textarea
+                id="market-sizing-assumptions-input"
+                rows={2}
+                disabled={isVaultReadonly}
+                value={sourceAndAssumptionNotes}
+                onChange={(e) => setSourceAndAssumptionNotes(e.target.value)}
+                placeholder="Write a quick note on where your customer counts come from (or click 'Estimate Customer Counts with AI' above to draft this)..."
+                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-hidden focus:ring-2 focus:ring-indigo-600/20 disabled:bg-slate-100"
+              />
+            </div>
+          </div>
+
+          {/* =============================================================== */}
+          {/* 3. LIVE 3-BOX VISUAL SUMMARY (PLAIN ENGLISH + GRANT LABELS)     */}
+          {/* =============================================================== */}
+          <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 p-5 text-white shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-indigo-300">
+                  Live Bottom-Up Market Summary ({countryPack.defaultCurrency})
+                </div>
+                <h4 className="mt-0.5 text-base font-bold">
+                  Your 3 Market Sizing Numbers — Ready for Grant &amp; Investor
+                  Applications
+                </h4>
+              </div>
+              {computedSegments.length > 1 && (
+                <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-400/30">
+                  Combined Across {computedSegments.length} Customer Groups
+                </Badge>
+              )}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              {/* Box 1: Year 1-2 Goal (SOM) */}
+              <div className="rounded-xl border border-emerald-400/40 bg-emerald-950/40 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-300">
+                    1. Your Year 1–2 Revenue Goal
+                  </span>
+                  <span
+                    className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-200"
+                    title="Serviceable Obtainable Market: the realistic slice of customers you plan to win in Year 1–2."
+                  >
+                    Often called SOM
+                  </span>
+                </div>
+                <div className="mt-2 text-2xl font-extrabold tracking-tight text-white">
+                  {totalYear1To2RevenueSom > 0
+                    ? `${formatPlanCurrency(totalYear1To2RevenueSom, countryPack.defaultCurrency)}/yr`
+                    : 'Enter numbers above'}
+                </div>
+                <p className="mt-1 text-[11px] text-emerald-100/80">
+                  {totalYear1To2Customers > 0
+                    ? `Based on winning ${totalYear1To2Customers.toLocaleString()} paying customers across ${computedSegments.length === 1 ? 'your primary customer group' : `${computedSegments.length} customer groups`}.`
+                    : 'Your realistic Year 1–2 customer target × annual price.'}
+                </p>
+              </div>
+
+              {/* Box 2: Reachable Market in Selected Countries (SAM) */}
+              <div className="rounded-xl border border-indigo-400/40 bg-indigo-900/40 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-200">
+                    2. Reachable Market ({targetMarkets.join(', ')})
+                  </span>
+                  <span
+                    className="rounded-md bg-indigo-500/30 px-2 py-0.5 text-[10px] font-semibold text-indigo-100"
+                    title="Serviceable Available Market: the total annual value of all reachable target customers in your selected selling countries."
+                  >
+                    Often called SAM
+                  </span>
+                </div>
+                <div className="mt-2 text-2xl font-extrabold tracking-tight text-white">
+                  {totalReachableMarketSam > 0
+                    ? `${formatPlanCurrency(totalReachableMarketSam, countryPack.defaultCurrency)}/yr`
+                    : 'Enter numbers above'}
+                </div>
+                <p className="mt-1 text-[11px] text-indigo-100/80">
+                  {totalReachableCustomers > 0
+                    ? `${totalReachableCustomers.toLocaleString()} reachable customers in ${targetMarkets.join(', ')}.`
+                    : `Total annual value if every target customer in ${targetMarkets.join(', ')} bought from you.`}
+                </p>
+              </div>
+
+              {/* Box 3: Wider Long-Term Market (TAM) */}
+              <div className="rounded-xl border border-violet-400/40 bg-violet-950/40 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-violet-200">
+                    3. Wider Long-Term Market
+                  </span>
+                  <span
+                    className="rounded-md bg-violet-500/30 px-2 py-0.5 text-[10px] font-semibold text-violet-100"
+                    title="Total Addressable Market: the wider 3–5 year opportunity as you expand into new regions and adjacent customer segments."
+                  >
+                    Often called TAM
+                  </span>
+                </div>
+                <div className="mt-2 text-2xl font-extrabold tracking-tight text-white">
+                  {totalWiderMarketTam > 0
+                    ? `${formatPlanCurrency(totalWiderMarketTam, countryPack.defaultCurrency)}/yr`
+                    : 'Enter numbers above'}
+                </div>
+                <p className="mt-1 text-[11px] text-violet-100/80">
+                  {selectedScaleMultiplierObj.label} of your reachable market as
+                  you expand into new regions &amp; segments.
+                </p>
+              </div>
+            </div>
+
+            {/* Grant & Investor Ready Paragraph */}
+            {grantReadySummaryParagraph && (
+              <div className="mt-4 rounded-xl border border-indigo-400/30 bg-white/10 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-indigo-200">
+                    📋 Ready-to-Use Paragraph for Grant Forms &amp; Pitch Decks:
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(grantReadySummaryParagraph);
+                      setCopiedGrantSummary(true);
+                      setTimeout(() => setCopiedGrantSummary(false), 2500);
+                    }}
+                    className="border-indigo-300/40 bg-white/10 text-white hover:bg-white/20"
+                  >
+                    {copiedGrantSummary ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-300" />
+                        Copied!
+                      </>
+                    ) : (
+                      'Copy Paragraph'
+                    )}
+                  </Button>
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-indigo-50">
+                  &ldquo;{grantReadySummaryParagraph}&rdquo;
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Step 3 Action Bar: Park Question + Save Step 3 */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isVaultReadonly}
+              onClick={() => {
+                onParkQuestion(
+                  `Module B Step 3: Double-check official customer counts in [${targetMarkets.join(', ')}] (e.g., CSO / ONS / university & business directories) to verify our ${countryPack.defaultCurrency} reachable market numbers.`
+                );
+                setSaveBanner(
+                  '📌 Added market sizing source check to your Open Questions Parking Lot!'
+                );
+              }}
+            >
+              <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
+              Unsure on exact customer counts? Park in Open Questions
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              disabled={isVaultReadonly || isSavingStep3}
+              onClick={handleSaveStep3}
+              className="bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              {isSavingStep3 ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving Step 3...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Step 3 (Market Sizing in {countryPack.defaultCurrency})
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* =================================================================== */}
+      {/* UPCOMING MODULE B STEPS PREVIEW (STEPS 4–5)                         */}
+      {/* =================================================================== */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="border-slate-200/90 bg-white/80">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <Badge variant="secondary">Step 4 of 5 • Upcoming</Badge>
-              <Users className="h-4 w-4 text-indigo-600" />
+              <Badge variant="secondary">Step 4 of 5 • Next Piece</Badge>
+              <ShieldCheck className="h-4 w-4 text-indigo-600" />
             </div>
             <CardTitle className="mt-1 text-base">
-              Step 4: Native Hosted Validation Survey &amp; &ldquo;Mom
-              Test&rdquo; Checker
+              Step 4: Competitive Edge &amp; Defensibility Matrix
             </CardTitle>
             <CardDescription className="text-xs">
-              Auto-generate your unbiased customer survey, share your public{' '}
-              <code>/v/[slug]</code> link, and log 1-on-1 coffee chat notes.
+              Compare how you win against competitors &amp; habits across Price,
+              Speed, Ease of Use, and Trust — and define why giants can&apos;t
+              easily copy you. (Surveys now live in dedicated{' '}
+              <strong>Module C</strong>!)
             </CardDescription>
           </CardHeader>
         </Card>

@@ -23,6 +23,7 @@ import {
   X,
   Compass,
   BarChart3,
+  MessageSquare,
   Briefcase,
   DollarSign,
   Megaphone,
@@ -87,6 +88,7 @@ import {
   type BiggestWorryPreset,
   type BeachheadMarketData,
   type CompetitorsAndStatusQuoData,
+  type MarketSizingData,
   type BuyerModelType,
 } from '@/lib/auth/session-store';
 import {
@@ -102,6 +104,8 @@ import {
   saveModuleBStep1BeachheadAction,
   saveModuleBStep2CompetitorsAction,
   scoutModuleBCompetitorsWithAiAction,
+  saveModuleBStep3MarketSizingAction,
+  estimateModuleBMarketSizingWithAiAction,
   parkModuleBOpenQuestionAction,
 } from '@/app/actions/module-b';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
@@ -142,46 +146,62 @@ const MODULES_LIST: Array<{
   {
     code: 'MOD_B_MARKET',
     short: 'Module B',
-    title: 'Market & Validation Survey',
-    subtitle: 'AI Market Scout, TAM/SAM/SOM & Public /v/[slug] Survey',
+    title: 'Market & Competitive Intelligence',
+    subtitle: 'Target Customers, Competitor Habits, Market Size & Edge',
     icon: BarChart3,
     progress: 0,
   },
   {
-    code: 'MOD_C_OPERATIONS_TEAM',
+    code: 'MOD_C_SURVEYS_FEEDBACK',
     short: 'Module C',
+    title: 'Customer Surveys & Feedback',
+    subtitle: 'Public /v/[slug] Survey, Waitlist & 1-on-1 Interview Log',
+    icon: MessageSquare,
+    progress: 0,
+  },
+  {
+    code: 'MOD_D_PRODUCT_BUILD',
+    short: 'Module D',
+    title: 'What Are We Building? (Product)',
+    subtitle: 'Product Vehicle, Own vs Rent Channel & Build-vs-Buy Matrix',
+    icon: Wrench,
+    progress: 0,
+  },
+  {
+    code: 'MOD_E_OPERATIONS_TEAM',
+    short: 'Module E',
     title: 'Operations, Hats & Co-Founders',
-    subtitle: 'MVP Filter, 7 Startup Hats & Blind-Reveal Interview',
+    subtitle: 'Day-to-Day Fulfillment, 7 Startup Hats & Blind-Reveal Interview',
     icon: Briefcase,
     progress: 0,
   },
   {
-    code: 'MOD_D_REVENUE',
-    short: 'Module D',
+    code: 'MOD_F_REVENUE',
+    short: 'Module F',
     title: 'Selling & Pocket Profit',
-    subtitle: 'Buying Journey Friction & Single-Sale Unit Economics',
+    subtitle: 'Pricing Architect, Buying Friction & Single-Sale Economics',
     icon: DollarSign,
     progress: 0,
   },
   {
-    code: 'MOD_E_MARKETING',
-    short: 'Module E',
-    title: 'Marketing & First 100 Customers',
-    subtitle: '3-Second Pitch, Day-1 Hustle & Reverse Budget Funnel',
+    code: 'MOD_G_MARKETING',
+    short: 'Module G',
+    title: 'Marketing & First 10 Customers',
+    subtitle: '3-Second Hook, Day-1 Hustle & Reverse Budget Funnel',
     icon: Megaphone,
     progress: 0,
   },
   {
-    code: 'MOD_F_FINANCE_GRANTS',
-    short: 'Module F',
+    code: 'MOD_H_FINANCE_GRANTS',
+    short: 'Module H',
     title: 'Financials, Grants & Legal Shield',
     subtitle: '36-Month Cashflow, Localized Grants & IP Checklist',
     icon: Scale,
     progress: 0,
   },
   {
-    code: 'MOD_G_BUSINESS_PLAN',
-    short: 'Module G',
+    code: 'MOD_I_BUSINESS_PLAN',
+    short: 'Module I',
     title: 'Living Business Plan & Export',
     subtitle: 'Audience Templates, Live Data Blocks & Red-Flag Audit',
     icon: FileText,
@@ -639,6 +659,80 @@ export default function WorkspacePage() {
     };
   }
 
+  async function handleSaveModuleBStep3(
+    marketSizing: MarketSizingData,
+    progressPercent: number
+  ) {
+    const updatedPlans = session.plans.map((p) => {
+      if (p.id !== currentPlan.id) return p;
+      return {
+        ...p,
+        currentModuleStep: 'MOD_B_STEP_3',
+        moduleBData: {
+          ...(p.moduleBData || {}),
+          marketSizing,
+        },
+      };
+    });
+
+    const nextSession: BmuLocalSession = {
+      ...session,
+      plans: updatedPlans,
+    };
+    setSession(nextSession);
+    saveBmuSession(nextSession);
+
+    await saveModuleBStep3MarketSizingAction({
+      planId: currentPlan.id,
+      marketSizing,
+      completionPercentage: progressPercent,
+    });
+  }
+
+  async function handleEstimateModuleBMarketSizing(params: {
+    targetCustomerDescription: string;
+    targetMarketsArray: string[];
+    buyerTypes: BuyerModelType[];
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Market Sizing Estimator (${aiCreditCheck.reason})`
+      );
+      return null;
+    }
+
+    const result = await estimateModuleBMarketSizingWithAiAction({
+      userId: session.user.id,
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      brainDumpText,
+      targetCustomerDescription: params.targetCustomerDescription,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      targetMarketsArray: params.targetMarketsArray,
+      buyerTypes: params.buyerTypes,
+    });
+
+    const updatedSession: BmuLocalSession = {
+      ...session,
+      entitlement: {
+        ...session.entitlement,
+        aiCreditsUsedThisMonth:
+          result.creditsUsedAfter ??
+          session.entitlement.aiCreditsUsedThisMonth + 1,
+      },
+    };
+    setSession(updatedSession);
+    saveBmuSession(updatedSession);
+
+    return {
+      segments: result.segments,
+      widerMarketMultiplier: result.widerMarketMultiplier,
+      sourceAndAssumptionNotes: result.sourceAndAssumptionNotes,
+      engineMode: result.engineMode,
+    };
+  }
+
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
     coreProblem: '',
     targetCustomer: '',
@@ -894,15 +988,21 @@ export default function WorkspacePage() {
   const savedBeachhead = currentPlan.moduleBData?.beachhead;
   const savedStep2Competitors =
     currentPlan.moduleBData?.competitorsAndStatusQuo;
-  const step1ModBScore = savedBeachhead?.beachheadSegment ? 25 : 0;
+  const savedStep3MarketSizing = currentPlan.moduleBData?.marketSizing;
+  const step1ModBScore = savedBeachhead?.beachheadSegment ? 20 : 0;
   const step2ModBScore =
     savedStep2Competitors?.competitors?.length ||
     savedStep2Competitors?.whySwitchOneSentence
-      ? 25
+      ? 20
       : 0;
+  const step3ModBScore = savedStep3MarketSizing?.segments?.some(
+    (s) => s.pricePerCustomerInput.trim().length > 0
+  )
+    ? 20
+    : 0;
   const moduleBProgressPercent =
-    step1ModBScore + step2ModBScore > 0
-      ? step1ModBScore + step2ModBScore
+    step1ModBScore + step2ModBScore + step3ModBScore > 0
+      ? step1ModBScore + step2ModBScore + step3ModBScore
       : activeModule === 'MOD_B_MARKET'
         ? 10
         : 0;
@@ -1333,6 +1433,8 @@ export default function WorkspacePage() {
               onSaveStep1Beachhead={handleSaveModuleBStep1}
               onSaveStep2Competitors={handleSaveModuleBStep2}
               onScoutCompetitorsWithAi={handleScoutModuleBCompetitors}
+              onSaveStep3MarketSizing={handleSaveModuleBStep3}
+              onEstimateMarketSizingWithAi={handleEstimateModuleBMarketSizing}
               onParkQuestion={handleParkModuleBQuestion}
               onBackToModuleA={() => setActiveModule('MOD_A_IDEATION')}
             />
@@ -3521,7 +3623,7 @@ export default function WorkspacePage() {
                     Unlock Full Founder Workspace
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Module A is 100% free. Upgrade to unlock Modules B–G &amp;
+                    Module A is 100% free. Upgrade to unlock Modules B–I &amp;
                     Multi-Plan.
                   </p>
                 </div>
@@ -3546,7 +3648,7 @@ export default function WorkspacePage() {
                   <span className="text-sm text-indigo-700">€149 one-time</span>
                 </div>
                 <p className="mt-1 text-indigo-900/80">
-                  3 Startup Plans • 3 Co-Founder Seats • Full Modules A–G • 750
+                  3 Startup Plans • 3 Co-Founder Seats • Full Modules A–I • 750
                   AI Credits/mo.
                 </p>
               </div>

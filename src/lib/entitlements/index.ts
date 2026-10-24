@@ -24,6 +24,8 @@ export interface EntitlementSnapshot {
 export type PaywallFeature =
   | 'MODULE_A_IDEATION'
   | 'MODULE_B_THROUGH_G'
+  | 'MODULE_B_THROUGH_I'
+  | 'PUBLIC_SURVEY_PUBLISH'
   | 'MULTI_PLAN_CREATE'
   | 'CLONE_AND_PIVOT'
   | 'IDEA_COMPARATOR'
@@ -162,8 +164,8 @@ export function isEntitlementInVaultMode(
 }
 
 /**
- * Checks if a user can access a specific BMU 2.0 Module (MOD_A through MOD_G).
- * FREE_HOOK has full access to Module A (Steps 1-4), and triggers the paywall on Modules B-G.
+ * Checks if a user can access a specific BMU 2.0 Module (MOD_A through MOD_I).
+ * FREE_HOOK has full access to Module A (Steps 1-8), and triggers the paywall on Modules B-I.
  */
 export function canAccessModule(
   entitlement: EntitlementSnapshot,
@@ -177,7 +179,7 @@ export function canAccessModule(
     return {
       allowed: false,
       reason:
-        'Module A (Ideation) is free forever. Upgrade to a 6-Month Launch Pass or redeem an AppSumo/Cohort code to unlock Modules B–G, Hosted Validation Surveys, Financial Builder, and Grant Matcher.',
+        'Module A (Ideation) is free forever. Upgrade to a 6-Month Launch Pass or redeem an AppSumo/Cohort code to unlock Modules B–I, Hosted Customer Surveys & Waitlist, Product Build Architecture, Financial Builder, and Grant Matcher.',
       upgradeRequired: 'SIX_MONTH_SOLO',
     };
   }
@@ -354,6 +356,8 @@ export function checkFeatureEntitlement(
       return { allowed: true };
 
     case 'MODULE_B_THROUGH_G':
+    case 'MODULE_B_THROUGH_I':
+    case 'PUBLIC_SURVEY_PUBLISH':
     case 'GRANT_MATCHER':
     case 'DOCUMENT_EXPORT':
       return canAccessModule(entitlement, 'MOD_B_MARKET');
