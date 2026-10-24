@@ -38,6 +38,7 @@ import type {
   SavedFounderMotivation,
   SavedTeamAndBudget,
   SavedFounderRealityCheck,
+  SavedModuleBData,
 } from '@/lib/auth/session-store';
 
 export interface AuthActionResult {
@@ -108,6 +109,7 @@ async function buildSessionFromDbUser(
       .where(eq(planModulesData.planId, plan.id));
 
     const modA = modRows.find((m) => m.moduleCode === 'MOD_A_IDEATION');
+    const modB = modRows.find((m) => m.moduleCode === 'MOD_B_MARKET');
     const structuredInputs = (modA?.structuredInputsJsonb ?? {}) as {
       brainDumpText?: string;
       exportPotential?: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
@@ -124,6 +126,8 @@ async function buildSessionFromDbUser(
       teamAndBudget?: SavedTeamAndBudget;
       founderRealityCheck?: SavedFounderRealityCheck;
     };
+
+    const modBInputs = (modB?.structuredInputsJsonb ?? {}) as SavedModuleBData;
 
     const questionRows = await db
       .select()
@@ -158,12 +162,15 @@ async function buildSessionFromDbUser(
       thingsToConsider: Array.isArray(modA?.aiThingsToConsiderJsonb)
         ? modA.aiThingsToConsiderJsonb
         : undefined,
-      openQuestions:
-        questionRows.length > 0
-          ? questionRows.map((q) => q.questionText)
-          : [
-              `Validate urgent buyer pain points with 5 target customers in ${plan.hqCountryCode}.`,
-            ],
+      moduleBData: modB
+        ? {
+            ...modBInputs,
+            thingsToConsider: Array.isArray(modB.aiThingsToConsiderJsonb)
+              ? modB.aiThingsToConsiderJsonb
+              : modBInputs.thingsToConsider,
+          }
+        : undefined,
+      openQuestions: questionRows.map((q) => q.questionText),
     });
   }
 
@@ -520,9 +527,7 @@ export async function completeOnboardingAction(input: {
       .returning();
 
     const cleanTitle = input.planTitle.trim() || 'My First Unicorn Idea';
-    const cleanSummary =
-      input.oneLinerSummary.trim() ||
-      `Building a ${input.industryCategory} startup headquartered in ${countryPack.countryName}.`;
+    const cleanSummary = input.oneLinerSummary.trim();
 
     const [createdPlan] = await db
       .insert(startupPlans)
@@ -562,14 +567,7 @@ export async function completeOnboardingAction(input: {
         },
       },
       aiThingsToConsiderJsonb: [],
-      completionPercentage: 15,
-    });
-
-    await db.insert(openQuestionsParkingLot).values({
-      planId: createdPlan.id,
-      sourceModule: 'MOD_A_IDEATION',
-      questionText: `Validate urgent buyer pain points with 5 target customers in ${countryPack.countryName}.`,
-      status: 'OPEN',
+      completionPercentage: cleanSummary ? 15 : 0,
     });
 
     const session = await buildSessionFromDbUser(updatedUser);

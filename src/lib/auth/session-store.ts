@@ -103,6 +103,80 @@ export interface SavedConceptCanvas {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type BuyerModelType =
+  | 'B2B_BUSINESSES'
+  | 'B2C_CONSUMERS'
+  | 'TWO_SIDED_MARKETPLACE'
+  | 'B2G_PUBLIC_SECTOR';
+
+export type EndUserVsDecisionMakerType =
+  | 'SAME_PERSON'
+  | 'DIFFERENT_DECISION_MAKER';
+
+export type BuyingTriggerPreset =
+  | 'LOSING_MONEY_WASTE'
+  | 'MANUAL_TIME_BOTTLENECK'
+  | 'COMPLIANCE_OR_PENALTY'
+  | 'LOST_CUSTOMERS_CHURN'
+  | 'LIFE_OR_BUSINESS_MILESTONE';
+
+export interface BeachheadMarketData {
+  buyerType: BuyerModelType;
+  buyerTypes?: BuyerModelType[];
+  beachheadSegment: string;
+  endUserVsDecisionMaker: EndUserVsDecisionMakerType;
+  decisionMakerRole: string;
+  buyingTriggerPreset: BuyingTriggerPreset;
+  buyingTriggerNotes: string;
+  targetMarketsArray: string[];
+  lastSavedAt?: string;
+}
+
+export type CustomerWorkaroundType =
+  | 'SPREADSHEETS_PAPER'
+  | 'WHATSAPP_EMAIL_PHONE'
+  | 'FREE_GENERIC_TOOLS'
+  | 'EXPENSIVE_CONSULTANTS_AGENCIES'
+  | 'DOING_NOTHING_LIVING_WITH_PAIN';
+
+export type CompetitorCategoryType =
+  | 'DIRECT_COMPETITOR'
+  | 'INDIRECT_ALTERNATIVE'
+  | 'MANUAL_SERVICE_AGENCY';
+
+export interface CompetitorEntry {
+  id: string;
+  name: string;
+  category: CompetitorCategoryType;
+  typicalPriceText: string;
+  whatTheyDoWell: string;
+  whereTheyFallShort: string;
+}
+
+export type WhySwitchEdgeType =
+  | 'SAVES_TIME_AUTOMATIC'
+  | 'MORE_AFFORDABLE'
+  | 'BUILT_FOR_LOCAL_MARKET'
+  | 'EASIER_NO_TRAINING'
+  | 'ALL_IN_ONE_WORKFLOW'
+  | 'PROVEN_RESULTS_OR_COMPLIANCE';
+
+export interface CompetitorsAndStatusQuoData {
+  currentWorkarounds: CustomerWorkaroundType[];
+  workaroundFrustrationNotes: string;
+  competitors: CompetitorEntry[];
+  whySwitchEdges: WhySwitchEdgeType[];
+  whySwitchOneSentence: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export interface SavedModuleBData {
+  beachhead?: BeachheadMarketData;
+  competitorsAndStatusQuo?: CompetitorsAndStatusQuoData;
+  thingsToConsider?: BlindSpotItem[];
+}
+
 export type FounderStage =
   | 'IDEA_EXPLORER'
   | 'BUILDING_MVP'
@@ -149,6 +223,7 @@ export interface ActiveStartupPlan {
   teamAndBudget?: SavedTeamAndBudget;
   founderRealityCheck?: SavedFounderRealityCheck;
   thingsToConsider?: BlindSpotItem[];
+  moduleBData?: SavedModuleBData;
   openQuestions: string[];
 }
 
@@ -191,20 +266,16 @@ export function getDefaultDemoSession(): BmuLocalSession {
     plans: [
       {
         id: 'plan-greencart-1',
-        title: 'GreenCart AI — Zero-Waste Grocery',
-        oneLinerSummary:
-          'Automated expiry prediction & dynamic markdowns for independent supermarkets.',
+        title: 'My Startup Plan',
+        oneLinerSummary: '',
         industryCategory: 'B2B SaaS / AI App',
         hqCountryCode: 'IE',
         baseCurrency: 'EUR',
-        targetMarketsArray: ['IE', 'GB'],
-        exportPotential: 'EXPORTING_INTERNATIONALLY',
+        targetMarketsArray: ['IE'],
+        exportPotential: 'DOMESTIC_ONLY',
         currentModuleStep: 'MOD_A_STEP_1',
-        brainDumpText:
-          'Independent grocery stores throw away 4–6% of fresh produce every week because staff manually walk the aisles with sticker guns too late in the evening. GreenCart AI connects to their inventory system, predicts which fresh items will expire 72 hours early, and pushes automatic markdowns to electronic shelf labels and local wholesale buyers.',
-        openQuestions: [
-          'Verify if independent supermarkets in Ireland use Oracle Micros or custom POS systems.',
-        ],
+        brainDumpText: '',
+        openQuestions: [],
       },
     ],
     activePlanId: 'plan-greencart-1',
@@ -341,25 +412,21 @@ export function completeFounderOnboarding(params: {
   const firstPlan: ActiveStartupPlan = {
     id: planId,
     title: params.planTitle.trim() || 'My First Unicorn Idea',
-    oneLinerSummary:
-      params.oneLinerSummary.trim() ||
-      `Building a ${params.industryCategory} startup headquartered in ${countryPack.countryName}.`,
+    oneLinerSummary: params.oneLinerSummary.trim(),
     industryCategory: params.industryCategory,
     hqCountryCode: params.hqCountryCode,
     baseCurrency: countryPack.defaultCurrency,
     targetMarketsArray: Array.from(new Set(targetMarkets)),
     exportPotential: params.exportPotential,
     currentModuleStep: 'MOD_A_STEP_1',
-    brainDumpText: params.oneLinerSummary.trim() || '',
+    brainDumpText: params.oneLinerSummary.trim(),
     teamAndBudget: {
       teamStructureType: initialTeamType,
       skillCoverage: 'BUILD_IN_HOUSE',
       startingBudgetBracket: '1K_TO_5K',
       teamAndFundingNotes: '',
     },
-    openQuestions: [
-      `Validate urgent buyer pain points with 5 target customers in ${countryPack.countryName}.`,
-    ],
+    openQuestions: [],
   };
 
   const updated: BmuLocalSession = {

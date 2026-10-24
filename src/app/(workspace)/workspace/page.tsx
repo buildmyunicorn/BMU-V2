@@ -85,6 +85,9 @@ import {
   type FounderDealbreakerType,
   type GrowthTradeoffPreference,
   type BiggestWorryPreset,
+  type BeachheadMarketData,
+  type CompetitorsAndStatusQuoData,
+  type BuyerModelType,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -95,6 +98,13 @@ import {
   saveModuleACanvasEditsAction,
   parkOpenQuestionAction,
 } from '@/app/actions/module-a';
+import {
+  saveModuleBStep1BeachheadAction,
+  saveModuleBStep2CompetitorsAction,
+  scoutModuleBCompetitorsWithAiAction,
+  parkModuleBOpenQuestionAction,
+} from '@/app/actions/module-b';
+import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 import {
   buildModuleAMarkdownBrief,
@@ -201,6 +211,10 @@ export default function WorkspacePage() {
   const [showEngineInspector, setShowEngineInspector] = useState(false);
 
   // Workspace UX Interactive States
+  const [activeModule, setActiveModule] =
+    useState<ModuleCode>('MOD_A_IDEATION');
+  const [pendingModuleAfterUnlock, setPendingModuleAfterUnlock] =
+    useState<ModuleCode | null>(null);
   const [planDropdownOpen, setPlanDropdownOpen] = useState(false);
   const [showWhyCard, setShowWhyCard] = useState(true);
   const [showExamples, setShowExamples] = useState(false);
@@ -209,12 +223,8 @@ export default function WorkspacePage() {
   const [paywallModalFeature, setPaywallModalFeature] = useState<string | null>(
     null
   );
-  const [openQuestions, setOpenQuestions] = useState<string[]>([
-    'Verify if independent supermarkets in Ireland use Oracle Micros or custom POS systems.',
-  ]);
-  const [brainDumpText, setBrainDumpText] = useState(
-    'Independent grocery stores throw away 4–6% of fresh produce every week because staff manually walk the aisles with sticker guns too late in the evening. GreenCart AI connects to their inventory system, predicts which fresh items will expire 72 hours early, and pushes automatic markdowns to electronic shelf labels and local wholesale buyers.'
-  );
+  const [openQuestions, setOpenQuestions] = useState<string[]>([]);
+  const [brainDumpText, setBrainDumpText] = useState('');
   const [cloudDbConnected, setCloudDbConnected] = useState<boolean | null>(
     null
   );
@@ -258,12 +268,8 @@ export default function WorkspacePage() {
       loaded.plans.find((p) => p.id === loaded.activePlanId) || loaded.plans[0];
     if (activePlan) {
       setSelectedCountry(activePlan.hqCountryCode);
-      if (activePlan.brainDumpText) {
-        setBrainDumpText(activePlan.brainDumpText);
-      }
-      if (activePlan.conceptCanvas) {
-        setConceptCanvas(activePlan.conceptCanvas);
-      }
+      setBrainDumpText(activePlan.brainDumpText ?? '');
+      setConceptCanvas(activePlan.conceptCanvas || null);
       if (activePlan.founderMotivation) {
         setFounderMotivation(activePlan.founderMotivation);
       }
@@ -283,12 +289,8 @@ export default function WorkspacePage() {
       if (activePlan.founderRealityCheck) {
         setFounderRealityCheck(activePlan.founderRealityCheck);
       }
-      if (activePlan.thingsToConsider?.length) {
-        setThingsToConsider(activePlan.thingsToConsider);
-      }
-      if (activePlan.openQuestions?.length) {
-        setOpenQuestions(activePlan.openQuestions);
-      }
+      setThingsToConsider(activePlan.thingsToConsider || []);
+      setOpenQuestions(activePlan.openQuestions || []);
     }
 
     getCurrentCloudSessionAction()
@@ -303,12 +305,8 @@ export default function WorkspacePage() {
             ) || res.session.plans[0];
           if (dbPlan) {
             setSelectedCountry(dbPlan.hqCountryCode);
-            if (dbPlan.brainDumpText) {
-              setBrainDumpText(dbPlan.brainDumpText);
-            }
-            if (dbPlan.conceptCanvas) {
-              setConceptCanvas(dbPlan.conceptCanvas);
-            }
+            setBrainDumpText(dbPlan.brainDumpText ?? '');
+            setConceptCanvas(dbPlan.conceptCanvas || null);
             if (dbPlan.founderMotivation) {
               setFounderMotivation(dbPlan.founderMotivation);
             }
@@ -318,12 +316,8 @@ export default function WorkspacePage() {
             if (dbPlan.founderRealityCheck) {
               setFounderRealityCheck(dbPlan.founderRealityCheck);
             }
-            if (dbPlan.thingsToConsider?.length) {
-              setThingsToConsider(dbPlan.thingsToConsider);
-            }
-            if (dbPlan.openQuestions?.length) {
-              setOpenQuestions(dbPlan.openQuestions);
-            }
+            setThingsToConsider(dbPlan.thingsToConsider || []);
+            setOpenQuestions(dbPlan.openQuestions || []);
           }
         }
       })
@@ -336,14 +330,13 @@ export default function WorkspacePage() {
     session.plans.find((p) => p.id === session.activePlanId) ||
     session.plans[0] || {
       id: 'plan-default',
-      title: 'GreenCart AI — Zero-Waste Grocery',
-      oneLinerSummary:
-        'Automated expiry prediction & dynamic markdowns for independent supermarkets.',
+      title: 'My Startup Plan',
+      oneLinerSummary: '',
       industryCategory: 'B2B SaaS / AI App' as const,
       hqCountryCode: selectedCountry,
       baseCurrency: 'EUR',
-      targetMarketsArray: ['IE', 'GB'],
-      exportPotential: 'EXPORTING_INTERNATIONALLY' as const,
+      targetMarketsArray: [selectedCountry],
+      exportPotential: 'DOMESTIC_ONLY' as const,
       currentModuleStep: 'MOD_A_STEP_1',
       openQuestions: [],
     };
@@ -459,7 +452,7 @@ export default function WorkspacePage() {
     setSession(updated);
     saveBmuSession(updated);
     setSelectedCountry(found.hqCountryCode);
-    if (found.brainDumpText) setBrainDumpText(found.brainDumpText);
+    setBrainDumpText(found.brainDumpText ?? '');
     setConceptCanvas(found.conceptCanvas || null);
     setFounderMotivation(
       found.founderMotivation || {
@@ -492,7 +485,7 @@ export default function WorkspacePage() {
       }
     );
     setThingsToConsider(found.thingsToConsider || []);
-    if (found.openQuestions) setOpenQuestions(found.openQuestions);
+    setOpenQuestions(found.openQuestions || []);
     setPlanDropdownOpen(false);
   }
 
@@ -512,6 +505,138 @@ export default function WorkspacePage() {
   function handleParkQuestion() {
     const newQ = `Confirm urgent customer pain point & average unit price (${countryPack.defaultCurrency}) with 3 target buyers in ${countryPack.countryName}.`;
     handleParkSpecificQuestion(newQ);
+  }
+
+  async function handleParkModuleBQuestion(questionText: string) {
+    const clean = questionText.trim();
+    if (!clean) return;
+    if (!openQuestions.includes(clean)) {
+      const next = [...openQuestions, clean];
+      setOpenQuestions(next);
+      const updatedPlans = session.plans.map((p) =>
+        p.id === currentPlan.id ? { ...p, openQuestions: next } : p
+      );
+      const nextSession = { ...session, plans: updatedPlans };
+      setSession(nextSession);
+      saveBmuSession(nextSession);
+      await parkModuleBOpenQuestionAction({
+        planId: currentPlan.id,
+        questionText: clean,
+      });
+    }
+  }
+
+  async function handleSaveModuleBStep1(
+    beachhead: BeachheadMarketData,
+    progressPercent: number
+  ) {
+    const updatedPlans = session.plans.map((p) => {
+      if (p.id !== currentPlan.id) return p;
+      const isExport =
+        beachhead.targetMarketsArray.some((m) => m !== p.hqCountryCode) ||
+        beachhead.targetMarketsArray.includes('EU') ||
+        beachhead.targetMarketsArray.includes('ROW');
+      return {
+        ...p,
+        targetMarketsArray: beachhead.targetMarketsArray,
+        exportPotential: isExport
+          ? ('EXPORTING_INTERNATIONALLY' as const)
+          : ('DOMESTIC_ONLY' as const),
+        currentModuleStep: 'MOD_B_STEP_1',
+        moduleBData: {
+          ...(p.moduleBData || {}),
+          beachhead,
+        },
+      };
+    });
+
+    const nextSession: BmuLocalSession = {
+      ...session,
+      plans: updatedPlans,
+    };
+    setSession(nextSession);
+    saveBmuSession(nextSession);
+
+    await saveModuleBStep1BeachheadAction({
+      planId: currentPlan.id,
+      beachhead,
+      completionPercentage: progressPercent,
+    });
+  }
+
+  async function handleSaveModuleBStep2(
+    competitorsAndStatusQuo: CompetitorsAndStatusQuoData,
+    progressPercent: number
+  ) {
+    const updatedPlans = session.plans.map((p) => {
+      if (p.id !== currentPlan.id) return p;
+      return {
+        ...p,
+        currentModuleStep: 'MOD_B_STEP_2',
+        moduleBData: {
+          ...(p.moduleBData || {}),
+          competitorsAndStatusQuo,
+        },
+      };
+    });
+
+    const nextSession: BmuLocalSession = {
+      ...session,
+      plans: updatedPlans,
+    };
+    setSession(nextSession);
+    saveBmuSession(nextSession);
+
+    await saveModuleBStep2CompetitorsAction({
+      planId: currentPlan.id,
+      competitorsAndStatusQuo,
+      completionPercentage: progressPercent,
+    });
+  }
+
+  async function handleScoutModuleBCompetitors(params: {
+    targetCustomerDescription: string;
+    targetMarketsArray: string[];
+    buyerTypes: BuyerModelType[];
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Market Scout (${aiCreditCheck.reason})`
+      );
+      return null;
+    }
+
+    const result = await scoutModuleBCompetitorsWithAiAction({
+      userId: session.user.id,
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      targetCustomerDescription: params.targetCustomerDescription,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      targetMarketsArray: params.targetMarketsArray,
+      buyerTypes: params.buyerTypes,
+    });
+
+    const updatedSession: BmuLocalSession = {
+      ...session,
+      entitlement: {
+        ...session.entitlement,
+        aiCreditsUsedThisMonth:
+          result.creditsUsedAfter ??
+          session.entitlement.aiCreditsUsedThisMonth + 1,
+      },
+    };
+    setSession(updatedSession);
+    saveBmuSession(updatedSession);
+
+    return {
+      competitors: result.competitors,
+      suggestedWhySwitchSentence: result.suggestedWhySwitchSentence,
+      engineMode: result.engineMode,
+    };
   }
 
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
@@ -765,6 +890,22 @@ export default function WorkspacePage() {
     (moduleACheckpoints.filter(Boolean).length / moduleACheckpoints.length) *
       100
   );
+
+  const savedBeachhead = currentPlan.moduleBData?.beachhead;
+  const savedStep2Competitors =
+    currentPlan.moduleBData?.competitorsAndStatusQuo;
+  const step1ModBScore = savedBeachhead?.beachheadSegment ? 25 : 0;
+  const step2ModBScore =
+    savedStep2Competitors?.competitors?.length ||
+    savedStep2Competitors?.whySwitchOneSentence
+      ? 25
+      : 0;
+  const moduleBProgressPercent =
+    step1ModBScore + step2ModBScore > 0
+      ? step1ModBScore + step2ModBScore
+      : activeModule === 'MOD_B_MARKET'
+        ? 10
+        : 0;
 
   const moduleABriefData: ModuleABriefData = {
     planTitle: currentPlan.title,
@@ -1031,19 +1172,34 @@ export default function WorkspacePage() {
               Founder Journey (Modules A–G)
             </div>
             <div className="space-y-1">
-              {MODULES_LIST.map((mod, idx) => {
+              {MODULES_LIST.map((mod) => {
                 const access = canAccessModule(activeEntitlement, mod.code);
                 const IconComponent = mod.icon;
-                const isCurrent = idx === 0;
+                const isCurrent = activeModule === mod.code;
+                const modProgress =
+                  mod.code === 'MOD_A_IDEATION'
+                    ? moduleAProgressPercent
+                    : mod.code === 'MOD_B_MARKET'
+                      ? moduleBProgressPercent
+                      : mod.progress;
+
                 return (
                   <button
                     key={mod.code}
                     type="button"
                     onClick={() => {
                       if (!access.allowed) {
+                        setPendingModuleAfterUnlock(mod.code);
                         setPaywallModalFeature(
                           `${mod.short}: ${mod.title} — ${access.reason}`
                         );
+                        return;
+                      }
+                      if (
+                        mod.code === 'MOD_A_IDEATION' ||
+                        mod.code === 'MOD_B_MARKET'
+                      ) {
+                        setActiveModule(mod.code);
                       }
                     }}
                     className={`group flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-all ${
@@ -1074,30 +1230,30 @@ export default function WorkspacePage() {
                         </span>
                         {!access.allowed ? (
                           <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                        ) : isCurrent ? (
+                        ) : isCurrent || modProgress > 0 ? (
                           <span
                             className={`text-[10px] font-bold ${
-                              moduleAProgressPercent === 100
+                              modProgress === 100
                                 ? 'text-emerald-600'
                                 : 'text-indigo-600'
                             }`}
                           >
-                            {moduleAProgressPercent}%
+                            {modProgress}%
                           </span>
                         ) : null}
                       </div>
                       <p className="mt-0.5 truncate text-[11px] text-slate-500">
                         {mod.subtitle}
                       </p>
-                      {isCurrent && (
+                      {(isCurrent || modProgress > 0) && access.allowed && (
                         <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-indigo-100">
                           <div
                             className={`h-full rounded-full transition-all duration-300 ${
-                              moduleAProgressPercent === 100
+                              modProgress === 100
                                 ? 'bg-emerald-500'
                                 : 'bg-indigo-600'
                             }`}
-                            style={{ width: `${moduleAProgressPercent}%` }}
+                            style={{ width: `${modProgress}%` }}
                           />
                         </div>
                       )}
@@ -1107,9 +1263,44 @@ export default function WorkspacePage() {
               })}
             </div>
           </div>
+
+          {/* Open Questions Parking Lot Sidebar Card */}
+          <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+                <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
+                Open Questions Parking Lot
+              </span>
+              <Badge
+                variant="secondary"
+                className="bg-amber-100 text-[10px] text-amber-900"
+              >
+                {openQuestions.length} Parked
+              </Badge>
+            </div>
+            <p className="mt-1 text-[11px] text-amber-900/80">
+              Tricky questions you parked so you never lose momentum:
+            </p>
+            {openQuestions.length === 0 ? (
+              <div className="mt-2.5 rounded-lg border border-dashed border-amber-200/80 bg-white/70 px-2.5 py-2 text-[11px] text-slate-500">
+                No open questions parked yet. Use &ldquo;Park Question&rdquo; on any step when you want to come back to a detail later.
+              </div>
+            ) : (
+              <ul className="mt-2.5 space-y-1.5 text-xs text-slate-700">
+                {openQuestions.slice(0, 4).map((q, idx) => (
+                  <li
+                    key={idx}
+                    className="rounded-lg border border-amber-200/60 bg-white px-2.5 py-1.5 text-[11px] leading-snug"
+                  >
+                    • {q}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </aside>
 
-        {/* CENTER WORKSPACE: Module A Guided Step + 4-Layer Support + 1-Page Mirror + Blind-Spot Engine */}
+        {/* CENTER WORKSPACE: Module A or Module B */}
         <main className="space-y-6 lg:col-span-8 xl:col-span-9">
           {/* Read-Only Vault Banner if Expired */}
           {activeEntitlement.isVaultReadonly && (
@@ -1131,46 +1322,164 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {/* Step Header Card */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">Module A • Ideation</Badge>
-                  <span className="text-xs font-medium text-slate-500">
-                    Steps 1–7: Idea → Canvas → Why → Team &amp; Budget → Reality Check → Blind-Spots → Download Brief
-                  </span>
+          {activeModule === 'MOD_B_MARKET' ? (
+            <ModuleBWorkspace
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              onSaveStep1Beachhead={handleSaveModuleBStep1}
+              onSaveStep2Competitors={handleSaveModuleBStep2}
+              onScoutCompetitorsWithAi={handleScoutModuleBCompetitors}
+              onParkQuestion={handleParkModuleBQuestion}
+              onBackToModuleA={() => setActiveModule('MOD_A_IDEATION')}
+            />
+          ) : (
+            <>
+              {/* Module A Top Header Banner (Matches Module B Top Tile Style) */}
+              <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
+                        Module A • Ideation &amp; Founder Readiness
+                      </Badge>
+                      <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200">
+                        <Sparkles className="mr-1 h-3 w-3" />
+                        Capture First, Expand Second
+                      </Badge>
+                    </div>
+                    <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+                      Module A: Ideation, Concept Canvas &amp; Founder Fit
+                    </h1>
+                    <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+                      Don&apos;t worry about corporate buzzwords. First, capture your raw idea for{' '}
+                      <strong className="text-white">{currentPlan.title}</strong>, shape your 1-page Concept Canvas, align it with your personal goals and budget, and review your Co-Founder Blind-Spots.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!coFounderCheck.allowed) {
+                          setPaywallModalFeature(
+                            `Invite Co-Founder (${coFounderCheck.reason})`
+                          );
+                        }
+                      }}
+                      className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                    >
+                      <Users className="h-3.5 w-3.5 text-indigo-200" />
+                      Invite Co-Founder
+                      {!coFounderCheck.allowed && (
+                        <Lock className="ml-1 h-3 w-3 text-amber-300" />
+                      )}
+                    </Button>
+                    <div className="text-right text-[11px] text-indigo-200">
+                      Module A Progress: <strong>{moduleAProgressPercent}%</strong> (
+                      {completedReadinessCount} of 6 Core Steps Complete)
+                    </div>
+                  </div>
                 </div>
-                <h1 className="mt-2 text-xl font-bold text-slate-900">
-                  Let&apos;s capture your raw idea for{' '}
-                  <span className="text-indigo-600">{currentPlan.title}</span>
-                </h1>
-                <p className="mt-1 text-sm text-slate-600">
-                  Follow our <strong>Capture First, Expand Second</strong> rule:
-                  don&apos;t worry about buzzwords. Tell us what breaks today
-                  and who you are helping.
-                </p>
+
+                {/* 7-Step Progress Strip inside Module A Top Tile */}
+                <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-4 lg:grid-cols-7">
+                  {[
+                    {
+                      step: 'Step 1',
+                      title: 'Raw Idea Capture',
+                      done: moduleAReadinessSteps[0]?.isComplete ?? false,
+                    },
+                    {
+                      step: 'Step 2',
+                      title: 'Concept Canvas',
+                      done: moduleAReadinessSteps[1]?.isComplete ?? false,
+                    },
+                    {
+                      step: 'Step 3',
+                      title: 'Personal "Why"',
+                      done: moduleAReadinessSteps[2]?.isComplete ?? false,
+                    },
+                    {
+                      step: 'Step 4',
+                      title: 'Team & Budget',
+                      done: moduleAReadinessSteps[3]?.isComplete ?? false,
+                    },
+                    {
+                      step: 'Step 5',
+                      title: 'Reality Check',
+                      done: moduleAReadinessSteps[4]?.isComplete ?? false,
+                    },
+                    {
+                      step: 'Step 6',
+                      title: 'Blind-Spot Review',
+                      done: moduleAReadinessSteps[5]?.isComplete ?? false,
+                    },
+                    {
+                      step: 'Step 7',
+                      title: 'Readiness Brief',
+                      done: completedReadinessCount === 6,
+                    },
+                  ].map((item, idx, arr) => {
+                    const firstIncompleteIdx = arr.findIndex((s) => !s.done);
+                    const isActive =
+                      firstIncompleteIdx === -1
+                        ? idx === arr.length - 1
+                        : idx === firstIncompleteIdx;
+                    return (
+                      <div
+                        key={item.step}
+                        className={`rounded-xl border px-3 py-2 text-xs transition-all ${
+                          isActive
+                            ? 'border-amber-300/80 bg-white/15 text-white shadow-xs'
+                            : item.done
+                              ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
+                              : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between font-bold">
+                          <span>{item.step}</span>
+                          {item.done ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-300" />
+                          ) : isActive ? (
+                            <span className="h-2 w-2 rounded-full bg-amber-400" />
+                          ) : null}
+                        </div>
+                        <div className="mt-0.5 truncate text-[11px]">
+                          {item.title}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Co-Founder Invite Button (Shows Entitlement Gate) */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (!coFounderCheck.allowed) {
-                    setPaywallModalFeature(
-                      `Invite Co-Founder (${coFounderCheck.reason})`
-                    );
-                  }
-                }}
-              >
-                <Users className="h-4 w-4 text-indigo-600" />
-                Invite Co-Founder
-                {!coFounderCheck.allowed && (
-                  <Lock className="ml-1 h-3 w-3 text-amber-500" />
-                )}
-              </Button>
-            </div>
+              {/* STEP 1: RAW IDEA BRAIN DUMP CARD */}
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                        1
+                      </span>
+                      <h2 className="text-base font-bold text-slate-900">
+                        Step 1: Let&apos;s Capture Your Raw Idea for{' '}
+                        <span className="text-indigo-600">{currentPlan.title}</span>
+                      </h2>
+                      <Badge variant="success">Jargon-Free Brain Dump</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Follow our <strong>Capture First, Expand Second</strong> rule:
+                      don&apos;t worry about buzzwords. Tell us what breaks today
+                      and who you are helping.
+                    </p>
+                  </div>
+                </div>
 
             {/* LAYER 1 SUPPORT BAR: Why Are We Asking This? + Show Me an Example + Jargon Tooltip */}
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
@@ -3099,10 +3408,14 @@ export default function WorkspacePage() {
                       'MOD_B_MARKET'
                     );
                     if (!modBAccess.allowed) {
+                      setPendingModuleAfterUnlock('MOD_B_MARKET');
                       setPaywallModalFeature(
                         `Module B: Market & Validation Survey (${modBAccess.reason})`
                       );
+                      return;
                     }
+                    setActiveModule('MOD_B_MARKET');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   className="bg-indigo-500 text-white hover:bg-indigo-400"
                 >
@@ -3112,6 +3425,8 @@ export default function WorkspacePage() {
               </div>
             </CardContent>
           </Card>
+          </>
+          )}
         </main>
       </div>
 
@@ -3258,6 +3573,14 @@ export default function WorkspacePage() {
                 onClick={() => {
                   setSelectedTierPreset('SIX_MONTH_COFOUNDER');
                   setPaywallModalFeature(null);
+                  if (
+                    pendingModuleAfterUnlock === 'MOD_B_MARKET' ||
+                    pendingModuleAfterUnlock === 'MOD_A_IDEATION'
+                  ) {
+                    setActiveModule(pendingModuleAfterUnlock);
+                    setPendingModuleAfterUnlock(null);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
                 }}
               >
                 Unlock Now
