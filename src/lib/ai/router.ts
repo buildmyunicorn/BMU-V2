@@ -14,7 +14,12 @@ import {
   formatPlanCurrency,
   type SupportedCountryCode,
 } from '@/lib/localization';
-import type { SavedFounderMotivation } from '@/lib/auth/session-store';
+import type {
+  SavedFounderMotivation,
+  SavedTeamAndBudget,
+  SavedFounderRealityCheck,
+} from '@/lib/auth/session-store';
+import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
 export interface ConceptCanvasBlocks {
   coreProblem: string;
@@ -77,6 +82,8 @@ function buildSmartFallbackSynthesis(params: {
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
   draftCanvas?: Partial<ConceptCanvasBlocks>;
   founderMotivation?: SavedFounderMotivation;
+  teamAndBudget?: SavedTeamAndBudget;
+  founderRealityCheck?: SavedFounderRealityCheck;
 }): { canvas: ConceptCanvasBlocks; thingsToConsider: BlindSpotItem[] } {
   const countryPack = getCountryRulePack(params.hqCountryCode);
   const grants = getGrantsForCountry(params.hqCountryCode);
@@ -128,81 +135,17 @@ function buildSmartFallbackSynthesis(params: {
     aiEngineUsed: 'smart-synthesizer',
   };
 
-  const mot = params.founderMotivation?.primaryMotivation || 'LEAVE_JOB';
-  const motivationBlindSpot: BlindSpotItem =
-    mot === 'SIDE_HUSTLE'
-      ? {
-          id: `bs-${Date.now()}-3`,
-          category: 'OPERATIONAL_REALITY',
-          severity: 'INFO',
-          title: '🌱 3. Protecting Your Evening & Weekend Time',
-          explanation:
-            'Because you are building this as a side hustle alongside your main commitments, make sure customers can buy and use the product without needing live daytime phone support.',
-          suggestedAction:
-            'Design self-serve onboarding or automated scheduling from Day 1.',
-        }
-      : mot === 'SAVE_THE_WORLD'
-        ? {
-            id: `bs-${Date.now()}-3`,
-            category: 'OPEN_QUESTION',
-            severity: 'INFO',
-            title: '🌍 3. Fueling Your Mission with Sustainable Revenue',
-            explanation:
-              'Mission-driven businesses make the biggest impact when they are financially self-sustaining. Who has the budget to pay for this today so your mission can grow without running out of cash?',
-            suggestedAction: `Explore both paying pilot customers and ${topGrant} support.`,
-          }
-        : mot === 'SCALE_STARTUP'
-          ? {
-              id: `bs-${Date.now()}-3`,
-              category: 'OPEN_QUESTION',
-              severity: 'INFO',
-              title: `🚀 3. High-Growth & Grant Readiness (${topGrant})`,
-              explanation: `${
-                grants[0]?.reimbursementWarning ||
-                'Investors and grant agencies look for repeatable customer acquisition and international export potential.'
-              } Can you line up 5 paying pilot customers to prove demand early?`,
-              suggestedAction: `Highlight export scalability beyond ${countryPack.countryName} in Module B.`,
-            }
-          : mot === 'BUILD_TO_SELL'
-            ? {
-                id: `bs-${Date.now()}-3`,
-                category: 'OPERATIONAL_REALITY',
-                severity: 'INFO',
-                title: '🏆 3. Building an Asset Someone Can Buy',
-                explanation:
-                  'Acquirers buy businesses that run without the founder doing every job personally. From Day 1, aim for recurring contracts and documented processes rather than one-off personal favours.',
-                suggestedAction:
-                  'Design the business so a future buyer can step in and run it smoothly.',
-              }
-            : {
-              id: `bs-${Date.now()}-3`,
-              category: 'OPEN_QUESTION',
-              severity: 'INFO',
-              title: '🏃 3. Your Path to Replacing Your 9-to-5 Income',
-              explanation: `To safely leave your job, recurring monthly revenue is your best friend. How many paying customers at ${benchmarkPrice} would you need to cover your core monthly living expenses?`,
-              suggestedAction:
-                'Focus on fast-paying customers with a short sales cycle in Module B.',
-            };
-
-  const thingsToConsider: BlindSpotItem[] = [
-    {
-      id: `bs-${Date.now()}-1`,
-      category: 'OPERATIONAL_REALITY',
-      severity: 'INFO',
-      title: '🔌 1. Keep Day-1 Setup Simple',
-      explanation: `In ${params.industryCategory}, buyers rarely rip-and-replace their existing tools on Day 1. Can a customer test ${params.planTitle} in under 15 minutes before any complex setup?`,
-      suggestedAction: 'Avoids a 6-month build before proving customer willingness to pay.',
-    },
-    {
-      id: `bs-${Date.now()}-2`,
-      category: 'INDUSTRY_TRAP',
-      severity: 'WARNING',
-      title: `🎯 2. Who Holds the Budget in ${countryPack.countryName}?`,
-      explanation: `Make sure the person feeling the daily pain is also the person authorized to sign off on ${benchmarkPrice}. How much money or time does the buyer lose every week by doing nothing?`,
-      suggestedAction: 'Test ROI directly with the budget owner in Module B.',
-    },
-    motivationBlindSpot,
-  ];
+  const thingsToConsider = buildDynamicModuleABlindSpots({
+    planTitle: params.planTitle,
+    brainDumpText: params.brainDumpText,
+    industryCategory: params.industryCategory,
+    hqCountryCode: params.hqCountryCode,
+    exportPotential: params.exportPotential,
+    conceptCanvas: canvas,
+    founderMotivation: params.founderMotivation,
+    teamAndBudget: params.teamAndBudget,
+    founderRealityCheck: params.founderRealityCheck,
+  });
 
   return { canvas, thingsToConsider };
 }
@@ -222,6 +165,8 @@ export async function synthesizeModuleAConceptCanvasViaRouter(params: {
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
   draftCanvas?: Partial<ConceptCanvasBlocks>;
   founderMotivation?: SavedFounderMotivation;
+  teamAndBudget?: SavedTeamAndBudget;
+  founderRealityCheck?: SavedFounderRealityCheck;
 }): Promise<ModuleASynthesisResult> {
   const countryPack = getCountryRulePack(params.hqCountryCode);
   const grants = getGrantsForCountry(params.hqCountryCode);
@@ -329,6 +274,19 @@ Founder's Motivation (Step 3):
 - Primary Motivation: ${params.founderMotivation?.primaryMotivation || 'LEAVE_JOB'}
 - Weekly Hours Available: ${params.founderMotivation?.weeklyHoursAvailable || '15_TO_25_HRS'}
 - 12-Month Success Vision: ${params.founderMotivation?.twelveMonthSuccessVision || '(not filled in yet)'}
+
+Founder's Team & Starting Budget (Step 4):
+- Team Structure: ${params.teamAndBudget?.teamStructureType || 'SOLO_FOUNDER'}
+- In-House Skill Coverage to Build V1: ${params.teamAndBudget?.skillCoverage || 'BUILD_IN_HOUSE'}
+- Starting Capital to Invest (${countryPack.defaultCurrency}): ${params.teamAndBudget?.startingBudgetBracket || '1K_TO_5K'}
+- Team & Funding Notes: ${params.teamAndBudget?.teamAndFundingNotes || '(not filled in yet)'}
+
+Founder Fit, Dealbreakers & Reality Check (Step 5):
+- Industry Connection (Monday Morning Test): ${params.founderRealityCheck?.industryConnection || 'WARM_CONNECTIONS'}
+- Personal Income Urgency: ${params.founderRealityCheck?.personalIncomeUrgency || 'MEDIUM_6_TO_12M'}
+- Lifestyle Dealbreakers (Anti-Goals): ${params.founderRealityCheck?.dealbreakers?.join(', ') || 'None selected'}
+- Growth vs Control Tradeoff: ${params.founderRealityCheck?.growthTradeoff || 'BOOTSTRAP_100_CONTROL'}
+- #1 Secret Worry: ${params.founderRealityCheck?.biggestWorryPreset || 'WILL_THEY_PAY'} (${params.founderRealityCheck?.biggestWorryNotes || 'no extra notes'})
 
 Return STRICT JSON matching this exact shape (no markdown fences):
 {

@@ -14,7 +14,11 @@ import {
   type ConceptCanvasBlocks,
 } from '@/lib/ai/router';
 import type { SupportedCountryCode } from '@/lib/localization';
-import type { SavedFounderMotivation } from '@/lib/auth/session-store';
+import type {
+  SavedFounderMotivation,
+  SavedTeamAndBudget,
+  SavedFounderRealityCheck,
+} from '@/lib/auth/session-store';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -29,6 +33,8 @@ export async function generateModuleAConceptCanvasAction(input: {
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
   draftCanvas?: Partial<ConceptCanvasBlocks>;
   founderMotivation?: SavedFounderMotivation;
+  teamAndBudget?: SavedTeamAndBudget;
+  founderRealityCheck?: SavedFounderRealityCheck;
 }): Promise<{
   ok: boolean;
   error?: string;
@@ -51,6 +57,8 @@ export async function generateModuleAConceptCanvasAction(input: {
     exportPotential: input.exportPotential,
     draftCanvas: input.draftCanvas,
     founderMotivation: input.founderMotivation,
+    teamAndBudget: input.teamAndBudget,
+    founderRealityCheck: input.founderRealityCheck,
   });
 
   if (!aiResult.allowed) {
@@ -85,6 +93,8 @@ export async function generateModuleAConceptCanvasAction(input: {
         exportPotential: input.exportPotential,
         conceptCanvas: aiResult.canvas,
         founderMotivation: input.founderMotivation,
+        teamAndBudget: input.teamAndBudget,
+        founderRealityCheck: input.founderRealityCheck,
       };
 
       if (existingMod.length > 0) {
@@ -143,6 +153,9 @@ export async function saveModuleACanvasEditsAction(input: {
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
   canvas: ConceptCanvasBlocks;
   founderMotivation?: SavedFounderMotivation;
+  teamAndBudget?: SavedTeamAndBudget;
+  founderRealityCheck?: SavedFounderRealityCheck;
+  thingsToConsider?: BlindSpotItem[];
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
     return { ok: true, persistedToCloudSql: false };
@@ -168,6 +181,8 @@ export async function saveModuleACanvasEditsAction(input: {
         lastSynthesizedAt: new Date().toISOString(),
       },
       founderMotivation: input.founderMotivation,
+      teamAndBudget: input.teamAndBudget,
+      founderRealityCheck: input.founderRealityCheck,
     };
 
     if (existingMod.length > 0) {
@@ -175,6 +190,9 @@ export async function saveModuleACanvasEditsAction(input: {
         .update(planModulesData)
         .set({
           structuredInputsJsonb: structuredPayload,
+          ...(input.thingsToConsider
+            ? { aiThingsToConsiderJsonb: input.thingsToConsider }
+            : {}),
           updatedAt: new Date(),
         })
         .where(eq(planModulesData.id, existingMod[0].id));
@@ -183,6 +201,7 @@ export async function saveModuleACanvasEditsAction(input: {
         planId: input.planId,
         moduleCode: 'MOD_A_IDEATION',
         structuredInputsJsonb: structuredPayload,
+        aiThingsToConsiderJsonb: input.thingsToConsider ?? [],
         completionPercentage: 75,
       });
     }

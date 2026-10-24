@@ -36,6 +36,8 @@ import type {
   TeamStructure,
   ActiveStartupPlan,
   SavedFounderMotivation,
+  SavedTeamAndBudget,
+  SavedFounderRealityCheck,
 } from '@/lib/auth/session-store';
 
 export interface AuthActionResult {
@@ -119,6 +121,8 @@ async function buildSessionFromDbUser(
         aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
       };
       founderMotivation?: SavedFounderMotivation;
+      teamAndBudget?: SavedTeamAndBudget;
+      founderRealityCheck?: SavedFounderRealityCheck;
     };
 
     const questionRows = await db
@@ -149,6 +153,8 @@ async function buildSessionFromDbUser(
       brainDumpText: structuredInputs.brainDumpText || plan.oneLinerSummary || '',
       conceptCanvas: structuredInputs.conceptCanvas,
       founderMotivation: structuredInputs.founderMotivation,
+      teamAndBudget: structuredInputs.teamAndBudget,
+      founderRealityCheck: structuredInputs.founderRealityCheck,
       thingsToConsider: Array.isArray(modA?.aiThingsToConsiderJsonb)
         ? modA.aiThingsToConsiderJsonb
         : undefined,
@@ -535,12 +541,25 @@ export async function completeOnboardingAction(input: {
       })
       .returning();
 
+    const initialTeamType =
+      input.teamStructure === 'CO_FOUNDERS'
+        ? 'COFOUNDER_TEAM'
+        : input.teamStructure === 'LOOKING_FOR_COFOUNDER'
+          ? 'SEEKING_COFOUNDER'
+          : 'SOLO_FOUNDER';
+
     await db.insert(planModulesData).values({
       planId: createdPlan.id,
       moduleCode: 'MOD_A_IDEATION',
       structuredInputsJsonb: {
         brainDumpText: cleanSummary,
         exportPotential: input.exportPotential,
+        teamAndBudget: {
+          teamStructureType: initialTeamType,
+          skillCoverage: 'BUILD_IN_HOUSE',
+          startingBudgetBracket: '1K_TO_5K',
+          teamAndFundingNotes: '',
+        },
       },
       aiThingsToConsiderJsonb: [],
       completionPercentage: 15,

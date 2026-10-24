@@ -29,6 +29,70 @@ export interface SavedFounderMotivation {
   twelveMonthSuccessVision: string;
 }
 
+export type PlanTeamStructureType =
+  | 'SOLO_FOUNDER'
+  | 'SEEKING_COFOUNDER'
+  | 'COFOUNDER_TEAM'
+  | 'SOLO_PLUS_CONTRACTORS';
+
+export type TeamSkillCoverageType =
+  | 'BUILD_IN_HOUSE'
+  | 'PARTIAL_SKILLS'
+  | 'NEED_EXTERNAL_BUILDER';
+
+export type StartingBudgetBracket =
+  | 'ZERO_SWEAT_EQUITY'
+  | 'UNDER_1K'
+  | '1K_TO_5K'
+  | '5K_TO_25K'
+  | 'OVER_25K';
+
+export interface SavedTeamAndBudget {
+  teamStructureType: PlanTeamStructureType;
+  skillCoverage: TeamSkillCoverageType;
+  startingBudgetBracket: StartingBudgetBracket;
+  teamAndFundingNotes: string;
+}
+
+export type IndustryConnectionLevel =
+  | 'LIVED_IT_INSIDER'
+  | 'WARM_CONNECTIONS'
+  | 'STARTING_COLD';
+
+export type PersonalIncomeUrgency =
+  | 'NO_RUSH_12M_PLUS'
+  | 'MEDIUM_6_TO_12M'
+  | 'URGENT_1_TO_3M';
+
+export type FounderDealbreakerType =
+  | 'NO_BIG_TEAM'
+  | 'NO_PHYSICAL_PREMISES'
+  | 'NO_COLD_SALES'
+  | 'NO_OUTSIDE_INVESTORS'
+  | 'NO_WEEKEND_SUPPORT';
+
+export type GrowthTradeoffPreference =
+  | 'BOOTSTRAP_100_CONTROL'
+  | 'SHARE_EQUITY_COFOUNDER'
+  | 'NON_DILUTIVE_GRANTS'
+  | 'RAISE_INVESTMENT';
+
+export type BiggestWorryPreset =
+  | 'WILL_THEY_PAY'
+  | 'HOW_TO_BUILD'
+  | 'FINDING_FIRST_10'
+  | 'COMPETITION_OR_AI'
+  | 'TIME_AND_ENERGY';
+
+export interface SavedFounderRealityCheck {
+  industryConnection: IndustryConnectionLevel;
+  personalIncomeUrgency: PersonalIncomeUrgency;
+  dealbreakers: FounderDealbreakerType[];
+  growthTradeoff: GrowthTradeoffPreference;
+  biggestWorryPreset: BiggestWorryPreset;
+  biggestWorryNotes: string;
+}
+
 export interface SavedConceptCanvas {
   coreProblem: string;
   targetCustomer: string;
@@ -82,6 +146,8 @@ export interface ActiveStartupPlan {
   brainDumpText?: string;
   conceptCanvas?: SavedConceptCanvas;
   founderMotivation?: SavedFounderMotivation;
+  teamAndBudget?: SavedTeamAndBudget;
+  founderRealityCheck?: SavedFounderRealityCheck;
   thingsToConsider?: BlindSpotItem[];
   openQuestions: string[];
 }
@@ -265,6 +331,13 @@ export function completeFounderOnboarding(params: {
       ? [params.hqCountryCode, 'GB', 'EU', 'US']
       : [params.hqCountryCode];
 
+  const initialTeamType: PlanTeamStructureType =
+    params.teamStructure === 'CO_FOUNDERS'
+      ? 'COFOUNDER_TEAM'
+      : params.teamStructure === 'LOOKING_FOR_COFOUNDER'
+        ? 'SEEKING_COFOUNDER'
+        : 'SOLO_FOUNDER';
+
   const firstPlan: ActiveStartupPlan = {
     id: planId,
     title: params.planTitle.trim() || 'My First Unicorn Idea',
@@ -278,6 +351,12 @@ export function completeFounderOnboarding(params: {
     exportPotential: params.exportPotential,
     currentModuleStep: 'MOD_A_STEP_1',
     brainDumpText: params.oneLinerSummary.trim() || '',
+    teamAndBudget: {
+      teamStructureType: initialTeamType,
+      skillCoverage: 'BUILD_IN_HOUSE',
+      startingBudgetBracket: '1K_TO_5K',
+      teamAndFundingNotes: '',
+    },
     openQuestions: [
       `Validate urgent buyer pain points with 5 target customers in ${countryPack.countryName}.`,
     ],

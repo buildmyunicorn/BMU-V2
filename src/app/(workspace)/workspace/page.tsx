@@ -35,6 +35,11 @@ import {
   Loader2,
   Pencil,
   Save,
+  Download,
+  Printer,
+  Copy,
+  Eye,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,6 +75,16 @@ import {
   type SavedFounderMotivation,
   type FounderMotivationType,
   type FounderWeeklyHours,
+  type SavedTeamAndBudget,
+  type PlanTeamStructureType,
+  type TeamSkillCoverageType,
+  type StartingBudgetBracket,
+  type SavedFounderRealityCheck,
+  type IndustryConnectionLevel,
+  type PersonalIncomeUrgency,
+  type FounderDealbreakerType,
+  type GrowthTradeoffPreference,
+  type BiggestWorryPreset,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -80,6 +95,22 @@ import {
   saveModuleACanvasEditsAction,
   parkOpenQuestionAction,
 } from '@/app/actions/module-a';
+import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
+import {
+  buildModuleAMarkdownBrief,
+  buildModuleAStandaloneHtmlDocument,
+  formatStartingBudgetBracket,
+  MOTIVATION_LABELS,
+  WEEKLY_HOURS_LABELS,
+  TEAM_STRUCTURE_LABELS,
+  SKILL_COVERAGE_LABELS,
+  INDUSTRY_CONNECTION_LABELS,
+  INCOME_URGENCY_LABELS,
+  DEALBREAKER_LABELS,
+  GROWTH_TRADEOFF_LABELS,
+  BIGGEST_WORRY_LABELS,
+  type ModuleABriefData,
+} from '@/lib/export/module-a-brief';
 import type { BlindSpotItem } from '@/db/schema';
 
 const MODULES_LIST: Array<{
@@ -188,7 +219,7 @@ export default function WorkspacePage() {
     null
   );
 
-  // Module A Step 2, Step 3 & Step 4 Live State
+  // Module A Step 2, Step 3, Step 4 & Step 5 Live State
   const [conceptCanvas, setConceptCanvas] = useState<SavedConceptCanvas | null>(
     null
   );
@@ -197,6 +228,21 @@ export default function WorkspacePage() {
       primaryMotivation: 'LEAVE_JOB',
       weeklyHoursAvailable: '15_TO_25_HRS',
       twelveMonthSuccessVision: '',
+    });
+  const [teamAndBudget, setTeamAndBudget] = useState<SavedTeamAndBudget>({
+    teamStructureType: 'SOLO_FOUNDER',
+    skillCoverage: 'BUILD_IN_HOUSE',
+    startingBudgetBracket: '1K_TO_5K',
+    teamAndFundingNotes: '',
+  });
+  const [founderRealityCheck, setFounderRealityCheck] =
+    useState<SavedFounderRealityCheck>({
+      industryConnection: 'WARM_CONNECTIONS',
+      personalIncomeUrgency: 'MEDIUM_6_TO_12M',
+      dealbreakers: ['NO_PHYSICAL_PREMISES'],
+      growthTradeoff: 'NON_DILUTIVE_GRANTS',
+      biggestWorryPreset: 'FINDING_FIRST_10',
+      biggestWorryNotes: '',
     });
   const [thingsToConsider, setThingsToConsider] = useState<BlindSpotItem[]>([]);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
@@ -220,6 +266,22 @@ export default function WorkspacePage() {
       }
       if (activePlan.founderMotivation) {
         setFounderMotivation(activePlan.founderMotivation);
+      }
+      if (activePlan.teamAndBudget) {
+        setTeamAndBudget(activePlan.teamAndBudget);
+      } else if (loaded.user.teamStructure) {
+        setTeamAndBudget((prev) => ({
+          ...prev,
+          teamStructureType:
+            loaded.user.teamStructure === 'CO_FOUNDERS'
+              ? 'COFOUNDER_TEAM'
+              : loaded.user.teamStructure === 'LOOKING_FOR_COFOUNDER'
+                ? 'SEEKING_COFOUNDER'
+                : 'SOLO_FOUNDER',
+        }));
+      }
+      if (activePlan.founderRealityCheck) {
+        setFounderRealityCheck(activePlan.founderRealityCheck);
       }
       if (activePlan.thingsToConsider?.length) {
         setThingsToConsider(activePlan.thingsToConsider);
@@ -249,6 +311,12 @@ export default function WorkspacePage() {
             }
             if (dbPlan.founderMotivation) {
               setFounderMotivation(dbPlan.founderMotivation);
+            }
+            if (dbPlan.teamAndBudget) {
+              setTeamAndBudget(dbPlan.teamAndBudget);
+            }
+            if (dbPlan.founderRealityCheck) {
+              setFounderRealityCheck(dbPlan.founderRealityCheck);
             }
             if (dbPlan.thingsToConsider?.length) {
               setThingsToConsider(dbPlan.thingsToConsider);
@@ -400,6 +468,29 @@ export default function WorkspacePage() {
         twelveMonthSuccessVision: '',
       }
     );
+    setTeamAndBudget(
+      found.teamAndBudget || {
+        teamStructureType:
+          session.user.teamStructure === 'CO_FOUNDERS'
+            ? 'COFOUNDER_TEAM'
+            : session.user.teamStructure === 'LOOKING_FOR_COFOUNDER'
+              ? 'SEEKING_COFOUNDER'
+              : 'SOLO_FOUNDER',
+        skillCoverage: 'BUILD_IN_HOUSE',
+        startingBudgetBracket: '1K_TO_5K',
+        teamAndFundingNotes: '',
+      }
+    );
+    setFounderRealityCheck(
+      found.founderRealityCheck || {
+        industryConnection: 'WARM_CONNECTIONS',
+        personalIncomeUrgency: 'MEDIUM_6_TO_12M',
+        dealbreakers: ['NO_PHYSICAL_PREMISES'],
+        growthTradeoff: 'NON_DILUTIVE_GRANTS',
+        biggestWorryPreset: 'FINDING_FIRST_10',
+        biggestWorryNotes: '',
+      }
+    );
     setThingsToConsider(found.thingsToConsider || []);
     if (found.openQuestions) setOpenQuestions(found.openQuestions);
     setPlanDropdownOpen(false);
@@ -431,6 +522,19 @@ export default function WorkspacePage() {
     revenueAndGrantFit: '',
   };
 
+  // Live-computed 6-card Blind-Spot review that updates immediately as Steps 1-5 change
+  const liveThingsToConsider: BlindSpotItem[] = buildDynamicModuleABlindSpots({
+    planTitle: currentPlan.title,
+    brainDumpText,
+    industryCategory: currentPlan.industryCategory,
+    hqCountryCode: selectedCountry,
+    exportPotential: currentPlan.exportPotential,
+    conceptCanvas: effectiveCanvas,
+    founderMotivation,
+    teamAndBudget,
+    founderRealityCheck,
+  });
+
   async function handleTidyUpNotesWithAi() {
     if (!aiCreditCheck.allowed) {
       setPaywallModalFeature(
@@ -453,6 +557,8 @@ export default function WorkspacePage() {
         exportPotential: currentPlan.exportPotential,
         draftCanvas: effectiveCanvas,
         founderMotivation,
+        teamAndBudget,
+        founderRealityCheck,
       });
 
       setConceptCanvas(result.canvas);
@@ -466,6 +572,8 @@ export default function WorkspacePage() {
               brainDumpText,
               conceptCanvas: result.canvas,
               founderMotivation,
+              teamAndBudget,
+              founderRealityCheck,
               thingsToConsider: result.thingsToConsider,
             }
           : p
@@ -500,8 +608,12 @@ export default function WorkspacePage() {
         exportPotential: currentPlan.exportPotential,
         canvas: toSave,
         founderMotivation,
+        teamAndBudget,
+        founderRealityCheck,
+        thingsToConsider: liveThingsToConsider,
       });
       setConceptCanvas(toSave);
+      setThingsToConsider(liveThingsToConsider);
       setIsEditingCanvas(false);
 
       const updatedPlans = session.plans.map((p) =>
@@ -511,6 +623,9 @@ export default function WorkspacePage() {
               brainDumpText,
               conceptCanvas: toSave,
               founderMotivation,
+              teamAndBudget,
+              founderRealityCheck,
+              thingsToConsider: liveThingsToConsider,
             }
           : p
       );
@@ -518,9 +633,209 @@ export default function WorkspacePage() {
       setSession(updatedSession);
       saveBmuSession(updatedSession);
 
-      setSynthesisBanner('✅ Your notes have been saved!');
+      setSynthesisBanner('✅ Your notes and Step 6 Blind-Spot Review have been updated and saved!');
     } finally {
       setIsSavingCanvas(false);
+    }
+  }
+
+  // Step 7: Live-Synced Startup Concept & Readiness Brief Data + Readiness Checklist
+  const [showBriefPreview, setShowBriefPreview] = useState(true);
+  const [briefCopied, setBriefCopied] = useState(false);
+
+  const briefGeneratedDate = new Date().toLocaleDateString('en-IE', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  const canvasBoxValues = [
+    effectiveCanvas.coreProblem,
+    effectiveCanvas.targetCustomer,
+    effectiveCanvas.proposedSolution,
+    effectiveCanvas.unfairAdvantage,
+    effectiveCanvas.revenueAndGrantFit,
+  ];
+  const filledCanvasBoxesCount = canvasBoxValues.filter(
+    (val) => val.trim().length > 5
+  ).length;
+
+  const moduleAReadinessSteps = [
+    {
+      stepNumber: 1,
+      label: 'Raw Idea Capture',
+      isComplete: brainDumpText.trim().length >= 20,
+      summary:
+        brainDumpText.trim().length >= 20
+          ? `${brainDumpText.trim().split(/\s+/).length} words captured`
+          : 'Write your raw idea in Step 1 (at least a sentence)',
+    },
+    {
+      stepNumber: 2,
+      label: '1-Page Concept Canvas',
+      isComplete: filledCanvasBoxesCount === 5,
+      summary:
+        filledCanvasBoxesCount === 5
+          ? 'All 5/5 concept canvas boxes answered'
+          : `${filledCanvasBoxesCount}/5 concept boxes answered in Step 2`,
+    },
+    {
+      stepNumber: 3,
+      label: 'Personal Ambition & Weekly Time',
+      isComplete: Boolean(
+        founderMotivation.primaryMotivation &&
+          founderMotivation.weeklyHoursAvailable &&
+          founderMotivation.twelveMonthSuccessVision.trim().length > 5
+      ),
+      summary:
+        founderMotivation.twelveMonthSuccessVision.trim().length > 5
+          ? `${MOTIVATION_LABELS[founderMotivation.primaryMotivation].replace(/^[^\w]+/, '')} • ${WEEKLY_HOURS_LABELS[founderMotivation.weeklyHoursAvailable]}`
+          : 'Add your 12-month success vision note in Step 3',
+    },
+    {
+      stepNumber: 4,
+      label: 'Team Structure & Starting Budget',
+      isComplete: Boolean(
+        teamAndBudget.teamStructureType &&
+          teamAndBudget.skillCoverage &&
+          teamAndBudget.startingBudgetBracket &&
+          teamAndBudget.teamAndFundingNotes.trim().length > 5
+      ),
+      summary:
+        teamAndBudget.teamAndFundingNotes.trim().length > 5
+          ? `${TEAM_STRUCTURE_LABELS[teamAndBudget.teamStructureType].replace(/^[^\w]+/, '')} • ${formatStartingBudgetBracket(teamAndBudget.startingBudgetBracket, countryPack.defaultCurrency)}`
+          : 'Add your team & budget plan notes in Step 4',
+    },
+    {
+      stepNumber: 5,
+      label: 'Reality Check & Non-Negotiables',
+      isComplete: Boolean(
+        founderRealityCheck.industryConnection &&
+          founderRealityCheck.personalIncomeUrgency &&
+          founderRealityCheck.dealbreakers.length > 0 &&
+          founderRealityCheck.growthTradeoff &&
+          founderRealityCheck.biggestWorryPreset &&
+          founderRealityCheck.biggestWorryNotes.trim().length > 5
+      ),
+      summary:
+        founderRealityCheck.biggestWorryNotes.trim().length > 5
+          ? `${founderRealityCheck.dealbreakers.length} dealbreaker(s) • ${GROWTH_TRADEOFF_LABELS[founderRealityCheck.growthTradeoff].replace(/^[^\w]+/, '')}`
+          : 'Write a quick note on your #1 worry in Step 5',
+    },
+    {
+      stepNumber: 6,
+      label: 'Co-Founder Blind-Spot Review',
+      isComplete:
+        liveThingsToConsider.length >= 6 && filledCanvasBoxesCount === 5,
+      summary:
+        filledCanvasBoxesCount === 5
+          ? `${liveThingsToConsider.length} tailored blind-spot cards reviewed`
+          : `${liveThingsToConsider.length} live cards adapting as you answer Steps 1–5`,
+    },
+  ];
+
+  const completedReadinessCount = moduleAReadinessSteps.filter(
+    (s) => s.isComplete
+  ).length;
+
+  // Granular live progress percentage across all 20 required inputs in Module A (Steps 1-6)
+  const moduleACheckpoints = [
+    brainDumpText.trim().length >= 20,
+    effectiveCanvas.coreProblem.trim().length > 5,
+    effectiveCanvas.targetCustomer.trim().length > 5,
+    effectiveCanvas.proposedSolution.trim().length > 5,
+    effectiveCanvas.unfairAdvantage.trim().length > 5,
+    effectiveCanvas.revenueAndGrantFit.trim().length > 5,
+    Boolean(founderMotivation.primaryMotivation),
+    Boolean(founderMotivation.weeklyHoursAvailable),
+    founderMotivation.twelveMonthSuccessVision.trim().length > 5,
+    Boolean(teamAndBudget.teamStructureType),
+    Boolean(teamAndBudget.skillCoverage),
+    Boolean(teamAndBudget.startingBudgetBracket),
+    teamAndBudget.teamAndFundingNotes.trim().length > 5,
+    Boolean(founderRealityCheck.industryConnection),
+    Boolean(founderRealityCheck.personalIncomeUrgency),
+    founderRealityCheck.dealbreakers.length > 0,
+    Boolean(founderRealityCheck.growthTradeoff),
+    Boolean(founderRealityCheck.biggestWorryPreset),
+    founderRealityCheck.biggestWorryNotes.trim().length > 5,
+    liveThingsToConsider.length >= 6,
+  ];
+  const moduleAProgressPercent = Math.round(
+    (moduleACheckpoints.filter(Boolean).length / moduleACheckpoints.length) *
+      100
+  );
+
+  const moduleABriefData: ModuleABriefData = {
+    planTitle: currentPlan.title,
+    founderName: session.user.name,
+    industryCategory: currentPlan.industryCategory,
+    hqCountryCode: selectedCountry,
+    exportPotential: currentPlan.exportPotential,
+    brainDumpText,
+    conceptCanvas: effectiveCanvas,
+    founderMotivation,
+    teamAndBudget,
+    founderRealityCheck,
+    thingsToConsider: liveThingsToConsider,
+    openQuestions,
+    whiteLabelEnabled: activeEntitlement.whiteLabelExportEnabled,
+  };
+
+  function handleDownloadBriefHtml() {
+    if (!activeEntitlement.isVaultReadonly) {
+      handleSaveCanvasEdits().catch(() => {});
+    }
+    const htmlContent = buildModuleAStandaloneHtmlDocument(moduleABriefData);
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeSlug =
+      currentPlan.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'startup';
+    link.href = url;
+    link.download = `${safeSlug}-concept-readiness-brief.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setSynthesisBanner(
+      '📄 Downloaded your standalone Startup Concept & Readiness Brief (.html)!'
+    );
+  }
+
+  function handlePrintBriefPdf() {
+    if (!activeEntitlement.isVaultReadonly) {
+      handleSaveCanvasEdits().catch(() => {});
+    }
+    const htmlContent = buildModuleAStandaloneHtmlDocument(moduleABriefData);
+    const printWindow = window.open('', '_blank', 'width=960,height=800');
+    if (!printWindow) {
+      handleDownloadBriefHtml();
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  }
+
+  async function handleCopyBriefMarkdown() {
+    const markdown = buildModuleAMarkdownBrief(moduleABriefData);
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setBriefCopied(true);
+      setSynthesisBanner(
+        '📋 Copied your complete Module A Startup Concept & Readiness Brief to clipboard!'
+      );
+      setTimeout(() => setBriefCopied(false), 3000);
+    } catch {
+      // Fallback if clipboard API is restricted
     }
   }
 
@@ -760,14 +1075,32 @@ export default function WorkspacePage() {
                         {!access.allowed ? (
                           <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                         ) : isCurrent ? (
-                          <span className="text-[10px] font-semibold text-indigo-600">
-                            75%
+                          <span
+                            className={`text-[10px] font-bold ${
+                              moduleAProgressPercent === 100
+                                ? 'text-emerald-600'
+                                : 'text-indigo-600'
+                            }`}
+                          >
+                            {moduleAProgressPercent}%
                           </span>
                         ) : null}
                       </div>
                       <p className="mt-0.5 truncate text-[11px] text-slate-500">
                         {mod.subtitle}
                       </p>
+                      {isCurrent && (
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-indigo-100">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              moduleAProgressPercent === 100
+                                ? 'bg-emerald-500'
+                                : 'bg-indigo-600'
+                            }`}
+                            style={{ width: `${moduleAProgressPercent}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </button>
                 );
@@ -805,7 +1138,7 @@ export default function WorkspacePage() {
                 <div className="flex items-center gap-2">
                   <Badge variant="default">Module A • Ideation</Badge>
                   <span className="text-xs font-medium text-slate-500">
-                    Step 1 &amp; 2 of 4: Idea Brain Dump → 1-Page Concept Canvas
+                    Steps 1–7: Idea → Canvas → Why → Team &amp; Budget → Reality Check → Blind-Spots → Download Brief
                   </span>
                 </div>
                 <h1 className="mt-2 text-xl font-bold text-slate-900">
@@ -1061,66 +1394,23 @@ export default function WorkspacePage() {
           {/* STEP 2: FLESH OUT YOUR IDEA (USER-TYPED 5-BLOCK CONCEPT CANVAS + AI TIDY UP) */}
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Sparkles className="h-4 w-4 text-indigo-600" />
-                    Step 2: Flesh Out Your Idea (1-Page Concept Canvas)
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    Type your thoughts into the 5 boxes below to help you think
-                    through how your idea works.{' '}
-                    <strong className="text-slate-700">
-                      There are no right or wrong answers
-                    </strong>{' '}
-                    — write in plain English, save your exact notes, or click{' '}
-                    <strong className="text-indigo-700">
-                      Tidy Up My Notes with AI
-                    </strong>{' '}
-                    anytime to polish your wording.
-                  </CardDescription>
-                </div>
-                {!activeEntitlement.isVaultReadonly && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isSavingCanvas || isSynthesizing}
-                      onClick={handleSaveCanvasEdits}
-                    >
-                      {isSavingCanvas ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-3.5 w-3.5" />
-                          Save My Notes
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={isSynthesizing || isSavingCanvas}
-                      onClick={handleTidyUpNotesWithAi}
-                    >
-                      {isSynthesizing ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Tidying Up Your Notes...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-3.5 w-3.5" />
-                          Tidy Up My Notes with AI
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Sparkles className="h-4 w-4 text-indigo-600" />
+                  Step 2: Flesh Out Your Idea (1-Page Concept Canvas)
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Type your thoughts into the 5 boxes below to help you think
+                  through how your idea works.{' '}
+                  <strong className="text-slate-700">
+                    There are no right or wrong answers
+                  </strong>{' '}
+                  — write in plain English, save your exact notes, or click{' '}
+                  <strong className="text-indigo-700">
+                    Tidy Up My Notes with AI
+                  </strong>{' '}
+                  at the bottom of this card anytime to polish your wording.
+                </CardDescription>
               </div>
 
               {synthesisBanner && (
@@ -1270,45 +1560,71 @@ export default function WorkspacePage() {
                   />
                 </div>
               </div>
+
+              {/* Step 2 Bottom Save & AI Tidy Up Bar */}
+              {!activeEntitlement.isVaultReadonly && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
+                  <div className="text-xs text-slate-500">
+                    💡 Save your own notes directly, or let Ask Unicorn tidy up your wording while keeping your meaning.
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isSavingCanvas || isSynthesizing}
+                      onClick={handleSaveCanvasEdits}
+                    >
+                      {isSavingCanvas ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-3.5 w-3.5" />
+                          Save My Notes
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isSynthesizing || isSavingCanvas}
+                      onClick={handleTidyUpNotesWithAi}
+                    >
+                      {isSynthesizing ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Tidying Up Your Notes...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Tidy Up My Notes with AI
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* STEP 3: YOUR PERSONAL "WHY" & AMBITION (FOUNDER MOTIVATION) */}
           <Card>
             <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                      3
-                    </span>
-                    Step 3: Your Personal &ldquo;Why&rdquo; &amp; Ambition
-                    <Badge variant="success">No Right or Wrong Answer</Badge>
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    Build My Unicorn adapts its coaching to match <strong>your</strong> personal goals — whether you want to replace your 9-to-5 salary, build a weekend side hustle, champion a mission, or scale a venture-backed company.
-                  </CardDescription>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isSavingCanvas || activeEntitlement.isVaultReadonly}
-                    onClick={handleSaveCanvasEdits}
-                  >
-                    {isSavingCanvas ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-3.5 w-3.5" />
-                        Save My Motivation
-                      </>
-                    )}
-                  </Button>
-                </div>
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                    3
+                  </span>
+                  Step 3: Your Personal &ldquo;Why&rdquo; &amp; Ambition
+                  <Badge variant="success">No Right or Wrong Answer</Badge>
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Build My Unicorn adapts its coaching to match <strong>your</strong> personal goals — whether you want to replace your 9-to-5 salary, build a weekend side hustle, champion a mission, or scale a venture-backed company.
+                </CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -1468,10 +1784,782 @@ export default function WorkspacePage() {
                   className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
                 />
               </div>
+
+              {/* Step 3 Bottom Save Bar */}
+              {!activeEntitlement.isVaultReadonly && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
+                  <div className="text-xs text-slate-500">
+                    🎯 Your personal ambition shapes how Ask Unicorn coaches you across Modules A–G.
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isSavingCanvas}
+                    onClick={handleSaveCanvasEdits}
+                  >
+                    {isSavingCanvas ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3.5 w-3.5" />
+                        Save My Motivation
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* STEP 4: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARD */}
+          {/* STEP 4: YOUR TEAM & STARTING BUDGET (DAY-1 RESOURCES) */}
+          <Card>
+            <CardHeader>
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                    4
+                  </span>
+                  Step 4: Your Team &amp; Starting Budget (Day-1 Resources)
+                  <Badge variant="secondary">Realistic Guardrails</Badge>
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Whether you are a solo founder bootstrapping with{' '}
+                  {formatPlanCurrency(0, countryPack.defaultCurrency)} or a
+                  co-founder team with savings ready to invest, knowing your
+                  starting team and budget helps us tailor your MVP path and{' '}
+                  {countryPack.countryName} grant options.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* 1. Team Structure Cards */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  1. Who is building this right now? (Solo vs. Team)
+                </label>
+                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {(
+                    [
+                      {
+                        id: 'SOLO_FOUNDER' as PlanTeamStructureType,
+                        emoji: '👤',
+                        title: 'Flying Solo (100% Me)',
+                        subtitle:
+                          'I am building, testing, and running this on my own for now.',
+                      },
+                      {
+                        id: 'SEEKING_COFOUNDER' as PlanTeamStructureType,
+                        emoji: '🤝',
+                        title: 'Solo, Looking for a Co-Founder',
+                        subtitle:
+                          'Starting alone today, but I want to bring on a partner to share skills & workload.',
+                      },
+                      {
+                        id: 'COFOUNDER_TEAM' as PlanTeamStructureType,
+                        emoji: '👥',
+                        title: 'Co-Founder Team (2+ Founders)',
+                        subtitle:
+                          'We are splitting ownership and building this business together.',
+                      },
+                      {
+                        id: 'SOLO_PLUS_CONTRACTORS' as PlanTeamStructureType,
+                        emoji: '🛠️',
+                        title: 'Solo + Freelancers / Agency',
+                        subtitle:
+                          'I own it solo, bringing in paid contractors or specialists for specific tasks.',
+                      },
+                    ] as const
+                  ).map((option) => {
+                    const isSelected =
+                      teamAndBudget.teamStructureType === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() =>
+                          setTeamAndBudget({
+                            ...teamAndBudget,
+                            teamStructureType: option.id,
+                          })
+                        }
+                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        } disabled:opacity-60`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xl">{option.emoji}</span>
+                            {isSelected && (
+                              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-2 text-xs font-bold text-slate-900">
+                            {option.title}
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            {option.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. In-House Skill Coverage Check */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  2. Do you have the skills in-house to build &amp; deliver Version 1?
+                </label>
+                <div className="mt-2 flex flex-wrap gap-2.5">
+                  {(
+                    [
+                      {
+                        id: 'BUILD_IN_HOUSE' as TeamSkillCoverageType,
+                        label:
+                          '✅ Yes — I/we can build & deliver Version 1 ourselves',
+                      },
+                      {
+                        id: 'PARTIAL_SKILLS' as TeamSkillCoverageType,
+                        label:
+                          '🧩 Mostly — I/we have domain/sales skills, but need help with tech or build',
+                      },
+                      {
+                        id: 'NEED_EXTERNAL_BUILDER' as TeamSkillCoverageType,
+                        label:
+                          '🚨 No — I/we will need to hire someone or find a co-founder to build it',
+                      },
+                    ] as const
+                  ).map((pill) => {
+                    const isSelected =
+                      teamAndBudget.skillCoverage === pill.id;
+                    return (
+                      <button
+                        key={pill.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() =>
+                          setTeamAndBudget({
+                            ...teamAndBudget,
+                            skillCoverage: pill.id,
+                          })
+                        }
+                        className={`rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                        } disabled:opacity-60`}
+                      >
+                        {pill.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Starting Capital / Investment Buckets */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  3. How much money do you have to invest in getting this idea started? ({countryPack.defaultCurrency})
+                </label>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Pick the bucket that feels realistic for your personal savings or current team kitty — we use this to protect your cashflow and check grant match-funding rules.
+                </p>
+                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  {(
+                    [
+                      {
+                        id: 'ZERO_SWEAT_EQUITY' as StartingBudgetBracket,
+                        emoji: '🌱',
+                        amountLabel: `${formatPlanCurrency(0, countryPack.defaultCurrency)} (Sweat Equity)`,
+                        subtitle:
+                          'Bootstrapping with my time, free tools, and early customer pre-sales only.',
+                      },
+                      {
+                        id: 'UNDER_1K' as StartingBudgetBracket,
+                        emoji: '☕',
+                        amountLabel: `Under ${formatPlanCurrency(1000, countryPack.defaultCurrency)}`,
+                        subtitle:
+                          'Micro-budget for a domain, basic software tools, and scrappy validation tests.',
+                      },
+                      {
+                        id: '1K_TO_5K' as StartingBudgetBracket,
+                        emoji: '🧱',
+                        amountLabel: `${formatPlanCurrency(1000, countryPack.defaultCurrency)} – ${formatPlanCurrency(5000, countryPack.defaultCurrency)}`,
+                        subtitle:
+                          'Seed savings for a lean prototype, company registration, and initial marketing.',
+                      },
+                      {
+                        id: '5K_TO_25K' as StartingBudgetBracket,
+                        emoji: '🚀',
+                        amountLabel: `${formatPlanCurrency(5000, countryPack.defaultCurrency)} – ${formatPlanCurrency(25000, countryPack.defaultCurrency)}`,
+                        subtitle:
+                          'Solid runway to fund MVP build, equipment, or upfront match-funding for state grants.',
+                      },
+                      {
+                        id: 'OVER_25K' as StartingBudgetBracket,
+                        emoji: '🏦',
+                        amountLabel: `${formatPlanCurrency(25000, countryPack.defaultCurrency)}+`,
+                        subtitle:
+                          'Well capitalized with personal funds or early backing ready to deploy carefully.',
+                      },
+                    ] as const
+                  ).map((bucket) => {
+                    const isSelected =
+                      teamAndBudget.startingBudgetBracket === bucket.id;
+                    return (
+                      <button
+                        key={bucket.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() =>
+                          setTeamAndBudget({
+                            ...teamAndBudget,
+                            startingBudgetBracket: bucket.id,
+                          })
+                        }
+                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                          isSelected
+                            ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        } disabled:opacity-60`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xl">{bucket.emoji}</span>
+                            {isSelected && (
+                              <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-2 text-xs font-bold text-slate-900">
+                            {bucket.amountLabel}
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            {bucket.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 4. Deeper Team & Funding Notes */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  4. Go Deeper: Tell us about your team skills, missing roles, or how you plan to fund the gap
+                </label>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  E.g., &ldquo;I have 8 years in grocery retail operations, looking for a technical co-founder&rdquo; or &ldquo;Putting in {formatPlanCurrency(3000, countryPack.defaultCurrency)} from savings and hoping to apply for {countryGrants[0]?.grantName || 'a local feasibility grant'}&rdquo;.
+                </p>
+                <textarea
+                  rows={3}
+                  disabled={activeEntitlement.isVaultReadonly}
+                  value={teamAndBudget.teamAndFundingNotes}
+                  onChange={(e) =>
+                    setTeamAndBudget({
+                      ...teamAndBudget,
+                      teamAndFundingNotes: e.target.value,
+                    })
+                  }
+                  placeholder="Write any extra details about who is involved, what skills you need, or your budget plans..."
+                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                />
+              </div>
+
+              {/* Step 4 Bottom Save Bar */}
+              {!activeEntitlement.isVaultReadonly && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
+                  <div className="text-xs text-slate-500">
+                    🛡️ Your team setup and {countryPack.defaultCurrency} starting budget automatically update your blind-spot guardrails below.
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isSavingCanvas}
+                    onClick={handleSaveCanvasEdits}
+                  >
+                    {isSavingCanvas ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3.5 w-3.5" />
+                        Save Team &amp; Budget
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* STEP 5: FOUNDER FIT, DEALBREAKERS & REALITY CHECK */}
+          <Card>
+            <CardHeader>
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                    5
+                  </span>
+                  Step 5: Founder Fit, Dealbreakers &amp; Reality Check
+                  <Badge variant="secondary">Protect Your Sanity</Badge>
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Before you start building or spending money, let&apos;s make sure
+                  this business fits your real life — your industry contacts, how
+                  soon you need a personal wage, what you refuse to do, and your
+                  honest #1 worry.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* 1. Insider Advantage & Warm Contacts ("The Monday Morning Test") */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  1. The Monday Morning Test: How well do you know this industry &amp; your first 5 buyers?
+                </label>
+                <div className="mt-2.5 grid grid-cols-1 gap-3 md:grid-cols-3">
+                  {(
+                    [
+                      {
+                        id: 'LIVED_IT_INSIDER' as IndustryConnectionLevel,
+                        emoji: '🔑',
+                        title: 'I’ve Lived It (Industry Insider)',
+                        subtitle:
+                          'I worked in this industry or experienced this exact problem firsthand — I already know the jargon and key buyers.',
+                      },
+                      {
+                        id: 'WARM_CONNECTIONS' as IndustryConnectionLevel,
+                        emoji: '🤝',
+                        title: 'I Know a Few People (Warm Network)',
+                        subtitle:
+                          'I could message 3–5 target buyers on WhatsApp or LinkedIn on Monday morning to ask for honest feedback.',
+                      },
+                      {
+                        id: 'STARTING_COLD' as IndustryConnectionLevel,
+                        emoji: '🧭',
+                        title: 'Starting Cold (Outsider)',
+                        subtitle:
+                          'I spotted this opportunity from the outside and don’t personally know target buyers yet.',
+                      },
+                    ] as const
+                  ).map((option) => {
+                    const isSelected =
+                      founderRealityCheck.industryConnection === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() =>
+                          setFounderRealityCheck({
+                            ...founderRealityCheck,
+                            industryConnection: option.id,
+                          })
+                        }
+                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        } disabled:opacity-60`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xl">{option.emoji}</span>
+                            {isSelected && (
+                              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-2 text-xs font-bold text-slate-900">
+                            {option.title}
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            {option.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Personal Income Urgency */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  2. Personal Income Pressure: How soon do you need this business to pay you a personal wage?
+                </label>
+                <div className="mt-2 flex flex-wrap gap-2.5">
+                  {(
+                    [
+                      {
+                        id: 'NO_RUSH_12M_PLUS' as PersonalIncomeUrgency,
+                        label:
+                          '🛡️ No Rush (12+ Months) — Covered by day job, partner, or savings',
+                      },
+                      {
+                        id: 'MEDIUM_6_TO_12M' as PersonalIncomeUrgency,
+                        label:
+                          '⏳ Within 6–12 Months — Need steady progress toward replacing income',
+                      },
+                      {
+                        id: 'URGENT_1_TO_3M' as PersonalIncomeUrgency,
+                        label:
+                          '⚡ Urgent (Within 1–3 Months) — I need fast cashflow from customers now',
+                      },
+                    ] as const
+                  ).map((pill) => {
+                    const isSelected =
+                      founderRealityCheck.personalIncomeUrgency === pill.id;
+                    return (
+                      <button
+                        key={pill.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() =>
+                          setFounderRealityCheck({
+                            ...founderRealityCheck,
+                            personalIncomeUrgency: pill.id,
+                          })
+                        }
+                        className={`rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                        } disabled:opacity-60`}
+                      >
+                        {pill.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Lifestyle Dealbreakers / Anti-Goals (Multi-Select) */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  3. Your Dealbreakers (Anti-Goals): What do you REFUSE to do in this business? (Select all that apply)
+                </label>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Plenty of founders accidentally build a business they hate running. Pick your boundaries now so our AI never pushes you into the wrong model.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(
+                    [
+                      {
+                        id: 'NO_BIG_TEAM' as FounderDealbreakerType,
+                        label: '🚫 I don’t want to manage a big team of staff',
+                      },
+                      {
+                        id: 'NO_PHYSICAL_PREMISES' as FounderDealbreakerType,
+                        label:
+                          '🚫 I don’t want a physical shop, lease, or warehouse',
+                      },
+                      {
+                        id: 'NO_COLD_SALES' as FounderDealbreakerType,
+                        label:
+                          '🚫 I hate cold calling & high-pressure B2B enterprise sales',
+                      },
+                      {
+                        id: 'NO_OUTSIDE_INVESTORS' as FounderDealbreakerType,
+                        label:
+                          '🚫 I don’t want VCs or outside investors telling me what to do',
+                      },
+                      {
+                        id: 'NO_WEEKEND_SUPPORT' as FounderDealbreakerType,
+                        label:
+                          '🚫 I don’t want 24/7 customer emergencies on weekends',
+                      },
+                    ] as const
+                  ).map((item) => {
+                    const isChecked =
+                      founderRealityCheck.dealbreakers.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() => {
+                          const exists =
+                            founderRealityCheck.dealbreakers.includes(item.id);
+                          const next = exists
+                            ? founderRealityCheck.dealbreakers.filter(
+                                (d) => d !== item.id
+                              )
+                            : [...founderRealityCheck.dealbreakers, item.id];
+                          setFounderRealityCheck({
+                            ...founderRealityCheck,
+                            dealbreakers: next,
+                          });
+                        }}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
+                          isChecked
+                            ? 'border-rose-600 bg-rose-50 font-semibold text-rose-900 ring-1 ring-rose-600/20'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                        } disabled:opacity-60`}
+                      >
+                        {isChecked && (
+                          <Check className="h-3.5 w-3.5 text-rose-600" />
+                        )}
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 4. Ownership, Grants & Control Trade-Off */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  4. Ownership &amp; Funding Philosophy: How do you feel about sharing equity vs. staying 100% in control?
+                </label>
+                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {(
+                    [
+                      {
+                        id: 'BOOTSTRAP_100_CONTROL' as GrowthTradeoffPreference,
+                        emoji: '👑',
+                        title: '100% My Own Boss (Bootstrap)',
+                        subtitle:
+                          'Grow at my own pace using customer revenue — keep 100% ownership and total freedom.',
+                      },
+                      {
+                        id: 'NON_DILUTIVE_GRANTS' as GrowthTradeoffPreference,
+                        emoji: '🏛️',
+                        title: 'Customer Sales + State Grants',
+                        subtitle: `Keep my equity while tapping ${countryPack.countryName} non-dilutive grants (${countryGrants[0]?.grantName || 'local enterprise support'}).`,
+                      },
+                      {
+                        id: 'SHARE_EQUITY_COFOUNDER' as GrowthTradeoffPreference,
+                        emoji: '🤝',
+                        title: 'Share Equity with a Co-Founder',
+                        subtitle:
+                          'Happy to split ownership with the right partner so I don’t have to carry the whole load alone.',
+                      },
+                      {
+                        id: 'RAISE_INVESTMENT' as GrowthTradeoffPreference,
+                        emoji: '📈',
+                        title: 'Open to Angel / VC Investment',
+                        subtitle:
+                          'Willing to trade a slice of equity for capital and mentorship to grow much faster.',
+                      },
+                    ] as const
+                  ).map((option) => {
+                    const isSelected =
+                      founderRealityCheck.growthTradeoff === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() =>
+                          setFounderRealityCheck({
+                            ...founderRealityCheck,
+                            growthTradeoff: option.id,
+                          })
+                        }
+                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        } disabled:opacity-60`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xl">{option.emoji}</span>
+                            {isSelected && (
+                              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-2 text-xs font-bold text-slate-900">
+                            {option.title}
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            {option.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 5. Your #1 Secret Worry (Honest Gut-Check) */}
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    5. Honest Gut-Check: What is your #1 worry or fear about this idea right now?
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const worryMap: Record<BiggestWorryPreset, string> = {
+                        WILL_THEY_PAY: `Validate whether target buyers in ${countryPack.countryName} will actually pay ${countryPack.defaultCurrency} for this or stick with their current workaround.`,
+                        HOW_TO_BUILD:
+                          'Map out how to deliver a lean Version 1 MVP without getting stuck in an expensive technical build.',
+                        FINDING_FIRST_10: `Identify the exact channel to reach and sign our first 10 paying customers in ${countryPack.countryName}.`,
+                        COMPETITION_OR_AI:
+                          'Define our unfair advantage so a bigger competitor or generic AI tool cannot easily copy us.',
+                        TIME_AND_ENERGY:
+                          'Design a repeatable weekly workflow so we can launch without burning out or running out of cash.',
+                      };
+                      const customText =
+                        founderRealityCheck.biggestWorryNotes.trim();
+                      const questionToPark = customText
+                        ? `Resolve #1 Founder Worry: ${customText}`
+                        : worryMap[founderRealityCheck.biggestWorryPreset];
+                      handleParkSpecificQuestion(questionToPark);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"
+                  >
+                    <BookmarkPlus className="h-3.5 w-3.5 text-amber-700" />
+                    Park My #1 Worry in Open Questions
+                  </button>
+                </div>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Every founder has a secret worry. Naming it now lets us turn it into your #1 validation test in Module B.
+                </p>
+                <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+                  {(
+                    [
+                      {
+                        id: 'WILL_THEY_PAY' as BiggestWorryPreset,
+                        emoji: '💳',
+                        title: 'Will Anyone Actually Pay?',
+                        subtitle:
+                          'People might say "nice idea", but stick with spreadsheets or doing nothing.',
+                      },
+                      {
+                        id: 'FINDING_FIRST_10' as BiggestWorryPreset,
+                        emoji: '📣',
+                        title: 'Finding My First 10 Customers',
+                        subtitle:
+                          'I don’t know how to get in front of buyers without spending a fortune on ads.',
+                      },
+                      {
+                        id: 'HOW_TO_BUILD' as BiggestWorryPreset,
+                        emoji: '🛠️',
+                        title: 'How to Actually Build It',
+                        subtitle:
+                          'Worried the tech, operations, or regulations will be too complex or costly.',
+                      },
+                      {
+                        id: 'COMPETITION_OR_AI' as BiggestWorryPreset,
+                        emoji: '🦈',
+                        title: 'Big Competitors or AI Copying It',
+                        subtitle:
+                          'What stops an existing software company or AI tool from doing this?',
+                      },
+                      {
+                        id: 'TIME_AND_ENERGY' as BiggestWorryPreset,
+                        emoji: '🔋',
+                        title: 'Running Out of Time or Cash',
+                        subtitle:
+                          'Trying to juggle this alongside life/work without burning out.',
+                      },
+                    ] as const
+                  ).map((worry) => {
+                    const isSelected =
+                      founderRealityCheck.biggestWorryPreset === worry.id;
+                    return (
+                      <button
+                        key={worry.id}
+                        type="button"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        onClick={() =>
+                          setFounderRealityCheck({
+                            ...founderRealityCheck,
+                            biggestWorryPreset: worry.id,
+                          })
+                        }
+                        className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
+                          isSelected
+                            ? 'border-amber-600 bg-amber-50/70 ring-2 ring-amber-600/20 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        } disabled:opacity-60`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-lg">{worry.emoji}</span>
+                            {isSelected && (
+                              <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                #1 Worry
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1.5 text-xs font-bold text-slate-900">
+                            {worry.title}
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            {worry.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <textarea
+                  rows={2}
+                  disabled={activeEntitlement.isVaultReadonly}
+                  value={founderRealityCheck.biggestWorryNotes}
+                  onChange={(e) =>
+                    setFounderRealityCheck({
+                      ...founderRealityCheck,
+                      biggestWorryNotes: e.target.value,
+                    })
+                  }
+                  placeholder="Optional: Tell us in your own words what worries you most or where you feel least confident..."
+                  className="mt-2.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                />
+              </div>
+
+              {/* Step 5 Bottom Save Bar */}
+              {!activeEntitlement.isVaultReadonly && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
+                  <div className="text-xs text-slate-500">
+                    🧭 Your dealbreakers, income timeline, and #1 worry directly shape your Step 6 blind-spot review below.
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isSavingCanvas}
+                    onClick={handleSaveCanvasEdits}
+                  >
+                    {isSavingCanvas ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3.5 w-3.5" />
+                        Save Reality Check
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* STEP 6: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARD */}
           <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 p-5 shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -1480,148 +2568,550 @@ export default function WorkspacePage() {
                 </span>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
-                    Step 4: Constructive &ldquo;Things to Consider&rdquo;
+                    Step 6: Constructive &ldquo;Things to Consider&rdquo;
                     (Blind-Spot Engine)
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Tailored to your concept and personal ambition — supportive
-                    questions to sharpen your plan before Module B.
+                    Updates live as you fill in Steps 1–5 — combining your idea,
+                    motivation, {countryPack.defaultCurrency} budget,
+                    dealbreakers, and #1 worry.
                   </p>
                 </div>
               </div>
-              <Badge variant="default">Co-Founder Perspective</Badge>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-900">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                  Live-Synced with Steps 1–5
+                </span>
+                <Badge variant="default">Co-Founder Perspective</Badge>
+              </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-              {(thingsToConsider.length > 0
-                ? thingsToConsider
-                : ([
-                    {
-                      id: 'default-bs-1',
-                      category: 'OPERATIONAL_REALITY',
-                      severity: 'INFO',
-                      title: '🔌 1. Workflow Integration Friction',
-                      explanation:
-                        'Many legacy businesses run closed software. Could you launch an MVP using a simple daily CSV/photo upload first before building deep integrations?',
-                      suggestedAction:
-                        'Avoids a 6-month engineering bottleneck before proving customer willingness to pay.',
-                    },
-                    {
-                      id: 'default-bs-2',
-                      category: 'INDUSTRY_TRAP',
-                      severity: 'WARNING',
-                      title: '🎯 2. Who Champions the Purchase?',
-                      explanation:
-                        'Staff feel the daily pain, but the Owner signs the cheque. Make sure your Module B survey tests ROI with owners, not just end-users.',
-                      suggestedAction:
-                        'Separating end-user pain from budget-holder ROI prevents stalled B2B pilots.',
-                    },
-                    founderMotivation.primaryMotivation === 'SIDE_HUSTLE'
-                      ? {
-                          id: 'default-bs-3',
-                          category: 'OPERATIONAL_REALITY',
-                          severity: 'INFO',
-                          title: '🌙 3. Protecting Your Side-Hustle Hours',
-                          explanation:
-                            'With limited evening/weekend hours, avoid custom manual work or 24/7 support promises. How can you keep delivery simple and repeatable from day one?',
-                          suggestedAction:
-                            'Pick one narrow customer problem you can deliver asynchronously without burning out.',
-                        }
-                      : founderMotivation.primaryMotivation === 'SAVE_THE_WORLD'
-                        ? {
-                            id: 'default-bs-3',
-                            category: 'OPEN_QUESTION',
-                            severity: 'INFO',
-                            title: '🌍 3. Balancing Mission Impact & Revenue',
-                            explanation:
-                              'Even the most meaningful mission needs a self-sustaining revenue engine so you don’t rely purely on donations or burnout.',
-                            suggestedAction:
-                              'Identify which buyer has the budget to pay for the outcome your mission creates.',
-                          }
-                        : founderMotivation.primaryMotivation === 'SCALE_STARTUP'
-                          ? {
-                              id: 'default-bs-3',
-                              category: 'OPEN_QUESTION',
-                              severity: 'INFO',
-                              title: `🚀 3. ${countryPack.countryName} Grant & Scale Readiness`,
-                              explanation: `To qualify for ${countryGrants[0]?.providerAgency || 'State'} funding or angel investment, highlight export scalability beyond ${countryPack.countryName} early in Module B.`,
-                              suggestedAction:
-                                'State innovation agencies and investors prioritize repeatable acquisition and international potential.',
-                            }
-                          : founderMotivation.primaryMotivation === 'BUILD_TO_SELL'
-                            ? {
-                                id: 'default-bs-3',
-                                category: 'OPERATIONAL_REALITY',
-                                severity: 'INFO',
-                                title: '🏆 3. Building an Asset Someone Can Buy',
-                                explanation:
-                                  'Buyers pay a premium for businesses with recurring revenue and systems that do not depend on the founder doing every job personally.',
-                                suggestedAction:
-                                  'Focus on repeatable contracts and clean processes so the business is transferable.',
-                              }
-                            : {
-                              id: 'default-bs-3',
-                              category: 'OPERATIONAL_REALITY',
-                              severity: 'INFO',
-                              title: '💼 3. Your "Leave the 9-to-5" Freedom Number',
-                              explanation:
-                                'To comfortably leave your job, focus on how many paying customers you need to cover your baseline monthly living costs first.',
-                              suggestedAction:
-                                'Prioritize fast-paying customers and upfront cashflow over complex features.',
-                            },
-                  ] satisfies BlindSpotItem[])
-              ).map((item, idx) => (
+            <div className="mt-4 grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
+              {liveThingsToConsider.map((item, idx) => (
                 <div
                   key={item.id || idx}
-                  className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs"
+                  className={`flex flex-col justify-between rounded-xl border p-4 shadow-2xs transition-all ${
+                    item.severity === 'WARNING'
+                      ? 'border-amber-300 bg-amber-50/40'
+                      : 'border-slate-200/90 bg-white'
+                  }`}
                 >
                   <div>
-                    <div className="text-xs font-bold text-slate-900">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          item.severity === 'WARNING'
+                            ? 'bg-amber-100 text-amber-900'
+                            : 'bg-indigo-50 text-indigo-800'
+                        }`}
+                      >
+                        {item.severity === 'WARNING'
+                          ? '⚠️ Priority Blind Spot'
+                          : '💡 Co-Founder Check'}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-xs font-bold text-slate-900">
                       {item.title}
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
                       {item.explanation}
                     </p>
                     {item.suggestedAction && (
-                      <p className="mt-1.5 text-[11px] text-indigo-700">
-                        <strong>Co-Founder Tip:</strong> {item.suggestedAction}
-                      </p>
+                      <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-indigo-900 ring-1 ring-slate-200/70">
+                        <strong>Action Step:</strong> {item.suggestedAction}
+                      </div>
                     )}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Conversion Hook CTA into Module B */}
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3 text-white">
-              <div className="text-xs">
-                <span className="font-semibold text-indigo-300">
-                  Ready to validate this in the real world?
-                </span>{' '}
-                Unlock Module B to auto-generate your shareable Customer
-                Validation Survey link (<code>/v/my-startup</code>) &amp; AI
-                Market Scout.
+            {/* Step 6 Bottom Save & AI Tidy Bar */}
+            {!activeEntitlement.isVaultReadonly && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/90 px-4 py-3">
+                <div className="text-xs text-slate-600">
+                  ✨ Change any option or add notes in Steps 1–5 above and watch these 6 cards adapt immediately.
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isSynthesizing}
+                    onClick={handleTidyUpNotesWithAi}
+                  >
+                    {isSynthesizing ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Tidying...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
+                        AI Tidy Up All Notes
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={isSavingCanvas}
+                    onClick={handleSaveCanvasEdits}
+                    className="bg-indigo-600 text-white hover:bg-indigo-700"
+                  >
+                    {isSavingCanvas ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving Module A...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3.5 w-3.5" />
+                        Save All Module A Progress
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
-              <Button
-                size="sm"
-                onClick={() => {
-                  const modBAccess = canAccessModule(
-                    activeEntitlement,
-                    'MOD_B_MARKET'
-                  );
-                  if (!modBAccess.allowed) {
-                    setPaywallModalFeature(
-                      `Module B: Market & Validation Survey (${modBAccess.reason})`
-                    );
-                  }
-                }}
-                className="bg-indigo-500 text-white hover:bg-indigo-400"
-              >
-                Continue to Module B
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
+            )}
           </div>
+
+          {/* ========================================================= */}
+          {/* STEP 7: DOWNLOADABLE STARTUP CONCEPT & READINESS BRIEF     */}
+          {/* ========================================================= */}
+          <Card className="border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="default">
+                      Step 7 • Module A Summary Document
+                    </Badge>
+                    <Badge
+                      variant={
+                        completedReadinessCount === 6 ? 'success' : 'secondary'
+                      }
+                      className="text-[10px]"
+                    >
+                      {completedReadinessCount}/6 Sections Ready
+                    </Badge>
+                  </div>
+                  <CardTitle className="mt-2 flex items-center gap-2 text-base">
+                    <FileText className="h-4 w-4 text-indigo-600" />
+                    Step 7: Your Startup Concept &amp; Readiness Brief
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Everything you captured across Steps 1–6 is compiled below
+                    into a clean executive summary document you can download,
+                    print to PDF, or share with a co-founder, mentor, or Local
+                    Enterprise advisor before moving into Module B.
+                  </CardDescription>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBriefPreview(!showBriefPreview)}
+                  className="text-xs"
+                >
+                  <Eye className="h-3.5 w-3.5 text-indigo-600" />
+                  {showBriefPreview
+                    ? 'Hide Live Document Preview'
+                    : 'Show Live Document Preview'}
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-5">
+              {/* OPTION C: 6-STEP MODULE A READINESS CHECKLIST */}
+              <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Module A Readiness Checklist (Steps 1–6 Included in Your
+                    Brief)
+                  </div>
+                  <span className="text-xs font-semibold text-indigo-700">
+                    Live-Synced with Your Answers Above
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {moduleAReadinessSteps.map((step) => (
+                    <div
+                      key={step.stepNumber}
+                      className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs transition-all ${
+                        step.isComplete
+                          ? 'border-emerald-200 bg-emerald-50/40'
+                          : 'border-amber-200 bg-amber-50/40'
+                      }`}
+                    >
+                      <CheckCircle2
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          step.isComplete
+                            ? 'text-emerald-600'
+                            : 'text-amber-500'
+                        }`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-slate-900">
+                          Step {step.stepNumber}: {step.label}
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] text-slate-600">
+                          {step.summary}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* OPTION A: LIVE EXECUTIVE BRIEF DOCUMENT PREVIEW */}
+              {showBriefPreview && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  {/* Document Header Banner */}
+                  <div className="border-b border-slate-200 bg-slate-900 px-6 py-5 text-white">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-300">
+                        {activeEntitlement.whiteLabelExportEnabled
+                          ? 'Startup Concept & Readiness Brief'
+                          : 'Build My Unicorn 2.0 • Startup Concept & Readiness Brief'}
+                      </span>
+                      <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-slate-200">
+                        {countryPack.countryName} ({countryPack.defaultCurrency})
+                        • {currentPlan.industryCategory}
+                      </span>
+                    </div>
+                    <h2 className="mt-1.5 text-lg font-bold text-white">
+                      {currentPlan.title}
+                    </h2>
+                    <p className="mt-0.5 text-xs text-slate-300">
+                      Prepared by {session.user.name} • {briefGeneratedDate}
+                    </p>
+                  </div>
+
+                  {/* Document Body Sections */}
+                  <div className="divide-y divide-slate-100 p-6 text-xs">
+                    {/* Section 1: Raw Idea & 1-Page Concept Canvas */}
+                    <div className="pb-5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        1. Core Concept &amp; 1-Page Canvas (Steps 1 &amp; 2)
+                      </div>
+                      <div className="mt-2.5 rounded-xl bg-slate-50 p-3.5 text-slate-700 ring-1 ring-slate-200/70">
+                        <span className="font-semibold text-slate-900">
+                          Founder&apos;s Raw Idea:{' '}
+                        </span>
+                        &ldquo;{brainDumpText}&rdquo;
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="rounded-xl border border-slate-200 p-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Problem Worth Solving
+                          </div>
+                          <p className="mt-1 leading-relaxed text-slate-800">
+                            {effectiveCanvas.coreProblem}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 p-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Target Customer Segment
+                          </div>
+                          <p className="mt-1 leading-relaxed text-slate-800">
+                            {effectiveCanvas.targetCustomer}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 p-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Proposed Solution &amp; MVP
+                          </div>
+                          <p className="mt-1 leading-relaxed text-slate-800">
+                            {effectiveCanvas.proposedSolution}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 p-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Unfair Advantage &amp; Revenue/Grant Fit
+                          </div>
+                          <p className="mt-1 leading-relaxed text-slate-800">
+                            {effectiveCanvas.unfairAdvantage}
+                            {effectiveCanvas.revenueAndGrantFit
+                              ? ` • ${effectiveCanvas.revenueAndGrantFit}`
+                              : ''}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Founder Ambition, Team & Starting Budget */}
+                    <div className="py-5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        2. Founder Ambition, Team &amp; Starting Budget (Steps 3
+                        &amp; 4)
+                      </div>
+                      <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                          <div className="text-[10px] font-bold uppercase text-slate-400">
+                            Primary Motivation
+                          </div>
+                          <div className="mt-1 font-semibold text-slate-900">
+                            {
+                              MOTIVATION_LABELS[
+                                founderMotivation.primaryMotivation
+                              ]
+                            }
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                          <div className="text-[10px] font-bold uppercase text-slate-400">
+                            Weekly Bandwidth
+                          </div>
+                          <div className="mt-1 font-semibold text-slate-900">
+                            {
+                              WEEKLY_HOURS_LABELS[
+                                founderMotivation.weeklyHoursAvailable
+                              ]
+                            }
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                          <div className="text-[10px] font-bold uppercase text-slate-400">
+                            Team &amp; Version 1 Skills
+                          </div>
+                          <div className="mt-1 font-semibold text-slate-900">
+                            {
+                              TEAM_STRUCTURE_LABELS[
+                                teamAndBudget.teamStructureType
+                              ]
+                            }
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-slate-600">
+                            {SKILL_COVERAGE_LABELS[teamAndBudget.skillCoverage]}
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                          <div className="text-[10px] font-bold uppercase text-slate-400">
+                            Starting Cash Budget
+                          </div>
+                          <div className="mt-1 font-semibold text-emerald-800">
+                            {formatStartingBudgetBracket(
+                              teamAndBudget.startingBudgetBracket,
+                              countryPack.defaultCurrency
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {(founderMotivation.twelveMonthSuccessVision.trim() ||
+                        teamAndBudget.teamAndFundingNotes.trim()) && (
+                        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                          {founderMotivation.twelveMonthSuccessVision.trim() && (
+                            <div className="rounded-xl border border-slate-200 p-3">
+                              <span className="font-semibold text-slate-900">
+                                12-Month Success Vision:{' '}
+                              </span>
+                              <span className="text-slate-700">
+                                {founderMotivation.twelveMonthSuccessVision}
+                              </span>
+                            </div>
+                          )}
+                          {teamAndBudget.teamAndFundingNotes.trim() && (
+                            <div className="rounded-xl border border-slate-200 p-3">
+                              <span className="font-semibold text-slate-900">
+                                Team &amp; Budget Notes:{' '}
+                              </span>
+                              <span className="text-slate-700">
+                                {teamAndBudget.teamAndFundingNotes}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 3: Reality Check & Non-Negotiables */}
+                    <div className="py-5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        3. Founder Fit, Dealbreakers &amp; Reality Check (Step
+                        5)
+                      </div>
+                      <div className="mt-2.5 grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="rounded-xl border border-slate-200 p-3">
+                          <div className="text-[10px] font-bold uppercase text-slate-400">
+                            Industry Access
+                          </div>
+                          <div className="mt-1 font-medium text-slate-800">
+                            {
+                              INDUSTRY_CONNECTION_LABELS[
+                                founderRealityCheck.industryConnection
+                              ]
+                            }
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 p-3">
+                          <div className="text-[10px] font-bold uppercase text-slate-400">
+                            Personal Income Timeline
+                          </div>
+                          <div className="mt-1 font-medium text-slate-800">
+                            {
+                              INCOME_URGENCY_LABELS[
+                                founderRealityCheck.personalIncomeUrgency
+                              ]
+                            }
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 p-3">
+                          <div className="text-[10px] font-bold uppercase text-slate-400">
+                            Control vs. Speed Trade-Off
+                          </div>
+                          <div className="mt-1 font-medium text-slate-800">
+                            {
+                              GROWTH_TRADEOFF_LABELS[
+                                founderRealityCheck.growthTradeoff
+                              ]
+                            }
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-semibold text-slate-700">
+                          Protected Non-Negotiables:
+                        </span>
+                        {founderRealityCheck.dealbreakers.map((db) => (
+                          <span
+                            key={db}
+                            className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-medium text-indigo-900 ring-1 ring-indigo-200"
+                          >
+                            {DEALBREAKER_LABELS[db]}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="mt-2.5 rounded-xl bg-amber-50/70 p-3 text-amber-950 ring-1 ring-amber-200/80">
+                        <span className="font-semibold">
+                          #1 Worry on Your Mind:{' '}
+                        </span>
+                        {
+                          BIGGEST_WORRY_LABELS[
+                            founderRealityCheck.biggestWorryPreset
+                          ]
+                        }
+                        {founderRealityCheck.biggestWorryNotes.trim() && (
+                          <span>
+                            {' '}
+                            — &ldquo;{founderRealityCheck.biggestWorryNotes}
+                            &rdquo;
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Section 4: Top Co-Founder Blind-Spot Takeaways & Open Questions */}
+                    <div className="pt-5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        4. Co-Founder Blind-Spot Review &amp; Next Validation
+                        Steps (Step 6)
+                      </div>
+                      <div className="mt-2.5 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                        {liveThingsToConsider.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
+                          >
+                            <div className="font-bold text-slate-900">
+                              {item.title}
+                            </div>
+                            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                              {item.suggestedAction || item.explanation}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 7 BOTTOM ACTION BAR: DOWNLOAD, PRINT TO PDF, OR COPY BRIEF */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
+                <div className="text-xs text-slate-600">
+                  📥 <strong>Take your Concept &amp; Readiness Brief with you:</strong>{' '}
+                  Download a standalone file, print/save as PDF, or copy for your
+                  notes.
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyBriefMarkdown}
+                  >
+                    {briefCopied ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        Copied to Clipboard!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5 text-slate-600" />
+                        Copy Summary
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadBriefHtml}
+                  >
+                    <Download className="h-3.5 w-3.5 text-indigo-600" />
+                    Download Brief (.html)
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handlePrintBriefPdf}
+                    className="bg-indigo-600 text-white hover:bg-indigo-700"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    Print / Save as PDF
+                  </Button>
+                </div>
+              </div>
+
+              {/* Conversion Hook CTA into Module B */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
+                <div className="text-xs">
+                  <span className="font-semibold text-indigo-300">
+                    Ready to validate {currentPlan.title} in the real world?
+                  </span>{' '}
+                  Unlock Module B to auto-generate your shareable Customer
+                  Validation Survey link (<code>/v/my-startup</code>) &amp; AI
+                  Market Scout.
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const modBAccess = canAccessModule(
+                      activeEntitlement,
+                      'MOD_B_MARKET'
+                    );
+                    if (!modBAccess.allowed) {
+                      setPaywallModalFeature(
+                        `Module B: Market & Validation Survey (${modBAccess.reason})`
+                      );
+                    }
+                  }}
+                  className="bg-indigo-500 text-white hover:bg-indigo-400"
+                >
+                  Continue to Module B
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </main>
       </div>
 
