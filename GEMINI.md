@@ -59,5 +59,20 @@
    * `verifyPayload` uses `crypto.timingSafeEqual` and enforces token TTL (`30 days` for founders, `12 hours` for Super Admin).
    * In production (`NODE_ENV === 'production'`), `BETTER_AUTH_SECRET` and `SUPER_ADMIN_MASTER_PASSWORD` never fall back to predictable dev strings, and login/registration endpoints enforce brute-force rate limiting.
 
-## 5. Verification Loop Inside Antigravity
+## 5. Mobile & Responsive UX Invariants (Desktop-Primary, Mobile-Ready)
+1. **Preserve Desktop Layout (`sm:` / `lg:` Breakpoints):**
+   * The platform is primarily used on desktop computers (`lg:grid-cols-12` workspace layout), so never degrade desktop information density. Always use Tailwind `sm:` (`640px+`) and `lg:` (`1024px+`) breakpoints so mobile optimizations apply cleanly to `< 640px` / `< 1024px` viewports without altering the desktop layout.
+2. **Zero iOS Safari Input Auto-Zoom (`16px` Mobile Inputs):**
+   * iOS Safari automatically zooms the entire page if a focused `<input>`, `<textarea>`, or `<select>` has a font size smaller than `16px` (`text-base`). Keep the global `@media (max-width: 639px)` rule in `src/app/globals.css` intact and use `text-base sm:text-xs` or `text-base sm:text-sm` on form inputs so mobile users never experience jarring viewport zoom.
+3. **Full-Width Mobile Answer Targets on Public Pages (`/v/[slug]`):**
+   * On mobile-critical surfaces (especially the public survey `/v/[slug]`), never indent interactive option lists on `< 640px` (`sm:pl-9` instead of `pl-9`), and always make primary submit CTAs full-width on mobile (`w-full sm:w-auto`).
+4. **Collapsible Mobile Sidebar & Slim Sticky Header in `/workspace`:**
+   * On `< 1024px` (`lg:hidden`), the 9-Module navigation list and Open Questions Parking Lot must remain collapsed behind the compact mobile module switcher toggle so founders immediately reach their active module content without scrolling past the sidebar.
+   * Keep the `sticky top-0` workspace header slim on mobile (`px-3.5 py-2.5 sm:px-6 sm:py-3.5`) with icon-only secondary buttons (`hidden sm:inline` labels) and truncated plan titles.
+5. **Responsive Tables, Sub-Tabs & Floating Drawers Across Modules A–I:**
+   * Any comparison matrix or multi-column financial/unit-economics table in Modules B–I must be wrapped in `overflow-x-auto` with a sensible `min-w-[600px]` or stacked mobile cards.
+   * Multi-tab module toolbars must stack cleanly (`grid-cols-1 sm:flex`) or scroll horizontally on `< 640px`.
+   * Floating drawers/modals (like `Ask Unicorn AI`) must use `left-3 right-3 bottom-3 sm:left-auto sm:right-5 sm:bottom-5 sm:w-96` so they never overflow a `375px` screen.
+
+## 6. Verification Loop Inside Antigravity
 * After editing any schema, server action, or component, always run `npx tsc --noEmit` to verify zero TypeScript errors across the monorepo before finishing a task.

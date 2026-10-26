@@ -412,7 +412,7 @@ export default function PublicValidationSurveyPage() {
 
                   {/* 1. MULTIPLE_CHOICE (Single Select) */}
                   {q.type === 'MULTIPLE_CHOICE' && (
-                    <div className="mt-4 space-y-2 pl-9">
+                    <div className="mt-4 space-y-2 sm:pl-9">
                       {(q.options || []).map((opt) => {
                         const selected = currentAns.selectedOption === opt;
                         return (
@@ -474,7 +474,7 @@ export default function PublicValidationSurveyPage() {
                                 handleOtherTextChange(q.id, e.target.value)
                               }
                               placeholder="Type your own answer..."
-                              className="border-indigo-300 bg-white text-xs"
+                              className="border-indigo-300 bg-white text-base sm:text-xs"
                               autoFocus
                             />
                           )}
@@ -485,7 +485,7 @@ export default function PublicValidationSurveyPage() {
 
                   {/* 2. MULTI_SELECT (Checkboxes) */}
                   {q.type === 'MULTI_SELECT' && (
-                    <div className="mt-4 space-y-2 pl-9">
+                    <div className="mt-4 space-y-2 sm:pl-9">
                       {(q.options || []).map((opt) => {
                         const selected = (
                           currentAns.selectedOptions || []
@@ -549,7 +549,7 @@ export default function PublicValidationSurveyPage() {
                                 handleOtherTextChange(q.id, e.target.value)
                               }
                               placeholder="Type your own answer..."
-                              className="border-indigo-300 bg-white text-xs"
+                              className="border-indigo-300 bg-white text-base sm:text-xs"
                               autoFocus
                             />
                           )}
@@ -560,7 +560,7 @@ export default function PublicValidationSurveyPage() {
 
                   {/* 3. SCALE_1_5 (1 to 5 Rating Scale) */}
                   {q.type === 'SCALE_1_5' && (
-                    <div className="mt-4 pl-9">
+                    <div className="mt-4 sm:pl-9">
                       <div className="grid grid-cols-5 gap-2">
                         {[1, 2, 3, 4, 5].map((num) => {
                           const selected = currentAns.scaleValue === num;
@@ -580,16 +580,16 @@ export default function PublicValidationSurveyPage() {
                           );
                         })}
                       </div>
-                      <div className="mt-2 flex items-center justify-between text-[11px] font-medium text-slate-500">
+                      <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-medium text-slate-500">
                         <span>{q.scaleMinLabel || '1 = Low / Not painful'}</span>
-                        <span>{q.scaleMaxLabel || '5 = High / Very urgent'}</span>
+                        <span className="text-right">{q.scaleMaxLabel || '5 = High / Very urgent'}</span>
                       </div>
                     </div>
                   )}
 
                   {/* 4. OPEN_TEXT (Short Story / Workaround Textarea) */}
                   {q.type === 'OPEN_TEXT' && (
-                    <div className="mt-4 pl-9">
+                    <div className="mt-4 sm:pl-9">
                       <textarea
                         rows={3}
                         value={currentAns.openText || ''}
@@ -597,7 +597,7 @@ export default function PublicValidationSurveyPage() {
                           handleOpenTextChange(q.id, e.target.value)
                         }
                         placeholder="Share a quick example or how you handle this today..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-hidden sm:text-sm"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-hidden sm:text-sm"
                       />
                     </div>
                   )}
@@ -633,7 +633,7 @@ export default function PublicValidationSurveyPage() {
                     value={respondentNameOrRole}
                     onChange={(e) => setRespondentNameOrRole(e.target.value)}
                     placeholder="e.g., Sarah • Clinic Owner"
-                    className="bg-white text-xs"
+                    className="bg-white text-base sm:text-xs"
                   />
                 </div>
                 <div>
@@ -650,7 +650,7 @@ export default function PublicValidationSurveyPage() {
                       }
                     }}
                     placeholder="you@example.com"
-                    className="bg-white text-xs"
+                    className="bg-white text-base sm:text-xs"
                   />
                 </div>
               </div>
@@ -676,8 +676,8 @@ export default function PublicValidationSurveyPage() {
           )}
 
           {/* Submit Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:px-6">
-            <div className="text-xs text-slate-500">
+          <div className="flex flex-col-reverse items-stretch justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:flex-row sm:items-center sm:gap-4 sm:px-6">
+            <div className="text-center text-xs text-slate-500 sm:text-left">
               Powered by{' '}
               <span className="font-semibold text-slate-800">
                 Build My Unicorn
@@ -687,7 +687,7 @@ export default function PublicValidationSurveyPage() {
             <Button
               type="submit"
               disabled={submitting || survey.questions.length === 0}
-              className="bg-indigo-600 px-6 text-white hover:bg-indigo-700"
+              className="w-full bg-indigo-600 py-2.5 text-white hover:bg-indigo-700 sm:w-auto sm:px-6 sm:py-2"
             >
               {submitting ? (
                 <>

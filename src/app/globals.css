@@ -19,3 +19,21 @@ body {
     Arial,
     sans-serif;
 }
+
+/* Prevent iOS Safari automatic page zoom when focusing form inputs on mobile (<640px) */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Clean horizontal scrollbars for mobile step/tab bars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

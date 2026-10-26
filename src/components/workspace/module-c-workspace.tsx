@@ -2758,36 +2758,38 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {activeModuleCSection === 'SURVEYS' && activeSurvey && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             <button
               type="button"
               onClick={() => setActiveViewTab('BUILDER')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:text-sm ${
+              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all sm:justify-start sm:py-2 sm:text-sm ${
                 activeViewTab === 'BUILDER'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
               }`}
             >
               {isSurveyPublished ? (
-                <Lock className="h-4 w-4" />
+                <Lock className="h-4 w-4 shrink-0" />
               ) : (
-                <SlidersHorizontal className="h-4 w-4" />
+                <SlidersHorizontal className="h-4 w-4 shrink-0" />
               )}
-              1. Survey Questions ({activeSurvey.questions.length}
-              {isSurveyPublished ? ' • Locked' : ' Questions'})
+              <span>
+                1. Survey Questions ({activeSurvey.questions.length}
+                {isSurveyPublished ? ' • Locked' : ' Questions'})
+              </span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveViewTab('OUTREACH')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:text-sm ${
+              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all sm:justify-start sm:py-2 sm:text-sm ${
                 activeViewTab === 'OUTREACH'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
               }`}
             >
-              <QrCode className="h-4 w-4" />
-              2. Outreach &amp; QR Kit
+              <QrCode className="h-4 w-4 shrink-0" />
+              <span>2. Outreach &amp; QR Kit</span>
             </button>
 
             <button
@@ -2796,14 +2798,14 @@ export function ModuleCWorkspace({
                 setActiveViewTab('INSIGHTS');
                 handleSyncLiveResponses(true);
               }}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:text-sm ${
+              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all sm:justify-start sm:py-2 sm:text-sm ${
                 activeViewTab === 'INSIGHTS'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
               }`}
             >
-              <BarChart3 className="h-4 w-4" />
-              3. Results &amp; AI Insights
+              <BarChart3 className="h-4 w-4 shrink-0" />
+              <span>3. Results &amp; AI Insights</span>
               <span
                 className={`rounded-full px-2 py-0.5 text-[11px] ${
                   activeViewTab === 'INSIGHTS'

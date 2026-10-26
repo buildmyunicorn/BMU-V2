@@ -259,6 +259,7 @@ export default function WorkspacePage() {
   const [pendingModuleAfterUnlock, setPendingModuleAfterUnlock] =
     useState<ModuleCode | null>(null);
   const [planDropdownOpen, setPlanDropdownOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showWhyCard, setShowWhyCard] = useState(true);
   const [showExamples, setShowExamples] = useState(false);
   const [showImStuckHelper, setShowImStuckHelper] = useState(false);
@@ -1751,26 +1752,26 @@ export default function WorkspacePage() {
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       {/* Clean Production Top Navigation Bar */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-3.5">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4 sm:px-6 sm:py-3.5">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <Link
               href="/"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xs hover:opacity-95"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xs hover:opacity-95 sm:h-9 sm:w-9"
               title="Back to Home"
             >
               <Sparkles className="h-4 w-4" />
             </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold tracking-tight text-slate-900">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="hidden text-base font-bold tracking-tight text-slate-900 sm:inline">
                   Build My Unicorn
                 </span>
-                <span className="text-slate-300">/</span>
-                <span className="text-sm font-semibold text-indigo-700">
+                <span className="hidden text-slate-300 sm:inline">/</span>
+                <span className="max-w-[165px] truncate text-sm font-bold text-indigo-700 sm:max-w-none sm:font-semibold">
                   {currentPlan.title}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="truncate text-[11px] text-slate-500 sm:text-xs">
                 {countryPack.countryName} ({countryPack.defaultCurrency}) •{' '}
                 {currentPlan.industryCategory}
               </p>
@@ -1778,8 +1779,8 @@ export default function WorkspacePage() {
           </div>
 
           {/* Right User & Co-Pilot Actions */}
-          <div className="flex items-center gap-2.5">
-            <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs sm:flex">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+            <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs md:flex">
               <span className="font-semibold text-slate-800">
                 {session.user.name}
               </span>
@@ -1788,32 +1789,42 @@ export default function WorkspacePage() {
               </Badge>
             </div>
 
-            <Link href="/onboarding">
-              <Button variant="ghost" size="sm" className="text-xs text-slate-600">
+            <Link href="/onboarding" title="Plan Settings">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="px-2 text-xs text-slate-600 sm:px-3"
+              >
                 <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
-                Plan Settings
+                <span className="hidden sm:inline">Plan Settings</span>
               </Button>
             </Link>
 
             <Link
               href="/login"
+              title="Sign Out"
               onClick={() => {
                 logoutFounderAction().catch(() => {});
               }}
             >
-              <Button variant="ghost" size="sm" className="text-xs text-slate-600">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="px-2 text-xs text-slate-600 sm:px-3"
+              >
                 <LogOut className="h-3.5 w-3.5 text-slate-500" />
-                Sign Out
+                <span className="hidden sm:inline">Sign Out</span>
               </Button>
             </Link>
 
             <Button
               size="sm"
               onClick={() => setAskUnicornOpen(!askUnicornOpen)}
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700"
+              className="bg-gradient-to-r from-indigo-600 to-violet-600 px-2.5 text-xs text-white hover:from-indigo-700 hover:to-violet-700 sm:px-3"
             >
               <Bot className="h-4 w-4" />
-              Ask Unicorn AI
+              <span className=" sm:hidden">Ask AI</span>
+              <span className="hidden sm:inline">Ask Unicorn AI</span>
             </Button>
           </div>
         </div>
@@ -1822,9 +1833,9 @@ export default function WorkspacePage() {
       {/* ========================================================= */}
       {/* MAIN FOUNDER WORKSPACE                                    */}
       {/* ========================================================= */}
-      <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-12">
-        {/* LEFT SIDEBAR: Multi-Plan Switcher + Modules A-G + Open Questions Parking Lot */}
-        <aside className="space-y-5 lg:col-span-4 xl:col-span-3">
+      <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-4 px-3.5 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-12">
+        {/* LEFT SIDEBAR: Multi-Plan Switcher + Modules A-I + Open Questions Parking Lot */}
+        <aside className="space-y-3.5 sm:space-y-5 lg:col-span-4 xl:col-span-3">
           {/* Multi-Plan Switcher Card */}
           <div className="relative rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
             <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-400">
@@ -1933,168 +1944,211 @@ export default function WorkspacePage() {
             )}
           </div>
 
-          {/* Module A - I Navigation List */}
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
-            <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Founder Journey (Modules A–I)
+          {/* Mobile/Tablet Collapsible Module & Parking Lot Toggle (< lg only) */}
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            className="flex w-full items-center justify-between rounded-xl border border-indigo-200 bg-white px-3.5 py-2.5 text-left shadow-xs transition-colors hover:bg-indigo-50/40 lg:hidden"
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                {activeModule === 'MOD_A_IDEATION'
+                  ? 'A'
+                  : activeModule === 'MOD_B_MARKET'
+                    ? 'B'
+                    : 'C'}
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-xs font-bold text-slate-900">
+                  {activeModule === 'MOD_A_IDEATION'
+                    ? 'Module A: Ideation & Founder Fit'
+                    : activeModule === 'MOD_B_MARKET'
+                      ? 'Module B: Market & Competitors'
+                      : 'Module C: Customer Surveys & Feedback'}
+                </div>
+                <div className="text-[11px] text-indigo-700">
+                  {mobileSidebarOpen
+                    ? 'Hide Modules (A–I) & Parked Questions'
+                    : `Tap to Switch Module (A–I) • ${openQuestions.length} Parked`}
+                </div>
+              </div>
             </div>
-            <div className="space-y-1">
-              {MODULES_LIST.map((mod) => {
-                const access = canAccessModule(activeEntitlement, mod.code);
-                const IconComponent = mod.icon;
-                const isCurrent = activeModule === mod.code;
-                const modProgress =
-                  mod.code === 'MOD_A_IDEATION'
-                    ? moduleAProgressPercent
-                    : mod.code === 'MOD_B_MARKET'
-                      ? moduleBProgressPercent
-                      : mod.code === 'MOD_C_SURVEYS_FEEDBACK'
-                        ? moduleCProgressPercent
-                        : mod.progress;
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 text-indigo-600 transition-transform ${
+                mobileSidebarOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
 
-                return (
-                  <button
-                    key={mod.code}
-                    type="button"
-                    onClick={() => {
-                      if (!access.allowed) {
-                        setPendingModuleAfterUnlock(mod.code);
-                        setPaywallModalFeature(
-                          `${mod.short}: ${mod.title} — ${access.reason}`
-                        );
-                        return;
-                      }
-                      if (
-                        mod.code === 'MOD_A_IDEATION' ||
-                        mod.code === 'MOD_B_MARKET' ||
-                        mod.code === 'MOD_C_SURVEYS_FEEDBACK'
-                      ) {
-                        setActiveModule(mod.code);
-                      }
-                    }}
-                    className={`group flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-all ${
-                      isCurrent
-                        ? 'bg-indigo-50/90 ring-1 ring-indigo-200'
-                        : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <div
-                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+          <div
+            className={`${
+              mobileSidebarOpen ? 'block' : 'hidden'
+            } space-y-3.5 sm:space-y-5 lg:block`}
+          >
+            {/* Module A - I Navigation List */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
+              <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                Founder Journey (Modules A–I)
+              </div>
+              <div className="space-y-1">
+                {MODULES_LIST.map((mod) => {
+                  const access = canAccessModule(activeEntitlement, mod.code);
+                  const IconComponent = mod.icon;
+                  const isCurrent = activeModule === mod.code;
+                  const modProgress =
+                    mod.code === 'MOD_A_IDEATION'
+                      ? moduleAProgressPercent
+                      : mod.code === 'MOD_B_MARKET'
+                        ? moduleBProgressPercent
+                        : mod.code === 'MOD_C_SURVEYS_FEEDBACK'
+                          ? moduleCProgressPercent
+                          : mod.progress;
+
+                  return (
+                    <button
+                      key={mod.code}
+                      type="button"
+                      onClick={() => {
+                        if (!access.allowed) {
+                          setPendingModuleAfterUnlock(mod.code);
+                          setPaywallModalFeature(
+                            `${mod.short}: ${mod.title} — ${access.reason}`
+                          );
+                          return;
+                        }
+                        if (
+                          mod.code === 'MOD_A_IDEATION' ||
+                          mod.code === 'MOD_B_MARKET' ||
+                          mod.code === 'MOD_C_SURVEYS_FEEDBACK'
+                        ) {
+                          setActiveModule(mod.code);
+                          setMobileSidebarOpen(false);
+                        }
+                      }}
+                      className={`group flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-all ${
                         isCurrent
-                          ? 'bg-indigo-600 text-white'
-                          : access.allowed
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-slate-100 text-slate-400'
+                          ? 'bg-indigo-50/90 ring-1 ring-indigo-200'
+                          : 'hover:bg-slate-50'
                       }`}
                     >
-                      <IconComponent className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span
-                          className={`text-xs font-bold ${
-                            isCurrent ? 'text-indigo-950' : 'text-slate-800'
-                          }`}
-                        >
-                          {mod.short}: {mod.title}
-                        </span>
-                        {!access.allowed ? (
-                          <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                        ) : isCurrent || modProgress > 0 ? (
+                      <div
+                        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                          isCurrent
+                            ? 'bg-indigo-600 text-white'
+                            : access.allowed
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-slate-100 text-slate-400'
+                        }`}
+                      >
+                        <IconComponent className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
                           <span
-                            className={`text-[10px] font-bold ${
-                              modProgress === 100
-                                ? 'text-emerald-600'
-                                : 'text-indigo-600'
+                            className={`text-xs font-bold ${
+                              isCurrent ? 'text-indigo-950' : 'text-slate-800'
                             }`}
                           >
-                            {modProgress}%
+                            {mod.short}: {mod.title}
                           </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                        {mod.subtitle}
-                      </p>
-                      {(isCurrent || modProgress > 0) && access.allowed && (
-                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-indigo-100">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              modProgress === 100
-                                ? 'bg-emerald-500'
-                                : 'bg-indigo-600'
-                            }`}
-                            style={{ width: `${modProgress}%` }}
-                          />
+                          {!access.allowed ? (
+                            <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                          ) : isCurrent || modProgress > 0 ? (
+                            <span
+                              className={`text-[10px] font-bold ${
+                                modProgress === 100
+                                  ? 'text-emerald-600'
+                                  : 'text-indigo-600'
+                              }`}
+                            >
+                              {modProgress}%
+                            </span>
+                          ) : null}
                         </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Open Questions Parking Lot Sidebar Card */}
-          <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
-                <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
-                Open Questions Parking Lot
-              </span>
-              <Badge
-                variant="secondary"
-                className="bg-amber-100 text-[10px] text-amber-900"
-              >
-                {openQuestions.length} Parked
-              </Badge>
-            </div>
-            <p className="mt-1 text-[11px] text-amber-900/80">
-              Tricky questions you parked so you never lose momentum:
-            </p>
-            {openQuestions.length === 0 ? (
-              <div className="mt-2.5 rounded-lg border border-dashed border-amber-200/80 bg-white/70 px-2.5 py-2 text-[11px] text-slate-500">
-                No open questions parked yet. Use &ldquo;Park Question&rdquo; on any step when you want to come back to a detail later.
+                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                          {mod.subtitle}
+                        </p>
+                        {(isCurrent || modProgress > 0) && access.allowed && (
+                          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-indigo-100">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                modProgress === 100
+                                  ? 'bg-emerald-500'
+                                  : 'bg-indigo-600'
+                              }`}
+                              style={{ width: `${modProgress}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            ) : (
-              <>
-                <ul className="mt-2.5 space-y-1.5 text-xs text-slate-700">
-                  {(showAllOpenQuestions
-                    ? openQuestions
-                    : openQuestions.slice(0, 4)
-                  ).map((q, idx) => (
-                    <li
-                      key={idx}
-                      className="group flex items-start justify-between gap-1.5 rounded-lg border border-amber-200/60 bg-white px-2.5 py-1.5 text-[11px] leading-snug"
+            </div>
+
+            {/* Open Questions Parking Lot Sidebar Card */}
+            <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+                  <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
+                  Open Questions Parking Lot
+                </span>
+                <Badge
+                  variant="secondary"
+                  className="bg-amber-100 text-[10px] text-amber-900"
+                >
+                  {openQuestions.length} Parked
+                </Badge>
+              </div>
+              <p className="mt-1 text-[11px] text-amber-900/80">
+                Tricky questions you parked so you never lose momentum:
+              </p>
+              {openQuestions.length === 0 ? (
+                <div className="mt-2.5 rounded-lg border border-dashed border-amber-200/80 bg-white/70 px-2.5 py-2 text-[11px] text-slate-500">
+                  No open questions parked yet. Use &ldquo;Park Question&rdquo; on any step when you want to come back to a detail later.
+                </div>
+              ) : (
+                <>
+                  <ul className="mt-2.5 space-y-1.5 text-xs text-slate-700">
+                    {(showAllOpenQuestions
+                      ? openQuestions
+                      : openQuestions.slice(0, 4)
+                    ).map((q, idx) => (
+                      <li
+                        key={idx}
+                        className="group flex items-start justify-between gap-1.5 rounded-lg border border-amber-200/60 bg-white px-2.5 py-1.5 text-[11px] leading-snug"
+                      >
+                        <span>• {q}</span>
+                        {!activeEntitlement.isVaultReadonly && (
+                          <button
+                            type="button"
+                            onClick={() => handleResolveOpenQuestion(idx)}
+                            title="Mark resolved & remove from Parking Lot"
+                            className="mt-0.5 shrink-0 rounded p-0.5 text-slate-400 opacity-70 transition-opacity hover:bg-amber-100 hover:text-amber-900 group-hover:opacity-100"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  {openQuestions.length > 4 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowAllOpenQuestions(!showAllOpenQuestions)
+                      }
+                      className="mt-2 w-full rounded-lg border border-amber-200/70 bg-white/80 py-1 text-center text-[11px] font-semibold text-amber-900 hover:bg-amber-100/60"
                     >
-                      <span>• {q}</span>
-                      {!activeEntitlement.isVaultReadonly && (
-                        <button
-                          type="button"
-                          onClick={() => handleResolveOpenQuestion(idx)}
-                          title="Mark resolved & remove from Parking Lot"
-                          className="mt-0.5 shrink-0 rounded p-0.5 text-slate-400 opacity-70 transition-opacity hover:bg-amber-100 hover:text-amber-900 group-hover:opacity-100"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                {openQuestions.length > 4 && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowAllOpenQuestions(!showAllOpenQuestions)
-                    }
-                    className="mt-2 w-full rounded-lg border border-amber-200/70 bg-white/80 py-1 text-center text-[11px] font-semibold text-amber-900 hover:bg-amber-100/60"
-                  >
-                    {showAllOpenQuestions
-                      ? 'Show Fewer Questions'
-                      : `Show All ${openQuestions.length} Parked Questions`}
-                  </button>
-                )}
-              </>
-            )}
+                      {showAllOpenQuestions
+                        ? 'Show Fewer Questions'
+                        : `Show All ${openQuestions.length} Parked Questions`}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </aside>
 
@@ -4595,7 +4649,7 @@ export default function WorkspacePage() {
       {/* LAYER 2: SLIDE-OUT "ASK UNICORN" AI SIDEKICK DRAWER       */}
       {/* ========================================================= */}
       {askUnicornOpen && (
-        <div className="fixed bottom-5 right-5 z-40 w-96 max-w-[calc(100vw-2.5rem)] rounded-2xl border border-indigo-200 bg-white shadow-2xl">
+        <div className="fixed bottom-3 left-3 right-3 z-40 rounded-2xl border border-indigo-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96">
           <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
