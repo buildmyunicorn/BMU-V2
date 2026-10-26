@@ -128,6 +128,7 @@ import {
   analyzeSurveyResultsWithAiAction,
   saveCustomerInterviewLogsAction,
   extractMomTestInterviewWithAiAction,
+  saveModuleCBlindSpotsAction,
 } from '@/app/actions/module-c';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
@@ -1254,6 +1255,42 @@ export default function WorkspacePage() {
     });
   }
 
+  async function handleSaveModuleCBlindSpots(
+    modCThingsToConsider: BlindSpotItem[]
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        const existingModC = p.moduleCData || {
+          surveys: [],
+          activeSurveyId: undefined,
+          interviewLogs: [],
+        };
+        const hasValidation =
+          (existingModC.surveys || []).some((s) => s.questions.length > 0) ||
+          (existingModC.interviewLogs || []).length > 0;
+        return {
+          ...p,
+          moduleCData: {
+            ...existingModC,
+            thingsToConsider: hasValidation ? modCThingsToConsider : [],
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleCBlindSpotsAction({
+      planId: currentPlan.id,
+      thingsToConsider: modCThingsToConsider,
+    });
+  }
+
   async function handleExtractMomTestInterviewWithAi(params: {
     intervieweeNameOrRole: string;
     channel: InterviewChannelType;
@@ -1597,17 +1634,21 @@ export default function WorkspacePage() {
         : 0;
 
   const savedSurveys = currentPlan.moduleCData?.surveys || [];
+  const savedInterviewLogs = currentPlan.moduleCData?.interviewLogs || [];
   const hasSurveyWithQuestions = savedSurveys.some(
     (s) => s.questions.length > 0 && s.title.trim().length > 0
   );
+  const hasLoggedInterviews = savedInterviewLogs.length > 0;
   const hasSurveyResponses = savedSurveys.some((s) => s.responses.length > 0);
-  const hasSurveyInsights = savedSurveys.some((s) =>
-    Boolean(s.aiInsightsSummary)
-  );
+  const hasSurveyInsightsOrBlindSpots =
+    savedSurveys.some((s) => Boolean(s.aiInsightsSummary)) ||
+    (currentPlan.moduleCData?.thingsToConsider?.length ?? 0) > 0;
   const totalModCScore =
-    (hasSurveyWithQuestions ? 50 : 0) +
-    (hasSurveyResponses ? 25 : 0) +
-    (hasSurveyInsights ? 25 : 0);
+    !hasSurveyWithQuestions && !hasLoggedInterviews
+      ? 0
+      : (hasSurveyWithQuestions || hasLoggedInterviews ? 50 : 0) +
+        (hasSurveyResponses || hasLoggedInterviews ? 25 : 0) +
+        (hasSurveyInsightsOrBlindSpots ? 25 : 0);
   const moduleCProgressPercent =
     totalModCScore > 0
       ? totalModCScore
@@ -2041,9 +2082,12 @@ export default function WorkspacePage() {
               }}
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
+              founderName={session.user.name}
+              whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
               onSaveSurvey={handleSaveModuleCSurvey}
               onDeleteSurvey={handleDeleteModuleCSurvey}
               onSaveInterviewLogs={handleSaveModuleCInterviewLogs}
+              onSaveModuleCBlindSpots={handleSaveModuleCBlindSpots}
               onExtractMomTestInterviewWithAi={
                 handleExtractMomTestInterviewWithAi
               }

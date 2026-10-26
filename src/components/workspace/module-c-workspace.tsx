@@ -78,7 +78,23 @@ import {
   type InterviewSignalBadgeType,
   type InterviewCommitmentOutcomeType,
 } from '@/lib/auth/session-store';
-import type { SupportedCountryCode } from '@/lib/localization';
+import {
+  getCountryRulePack,
+  type SupportedCountryCode,
+} from '@/lib/localization';
+import type { BlindSpotItem } from '@/db/schema';
+import {
+  buildDynamicModuleCBlindSpots,
+  hasModuleCValidationData,
+} from '@/lib/ai/module-c-blindspots';
+import {
+  buildModuleCMarkdownBrief,
+  buildModuleCStandaloneHtmlDocument,
+  formatInterviewChannel,
+  formatInterviewCommitment,
+  INTERVIEW_SIGNAL_LABELS,
+  type ModuleCBriefData,
+} from '@/lib/export/module-c-brief';
 import { getPublicSurveyBySlugAction } from '@/app/actions/module-c';
 import {
   generateQrCodeMatrix,
@@ -89,6 +105,8 @@ export interface ModuleCWorkspaceProps {
   plan: ActiveStartupPlan;
   selectedCountry: SupportedCountryCode;
   isVaultReadonly: boolean;
+  founderName?: string;
+  whiteLabelEnabled?: boolean;
   onSaveSurvey: (
     survey: SavedValidationSurvey,
     allSurveys: SavedValidationSurvey[]
@@ -101,6 +119,9 @@ export interface ModuleCWorkspaceProps {
   onSaveInterviewLogs: (
     interviewLogs: SavedCustomerInterviewLog[],
     activeSurveySlug?: string
+  ) => Promise<void>;
+  onSaveModuleCBlindSpots?: (
+    thingsToConsider: BlindSpotItem[]
   ) => Promise<void>;
   onExtractMomTestInterviewWithAi: (params: {
     intervieweeNameOrRole: string;
@@ -508,10 +529,14 @@ function createBlankSurvey(
 
 export function ModuleCWorkspace({
   plan,
+  selectedCountry,
   isVaultReadonly,
+  founderName = 'Founder',
+  whiteLabelEnabled = false,
   onSaveSurvey,
   onDeleteSurvey,
   onSaveInterviewLogs,
+  onSaveModuleCBlindSpots,
   onExtractMomTestInterviewWithAi,
   onGenerateSurveyWithAi,
   onCheckMomTestQuestionWithAi,
@@ -1960,6 +1985,178 @@ export function ModuleCWorkspace({
     overallScaleCount > 0
       ? Number((overallScaleSum / overallScaleCount).toFixed(1))
       : null;
+
+  // =========================================================================
+  // MODULE C BLIND-SPOT REVIEW & EXPORTABLE VALIDATION BRIEF (GATED)
+  // =========================================================================
+  const countryPack = getCountryRulePack(selectedCountry);
+  const currency = countryPack.defaultCurrency;
+  const [showBriefPreview, setShowBriefPreview] = useState<boolean>(true);
+  const [briefCopied, setBriefCopied] = useState<boolean>(false);
+  const [isSavingComplete, setIsSavingComplete] = useState<boolean>(false);
+
+  const briefGeneratedDate = new Date().toLocaleDateString('en-IE', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  // Strict Gating: Do NOT run blind-spot checker or allow document creation
+  // if there are no surveys (with questions) and no 1-on-1 interviews.
+  const validSurveys = surveys.filter((s) => s.questions.length > 0);
+  const hasValidationActivity = hasModuleCValidationData(
+    surveys,
+    interviewLogs
+  );
+
+  const allResponsesAcrossSurveys = validSurveys.flatMap(
+    (s) => s.responses || []
+  );
+  const realResponsesAcrossSurveys = allResponsesAcrossSurveys.filter(
+    (r) => !r.isSimulated
+  );
+  const waitlistAcrossSurveys = allResponsesAcrossSurveys.filter(
+    (r) => r.joinedWaitlist && Boolean(r.respondentEmail?.trim())
+  );
+
+  const liveThingsToConsider: BlindSpotItem[] = hasValidationActivity
+    ? buildDynamicModuleCBlindSpots({
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory,
+        hqCountryCode: selectedCountry,
+        exportPotential: plan.exportPotential,
+        conceptCanvas: plan.conceptCanvas,
+        moduleBData: plan.moduleBData,
+        surveys,
+        activeSurvey,
+        interviewLogs,
+      })
+    : [];
+
+  const moduleCReadinessSteps = [
+    {
+      stepNumber: 1,
+      label: 'Customer Validation Survey (/v/[slug])',
+      isComplete: validSurveys.length > 0,
+      summary:
+        validSurveys.length > 0
+          ? `${validSurveys.length} survey(s) • ${validSurveys.filter((s) => s.isPublished).length} published & locked`
+          : 'Optional if running 1-on-1 calls — or create a Mom-Test survey above',
+    },
+    {
+      stepNumber: 2,
+      label: '1-on-1 Customer Discovery Interviews',
+      isComplete: interviewLogs.length > 0,
+      summary:
+        interviewLogs.length > 0
+          ? `${interviewLogs.length} 1-on-1 call(s) logged (Avg Pain ${(interviewLogs.reduce((acc, i) => acc + i.painScore1To5, 0) / interviewLogs.length).toFixed(1)}/5)`
+          : 'Log at least 1–3 live customer interviews to capture verbatim quotes',
+    },
+    {
+      stepNumber: 3,
+      label: 'Responses & Early-Bird Waitlist Signal',
+      isComplete:
+        allResponsesAcrossSurveys.length > 0 || interviewLogs.length > 0,
+      summary:
+        allResponsesAcrossSurveys.length > 0 || interviewLogs.length > 0
+          ? `${realResponsesAcrossSurveys.length} real survey response(s) • ${waitlistAcrossSurveys.length} waitlist lead(s) • ${interviewLogs.length} call(s)`
+          : 'Share your survey link or log a 1-on-1 call to collect evidence',
+    },
+    {
+      stepNumber: 4,
+      label: 'Co-Founder Blind-Spot Review',
+      isComplete: hasValidationActivity && liveThingsToConsider.length >= 6,
+      summary: hasValidationActivity
+        ? `${liveThingsToConsider.length} tailored validation blind-spot cards active`
+        : 'Unlocks automatically once you create a survey or log a 1-on-1 interview',
+    },
+  ];
+
+  const moduleCBriefData: ModuleCBriefData = {
+    planTitle: plan.title,
+    founderName,
+    industryCategory: plan.industryCategory,
+    hqCountryCode: selectedCountry,
+    targetMarkets: plan.targetMarketsArray,
+    conceptCanvas: plan.conceptCanvas,
+    moduleBData: plan.moduleBData,
+    surveys,
+    activeSurvey,
+    interviewLogs,
+    thingsToConsider: liveThingsToConsider,
+    whiteLabelEnabled,
+  };
+
+  const handleSaveModuleCComplete = async () => {
+    if (isVaultReadonly || !hasValidationActivity) return;
+    setIsSavingComplete(true);
+    try {
+      if (activeSurvey) {
+        await onSaveSurvey(activeSurvey, surveys);
+      }
+      await onSaveInterviewLogs(interviewLogs, activeSurvey?.publicSlug);
+      if (onSaveModuleCBlindSpots) {
+        await onSaveModuleCBlindSpots(liveThingsToConsider);
+      }
+      setStatusBanner(
+        '✅ All Module C Surveys, 1-on-1 Interviews & Blind-Spot Review saved!'
+      );
+    } finally {
+      setIsSavingComplete(false);
+    }
+  };
+
+  const handleCopyModuleCBrief = () => {
+    if (!hasValidationActivity) return;
+    const md = buildModuleCMarkdownBrief(moduleCBriefData);
+    if (!md) return;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(md);
+      setBriefCopied(true);
+      setTimeout(() => setBriefCopied(false), 2500);
+    }
+  };
+
+  const handleDownloadModuleCBriefHtml = () => {
+    if (!hasValidationActivity) return;
+    if (!isVaultReadonly) {
+      handleSaveModuleCComplete().catch(() => {});
+    }
+    const htmlContent = buildModuleCStandaloneHtmlDocument(moduleCBriefData);
+    if (!htmlContent) return;
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeSlug =
+      plan.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'startup';
+    link.href = url;
+    link.download = `${safeSlug}-customer-validation-brief.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePrintModuleCBriefPdf = () => {
+    if (!hasValidationActivity) return;
+    if (!isVaultReadonly) {
+      handleSaveModuleCComplete().catch(() => {});
+    }
+    const htmlContent = buildModuleCStandaloneHtmlDocument(moduleCBriefData);
+    if (!htmlContent) return;
+    const printWin = window.open('', '_blank', 'width=960,height=800');
+    if (!printWin) return;
+    printWin.document.open();
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => {
+      printWin.print();
+    }, 250);
+  };
 
   return (
     <div className="space-y-6">
@@ -5546,6 +5743,640 @@ export function ModuleCWorkspace({
             </>
           )}
         </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODULE C BLIND-SPOT REVIEW & EXPORTABLE VALIDATION BRIEF (GATED)    */}
+      {/* =================================================================== */}
+      {!hasValidationActivity ? (
+        <Card className="border-amber-200/90 bg-gradient-to-br from-amber-50/50 via-white to-slate-50 shadow-xs">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                  <Lock className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    Co-Founder Blind-Spot Review &amp; Customer Validation Brief
+                    Locked
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    Create at least one <strong>Customer Survey</strong> or log
+                    at least one <strong>1-on-1 Customer Interview</strong>{' '}
+                    above to unlock your Blind-Spot Checker and exportable
+                    Validation Brief.
+                  </CardDescription>
+                </div>
+              </div>
+              <Badge className="border border-amber-300 bg-amber-100 text-[11px] font-semibold text-amber-900">
+                Requires 1+ Survey or 1-on-1 Interview
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 bg-white/90 p-4 text-xs text-slate-600">
+              <div className="max-w-2xl leading-relaxed">
+                We never generate a fake blind-spot audit or validation document
+                when you have zero surveys and zero 1-on-1 interviews. Start by
+                building a Mom-Test survey or logging your first 1-on-1
+                discovery chat!
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setActiveModuleCSection('SURVEYS');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+                >
+                  <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                  Go to Customer Surveys
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setActiveModuleCSection('INTERVIEWS');
+                    resetInterviewForm();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                >
+                  <Mic className="h-3.5 w-3.5" />
+                  Log a 1-on-1 Interview
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* =============================================================== */}
+          {/* CONSTRUCTIVE "THINGS TO CONSIDER" (MODULE C BLIND-SPOT ENGINE)  */}
+          {/* =============================================================== */}
+          <Card className="border-amber-200/90 bg-gradient-to-br from-amber-50/60 via-white to-indigo-50/30 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-amber-600" />
+                  <CardTitle className="text-base">
+                    Constructive &ldquo;Things to Consider&rdquo; (Module C
+                    Blind-Spot Engine)
+                  </CardTitle>
+                  <Badge variant="warning">
+                    Supportive Co-Founder Audit • 6 Cards
+                  </Badge>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isVaultReadonly || isSavingComplete}
+                  onClick={handleSaveModuleCComplete}
+                >
+                  {isSavingComplete ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      Save All Module C Progress
+                    </>
+                  )}
+                </Button>
+              </div>
+              <CardDescription>
+                Before you move into <strong>Module D (Product &amp; V1 Scope)</strong>,
+                here are 6 constructive blind-spot checks synthesizing your{' '}
+                <strong>{validSurveys.length} survey(s)</strong>,{' '}
+                <strong>{allResponsesAcrossSurveys.length} response(s)</strong>,{' '}
+                <strong>{interviewLogs.length} 1-on-1 interview(s)</strong>, and{' '}
+                <strong>{countryPack.countryName}</strong> grant readiness:
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {liveThingsToConsider.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-col justify-between rounded-xl border border-amber-200/80 bg-white p-4 shadow-2xs"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge
+                          variant={
+                            item.severity === 'WARNING'
+                              ? 'warning'
+                              : 'secondary'
+                          }
+                          className="text-[10px]"
+                        >
+                          {item.category}
+                        </Badge>
+                        <span className="text-[11px] font-semibold text-amber-700">
+                          {item.severity === 'WARNING'
+                            ? '⚠️ Key Blind Spot'
+                            : '💡 Opportunity'}
+                        </span>
+                      </div>
+                      <h4 className="mt-2 text-sm font-bold text-slate-900">
+                        {item.title}
+                      </h4>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                        {item.explanation}
+                      </p>
+                    </div>
+
+                    {item.suggestedAction && (
+                      <div className="mt-3 rounded-lg bg-indigo-50/70 px-3 py-2 text-xs text-indigo-950">
+                        <strong className="font-semibold text-indigo-700">
+                          Suggested Action:{' '}
+                        </strong>
+                        {item.suggestedAction}
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex items-center justify-end border-t border-slate-100 pt-2.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onParkQuestion(
+                            `[Module C - ${item.category}] ${item.title}: ${item.suggestedAction || item.explanation}`
+                          )
+                        }
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 hover:text-amber-950"
+                      >
+                        <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
+                        Park in Open Questions
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* =============================================================== */}
+          {/* MODULE C SUMMARY DOCUMENT: CUSTOMER VALIDATION & INTERVIEW BRIEF */}
+          {/* =============================================================== */}
+          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-white to-emerald-50/40 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                      <FileText className="h-3.5 w-3.5" />
+                    </span>
+                    <CardTitle className="text-base">
+                      Module Summary Document: Customer Surveys &amp; 1-on-1
+                      Validation Brief
+                    </CardTitle>
+                    <Badge variant="default">
+                      Live-Synced • Print / PDF / HTML Ready
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1">
+                    Your shareable primary market validation dossier combining
+                    your Mom-Test surveys, public <code>/v/[slug]</code>{' '}
+                    results, 1-on-1 customer interview logs, waitlist leads, and
+                    Co-Founder Blind-Spot review.
+                  </CardDescription>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBriefPreview(!showBriefPreview)}
+                >
+                  <Eye className="h-3.5 w-3.5 text-indigo-600" />
+                  {showBriefPreview
+                    ? 'Hide Document Preview'
+                    : 'Show Document Preview'}
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {/* Readiness Checklist Strip */}
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                <div className="mb-2 flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-800">
+                    Module C Validation Readiness Checklist
+                  </span>
+                  <span className="font-semibold text-indigo-700">
+                    {
+                      moduleCReadinessSteps.filter((s) => s.isComplete).length
+                    }
+                    /4 Validation Pillars Active
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {moduleCReadinessSteps.map((step) => (
+                    <div
+                      key={step.stepNumber}
+                      className={`flex items-start gap-2 rounded-lg border p-2.5 text-xs ${
+                        step.isComplete
+                          ? 'border-emerald-200 bg-emerald-50/50 text-emerald-950'
+                          : 'border-amber-200 bg-amber-50/50 text-amber-950'
+                      }`}
+                    >
+                      <CheckCircle2
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          step.isComplete
+                            ? 'text-emerald-600'
+                            : 'text-amber-500'
+                        }`}
+                      />
+                      <div className="min-w-0">
+                        <div className="font-bold">
+                          {step.stepNumber}. {step.label}
+                        </div>
+                        <div className="mt-0.5 truncate text-[11px] opacity-85">
+                          {step.summary}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* LIVE DOCUMENT PREVIEW (Matches Module A & Module B Document Shell) */}
+              {showBriefPreview && (
+                <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
+                  {/* Document Top Header Bar */}
+                  <div className="border-b-2 border-indigo-600 bg-slate-50/70 px-6 py-5">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                          {whiteLabelEnabled
+                            ? 'MODULE C CUSTOMER VALIDATION & INTERVIEW BRIEF'
+                            : 'BUILD MY UNICORN 2.0 • MODULE C CUSTOMER VALIDATION & INTERVIEW BRIEF'}
+                        </div>
+                        <h3 className="mt-1 text-xl font-extrabold text-slate-900">
+                          {plan.title}
+                        </h3>
+                        <p className="mt-0.5 text-xs text-slate-600">
+                          Prepared for <strong>{founderName}</strong> •{' '}
+                          {countryPack.countryName} ({currency}) •{' '}
+                          {plan.industryCategory}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-right text-xs text-slate-600">
+                        <div>
+                          <strong>Date:</strong> {briefGeneratedDate}
+                        </div>
+                        <div>
+                          <strong>Validation Track:</strong>{' '}
+                          {validSurveys.length} Survey(s) •{' '}
+                          {interviewLogs.length} 1-on-1 Call(s)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Document Body Sections */}
+                  <div className="divide-y divide-slate-200 px-6 py-5 text-xs">
+                    {/* Section 1: Primary Market Validation Snapshot */}
+                    <div className="pb-5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        1. Primary Market Validation Snapshot
+                      </div>
+                      <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+                          <div className="text-[10px] font-bold uppercase text-indigo-700">
+                            Customer Surveys
+                          </div>
+                          <div className="mt-1 text-sm font-extrabold text-indigo-950">
+                            {validSurveys.length} Survey
+                            {validSurveys.length === 1 ? '' : 's'}
+                          </div>
+                          <div className="mt-1 text-[11px] text-indigo-900/80">
+                            {validSurveys.filter((s) => s.isPublished).length}{' '}
+                            Published &amp; Locked
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                          <div className="text-[10px] font-bold uppercase text-emerald-700">
+                            Survey Responses
+                          </div>
+                          <div className="mt-1 text-sm font-extrabold text-emerald-950">
+                            {realResponsesAcrossSurveys.length} Real (
+                            {allResponsesAcrossSurveys.length} Total)
+                          </div>
+                          <div className="mt-1 text-[11px] text-emerald-900/80">
+                            {allResponsesAcrossSurveys.length -
+                              realResponsesAcrossSurveys.length}{' '}
+                            simulated sample(s)
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+                          <div className="text-[10px] font-bold uppercase text-violet-700">
+                            1-on-1 Discovery Calls
+                          </div>
+                          <div className="mt-1 text-sm font-extrabold text-violet-950">
+                            {interviewLogs.length} Logged
+                          </div>
+                          <div className="mt-1 text-[11px] text-violet-900/80">
+                            Avg Customer Pain:{' '}
+                            {interviewLogs.length > 0
+                              ? `${(
+                                  interviewLogs.reduce(
+                                    (acc, i) => acc + i.painScore1To5,
+                                    0
+                                  ) / interviewLogs.length
+                                ).toFixed(1)}/5`
+                              : 'N/A'}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                          <div className="text-[10px] font-bold uppercase text-amber-800">
+                            Early-Bird Waitlist
+                          </div>
+                          <div className="mt-1 text-sm font-extrabold text-amber-950">
+                            {waitlistAcrossSurveys.length} Lead
+                            {waitlistAcrossSurveys.length === 1 ? '' : 's'}
+                          </div>
+                          <div className="mt-1 text-[11px] text-amber-900/80">
+                            Feeds Module D &amp; Module G
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Customer Validation Surveys */}
+                    <div className="py-5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        2. Customer Validation Surveys &amp; AI Signal Synthesis
+                      </div>
+                      {validSurveys.length === 0 ? (
+                        <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-slate-500">
+                          No customer surveys created yet (validating via 1-on-1
+                          customer interviews).
+                        </div>
+                      ) : (
+                        <div className="mt-2.5 space-y-3">
+                          {validSurveys.map((survey, sIdx) => {
+                            const sReal = survey.responses.filter(
+                              (r) => !r.isSimulated
+                            ).length;
+                            const sWaitlist = survey.responses.filter(
+                              (r) =>
+                                r.joinedWaitlist &&
+                                Boolean(r.respondentEmail?.trim())
+                            ).length;
+                            return (
+                              <div
+                                key={survey.id}
+                                className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div>
+                                    <span className="text-[10px] font-bold uppercase text-indigo-600">
+                                      Survey #{sIdx + 1} • /v/
+                                      {survey.publicSlug}
+                                    </span>
+                                    <div className="text-sm font-bold text-slate-900">
+                                      {survey.title}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <Badge
+                                      className={
+                                        survey.isPublished
+                                          ? 'bg-emerald-100 text-[10px] text-emerald-900'
+                                          : 'bg-amber-100 text-[10px] text-amber-900'
+                                      }
+                                    >
+                                      {survey.isPublished
+                                        ? '🔒 Published & Locked'
+                                        : 'Draft'}
+                                    </Badge>
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px]"
+                                    >
+                                      {survey.questions.length} Questions •{' '}
+                                      {survey.responses.length} Responses (
+                                      {sReal} Real) • {sWaitlist} Waitlist
+                                    </Badge>
+                                  </div>
+                                </div>
+
+                                {survey.aiInsightsSummary && (
+                                  <div className="mt-2.5 rounded-lg border border-indigo-200 bg-indigo-50/70 p-2.5 text-[11px] text-indigo-950">
+                                    <div>
+                                      <strong>
+                                        AI Signal Score (
+                                        {
+                                          survey.aiInsightsSummary
+                                            .signalScoreOutOf100
+                                        }
+                                        /100):
+                                      </strong>{' '}
+                                      {
+                                        survey.aiInsightsSummary
+                                          .headlineTakeaway
+                                      }
+                                    </div>
+                                    <div className="mt-1 text-indigo-900/90">
+                                      <strong>
+                                        Recommended V1 Action (Feeds Module D):
+                                      </strong>{' '}
+                                      {
+                                        survey.aiInsightsSummary
+                                          .recommendedNextAction
+                                      }
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 3: 1-on-1 Customer Discovery Interviews */}
+                    <div className="py-5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        3. 1-on-1 Customer Discovery Interview Log (
+                        {interviewLogs.length})
+                      </div>
+                      {interviewLogs.length === 0 ? (
+                        <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-slate-500">
+                          No 1-on-1 customer interviews logged yet.
+                        </div>
+                      ) : (
+                        <div className="mt-2.5 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                          {interviewLogs.map((log) => (
+                            <div
+                              key={log.id}
+                              className="rounded-xl border border-slate-200 bg-slate-50/70 p-3"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="font-bold text-slate-900">
+                                    {log.intervieweeNameOrRole}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500">
+                                    {log.date} • {formatInterviewChannel(log)}
+                                  </div>
+                                </div>
+                                <Badge
+                                  variant={
+                                    log.signalBadge === 'STRONG_SIGNAL'
+                                      ? 'success'
+                                      : log.signalBadge === 'MIXED_SIGNAL'
+                                        ? 'warning'
+                                        : 'secondary'
+                                  }
+                                  className="text-[10px]"
+                                >
+                                  Pain {log.painScore1To5}/5 •{' '}
+                                  {INTERVIEW_SIGNAL_LABELS[log.signalBadge]}
+                                </Badge>
+                              </div>
+                              <p className="mt-1.5 text-[11px] font-medium text-slate-800">
+                                {log.keyTakeaway}
+                              </p>
+                              {log.verbatimQuote?.trim() && (
+                                <p className="mt-1 text-[11px] italic text-slate-600">
+                                  &ldquo;{log.verbatimQuote.trim()}&rdquo;
+                                </p>
+                              )}
+                              <div className="mt-1.5 text-[10px] font-semibold text-indigo-700">
+                                Outcome: {formatInterviewCommitment(log)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 4: Co-Founder Blind-Spot Takeaways */}
+                    <div className="pt-5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        4. Co-Founder Blind-Spot Review (&ldquo;Things to
+                        Consider&rdquo;)
+                      </div>
+                      <div className="mt-2.5 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                        {liveThingsToConsider.map((item) => (
+                          <div
+                            key={item.id}
+                            className="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
+                          >
+                            <div className="font-bold text-slate-900">
+                              {item.title}
+                            </div>
+                            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                              {item.suggestedAction || item.explanation}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Action Bar: Copy, Download HTML, Print/Save PDF */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
+                <div className="text-xs text-slate-600">
+                  📥{' '}
+                  <strong>
+                    Take your Customer Validation &amp; Interview Brief with
+                    you:
+                  </strong>{' '}
+                  Download a standalone file, print/save as PDF, or copy for
+                  grant &amp; accelerator applications.
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyModuleCBrief}
+                  >
+                    {briefCopied ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        Copied to Clipboard!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5 text-slate-600" />
+                        Copy Summary
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadModuleCBriefHtml}
+                  >
+                    <Download className="h-3.5 w-3.5 text-indigo-600" />
+                    Download Brief (.html)
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handlePrintModuleCBriefPdf}
+                    className="bg-indigo-600 text-white hover:bg-indigo-700"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    Print / Save as PDF
+                  </Button>
+                </div>
+              </div>
+
+              {/* Handoff Footer CTA into Module D */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
+                <div className="text-xs">
+                  <span className="font-semibold text-indigo-300">
+                    Ready to scope V1 of {plan.title} based on real customer
+                    evidence?
+                  </span>{' '}
+                  Your validated pain points, workaround spend, and{' '}
+                  <strong>{waitlistAcrossSurveys.length} waitlist leads</strong>{' '}
+                  will automatically feed into{' '}
+                  <strong>
+                    Module D (Product Vehicle &amp; Ruthless V1 Feature Filter)
+                  </strong>
+                  .
+                </div>
+                {onContinueToModuleD && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      await handleSaveModuleCComplete();
+                      onContinueToModuleD();
+                    }}
+                    className="bg-indigo-500 text-white hover:bg-indigo-400"
+                  >
+                    Continue to Module D
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {/* =================================================================== */}

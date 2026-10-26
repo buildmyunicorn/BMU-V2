@@ -8,6 +8,7 @@ import {
   validationSurveys,
   surveyResponses,
   openQuestionsParkingLot,
+  type BlindSpotItem,
 } from '@/db';
 import {
   deduplicateSurveyResponses,
@@ -387,6 +388,7 @@ export async function saveValidationSurveyAction(input: {
       activeSurveyId: syncedActiveSurvey.id,
       interviewLogs:
         input.survey.interviewLogs || existingModInputs.interviewLogs || [],
+      thingsToConsider: existingModInputs.thingsToConsider,
       lastSavedAt: new Date().toISOString(),
     };
 
@@ -480,10 +482,11 @@ export async function deleteValidationSurveyAction(input: {
     const existingModInputs = (existingMod[0]?.structuredInputsJsonb ||
       {}) as Partial<SavedModuleCData>;
 
-    const payload = {
+    const payload: SavedModuleCData = {
       surveys: input.remainingSurveys,
       activeSurveyId: input.remainingSurveys[0]?.id,
       interviewLogs: existingModInputs.interviewLogs || [],
+      thingsToConsider: existingModInputs.thingsToConsider,
       lastSavedAt: new Date().toISOString(),
     };
 
@@ -913,6 +916,83 @@ export async function parkModuleCOpenQuestionAction(input: {
       questionText: input.questionText.trim(),
       status: 'OPEN',
     });
+    return { ok: true, persistedToCloudSql: true };
+  } catch {
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Persists Module C Blind-Spot Review ("Things to Consider") & marks Module C 100% complete
+ * when at least one survey or 1-on-1 interview exists.
+ */
+export async function saveModuleCBlindSpotsAction(input: {
+  planId: string;
+  thingsToConsider: BlindSpotItem[];
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  try {
+    await ensureModuleCodeEnumValues();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_C_SURVEYS_FEEDBACK')
+        )
+      )
+      .limit(1);
+
+    const existingInputs = (existingMod[0]?.structuredInputsJsonb ||
+      {}) as Partial<SavedModuleCData>;
+
+    const hasSurveys =
+      Array.isArray(existingInputs.surveys) &&
+      existingInputs.surveys.some((s) => s.questions.length > 0);
+    const hasInterviews =
+      Array.isArray(existingInputs.interviewLogs) &&
+      existingInputs.interviewLogs.length > 0;
+
+    // Never persist blind-spots if there are no surveys and no 1-on-1 interviews
+    const safeBlindSpots =
+      hasSurveys || hasInterviews ? input.thingsToConsider : [];
+
+    const payload: SavedModuleCData = {
+      surveys: existingInputs.surveys || [],
+      activeSurveyId: existingInputs.activeSurveyId,
+      interviewLogs: existingInputs.interviewLogs || [],
+      thingsToConsider: safeBlindSpots,
+      lastSavedAt: new Date().toISOString(),
+    };
+
+    const progress =
+      safeBlindSpots.length > 0 ? 100 : hasSurveys || hasInterviews ? 75 : 0;
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: payload,
+          aiThingsToConsiderJsonb: safeBlindSpots,
+          completionPercentage: progress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_C_SURVEYS_FEEDBACK',
+        structuredInputsJsonb: payload,
+        aiThingsToConsiderJsonb: safeBlindSpots,
+        completionPercentage: progress,
+      });
+    }
+
     return { ok: true, persistedToCloudSql: true };
   } catch {
     return { ok: true, persistedToCloudSql: false };
