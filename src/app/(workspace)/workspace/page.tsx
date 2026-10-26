@@ -96,6 +96,8 @@ import {
   type SavedSurveyResponse,
   type SurveyFocusAreaType,
   type SurveyQuestionItem,
+  type SavedCustomerInterviewLog,
+  type InterviewChannelType,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -124,6 +126,8 @@ import {
   checkMomTestQuestionWithAiAction,
   suggestNextMomTestQuestionWithAiAction,
   analyzeSurveyResultsWithAiAction,
+  saveCustomerInterviewLogsAction,
+  extractMomTestInterviewWithAiAction,
 } from '@/app/actions/module-c';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
@@ -1182,6 +1186,7 @@ export default function WorkspacePage() {
     surveyTitle: string;
     questions: SurveyQuestionItem[];
     responses: SavedSurveyResponse[];
+    interviewLogs?: SavedCustomerInterviewLog[];
   }) {
     if (!aiCreditCheck.allowed) {
       setPaywallModalFeature(
@@ -1197,6 +1202,7 @@ export default function WorkspacePage() {
       surveyTitle: params.surveyTitle,
       questions: params.questions,
       responses: params.responses,
+      interviewLogs: params.interviewLogs,
     });
 
     setSession((prev) => {
@@ -1214,6 +1220,92 @@ export default function WorkspacePage() {
     });
 
     return result.insights;
+  }
+
+  async function handleSaveModuleCInterviewLogs(
+    interviewLogs: SavedCustomerInterviewLog[]
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        const existingModC = p.moduleCData || {
+          surveys: [],
+          activeSurveyId: undefined,
+        };
+        return {
+          ...p,
+          moduleCData: {
+            ...existingModC,
+            interviewLogs,
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveCustomerInterviewLogsAction({
+      planId: currentPlan.id,
+      interviewLogs,
+    });
+  }
+
+  async function handleExtractMomTestInterviewWithAi(params: {
+    intervieweeNameOrRole: string;
+    channel: InterviewChannelType;
+    otherChannelText?: string;
+    rawNotes: string;
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Mom-Test Interview Extractor (${aiCreditCheck.reason})`
+      );
+      return null;
+    }
+
+    const targetDesc =
+      currentPlan.moduleBData?.beachhead?.beachheadSegment ||
+      effectiveCanvas.targetCustomer ||
+      'Target customers';
+
+    const result = await extractMomTestInterviewWithAiAction({
+      userId: session.user.id,
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      intervieweeName: params.intervieweeNameOrRole,
+      intervieweeRoleOrCompany: targetDesc,
+      rawNotes: params.rawNotes,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            result.creditsUsedAfter ??
+            prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      keyTakeaway: result.keyTakeaway,
+      verbatimQuote: result.verbatimQuote,
+      workaroundAndSpend: result.workaroundAndSpend,
+      painScore1To5: result.painScore1To5,
+      commitmentOutcome: result.commitmentOutcome,
+      signalBadge: result.signalBadge,
+      momTestCoachingNote: result.momTestCoachingNote,
+    };
   }
 
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
@@ -1951,6 +2043,10 @@ export default function WorkspacePage() {
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               onSaveSurvey={handleSaveModuleCSurvey}
               onDeleteSurvey={handleDeleteModuleCSurvey}
+              onSaveInterviewLogs={handleSaveModuleCInterviewLogs}
+              onExtractMomTestInterviewWithAi={
+                handleExtractMomTestInterviewWithAi
+              }
               onGenerateSurveyWithAi={handleGenerateModuleCSurveyWithAi}
               onCheckMomTestQuestionWithAi={handleCheckMomTestQuestionWithAi}
               onSuggestNextQuestionWithAi={handleSuggestNextQuestionWithAi}

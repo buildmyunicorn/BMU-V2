@@ -20,6 +20,7 @@ import {
   type SurveyResponseAnswerValue,
   type SurveyAiInsightsSummary,
   type SurveyOutreachTemplates,
+  type SavedCustomerInterviewLog,
   type SavedModuleCData,
   type SavedModuleBData,
 } from '@/lib/auth/session-store';
@@ -29,10 +30,12 @@ import {
   checkAndRewriteMomTestQuestionViaRouter,
   suggestNextMomTestQuestionViaRouter,
   analyzeModuleCSurveyResultsViaRouter,
+  extractMomTestInterviewInsightsViaRouter,
   type ModuleCSurveyGenerationResult,
   type MomTestCheckResult,
   type SuggestNextQuestionResult,
   type AnalyzeSurveyResultsOutput,
+  type ExtractMomTestInterviewOutput,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -209,6 +212,9 @@ export async function saveValidationSurveyAction(input: {
           waitlistIncentiveText: effectiveWaitlist,
           questionsJsonb: effectiveQuestions,
           aiInsightsSummaryJsonb: effectiveAiInsights || {},
+          ...(input.survey.interviewLogs
+            ? { interviewLogsJsonb: input.survey.interviewLogs }
+            : {}),
           outreachTemplatesJsonb: {
             ...existingMeta,
             ...(input.survey.outreachTemplates || {}),
@@ -234,6 +240,7 @@ export async function saveValidationSurveyAction(input: {
           waitlistIncentiveText: effectiveWaitlist,
           questionsJsonb: effectiveQuestions,
           aiInsightsSummaryJsonb: effectiveAiInsights || {},
+          interviewLogsJsonb: input.survey.interviewLogs || [],
           outreachTemplatesJsonb: {
             ...(input.survey.outreachTemplates || {}),
             isPublished: effectiveIsPublished,
@@ -372,9 +379,14 @@ export async function saveValidationSurveyAction(input: {
           ? 50
           : 20;
 
+    const existingModInputs = (existingMod[0]?.structuredInputsJsonb ||
+      {}) as Partial<SavedModuleCData>;
+
     const modulePayload: SavedModuleCData = {
       surveys: syncedAllSurveys,
       activeSurveyId: syncedActiveSurvey.id,
+      interviewLogs:
+        input.survey.interviewLogs || existingModInputs.interviewLogs || [],
       lastSavedAt: new Date().toISOString(),
     };
 
@@ -465,9 +477,13 @@ export async function deleteValidationSurveyAction(input: {
       )
       .limit(1);
 
+    const existingModInputs = (existingMod[0]?.structuredInputsJsonb ||
+      {}) as Partial<SavedModuleCData>;
+
     const payload = {
       surveys: input.remainingSurveys,
       activeSurveyId: input.remainingSurveys[0]?.id,
+      interviewLogs: existingModInputs.interviewLogs || [],
       lastSavedAt: new Date().toISOString(),
     };
 
@@ -762,7 +778,7 @@ export async function suggestNextMomTestQuestionWithAiAction(input: {
 }
 
 /**
- * Synthesizes survey responses into a "Signal vs. Polite Noise" Insights Summary.
+ * Synthesizes survey responses + 1-on-1 interviews into a "Signal vs. Polite Noise" Insights Summary.
  */
 export async function analyzeSurveyResultsWithAiAction(input: {
   userId?: string;
@@ -771,8 +787,112 @@ export async function analyzeSurveyResultsWithAiAction(input: {
   surveyTitle: string;
   questions: SurveyQuestionItem[];
   responses: SavedSurveyResponse[];
+  interviewLogs?: SavedCustomerInterviewLog[];
 }): Promise<AnalyzeSurveyResultsOutput> {
   return analyzeModuleCSurveyResultsViaRouter(input);
+}
+
+/**
+ * Extracts structured Mom-Test signal from messy 1-on-1 customer interview notes via the Central AI Router.
+ */
+export async function extractMomTestInterviewWithAiAction(input: {
+  userId?: string;
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  intervieweeName: string;
+  intervieweeRoleOrCompany: string;
+  rawNotes: string;
+}): Promise<ExtractMomTestInterviewOutput> {
+  return extractMomTestInterviewInsightsViaRouter(input);
+}
+
+/**
+ * Persists 1-on-1 Customer Interview Logs into `plan_modules_data` (`MOD_C_SURVEYS_FEEDBACK`)
+ * and mirrors to the active survey row in `validation_surveys.interview_logs_jsonb` if present.
+ */
+export async function saveCustomerInterviewLogsAction(input: {
+  planId: string;
+  interviewLogs: SavedCustomerInterviewLog[];
+  activeSurveySlug?: string;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  try {
+    await ensureModuleCodeEnumValues();
+
+    if (input.activeSurveySlug) {
+      await db
+        .update(validationSurveys)
+        .set({
+          interviewLogsJsonb: input.interviewLogs,
+        })
+        .where(eq(validationSurveys.publicSlug, input.activeSurveySlug));
+    }
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_C_SURVEYS_FEEDBACK')
+        )
+      )
+      .limit(1);
+
+    const existingInputs = (existingMod[0]?.structuredInputsJsonb ||
+      {}) as Partial<SavedModuleCData>;
+
+    const updatedSurveys = (existingInputs.surveys || []).map((s) =>
+      input.activeSurveySlug && s.publicSlug === input.activeSurveySlug
+        ? { ...s, interviewLogs: input.interviewLogs }
+        : s
+    );
+
+    const payload: SavedModuleCData = {
+      surveys: updatedSurveys,
+      activeSurveyId: existingInputs.activeSurveyId,
+      interviewLogs: input.interviewLogs,
+      thingsToConsider: existingInputs.thingsToConsider,
+      lastSavedAt: new Date().toISOString(),
+    };
+
+    const progress = input.interviewLogs.length > 0 ? 75 : 20;
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: payload,
+          completionPercentage: Math.max(
+            existingMod[0].completionPercentage,
+            progress
+          ),
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_C_SURVEYS_FEEDBACK',
+        structuredInputsJsonb: payload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: progress,
+      });
+    }
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module C] Could not persist 1-on-1 interview logs to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
 }
 
 /**

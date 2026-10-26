@@ -49,6 +49,7 @@ import {
   type SurveyResponseAnswerValue,
   type SurveyAiInsightsSummary,
   type SurveyOutreachTemplates,
+  type SavedCustomerInterviewLog,
 } from '@/lib/auth/session-store';
 
 export interface AuthActionResult {
@@ -283,6 +284,11 @@ async function buildSessionFromDbUser(
           responses: mergedResponses,
           outreachTemplates:
             existingInMod?.outreachTemplates || dbOutreachTemplates,
+          interviewLogs:
+            existingInMod?.interviewLogs ||
+            (Array.isArray(row.interviewLogsJsonb)
+              ? (row.interviewLogsJsonb as SavedCustomerInterviewLog[])
+              : []),
           aiInsightsSummary: existingInMod?.aiInsightsSummary || dbInsights,
           createdAt: existingInMod?.createdAt || row.createdAt.toISOString(),
           updatedAt: existingInMod?.updatedAt || row.createdAt.toISOString(),
@@ -321,7 +327,22 @@ async function buildSessionFromDbUser(
         ? modCInputs.activeSurveyId
         : finalSurveys[0]?.id;
 
-    const hasModCData = Boolean(modC) || finalSurveys.length > 0;
+    // Merge interview logs from modCInputs and any relational surveys
+    const mergedInterviewsById = new Map<string, SavedCustomerInterviewLog>();
+    for (const log of modCInputs.interviewLogs || []) {
+      if (log?.id) mergedInterviewsById.set(log.id, log);
+    }
+    for (const srv of allCandidateSurveys) {
+      for (const log of srv.interviewLogs || []) {
+        if (log?.id && !mergedInterviewsById.has(log.id)) {
+          mergedInterviewsById.set(log.id, log);
+        }
+      }
+    }
+    const finalInterviewLogs = Array.from(mergedInterviewsById.values());
+
+    const hasModCData =
+      Boolean(modC) || finalSurveys.length > 0 || finalInterviewLogs.length > 0;
 
     let questionRows: Array<typeof openQuestionsParkingLot.$inferSelect> = [];
     try {
@@ -377,6 +398,7 @@ async function buildSessionFromDbUser(
             ...modCInputs,
             surveys: finalSurveys,
             activeSurveyId: resolvedActiveSurveyId,
+            interviewLogs: finalInterviewLogs,
             thingsToConsider: Array.isArray(modC?.aiThingsToConsiderJsonb)
               ? modC.aiThingsToConsiderJsonb
               : modCInputs.thingsToConsider,

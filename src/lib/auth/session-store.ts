@@ -448,6 +448,48 @@ export interface SurveyOutreachTemplates {
   lastGeneratedAt?: string;
 }
 
+export type InterviewChannelType =
+  | 'ZOOM_VIDEO'
+  | 'IN_PERSON_COFFEE'
+  | 'PHONE_CALL'
+  | 'LINKEDIN_DM_CHAT'
+  | 'OTHER';
+
+export type InterviewSignalBadgeType =
+  | 'STRONG_SIGNAL'
+  | 'MIXED_SIGNAL'
+  | 'POLITE_FLUFF';
+
+export type InterviewCommitmentOutcomeType =
+  | 'ASKED_TO_PILOT_OR_BUY'
+  | 'INTRODUCED_PEERS'
+  | 'SHARED_DEEP_WORKFLOW_PAIN'
+  | 'POLITE_COMPLIMENTS_ONLY'
+  | 'NOT_TARGET_PERSONA'
+  | 'OTHER';
+
+export interface SavedCustomerInterviewLog {
+  id: string;
+  intervieweeNameOrRole: string;
+  intervieweeEmail?: string;
+  date: string;
+  channel: InterviewChannelType;
+  otherChannelText?: string;
+  painScore1To5: number;
+  commitmentOutcome: InterviewCommitmentOutcomeType;
+  otherCommitmentText?: string;
+  rawNotes: string;
+  keyTakeaway: string;
+  verbatimQuote?: string;
+  workaroundAndSpend?: string;
+  signalBadge: InterviewSignalBadgeType;
+  momTestCoachingNote?: string;
+  linkedSurveyId?: string;
+  linkedResponseId?: string;
+  isSimulated?: boolean;
+  createdAt: string;
+}
+
 export interface SavedValidationSurvey {
   id: string;
   planId: string;
@@ -465,6 +507,7 @@ export interface SavedValidationSurvey {
   questions: SurveyQuestionItem[];
   responses: SavedSurveyResponse[];
   outreachTemplates?: SurveyOutreachTemplates;
+  interviewLogs?: SavedCustomerInterviewLog[];
   aiInsightsSummary?: SurveyAiInsightsSummary;
   createdAt: string;
   updatedAt: string;
@@ -473,6 +516,7 @@ export interface SavedValidationSurvey {
 export interface SavedModuleCData {
   surveys: SavedValidationSurvey[];
   activeSurveyId?: string;
+  interviewLogs?: SavedCustomerInterviewLog[];
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;
 }

@@ -355,9 +355,33 @@ export const validationSurveys = pgTable('validation_surveys', {
       Array<{
         id: string;
         intervieweeNameOrRole: string;
+        intervieweeEmail?: string;
         date: string;
+        channel?:
+          | 'ZOOM_VIDEO'
+          | 'IN_PERSON_COFFEE'
+          | 'PHONE_CALL'
+          | 'LINKEDIN_DM_CHAT'
+          | 'OTHER';
+        otherChannelText?: string;
+        painScore1To5?: number;
+        commitmentOutcome?:
+          | 'ASKED_TO_PILOT_OR_BUY'
+          | 'INTRODUCED_PEERS'
+          | 'SHARED_DEEP_WORKFLOW_PAIN'
+          | 'POLITE_COMPLIMENTS_ONLY'
+          | 'NOT_TARGET_PERSONA'
+          | 'OTHER';
+        otherCommitmentText?: string;
         rawNotes: string;
         keyTakeaway: string;
+        verbatimQuote?: string;
+        workaroundAndSpend?: string;
+        signalBadge?: 'STRONG_SIGNAL' | 'MIXED_SIGNAL' | 'POLITE_FLUFF';
+        linkedSurveyId?: string;
+        linkedResponseId?: string;
+        isSimulated?: boolean;
+        createdAt?: string;
       }>
     >()
     .default([]),

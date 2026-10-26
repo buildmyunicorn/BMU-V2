@@ -38,6 +38,16 @@ import {
   Share2,
   Send,
   Smartphone,
+  PhoneCall,
+  Video,
+  Coffee,
+  Quote,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Flame,
+  Calendar,
+  Mic,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +73,10 @@ import {
   type SurveyAiInsightsSummary,
   type SurveyOutreachTemplates,
   type OutreachChannelType,
+  type SavedCustomerInterviewLog,
+  type InterviewChannelType,
+  type InterviewSignalBadgeType,
+  type InterviewCommitmentOutcomeType,
 } from '@/lib/auth/session-store';
 import type { SupportedCountryCode } from '@/lib/localization';
 import { getPublicSurveyBySlugAction } from '@/app/actions/module-c';
@@ -84,6 +98,25 @@ export interface ModuleCWorkspaceProps {
     publicSlug: string,
     remainingSurveys: SavedValidationSurvey[]
   ) => Promise<void>;
+  onSaveInterviewLogs: (
+    interviewLogs: SavedCustomerInterviewLog[],
+    activeSurveySlug?: string
+  ) => Promise<void>;
+  onExtractMomTestInterviewWithAi: (params: {
+    intervieweeNameOrRole: string;
+    channel: InterviewChannelType;
+    otherChannelText?: string;
+    rawNotes: string;
+  }) => Promise<{
+    keyTakeaway: string;
+    verbatimQuote: string;
+    workaroundAndSpend: string;
+    painScore1To5: number;
+    commitmentOutcome: InterviewCommitmentOutcomeType;
+    otherCommitmentText?: string;
+    signalBadge: InterviewSignalBadgeType;
+    momTestCoachingNote: string;
+  } | null>;
   onGenerateSurveyWithAi: (params: {
     focusAreas: SurveyFocusAreaType[];
     otherFocusAreaText?: string;
@@ -114,6 +147,7 @@ export interface ModuleCWorkspaceProps {
     surveyTitle: string;
     questions: SurveyQuestionItem[];
     responses: SavedSurveyResponse[];
+    interviewLogs?: SavedCustomerInterviewLog[];
   }) => Promise<SurveyAiInsightsSummary | null>;
   onParkQuestion: (questionText: string) => Promise<void>;
   onBackToModuleB: () => void;
@@ -227,6 +261,139 @@ const OUTREACH_CHANNEL_OPTIONS: Array<{
     bestFor: 'Newsletter, Discord, Forum, etc.',
   },
 ];
+
+const INTERVIEW_CHANNEL_OPTIONS: Array<{
+  code: InterviewChannelType;
+  label: string;
+  subtitle: string;
+}> = [
+  {
+    code: 'ZOOM_VIDEO',
+    label: 'Zoom / Google Meet',
+    subtitle: 'Screen-share or video discovery call',
+  },
+  {
+    code: 'IN_PERSON_COFFEE',
+    label: 'In-Person / Coffee',
+    subtitle: 'Face-to-face chat at their workplace or cafe',
+  },
+  {
+    code: 'PHONE_CALL',
+    label: 'Phone Call',
+    subtitle: '10–15 min voice call',
+  },
+  {
+    code: 'LINKEDIN_DM_CHAT',
+    label: 'LinkedIn / Voice Note / DM',
+    subtitle: 'Back-and-forth async DM or voice notes',
+  },
+  {
+    code: 'OTHER',
+    label: 'Other / Custom Channel',
+    subtitle: 'Specify your own conversation channel',
+  },
+];
+
+const INTERVIEW_COMMITMENT_OPTIONS: Array<{
+  code: InterviewCommitmentOutcomeType;
+  label: string;
+  subtitle: string;
+  defaultSignal: InterviewSignalBadgeType;
+}> = [
+  {
+    code: 'ASKED_TO_PILOT_OR_BUY',
+    label: '🔥 Asked to Pilot / Pre-Order / Buy',
+    subtitle: 'Strongest Mom-Test advancement: offered money, pilot, or calendar time',
+    defaultSignal: 'STRONG_SIGNAL',
+  },
+  {
+    code: 'INTRODUCED_PEERS',
+    label: '🤝 Introduced Peers / Co-Workers',
+    subtitle: 'Put their reputation on the line by introducing others with the problem',
+    defaultSignal: 'STRONG_SIGNAL',
+  },
+  {
+    code: 'SHARED_DEEP_WORKFLOW_PAIN',
+    label: '✅ Shared Real Past Pain & Spend',
+    subtitle: 'Walked through a specific recent breakdown and current workaround',
+    defaultSignal: 'STRONG_SIGNAL',
+  },
+  {
+    code: 'POLITE_COMPLIMENTS_ONLY',
+    label: '⚠️ Polite Compliments Only ("Cool Idea!")',
+    subtitle: 'Said nice things about your concept without concrete past pain or commitment',
+    defaultSignal: 'POLITE_FLUFF',
+  },
+  {
+    code: 'NOT_TARGET_PERSONA',
+    label: '🚫 Disqualified / Not Target Persona',
+    subtitle: 'Useful disqualification — helped narrow who NOT to target',
+    defaultSignal: 'MIXED_SIGNAL',
+  },
+  {
+    code: 'OTHER',
+    label: '✨ Other / Custom Outcome',
+    subtitle: 'Describe a custom outcome or follow-up step from the conversation',
+    defaultSignal: 'MIXED_SIGNAL',
+  },
+];
+
+function buildLiveCallCheatSheetPrompts(
+  plan: ActiveStartupPlan,
+  survey?: SavedValidationSurvey
+): Array<{ title: string; question: string; whyItWorks: string }> {
+  const { audiencePhrase, topicPhrase } = deriveNaturalTopicForOutreach(
+    plan,
+    survey || {
+      id: 'default',
+      planId: plan.id,
+      title: plan.title,
+      publicSlug: 'survey',
+      introDescription: '',
+      focusAreas: [],
+      questions: [],
+      collectLeadEmails: true,
+      waitlistIncentiveText: '',
+      isActive: true,
+      responses: [],
+      createdAt: '',
+      updatedAt: '',
+    }
+  );
+
+  return [
+    {
+      title: '1. Anchor in the Last Time It Happened (Past Behavior)',
+      question: `"Can you walk me through the very last time you dealt with ${topicPhrase}? What happened step by step?"`,
+      whyItWorks:
+        'Replaces generic opinions ("I usually...") with a real, concrete recent event.',
+    },
+    {
+      title: '2. Probe the Hardest / Most Frustrating Part',
+      question: `"What was the most frustrating or time-consuming part of that workflow? How long did it take?"`,
+      whyItWorks:
+        'Measures real time/emotional cost so you know whether this is a 5/5 urgent problem or a minor annoyance.',
+    },
+    {
+      title: '3. Uncover Current Workarounds & Budget Reality',
+      question: `"How are you and other ${audiencePhrase} working around this today? Have you paid for any tools, templates, or extra hours to fix it?"`,
+      whyItWorks:
+        'If they already spend money or cobble together spreadsheets, they have proven willingness to pay.',
+    },
+    {
+      title: '4. Why Existing Tools Fall Short',
+      question: `"Have you tried looking for another solution in the last 6 months? What stopped you from switching or sticking with it?"`,
+      whyItWorks:
+        'Reveals switching friction and your exact competitive wedge for Module B & Module D.',
+    },
+    {
+      title: '5. The Mom-Test Advancement Ask (End of Call)',
+      question: `"If we put together a focused V1 that solves [their #1 pain], would you be open to testing a 14-day pilot next month — and is there one peer dealing with this who we should speak with?"`,
+      whyItWorks:
+        'Separates polite compliments ("Sounds cool!") from real skin-in-the-game commitment.',
+    },
+  ];
+}
 
 function deriveNaturalTopicForOutreach(
   plan: ActiveStartupPlan,
@@ -344,6 +511,8 @@ export function ModuleCWorkspace({
   isVaultReadonly,
   onSaveSurvey,
   onDeleteSurvey,
+  onSaveInterviewLogs,
+  onExtractMomTestInterviewWithAi,
   onGenerateSurveyWithAi,
   onCheckMomTestQuestionWithAi,
   onSuggestNextQuestionWithAi,
@@ -448,7 +617,12 @@ export function ModuleCWorkspace({
     });
   }, [plan.id, plan.moduleCData]);
 
-  // Sub-view tab: 'BUILDER' vs 'OUTREACH' vs 'INSIGHTS'
+  // Top-level Module C section: 'SURVEYS' vs standalone 'INTERVIEWS'
+  const [activeModuleCSection, setActiveModuleCSection] = useState<
+    'SURVEYS' | 'INTERVIEWS'
+  >('SURVEYS');
+
+  // Survey sub-view tab: 'BUILDER' vs 'OUTREACH' vs 'INSIGHTS'
   const [activeViewTab, setActiveViewTab] = useState<
     'BUILDER' | 'OUTREACH' | 'INSIGHTS'
   >('BUILDER');
@@ -462,6 +636,65 @@ export function ModuleCWorkspace({
   const [activeInsightsSubTab, setActiveInsightsSubTab] = useState<
     'SUMMARY' | 'QUESTIONS' | 'LEADS'
   >('QUESTIONS');
+
+  // 1-on-1 Customer Interviews state (persisted in plan.moduleCData.interviewLogs & mirrored to activeSurvey)
+  const [interviewLogs, setInterviewLogs] = useState<SavedCustomerInterviewLog[]>(
+    () =>
+      plan.moduleCData?.interviewLogs &&
+      plan.moduleCData.interviewLogs.length > 0
+        ? plan.moduleCData.interviewLogs
+        : activeSurvey?.interviewLogs || []
+  );
+  const interviewLogsRef = useRef<SavedCustomerInterviewLog[]>(interviewLogs);
+  interviewLogsRef.current = interviewLogs;
+
+  useEffect(() => {
+    const incomingLogs =
+      plan.moduleCData?.interviewLogs &&
+      plan.moduleCData.interviewLogs.length > 0
+        ? plan.moduleCData.interviewLogs
+        : activeSurvey?.interviewLogs || [];
+    if (incomingLogs.length > 0 && interviewLogsRef.current.length === 0) {
+      setInterviewLogs(incomingLogs);
+    }
+  }, [plan.id, plan.moduleCData?.interviewLogs, activeSurvey?.interviewLogs]);
+
+  // 1-on-1 Interview Logger Form State
+  const [editingInterviewId, setEditingInterviewId] = useState<string | null>(
+    null
+  );
+  const [intervieweeNameOrRole, setIntervieweeNameOrRole] =
+    useState<string>('');
+  const [intervieweeEmail, setIntervieweeEmail] = useState<string>('');
+  const [interviewDate, setInterviewDate] = useState<string>(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [interviewChannel, setInterviewChannel] =
+    useState<InterviewChannelType>('ZOOM_VIDEO');
+  const [otherInterviewChannelText, setOtherInterviewChannelText] =
+    useState<string>('');
+  const [interviewRawNotes, setInterviewRawNotes] = useState<string>('');
+  const [interviewKeyTakeaway, setInterviewKeyTakeaway] = useState<string>('');
+  const [interviewVerbatimQuote, setInterviewVerbatimQuote] =
+    useState<string>('');
+  const [interviewWorkaroundAndSpend, setInterviewWorkaroundAndSpend] =
+    useState<string>('');
+  const [interviewPainScore, setInterviewPainScore] = useState<number>(4);
+  const [interviewCommitment, setInterviewCommitment] =
+    useState<InterviewCommitmentOutcomeType>('SHARED_DEEP_WORKFLOW_PAIN');
+  const [otherInterviewCommitmentText, setOtherInterviewCommitmentText] =
+    useState<string>('');
+  const [interviewSignalBadge, setInterviewSignalBadge] =
+    useState<InterviewSignalBadgeType>('STRONG_SIGNAL');
+  const [interviewMomTestCoachingNote, setInterviewMomTestCoachingNote] =
+    useState<string>('');
+  const [linkedWaitlistResponseId, setLinkedWaitlistResponseId] = useState<
+    string | undefined
+  >(undefined);
+  const [isExtractingInterviewAi, setIsExtractingInterviewAi] =
+    useState<boolean>(false);
+  const [showLiveCallCheatSheet, setShowLiveCallCheatSheet] =
+    useState<boolean>(true);
 
   // AI Focus Prompt drawer/card state (opened when user clicks "Build with AI")
   const [showAiFocusSelector, setShowAiFocusSelector] = useState<boolean>(false);
@@ -629,6 +862,7 @@ export function ModuleCWorkspace({
     activeSurveyRef.current = newBlank;
     setSurveys(nextSurveys);
     setActiveSurveyId(newBlank.id);
+    setActiveModuleCSection('SURVEYS');
     setActiveViewTab('BUILDER');
     setShowAiFocusSelector(false);
     setShowPublishConfirm(false);
@@ -1028,6 +1262,7 @@ export function ModuleCWorkspace({
       surveyTitle: activeSurvey.title || plan.title,
       questions: activeSurvey.questions,
       responses: nextResponses,
+      interviewLogs: interviewLogsRef.current,
     });
 
     await updateActiveSurvey(
@@ -1057,9 +1292,15 @@ export function ModuleCWorkspace({
     );
   };
 
-  // 9. RUN AI INSIGHTS SYNTHESIS ON CURRENT RESPONSES
+  // 9. RUN AI INSIGHTS SYNTHESIS ON CURRENT RESPONSES + 1-ON-1 INTERVIEWS
   const handleRunAiAnalysis = async () => {
-    if (!activeSurvey || activeSurvey.responses.length === 0) return;
+    if (
+      !activeSurvey ||
+      (activeSurvey.responses.length === 0 &&
+        interviewLogsRef.current.length === 0)
+    ) {
+      return;
+    }
     setIsAnalyzingInsights(true);
     setActiveInsightsSubTab('SUMMARY');
     try {
@@ -1067,6 +1308,7 @@ export function ModuleCWorkspace({
         surveyTitle: activeSurvey.title || plan.title,
         questions: activeSurvey.questions,
         responses: activeSurvey.responses,
+        interviewLogs: interviewLogsRef.current,
       });
       if (insights) {
         await updateActiveSurvey(
@@ -1074,12 +1316,308 @@ export function ModuleCWorkspace({
             ...curr,
             aiInsightsSummary: insights,
           }),
-          '✨ AI Signal vs. Polite Noise analysis updated!'
+          '✨ AI Signal vs. Polite Noise analysis updated (synthesizing surveys + 1-on-1 interviews)!'
         );
       }
     } finally {
       setIsAnalyzingInsights(false);
     }
+  };
+
+  // 10. 1-ON-1 CUSTOMER INTERVIEW LOGGER HANDLERS
+  const persistInterviewLogs = async (
+    nextLogs: SavedCustomerInterviewLog[],
+    statusMsg?: string
+  ) => {
+    interviewLogsRef.current = nextLogs;
+    setInterviewLogs(nextLogs);
+
+    if (onSaveInterviewLogs) {
+      await onSaveInterviewLogs(nextLogs);
+    }
+
+    if (activeSurveyRef.current) {
+      await updateActiveSurvey((curr) => ({
+        ...curr,
+        interviewLogs: nextLogs,
+      }));
+    }
+
+    if (statusMsg) {
+      setStatusBanner(statusMsg);
+    }
+  };
+
+  const resetInterviewForm = () => {
+    setEditingInterviewId(null);
+    setIntervieweeNameOrRole('');
+    setIntervieweeEmail('');
+    setInterviewDate(new Date().toISOString().slice(0, 10));
+    setInterviewChannel('ZOOM_VIDEO');
+    setOtherInterviewChannelText('');
+    setInterviewRawNotes('');
+    setInterviewKeyTakeaway('');
+    setInterviewVerbatimQuote('');
+    setInterviewWorkaroundAndSpend('');
+    setInterviewPainScore(4);
+    setInterviewCommitment('SHARED_DEEP_WORKFLOW_PAIN');
+    setOtherInterviewCommitmentText('');
+    setInterviewSignalBadge('STRONG_SIGNAL');
+    setInterviewMomTestCoachingNote('');
+    setLinkedWaitlistResponseId(undefined);
+  };
+
+  const handleExtractInterviewWithAi = async () => {
+    if (!interviewRawNotes.trim() || !onExtractMomTestInterviewWithAi) return;
+    setIsExtractingInterviewAi(true);
+    try {
+      const extracted = await onExtractMomTestInterviewWithAi({
+        intervieweeNameOrRole:
+          intervieweeNameOrRole.trim() || 'Target Customer',
+        channel: interviewChannel,
+        otherChannelText: otherInterviewChannelText.trim() || undefined,
+        rawNotes: interviewRawNotes.trim(),
+      });
+      if (extracted) {
+        setInterviewKeyTakeaway(extracted.keyTakeaway);
+        setInterviewVerbatimQuote(extracted.verbatimQuote);
+        setInterviewWorkaroundAndSpend(extracted.workaroundAndSpend);
+        setInterviewPainScore(extracted.painScore1To5);
+        setInterviewCommitment(extracted.commitmentOutcome);
+        if (extracted.otherCommitmentText) {
+          setOtherInterviewCommitmentText(extracted.otherCommitmentText);
+        }
+        setInterviewSignalBadge(extracted.signalBadge);
+        setInterviewMomTestCoachingNote(extracted.momTestCoachingNote);
+        setStatusBanner(
+          '✨ AI Mom-Test Extractor structured your call notes and graded the signal vs. polite noise!'
+        );
+      }
+    } finally {
+      setIsExtractingInterviewAi(false);
+    }
+  };
+
+  const handleSaveInterviewLog = async () => {
+    if (isVaultReadonly) return;
+    const cleanName = intervieweeNameOrRole.trim() || 'Discovery Interviewee';
+    const cleanRaw = interviewRawNotes.trim();
+    const cleanTakeaway =
+      interviewKeyTakeaway.trim() ||
+      cleanRaw.split(/[.!?\n]/)[0]?.slice(0, 160) ||
+      'Logged 1-on-1 discovery conversation.';
+
+    const entry: SavedCustomerInterviewLog = {
+      id:
+        editingInterviewId ||
+        `intv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      intervieweeNameOrRole: cleanName,
+      intervieweeEmail: intervieweeEmail.trim() || undefined,
+      date: interviewDate || new Date().toISOString().slice(0, 10),
+      channel: interviewChannel,
+      otherChannelText:
+        interviewChannel === 'OTHER'
+          ? otherInterviewChannelText.trim() || 'Custom Channel'
+          : undefined,
+      rawNotes: cleanRaw || cleanTakeaway,
+      keyTakeaway: cleanTakeaway,
+      verbatimQuote: interviewVerbatimQuote.trim() || cleanRaw.slice(0, 220),
+      workaroundAndSpend:
+        interviewWorkaroundAndSpend.trim() ||
+        'Not specified yet — ask about current tools/spend on follow-up.',
+      painScore1To5: interviewPainScore,
+      commitmentOutcome: interviewCommitment,
+      otherCommitmentText:
+        interviewCommitment === 'OTHER'
+          ? otherInterviewCommitmentText.trim() || 'Custom follow-up step'
+          : undefined,
+      signalBadge: interviewSignalBadge,
+      momTestCoachingNote: interviewMomTestCoachingNote.trim() || undefined,
+      linkedResponseId: linkedWaitlistResponseId,
+      createdAt: new Date().toISOString(),
+    };
+
+    const existingList = interviewLogsRef.current;
+    const nextLogs = editingInterviewId
+      ? existingList.map((item) =>
+          item.id === editingInterviewId ? entry : item
+        )
+      : [entry, ...existingList];
+
+    await persistInterviewLogs(
+      nextLogs,
+      editingInterviewId
+        ? `✅ Updated 1-on-1 interview log for ${cleanName}!`
+        : `🎙️ Saved 1-on-1 customer interview log for ${cleanName}!`
+    );
+    resetInterviewForm();
+  };
+
+  const handleEditInterviewLog = (log: SavedCustomerInterviewLog) => {
+    setEditingInterviewId(log.id);
+    setIntervieweeNameOrRole(log.intervieweeNameOrRole);
+    setIntervieweeEmail(log.intervieweeEmail || '');
+    setInterviewDate(log.date);
+    setInterviewChannel(log.channel);
+    setOtherInterviewChannelText(log.otherChannelText || '');
+    setInterviewRawNotes(log.rawNotes);
+    setInterviewKeyTakeaway(log.keyTakeaway);
+    setInterviewVerbatimQuote(log.verbatimQuote || '');
+    setInterviewWorkaroundAndSpend(log.workaroundAndSpend || '');
+    setInterviewPainScore(log.painScore1To5);
+    setInterviewCommitment(log.commitmentOutcome);
+    setOtherInterviewCommitmentText(log.otherCommitmentText || '');
+    setInterviewSignalBadge(log.signalBadge);
+    setInterviewMomTestCoachingNote(log.momTestCoachingNote || '');
+    setLinkedWaitlistResponseId(log.linkedResponseId);
+  };
+
+  const handleDeleteInterviewLog = async (id: string) => {
+    if (isVaultReadonly) return;
+    const nextLogs = interviewLogsRef.current.filter((item) => item.id !== id);
+    if (editingInterviewId === id) {
+      resetInterviewForm();
+    }
+    await persistInterviewLogs(nextLogs, '🗑️ Deleted 1-on-1 interview log.');
+  };
+
+  const handleStartInterviewFromWaitlistLead = (lead: SavedSurveyResponse) => {
+    resetInterviewForm();
+    setIntervieweeNameOrRole(
+      lead.respondentNameOrRole || 'Early-Bird Waitlist Lead'
+    );
+    setIntervieweeEmail(lead.respondentEmail || '');
+    setLinkedWaitlistResponseId(lead.id);
+
+    // Summarize their survey answers into the raw notes starter so the founder has context during the call
+    const answerLines: string[] = [];
+    for (const q of activeSurvey?.questions || []) {
+      const ans = lead.answers[q.id];
+      if (!ans) continue;
+      if (ans.openText?.trim()) {
+        answerLines.push(
+          `• Survey Story (${q.questionText}): "${ans.openText.trim()}"`
+        );
+      } else if (typeof ans.scaleValue === 'number') {
+        answerLines.push(
+          `• Survey Scale (${q.questionText}): ${ans.scaleValue}/5`
+        );
+      } else if (ans.selectedOption) {
+        const val =
+          ans.selectedOption === 'OTHER'
+            ? `Other: ${ans.otherText || ''}`
+            : ans.selectedOption;
+        answerLines.push(`• Survey Choice (${q.questionText}): ${val}`);
+      } else if (ans.selectedOptions && ans.selectedOptions.length > 0) {
+        answerLines.push(
+          `• Survey Multi-Select (${q.questionText}): ${ans.selectedOptions.join(', ')}`
+        );
+      }
+    }
+
+    if (answerLines.length > 0) {
+      setInterviewRawNotes(
+        `[Context from Survey Submission]\n${answerLines.join('\n')}\n\n[Live 1-on-1 Call Notes]\n`
+      );
+    }
+
+    setActiveModuleCSection('INTERVIEWS');
+    setStatusBanner(
+      `🎙️ Pre-filled 1-on-1 Interview Logger for ${
+        lead.respondentNameOrRole || lead.respondentEmail || 'Waitlist Lead'
+      } with their survey answers!`
+    );
+  };
+
+  const handleSimulateSampleInterviews = async () => {
+    if (isVaultReadonly) return;
+    const firstCompName =
+      plan.moduleBData?.competitorsAndStatusQuo?.competitors?.find((c) =>
+        c.name?.trim()
+      )?.name || 'their legacy tool';
+    const shortProblemRef =
+      (
+        plan.conceptCanvas?.coreProblem ||
+        plan.brainDumpText ||
+        'this workflow bottleneck'
+      )
+        .trim()
+        .slice(0, 70) || 'this workflow bottleneck';
+
+    const now = Date.now();
+    const simulatedInterviews: SavedCustomerInterviewLog[] = [
+      {
+        id: `sim-intv-${now}-1`,
+        intervieweeNameOrRole: 'Aoife Kelly (Head of Operations)',
+        intervieweeEmail: 'aoife.kelly@example.ie',
+        date: new Date(now - 86400_000 * 2).toISOString().slice(0, 10),
+        channel: 'ZOOM_VIDEO',
+        rawNotes: `Spoke for 20 mins on Zoom. Last Thursday her team lost 4 hours reconciling ${shortProblemRef} across 3 spreadsheets and ${firstCompName}. She pays €190/month for ${firstCompName} plus ~6 hours/week of manual admin. Asked if she can pilot our V1 with 2 team members next month and offered to introduce us to another operations lead.`,
+        keyTakeaway: `Loses 4–6 hours every week reconciling ${shortProblemRef} manually despite paying €190/mo for ${firstCompName}; ready to pilot V1 next month.`,
+        verbatimQuote: `Last Thursday we spent four hours fixing a single batch by hand because ${firstCompName} doesn't catch handoff errors—if you automate just that step, I'll pay for a pilot tomorrow.`,
+        workaroundAndSpend: `Pays €190/mo for ${firstCompName} + ~6 hrs/week of manual Google Sheets reconciliation.`,
+        painScore1To5: 5,
+        commitmentOutcome: 'ASKED_TO_PILOT_OR_BUY',
+        signalBadge: 'STRONG_SIGNAL',
+        momTestCoachingNote:
+          'Textbook Mom-Test gold: anchored in last Thursday, quantified current spend (€190/mo + 6 hrs/wk), and secured a concrete pilot commitment.',
+        isSimulated: true,
+        createdAt: new Date(now - 86400_000 * 2).toISOString(),
+      },
+      {
+        id: `sim-intv-${now}-2`,
+        intervieweeNameOrRole: 'David Connolly (Founder / Director)',
+        intervieweeEmail: 'david@example.co.uk',
+        date: new Date(now - 86400_000).toISOString().slice(0, 10),
+        channel: 'IN_PERSON_COFFEE',
+        rawNotes: `Met for coffee. Walked through how they currently handle ${shortProblemRef} using WhatsApp groups and shared folders. Missed a key client deadline two weeks ago. Introduced us to two other founders in his network who complain about the exact same issue.`,
+        keyTakeaway: `Relies on fragile WhatsApp + shared folder handoffs that caused a missed deadline two weeks ago; warm-introduced 2 peer founders.`,
+        verbatimQuote: `Right now everything lives in three different WhatsApp threads—two weeks ago a client request slipped through the cracks and cost us the renewal.`,
+        workaroundAndSpend: `WhatsApp threads + shared Google Drive folders + Friday afternoon manual audit.`,
+        painScore1To5: 4,
+        commitmentOutcome: 'INTRODUCED_PEERS',
+        signalBadge: 'STRONG_SIGNAL',
+        momTestCoachingNote:
+          'Strong validation: reputation commitment (warm peer intros) + concrete story of a lost renewal two weeks ago.',
+        isSimulated: true,
+        createdAt: new Date(now - 86400_000).toISOString(),
+      },
+      {
+        id: `sim-intv-${now}-3`,
+        intervieweeNameOrRole: 'Rachel Byrne (Freelance Consultant)',
+        date: new Date(now).toISOString().slice(0, 10),
+        channel: 'PHONE_CALL',
+        rawNotes: `10-min phone call. Said the idea sounds super cool and modern, and she'd "definitely check it out when it launches," but admitted she only deals with ${shortProblemRef} once a quarter and just uses a free template.`,
+        keyTakeaway: `Polite compliments ("sounds super cool"), but only encounters the problem once a quarter and uses a free template—not our high-urgency beachhead.`,
+        verbatimQuote: `Your app sounds really slick and I'd definitely take a look when you launch, though for me it only comes up once every few months.`,
+        workaroundAndSpend: `Free template once a quarter (€0 spend).`,
+        painScore1To5: 2,
+        commitmentOutcome: 'POLITE_COMPLIMENTS_ONLY',
+        signalBadge: 'POLITE_FLUFF',
+        momTestCoachingNote:
+          'Classic "Mom Test" polite fluff trap! Notice how she praised the idea ("sounds really slick") while having zero urgency or spend. Great filter—focus V1 on higher-frequency teams like Aoife and David instead.',
+        isSimulated: true,
+        createdAt: new Date(now).toISOString(),
+      },
+    ];
+
+    const merged = [
+      ...simulatedInterviews,
+      ...interviewLogsRef.current.filter((i) => !i.isSimulated),
+    ];
+    await persistInterviewLogs(
+      merged,
+      '🧪 Simulated 3 realistic 1-on-1 customer interviews (2 Strong Signal + 1 Polite Fluff filter)!'
+    );
+  };
+
+  const handleClearSimulatedInterviews = async () => {
+    if (isVaultReadonly) return;
+    const realOnly = interviewLogsRef.current.filter((i) => !i.isSimulated);
+    await persistInterviewLogs(
+      realOnly,
+      'Cleared simulated 1-on-1 interviews.'
+    );
   };
 
   const getPublicSurveyFullUrl = (slug?: string): string => {
@@ -1560,8 +2098,138 @@ export function ModuleCWorkspace({
       )}
 
       {/* =================================================================== */}
-      {/* MULTI-SURVEY SWITCHER BAR + "+ CREATE NEW SURVEY"                   */}
+      {/* TOP-LEVEL MODULE C SECTION LAUNCHPAD: SURVEYS vs. 1-ON-1 INTERVIEWS */}
       {/* =================================================================== */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* SECTION CARD 1: CUSTOMER VALIDATION SURVEYS */}
+        <div
+          onClick={() => setActiveModuleCSection('SURVEYS')}
+          className={`cursor-pointer rounded-2xl border-2 p-4 transition-all ${
+            activeModuleCSection === 'SURVEYS'
+              ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-2 ring-indigo-600/15'
+              : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
+          }`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                  activeModuleCSection === 'SURVEYS'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-indigo-100 text-indigo-700'
+                }`}
+              >
+                <MessageSquare className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-slate-900">
+                    Customer Validation Surveys
+                  </span>
+                  <Badge
+                    className={
+                      activeModuleCSection === 'SURVEYS'
+                        ? 'bg-indigo-600 text-[10px] font-bold text-white'
+                        : 'bg-slate-100 text-[10px] font-bold text-slate-700'
+                    }
+                  >
+                    {surveys.length} {surveys.length === 1 ? 'Survey' : 'Surveys'}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Build bias-free <em>Mom Test</em> surveys, share zero-login{' '}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-indigo-700">
+                    /v/[slug]
+                  </code>{' '}
+                  links &amp; QR flyers, and capture waitlist leads.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              disabled={isVaultReadonly}
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleCreateNewBlankSurvey();
+              }}
+              className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create New Survey
+            </Button>
+          </div>
+        </div>
+
+        {/* SECTION CARD 2: STANDALONE 1-ON-1 CUSTOMER INTERVIEWS */}
+        <div
+          onClick={() => setActiveModuleCSection('INTERVIEWS')}
+          className={`cursor-pointer rounded-2xl border-2 p-4 transition-all ${
+            activeModuleCSection === 'INTERVIEWS'
+              ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-2 ring-indigo-600/15'
+              : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
+          }`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                  activeModuleCSection === 'INTERVIEWS'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-violet-100 text-violet-700'
+                }`}
+              >
+                <Mic className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-slate-900">
+                    1-on-1 Customer Interviews
+                  </span>
+                  <Badge
+                    className={
+                      activeModuleCSection === 'INTERVIEWS'
+                        ? 'bg-indigo-600 text-[10px] font-bold text-white'
+                        : 'bg-slate-100 text-[10px] font-bold text-slate-700'
+                    }
+                  >
+                    {interviewLogs.length}{' '}
+                    {interviewLogs.length === 1 ? 'Interview' : 'Interviews'}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Log live coffee chats, Zoom calls, or DMs independently of
+                  surveys—with a Live Call Cheat Sheet &amp; AI Signal Extractor.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              disabled={isVaultReadonly}
+              onClick={(e) => {
+                e.stopPropagation();
+                resetInterviewForm();
+                setActiveModuleCSection('INTERVIEWS');
+                setStatusBanner(
+                  '🎙️ Ready to log a new 1-on-1 customer interview! Paste your call notes below or open the 5 Mom-Test Call Prompts.'
+                );
+              }}
+              className="bg-violet-600 text-xs text-white hover:bg-violet-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create 1-on-1 Interview
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* =================================================================== */}
+      {/* SECTION 1: CUSTOMER VALIDATION SURVEYS                              */}
+      {/* =================================================================== */}
+      {activeModuleCSection === 'SURVEYS' && (
       <Card className="border-slate-200 shadow-2xs">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1838,11 +2506,12 @@ export function ModuleCWorkspace({
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* =================================================================== */}
       {/* EMPTY STATE WHEN 0 SURVEYS EXIST                                    */}
       {/* =================================================================== */}
-      {!activeSurvey && (
+      {activeModuleCSection === 'SURVEYS' && !activeSurvey && (
         <Card className="border-2 border-dashed border-slate-300 bg-slate-50/70">
           <CardContent className="flex flex-col items-center justify-center p-10 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
@@ -1853,11 +2522,11 @@ export function ModuleCWorkspace({
             </h3>
             <p className="mt-1 max-w-md text-xs leading-relaxed text-slate-600">
               Click <strong>&ldquo;+ Create New Survey&rdquo;</strong> below to
-              open a fresh blank survey canvas, then either add questions
-              manually or generate bias-free <em>Mom Test</em> questions with
-              AI.
+              open a fresh blank survey canvas, or switch to{' '}
+              <strong>1-on-1 Customer Interviews</strong> if you&apos;re logging
+              live discovery calls first.
             </p>
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               <Button
                 type="button"
                 size="sm"
@@ -1868,15 +2537,28 @@ export function ModuleCWorkspace({
                 <Plus className="h-3.5 w-3.5" />
                 Create New Survey
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  resetInterviewForm();
+                  setActiveModuleCSection('INTERVIEWS');
+                }}
+                className="border-violet-200 bg-white text-violet-800 hover:bg-violet-50"
+              >
+                <Mic className="h-3.5 w-3.5 text-violet-600" />
+                Create 1-on-1 Interview ({interviewLogs.length})
+              </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* =================================================================== */}
-      {/* SUB-NAVIGATION TABS: 1. BUILDER | 2. OUTREACH & QR | 3. INSIGHTS    */}
+      {/* SURVEY SUB-NAVIGATION TABS: 1. BUILDER | 2. OUTREACH | 3. INSIGHTS  */}
       {/* =================================================================== */}
-      {activeSurvey && (
+      {activeModuleCSection === 'SURVEYS' && activeSurvey && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -1995,7 +2677,9 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {/* TAB 1: ULTRA-SIMPLE SURVEY BUILDER                                  */}
       {/* =================================================================== */}
-      {activeSurvey && activeViewTab === 'BUILDER' && (
+      {activeModuleCSection === 'SURVEYS' &&
+        activeSurvey &&
+        activeViewTab === 'BUILDER' && (
         <div className="space-y-5">
           {/* TAMPER-PROOF PUBLISHED LOCK BANNER */}
           {isSurveyPublished && (
@@ -2881,7 +3565,8 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {/* TAB 2: OUTREACH DISTRIBUTION KIT + PRINTABLE QR CODE                */}
       {/* =================================================================== */}
-      {activeSurvey &&
+      {activeModuleCSection === 'SURVEYS' &&
+        activeSurvey &&
         activeViewTab === 'OUTREACH' &&
         effectiveOutreachTemplates && (
           <div className="space-y-6">
@@ -3397,23 +4082,713 @@ export function ModuleCWorkspace({
         )}
 
       {/* =================================================================== */}
+      {/* STANDALONE SECTION 2: 1-ON-1 CUSTOMER INTERVIEW LOGGER & EXTRACTOR  */}
+      {/* =================================================================== */}
+      {activeModuleCSection === 'INTERVIEWS' && (
+        <div className="space-y-6">
+          {/* Top Summary & Collapsible Live Call Cheat Sheet */}
+          <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-white to-violet-50/70 shadow-2xs">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-indigo-600 text-[10px] font-bold text-white">
+                      <Mic className="mr-1 h-3 w-3" />
+                      1-on-1 Discovery Co-Pilot
+                    </Badge>
+                    <Badge className="border-emerald-300 bg-emerald-100 text-[10px] font-bold text-emerald-900">
+                      {
+                        interviewLogs.filter(
+                          (i) => i.signalBadge === 'STRONG_SIGNAL'
+                        ).length
+                      }{' '}
+                      Strong Signal •{' '}
+                      {
+                        interviewLogs.filter(
+                          (i) => i.signalBadge === 'POLITE_FLUFF'
+                        ).length
+                      }{' '}
+                      Polite Fluff Filtered
+                    </Badge>
+                  </div>
+                  <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                    1-on-1 Customer Interview Logger &amp; AI &ldquo;Mom Test&rdquo;
+                    Extractor
+                  </h2>
+                  <p className="max-w-2xl text-xs leading-relaxed text-slate-600">
+                    Surveys tell you <em>what</em> is happening; 5 to 10 live
+                    1-on-1 conversations tell you <em>why</em>—and uncover exact
+                    pricing, workarounds, and pilot commitments. Paste messy call
+                    notes below and let AI extract the gold.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setShowLiveCallCheatSheet(!showLiveCallCheatSheet)
+                    }
+                    className="border-indigo-200 bg-white text-xs text-indigo-800 hover:bg-indigo-50"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                    {showLiveCallCheatSheet
+                      ? 'Hide Live Call Cheat Sheet'
+                      : 'Show 5 Mom-Test Call Prompts'}
+                    {showLiveCallCheatSheet ? (
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isVaultReadonly}
+                    onClick={handleSimulateSampleInterviews}
+                    className="border-indigo-300 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <FlaskConical className="h-3.5 w-3.5" />
+                    Simulate 3 Sample Calls
+                  </Button>
+
+                  {interviewLogs.some((i) => i.isSimulated) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isVaultReadonly}
+                      onClick={handleClearSimulatedInterviews}
+                      className="bg-white text-xs text-slate-600"
+                    >
+                      Clear Simulated
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {showLiveCallCheatSheet && (
+                <div className="rounded-xl border border-indigo-200/80 bg-white p-4">
+                  <div className="mb-2.5 flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                      🎙️ Live Call Cheat Sheet — 5 Questions to Ask on Your Call
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Keep this open during Zoom or coffee chats
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-5">
+                    {buildLiveCallCheatSheetPrompts(plan, activeSurvey).map(
+                      (item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="font-bold text-indigo-950">
+                              {item.title}
+                            </div>
+                            <p className="font-medium italic leading-relaxed text-slate-800">
+                              {item.question}
+                            </p>
+                          </div>
+                          <p className="mt-2 border-t border-slate-200/80 pt-1.5 text-[10px] leading-snug text-slate-500">
+                            💡 {item.whyItWorks}
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            {/* LEFT COLUMN (7 COLS): LOG / EDIT INTERVIEW FORM + AI EXTRACTOR */}
+            <div className="space-y-4 lg:col-span-7">
+              <Card className="border-slate-200 shadow-2xs">
+                <CardHeader className="pb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
+                        <Mic className="h-4 w-4 text-indigo-600" />
+                        {editingInterviewId
+                          ? 'Edit 1-on-1 Interview Log'
+                          : 'Log a 1-on-1 Customer Conversation'}
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-600">
+                        Paste raw notes or voice-memo transcripts first, then
+                        click{' '}
+                        <strong>
+                          &ldquo;Extract with AI Mom-Test Filter&rdquo;
+                        </strong>{' '}
+                        to auto-fill the structured fields.
+                      </CardDescription>
+                    </div>
+                    {editingInterviewId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={resetInterviewForm}
+                        className="text-xs"
+                      >
+                        Cancel Edit
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {/* Row 1: Name/Role, Email, Date */}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-700">
+                        Person Name &amp; Role *
+                      </label>
+                      <Input
+                        disabled={isVaultReadonly}
+                        value={intervieweeNameOrRole}
+                        onChange={(e) =>
+                          setIntervieweeNameOrRole(e.target.value)
+                        }
+                        placeholder="e.g., Sarah Jenkins (Clinic Owner)"
+                        className="text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-700">
+                        Email / Contact (Optional)
+                      </label>
+                      <Input
+                        disabled={isVaultReadonly}
+                        value={intervieweeEmail}
+                        onChange={(e) => setIntervieweeEmail(e.target.value)}
+                        placeholder="sarah@example.com"
+                        className="text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-700">
+                        Conversation Date
+                      </label>
+                      <Input
+                        type="date"
+                        disabled={isVaultReadonly}
+                        value={interviewDate}
+                        onChange={(e) => setInterviewDate(e.target.value)}
+                        className="text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 2: Conversation Channel Selector (with OTHER per GEMINI.md Rule 1.5) */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Conversation Channel:
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                      {INTERVIEW_CHANNEL_OPTIONS.map((ch) => {
+                        const isSelected = interviewChannel === ch.code;
+                        return (
+                          <button
+                            key={ch.code}
+                            type="button"
+                            disabled={isVaultReadonly}
+                            onClick={() => setInterviewChannel(ch.code)}
+                            className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
+                              isSelected
+                                ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                            }`}
+                          >
+                            <span className="text-xs font-bold">
+                              {ch.label}
+                            </span>
+                            <span className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                              {ch.subtitle}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {interviewChannel === 'OTHER' && (
+                      <div className="pt-1">
+                        <Input
+                          disabled={isVaultReadonly}
+                          value={otherInterviewChannelText}
+                          onChange={(e) =>
+                            setOtherInterviewChannelText(e.target.value)
+                          }
+                          placeholder="Specify custom channel (e.g., Trade Show Floor, WhatsApp Call, Slack Huddle)..."
+                          className="border-indigo-300 bg-indigo-50/30 text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Row 3: Raw Messy Call Notes + AI Mom-Test Extractor Button */}
+                  <div className="space-y-2 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-indigo-950">
+                          1. Brain-Dump Raw Call Notes or Transcript
+                        </label>
+                        <p className="text-[11px] text-slate-600">
+                          Jot down messy bullet points from the conversation—what
+                          broke last week, what tools they pay for today, and
+                          what they said at the end.
+                        </p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={
+                          isVaultReadonly ||
+                          !interviewRawNotes.trim() ||
+                          isExtractingInterviewAi
+                        }
+                        onClick={handleExtractInterviewWithAi}
+                        className="bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
+                      >
+                        {isExtractingInterviewAi ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Extracting Mom-Test Signal...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Extract with AI Mom-Test Filter
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    <textarea
+                      rows={5}
+                      disabled={isVaultReadonly}
+                      value={interviewRawNotes}
+                      onChange={(e) => setInterviewRawNotes(e.target.value)}
+                      placeholder="e.g., Spoke with Sarah for 15 mins. Last Tuesday her clinic lost 3 hours chasing patient intake forms across email and Excel. They pay €140/mo for an older tool but staff hate using it. She asked if she can test our V1 next month with 2 receptionists..."
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  {/* Row 4: Structured Takeaways (Auto-filled by AI or manually editable) */}
+                  <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">
+                        2. Structured Mom-Test Proof (Auto-Filled by AI or Edit
+                        Directly)
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {(
+                          [
+                            {
+                              code: 'STRONG_SIGNAL',
+                              label: '🔥 Strong Signal',
+                              activeCls:
+                                'bg-emerald-600 text-white border-emerald-600',
+                            },
+                            {
+                              code: 'MIXED_SIGNAL',
+                              label: '⚖️ Mixed Signal',
+                              activeCls:
+                                'bg-amber-500 text-slate-950 border-amber-500',
+                            },
+                            {
+                              code: 'POLITE_FLUFF',
+                              label: '⚠️ Polite Fluff',
+                              activeCls:
+                                'bg-rose-600 text-white border-rose-600',
+                            },
+                          ] as const
+                        ).map((b) => (
+                          <button
+                            key={b.code}
+                            type="button"
+                            disabled={isVaultReadonly}
+                            onClick={() => setInterviewSignalBadge(b.code)}
+                            className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-all ${
+                              interviewSignalBadge === b.code
+                                ? b.activeCls
+                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            {b.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-700">
+                        Key Takeaway (1-Sentence Summary of Past Behavior &amp;
+                        Pain):
+                      </label>
+                      <Input
+                        disabled={isVaultReadonly}
+                        value={interviewKeyTakeaway}
+                        onChange={(e) =>
+                          setInterviewKeyTakeaway(e.target.value)
+                        }
+                        placeholder="e.g., Loses 3 hours every week chasing intake forms manually despite paying €140/mo for legacy software."
+                        className="bg-white text-xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-slate-700">
+                          Best Verbatim Customer Quote:
+                        </label>
+                        <textarea
+                          rows={2}
+                          disabled={isVaultReadonly}
+                          value={interviewVerbatimQuote}
+                          onChange={(e) =>
+                            setInterviewVerbatimQuote(e.target.value)
+                          }
+                          placeholder='"Last Tuesday we spent 3 hours fixing a single batch by hand..."'
+                          className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-slate-700">
+                          Current Workaround &amp; Monthly Spend:
+                        </label>
+                        <textarea
+                          rows={2}
+                          disabled={isVaultReadonly}
+                          value={interviewWorkaroundAndSpend}
+                          onChange={(e) =>
+                            setInterviewWorkaroundAndSpend(e.target.value)
+                          }
+                          placeholder="e.g., Shared Excel tracker + €140/mo legacy software + 3 hrs/wk admin."
+                          className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Pain / Urgency 1-5 Selector */}
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Observed Pain / Urgency Level (1 = Minor annoyance, 5 =
+                        Hair-on-fire problem):
+                      </label>
+                      <div className="grid grid-cols-5 gap-2">
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <button
+                            key={score}
+                            type="button"
+                            disabled={isVaultReadonly}
+                            onClick={() => setInterviewPainScore(score)}
+                            className={`rounded-xl border py-2 text-center text-xs font-bold transition-all ${
+                              interviewPainScore === score
+                                ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                            }`}
+                          >
+                            {score} / 5
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Commitment / Next-Step Outcome Selector (with OTHER per GEMINI.md Rule 1.5) */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Commitment / Call Outcome (Skin in the Game):
+                      </label>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {INTERVIEW_COMMITMENT_OPTIONS.map((opt) => {
+                          const isSelected = interviewCommitment === opt.code;
+                          return (
+                            <button
+                              key={opt.code}
+                              type="button"
+                              disabled={isVaultReadonly}
+                              onClick={() => {
+                                setInterviewCommitment(opt.code);
+                                setInterviewSignalBadge(opt.defaultSignal);
+                              }}
+                              className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
+                                isSelected
+                                  ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                              }`}
+                            >
+                              <span className="text-xs font-bold">
+                                {opt.label}
+                              </span>
+                              <span className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                                {opt.subtitle}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {interviewCommitment === 'OTHER' && (
+                        <div className="pt-1">
+                          <Input
+                            disabled={isVaultReadonly}
+                            value={otherInterviewCommitmentText}
+                            onChange={(e) =>
+                              setOtherInterviewCommitmentText(e.target.value)
+                            }
+                            placeholder="Describe custom outcome or commitment (e.g., Invited us to observe their team workflow next Tuesday)..."
+                            className="border-indigo-300 bg-white text-xs"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {interviewMomTestCoachingNote && (
+                      <div className="rounded-xl border border-indigo-200 bg-indigo-50/80 p-3 text-xs text-indigo-950">
+                        <span className="font-bold">
+                          💡 AI Mom-Test Coaching Note:{' '}
+                        </span>
+                        {interviewMomTestCoachingNote}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <Button
+                      type="button"
+                      disabled={
+                        isVaultReadonly ||
+                        (!intervieweeNameOrRole.trim() &&
+                          !interviewRawNotes.trim() &&
+                          !interviewKeyTakeaway.trim())
+                      }
+                      onClick={handleSaveInterviewLog}
+                      className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      {editingInterviewId
+                        ? 'Update 1-on-1 Interview Log'
+                        : 'Save 1-on-1 Interview to Evidence Log'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* RIGHT COLUMN (5 COLS): LOGGED 1-ON-1 INTERVIEWS FEED */}
+            <div className="space-y-4 lg:col-span-5">
+              <Card className="border-slate-200 shadow-2xs">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-base font-bold text-slate-900">
+                        Logged 1-on-1 Interviews ({interviewLogs.length})
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-600">
+                        Feeds directly into your Module C AI Insights &amp;
+                        Module I Business Plan proof blocks.
+                      </CardDescription>
+                    </div>
+                    {activeSurvey && interviewLogs.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveModuleCSection('SURVEYS');
+                          setActiveViewTab('INSIGHTS');
+                          void handleRunAiAnalysis();
+                        }}
+                        className="border-indigo-200 bg-indigo-50/70 text-xs text-indigo-800 hover:bg-indigo-100"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                        Synthesize in Insights
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-3">
+                  {interviewLogs.length === 0 ? (
+                    <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 p-6 text-center">
+                      <Mic className="mx-auto h-7 w-7 text-slate-400" />
+                      <div className="mt-2 text-xs font-bold text-slate-800">
+                        No 1-on-1 Customer Calls Logged Yet
+                      </div>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                        Paste notes from your first customer chat on the left,
+                        or click{' '}
+                        <strong>&ldquo;Simulate 3 Sample Calls&rdquo;</strong>{' '}
+                        to see how AI separates real buyer signal from polite
+                        compliments.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isVaultReadonly}
+                        onClick={handleSimulateSampleInterviews}
+                        className="mt-3 border-indigo-200 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                      >
+                        <FlaskConical className="h-3.5 w-3.5" />
+                        Simulate 3 Sample Calls
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {interviewLogs.map((log) => {
+                        const channelLabel =
+                          log.channel === 'OTHER'
+                            ? log.otherChannelText || 'Custom Channel'
+                            : INTERVIEW_CHANNEL_OPTIONS.find(
+                                (c) => c.code === log.channel
+                              )?.label || log.channel;
+                        const commitmentLabel =
+                          log.commitmentOutcome === 'OTHER'
+                            ? `✨ ${log.otherCommitmentText || 'Custom Outcome'}`
+                            : INTERVIEW_COMMITMENT_OPTIONS.find(
+                                (c) => c.code === log.commitmentOutcome
+                              )?.label || log.commitmentOutcome;
+
+                        return (
+                          <div
+                            key={log.id}
+                            className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-indigo-200"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="text-xs font-bold text-slate-900">
+                                    {log.intervieweeNameOrRole}
+                                  </span>
+                                  {log.isSimulated && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px]"
+                                    >
+                                      Simulated
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-slate-500">
+                                  {channelLabel} • {log.date}
+                                  {log.intervieweeEmail
+                                    ? ` • ${log.intervieweeEmail}`
+                                    : ''}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                <Badge
+                                  className={`text-[10px] font-bold ${
+                                    log.signalBadge === 'STRONG_SIGNAL'
+                                      ? 'bg-emerald-100 text-emerald-900'
+                                      : log.signalBadge === 'POLITE_FLUFF'
+                                        ? 'bg-rose-100 text-rose-900'
+                                        : 'bg-amber-100 text-amber-900'
+                                  }`}
+                                >
+                                  {log.signalBadge === 'STRONG_SIGNAL'
+                                    ? '🔥 Strong Signal'
+                                    : log.signalBadge === 'POLITE_FLUFF'
+                                      ? '⚠️ Polite Fluff'
+                                      : '⚖️ Mixed Signal'}
+                                </Badge>
+                                <Badge className="bg-indigo-50 text-[10px] font-bold text-indigo-800">
+                                  Pain: {log.painScore1To5}/5
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <p className="text-xs font-medium leading-relaxed text-slate-800">
+                              {log.keyTakeaway}
+                            </p>
+
+                            {log.verbatimQuote && (
+                              <div className="rounded-xl border border-slate-200/90 bg-slate-50 p-2.5 text-[11px] italic text-slate-700">
+                                &ldquo;{log.verbatimQuote}&rdquo;
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                              <span>
+                                <strong>Workaround/Spend:</strong>{' '}
+                                {log.workaroundAndSpend}
+                              </span>
+                            </div>
+
+                            {log.momTestCoachingNote && (
+                              <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-1.5 text-[11px] text-indigo-950">
+                                💡 {log.momTestCoachingNote}
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                              <span className="text-[11px] font-semibold text-indigo-900">
+                                {commitmentLabel}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={isVaultReadonly}
+                                  onClick={() => handleEditInterviewLog(log)}
+                                  className="rounded-lg px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isVaultReadonly}
+                                  onClick={() =>
+                                    handleDeleteInterviewLog(log.id)
+                                  }
+                                  className="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
       {/* TAB 3: SURVEY RESULTS & AI "SIGNAL VS. NOISE" INSIGHTS ENGINE       */}
       {/* =================================================================== */}
-      {activeSurvey && activeViewTab === 'INSIGHTS' && (
+      {activeModuleCSection === 'SURVEYS' &&
+        activeSurvey &&
+        activeViewTab === 'INSIGHTS' && (
         <div className="space-y-6">
           {/* Top Simulation & AI Action Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-4 shadow-2xs">
             <div className="space-y-0.5">
               <div className="text-sm font-bold text-slate-900">
-                Survey Results &amp; Mom-Test Insights Engine
+                Survey &amp; Interview Results — Mom-Test Insights Engine
               </div>
               <p className="text-xs text-slate-600">
                 Share{' '}
                 <code className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono text-indigo-900">
                   /v/{activeSurvey.publicSlug}
                 </code>{' '}
-                with real prospects, or simulate 5 realistic sample responses to
-                test your charts &amp; AI insights right now.
+                with real prospects, log 1-on-1 calls, or simulate 5 sample
+                responses to test your charts &amp; AI insights right now.
               </p>
             </div>
 
@@ -3450,7 +4825,7 @@ export function ModuleCWorkspace({
                 size="sm"
                 disabled={
                   isVaultReadonly ||
-                  totalResponses === 0 ||
+                  (totalResponses === 0 && interviewLogs.length === 0) ||
                   isAnalyzingInsights
                 }
                 onClick={handleRunAiAnalysis}
@@ -4104,34 +5479,65 @@ export function ModuleCWorkspace({
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
-                      {waitlistResponses.map((lead) => (
-                        <div
-                          key={lead.id}
-                          className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-xs"
-                        >
-                          <div>
-                            <span className="font-bold text-slate-900">
-                              {lead.respondentNameOrRole || 'Early-Bird Lead'}
-                            </span>
-                            {lead.respondentEmail && (
-                              <span className="ml-2 font-mono text-indigo-700">
-                                {lead.respondentEmail}
+                      {waitlistResponses.map((lead) => {
+                        const alreadyLoggedCall = interviewLogs.some(
+                          (i) =>
+                            i.linkedResponseId === lead.id ||
+                            (lead.respondentEmail &&
+                              i.intervieweeEmail?.toLowerCase() ===
+                                lead.respondentEmail.toLowerCase())
+                        );
+                        return (
+                          <div
+                            key={lead.id}
+                            className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-xs"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-slate-900">
+                                {lead.respondentNameOrRole || 'Early-Bird Lead'}
                               </span>
-                            )}
-                            {lead.isSimulated && (
-                              <Badge
-                                variant="secondary"
-                                className="ml-2 text-[10px]"
+                              {lead.respondentEmail && (
+                                <span className="font-mono text-indigo-700">
+                                  {lead.respondentEmail}
+                                </span>
+                              )}
+                              {lead.isSimulated && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px]"
+                                >
+                                  Simulated Sample
+                                </Badge>
+                              )}
+                              {alreadyLoggedCall && (
+                                <Badge className="bg-emerald-100 text-[10px] font-bold text-emerald-900">
+                                  ✓ 1-on-1 Call Logged
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-slate-400">
+                                {new Date(
+                                  lead.submittedAt
+                                ).toLocaleDateString()}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={isVaultReadonly}
+                                onClick={() =>
+                                  handleStartInterviewFromWaitlistLead(lead)
+                                }
+                                className="h-7 border-indigo-200 bg-indigo-50/70 px-2.5 text-[11px] font-semibold text-indigo-800 hover:bg-indigo-100"
                               >
-                                Simulated Sample
-                              </Badge>
-                            )}
+                                <Mic className="h-3 w-3 text-indigo-600" />
+                                Log 1-on-1 Call
+                              </Button>
+                            </div>
                           </div>
-                          <span className="text-[11px] text-slate-400">
-                            {new Date(lead.submittedAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -4157,7 +5563,9 @@ export function ModuleCWorkspace({
         </Button>
 
         <div className="flex flex-wrap items-center gap-2">
-          {activeSurvey && activeViewTab === 'BUILDER' ? (
+          {activeModuleCSection === 'SURVEYS' &&
+          activeSurvey &&
+          activeViewTab === 'BUILDER' ? (
             <>
               <Button
                 type="button"
@@ -4181,19 +5589,55 @@ export function ModuleCWorkspace({
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </>
-          ) : activeSurvey && activeViewTab === 'OUTREACH' ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                setActiveViewTab('INSIGHTS');
-                handleSyncLiveResponses(true);
-              }}
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
-            >
-              View Results &amp; AI Insights ({totalResponses})
-              <ArrowRight className="h-4 w-4" />
-            </Button>
+          ) : activeModuleCSection === 'SURVEYS' &&
+            activeSurvey &&
+            activeViewTab === 'OUTREACH' ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveModuleCSection('INTERVIEWS')}
+              >
+                <Mic className="h-4 w-4 text-indigo-600" />
+                Switch to 1-on-1 Interviews ({interviewLogs.length})
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setActiveViewTab('INSIGHTS');
+                  handleSyncLiveResponses(true);
+                }}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                View Results &amp; AI Insights ({totalResponses})
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </>
+          ) : activeModuleCSection === 'INTERVIEWS' ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveModuleCSection('SURVEYS')}
+              >
+                <FileText className="h-4 w-4 text-indigo-600" />
+                Switch to Customer Surveys ({surveys.length})
+              </Button>
+              {onContinueToModuleD && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onContinueToModuleD}
+                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  Save &amp; Continue
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
+            </>
           ) : (
             onContinueToModuleD && (
               <Button

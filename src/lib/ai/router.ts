@@ -33,6 +33,9 @@ import type {
   SurveyQuestionItem,
   SavedSurveyResponse,
   SurveyAiInsightsSummary,
+  SavedCustomerInterviewLog,
+  InterviewCommitmentOutcomeType,
+  InterviewSignalBadgeType,
   SavedModuleBData,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
@@ -2995,7 +2998,7 @@ export async function suggestNextMomTestQuestionViaRouter(params: {
 }
 
 /**
- * Synthesizes survey responses into a "Signal vs. Polite Noise" Insights Summary.
+ * Synthesizes survey responses + 1-on-1 customer interviews into a "Signal vs. Polite Noise" Insights Summary.
  */
 export async function analyzeModuleCSurveyResultsViaRouter(params: {
   userId?: string;
@@ -3004,13 +3007,16 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
   surveyTitle: string;
   questions: SurveyQuestionItem[];
   responses: SavedSurveyResponse[];
+  interviewLogs?: SavedCustomerInterviewLog[];
 }): Promise<AnalyzeSurveyResultsOutput> {
   const totalResponses = params.responses.length;
+  const interviews = params.interviewLogs || [];
+  const totalInterviews = interviews.length;
   const waitlistLeads = params.responses.filter(
     (r) => r.joinedWaitlist || (r.respondentEmail && r.respondentEmail.includes('@'))
   );
 
-  // Compute quantitative signal from responses
+  // Compute quantitative signal from responses + 1-on-1 interviews
   let scaleSum = 0;
   let scaleCount = 0;
   const optionTallies: Array<{ questionText: string; topOption: string; pct: number }> = [];
@@ -3063,6 +3069,23 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
     }
   }
 
+  for (const log of interviews) {
+    if (typeof log.painScore1To5 === 'number' && log.painScore1To5 >= 1 && log.painScore1To5 <= 5) {
+      scaleSum += log.painScore1To5;
+      scaleCount += 1;
+    }
+    if (log.verbatimQuote?.trim()) {
+      openQuotes.push(`${log.verbatimQuote.trim()} — ${log.intervieweeNameOrRole}`);
+    }
+  }
+
+  const strongSignalInterviews = interviews.filter(
+    (i) => i.signalBadge === 'STRONG_SIGNAL' || i.commitmentOutcome === 'ASKED_TO_PILOT_OR_BUY'
+  );
+  const politeFluffInterviews = interviews.filter(
+    (i) => i.signalBadge === 'POLITE_FLUFF' || i.commitmentOutcome === 'POLITE_COMPLIMENTS_ONLY'
+  );
+
   const avgScale = scaleCount > 0 ? Number((scaleSum / scaleCount).toFixed(1)) : 3.8;
   const waitlistConversionPct =
     totalResponses > 0
@@ -3076,7 +3099,8 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
       Math.round(
         avgScale * 14 +
           Math.min(waitlistConversionPct * 0.35, 22) +
-          Math.min(totalResponses * 1.5, 12)
+          Math.min(totalResponses * 1.5, 12) +
+          Math.min(strongSignalInterviews.length * 4, 14)
       )
     )
   );
@@ -3088,9 +3112,16 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
         `${item.pct}% of respondents selected "${item.topOption}" on "${item.questionText}".`
       );
     }
+    if (totalInterviews > 0) {
+      validatedPainPoints.push(
+        `1-on-1 Customer Interviews (${totalInterviews} logged, ${strongSignalInterviews.length} Strong Signal): ${
+          interviews[0]?.keyTakeaway || 'Verified real workflow friction and active workarounds.'
+        }`
+      );
+    }
     if (scaleCount > 0) {
       validatedPainPoints.push(
-        `Average pain/urgency rating across scale questions is ${avgScale} / 5.0 (${
+        `Average pain/urgency rating across survey & interview evidence is ${avgScale} / 5.0 (${
           avgScale >= 3.8
             ? 'Strong hair-on-fire signal'
             : avgScale >= 2.8
@@ -3101,16 +3132,21 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
     }
     if (openQuotes.length > 0) {
       validatedPainPoints.push(
-        `Direct respondent voice: "${openQuotes[0].slice(0, 140)}${openQuotes[0].length > 140 ? '...' : ''}"`
+        `Direct customer voice: "${openQuotes[0].slice(0, 150)}${openQuotes[0].length > 150 ? '...' : ''}"`
       );
     }
     if (validatedPainPoints.length === 0) {
       validatedPainPoints.push(
-        `Collected ${totalResponses} response(s) so far. Share your public /v/[slug] link with at least 10–15 target customers to unlock stronger pattern confidence.`
+        `Collected ${totalResponses} survey response(s) and ${totalInterviews} interview(s) so far. Share your public /v/[slug] link or log 3–5 customer discovery calls to unlock stronger pattern confidence.`
       );
     }
 
     const politenessAlertOrRisks: string[] = [];
+    if (politeFluffInterviews.length > 0) {
+      politenessAlertOrRisks.push(
+        `Mom-Test Alert (${politeFluffInterviews.length} of ${totalInterviews} interviews flagged as Polite Fluff): When interviewees say "sounds cool, keep me posted" without sharing a real past workaround or budget, discount their praise and focus on the ${strongSignalInterviews.length} high-pain buyer(s).`
+      );
+    }
     if (avgScale < 3.2 && waitlistConversionPct > 40) {
       politenessAlertOrRisks.push(
         `Politeness Warning: ${waitlistConversionPct}% joined the waitlist, but average problem intensity is only ${avgScale}/5. Make sure they aren't just being supportive friends—verify if they actively try to solve this today.`
@@ -3121,63 +3157,83 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
       );
     } else {
       politenessAlertOrRisks.push(
-        `Always cross-check open-text stories against what respondents currently spend or do manually—focus your V1 product (Module D) on the respondents who rated pain 4 or 5 out of 5.`
+        `Always cross-check open-text stories against what customers currently spend or do manually—focus your V1 product (Module D) on the customers who rated pain 4 or 5 out of 5.`
       );
     }
 
-    if (totalResponses < 10) {
+    if (totalResponses + totalInterviews < 8) {
       politenessAlertOrRisks.push(
-        `Sample Size Note (${totalResponses} responses): Treat early trends as directional signals until you reach 10–20 responses from your core beachhead persona.`
+        `Sample Size Note (${totalResponses} survey responses + ${totalInterviews} 1-on-1 interviews): Treat early trends as directional signals until you reach 10+ combined data points from your core beachhead persona.`
       );
     }
 
     return {
       headlineTakeaway:
         avgScale >= 3.8
-          ? `Strong problem validation (${avgScale}/5 avg urgency & ${waitlistConversionPct}% waitlist opt-in across ${totalResponses} responses).`
-          : `Early discovery signal captured (${totalResponses} responses, ${avgScale}/5 avg rating, ${waitlistConversionPct}% waitlist opt-in).`,
+          ? `Strong problem validation (${avgScale}/5 avg urgency across ${totalResponses} survey responses & ${totalInterviews} 1-on-1 interviews).`
+          : `Early discovery signal captured (${totalResponses} survey responses, ${totalInterviews} interviews, ${avgScale}/5 avg rating).`,
       signalScoreOutOf100: computedSignalScore,
       validatedPainPoints,
       politenessAlertOrRisks,
       recommendedNextAction:
-        waitlistLeads.length > 0
-          ? `Follow up 1-on-1 with the ${waitlistLeads.length} respondent(s) who left their email (${waitlistLeads
+        strongSignalInterviews.length > 0
+          ? `Follow up with your ${strongSignalInterviews.length} Strong-Signal interviewee(s) (${strongSignalInterviews
               .slice(0, 2)
-              .map((l) => l.respondentEmail)
-              .filter(Boolean)
-              .join(', ')}) and carry their top pain point directly into Module D (V1 Feature Filter).`
-          : `Share your no-login survey link in 2–3 niche communities where your target customers hang out to capture your first 5 waitlist leads.`,
+              .map((i) => i.intervieweeNameOrRole)
+              .join(', ')}) to co-design your V1 scope in Module D and validate pricing in Module F.`
+          : waitlistLeads.length > 0
+            ? `Invite the ${waitlistLeads.length} waitlist respondent(s) (${waitlistLeads
+                .slice(0, 2)
+                .map((l) => l.respondentEmail)
+                .filter(Boolean)
+                .join(', ')}) to a 15-minute 1-on-1 discovery call and carry their top pain point into Module D.`
+            : `Share your no-login survey link in 2–3 niche communities or log 3 customer calls in the 1-on-1 Interviews tab.`,
       topWaitlistLeadAdvice:
         waitlistLeads.length > 0
-          ? `${waitlistLeads.length} of ${totalResponses} respondents (${waitlistConversionPct}%) opted into your early-bird waitlist. Prioritize contacting those who scored 4–5/5 on pain intensity first.`
-          : 'No waitlist emails captured yet — make sure "Collect Early-Bird Waitlist Emails" is enabled on your survey.',
+          ? `${waitlistLeads.length} of ${totalResponses} survey respondents (${waitlistConversionPct}%) opted into your waitlist. Click "Log 1-on-1 Call" next to high-pain leads to convert them into pilot interviews.`
+          : totalInterviews > 0
+            ? `${totalInterviews} 1-on-1 interview(s) logged (${strongSignalInterviews.length} Strong Signal). Keep logging verbatim quotes and current spend so Module F (Pricing) and Module I (Business Plan) can cite real buyer proof.`
+            : 'No waitlist emails captured yet — make sure "Collect Early-Bird Waitlist Emails" is enabled on your survey.',
       lastAnalyzedAt: new Date().toISOString(),
       aiEngineUsed: 'smart-synthesizer',
     };
   };
 
   const activeApiKey = hasConfiguredGeminiKey(null);
-  if (activeApiKey && totalResponses > 0) {
+  if (activeApiKey && (totalResponses > 0 || totalInterviews > 0)) {
     try {
       const ai = new GoogleGenAI({ apiKey: activeApiKey });
       const fallback = buildSmartFallbackInsights();
-      const prompt = `Analyze these customer validation survey results using Rob Fitzpatrick's "The Mom Test" (Signal vs. Polite Noise):
+      const prompt = `Analyze these customer validation survey results and 1-on-1 customer interviews using Rob Fitzpatrick's "The Mom Test" (Signal vs. Polite Noise):
 Startup: ${params.planTitle}
 Survey: ${params.surveyTitle}
-Total Responses: ${totalResponses}
+Total Survey Responses: ${totalResponses}
 Waitlist Opt-Ins: ${waitlistLeads.length} (${waitlistConversionPct}%)
+1-on-1 Customer Interviews Logged: ${totalInterviews} (${strongSignalInterviews.length} Strong Signal, ${politeFluffInterviews.length} Polite Fluff)
+Interview Summaries: ${JSON.stringify(
+        interviews.slice(0, 6).map((i) => ({
+          interviewee: i.intervieweeNameOrRole,
+          painScore: i.painScore1To5,
+          signal: i.signalBadge,
+          outcome: i.commitmentOutcome,
+          otherOutcome: i.otherCommitmentText,
+          workaroundAndSpend: i.workaroundAndSpend,
+          keyTakeaway: i.keyTakeaway,
+          verbatimQuote: i.verbatimQuote,
+        }))
+      )}
 Average 1-5 Scale Score: ${avgScale} / 5.0
 Top Option Tallies: ${JSON.stringify(optionTallies)}
-Sample Verbatim Open-Text Answers: ${JSON.stringify(openQuotes.slice(0, 8))}
+Sample Verbatim Quotes: ${JSON.stringify(openQuotes.slice(0, 8))}
 
 Return JSON matching:
 {
-  "headlineTakeaway": "1 crisp sentence summarizing the validation signal",
+  "headlineTakeaway": "1 crisp sentence summarizing the combined survey + 1-on-1 interview validation signal",
   "signalScoreOutOf100": number (0-100),
-  "validatedPainPoints": ["3 specific insights backed by the percentages and quotes"],
+  "validatedPainPoints": ["3 specific insights backed by survey percentages and 1-on-1 interview takeaways"],
   "politenessAlertOrRisks": ["2 Mom-Test blind-spot warnings or false-positive checks"],
   "recommendedNextAction": "Concrete next step for the founder in Module D (Product) and Module F (Pricing)",
-  "topWaitlistLeadAdvice": "1 sentence on how to convert the waitlist leads"
+  "topWaitlistLeadAdvice": "1 sentence on how to convert waitlist leads and strong-signal interviewees"
 }`;
 
       const response = await ai.models.generateContent({
@@ -3226,4 +3282,323 @@ Return JSON matching:
     engineMode: 'smart-synthesizer',
   };
 }
+
+export interface ExtractMomTestInterviewOutput {
+  allowed: boolean;
+  reason?: string;
+  keyTakeaway: string;
+  verbatimQuote: string;
+  workaroundAndSpend: string;
+  painScore1To5: number;
+  commitmentOutcome: InterviewCommitmentOutcomeType;
+  signalBadge: InterviewSignalBadgeType;
+  momTestCoachingNote: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+/**
+ * Extracts structured Mom-Test signal (Key Takeaway, Verbatim Quote, Workaround/Spend,
+ * Pain Score 1-5, Commitment Outcome, and Signal Badge) from messy 1-on-1 customer call notes.
+ * Passes through the central AI router with entitlement & token logging guardrails.
+ */
+export async function extractMomTestInterviewInsightsViaRouter(params: {
+  userId?: string;
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  intervieweeName: string;
+  intervieweeRoleOrCompany: string;
+  rawNotes: string;
+}): Promise<ExtractMomTestInterviewOutput> {
+  const raw = params.rawNotes.trim();
+  const lower = raw.toLowerCase();
+
+  const buildSmartFallbackExtraction = (): Omit<
+    ExtractMomTestInterviewOutput,
+    'allowed' | 'engineMode'
+  > => {
+    const sentences = raw
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 8);
+
+    // Detect if there is a quoted string in the notes
+    const quotedMatch =
+      raw.match(/"([^"]{12,220})"/) || raw.match(/“([^”]{12,220})”/);
+
+    const hasPilotOrPaySignal =
+      lower.includes('pilot') ||
+      lower.includes('pay') ||
+      lower.includes('buy') ||
+      lower.includes('sign up') ||
+      lower.includes('beta') ||
+      lower.includes('when can i use') ||
+      lower.includes('send me the invoice') ||
+      lower.includes('budget');
+
+    const hasIntroSignal =
+      lower.includes('intro') ||
+      lower.includes('colleague') ||
+      lower.includes('refer') ||
+      lower.includes('connect you with');
+
+    const hasPoliteFluff =
+      (lower.includes('sounds cool') ||
+        lower.includes('nice idea') ||
+        lower.includes('keep me posted') ||
+        lower.includes('let me know when') ||
+        lower.includes('interesting concept')) &&
+      !hasPilotOrPaySignal;
+
+    const hasSpendOrWorkaround =
+      lower.includes('excel') ||
+      lower.includes('spreadsheet') ||
+      lower.includes('manual') ||
+      lower.includes('hours') ||
+      lower.includes('spend') ||
+      lower.includes('paying') ||
+      lower.includes('€') ||
+      lower.includes('$') ||
+      lower.includes('£') ||
+      lower.includes('agency') ||
+      lower.includes('consultant') ||
+      lower.includes('notion');
+
+    let signalBadge: InterviewSignalBadgeType = 'MIXED_SIGNAL';
+    let commitmentOutcome: InterviewCommitmentOutcomeType =
+      'SHARED_DEEP_WORKFLOW_PAIN';
+    let painScore1To5 = 4;
+
+    if (hasPilotOrPaySignal && hasSpendOrWorkaround) {
+      signalBadge = 'STRONG_SIGNAL';
+      commitmentOutcome = 'ASKED_TO_PILOT_OR_BUY';
+      painScore1To5 = 5;
+    } else if (hasIntroSignal) {
+      signalBadge = 'STRONG_SIGNAL';
+      commitmentOutcome = 'INTRODUCED_PEERS';
+      painScore1To5 = 4;
+    } else if (hasPoliteFluff) {
+      signalBadge = 'POLITE_FLUFF';
+      commitmentOutcome = 'POLITE_COMPLIMENTS_ONLY';
+      painScore1To5 = 2;
+    } else if (hasSpendOrWorkaround) {
+      signalBadge = 'STRONG_SIGNAL';
+      commitmentOutcome = 'SHARED_DEEP_WORKFLOW_PAIN';
+      painScore1To5 = 4;
+    }
+
+    const workaroundSentence =
+      sentences.find(
+        (s) =>
+          /excel|spreadsheet|manual|hour|spend|pay|€|\$|£|tool|agency|currently|workaround/i.test(
+            s
+          )
+      ) ||
+      sentences[1] ||
+      sentences[0] ||
+      'Currently patching the workflow together manually with spreadsheets and ad-hoc tools.';
+
+    const verbatimQuote = quotedMatch
+      ? quotedMatch[1].trim()
+      : sentences.find((s) => /frustrat|waste|hate|hard|problem|hour|spend|need/i.test(s)) ||
+        sentences[0] ||
+        raw.slice(0, 160);
+
+    const keyTakeaway =
+      signalBadge === 'STRONG_SIGNAL'
+        ? `${params.intervieweeName || 'Interviewee'} confirmed active workflow pain (${painScore1To5}/5) and concrete past spend/effort rather than hypothetical interest.`
+        : signalBadge === 'POLITE_FLUFF'
+          ? `${params.intervieweeName || 'Interviewee'} gave polite compliments without proving an active problem, budget, or costly current workaround.`
+          : `${params.intervieweeName || 'Interviewee'} shared useful workflow context (${painScore1To5}/5 pain) — follow up to verify concrete budget or switching trigger.`;
+
+    const momTestCoachingNote =
+      signalBadge === 'STRONG_SIGNAL'
+        ? 'Mom-Test Pass: You captured concrete past behavior, current workaround cost, and a real commitment step.'
+        : signalBadge === 'POLITE_FLUFF'
+          ? 'Mom-Test Caution: Watch out for "nice idea / keep me posted" compliments. On your next call, ask when they last tried to fix this and what it cost them.'
+          : 'Mom-Test Tip: Good workflow detail! To turn this into a Strong Signal, ask for a concrete next step (e.g., a paid pilot or an intro to 2 peers).';
+
+    return {
+      keyTakeaway,
+      verbatimQuote: verbatimQuote.replace(/^["“]|["”]$/g, ''),
+      workaroundAndSpend: workaroundSentence,
+      painScore1To5,
+      commitmentOutcome,
+      signalBadge,
+      momTestCoachingNote,
+    };
+  };
+
+  let customByokKey: string | null = null;
+  let creditsUsedAfter = 1;
+  const isUuid =
+    params.userId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      params.userId
+    );
+
+  if (isUuid && params.userId) {
+    try {
+      const [entRow] = await db
+        .select()
+        .from(userEntitlements)
+        .where(eq(userEntitlements.userId, params.userId))
+        .limit(1);
+
+      if (entRow) {
+        const snapshot: EntitlementSnapshot = {
+          userId: entRow.userId,
+          planType: entRow.planType,
+          stackedCodesCount: entRow.stackedCodesCount,
+          maxStartupPlans: entRow.maxStartupPlans,
+          maxSeatsPerPlan: entRow.maxSeatsPerPlan,
+          monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
+          aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
+          whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
+          customApiKeyEncrypted: entRow.customApiKeyEncrypted,
+          accessExpiresAt: entRow.accessExpiresAt,
+          isVaultReadonly: entRow.isVaultReadonly,
+        };
+        const creditCheck = canConsumeAiCredits(snapshot, 1);
+        if (!creditCheck.allowed) {
+          return {
+            allowed: false,
+            reason: creditCheck.reason,
+            ...buildSmartFallbackExtraction(),
+            creditsUsedAfter: entRow.aiCreditsUsedThisMonth,
+            engineMode: 'smart-synthesizer',
+          };
+        }
+        customByokKey = entRow.customApiKeyEncrypted;
+      }
+    } catch {
+      // Offline preview fallback
+    }
+  }
+
+  const activeApiKey = hasConfiguredGeminiKey(customByokKey);
+  if (activeApiKey && raw.length > 10) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const prompt = `You are a supportive co-founder and "The Mom Test" customer discovery coach.
+Extract structured Mom-Test signal from the founder's raw 1-on-1 customer interview notes.
+
+Startup: ${params.planTitle} (${params.industryCategory || 'Startup'})
+Interviewee: ${params.intervieweeName || 'Customer'} (${params.intervieweeRoleOrCompany || 'Target Persona'})
+Founder's Raw Call Notes:
+"""
+${raw}
+"""
+
+Rules:
+- Distinguish between real behavioral evidence (past workarounds, time/money spent, concrete commitment) vs. polite compliments ("sounds cool", "I might use it").
+- commitmentOutcome MUST be one of: "ASKED_TO_PILOT_OR_BUY", "INTRODUCED_PEERS", "SHARED_DEEP_WORKFLOW_PAIN", "POLITE_COMPLIMENTS_ONLY", "NOT_TARGET_PERSONA"
+- signalBadge MUST be one of: "STRONG_SIGNAL", "MIXED_SIGNAL", "POLITE_FLUFF"
+- painScore1To5 MUST be an integer from 1 to 5.
+
+Return JSON:
+{
+  "keyTakeaway": "1-2 crisp sentences summarizing what this interview proved or disproved",
+  "verbatimQuote": "The single most revealing direct quote or statement from the notes (without outer quotation marks)",
+  "workaroundAndSpend": "How they currently handle the problem today and what time/money it costs them",
+  "painScore1To5": 4,
+  "commitmentOutcome": "ASKED_TO_PILOT_OR_BUY",
+  "signalBadge": "STRONG_SIGNAL",
+  "momTestCoachingNote": "1 constructive sentence coaching the founder on the quality of this signal"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.25,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as Partial<ExtractMomTestInterviewOutput>;
+        const fallback = buildSmartFallbackExtraction();
+        if (parsed.keyTakeaway) {
+          if (isUuid && params.userId) {
+            try {
+              const [updatedEnt] = await db
+                .update(userEntitlements)
+                .set({
+                  aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
+                  updatedAt: new Date(),
+                })
+                .where(eq(userEntitlements.userId, params.userId))
+                .returning();
+              if (updatedEnt) {
+                creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
+              }
+              const isPlanUuid =
+                params.planId &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                  params.planId
+                );
+              await db.insert(aiUsageLogs).values({
+                userId: params.userId,
+                planId: isPlanUuid ? params.planId : null,
+                promptKey: 'MOD_C_INTERVIEW_EXTRACTOR',
+                modelUsed: 'gemini-2.5-flash',
+                inputTokens: response.usageMetadata?.promptTokenCount || 180,
+                outputTokens: response.usageMetadata?.candidatesTokenCount || 160,
+                usedByokKey: Boolean(customByokKey),
+              });
+            } catch {
+              // Ignore DB log error in offline mode
+            }
+          }
+
+          return {
+            allowed: true,
+            keyTakeaway: parsed.keyTakeaway,
+            verbatimQuote: parsed.verbatimQuote || fallback.verbatimQuote,
+            workaroundAndSpend:
+              parsed.workaroundAndSpend || fallback.workaroundAndSpend,
+            painScore1To5:
+              typeof parsed.painScore1To5 === 'number' &&
+              parsed.painScore1To5 >= 1 &&
+              parsed.painScore1To5 <= 5
+                ? Math.round(parsed.painScore1To5)
+                : fallback.painScore1To5,
+            commitmentOutcome:
+              parsed.commitmentOutcome === 'ASKED_TO_PILOT_OR_BUY' ||
+              parsed.commitmentOutcome === 'INTRODUCED_PEERS' ||
+              parsed.commitmentOutcome === 'SHARED_DEEP_WORKFLOW_PAIN' ||
+              parsed.commitmentOutcome === 'POLITE_COMPLIMENTS_ONLY' ||
+              parsed.commitmentOutcome === 'NOT_TARGET_PERSONA'
+                ? parsed.commitmentOutcome
+                : fallback.commitmentOutcome,
+            signalBadge:
+              parsed.signalBadge === 'STRONG_SIGNAL' ||
+              parsed.signalBadge === 'MIXED_SIGNAL' ||
+              parsed.signalBadge === 'POLITE_FLUFF'
+                ? parsed.signalBadge
+                : fallback.signalBadge,
+            momTestCoachingNote:
+              parsed.momTestCoachingNote || fallback.momTestCoachingNote,
+            creditsUsedAfter,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallbackExtraction(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
 
