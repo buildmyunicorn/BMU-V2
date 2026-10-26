@@ -280,6 +280,182 @@ export interface SavedModuleBData {
   thingsToConsider?: BlindSpotItem[];
 }
 
+export type SurveyQuestionType =
+  | 'MULTIPLE_CHOICE'
+  | 'MULTI_SELECT'
+  | 'SCALE_1_5'
+  | 'OPEN_TEXT';
+
+export type SurveyFocusAreaType =
+  | 'PROBLEM_AND_PAIN'
+  | 'CURRENT_WORKAROUNDS'
+  | 'PAST_SPENDING_BUDGET'
+  | 'WORKFLOW_AND_HABITS'
+  | 'FEATURE_PRIORITIES'
+  | 'OTHER';
+
+export interface SurveyQuestionItem {
+  id: string;
+  questionText: string;
+  type: SurveyQuestionType;
+  options?: string[];
+  allowOther?: boolean;
+  scaleMinLabel?: string;
+  scaleMaxLabel?: string;
+  momTestPassed: boolean;
+  momTestFeedback?: string;
+  momTestSuggestedRewrite?: string;
+}
+
+export interface SurveyResponseAnswerValue {
+  selectedOption?: string;
+  selectedOptions?: string[];
+  otherText?: string;
+  scaleValue?: number;
+  openText?: string;
+}
+
+export interface SavedSurveyResponse {
+  id: string;
+  surveyId: string;
+  answers: Record<string, SurveyResponseAnswerValue>;
+  respondentNameOrRole?: string;
+  respondentEmail?: string;
+  joinedWaitlist: boolean;
+  isSimulated?: boolean;
+  clientResponseId?: string;
+  submittedAt: string;
+}
+
+const RESPONSE_UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Produces a canonical signature for a survey response that is invariant to
+ * PostgreSQL `jsonb` key sorting vs JavaScript insertion order.
+ */
+export function getCanonicalResponseSignature(r: SavedSurveyResponse): string {
+  const answersObj = r.answers || {};
+  const sortedQuestionKeys = Object.keys(answersObj).sort();
+  const normalizedAnswers: Record<string, Record<string, unknown>> = {};
+
+  for (const qId of sortedQuestionKeys) {
+    const val = answersObj[qId];
+    if (!val) continue;
+    const entry: Record<string, unknown> = {};
+    if (val.selectedOption !== undefined) {
+      entry.selectedOption = val.selectedOption;
+    }
+    if (Array.isArray(val.selectedOptions) && val.selectedOptions.length > 0) {
+      entry.selectedOptions = [...val.selectedOptions].sort();
+    }
+    if (val.otherText !== undefined && val.otherText.trim() !== '') {
+      entry.otherText = val.otherText.trim();
+    }
+    if (typeof val.scaleValue === 'number') {
+      entry.scaleValue = val.scaleValue;
+    }
+    if (val.openText !== undefined && val.openText.trim() !== '') {
+      entry.openText = val.openText.trim();
+    }
+    normalizedAnswers[qId] = entry;
+  }
+
+  const emailKey = (r.respondentEmail || '').trim().toLowerCase();
+  const nameKey = (r.respondentNameOrRole || '').trim().toLowerCase();
+  const simKey = Boolean(r.isSimulated) ? 'sim' : 'real';
+
+  return `${simKey}::${emailKey}::${nameKey}::${JSON.stringify(normalizedAnswers)}`;
+}
+
+/**
+ * Deduplicates survey responses across localStorage (`resp-...`) and Cloud SQL (`uuid`),
+ * preferring UUID-backed database rows so a single submission is never counted twice.
+ */
+export function deduplicateSurveyResponses(
+  responses: SavedSurveyResponse[]
+): SavedSurveyResponse[] {
+  if (!Array.isArray(responses) || responses.length === 0) return [];
+
+  // Put UUID-backed DB rows first so their authoritative IDs win over local `resp-...` IDs
+  const prioritized = [...responses].sort((a, b) => {
+    const aIsUuid = RESPONSE_UUID_REGEX.test(a.id) ? 1 : 0;
+    const bIsUuid = RESPONSE_UUID_REGEX.test(b.id) ? 1 : 0;
+    if (bIsUuid !== aIsUuid) return bIsUuid - aIsUuid;
+    return (
+      new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+    );
+  });
+
+  const seenIds = new Set<string>();
+  const seenSignatures = new Set<string>();
+  const unique: SavedSurveyResponse[] = [];
+
+  for (const r of prioritized) {
+    if (!r || !r.id) continue;
+    const sig = getCanonicalResponseSignature(r);
+
+    if (
+      seenIds.has(r.id) ||
+      (r.clientResponseId && seenIds.has(r.clientResponseId)) ||
+      seenSignatures.has(sig)
+    ) {
+      seenIds.add(r.id);
+      if (r.clientResponseId) seenIds.add(r.clientResponseId);
+      continue;
+    }
+
+    seenIds.add(r.id);
+    if (r.clientResponseId) seenIds.add(r.clientResponseId);
+    seenSignatures.add(sig);
+    unique.push(r);
+  }
+
+  return unique.sort(
+    (a, b) =>
+      new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+  );
+}
+
+export interface SurveyAiInsightsSummary {
+  headlineTakeaway: string;
+  signalScoreOutOf100: number;
+  validatedPainPoints: string[];
+  politenessAlertOrRisks: string[];
+  recommendedNextAction: string;
+  topWaitlistLeadAdvice?: string;
+  lastAnalyzedAt: string;
+  aiEngineUsed: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export interface SavedValidationSurvey {
+  id: string;
+  planId: string;
+  publicSlug: string;
+  title: string;
+  introDescription: string;
+  isActive: boolean;
+  isPublished?: boolean;
+  publishedAt?: string;
+  collectLeadEmails: boolean;
+  waitlistIncentiveText: string;
+  focusAreas?: SurveyFocusAreaType[];
+  otherFocusAreaText?: string;
+  customAiFocusPrompt?: string;
+  questions: SurveyQuestionItem[];
+  responses: SavedSurveyResponse[];
+  aiInsightsSummary?: SurveyAiInsightsSummary;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavedModuleCData {
+  surveys: SavedValidationSurvey[];
+  activeSurveyId?: string;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
 export type FounderStage =
   | 'IDEA_EXPLORER'
   | 'BUILDING_MVP'
@@ -327,6 +503,7 @@ export interface ActiveStartupPlan {
   founderRealityCheck?: SavedFounderRealityCheck;
   thingsToConsider?: BlindSpotItem[];
   moduleBData?: SavedModuleBData;
+  moduleCData?: SavedModuleCData;
   openQuestions: string[];
 }
 
@@ -339,6 +516,7 @@ export interface BmuLocalSession {
 }
 
 const STORAGE_KEY = 'bmu_v2_session_state_v1';
+const PUBLIC_SURVEYS_REGISTRY_KEY = 'bmu_v2_public_surveys_registry_v1';
 
 export function getDefaultDemoSession(): BmuLocalSession {
   const limits = calculatePassLimits('FREE_HOOK');
@@ -400,6 +578,21 @@ export function loadBmuSession(): BmuLocalSession {
         parsed.entitlement.accessExpiresAt
       );
     }
+    if (Array.isArray(parsed.plans)) {
+      parsed.plans = parsed.plans.map((p) => {
+        if (!p.moduleCData?.surveys) return p;
+        return {
+          ...p,
+          moduleCData: {
+            ...p.moduleCData,
+            surveys: p.moduleCData.surveys.map((s) => ({
+              ...s,
+              responses: deduplicateSurveyResponses(s.responses || []),
+            })),
+          },
+        };
+      });
+    }
     return parsed;
   } catch {
     return getDefaultDemoSession();
@@ -408,7 +601,172 @@ export function loadBmuSession(): BmuLocalSession {
 
 export function saveBmuSession(session: BmuLocalSession): void {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  const cleanedSession: BmuLocalSession = {
+    ...session,
+    plans: (session.plans || []).map((p) => {
+      if (!p.moduleCData?.surveys) return p;
+      return {
+        ...p,
+        moduleCData: {
+          ...p.moduleCData,
+          surveys: p.moduleCData.surveys.map((s) => ({
+            ...s,
+            responses: deduplicateSurveyResponses(s.responses || []),
+          })),
+        },
+      };
+    }),
+  };
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanedSession));
+  try {
+    const rawRegistry = window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+    const registry: Record<string, SavedValidationSurvey & { planTitle?: string }> =
+      rawRegistry ? JSON.parse(rawRegistry) : {};
+    for (const plan of cleanedSession.plans) {
+      const surveys = plan.moduleCData?.surveys || [];
+      for (const survey of surveys) {
+        if (survey.publicSlug) {
+          registry[survey.publicSlug] = {
+            ...survey,
+            responses: deduplicateSurveyResponses(survey.responses || []),
+            planTitle: plan.title,
+          };
+        }
+      }
+    }
+    window.localStorage.setItem(
+      PUBLIC_SURVEYS_REGISTRY_KEY,
+      JSON.stringify(registry)
+    );
+  } catch {
+    // Ignore localStorage quota/parse issues
+  }
+}
+
+export function removePublicSurveyFromLocalRegistry(publicSlug: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const cleanSlug = decodeURIComponent(publicSlug).trim();
+    const rawRegistry = window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+    if (!rawRegistry) return;
+    const registry = JSON.parse(rawRegistry) as Record<
+      string,
+      SavedValidationSurvey & { planTitle?: string }
+    >;
+    if (registry[cleanSlug]) {
+      delete registry[cleanSlug];
+      window.localStorage.setItem(
+        PUBLIC_SURVEYS_REGISTRY_KEY,
+        JSON.stringify(registry)
+      );
+    }
+  } catch {
+    // Ignore localStorage issues
+  }
+}
+
+export function loadPublicSurveyFromLocalRegistry(
+  publicSlug: string
+): (SavedValidationSurvey & { planTitle?: string }) | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cleanSlug = decodeURIComponent(publicSlug).trim();
+    const rawRegistry = window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+    if (rawRegistry) {
+      const registry = JSON.parse(rawRegistry) as Record<
+        string,
+        SavedValidationSurvey & { planTitle?: string }
+      >;
+      if (registry[cleanSlug]) {
+        const match = registry[cleanSlug];
+        return {
+          ...match,
+          responses: deduplicateSurveyResponses(match.responses || []),
+        };
+      }
+    }
+    // Fallback: scan current session
+    const session = loadBmuSession();
+    for (const plan of session.plans) {
+      const found = (plan.moduleCData?.surveys || []).find(
+        (s) => s.publicSlug === cleanSlug
+      );
+      if (found) {
+        return {
+          ...found,
+          responses: deduplicateSurveyResponses(found.responses || []),
+          planTitle: plan.title,
+        };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function appendResponseToLocalRegistryAndSession(
+  publicSlug: string,
+  response: SavedSurveyResponse
+): void {
+  if (typeof window === 'undefined') return;
+  const cleanSlug = decodeURIComponent(publicSlug).trim();
+  try {
+    const rawRegistry = window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+    if (rawRegistry) {
+      const registry = JSON.parse(rawRegistry) as Record<
+        string,
+        SavedValidationSurvey & { planTitle?: string }
+      >;
+      const existing = registry[cleanSlug];
+      if (existing) {
+        existing.responses = deduplicateSurveyResponses([
+          response,
+          ...(existing.responses || []),
+        ]);
+        existing.updatedAt = new Date().toISOString();
+        registry[cleanSlug] = existing;
+        window.localStorage.setItem(
+          PUBLIC_SURVEYS_REGISTRY_KEY,
+          JSON.stringify(registry)
+        );
+      }
+    }
+
+    const session = loadBmuSession();
+    let changed = false;
+    const nextPlans = session.plans.map((plan) => {
+      const surveys = plan.moduleCData?.surveys || [];
+      const hasMatch = surveys.some((s) => s.publicSlug === cleanSlug);
+      if (!hasMatch) return plan;
+      changed = true;
+      return {
+        ...plan,
+        moduleCData: {
+          ...plan.moduleCData,
+          surveys: surveys.map((s) => {
+            if (s.publicSlug !== cleanSlug) return s;
+            return {
+              ...s,
+              responses: deduplicateSurveyResponses([
+                response,
+                ...(s.responses || []),
+              ]),
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+        },
+      };
+    });
+    if (changed) {
+      saveBmuSession({
+        ...session,
+        plans: nextPlans,
+      });
+    }
+  } catch {
+    // Ignore storage error
+  }
 }
 
 export function registerNewFounderSession(params: {

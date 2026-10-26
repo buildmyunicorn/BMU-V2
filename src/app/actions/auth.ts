@@ -10,6 +10,8 @@ import {
   vouchers,
   startupPlans,
   planModulesData,
+  validationSurveys,
+  surveyResponses,
   openQuestionsParkingLot,
   type StartupHat,
 } from '@/db';
@@ -29,16 +31,23 @@ import {
   getCountryRulePack,
   type SupportedCountryCode,
 } from '@/lib/localization';
-import type {
-  BmuLocalSession,
-  FounderStage,
-  IndustryCategory,
-  TeamStructure,
-  ActiveStartupPlan,
-  SavedFounderMotivation,
-  SavedTeamAndBudget,
-  SavedFounderRealityCheck,
-  SavedModuleBData,
+import {
+  deduplicateSurveyResponses,
+  type BmuLocalSession,
+  type FounderStage,
+  type IndustryCategory,
+  type TeamStructure,
+  type ActiveStartupPlan,
+  type SavedFounderMotivation,
+  type SavedTeamAndBudget,
+  type SavedFounderRealityCheck,
+  type SavedModuleBData,
+  type SavedModuleCData,
+  type SavedValidationSurvey,
+  type SavedSurveyResponse,
+  type SurveyQuestionItem,
+  type SurveyResponseAnswerValue,
+  type SurveyAiInsightsSummary,
 } from '@/lib/auth/session-store';
 
 export interface AuthActionResult {
@@ -110,6 +119,7 @@ async function buildSessionFromDbUser(
 
     const modA = modRows.find((m) => m.moduleCode === 'MOD_A_IDEATION');
     const modB = modRows.find((m) => m.moduleCode === 'MOD_B_MARKET');
+    const modC = modRows.find((m) => m.moduleCode === 'MOD_C_SURVEYS_FEEDBACK');
     const structuredInputs = (modA?.structuredInputsJsonb ?? {}) as {
       brainDumpText?: string;
       exportPotential?: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
@@ -128,6 +138,158 @@ async function buildSessionFromDbUser(
     };
 
     const modBInputs = (modB?.structuredInputsJsonb ?? {}) as SavedModuleBData;
+    const modCInputs = (modC?.structuredInputsJsonb ?? {}) as SavedModuleCData;
+
+    // Also load relational surveys & responses from validation_surveys + survey_responses
+    const dbSurveyRows = await db
+      .select()
+      .from(validationSurveys)
+      .where(eq(validationSurveys.planId, plan.id))
+      .orderBy(desc(validationSurveys.createdAt));
+
+    const mergedSurveysBySlug = new Map<string, SavedValidationSurvey>();
+
+    for (const s of modCInputs.surveys || []) {
+      if (s.publicSlug) {
+        mergedSurveysBySlug.set(s.publicSlug, s);
+      }
+    }
+
+    for (const row of dbSurveyRows) {
+      const dbRespRows = await db
+        .select()
+        .from(surveyResponses)
+        .where(eq(surveyResponses.surveyId, row.id))
+        .orderBy(desc(surveyResponses.submittedAt));
+
+      const mappedDbResponses: Array<
+        SavedSurveyResponse & { clientResponseId?: string }
+      > = dbRespRows.map((r) => {
+        const rawAns = (r.answersJsonb || {}) as {
+          answers?: Record<string, SurveyResponseAnswerValue>;
+          respondentNameOrRole?: string;
+          isSimulated?: boolean;
+          clientResponseId?: string;
+        } & Record<string, SurveyResponseAnswerValue>;
+
+        const answersMap =
+          rawAns.answers && typeof rawAns.answers === 'object'
+            ? rawAns.answers
+            : (rawAns as Record<string, SurveyResponseAnswerValue>);
+
+        return {
+          id: r.id,
+          surveyId: r.surveyId,
+          answers: answersMap,
+          respondentNameOrRole:
+            typeof rawAns.respondentNameOrRole === 'string'
+              ? rawAns.respondentNameOrRole
+              : undefined,
+          respondentEmail: r.respondentEmail || undefined,
+          joinedWaitlist: r.joinedWaitlist,
+          isSimulated: Boolean(rawAns.isSimulated),
+          submittedAt: r.submittedAt.toISOString(),
+          clientResponseId:
+            typeof rawAns.clientResponseId === 'string'
+              ? rawAns.clientResponseId
+              : undefined,
+        };
+      });
+
+      const existingInMod = mergedSurveysBySlug.get(row.publicSlug);
+      const dbQuestions = (row.questionsJsonb || []) as SurveyQuestionItem[];
+      const chosenQuestions =
+        (existingInMod?.questions?.length || 0) >= dbQuestions.length &&
+        (existingInMod?.questions?.length || 0) > 0
+          ? existingInMod!.questions
+          : dbQuestions;
+
+      const mergedResponses = deduplicateSurveyResponses([
+        ...mappedDbResponses,
+        ...(existingInMod?.responses || []),
+      ]);
+
+      const dbInsights =
+        row.aiInsightsSummaryJsonb &&
+        Object.keys(row.aiInsightsSummaryJsonb as object).length > 0
+          ? (row.aiInsightsSummaryJsonb as SurveyAiInsightsSummary)
+          : undefined;
+
+      const rowMeta = (row.outreachTemplatesJsonb || {}) as {
+        isPublished?: boolean;
+        publishedAt?: string;
+      };
+      const isPublished =
+        typeof rowMeta.isPublished === 'boolean'
+          ? rowMeta.isPublished
+          : Boolean(existingInMod?.isPublished) ||
+            mergedResponses.some((r) => !r.isSimulated);
+      const publishedAt =
+        rowMeta.publishedAt ||
+        existingInMod?.publishedAt ||
+        (isPublished ? row.createdAt.toISOString() : undefined);
+
+      mergedSurveysBySlug.set(row.publicSlug, {
+        id: existingInMod?.id || row.id,
+        planId: row.planId,
+        publicSlug: row.publicSlug,
+        title:
+          row.title === 'Untitled Customer Survey' && existingInMod?.title
+            ? existingInMod.title
+            : row.title === 'Untitled Customer Survey'
+              ? ''
+              : row.title,
+        introDescription:
+          existingInMod?.introDescription || row.introDescription || '',
+        isActive: row.isActive,
+        isPublished,
+        publishedAt,
+        collectLeadEmails: row.collectLeadEmails,
+        waitlistIncentiveText:
+          existingInMod?.waitlistIncentiveText ||
+          row.waitlistIncentiveText ||
+          '',
+        focusAreas: existingInMod?.focusAreas || [
+          'PROBLEM_AND_PAIN',
+          'CURRENT_WORKAROUNDS',
+        ],
+        otherFocusAreaText: existingInMod?.otherFocusAreaText || '',
+        customAiFocusPrompt: existingInMod?.customAiFocusPrompt || '',
+        questions: chosenQuestions,
+        responses: mergedResponses,
+        aiInsightsSummary: existingInMod?.aiInsightsSummary || dbInsights,
+        createdAt: existingInMod?.createdAt || row.createdAt.toISOString(),
+        updatedAt: existingInMod?.updatedAt || row.createdAt.toISOString(),
+      });
+    }
+
+    const explicitSlugsInModC = new Set(
+      (modCInputs.surveys || [])
+        .map((s) => s?.publicSlug)
+        .filter((slug): slug is string => Boolean(slug))
+    );
+    const allCandidateSurveys = Array.from(mergedSurveysBySlug.values());
+    const nonBlankSurveys = allCandidateSurveys.filter(
+      (s) =>
+        s.questions.length > 0 ||
+        s.responses.length > 0 ||
+        Boolean(s.aiInsightsSummary) ||
+        Boolean(s.title.trim()) ||
+        s.id === modCInputs.activeSurveyId ||
+        explicitSlugsInModC.has(s.publicSlug)
+    );
+    const finalSurveys =
+      nonBlankSurveys.length > 0
+        ? nonBlankSurveys
+        : allCandidateSurveys.slice(0, 1);
+
+    const resolvedActiveSurveyId =
+      modCInputs.activeSurveyId &&
+      finalSurveys.some((s) => s.id === modCInputs.activeSurveyId)
+        ? modCInputs.activeSurveyId
+        : finalSurveys[0]?.id;
+
+    const hasModCData = Boolean(modC) || finalSurveys.length > 0;
 
     const questionRows = await db
       .select()
@@ -168,6 +330,16 @@ async function buildSessionFromDbUser(
             thingsToConsider: Array.isArray(modB.aiThingsToConsiderJsonb)
               ? modB.aiThingsToConsiderJsonb
               : modBInputs.thingsToConsider,
+          }
+        : undefined,
+      moduleCData: hasModCData
+        ? {
+            ...modCInputs,
+            surveys: finalSurveys,
+            activeSurveyId: resolvedActiveSurveyId,
+            thingsToConsider: Array.isArray(modC?.aiThingsToConsiderJsonb)
+              ? modC.aiThingsToConsiderJsonb
+              : modCInputs.thingsToConsider,
           }
         : undefined,
       openQuestions: questionRows.map((q) => q.questionText),

@@ -142,146 +142,129 @@ async function seed() {
       });
   }
 
-  // 6. Seed Sample Users & Entitlements
-  const [freeFounder] = await db
-    .insert(users)
-    .values({
-      tenantId: defaultTenant.id,
-      email: 'founder@buildmyunicorn.com',
-      name: 'Aoife Brennan (Free Tier)',
-      emailVerified: true,
-      role: 'FOUNDER',
-      status: 'ACTIVE',
-    })
-    .onConflictDoUpdate({
-      target: users.email,
-      set: { name: 'Aoife Brennan (Free Tier)' },
-    })
-    .returning();
-
-  await db
-    .insert(userEntitlements)
-    .values({
-      userId: freeFounder.id,
-      planType: 'FREE_HOOK',
-      stackedCodesCount: 0,
-      maxStartupPlans: 1,
-      maxSeatsPerPlan: 1,
-      monthlyAiCreditsLimit: 50,
-      aiCreditsUsedThisMonth: 12,
-      isVaultReadonly: false,
-    })
-    .onConflictDoNothing();
-
-  const [sumoFounder] = await db
-    .insert(users)
-    .values({
-      tenantId: defaultTenant.id,
-      email: 'appsumo@buildmyunicorn.com',
-      name: 'Liam O’Connor (AppSumo Tier 2)',
-      emailVerified: true,
-      role: 'FOUNDER',
-      status: 'ACTIVE',
-    })
-    .onConflictDoUpdate({
-      target: users.email,
-      set: { name: 'Liam O’Connor (AppSumo Tier 2)' },
-    })
-    .returning();
-
-  await db
-    .insert(userEntitlements)
-    .values({
-      userId: sumoFounder.id,
-      planType: 'APPSUMO_LTD',
-      stackedCodesCount: 2,
-      maxStartupPlans: 3,
-      maxSeatsPerPlan: 3,
-      monthlyAiCreditsLimit: 450,
-      aiCreditsUsedThisMonth: 45,
-      isVaultReadonly: false,
-    })
-    .onConflictDoNothing();
-
-  const [superAdmin] = await db
-    .insert(users)
-    .values({
-      tenantId: defaultTenant.id,
-      email: 'admin@buildmyunicorn.com',
-      name: 'BMU Super Admin',
-      emailVerified: true,
-      role: 'SUPER_ADMIN',
-      status: 'ACTIVE',
-    })
-    .onConflictDoUpdate({
-      target: users.email,
-      set: { role: 'SUPER_ADMIN' },
-    })
-    .returning();
-
-  await db
-    .insert(userEntitlements)
-    .values({
-      userId: superAdmin.id,
-      planType: 'APPSUMO_LTD',
-      stackedCodesCount: 5,
-      maxStartupPlans: 10,
-      maxSeatsPerPlan: 5,
-      monthlyAiCreditsLimit: 5000,
-      aiCreditsUsedThisMonth: 0,
-      whiteLabelExportEnabled: true,
-      isVaultReadonly: false,
-    })
-    .onConflictDoNothing();
-
-  // 7. Seed Unclaimed AppSumo Vouchers for Testing /redeem & Code Stacking
-  const sampleVouchers = [
-    'SUMO-BMU-1001-ALPHA',
-    'SUMO-BMU-1002-BRAVO',
-    'SUMO-BMU-1003-CHARLIE',
-    'SUMO-BMU-1004-DELTA',
-    'SUMO-BMU-1005-ECHO',
-  ];
-
-  for (const code of sampleVouchers) {
-    await db
-      .insert(vouchers)
+  // 6. Optional Sample Users (disabled to keep live database clean)
+  // Seed sample users only if explicit flag ENABLE_DEMO_SEED_USERS is set
+  if (process.env.ENABLE_DEMO_SEED_USERS === 'true') {
+    const [freeFounder] = await db
+      .insert(users)
       .values({
-        code,
-        batchName: 'AppSumo_Launch_Batch_1',
-        source: 'APPSUMO',
-        status: 'UNCLAIMED',
+        tenantId: defaultTenant.id,
+        email: 'founder@buildmyunicorn.com',
+        name: 'Aoife Brennan (Free Tier)',
+        emailVerified: true,
+        role: 'FOUNDER',
+        status: 'ACTIVE',
+      })
+      .onConflictDoUpdate({
+        target: users.email,
+        set: { name: 'Aoife Brennan (Free Tier)' },
+      })
+      .returning();
+
+    await db
+      .insert(userEntitlements)
+      .values({
+        userId: freeFounder.id,
+        planType: 'FREE_HOOK',
+        stackedCodesCount: 0,
+        maxStartupPlans: 1,
+        maxSeatsPerPlan: 1,
+        monthlyAiCreditsLimit: 50,
+        aiCreditsUsedThisMonth: 12,
+        isVaultReadonly: false,
       })
       .onConflictDoNothing();
+
+    const [sumoFounder] = await db
+      .insert(users)
+      .values({
+        tenantId: defaultTenant.id,
+        email: 'appsumo@buildmyunicorn.com',
+        name: 'Liam O’Connor (AppSumo Tier 2)',
+        emailVerified: true,
+        role: 'FOUNDER',
+        status: 'ACTIVE',
+      })
+      .onConflictDoUpdate({
+        target: users.email,
+        set: { name: 'Liam O’Connor (AppSumo Tier 2)' },
+      })
+      .returning();
+
+    await db
+      .insert(userEntitlements)
+      .values({
+        userId: sumoFounder.id,
+        planType: 'APPSUMO_LTD',
+        stackedCodesCount: 2,
+        maxStartupPlans: 3,
+        maxSeatsPerPlan: 3,
+        monthlyAiCreditsLimit: 450,
+        aiCreditsUsedThisMonth: 45,
+        isVaultReadonly: false,
+      })
+      .onConflictDoNothing();
+
+    const [superAdmin] = await db
+      .insert(users)
+      .values({
+        tenantId: defaultTenant.id,
+        email: 'admin@buildmyunicorn.com',
+        name: 'BMU Super Admin',
+        emailVerified: true,
+        role: 'SUPER_ADMIN',
+        status: 'ACTIVE',
+      })
+      .onConflictDoUpdate({
+        target: users.email,
+        set: { role: 'SUPER_ADMIN' },
+      })
+      .returning();
+
+    await db
+      .insert(userEntitlements)
+      .values({
+        userId: superAdmin.id,
+        planType: 'APPSUMO_LTD',
+        stackedCodesCount: 5,
+        maxStartupPlans: 10,
+        maxSeatsPerPlan: 5,
+        monthlyAiCreditsLimit: 5000,
+        aiCreditsUsedThisMonth: 0,
+        whiteLabelExportEnabled: true,
+        isVaultReadonly: false,
+      })
+      .onConflictDoNothing();
+    // Seed Default Startup Plans if none exist for Aoife
+    const existingPlans = await db
+      .select()
+      .from(startupPlans)
+      .where(eq(startupPlans.ownerUserId, freeFounder.id));
+
+    if (existingPlans.length === 0) {
+      await db.insert(startupPlans).values({
+        ownerUserId: freeFounder.id,
+        tenantId: defaultTenant.id,
+        title: 'GreenCart AI — Zero-Waste Grocery Supply Chain',
+        oneLinerSummary:
+          'Automated expiry prediction & dynamic markdowns for independent supermarkets in Ireland & the UK.',
+        industryCategory: 'B2B SaaS / RetailTech',
+        hqCountryCode: 'IE',
+        baseCurrency: 'EUR',
+        targetMarketsArray: ['IE', 'GB'],
+        currentModuleStep: 'MOD_A_STEP_4',
+        ideaComparatorScoresJson: {
+          easeOfLaunch: 7,
+          founderFit: 9,
+          timeToRevenue: 8,
+          capitalRequired: 6,
+        },
+        status: 'ACTIVE',
+      });
+    }
   }
 
-  // 8. Seed Default Startup Plans if none exist for Aoife
-  const existingPlans = await db
-    .select()
-    .from(startupPlans)
-    .where(eq(startupPlans.ownerUserId, freeFounder.id));
-
-  if (existingPlans.length === 0) {
-    await db.insert(startupPlans).values({
-      ownerUserId: freeFounder.id,
-      tenantId: defaultTenant.id,
-      title: 'GreenCart AI — Zero-Waste Grocery Supply Chain',
-      oneLinerSummary:
-        'Automated expiry prediction & dynamic markdowns for independent supermarkets in Ireland & the UK.',
-      industryCategory: 'B2B SaaS / RetailTech',
-      hqCountryCode: 'IE',
-      baseCurrency: 'EUR',
-      targetMarketsArray: ['IE', 'GB'],
-      currentModuleStep: 'MOD_A_STEP_4',
-      ideaComparatorScoresJson: {
-        easeOfLaunch: 7,
-        founderFit: 9,
-        timeToRevenue: 8,
-        capitalRequired: 6,
-      },
-      status: 'ACTIVE',
-    });
-  }
+  // 7. Seed Unclaimed AppSumo Vouchers for Testing /redeem & Code Stacking
 
   console.log('✅ BMU 2.0 Sprint 1 Database Seed completed successfully!');
   await pool.end();

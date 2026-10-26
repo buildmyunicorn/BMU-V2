@@ -71,6 +71,7 @@ import {
   loadBmuSession,
   saveBmuSession,
   getDefaultDemoSession,
+  deduplicateSurveyResponses,
   type BmuLocalSession,
   type SavedConceptCanvas,
   type SavedFounderMotivation,
@@ -91,6 +92,10 @@ import {
   type MarketSizingData,
   type CompetitiveWedgeData,
   type BuyerModelType,
+  type SavedValidationSurvey,
+  type SavedSurveyResponse,
+  type SurveyFocusAreaType,
+  type SurveyQuestionItem,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -112,7 +117,16 @@ import {
   saveModuleBStep5CompleteAction,
   parkModuleBOpenQuestionAction,
 } from '@/app/actions/module-b';
+import {
+  saveValidationSurveyAction,
+  deleteValidationSurveyAction,
+  generateModuleCSurveyWithAiAction,
+  checkMomTestQuestionWithAiAction,
+  suggestNextMomTestQuestionWithAiAction,
+  analyzeSurveyResultsWithAiAction,
+} from '@/app/actions/module-c';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
+import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 import {
   buildModuleAMarkdownBrief,
@@ -315,14 +329,99 @@ export default function WorkspacePage() {
       }
       setThingsToConsider(activePlan.thingsToConsider || []);
       setOpenQuestions(activePlan.openQuestions || []);
+      if (activePlan.currentModuleStep?.startsWith('MOD_C')) {
+        setActiveModule('MOD_C_SURVEYS_FEEDBACK');
+      } else if (activePlan.currentModuleStep?.startsWith('MOD_B')) {
+        setActiveModule('MOD_B_MARKET');
+      }
     }
 
     getCurrentCloudSessionAction()
       .then((res) => {
         setCloudDbConnected(res.dbConnected);
         if (res.authenticated && res.session) {
-          setSession(res.session);
-          saveBmuSession(res.session);
+          setSession((prev) => {
+            const mergedPlans = res.session!.plans.map((dbPlan) => {
+              const localPlan = prev.plans.find((lp) => lp.id === dbPlan.id);
+              if (!localPlan) return dbPlan;
+
+              // Merge moduleCData surveys & responses by publicSlug so neither local nor cloud loses questions or responses
+              const dbSurveys = dbPlan.moduleCData?.surveys || [];
+              const localSurveys = localPlan.moduleCData?.surveys || [];
+              const surveyBySlug = new Map<string, SavedValidationSurvey>();
+
+              for (const s of localSurveys) {
+                const key = s.publicSlug || s.id;
+                surveyBySlug.set(key, {
+                  ...s,
+                  responses: deduplicateSurveyResponses(s.responses || []),
+                });
+              }
+              for (const dbS of dbSurveys) {
+                const key = dbS.publicSlug || dbS.id;
+                const existing = surveyBySlug.get(key);
+                if (!existing) {
+                  surveyBySlug.set(key, {
+                    ...dbS,
+                    responses: deduplicateSurveyResponses(dbS.responses || []),
+                  });
+                } else {
+                  const mergedResponses = deduplicateSurveyResponses([
+                    ...(dbS.responses || []),
+                    ...(existing.responses || []),
+                  ]);
+                  surveyBySlug.set(key, {
+                    ...existing,
+                    ...dbS,
+                    questions:
+                      dbS.questions && dbS.questions.length > 0
+                        ? dbS.questions
+                        : existing.questions || [],
+                    responses: mergedResponses,
+                    aiInsightsSummary:
+                      dbS.aiInsightsSummary || existing.aiInsightsSummary,
+                  });
+                }
+              }
+
+              const combinedSurveys = Array.from(surveyBySlug.values());
+              const hasNonEmpty = combinedSurveys.some(
+                (s) => s.questions.length > 0 || s.responses.length > 0
+              );
+              const cleanedSurveys = hasNonEmpty
+                ? combinedSurveys.filter(
+                    (s, idx) =>
+                      s.questions.length > 0 ||
+                      s.responses.length > 0 ||
+                      idx === combinedSurveys.length - 1
+                  )
+                : combinedSurveys.slice(0, 1);
+
+              return {
+                ...localPlan,
+                ...dbPlan,
+                moduleBData: dbPlan.moduleBData || localPlan.moduleBData,
+                moduleCData:
+                  cleanedSurveys.length > 0
+                    ? {
+                        surveys: cleanedSurveys,
+                        activeSurveyId:
+                          dbPlan.moduleCData?.activeSurveyId ||
+                          localPlan.moduleCData?.activeSurveyId ||
+                          cleanedSurveys[0]?.id,
+                      }
+                    : dbPlan.moduleCData || localPlan.moduleCData,
+              };
+            });
+
+            const next: BmuLocalSession = {
+              ...res.session!,
+              plans: mergedPlans,
+            };
+            saveBmuSession(next);
+            return next;
+          });
+
           const dbPlan =
             res.session.plans.find(
               (p) => p.id === res.session?.activePlanId
@@ -342,6 +441,11 @@ export default function WorkspacePage() {
             }
             setThingsToConsider(dbPlan.thingsToConsider || []);
             setOpenQuestions(dbPlan.openQuestions || []);
+            if (dbPlan.currentModuleStep?.startsWith('MOD_C')) {
+              setActiveModule('MOD_C_SURVEYS_FEEDBACK');
+            } else if (dbPlan.currentModuleStep?.startsWith('MOD_B')) {
+              setActiveModule('MOD_B_MARKET');
+            }
           }
         }
       })
@@ -841,6 +945,277 @@ export default function WorkspacePage() {
     });
   }
 
+  // =========================================================================
+  // MODULE C: CUSTOMER VALIDATION SURVEY BUILDER & INSIGHTS HANDLERS
+  // =========================================================================
+  async function handleSaveModuleCSurvey(
+    survey: SavedValidationSurvey,
+    allSurveys: SavedValidationSurvey[]
+  ) {
+    if (!session || !currentPlan || activeEntitlement.isVaultReadonly) return;
+    const planId = currentPlan.id;
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== planId) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_C_SURVEYS_FEEDBACK',
+          moduleCData: {
+            ...(p.moduleCData || { surveys: [] }),
+            surveys: allSurveys,
+            activeSurveyId: survey.id,
+          },
+          updatedAtIso: new Date().toISOString(),
+        };
+      });
+      const nextSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(nextSession);
+      return nextSession;
+    });
+
+    await saveValidationSurveyAction({
+      planId,
+      survey,
+      allSurveys,
+    });
+  }
+
+  async function handleDeleteModuleCSurvey(
+    surveyId: string,
+    publicSlug: string,
+    remainingSurveys: SavedValidationSurvey[]
+  ) {
+    if (!session || !currentPlan || activeEntitlement.isVaultReadonly) return;
+    const planId = currentPlan.id;
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== planId) return p;
+        return {
+          ...p,
+          moduleCData: {
+            ...(p.moduleCData || { surveys: [] }),
+            surveys: remainingSurveys,
+            activeSurveyId: remainingSurveys[0]?.id,
+          },
+          updatedAtIso: new Date().toISOString(),
+        };
+      });
+      const nextSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(nextSession);
+      return nextSession;
+    });
+
+    await deleteValidationSurveyAction({
+      planId,
+      publicSlug,
+      remainingSurveys,
+    });
+  }
+
+  async function handleGenerateModuleCSurveyWithAi(params: {
+    focusAreas: SurveyFocusAreaType[];
+    otherFocusAreaText?: string;
+    customAiFocusPrompt?: string;
+    questionCount: number;
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Mom-Test Survey Builder (${aiCreditCheck.reason})`
+      );
+      return null;
+    }
+
+    const targetDesc =
+      currentPlan.moduleBData?.beachhead?.beachheadSegment ||
+      effectiveCanvas.targetCustomer ||
+      'Target customers';
+
+    const result = await generateModuleCSurveyWithAiAction({
+      userId: session.user.id,
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      unfairAdvantage: effectiveCanvas.unfairAdvantage,
+      revenueAndGrantFit: effectiveCanvas.revenueAndGrantFit,
+      targetCustomer: targetDesc,
+      moduleBData: currentPlan.moduleBData,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      focusAreas: params.focusAreas,
+      otherFocusAreaText: params.otherFocusAreaText,
+      customAiFocusPrompt: params.customAiFocusPrompt,
+      questionCount: params.questionCount,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            result.creditsUsedAfter ??
+            prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      title: result.title,
+      introDescription: result.introDescription,
+      waitlistIncentiveText: result.waitlistIncentiveText,
+      questions: result.questions,
+      engineMode: result.engineMode,
+    };
+  }
+
+  async function handleCheckMomTestQuestionWithAi(params: {
+    questionText: string;
+    questionType: SurveyQuestionItem['type'];
+    currentOptions?: string[];
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Mom-Test Question Check (${aiCreditCheck.reason})`
+      );
+      return null;
+    }
+
+    const targetDesc =
+      currentPlan.moduleBData?.beachhead?.beachheadSegment ||
+      effectiveCanvas.targetCustomer ||
+      'Target customers';
+
+    const result = await checkMomTestQuestionWithAiAction({
+      userId: session.user.id,
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: targetDesc,
+      moduleBData: currentPlan.moduleBData,
+      questionText: params.questionText,
+      questionType: params.questionType,
+      currentOptions: params.currentOptions,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            result.creditsUsedAfter ??
+            prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      momTestPassed: result.momTestPassed,
+      momTestFeedback: result.momTestFeedback,
+      momTestSuggestedRewrite: result.momTestSuggestedRewrite,
+      suggestedOptions: result.suggestedOptions,
+    };
+  }
+
+  async function handleSuggestNextQuestionWithAi(params: {
+    existingQuestions: SurveyQuestionItem[];
+    focusAreas?: SurveyFocusAreaType[];
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Next Question Suggestion (${aiCreditCheck.reason})`
+      );
+      return null;
+    }
+
+    const targetDesc =
+      currentPlan.moduleBData?.beachhead?.beachheadSegment ||
+      effectiveCanvas.targetCustomer ||
+      'Target customers';
+
+    const result = await suggestNextMomTestQuestionWithAiAction({
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: targetDesc,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      unfairAdvantage: effectiveCanvas.unfairAdvantage,
+      moduleBData: currentPlan.moduleBData,
+      existingQuestions: params.existingQuestions,
+      focusAreas: params.focusAreas,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return result.question;
+  }
+
+  async function handleAnalyzeSurveyResultsWithAi(params: {
+    surveyTitle: string;
+    questions: SurveyQuestionItem[];
+    responses: SavedSurveyResponse[];
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Survey Insights Synthesizer (${aiCreditCheck.reason})`
+      );
+      return null;
+    }
+
+    const result = await analyzeSurveyResultsWithAiAction({
+      userId: session.user.id,
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      surveyTitle: params.surveyTitle,
+      questions: params.questions,
+      responses: params.responses,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            result.creditsUsedAfter ??
+            prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return result.insights;
+  }
+
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
     coreProblem: '',
     targetCustomer: '',
@@ -1129,6 +1504,25 @@ export default function WorkspacePage() {
         ? 10
         : 0;
 
+  const savedSurveys = currentPlan.moduleCData?.surveys || [];
+  const hasSurveyWithQuestions = savedSurveys.some(
+    (s) => s.questions.length > 0 && s.title.trim().length > 0
+  );
+  const hasSurveyResponses = savedSurveys.some((s) => s.responses.length > 0);
+  const hasSurveyInsights = savedSurveys.some((s) =>
+    Boolean(s.aiInsightsSummary)
+  );
+  const totalModCScore =
+    (hasSurveyWithQuestions ? 50 : 0) +
+    (hasSurveyResponses ? 25 : 0) +
+    (hasSurveyInsights ? 25 : 0);
+  const moduleCProgressPercent =
+    totalModCScore > 0
+      ? totalModCScore
+      : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+        ? 10
+        : 0;
+
   const moduleABriefData: ModuleABriefData = {
     planTitle: currentPlan.title,
     founderName: session.user.name,
@@ -1403,7 +1797,9 @@ export default function WorkspacePage() {
                     ? moduleAProgressPercent
                     : mod.code === 'MOD_B_MARKET'
                       ? moduleBProgressPercent
-                      : mod.progress;
+                      : mod.code === 'MOD_C_SURVEYS_FEEDBACK'
+                        ? moduleCProgressPercent
+                        : mod.progress;
 
                 return (
                   <button
@@ -1419,7 +1815,8 @@ export default function WorkspacePage() {
                       }
                       if (
                         mod.code === 'MOD_A_IDEATION' ||
-                        mod.code === 'MOD_B_MARKET'
+                        mod.code === 'MOD_B_MARKET' ||
+                        mod.code === 'MOD_C_SURVEYS_FEEDBACK'
                       ) {
                         setActiveModule(mod.code);
                       }
@@ -1544,7 +1941,30 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {activeModule === 'MOD_B_MARKET' ? (
+          {activeModule === 'MOD_C_SURVEYS_FEEDBACK' ? (
+            <ModuleCWorkspace
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              onSaveSurvey={handleSaveModuleCSurvey}
+              onDeleteSurvey={handleDeleteModuleCSurvey}
+              onGenerateSurveyWithAi={handleGenerateModuleCSurveyWithAi}
+              onCheckMomTestQuestionWithAi={handleCheckMomTestQuestionWithAi}
+              onSuggestNextQuestionWithAi={handleSuggestNextQuestionWithAi}
+              onAnalyzeResultsWithAi={handleAnalyzeSurveyResultsWithAi}
+              onParkQuestion={handleParkModuleBQuestion}
+              onBackToModuleB={() => setActiveModule('MOD_B_MARKET')}
+              onContinueToModuleD={() => {
+                setSynthesisBanner(
+                  '✅ Module C Customer Validation Surveys & Insights saved! Ready for Module D: Product & Build Vehicle.'
+                );
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          ) : activeModule === 'MOD_B_MARKET' ? (
             <ModuleBWorkspace
               plan={{
                 ...currentPlan,
@@ -1578,9 +1998,7 @@ export default function WorkspacePage() {
                   );
                   return;
                 }
-                setSynthesisBanner(
-                  '✅ Module B Market & Customer Validation saved! Ready for Module C: Customer Surveys, Feedback & Early Waitlist.'
-                );
+                setActiveModule('MOD_C_SURVEYS_FEEDBACK');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />
@@ -4083,7 +4501,8 @@ export default function WorkspacePage() {
                   setPaywallModalFeature(null);
                   if (
                     pendingModuleAfterUnlock === 'MOD_B_MARKET' ||
-                    pendingModuleAfterUnlock === 'MOD_A_IDEATION'
+                    pendingModuleAfterUnlock === 'MOD_A_IDEATION' ||
+                    pendingModuleAfterUnlock === 'MOD_C_SURVEYS_FEEDBACK'
                   ) {
                     setActiveModule(pendingModuleAfterUnlock);
                     setPendingModuleAfterUnlock(null);

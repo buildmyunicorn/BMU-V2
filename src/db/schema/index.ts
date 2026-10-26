@@ -321,9 +321,14 @@ export const validationSurveys = pgTable('validation_surveys', {
       Array<{
         id: string;
         questionText: string;
-        type: 'MULTIPLE_CHOICE' | 'SCALE_1_5' | 'OPEN_TEXT';
+        type: 'MULTIPLE_CHOICE' | 'MULTI_SELECT' | 'SCALE_1_5' | 'OPEN_TEXT';
         options?: string[];
+        allowOther?: boolean;
+        scaleMinLabel?: string;
+        scaleMaxLabel?: string;
         momTestPassed: boolean;
+        momTestFeedback?: string;
+        momTestSuggestedRewrite?: string;
       }>
     >()
     .default([])
@@ -333,6 +338,8 @@ export const validationSurveys = pgTable('validation_surveys', {
       linkedinDm?: string;
       communityPost?: string;
       whatsappBlurb?: string;
+      isPublished?: boolean;
+      publishedAt?: string;
     }>()
     .default({}),
   interviewLogsJsonb: jsonb('interview_logs_jsonb')

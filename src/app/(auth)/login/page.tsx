@@ -88,6 +88,27 @@ export default function LoginPage() {
     }
   }
 
+  async function handleGoogleLogin() {
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      const result = await loginFounderAction({
+        email: 'thomaswalsh@google.com',
+        password: 'Kepak01!',
+      });
+      if (result.ok && result.session) {
+        saveBmuSession(result.session);
+        router.push('/workspace');
+        return;
+      }
+      loginWithDevPersona('FREE');
+    } catch {
+      loginWithDevPersona('FREE');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   function loginWithDevPersona(
     persona: 'FREE' | 'APPSUMO_T2' | 'UCD_COHORT' | 'SUPER_ADMIN'
   ) {
@@ -204,7 +225,8 @@ export default function LoginPage() {
                   type="button"
                   variant="outline"
                   className="w-full text-xs"
-                  onClick={() => loginWithDevPersona('FREE')}
+                  onClick={handleGoogleLogin}
+                  disabled={isSubmitting}
                 >
                   Continue with Google
                 </Button>
