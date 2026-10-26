@@ -1,5 +1,3 @@
-'use client';
-
 import {
   calculateAppSumoTierLimits,
   calculatePassLimits,
@@ -428,6 +426,28 @@ export interface SurveyAiInsightsSummary {
   aiEngineUsed: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type OutreachChannelType =
+  | 'LINKEDIN_DM'
+  | 'COMMUNITY_POST'
+  | 'WHATSAPP_SMS'
+  | 'COLD_EMAIL'
+  | 'IN_PERSON_PITCH'
+  | 'OTHER';
+
+export interface SurveyOutreachTemplates {
+  linkedinDm: string;
+  communityPost: string;
+  whatsappBlurb: string;
+  coldEmailSubject?: string;
+  coldEmailBody?: string;
+  inPersonPitch?: string;
+  customChannelName?: string;
+  customChannelMessage?: string;
+  qrFlyerHeadline?: string;
+  qrFlyerSubtext?: string;
+  lastGeneratedAt?: string;
+}
+
 export interface SavedValidationSurvey {
   id: string;
   planId: string;
@@ -444,6 +464,7 @@ export interface SavedValidationSurvey {
   customAiFocusPrompt?: string;
   questions: SurveyQuestionItem[];
   responses: SavedSurveyResponse[];
+  outreachTemplates?: SurveyOutreachTemplates;
   aiInsightsSummary?: SurveyAiInsightsSummary;
   createdAt: string;
   updatedAt: string;

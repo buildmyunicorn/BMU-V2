@@ -338,6 +338,14 @@ export const validationSurveys = pgTable('validation_surveys', {
       linkedinDm?: string;
       communityPost?: string;
       whatsappBlurb?: string;
+      coldEmailSubject?: string;
+      coldEmailBody?: string;
+      inPersonPitch?: string;
+      customChannelName?: string;
+      customChannelMessage?: string;
+      qrFlyerHeadline?: string;
+      qrFlyerSubtext?: string;
+      lastGeneratedAt?: string;
       isPublished?: boolean;
       publishedAt?: string;
     }>()

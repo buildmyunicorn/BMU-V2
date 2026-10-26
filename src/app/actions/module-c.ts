@@ -19,6 +19,7 @@ import {
   type SurveyQuestionType,
   type SurveyResponseAnswerValue,
   type SurveyAiInsightsSummary,
+  type SurveyOutreachTemplates,
   type SavedModuleCData,
   type SavedModuleBData,
 } from '@/lib/auth/session-store';
@@ -210,6 +211,7 @@ export async function saveValidationSurveyAction(input: {
           aiInsightsSummaryJsonb: effectiveAiInsights || {},
           outreachTemplatesJsonb: {
             ...existingMeta,
+            ...(input.survey.outreachTemplates || {}),
             isPublished: effectiveIsPublished,
             publishedAt: effectivePublishedAt,
           },
@@ -233,6 +235,7 @@ export async function saveValidationSurveyAction(input: {
           questionsJsonb: effectiveQuestions,
           aiInsightsSummaryJsonb: effectiveAiInsights || {},
           outreachTemplatesJsonb: {
+            ...(input.survey.outreachTemplates || {}),
             isPublished: effectiveIsPublished,
             publishedAt: effectivePublishedAt,
           },

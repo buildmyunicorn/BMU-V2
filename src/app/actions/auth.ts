@@ -48,6 +48,7 @@ import {
   type SurveyQuestionItem,
   type SurveyResponseAnswerValue,
   type SurveyAiInsightsSummary,
+  type SurveyOutreachTemplates,
 } from '@/lib/auth/session-store';
 
 export interface AuthActionResult {
@@ -104,10 +105,15 @@ async function buildSessionFromDbUser(
     .where(eq(startupPlans.ownerUserId, dbUser.id))
     .orderBy(desc(startupPlans.createdAt));
 
-  const userVouchers = await db
-    .select()
-    .from(vouchers)
-    .where(eq(vouchers.redeemedByUserId, dbUser.id));
+  let userVouchers: Array<typeof vouchers.$inferSelect> = [];
+  try {
+    userVouchers = await db
+      .select()
+      .from(vouchers)
+      .where(eq(vouchers.redeemedByUserId, dbUser.id));
+  } catch (err) {
+    console.warn('[BMU Auth] Non-fatal error loading user vouchers:', err);
+  }
 
   const mappedPlans: ActiveStartupPlan[] = [];
 
@@ -140,13 +146,6 @@ async function buildSessionFromDbUser(
     const modBInputs = (modB?.structuredInputsJsonb ?? {}) as SavedModuleBData;
     const modCInputs = (modC?.structuredInputsJsonb ?? {}) as SavedModuleCData;
 
-    // Also load relational surveys & responses from validation_surveys + survey_responses
-    const dbSurveyRows = await db
-      .select()
-      .from(validationSurveys)
-      .where(eq(validationSurveys.planId, plan.id))
-      .orderBy(desc(validationSurveys.createdAt));
-
     const mergedSurveysBySlug = new Map<string, SavedValidationSurvey>();
 
     for (const s of modCInputs.surveys || []) {
@@ -155,112 +154,145 @@ async function buildSessionFromDbUser(
       }
     }
 
-    for (const row of dbSurveyRows) {
-      const dbRespRows = await db
+    // Also load relational surveys & responses from validation_surveys + survey_responses
+    try {
+      const dbSurveyRows = await db
         .select()
-        .from(surveyResponses)
-        .where(eq(surveyResponses.surveyId, row.id))
-        .orderBy(desc(surveyResponses.submittedAt));
+        .from(validationSurveys)
+        .where(eq(validationSurveys.planId, plan.id))
+        .orderBy(desc(validationSurveys.createdAt));
 
-      const mappedDbResponses: Array<
-        SavedSurveyResponse & { clientResponseId?: string }
-      > = dbRespRows.map((r) => {
-        const rawAns = (r.answersJsonb || {}) as {
-          answers?: Record<string, SurveyResponseAnswerValue>;
-          respondentNameOrRole?: string;
-          isSimulated?: boolean;
-          clientResponseId?: string;
-        } & Record<string, SurveyResponseAnswerValue>;
+      for (const row of dbSurveyRows) {
+        const dbRespRows = await db
+          .select()
+          .from(surveyResponses)
+          .where(eq(surveyResponses.surveyId, row.id))
+          .orderBy(desc(surveyResponses.submittedAt));
 
-        const answersMap =
-          rawAns.answers && typeof rawAns.answers === 'object'
-            ? rawAns.answers
-            : (rawAns as Record<string, SurveyResponseAnswerValue>);
+        const mappedDbResponses: Array<
+          SavedSurveyResponse & { clientResponseId?: string }
+        > = dbRespRows.map((r) => {
+          const rawAns = (r.answersJsonb || {}) as {
+            answers?: Record<string, SurveyResponseAnswerValue>;
+            respondentNameOrRole?: string;
+            isSimulated?: boolean;
+            clientResponseId?: string;
+          } & Record<string, SurveyResponseAnswerValue>;
 
-        return {
-          id: r.id,
-          surveyId: r.surveyId,
-          answers: answersMap,
-          respondentNameOrRole:
-            typeof rawAns.respondentNameOrRole === 'string'
-              ? rawAns.respondentNameOrRole
-              : undefined,
-          respondentEmail: r.respondentEmail || undefined,
-          joinedWaitlist: r.joinedWaitlist,
-          isSimulated: Boolean(rawAns.isSimulated),
-          submittedAt: r.submittedAt.toISOString(),
-          clientResponseId:
-            typeof rawAns.clientResponseId === 'string'
-              ? rawAns.clientResponseId
-              : undefined,
+          const answersMap =
+            rawAns.answers && typeof rawAns.answers === 'object'
+              ? rawAns.answers
+              : (rawAns as Record<string, SurveyResponseAnswerValue>);
+
+          return {
+            id: r.id,
+            surveyId: r.surveyId,
+            answers: answersMap,
+            respondentNameOrRole:
+              typeof rawAns.respondentNameOrRole === 'string'
+                ? rawAns.respondentNameOrRole
+                : undefined,
+            respondentEmail: r.respondentEmail || undefined,
+            joinedWaitlist: r.joinedWaitlist,
+            isSimulated: Boolean(rawAns.isSimulated),
+            submittedAt: r.submittedAt.toISOString(),
+            clientResponseId:
+              typeof rawAns.clientResponseId === 'string'
+                ? rawAns.clientResponseId
+                : undefined,
+          };
+        });
+
+        const existingInMod = mergedSurveysBySlug.get(row.publicSlug);
+        const dbQuestions = (row.questionsJsonb || []) as SurveyQuestionItem[];
+        const chosenQuestions =
+          (existingInMod?.questions?.length || 0) >= dbQuestions.length &&
+          (existingInMod?.questions?.length || 0) > 0
+            ? existingInMod!.questions
+            : dbQuestions;
+
+        const mergedResponses = deduplicateSurveyResponses([
+          ...mappedDbResponses,
+          ...(existingInMod?.responses || []),
+        ]);
+
+        const dbInsights =
+          row.aiInsightsSummaryJsonb &&
+          Object.keys(row.aiInsightsSummaryJsonb as object).length > 0
+            ? (row.aiInsightsSummaryJsonb as SurveyAiInsightsSummary)
+            : undefined;
+
+        const rowMeta = (row.outreachTemplatesJsonb || {}) as Partial<SurveyOutreachTemplates> & {
+          isPublished?: boolean;
+          publishedAt?: string;
         };
-      });
+        const isPublished =
+          typeof rowMeta.isPublished === 'boolean'
+            ? rowMeta.isPublished
+            : Boolean(existingInMod?.isPublished) ||
+              mergedResponses.some((r) => !r.isSimulated);
+        const publishedAt =
+          rowMeta.publishedAt ||
+          existingInMod?.publishedAt ||
+          (isPublished ? row.createdAt.toISOString() : undefined);
 
-      const existingInMod = mergedSurveysBySlug.get(row.publicSlug);
-      const dbQuestions = (row.questionsJsonb || []) as SurveyQuestionItem[];
-      const chosenQuestions =
-        (existingInMod?.questions?.length || 0) >= dbQuestions.length &&
-        (existingInMod?.questions?.length || 0) > 0
-          ? existingInMod!.questions
-          : dbQuestions;
+        const dbOutreachTemplates: SurveyOutreachTemplates | undefined =
+          rowMeta.linkedinDm || rowMeta.communityPost || rowMeta.whatsappBlurb
+            ? {
+                linkedinDm: rowMeta.linkedinDm || '',
+                communityPost: rowMeta.communityPost || '',
+                whatsappBlurb: rowMeta.whatsappBlurb || '',
+                coldEmailSubject: rowMeta.coldEmailSubject,
+                coldEmailBody: rowMeta.coldEmailBody,
+                inPersonPitch: rowMeta.inPersonPitch,
+                customChannelName: rowMeta.customChannelName,
+                customChannelMessage: rowMeta.customChannelMessage,
+                qrFlyerHeadline: rowMeta.qrFlyerHeadline,
+                qrFlyerSubtext: rowMeta.qrFlyerSubtext,
+                lastGeneratedAt: rowMeta.lastGeneratedAt,
+              }
+            : undefined;
 
-      const mergedResponses = deduplicateSurveyResponses([
-        ...mappedDbResponses,
-        ...(existingInMod?.responses || []),
-      ]);
-
-      const dbInsights =
-        row.aiInsightsSummaryJsonb &&
-        Object.keys(row.aiInsightsSummaryJsonb as object).length > 0
-          ? (row.aiInsightsSummaryJsonb as SurveyAiInsightsSummary)
-          : undefined;
-
-      const rowMeta = (row.outreachTemplatesJsonb || {}) as {
-        isPublished?: boolean;
-        publishedAt?: string;
-      };
-      const isPublished =
-        typeof rowMeta.isPublished === 'boolean'
-          ? rowMeta.isPublished
-          : Boolean(existingInMod?.isPublished) ||
-            mergedResponses.some((r) => !r.isSimulated);
-      const publishedAt =
-        rowMeta.publishedAt ||
-        existingInMod?.publishedAt ||
-        (isPublished ? row.createdAt.toISOString() : undefined);
-
-      mergedSurveysBySlug.set(row.publicSlug, {
-        id: existingInMod?.id || row.id,
-        planId: row.planId,
-        publicSlug: row.publicSlug,
-        title:
-          row.title === 'Untitled Customer Survey' && existingInMod?.title
-            ? existingInMod.title
-            : row.title === 'Untitled Customer Survey'
-              ? ''
-              : row.title,
-        introDescription:
-          existingInMod?.introDescription || row.introDescription || '',
-        isActive: row.isActive,
-        isPublished,
-        publishedAt,
-        collectLeadEmails: row.collectLeadEmails,
-        waitlistIncentiveText:
-          existingInMod?.waitlistIncentiveText ||
-          row.waitlistIncentiveText ||
-          '',
-        focusAreas: existingInMod?.focusAreas || [
-          'PROBLEM_AND_PAIN',
-          'CURRENT_WORKAROUNDS',
-        ],
-        otherFocusAreaText: existingInMod?.otherFocusAreaText || '',
-        customAiFocusPrompt: existingInMod?.customAiFocusPrompt || '',
-        questions: chosenQuestions,
-        responses: mergedResponses,
-        aiInsightsSummary: existingInMod?.aiInsightsSummary || dbInsights,
-        createdAt: existingInMod?.createdAt || row.createdAt.toISOString(),
-        updatedAt: existingInMod?.updatedAt || row.createdAt.toISOString(),
-      });
+        mergedSurveysBySlug.set(row.publicSlug, {
+          id: existingInMod?.id || row.id,
+          planId: row.planId,
+          publicSlug: row.publicSlug,
+          title:
+            row.title === 'Untitled Customer Survey' && existingInMod?.title
+              ? existingInMod.title
+              : row.title === 'Untitled Customer Survey'
+                ? ''
+                : row.title,
+          introDescription:
+            existingInMod?.introDescription || row.introDescription || '',
+          isActive: row.isActive,
+          isPublished,
+          publishedAt,
+          collectLeadEmails: row.collectLeadEmails,
+          waitlistIncentiveText:
+            existingInMod?.waitlistIncentiveText ||
+            row.waitlistIncentiveText ||
+            '',
+          focusAreas: existingInMod?.focusAreas || [
+            'PROBLEM_AND_PAIN',
+            'CURRENT_WORKAROUNDS',
+          ],
+          otherFocusAreaText: existingInMod?.otherFocusAreaText || '',
+          customAiFocusPrompt: existingInMod?.customAiFocusPrompt || '',
+          questions: chosenQuestions,
+          responses: mergedResponses,
+          outreachTemplates:
+            existingInMod?.outreachTemplates || dbOutreachTemplates,
+          aiInsightsSummary: existingInMod?.aiInsightsSummary || dbInsights,
+          createdAt: existingInMod?.createdAt || row.createdAt.toISOString(),
+          updatedAt: existingInMod?.updatedAt || row.createdAt.toISOString(),
+        });
+      }
+    } catch (err) {
+      console.warn(
+        `[BMU Auth] Non-fatal error hydrating relational surveys for plan ${plan.id}:`,
+        err
+      );
     }
 
     const explicitSlugsInModC = new Set(
@@ -291,10 +323,18 @@ async function buildSessionFromDbUser(
 
     const hasModCData = Boolean(modC) || finalSurveys.length > 0;
 
-    const questionRows = await db
-      .select()
-      .from(openQuestionsParkingLot)
-      .where(eq(openQuestionsParkingLot.planId, plan.id));
+    let questionRows: Array<typeof openQuestionsParkingLot.$inferSelect> = [];
+    try {
+      questionRows = await db
+        .select()
+        .from(openQuestionsParkingLot)
+        .where(eq(openQuestionsParkingLot.planId, plan.id));
+    } catch (err) {
+      console.warn(
+        `[BMU Auth] Non-fatal error loading open questions for plan ${plan.id}:`,
+        err
+      );
+    }
 
     const targetMarkets = Array.isArray(plan.targetMarketsArray)
       ? plan.targetMarketsArray

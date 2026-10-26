@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   getDefaultDemoSession,
+  loadBmuSession,
   saveBmuSession,
   type BmuLocalSession,
 } from '@/lib/auth/session-store';
@@ -73,17 +74,29 @@ export default function LoginPage() {
         return;
       }
 
-      // Offline / local fallback
-      const base = getDefaultDemoSession();
-      base.user.email = email.trim();
-      saveBmuSession(base);
+      // Offline / local fallback: preserve existing session if email matches
+      const existing = loadBmuSession();
+      if (
+        existing.user.email.toLowerCase() !== email.trim().toLowerCase() ||
+        existing.plans.length === 0
+      ) {
+        const base = getDefaultDemoSession();
+        base.user.email = email.trim();
+        saveBmuSession(base);
+      }
       router.push('/workspace');
     } catch {
-      const base = getDefaultDemoSession();
-      if (email.trim()) {
-        base.user.email = email.trim();
+      const existing = loadBmuSession();
+      if (
+        existing.user.email.toLowerCase() !== email.trim().toLowerCase() ||
+        existing.plans.length === 0
+      ) {
+        const base = getDefaultDemoSession();
+        if (email.trim()) {
+          base.user.email = email.trim();
+        }
+        saveBmuSession(base);
       }
-      saveBmuSession(base);
       router.push('/workspace');
     }
   }

@@ -32,6 +32,12 @@ import {
   FileText,
   Eye,
   Lock,
+  QrCode,
+  Download,
+  Printer,
+  Share2,
+  Send,
+  Smartphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,9 +61,15 @@ import {
   type SavedSurveyResponse,
   type SurveyResponseAnswerValue,
   type SurveyAiInsightsSummary,
+  type SurveyOutreachTemplates,
+  type OutreachChannelType,
 } from '@/lib/auth/session-store';
 import type { SupportedCountryCode } from '@/lib/localization';
 import { getPublicSurveyBySlugAction } from '@/app/actions/module-c';
+import {
+  generateQrCodeMatrix,
+  generateQrCodeSvgString,
+} from '@/lib/qr-code';
 
 export interface ModuleCWorkspaceProps {
   plan: ActiveStartupPlan;
@@ -171,6 +183,124 @@ const QUESTION_TYPE_OPTIONS: Array<{
     badge: 'Real Stories & Quotes',
   },
 ];
+
+const OUTREACH_CHANNEL_OPTIONS: Array<{
+  code: OutreachChannelType;
+  label: string;
+  subtitle: string;
+  bestFor: string;
+}> = [
+  {
+    code: 'LINKEDIN_DM',
+    label: 'LinkedIn / Warm DM',
+    subtitle: 'Short 1-on-1 message to peers or target buyers',
+    bestFor: 'Highest response rate (40–60%)',
+  },
+  {
+    code: 'COMMUNITY_POST',
+    label: 'Reddit / Slack / FB Group',
+    subtitle: 'Moderator-safe research post (zero self-promotion)',
+    bestFor: '10–30 responses fast',
+  },
+  {
+    code: 'WHATSAPP_SMS',
+    label: 'WhatsApp / SMS Blurb',
+    subtitle: '2-sentence quick ask for contacts & group chats',
+    bestFor: 'Instant mobile replies',
+  },
+  {
+    code: 'COLD_EMAIL',
+    label: 'Short Cold / Warm Email',
+    subtitle: 'Subject line + 4-line body for industry contacts',
+    bestFor: 'B2B & professional leads',
+  },
+  {
+    code: 'IN_PERSON_PITCH',
+    label: 'In-Person + QR Script',
+    subtitle: '10-second verbal opener before showing your QR code',
+    bestFor: 'Events, coffee shops & campus',
+  },
+  {
+    code: 'OTHER',
+    label: 'Other / Custom Channel',
+    subtitle: 'Write & save a custom template for your own channel',
+    bestFor: 'Newsletter, Discord, Forum, etc.',
+  },
+];
+
+function deriveNaturalTopicForOutreach(
+  plan: ActiveStartupPlan,
+  survey: SavedValidationSurvey
+): { audiencePhrase: string; topicPhrase: string } {
+  const rawAudience =
+    plan.moduleBData?.beachhead?.beachheadSegment ||
+    plan.moduleBData?.beachhead?.decisionMakerRole ||
+    plan.conceptCanvas?.targetCustomer ||
+    'founders and operators';
+
+  const cleanAudience = rawAudience
+    .replace(/^(we target|our target customer is|target customer:)\s*/i, '')
+    .split(/[.;\n]/)[0]
+    .trim()
+    .slice(0, 65)
+    .toLowerCase();
+
+  const audiencePhrase = cleanAudience || 'people in this space';
+
+  const rawIdea = `${plan.title} ${plan.oneLinerSummary || ''} ${
+    plan.conceptCanvas?.coreProblem || ''
+  } ${survey.title || ''}`.toLowerCase();
+
+  let topicPhrase = 'day-to-day workflows and bottlenecks';
+  if (/founder|startup|idea|unicorn|launch|pitch|grant/.test(rawIdea)) {
+    topicPhrase =
+      'turning an early startup idea into a validated business plan';
+  } else if (/clinic|patient|medical|health|dentist|doctor|care/.test(rawIdea)) {
+    topicPhrase = 'patient scheduling, admin handoffs, and clinic workflows';
+  } else if (/invoice|finance|tax|accounting|bookkeep|expense|payroll/.test(rawIdea)) {
+    topicPhrase = 'invoicing, cashflow tracking, and monthly admin';
+  } else if (/hire|recruit|hr|candidate|onboarding|staff|shift/.test(rawIdea)) {
+    topicPhrase = 'hiring, shift scheduling, and team onboarding';
+  } else if (/property|tenant|landlord|estate|lease|maintenance/.test(rawIdea)) {
+    topicPhrase = 'managing properties, tenant requests, and maintenance';
+  } else if (/ecommerce|shopify|inventory|order|shipping|retail/.test(rawIdea)) {
+    topicPhrase = 'fulfilling orders, inventory tracking, and customer returns';
+  } else if (survey.title && survey.title.trim().length > 4) {
+    topicPhrase = survey.title
+      .replace(/survey|discovery|validation|questions/gi, '')
+      .replace(/[:\-–—]+$/, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  return { audiencePhrase, topicPhrase };
+}
+
+function buildDefaultOutreachTemplates(
+  plan: ActiveStartupPlan,
+  survey: SavedValidationSurvey
+): SurveyOutreachTemplates {
+  const { audiencePhrase, topicPhrase } = deriveNaturalTopicForOutreach(
+    plan,
+    survey
+  );
+  const qCount = Math.max(survey.questions.length, 5);
+
+  return {
+    linkedinDm: `Hey [Name] — hope your week is going well! Quick question: I'm doing some independent research into how ${audiencePhrase} currently handle ${topicPhrase}.\n\nI'm not selling anything — just running a ${qCount}-question anonymous Mom-Test survey (takes under 60 seconds, no login required).\n\nWould love your honest perspective if you have a spare minute:\n{{SURVEY_LINK}}\n\nHappy to share the aggregated findings with you once we wrap up!`,
+    communityPost: `Hi everyone — I'm researching how ${audiencePhrase} deal with ${topicPhrase} in the real world (what actually works vs. what wastes time).\n\nNothing to sell or pitch here! I put together a quick ${qCount}-question anonymous survey that takes ~60 seconds with zero login:\n{{SURVEY_LINK}}\n\nIf you've dealt with this recently, I'd be super grateful for your candid input — and I'll post a full summary of the results back in this thread next week. Thanks!`,
+    whatsappBlurb: `Hey! 👋 Doing a quick 60-second research survey on how people handle ${topicPhrase} (only ${qCount} quick questions, no login needed). Would love your honest take if you have a spare minute: {{SURVEY_LINK}}`,
+    coldEmailSubject: `Quick 60-sec question on ${topicPhrase}`,
+    coldEmailBody: `Hi [Name],\n\nI'm speaking with ${audiencePhrase} to better understand the biggest day-to-day frustrations around ${topicPhrase}.\n\nNot pitching anything — if you have 60 seconds, could you share your honest experience in this ${qCount}-question anonymous survey?\n\n{{SURVEY_LINK}}\n\nThanks so much in advance,\n[Your Name]`,
+    inPersonPitch: `"Excuse me — do you have 45 seconds? We're researching how people handle ${topicPhrase}. No login or email required — if you scan this QR code with your phone camera, it's just ${qCount} quick taps!"`,
+    customChannelName: '',
+    customChannelMessage: `We're researching how ${audiencePhrase} handle ${topicPhrase}. Take our 60-second anonymous survey (no login required): {{SURVEY_LINK}}`,
+    qrFlyerHeadline:
+      survey.title.trim() || `Got 60 Seconds? Share Your Honest Experience`,
+    qrFlyerSubtext: `Scan with your phone camera • ${qCount} quick questions • No login required`,
+    lastGeneratedAt: new Date().toISOString(),
+  };
+}
 
 function slugifySurveyText(raw: string, suffixNumber: number): string {
   const base = raw
@@ -318,9 +448,15 @@ export function ModuleCWorkspace({
     });
   }, [plan.id, plan.moduleCData]);
 
-  // Sub-view tab: 'BUILDER' vs 'INSIGHTS'
-  const [activeViewTab, setActiveViewTab] = useState<'BUILDER' | 'INSIGHTS'>(
-    'BUILDER'
+  // Sub-view tab: 'BUILDER' vs 'OUTREACH' vs 'INSIGHTS'
+  const [activeViewTab, setActiveViewTab] = useState<
+    'BUILDER' | 'OUTREACH' | 'INSIGHTS'
+  >('BUILDER');
+  // Active channel inside 'OUTREACH' tab
+  const [selectedOutreachChannel, setSelectedOutreachChannel] =
+    useState<OutreachChannelType>('LINKEDIN_DM');
+  const [copiedChannelCode, setCopiedChannelCode] = useState<string | null>(
+    null
   );
   // Results sub-tab inside 'INSIGHTS': 'SUMMARY' | 'QUESTIONS' | 'LEADS'
   const [activeInsightsSubTab, setActiveInsightsSubTab] = useState<
@@ -946,18 +1082,315 @@ export function ModuleCWorkspace({
     }
   };
 
-  const handleCopyPublicLink = () => {
-    if (!activeSurvey) return;
+  const getPublicSurveyFullUrl = (slug?: string): string => {
     const origin =
       typeof window !== 'undefined'
         ? window.location.origin
         : 'https://buildmyunicorn.com';
-    const fullUrl = `${origin}/v/${activeSurvey.publicSlug}`;
+    return `${origin}/v/${slug || activeSurvey?.publicSlug || 'survey'}`;
+  };
+
+  const handleCopyPublicLink = () => {
+    if (!activeSurvey) return;
+    const fullUrl = getPublicSurveyFullUrl(activeSurvey.publicSlug);
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(fullUrl);
     }
     setCopiedLinkSlug(activeSurvey.publicSlug);
     setTimeout(() => setCopiedLinkSlug(null), 2500);
+  };
+
+  // Resolve outreach templates (saved or auto-generated from plan + survey context)
+  const effectiveOutreachTemplates: SurveyOutreachTemplates | null =
+    activeSurvey
+      ? {
+          ...buildDefaultOutreachTemplates(plan, activeSurvey),
+          ...(activeSurvey.outreachTemplates || {}),
+        }
+      : null;
+
+  const handleUpdateOutreachTemplates = (
+    patch: Partial<SurveyOutreachTemplates>
+  ) => {
+    if (!activeSurvey || isVaultReadonly) return;
+    const base =
+      activeSurvey.outreachTemplates ||
+      buildDefaultOutreachTemplates(plan, activeSurvey);
+    const updatedTemplates: SurveyOutreachTemplates = {
+      ...base,
+      ...patch,
+    };
+    void updateActiveSurvey((curr) => ({
+      ...curr,
+      outreachTemplates: updatedTemplates,
+    }));
+  };
+
+  const handleRegenerateOutreachTemplates = async () => {
+    if (!activeSurvey || isVaultReadonly) return;
+    const fresh = buildDefaultOutreachTemplates(plan, activeSurvey);
+    await updateActiveSurvey(
+      (curr) => ({
+        ...curr,
+        outreachTemplates: {
+          ...fresh,
+          customChannelName: curr.outreachTemplates?.customChannelName || '',
+        },
+      }),
+      '✨ Refreshed all outreach templates & QR flyer copy using your latest survey and startup context!'
+    );
+  };
+
+  const injectLiveLink = (rawTemplate: string): string => {
+    const fullUrl = getPublicSurveyFullUrl(activeSurvey?.publicSlug);
+    if (rawTemplate.includes('{{SURVEY_LINK}}')) {
+      return rawTemplate.replace(/\{\{SURVEY_LINK\}\}/g, fullUrl);
+    }
+    return `${rawTemplate.trim()}\n\n${fullUrl}`;
+  };
+
+  const handleCopyOutreachMessage = (code: string, rawText: string) => {
+    const finalMessage =
+      code === 'IN_PERSON_PITCH' ? rawText : injectLiveLink(rawText);
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(finalMessage);
+    }
+    setCopiedChannelCode(code);
+    setTimeout(() => setCopiedChannelCode(null), 2500);
+  };
+
+  // Download High-Res PNG QR Code (1024x1024)
+  const handleDownloadQrPng = () => {
+    if (!activeSurvey || typeof document === 'undefined') return;
+    const fullUrl = getPublicSurveyFullUrl(activeSurvey.publicSlug);
+    const matrix = generateQrCodeMatrix(fullUrl);
+    const n = matrix.length;
+    const quiet = 4;
+    const totalModules = n + quiet * 2;
+    const canvasSize = 1024;
+    const scale = canvasSize / totalModules;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+    ctx.fillStyle = '#0f172a';
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (matrix[r][c]) {
+          const x = Math.floor((c + quiet) * scale);
+          const y = Math.floor((r + quiet) * scale);
+          const w = Math.ceil(scale);
+          const h = Math.ceil(scale);
+          ctx.fillRect(x, y, w, h);
+        }
+      }
+    }
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `qr-${activeSurvey.publicSlug}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setStatusBanner(
+      `📥 Downloaded high-resolution QR code (qr-${activeSurvey.publicSlug}.png)!`
+    );
+  };
+
+  // Download Vector SVG QR Code
+  const handleDownloadQrSvg = () => {
+    if (!activeSurvey || typeof document === 'undefined') return;
+    const fullUrl = getPublicSurveyFullUrl(activeSurvey.publicSlug);
+    const svgString = generateQrCodeSvgString(fullUrl, {
+      sizePx: 1024,
+      quietZoneModules: 4,
+    });
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `qr-${activeSurvey.publicSlug}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+    setStatusBanner(
+      `📥 Downloaded scalable vector QR code (qr-${activeSurvey.publicSlug}.svg)!`
+    );
+  };
+
+  // Print 1-Page Event / Coffee-Shop Flyer with QR Code
+  const handlePrintQrFlyer = () => {
+    if (!activeSurvey || typeof window === 'undefined') return;
+    const fullUrl = getPublicSurveyFullUrl(activeSurvey.publicSlug);
+    const svgMarkup = generateQrCodeSvgString(fullUrl, {
+      sizePx: 340,
+      quietZoneModules: 3,
+    });
+    const headline =
+      effectiveOutreachTemplates?.qrFlyerHeadline?.trim() ||
+      activeSurvey.title.trim() ||
+      'Got 60 Seconds? Share Your Honest Feedback';
+    const subtext =
+      effectiveOutreachTemplates?.qrFlyerSubtext?.trim() ||
+      `Scan with your phone camera • ${Math.max(
+        activeSurvey.questions.length,
+        5
+      )} quick questions • No login required`;
+    const incentive = activeSurvey.collectLeadEmails
+      ? activeSurvey.waitlistIncentiveText.trim()
+      : '';
+
+    const escapeHtml = (str: string) =>
+      str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const printWin = window.open('', '_blank', 'width=850,height=1050');
+    if (!printWin) {
+      setStatusBanner(
+        '⚠️ Pop-up blocked by browser. Allow pop-ups to print the QR flyer.'
+      );
+      return;
+    }
+
+    printWin.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(plan.title)} — Survey QR Flyer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      padding: 36px;
+      display: flex;
+      justify-content: center;
+    }
+    .flyer {
+      width: 100%;
+      max-width: 680px;
+      border: 3px solid #1e1b4b;
+      border-radius: 28px;
+      padding: 44px 40px;
+      text-align: center;
+    }
+    .badge {
+      display: inline-block;
+      background: #eef2ff;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 6px 16px;
+      border-radius: 999px;
+      margin-bottom: 18px;
+    }
+    h1 {
+      font-size: 32px;
+      line-height: 1.2;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 12px;
+    }
+    .subtext {
+      font-size: 17px;
+      line-height: 1.5;
+      color: #475569;
+      max-width: 520px;
+      margin: 0 auto 28px auto;
+    }
+    .qr-box {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      background: #f8fafc;
+      border: 2px dashed #6366f1;
+      border-radius: 24px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .scan-cta {
+      margin-top: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #312e81;
+    }
+    .url-pill {
+      display: inline-block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 15px;
+      font-weight: 700;
+      color: #1e1b4b;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      padding: 10px 20px;
+      border-radius: 12px;
+      margin-bottom: 22px;
+      word-break: break-all;
+    }
+    .incentive {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 14px 20px;
+      border-radius: 14px;
+      max-width: 520px;
+      margin: 0 auto 18px auto;
+    }
+    .footer {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 10px;
+    }
+    @media print {
+      body { padding: 0; }
+      .flyer { border-width: 2px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="flyer">
+    <div class="badge">${escapeHtml(plan.title)} • Customer Research</div>
+    <h1>${escapeHtml(headline)}</h1>
+    <p class="subtext">${escapeHtml(subtext)}</p>
+    <div class="qr-box">
+      ${svgMarkup}
+      <div class="scan-cta">📱 Point Your Phone Camera Here to Open</div>
+    </div>
+    <div>
+      <div class="url-pill">${escapeHtml(fullUrl)}</div>
+    </div>
+    ${
+      incentive
+        ? `<div class="incentive">🎁 ${escapeHtml(incentive)}</div>`
+        : ''
+    }
+    <div class="footer">100% Anonymous Option • Zero Login Required • Takes Under 60 Seconds</div>
+  </div>
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 250);
+    };
+  </script>
+</body>
+</html>`);
+    printWin.document.close();
   };
 
   // Compute summary metrics for activeSurvey
@@ -1313,6 +1746,17 @@ export function ModuleCWorkspace({
                     )}
                   </Button>
 
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveViewTab('OUTREACH')}
+                    className="border-violet-200 bg-violet-50/80 text-violet-800 hover:bg-violet-100"
+                  >
+                    <QrCode className="h-3.5 w-3.5 text-violet-700" />
+                    Outreach &amp; QR Kit
+                  </Button>
+
                   <Link
                     href={`/v/${activeSurvey.publicSlug}`}
                     target="_blank"
@@ -1430,11 +1874,11 @@ export function ModuleCWorkspace({
       )}
 
       {/* =================================================================== */}
-      {/* SUB-NAVIGATION TABS: 1. SURVEY BUILDER vs 2. RESULTS & AI INSIGHTS  */}
+      {/* SUB-NAVIGATION TABS: 1. BUILDER | 2. OUTREACH & QR | 3. INSIGHTS    */}
       {/* =================================================================== */}
       {activeSurvey && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setActiveViewTab('BUILDER')}
@@ -1455,6 +1899,19 @@ export function ModuleCWorkspace({
 
             <button
               type="button"
+              onClick={() => setActiveViewTab('OUTREACH')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:text-sm ${
+                activeViewTab === 'OUTREACH'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <QrCode className="h-4 w-4" />
+              2. Outreach &amp; QR Kit
+            </button>
+
+            <button
+              type="button"
               onClick={() => {
                 setActiveViewTab('INSIGHTS');
                 handleSyncLiveResponses(true);
@@ -1466,7 +1923,7 @@ export function ModuleCWorkspace({
               }`}
             >
               <BarChart3 className="h-4 w-4" />
-              2. Results &amp; AI Insights
+              3. Results &amp; AI Insights
               <span
                 className={`rounded-full px-2 py-0.5 text-[11px] ${
                   activeViewTab === 'INSIGHTS'
@@ -1500,6 +1957,19 @@ export function ModuleCWorkspace({
                 <Lock className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                 Questions Locked for Result Integrity
               </Badge>
+            )}
+
+            {activeViewTab === 'OUTREACH' && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isVaultReadonly}
+                onClick={handleRegenerateOutreachTemplates}
+              >
+                <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
+                Refresh Copy from Idea Context
+              </Button>
             )}
 
             {activeViewTab === 'INSIGHTS' && (
@@ -2409,7 +2879,525 @@ export function ModuleCWorkspace({
       )}
 
       {/* =================================================================== */}
-      {/* TAB 2: SURVEY RESULTS & AI "SIGNAL VS. NOISE" INSIGHTS ENGINE       */}
+      {/* TAB 2: OUTREACH DISTRIBUTION KIT + PRINTABLE QR CODE                */}
+      {/* =================================================================== */}
+      {activeSurvey &&
+        activeViewTab === 'OUTREACH' &&
+        effectiveOutreachTemplates && (
+          <div className="space-y-6">
+            {/* Top Guidance Banner */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-4 shadow-2xs">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-slate-900">
+                    Outreach Distribution Kit &amp; Printable QR Code Studio
+                  </span>
+                  <Badge className="bg-indigo-100 text-[10px] font-bold text-indigo-800">
+                    Tailored to {plan.title}
+                  </Badge>
+                </div>
+                <p className="max-w-2xl text-xs text-slate-600">
+                  Zero-pitch, <em>Mom Test</em>-friendly outreach messages with
+                  your live{' '}
+                  <code className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono text-indigo-900">
+                    /v/{activeSurvey.publicSlug}
+                  </code>{' '}
+                  link automatically injected, plus a downloadable &amp;
+                  printable QR code flyer for in-person discovery.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyPublicLink}
+                  className="bg-white text-xs"
+                >
+                  {copiedLinkSlug === activeSurvey.publicSlug ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      Copied Survey URL!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5 text-slate-600" />
+                      Copy Direct URL
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handlePrintQrFlyer}
+                  className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  Print 1-Page QR Flyer
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+              {/* ============================================================= */}
+              {/* LEFT COLUMN (7 COLS): READY-TO-SEND OUTREACH TEMPLATES        */}
+              {/* ============================================================= */}
+              <div className="space-y-4 lg:col-span-7">
+                <Card className="border-slate-200 shadow-2xs">
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
+                          <Send className="h-4 w-4 text-indigo-600" />
+                          1. Ready-to-Send Outreach Messages
+                        </CardTitle>
+                        <CardDescription className="text-xs text-slate-600">
+                          Select a channel below, customize the wording if you
+                          like, and click <strong>Copy Message</strong> (your
+                          live survey link is inserted automatically).
+                        </CardDescription>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isVaultReadonly}
+                        onClick={handleRegenerateOutreachTemplates}
+                        className="text-xs"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 text-indigo-600" />
+                        Reset to Smart Defaults
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Channel Selector Tiles (Includes OTHER per GEMINI.md Rule 1.5) */}
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {OUTREACH_CHANNEL_OPTIONS.map((ch) => {
+                        const isSelected = selectedOutreachChannel === ch.code;
+                        return (
+                          <button
+                            key={ch.code}
+                            type="button"
+                            onClick={() => setSelectedOutreachChannel(ch.code)}
+                            className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
+                              isSelected
+                                ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-600/20'
+                                : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
+                            }`}
+                          >
+                            <div className="flex w-full items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-slate-900">
+                                {ch.label}
+                              </span>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                  isSelected
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {ch.bestFor}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[11px] text-slate-600">
+                              {ch.subtitle}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Active Channel Template Editor + 1-Click Copy */}
+                    {(() => {
+                      const activeMeta =
+                        OUTREACH_CHANNEL_OPTIONS.find(
+                          (c) => c.code === selectedOutreachChannel
+                        ) || OUTREACH_CHANNEL_OPTIONS[0];
+
+                      let currentRawText = '';
+                      if (selectedOutreachChannel === 'LINKEDIN_DM') {
+                        currentRawText = effectiveOutreachTemplates.linkedinDm;
+                      } else if (selectedOutreachChannel === 'COMMUNITY_POST') {
+                        currentRawText =
+                          effectiveOutreachTemplates.communityPost;
+                      } else if (selectedOutreachChannel === 'WHATSAPP_SMS') {
+                        currentRawText =
+                          effectiveOutreachTemplates.whatsappBlurb;
+                      } else if (selectedOutreachChannel === 'COLD_EMAIL') {
+                        currentRawText =
+                          effectiveOutreachTemplates.coldEmailBody || '';
+                      } else if (
+                        selectedOutreachChannel === 'IN_PERSON_PITCH'
+                      ) {
+                        currentRawText =
+                          effectiveOutreachTemplates.inPersonPitch || '';
+                      } else {
+                        currentRawText =
+                          effectiveOutreachTemplates.customChannelMessage || '';
+                      }
+
+                      const resolvedPreview =
+                        selectedOutreachChannel === 'IN_PERSON_PITCH'
+                          ? currentRawText
+                          : injectLiveLink(currentRawText);
+
+                      return (
+                        <div className="space-y-3 rounded-2xl border border-indigo-200 bg-slate-50/70 p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <div className="text-xs font-bold text-indigo-950 sm:text-sm">
+                                {activeMeta.label}
+                              </div>
+                              <div className="text-[11px] text-slate-600">
+                                Use{' '}
+                                <code className="rounded bg-white px-1 py-0.5 font-mono text-[10px] text-indigo-700">
+                                  {'{{SURVEY_LINK}}'}
+                                </code>{' '}
+                                anywhere in your message to auto-insert your
+                                live link.
+                              </div>
+                            </div>
+
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                const textToCopy =
+                                  selectedOutreachChannel === 'COLD_EMAIL' &&
+                                  effectiveOutreachTemplates.coldEmailSubject
+                                    ? `Subject: ${
+                                        effectiveOutreachTemplates.coldEmailSubject
+                                      }\n\n${injectLiveLink(currentRawText)}`
+                                    : currentRawText;
+                                handleCopyOutreachMessage(
+                                  selectedOutreachChannel,
+                                  textToCopy
+                                );
+                              }}
+                              className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                            >
+                              {copiedChannelCode === selectedOutreachChannel ? (
+                                <>
+                                  <Check className="h-3.5 w-3.5 text-emerald-300" />
+                                  Copied with Live Survey Link!
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3.5 w-3.5" />
+                                  Copy Ready-to-Send Message
+                                </>
+                              )}
+                            </Button>
+                          </div>
+
+                          {/* Inline custom channel name when OTHER is selected (GEMINI.md Rule 1.5) */}
+                          {selectedOutreachChannel === 'OTHER' && (
+                            <div>
+                              <label className="mb-1 block text-xs font-semibold text-slate-700">
+                                Custom Outreach Channel Name:
+                              </label>
+                              <Input
+                                disabled={isVaultReadonly}
+                                value={
+                                  effectiveOutreachTemplates.customChannelName ||
+                                  ''
+                                }
+                                onChange={(e) =>
+                                  handleUpdateOutreachTemplates({
+                                    customChannelName: e.target.value,
+                                  })
+                                }
+                                placeholder="e.g., Substack Newsletter, IndieHackers Forum, Local Meetup Group..."
+                                className="bg-white text-xs"
+                              />
+                            </div>
+                          )}
+
+                          {/* Email Subject line when COLD_EMAIL is selected */}
+                          {selectedOutreachChannel === 'COLD_EMAIL' && (
+                            <div>
+                              <label className="mb-1 block text-xs font-semibold text-slate-700">
+                                Email Subject Line:
+                              </label>
+                              <Input
+                                disabled={isVaultReadonly}
+                                value={
+                                  effectiveOutreachTemplates.coldEmailSubject ||
+                                  ''
+                                }
+                                onChange={(e) =>
+                                  handleUpdateOutreachTemplates({
+                                    coldEmailSubject: e.target.value,
+                                  })
+                                }
+                                placeholder="Quick 60-sec question..."
+                                className="bg-white text-xs font-medium"
+                              />
+                            </div>
+                          )}
+
+                          {/* Editable Message Template */}
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold text-slate-700">
+                              Editable Message Template:
+                            </label>
+                            <textarea
+                              rows={6}
+                              disabled={isVaultReadonly}
+                              value={currentRawText}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (selectedOutreachChannel === 'LINKEDIN_DM') {
+                                  handleUpdateOutreachTemplates({
+                                    linkedinDm: val,
+                                  });
+                                } else if (
+                                  selectedOutreachChannel === 'COMMUNITY_POST'
+                                ) {
+                                  handleUpdateOutreachTemplates({
+                                    communityPost: val,
+                                  });
+                                } else if (
+                                  selectedOutreachChannel === 'WHATSAPP_SMS'
+                                ) {
+                                  handleUpdateOutreachTemplates({
+                                    whatsappBlurb: val,
+                                  });
+                                } else if (
+                                  selectedOutreachChannel === 'COLD_EMAIL'
+                                ) {
+                                  handleUpdateOutreachTemplates({
+                                    coldEmailBody: val,
+                                  });
+                                } else if (
+                                  selectedOutreachChannel === 'IN_PERSON_PITCH'
+                                ) {
+                                  handleUpdateOutreachTemplates({
+                                    inPersonPitch: val,
+                                  });
+                                } else {
+                                  handleUpdateOutreachTemplates({
+                                    customChannelMessage: val,
+                                  });
+                                }
+                              }}
+                              className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                            />
+                          </div>
+
+                          {/* Live Preview Box showing injected URL */}
+                          <div className="rounded-xl border border-indigo-200/80 bg-white p-3">
+                            <div className="mb-1 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                              <span>
+                                Live Preview (What Your Recipient Sees)
+                              </span>
+                              <span className="font-mono text-[10px] font-normal text-slate-500">
+                                Link included ✓
+                              </span>
+                            </div>
+                            <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800">
+                              {resolvedPreview}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* ============================================================= */}
+              {/* RIGHT COLUMN (5 COLS): PRINTABLE QR CODE & FLYER STUDIO       */}
+              {/* ============================================================= */}
+              <div className="space-y-4 lg:col-span-5">
+                <Card className="border-indigo-200 shadow-2xs">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
+                          <QrCode className="h-4 w-4 text-indigo-600" />
+                          2. Printable QR Code &amp; Event Flyer
+                        </CardTitle>
+                        <CardDescription className="text-xs text-slate-600">
+                          Scan with any phone camera to open{' '}
+                          <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-indigo-700">
+                            /v/{activeSurvey.publicSlug}
+                          </code>{' '}
+                          with zero login.
+                        </CardDescription>
+                      </div>
+                      <Badge className="bg-emerald-100 text-[10px] font-bold text-emerald-900">
+                        <Smartphone className="mr-1 h-3 w-3" />
+                        Instant Scan
+                      </Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    {/* Live Printable Flyer Preview Card */}
+                    <div className="flex flex-col items-center rounded-2xl border-2 border-indigo-950 bg-gradient-to-b from-white via-slate-50/50 to-indigo-50/40 p-5 text-center shadow-xs">
+                      <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-800">
+                        {plan.title} • Customer Research
+                      </span>
+
+                      <h3 className="mt-2.5 text-base font-extrabold leading-snug text-slate-900 sm:text-lg">
+                        {effectiveOutreachTemplates.qrFlyerHeadline ||
+                          activeSurvey.title.trim() ||
+                          'Got 60 Seconds? Share Your Honest Experience'}
+                      </h3>
+
+                      <p className="mt-1 max-w-xs text-xs text-slate-600">
+                        {effectiveOutreachTemplates.qrFlyerSubtext ||
+                          `Scan with your phone camera • ${Math.max(
+                            activeSurvey.questions.length,
+                            5
+                          )} quick questions • No login required`}
+                      </p>
+
+                      {/* Crisp Vector SVG QR Code */}
+                      <div className="my-4 flex flex-col items-center rounded-2xl border-2 border-dashed border-indigo-300 bg-white p-4 shadow-2xs">
+                        {(() => {
+                          const fullUrl = getPublicSurveyFullUrl(
+                            activeSurvey.publicSlug
+                          );
+                          const matrix = generateQrCodeMatrix(fullUrl);
+                          const n = matrix.length;
+                          const quiet = 3;
+                          const totalModules = n + quiet * 2;
+                          return (
+                            <svg
+                              viewBox={`0 0 ${totalModules} ${totalModules}`}
+                              className="h-48 w-48 sm:h-52 sm:w-52"
+                              shapeRendering="crispEdges"
+                              role="img"
+                              aria-label={`QR Code for ${fullUrl}`}
+                            >
+                              <rect
+                                width={totalModules}
+                                height={totalModules}
+                                fill="#ffffff"
+                              />
+                              {matrix.map((row, rIdx) =>
+                                row.map((isDark, cIdx) =>
+                                  isDark ? (
+                                    <rect
+                                      key={`${rIdx}-${cIdx}`}
+                                      x={cIdx + quiet}
+                                      y={rIdx + quiet}
+                                      width={1.03}
+                                      height={1.03}
+                                      fill="#0f172a"
+                                    />
+                                  ) : null
+                                )
+                              )}
+                            </svg>
+                          );
+                        })()}
+                        <span className="mt-2 text-[11px] font-bold text-indigo-900">
+                          📱 Point Phone Camera to Open Survey
+                        </span>
+                      </div>
+
+                      <div className="rounded-lg border border-slate-200 bg-white px-3 py-1 font-mono text-[11px] font-semibold text-indigo-900">
+                        {getPublicSurveyFullUrl(activeSurvey.publicSlug)}
+                      </div>
+
+                      {activeSurvey.collectLeadEmails &&
+                        activeSurvey.waitlistIncentiveText.trim() && (
+                          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/90 px-3 py-2 text-[11px] font-medium text-emerald-900">
+                            🎁 {activeSurvey.waitlistIncentiveText}
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Customize Flyer Headline & Subtext */}
+                    <div className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                      <div className="text-xs font-bold text-slate-800">
+                        Customize Printable QR Poster Text:
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold text-slate-600">
+                          Poster Headline:
+                        </label>
+                        <Input
+                          disabled={isVaultReadonly}
+                          value={
+                            effectiveOutreachTemplates.qrFlyerHeadline || ''
+                          }
+                          onChange={(e) =>
+                            handleUpdateOutreachTemplates({
+                              qrFlyerHeadline: e.target.value,
+                            })
+                          }
+                          placeholder="Got 60 Seconds? Share Your Honest Experience"
+                          className="bg-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold text-slate-600">
+                          Poster Subtext / Call-to-Action:
+                        </label>
+                        <Input
+                          disabled={isVaultReadonly}
+                          value={
+                            effectiveOutreachTemplates.qrFlyerSubtext || ''
+                          }
+                          onChange={(e) =>
+                            handleUpdateOutreachTemplates({
+                              qrFlyerSubtext: e.target.value,
+                            })
+                          }
+                          placeholder="Scan with your phone camera • 5 quick questions • No login required"
+                          className="bg-white text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Download & Print Buttons */}
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadQrPng}
+                        className="w-full text-xs font-semibold"
+                      >
+                        <Download className="h-3.5 w-3.5 text-indigo-600" />
+                        Download PNG
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadQrSvg}
+                        className="w-full text-xs font-semibold"
+                      >
+                        <Download className="h-3.5 w-3.5 text-violet-600" />
+                        Download SVG
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handlePrintQrFlyer}
+                        className="w-full bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        Print Flyer
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* =================================================================== */}
+      {/* TAB 3: SURVEY RESULTS & AI "SIGNAL VS. NOISE" INSIGHTS ENGINE       */}
       {/* =================================================================== */}
       {activeSurvey && activeViewTab === 'INSIGHTS' && (
         <div className="space-y-6">
@@ -3168,8 +4156,32 @@ export function ModuleCWorkspace({
           Back to Module B (Market &amp; Competitors)
         </Button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {activeSurvey && activeViewTab === 'BUILDER' ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveViewTab('OUTREACH')}
+              >
+                <QrCode className="h-4 w-4 text-indigo-600" />
+                Next: Outreach &amp; QR Kit
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setActiveViewTab('INSIGHTS');
+                  handleSyncLiveResponses(true);
+                }}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                View Results &amp; AI Insights ({totalResponses})
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </>
+          ) : activeSurvey && activeViewTab === 'OUTREACH' ? (
             <Button
               type="button"
               size="sm"
