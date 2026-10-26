@@ -8,7 +8,10 @@ import {
   openQuestionsParkingLot,
   type BlindSpotItem,
 } from '@/db';
-import { getServerSessionCookie } from '@/lib/auth/server-auth';
+import {
+  getServerSessionCookie,
+  verifyActiveSessionAndPlanOwnership,
+} from '@/lib/auth/server-auth';
 import {
   synthesizeModuleAConceptCanvasViaRouter,
   type ConceptCanvasBlocks,
@@ -76,6 +79,18 @@ export async function generateModuleAConceptCanvasAction(input: {
   let persistedToCloudSql = false;
 
   if (UUID_REGEX.test(input.planId)) {
+    const ownership = await verifyActiveSessionAndPlanOwnership(input.planId);
+    if (!ownership.authorized) {
+      return {
+        ok: true,
+        persistedToCloudSql: false,
+        engineMode: aiResult.engineMode,
+        canvas: aiResult.canvas,
+        thingsToConsider: aiResult.thingsToConsider,
+        creditsUsedAfter: aiResult.creditsUsedAfter,
+      };
+    }
+
     try {
       const existingMod = await db
         .select()
@@ -161,6 +176,11 @@ export async function saveModuleACanvasEditsAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
+  const ownership = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!ownership.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
   try {
     const existingMod = await db
       .select()
@@ -223,11 +243,16 @@ export async function parkOpenQuestionAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
+  const ownership = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!ownership.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
   try {
     await db.insert(openQuestionsParkingLot).values({
       planId: input.planId,
       sourceModule: 'MOD_A_IDEATION',
-      questionText: input.questionText.trim(),
+      questionText: input.questionText.trim().slice(0, 1000),
       status: 'OPEN',
     });
     return { ok: true, persistedToCloudSql: true };

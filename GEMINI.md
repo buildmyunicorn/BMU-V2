@@ -28,7 +28,7 @@
 * **AI SDK:** Official Google GenAI SDK (`@google/genai`).
   * Default fast/low-cost model: `gemini-2.5-flash` (used for 90% of extraction, micro-coaching examples, and survey analysis).
   * Complex reasoning model: `gemini-2.5-pro` (used for Deep Financial/Narrative Contradiction Audits in Module I).
-  * **Token & Cost Guardrails:** Every AI call must pass through `src/lib/ai/router.ts`, which checks `user_entitlements.ai_credits_used_this_month` (or uses the user's encrypted BYOK API key if configured) and logs token consumption to `ai_usage_logs`.
+  * **Token & Cost Guardrails:** Every AI call must pass through `src/lib/ai/router.ts`, which verifies the signed `HttpOnly` session cookie via `authorizeAndPrepareGeminiCall`, enforces a **Global Daily Platform AI Ceiling of `500` calls/day** (`MAX_DAILY_PLATFORM_AI_CALLS`), checks `user_entitlements.ai_credits_used_this_month` (or decrypts the user's AES-256-GCM BYOK API key server-side), caps `maxOutputTokens: 2048`, and logs token consumption to `ai_usage_logs`.
 
 ## 3. Multi-Tenant, Multi-Plan & Entitlement Invariants
 1. **Multi-Tenancy from Day 1:** Every user and `startup_plan` belongs to a `tenant_id` (defaults to the global `'default'` BMU tenant, ready for Phase 2 University/LEO white-label portals).
@@ -40,5 +40,24 @@
    * `APPSUMO_LTD`: Tier 1 (1 Code = 1 Plan, 1 Seat), Tier 2 (2 Codes = 3 Plans, 3 Seats, Co-Founder Interview unlocked), Tier 3 (3+ Codes = 10 Plans, 5 Seats, White-label Survey & PDF exports, BYOK enabled).
    * `COHORT_PASS`: Unlocked via Institutional Cohort Code (`cohorts.invite_code`).
 
-## 4. Verification Loop Inside Antigravity
+## 4. Security, Data Privacy & AI Billing Protection Invariants (Strict Enforcement)
+1. **Zero Client-Side API Keys & Fail-Closed AI Router (`src/lib/ai/router.ts`):**
+   * **NEVER** expose `GEMINI_API_KEY` or any `NEXT_PUBLIC_*` AI key to the browser.
+   * Every live Gemini call **must** call `authorizeAndPrepareGeminiCall()` first. It verifies the signed `HttpOnly` server session cookie (`getVerifiedFounderSessionFromCookie`), never trusts client-supplied `userId`, and **fails closed** to deterministic smart-synthesizer fallback if unauthenticated, if the DB is unreachable, or if credits are exhausted.
+2. **Hard Billing Circuit Breakers (`500` Calls/Day Ceiling & Burst Rate Limits):**
+   * **Global Daily Platform Ceiling:** Capped at **`500` paid platform Gemini calls per 24 hours** (`DEFAULT_MAX_DAILY_PLATFORM_AI_CALLS = 500`, configurable via `MAX_DAILY_PLATFORM_AI_CALLS`). Once reached, the router automatically switches to smart-synthesizer mode for the remainder of the UTC day so a runaway script can never rack up a surprise Google Cloud bill.
+   * **Per-User Burst Limits & Token Caps:** Enforces max `8` AI calls/minute and `60` AI calls/hour per user, truncates/sanitizes all user prompt inputs via `sanitizePromptInput()`, and enforces `maxOutputTokens: 2048` on every Gemini call.
+3. **BYOK API Key AES-256-GCM Encryption & Redaction (`src/lib/auth/server-auth.ts`):**
+   * User-supplied BYOK Gemini keys (`user_entitlements.custom_api_key_encrypted`) must be encrypted at rest using **AES-256-GCM** (`encryptByokApiKey` / `decryptByokApiKey`) derived from `BETTER_AUTH_SECRET`.
+   * Never return raw BYOK keys to the client or store them in `localStorage` — always redact to `'enc_gemini_byok_active'` in client session snapshots.
+4. **Plan Ownership Verification (IDOR Prevention) on All Server Actions:**
+   * Every Server Action across Modules A–I that reads or writes plan-scoped data (`startup_plans`, `plan_modules_data`, `validation_surveys`, `open_questions_parking_lot`, etc.) **must** call `verifyActiveSessionAndPlanOwnership(planId)` before executing any database query.
+5. **Public Route PII Isolation & Anti-Spam (`/v/[slug]`):**
+   * Public unauthenticated actions (such as `getPublicSurveyBySlugAction`) must **never** return respondent emails, waitlist leads, or other respondents' answers (`responses: []`). Only authenticated founder actions (`getFounderSurveyResponsesBySlugAction`) that verify plan ownership may return respondent PII.
+   * Public submission endpoints (`submitPublicSurveyResponseAction`) must enforce rate limiting (`checkRateLimit`), cap total stored responses per survey (`2,500`), force `isSimulated: false`, and sanitize/truncate all open-text fields.
+6. **Production Secret Hardening & Brute-Force Protection:**
+   * `verifyPayload` uses `crypto.timingSafeEqual` and enforces token TTL (`30 days` for founders, `12 hours` for Super Admin).
+   * In production (`NODE_ENV === 'production'`), `BETTER_AUTH_SECRET` and `SUPER_ADMIN_MASTER_PASSWORD` never fall back to predictable dev strings, and login/registration endpoints enforce brute-force rate limiting.
+
+## 5. Verification Loop Inside Antigravity
 * After editing any schema, server action, or component, always run `npx tsc --noEmit` to verify zero TypeScript errors across the monorepo before finishing a task.

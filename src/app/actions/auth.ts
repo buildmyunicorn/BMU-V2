@@ -21,6 +21,8 @@ import {
   setServerSessionCookie,
   getServerSessionCookie,
   clearServerSessionCookie,
+  checkRateLimit,
+  encryptByokApiKey,
 } from '@/lib/auth/server-auth';
 import {
   calculateAppSumoTierLimits,
@@ -421,7 +423,10 @@ async function buildSessionFromDbUser(
         monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
         aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
         whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
-        customApiKeyEncrypted: entRow.customApiKeyEncrypted,
+        // Never transmit raw or encrypted BYOK key material to the browser
+        customApiKeyEncrypted: entRow.customApiKeyEncrypted
+          ? 'enc_gemini_byok_active'
+          : null,
         accessExpiresAt: entRow.accessExpiresAt,
         isVaultReadonly: entRow.isVaultReadonly,
       }
@@ -473,6 +478,15 @@ export async function registerFounderAction(input: {
     return {
       ok: false,
       error: 'Please enter a valid email and a password of at least 6 characters.',
+      mode: 'cloud_sql',
+    };
+  }
+
+  const rateLimit = checkRateLimit(`auth:register:${cleanEmail}`, 5, 10 * 60_000);
+  if (!rateLimit.allowed) {
+    return {
+      ok: false,
+      error: `Too many registration attempts. Please wait ${rateLimit.retryAfterSeconds} seconds and try again.`,
       mode: 'cloud_sql',
     };
   }
@@ -623,6 +637,15 @@ export async function loginFounderAction(input: {
   password: string;
 }): Promise<AuthActionResult> {
   const cleanEmail = input.email.trim().toLowerCase();
+
+  const rateLimit = checkRateLimit(`auth:login:${cleanEmail}`, 8, 10 * 60_000);
+  if (!rateLimit.allowed) {
+    return {
+      ok: false,
+      error: `Too many sign-in attempts. Please wait ${rateLimit.retryAfterSeconds} seconds before trying again.`,
+      mode: 'cloud_sql',
+    };
+  }
 
   try {
     const [foundUser] = await db
@@ -879,4 +902,43 @@ export async function getCurrentCloudSessionAction(): Promise<{
  */
 export async function logoutFounderAction(): Promise<void> {
   await clearServerSessionCookie();
+}
+
+/**
+ * Encrypts and stores (or clears) a Bring-Your-Own-Key (BYOK) Gemini API key at rest
+ * using AES-256-GCM in PostgreSQL (`user_entitlements.custom_api_key_encrypted`).
+ * Never returns raw key material to the browser.
+ */
+export async function saveByokApiKeyServerAction(rawApiKey: string): Promise<{
+  ok: boolean;
+  hasActiveKey: boolean;
+  error?: string;
+}> {
+  try {
+    const cookiePayload = await getServerSessionCookie();
+    if (!cookiePayload) {
+      return { ok: false, hasActiveKey: false, error: 'Not authenticated' };
+    }
+    const trimmed = rawApiKey.trim();
+    const encryptedValue = trimmed ? encryptByokApiKey(trimmed) : null;
+
+    await db
+      .update(userEntitlements)
+      .set({
+        customApiKeyEncrypted: encryptedValue,
+        updatedAt: new Date(),
+      })
+      .where(eq(userEntitlements.userId, cookiePayload.userId));
+
+    return {
+      ok: true,
+      hasActiveKey: Boolean(encryptedValue),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      hasActiveKey: false,
+      error: err instanceof Error ? err.message : 'Failed to save BYOK key',
+    };
+  }
 }

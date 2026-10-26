@@ -16,6 +16,7 @@ import {
   setAdminSessionCookie,
   getAdminSessionCookie,
   clearAdminSessionCookie,
+  checkRateLimit,
 } from '@/lib/auth/server-auth';
 import {
   calculateAppSumoTierLimits,
@@ -28,8 +29,17 @@ const DEFAULT_SUPER_ADMIN_EMAIL = (
 )
   .trim()
   .toLowerCase();
-const DEFAULT_SUPER_ADMIN_PASSWORD =
-  process.env.SUPER_ADMIN_PASSWORD || 'UnicornAdmin2026!';
+
+function getConfiguredMasterAdminPassword(): string | null {
+  const configured = process.env.SUPER_ADMIN_PASSWORD?.trim();
+  if (configured && configured.length >= 10) {
+    return configured;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
+  return 'UnicornAdmin2026!';
+}
 
 export type AccountPresetType =
   | 'LIFETIME_FULL'
@@ -117,10 +127,21 @@ export async function loginSuperAdminAction(input: {
     };
   }
 
+  const rateLimit = checkRateLimit(`admin:login:${cleanEmail}`, 5, 15 * 60_000);
+  if (!rateLimit.allowed) {
+    return {
+      ok: false,
+      error: `Too many Super Admin sign-in attempts. Please wait ${rateLimit.retryAfterSeconds} seconds before trying again.`,
+    };
+  }
+
   // Check if credentials match the configured master Super Admin credentials
-  const matchesMasterCredentials =
-    cleanEmail === DEFAULT_SUPER_ADMIN_EMAIL &&
-    rawPassword === DEFAULT_SUPER_ADMIN_PASSWORD;
+  const masterPassword = getConfiguredMasterAdminPassword();
+  const matchesMasterCredentials = Boolean(
+    masterPassword &&
+      cleanEmail === DEFAULT_SUPER_ADMIN_EMAIL &&
+      rawPassword === masterPassword
+  );
 
   try {
     const [existingUser] = await db

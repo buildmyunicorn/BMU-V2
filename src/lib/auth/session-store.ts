@@ -668,6 +668,13 @@ export function saveBmuSession(session: BmuLocalSession): void {
   if (typeof window === 'undefined') return;
   const cleanedSession: BmuLocalSession = {
     ...session,
+    entitlement: {
+      ...session.entitlement,
+      // Security Invariant: Never store raw BYOK API keys in browser localStorage
+      customApiKeyEncrypted: session.entitlement?.customApiKeyEncrypted
+        ? 'enc_gemini_byok_active'
+        : undefined,
+    },
     plans: (session.plans || []).map((p) => {
       if (!p.moduleCData?.surveys) return p;
       return {

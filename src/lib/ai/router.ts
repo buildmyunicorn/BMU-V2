@@ -2,12 +2,19 @@ import { GoogleGenAI } from '@google/genai';
 import { eq, sql } from 'drizzle-orm';
 import {
   db,
+  users,
   userEntitlements,
   aiPrompts,
   aiUsageLogs,
   type BlindSpotItem,
 } from '@/db';
 import { canConsumeAiCredits, type EntitlementSnapshot } from '@/lib/entitlements';
+import {
+  checkRateLimit,
+  decryptByokApiKey,
+  getAdminSessionCookie,
+  getServerSessionCookie,
+} from '@/lib/auth/server-auth';
 import {
   getCountryRulePack,
   getGrantsForCountry,
@@ -64,14 +71,48 @@ Always follow the "Capture First, Expand Second" philosophy:
 1. Never criticize the founder's raw idea upfront. When tidying up the founder's Step 2 Concept Canvas notes, preserve their exact core ideas and voice while making their notes clear, well-structured, and easy to read. Remember there are no right or wrong answers.
 2. Second, generate 3 constructive, encouraging "Things to Consider" blind spots (operational realities, industry traps, or validation questions) framed as supportive coaching prompts.`;
 
-function tidyFounderSentence(rawText: string | undefined, fallbackText: string): string {
-  const cleaned = (rawText || '').replace(/\s+/g, ' ').trim();
-  if (!cleaned) return fallbackText;
-  // Capitalize the first letter of each sentence and ensure ending punctuation
-  const capitalized = cleaned.replace(/(^\s*[a-z]|[.!?]\s+[a-z])/g, (match) =>
-    match.toUpperCase()
+/**
+ * Global Daily Platform AI Call Ceiling (Circuit Breaker).
+ * Protects the platform GEMINI_API_KEY from runaway scripts or unexpected spikes.
+ * Defaults to 500 platform-key Gemini calls per 24 hours (configurable via MAX_DAILY_PLATFORM_AI_CALLS).
+ * When reached, the router fails closed to the zero-cost `smart-synthesizer` fallback.
+ */
+const DEFAULT_MAX_DAILY_PLATFORM_AI_CALLS = 500;
+const MAX_OUTPUT_TOKENS_PER_CALL = 2048;
+
+let cachedDailyPlatformCallCount = 0;
+let cachedDailyCountFetchedAt = 0;
+
+function getMaxDailyPlatformAiCalls(): number {
+  const parsed = Number(process.env.MAX_DAILY_PLATFORM_AI_CALLS);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return Math.floor(parsed);
+  }
+  return DEFAULT_MAX_DAILY_PLATFORM_AI_CALLS;
+}
+
+/**
+ * Sanitizes and truncates untrusted user text before embedding into an AI prompt
+ * so a malicious payload cannot burn tens of thousands of input tokens in a single call.
+ */
+export function sanitizePromptInput(
+  raw: string | undefined | null,
+  maxChars: number = 3000
+): string {
+  if (!raw) return '';
+  return raw
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .trim()
+    .slice(0, maxChars);
+}
+
+function isValidUuid(val: string | undefined | null): val is string {
+  return Boolean(
+    val &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        val
+      )
   );
-  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
 }
 
 function hasConfiguredGeminiKey(customKey?: string | null): string | null {
@@ -87,6 +128,281 @@ function hasConfiguredGeminiKey(customKey?: string | null): string | null {
     return envKey;
   }
   return null;
+}
+
+interface AuthorizedGeminiCallContext {
+  canCallLiveGemini: boolean;
+  creditCheckBlocked: boolean;
+  blockReason?: string;
+  activeApiKey: string | null;
+  verifiedUserId: string | null;
+  usedByokKey: boolean;
+  currentCreditsUsed: number;
+  systemInstruction: string;
+}
+
+/**
+ * Strict Server-Side AI Billing Firewall (`authorizeAndPrepareGeminiCall`).
+ * Enforces:
+ * 1. Never trusts client-passed `userId` — resolves authenticated session strictly from signed HttpOnly cookie.
+ * 2. Fails closed to zero-cost `smart-synthesizer` if unauthenticated, suspended, or DB is unreachable.
+ * 3. Checks `user_entitlements.ai_credits_used_this_month` against `monthly_ai_credits_limit`.
+ * 4. Enforces per-user burst rate limits (max 8 calls/minute, 60 calls/hour).
+ * 5. Decrypts BYOK key in server memory only, or enforces the 500/day Global Platform Circuit Breaker on the platform key.
+ */
+async function authorizeAndPrepareGeminiCall(
+  promptKey: string,
+  defaultSystemInstruction: string = DEFAULT_SYSTEM_PROMPT
+): Promise<AuthorizedGeminiCallContext> {
+  const founderSession = await getServerSessionCookie();
+  const adminSession = await getAdminSessionCookie();
+  const session = founderSession || adminSession;
+
+  if (!session || !isValidUuid(session.userId)) {
+    // Unauthenticated or local demo preview: NEVER touch live GEMINI_API_KEY.
+    return {
+      canCallLiveGemini: false,
+      creditCheckBlocked: false,
+      activeApiKey: null,
+      verifiedUserId: null,
+      usedByokKey: false,
+      currentCreditsUsed: 0,
+      systemInstruction: defaultSystemInstruction,
+    };
+  }
+
+  const verifiedUserId = session.userId;
+
+  try {
+    // Verify user is ACTIVE in PostgreSQL
+    const [dbUser] = await db
+      .select({ id: users.id, status: users.status })
+      .from(users)
+      .where(eq(users.id, verifiedUserId))
+      .limit(1);
+
+    if (!dbUser || dbUser.status !== 'ACTIVE') {
+      return {
+        canCallLiveGemini: false,
+        creditCheckBlocked: true,
+        blockReason: 'Account is not active.',
+        activeApiKey: null,
+        verifiedUserId,
+        usedByokKey: false,
+        currentCreditsUsed: 0,
+        systemInstruction: defaultSystemInstruction,
+      };
+    }
+
+    const [entRow] = await db
+      .select()
+      .from(userEntitlements)
+      .where(eq(userEntitlements.userId, verifiedUserId))
+      .limit(1);
+
+    if (!entRow) {
+      // Fail closed if entitlement row is missing
+      return {
+        canCallLiveGemini: false,
+        creditCheckBlocked: false,
+        activeApiKey: null,
+        verifiedUserId,
+        usedByokKey: false,
+        currentCreditsUsed: 0,
+        systemInstruction: defaultSystemInstruction,
+      };
+    }
+
+    const decryptedByok = decryptByokApiKey(entRow.customApiKeyEncrypted);
+
+    const snapshot: EntitlementSnapshot = {
+      userId: entRow.userId,
+      planType: entRow.planType,
+      stackedCodesCount: entRow.stackedCodesCount,
+      maxStartupPlans: entRow.maxStartupPlans,
+      maxSeatsPerPlan: entRow.maxSeatsPerPlan,
+      monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
+      aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
+      whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
+      customApiKeyEncrypted: decryptedByok,
+      accessExpiresAt: entRow.accessExpiresAt,
+      isVaultReadonly: entRow.isVaultReadonly,
+    };
+
+    const creditCheck = canConsumeAiCredits(snapshot, 1);
+    if (!creditCheck.allowed) {
+      return {
+        canCallLiveGemini: false,
+        creditCheckBlocked: true,
+        blockReason: creditCheck.reason,
+        activeApiKey: null,
+        verifiedUserId,
+        usedByokKey: false,
+        currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
+        systemInstruction: defaultSystemInstruction,
+      };
+    }
+
+    // Per-user burst rate limiting (max 8 calls/minute, max 60 calls/hour)
+    const minuteLimit = checkRateLimit(`ai:min:${verifiedUserId}`, 8, 60_000);
+    const hourLimit = checkRateLimit(`ai:hr:${verifiedUserId}`, 60, 3_600_000);
+    if (!minuteLimit.allowed || !hourLimit.allowed) {
+      console.warn(
+        `[BMU AI Billing Firewall] Per-user burst rate limit reached for user ${verifiedUserId} on ${promptKey}. Using smart-synthesizer.`
+      );
+      return {
+        canCallLiveGemini: false,
+        creditCheckBlocked: false,
+        activeApiKey: null,
+        verifiedUserId,
+        usedByokKey: false,
+        currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
+        systemInstruction: defaultSystemInstruction,
+      };
+    }
+
+    const usedByokKey = Boolean(decryptedByok && decryptedByok.length > 15);
+    const activeApiKey = hasConfiguredGeminiKey(decryptedByok);
+
+    if (!activeApiKey) {
+      return {
+        canCallLiveGemini: false,
+        creditCheckBlocked: false,
+        activeApiKey: null,
+        verifiedUserId,
+        usedByokKey: false,
+        currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
+        systemInstruction: defaultSystemInstruction,
+      };
+    }
+
+    // Global Daily Platform Circuit Breaker (500 calls/24h on platform key)
+    if (!usedByokKey) {
+      const maxDailyCalls = getMaxDailyPlatformAiCalls();
+      const now = Date.now();
+      if (now - cachedDailyCountFetchedAt > 60_000) {
+        const [countRow] = await db
+          .select({
+            count: sql<number>`count(*)::int`,
+          })
+          .from(aiUsageLogs)
+          .where(
+            sql`${aiUsageLogs.usedByokKey} = false AND ${aiUsageLogs.modelUsed} != 'smart-synthesizer' AND ${aiUsageLogs.createdAt} >= NOW() - INTERVAL '24 hours'`
+          );
+        cachedDailyPlatformCallCount = Number(countRow?.count ?? 0);
+        cachedDailyCountFetchedAt = now;
+      }
+
+      if (cachedDailyPlatformCallCount >= maxDailyCalls) {
+        console.warn(
+          `[BMU AI Billing Firewall] Global daily platform ceiling (${cachedDailyPlatformCallCount}/${maxDailyCalls} calls in 24h) reached. Failing closed to smart-synthesizer.`
+        );
+        return {
+          canCallLiveGemini: false,
+          creditCheckBlocked: false,
+          activeApiKey: null,
+          verifiedUserId,
+          usedByokKey: false,
+          currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
+          systemInstruction: defaultSystemInstruction,
+        };
+      }
+    }
+
+    let systemInstruction = defaultSystemInstruction;
+    try {
+      const [promptRow] = await db
+        .select()
+        .from(aiPrompts)
+        .where(eq(aiPrompts.promptKey, promptKey))
+        .limit(1);
+      if (promptRow?.systemInstruction) {
+        systemInstruction = promptRow.systemInstruction;
+      }
+    } catch {
+      // Keep default system instruction
+    }
+
+    return {
+      canCallLiveGemini: true,
+      creditCheckBlocked: false,
+      activeApiKey,
+      verifiedUserId,
+      usedByokKey,
+      currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
+      systemInstruction,
+    };
+  } catch {
+    // CRITICAL BILLING PROTECTION: If PostgreSQL is unreachable, NEVER call live Gemini API.
+    return {
+      canCallLiveGemini: false,
+      creditCheckBlocked: false,
+      activeApiKey: null,
+      verifiedUserId: null,
+      usedByokKey: false,
+      currentCreditsUsed: 0,
+      systemInstruction: defaultSystemInstruction,
+    };
+  }
+}
+
+async function recordGeminiUsageAndIncrementCredits(params: {
+  verifiedUserId: string | null;
+  planId?: string;
+  promptKey: string;
+  modelUsed: string;
+  inputTokens: number;
+  outputTokens: number;
+  usedByokKey: boolean;
+  fallbackCreditsUsed: number;
+}): Promise<number> {
+  if (params.modelUsed !== 'smart-synthesizer' && !params.usedByokKey) {
+    cachedDailyPlatformCallCount += 1;
+  }
+
+  if (!params.verifiedUserId || !isValidUuid(params.verifiedUserId)) {
+    return params.fallbackCreditsUsed;
+  }
+
+  let creditsUsedAfter = params.fallbackCreditsUsed + 1;
+  try {
+    const [updatedEnt] = await db
+      .update(userEntitlements)
+      .set({
+        aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(userEntitlements.userId, params.verifiedUserId))
+      .returning();
+
+    if (updatedEnt) {
+      creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
+    }
+
+    await db.insert(aiUsageLogs).values({
+      userId: params.verifiedUserId,
+      planId: isValidUuid(params.planId) ? params.planId : null,
+      promptKey: params.promptKey,
+      modelUsed: params.modelUsed,
+      inputTokens: params.inputTokens,
+      outputTokens: params.outputTokens,
+      usedByokKey: params.usedByokKey,
+    });
+  } catch {
+    // Ignore logging error in offline fallback
+  }
+
+  return creditsUsedAfter;
+}
+
+function tidyFounderSentence(rawText: string | undefined, fallbackText: string): string {
+  const cleaned = (rawText || '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return fallbackText;
+  // Capitalize the first letter of each sentence and ensure ending punctuation
+  const capitalized = cleaned.replace(/(^\s*[a-z]|[.!?]\s+[a-z])/g, (match) =>
+    match.toUpperCase()
+  );
+  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
 }
 
 /**
@@ -171,7 +487,8 @@ function buildSmartFallbackSynthesis(params: {
 
 /**
  * Central AI Router (`src/lib/ai/router.ts`) required by GEMINI.md Rule 2.
- * Checks `user_entitlements.ai_credits_used_this_month`, calls Gemini 2.5 Flash (or smart synthesizer fallback),
+ * Verifies authenticated server session, checks `user_entitlements.ai_credits_used_this_month` and
+ * the 500/day platform circuit breaker, calls Gemini 2.5 Flash (or smart synthesizer fallback),
  * and logs token usage to `ai_usage_logs`.
  */
 export async function synthesizeModuleAConceptCanvasViaRouter(params: {
@@ -190,88 +507,36 @@ export async function synthesizeModuleAConceptCanvasViaRouter(params: {
   const countryPack = getCountryRulePack(params.hqCountryCode);
   const grants = getGrantsForCountry(params.hqCountryCode);
 
-  let customByokKey: string | null = null;
-  let creditsUsedAfter = 1;
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_A_CONCEPT_CANVAS',
+    DEFAULT_SYSTEM_PROMPT
+  );
 
-  // 1. Check Entitlement & Credit Guardrail in PostgreSQL if userId is a valid UUID
-  const isUuid =
-    params.userId &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      params.userId
-    );
-
-  if (isUuid && params.userId) {
-    try {
-      const [entRow] = await db
-        .select()
-        .from(userEntitlements)
-        .where(eq(userEntitlements.userId, params.userId))
-        .limit(1);
-
-      if (entRow) {
-        const snapshot: EntitlementSnapshot = {
-          userId: entRow.userId,
-          planType: entRow.planType,
-          stackedCodesCount: entRow.stackedCodesCount,
-          maxStartupPlans: entRow.maxStartupPlans,
-          maxSeatsPerPlan: entRow.maxSeatsPerPlan,
-          monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
-          aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
-          whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
-          customApiKeyEncrypted: entRow.customApiKeyEncrypted,
-          accessExpiresAt: entRow.accessExpiresAt,
-          isVaultReadonly: entRow.isVaultReadonly,
-        };
-
-        const creditCheck = canConsumeAiCredits(snapshot, 1);
-        if (!creditCheck.allowed) {
-          const fallback = buildSmartFallbackSynthesis(params);
-          return {
-            allowed: false,
-            reason: creditCheck.reason,
-            canvas: fallback.canvas,
-            thingsToConsider: fallback.thingsToConsider,
-            creditsUsedAfter: entRow.aiCreditsUsedThisMonth,
-            engineMode: 'smart-synthesizer',
-          };
-        }
-
-        customByokKey = entRow.customApiKeyEncrypted;
-      }
-    } catch {
-      // Continue if DB check fails in offline preview
-    }
+  if (authCtx.creditCheckBlocked) {
+    const fallback = buildSmartFallbackSynthesis(params);
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      canvas: fallback.canvas,
+      thingsToConsider: fallback.thingsToConsider,
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
   }
 
-  // 2. Check if Gemini API Key is configured
-  const activeApiKey = hasConfiguredGeminiKey(customByokKey);
   let canvasResult: ConceptCanvasBlocks | null = null;
   let blindSpotsResult: BlindSpotItem[] | null = null;
   let engineMode: 'gemini-2.5-flash' | 'smart-synthesizer' = 'smart-synthesizer';
   let inputTokensCount = 240;
   let outputTokensCount = 380;
 
-  if (activeApiKey) {
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      let systemInstruction = DEFAULT_SYSTEM_PROMPT;
-      try {
-        const [promptRow] = await db
-          .select()
-          .from(aiPrompts)
-          .where(eq(aiPrompts.promptKey, 'MOD_A_CONCEPT_CANVAS'))
-          .limit(1);
-        if (promptRow?.systemInstruction) {
-          systemInstruction = promptRow.systemInstruction;
-        }
-      } catch {
-        // Use default prompt
-      }
-
-      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
       const draft = params.draftCanvas || {};
       const userPrompt = `
-Founder Startup Title: ${params.planTitle}
-Industry Category: ${params.industryCategory}
+Founder Startup Title: ${sanitizePromptInput(params.planTitle, 200)}
+Industry Category: ${sanitizePromptInput(params.industryCategory, 120)}
 Home Country & Currency: ${countryPack.countryName} (${countryPack.defaultCurrency})
 Indirect Tax: ${countryPack.taxName} (${countryPack.standardTaxRatePercent}%)
 Export Ambition: ${params.exportPotential}
@@ -279,33 +544,33 @@ Matched Local Grants: ${grants.map((g) => `${g.grantName} (${g.maxAmountFormatte
 
 Founder's Raw Idea (Step 1):
 """
-${params.brainDumpText}
+${sanitizePromptInput(params.brainDumpText, 3000)}
 """
 
 Founder's Draft Notes in Step 2 (Tidy up their grammar and clarity while keeping their own meaning and voice; if a field is empty, helpfully suggest a simple starting note based on their raw idea):
-- 1. Core Problem: ${draft.coreProblem || '(not filled in yet)'}
-- 2. Target Customer: ${draft.targetCustomer || '(not filled in yet)'}
-- 3. Your Solution: ${draft.proposedSolution || '(not filled in yet)'}
-- 4. Why You Win: ${draft.unfairAdvantage || '(not filled in yet)'}
-- 5. Revenue & Grant Fit: ${draft.revenueAndGrantFit || '(not filled in yet)'}
+- 1. Core Problem: ${sanitizePromptInput(draft.coreProblem, 800) || '(not filled in yet)'}
+- 2. Target Customer: ${sanitizePromptInput(draft.targetCustomer, 800) || '(not filled in yet)'}
+- 3. Your Solution: ${sanitizePromptInput(draft.proposedSolution, 800) || '(not filled in yet)'}
+- 4. Why You Win: ${sanitizePromptInput(draft.unfairAdvantage, 800) || '(not filled in yet)'}
+- 5. Revenue & Grant Fit: ${sanitizePromptInput(draft.revenueAndGrantFit, 800) || '(not filled in yet)'}
 
 Founder's Motivation (Step 3):
 - Primary Motivation: ${params.founderMotivation?.primaryMotivation || 'LEAVE_JOB'}
 - Weekly Hours Available: ${params.founderMotivation?.weeklyHoursAvailable || '15_TO_25_HRS'}
-- 12-Month Success Vision: ${params.founderMotivation?.twelveMonthSuccessVision || '(not filled in yet)'}
+- 12-Month Success Vision: ${sanitizePromptInput(params.founderMotivation?.twelveMonthSuccessVision, 600) || '(not filled in yet)'}
 
 Founder's Team & Starting Budget (Step 4):
 - Team Structure: ${params.teamAndBudget?.teamStructureType || 'SOLO_FOUNDER'}
 - In-House Skill Coverage to Build V1: ${params.teamAndBudget?.skillCoverage || 'BUILD_IN_HOUSE'}
 - Starting Capital to Invest (${countryPack.defaultCurrency}): ${params.teamAndBudget?.startingBudgetBracket || '1K_TO_5K'}
-- Team & Funding Notes: ${params.teamAndBudget?.teamAndFundingNotes || '(not filled in yet)'}
+- Team & Funding Notes: ${sanitizePromptInput(params.teamAndBudget?.teamAndFundingNotes, 600) || '(not filled in yet)'}
 
 Founder Fit, Dealbreakers & Reality Check (Step 5):
 - Industry Connection (Monday Morning Test): ${params.founderRealityCheck?.industryConnection || 'WARM_CONNECTIONS'}
 - Personal Income Urgency: ${params.founderRealityCheck?.personalIncomeUrgency || 'MEDIUM_6_TO_12M'}
 - Lifestyle Dealbreakers (Anti-Goals): ${params.founderRealityCheck?.dealbreakers?.join(', ') || 'None selected'}
 - Growth vs Control Tradeoff: ${params.founderRealityCheck?.growthTradeoff || 'BOOTSTRAP_100_CONTROL'}
-- #1 Secret Worry: ${params.founderRealityCheck?.biggestWorryPreset || 'WILL_THEY_PAY'} (${params.founderRealityCheck?.biggestWorryNotes || 'no extra notes'})
+- #1 Secret Worry: ${params.founderRealityCheck?.biggestWorryPreset || 'WILL_THEY_PAY'} (${sanitizePromptInput(params.founderRealityCheck?.biggestWorryNotes, 600) || 'no extra notes'})
 
 Return STRICT JSON matching this exact shape (no markdown fences):
 {
@@ -337,9 +602,10 @@ Return STRICT JSON matching this exact shape (no markdown fences):
         model: 'gemini-2.5-flash',
         contents: userPrompt,
         config: {
-          systemInstruction,
+          systemInstruction: authCtx.systemInstruction,
           responseMimeType: 'application/json',
           temperature: 0.4,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
       });
 
@@ -410,41 +676,16 @@ Return STRICT JSON matching this exact shape (no markdown fences):
     blindSpotsResult = fallback.thingsToConsider;
   }
 
-  // 3. Log AI usage and increment credit counter in PostgreSQL if userId is a valid UUID
-  if (isUuid && params.userId) {
-    try {
-      const [updatedEnt] = await db
-        .update(userEntitlements)
-        .set({
-          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(userEntitlements.userId, params.userId))
-        .returning();
-
-      if (updatedEnt) {
-        creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
-      }
-
-      const isPlanUuid =
-        params.planId &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          params.planId
-        );
-
-      await db.insert(aiUsageLogs).values({
-        userId: params.userId,
-        planId: isPlanUuid ? params.planId : null,
-        promptKey: 'MOD_A_CONCEPT_CANVAS',
-        modelUsed: engineMode,
-        inputTokens: inputTokensCount,
-        outputTokens: outputTokensCount,
-        usedByokKey: Boolean(customByokKey),
-      });
-    } catch {
-      // Ignore logging error in offline fallback
-    }
-  }
+  const creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+    verifiedUserId: authCtx.verifiedUserId,
+    planId: params.planId,
+    promptKey: 'MOD_A_CONCEPT_CANVAS',
+    modelUsed: engineMode,
+    inputTokens: inputTokensCount,
+    outputTokens: outputTokensCount,
+    usedByokKey: authCtx.usedByokKey,
+    fallbackCreditsUsed: authCtx.currentCreditsUsed,
+  });
 
   return {
     allowed: true,
@@ -664,68 +905,29 @@ export async function scoutModuleBCompetitorsViaRouter(params: {
   buyerTypes?: BuyerModelType[];
 }): Promise<ModuleBMarketScoutResult> {
   const countryPack = getCountryRulePack(params.hqCountryCode);
-  let customByokKey: string | null = null;
-  let creditsUsedAfter = 1;
 
-  const isUuid =
-    params.userId &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      params.userId
-    );
-
-  if (isUuid && params.userId) {
-    try {
-      const [entRow] = await db
-        .select()
-        .from(userEntitlements)
-        .where(eq(userEntitlements.userId, params.userId))
-        .limit(1);
-
-      if (entRow) {
-        const snapshot: EntitlementSnapshot = {
-          userId: entRow.userId,
-          planType: entRow.planType,
-          stackedCodesCount: entRow.stackedCodesCount,
-          maxStartupPlans: entRow.maxStartupPlans,
-          maxSeatsPerPlan: entRow.maxSeatsPerPlan,
-          monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
-          aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
-          whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
-          customApiKeyEncrypted: entRow.customApiKeyEncrypted,
-          accessExpiresAt: entRow.accessExpiresAt,
-          isVaultReadonly: entRow.isVaultReadonly,
-        };
-
-        const creditCheck = canConsumeAiCredits(snapshot, 1);
-        if (!creditCheck.allowed) {
-          const fallback = buildSmartFallbackCompetitors(params);
-          return {
-            allowed: false,
-            reason: creditCheck.reason,
-            competitors: fallback.competitors,
-            suggestedWhySwitchSentence: fallback.suggestedWhySwitchSentence,
-            creditsUsedAfter: entRow.aiCreditsUsedThisMonth,
-            engineMode: 'smart-synthesizer',
-          };
-        }
-
-        customByokKey = entRow.customApiKeyEncrypted;
-      }
-    } catch {
-      // Continue if DB check fails in offline preview
-    }
+  const authCtx = await authorizeAndPrepareGeminiCall('MOD_B_MARKET_SCOUT');
+  if (authCtx.creditCheckBlocked) {
+    const fallback = buildSmartFallbackCompetitors(params);
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      competitors: fallback.competitors,
+      suggestedWhySwitchSentence: fallback.suggestedWhySwitchSentence,
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
   }
 
-  const activeApiKey = hasConfiguredGeminiKey(customByokKey);
   let competitorsResult: CompetitorEntry[] | null = null;
   let suggestedEdgeSentence: string | undefined;
   let engineMode: 'gemini-2.5-flash' | 'smart-synthesizer' = 'smart-synthesizer';
   let inputTokensCount = 210;
   let outputTokensCount = 340;
 
-  if (activeApiKey) {
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
       const marketsText =
         params.targetMarketsArray.length > 0
           ? params.targetMarketsArray.join(', ')
@@ -736,12 +938,12 @@ You are the "Supportive Co-Founder & Market Scout" inside Build My Unicorn 2.0.
 Identify 3 realistic competitors or alternatives that target customers in [${marketsText}] currently use instead of this founder's startup.
 Use plain, everyday English (zero corporate jargon). Format all prices in ${countryPack.defaultCurrency}.
 
-Startup Name: ${params.planTitle}
-Industry Category: ${params.industryCategory}
+Startup Name: ${sanitizePromptInput(params.planTitle, 200)}
+Industry Category: ${sanitizePromptInput(params.industryCategory, 120)}
 Customer Models: ${params.buyerTypes?.join(', ') || 'Not specified'}
-Target Customer Description: ${params.targetCustomerDescription || '(not specified yet)'}
-Core Problem: ${params.coreProblem || params.brainDumpText || '(not specified yet)'}
-Proposed Solution: ${params.proposedSolution || '(not specified yet)'}
+Target Customer Description: ${sanitizePromptInput(params.targetCustomerDescription, 1000) || '(not specified yet)'}
+Core Problem: ${sanitizePromptInput(params.coreProblem || params.brainDumpText, 2000) || '(not specified yet)'}
+Proposed Solution: ${sanitizePromptInput(params.proposedSolution, 1000) || '(not specified yet)'}
 
 Return STRICT JSON matching this exact structure (no markdown fences):
 {
@@ -768,7 +970,7 @@ Return STRICT JSON matching this exact structure (no markdown fences):
       "whereTheyFallShort": "1 short sentence on where they fall short."
     }
   ],
-  "suggestedWhySwitchSentence": "Customers switch to ${params.planTitle} because [1 clear, plain-English sentence explaining the practical advantage]."
+  "suggestedWhySwitchSentence": "Customers switch to ${sanitizePromptInput(params.planTitle, 120)} because [1 clear, plain-English sentence explaining the practical advantage]."
 }`.trim();
 
       const response = await ai.models.generateContent({
@@ -777,6 +979,7 @@ Return STRICT JSON matching this exact structure (no markdown fences):
         config: {
           responseMimeType: 'application/json',
           temperature: 0.4,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
       });
 
@@ -826,40 +1029,16 @@ Return STRICT JSON matching this exact structure (no markdown fences):
     suggestedEdgeSentence = fallback.suggestedWhySwitchSentence;
   }
 
-  if (isUuid && params.userId) {
-    try {
-      const [updatedEnt] = await db
-        .update(userEntitlements)
-        .set({
-          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(userEntitlements.userId, params.userId))
-        .returning();
-
-      if (updatedEnt) {
-        creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
-      }
-
-      const isPlanUuid =
-        params.planId &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          params.planId
-        );
-
-      await db.insert(aiUsageLogs).values({
-        userId: params.userId,
-        planId: isPlanUuid ? params.planId : null,
-        promptKey: 'MOD_B_MARKET_SCOUT',
-        modelUsed: engineMode,
-        inputTokens: inputTokensCount,
-        outputTokens: outputTokensCount,
-        usedByokKey: Boolean(customByokKey),
-      });
-    } catch {
-      // Ignore logging error in offline fallback
-    }
-  }
+  const creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+    verifiedUserId: authCtx.verifiedUserId,
+    planId: params.planId,
+    promptKey: 'MOD_B_MARKET_SCOUT',
+    modelUsed: engineMode,
+    inputTokens: inputTokensCount,
+    outputTokens: outputTokensCount,
+    usedByokKey: authCtx.usedByokKey,
+    fallbackCreditsUsed: authCtx.currentCreditsUsed,
+  });
 
   return {
     allowed: true,
@@ -1011,60 +1190,21 @@ export async function estimateModuleBMarketSizingViaRouter(params: {
   buyerTypes?: BuyerModelType[];
 }): Promise<ModuleBMarketSizingEstimateResult> {
   const countryPack = getCountryRulePack(params.hqCountryCode);
-  let customByokKey: string | null = null;
-  let creditsUsedAfter = 1;
 
-  const isUuid =
-    params.userId &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      params.userId
-    );
-
-  if (isUuid && params.userId) {
-    try {
-      const [entRow] = await db
-        .select()
-        .from(userEntitlements)
-        .where(eq(userEntitlements.userId, params.userId))
-        .limit(1);
-
-      if (entRow) {
-        const snapshot: EntitlementSnapshot = {
-          userId: entRow.userId,
-          planType: entRow.planType,
-          stackedCodesCount: entRow.stackedCodesCount,
-          maxStartupPlans: entRow.maxStartupPlans,
-          maxSeatsPerPlan: entRow.maxSeatsPerPlan,
-          monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
-          aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
-          whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
-          customApiKeyEncrypted: entRow.customApiKeyEncrypted,
-          accessExpiresAt: entRow.accessExpiresAt,
-          isVaultReadonly: entRow.isVaultReadonly,
-        };
-
-        const creditCheck = canConsumeAiCredits(snapshot, 1);
-        if (!creditCheck.allowed) {
-          const fallback = buildSmartFallbackMarketSizing(params);
-          return {
-            allowed: false,
-            reason: creditCheck.reason,
-            segments: fallback.segments,
-            widerMarketMultiplier: fallback.widerMarketMultiplier,
-            sourceAndAssumptionNotes: fallback.sourceAndAssumptionNotes,
-            creditsUsedAfter: entRow.aiCreditsUsedThisMonth,
-            engineMode: 'smart-synthesizer',
-          };
-        }
-
-        customByokKey = entRow.customApiKeyEncrypted;
-      }
-    } catch {
-      // Continue if DB check fails in offline preview
-    }
+  const authCtx = await authorizeAndPrepareGeminiCall('MOD_B_MARKET_SIZING');
+  if (authCtx.creditCheckBlocked) {
+    const fallback = buildSmartFallbackMarketSizing(params);
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      segments: fallback.segments,
+      widerMarketMultiplier: fallback.widerMarketMultiplier,
+      sourceAndAssumptionNotes: fallback.sourceAndAssumptionNotes,
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
   }
 
-  const activeApiKey = hasConfiguredGeminiKey(customByokKey);
   let segmentsResult: MarketSizingSegmentEntry[] | null = null;
   let multiplierResult: WiderMarketScalePreset = '5X';
   let notesResult = '';
@@ -1072,9 +1212,9 @@ export async function estimateModuleBMarketSizingViaRouter(params: {
   let inputTokensCount = 210;
   let outputTokensCount = 310;
 
-  if (activeApiKey) {
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
       const marketsText =
         params.targetMarketsArray.length > 0
           ? params.targetMarketsArray.join(', ')
@@ -1086,11 +1226,11 @@ You are the "Supportive Co-Founder & Plain-English Market Sizing Coach" inside B
 Estimate realistic bottom-up customer counts and annual/monthly pricing in ${countryPack.defaultCurrency} for this startup in [${marketsText}].
 ${shouldUseTwoGroups ? 'Because the founder selected multiple customer models, return 2 distinct customer groups (for example: Group 1 for individual users/customers, and Group 2 for business/institutional/accelerator customers).' : 'Return 1 or 2 clear customer groups.'}
 
-Startup Name: ${params.planTitle}
-Industry Category: ${params.industryCategory}
+Startup Name: ${sanitizePromptInput(params.planTitle, 200)}
+Industry Category: ${sanitizePromptInput(params.industryCategory, 120)}
 Customer Models Selected: ${params.buyerTypes?.join(', ') || 'Not specified'}
-Target Customer Description: ${params.targetCustomerDescription || '(not specified yet)'}
-Raw Idea Notes: ${params.brainDumpText || '(not specified yet)'}
+Target Customer Description: ${sanitizePromptInput(params.targetCustomerDescription, 1000) || '(not specified yet)'}
+Raw Idea Notes: ${sanitizePromptInput(params.brainDumpText, 2000) || '(not specified yet)'}
 
 Return STRICT JSON matching this exact structure (numbers as plain digit strings without commas or currency symbols):
 {
@@ -1113,6 +1253,7 @@ Return STRICT JSON matching this exact structure (numbers as plain digit strings
         config: {
           responseMimeType: 'application/json',
           temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
       });
 
@@ -1176,40 +1317,16 @@ Return STRICT JSON matching this exact structure (numbers as plain digit strings
     notesResult = fallback.sourceAndAssumptionNotes;
   }
 
-  if (isUuid && params.userId) {
-    try {
-      const [updatedEnt] = await db
-        .update(userEntitlements)
-        .set({
-          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(userEntitlements.userId, params.userId))
-        .returning();
-
-      if (updatedEnt) {
-        creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
-      }
-
-      const isPlanUuid =
-        params.planId &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          params.planId
-        );
-
-      await db.insert(aiUsageLogs).values({
-        userId: params.userId,
-        planId: isPlanUuid ? params.planId : null,
-        promptKey: 'MOD_B_MARKET_SIZING',
-        modelUsed: engineMode,
-        inputTokens: inputTokensCount,
-        outputTokens: outputTokensCount,
-        usedByokKey: Boolean(customByokKey),
-      });
-    } catch {
-      // Ignore logging error in offline fallback
-    }
-  }
+  const creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+    verifiedUserId: authCtx.verifiedUserId,
+    planId: params.planId,
+    promptKey: 'MOD_B_MARKET_SIZING',
+    modelUsed: engineMode,
+    inputTokens: inputTokensCount,
+    outputTokens: outputTokensCount,
+    usedByokKey: authCtx.usedByokKey,
+    fallbackCreditsUsed: authCtx.currentCreditsUsed,
+  });
 
   return {
     allowed: true,
@@ -1329,58 +1446,18 @@ export async function generateModuleBCompetitiveEdgeViaRouter(params: {
   targetMarketsArray: string[];
   competitorNames: string[];
 }): Promise<ModuleBCompetitiveEdgeEstimateResult> {
-  const isUuid =
-    params.userId &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      params.userId
-    );
-
-  let customByokKey: string | null = null;
-  let creditsUsedAfter = 0;
-
-  if (isUuid && params.userId) {
-    try {
-      const [ent] = await db
-        .select()
-        .from(userEntitlements)
-        .where(eq(userEntitlements.userId, params.userId))
-        .limit(1);
-
-      if (ent) {
-        const snapshot: EntitlementSnapshot = {
-          userId: ent.userId,
-          planType: ent.planType,
-          stackedCodesCount: ent.stackedCodesCount,
-          maxStartupPlans: ent.maxStartupPlans,
-          maxSeatsPerPlan: ent.maxSeatsPerPlan,
-          monthlyAiCreditsLimit: ent.monthlyAiCreditsLimit,
-          aiCreditsUsedThisMonth: ent.aiCreditsUsedThisMonth,
-          whiteLabelExportEnabled: ent.whiteLabelExportEnabled,
-          customApiKeyEncrypted: ent.customApiKeyEncrypted,
-          accessExpiresAt: ent.accessExpiresAt,
-          isVaultReadonly: ent.isVaultReadonly,
-        };
-
-        const check = canConsumeAiCredits(snapshot, 1);
-        if (!check.allowed) {
-          const fallback = buildSmartFallbackCompetitiveEdge(params);
-          return {
-            allowed: false,
-            reason: check.reason,
-            ...fallback,
-            creditsUsedAfter: ent.aiCreditsUsedThisMonth,
-            engineMode: 'smart-synthesizer',
-          };
-        }
-        customByokKey = ent.customApiKeyEncrypted;
-        creditsUsedAfter = ent.aiCreditsUsedThisMonth;
-      }
-    } catch {
-      // Offline / local fallback
-    }
+  const authCtx = await authorizeAndPrepareGeminiCall('MOD_B_COMPETITIVE_EDGE');
+  if (authCtx.creditCheckBlocked) {
+    const fallback = buildSmartFallbackCompetitiveEdge(params);
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      ...fallback,
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
   }
 
-  const apiKey = customByokKey || process.env.GEMINI_API_KEY;
   let engineMode: 'gemini-2.5-flash' | 'smart-synthesizer' =
     'smart-synthesizer';
   let resultPayload: ReturnType<typeof buildSmartFallbackCompetitiveEdge> | null =
@@ -1388,9 +1465,9 @@ export async function generateModuleBCompetitiveEdgeViaRouter(params: {
   let inputTokensCount = 260;
   let outputTokensCount = 320;
 
-  if (apiKey) {
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
       const countryPack = getCountryRulePack(params.hqCountryCode);
       const marketsText =
         params.targetMarketsArray.length > 0
@@ -1401,19 +1478,19 @@ export async function generateModuleBCompetitiveEdgeViaRouter(params: {
         'You are the Build My Unicorn (BMU) 2.0 Competitive Strategy Co-Founder. Generate a realistic, plain-English competitive comparison matrix, switching friction plan, and 2-sentence competitive edge summary. Never use startup jargon like Beachhead or TAM/SAM/SOM. Always return valid JSON.';
 
       const userPrompt = `
-Startup Title: ${params.planTitle}
-Industry Category: ${params.industryCategory}
+Startup Title: ${sanitizePromptInput(params.planTitle, 200)}
+Industry Category: ${sanitizePromptInput(params.industryCategory, 120)}
 HQ Country: ${countryPack.countryName} (${params.hqCountryCode})
 Target Selling Markets: ${marketsText}
-Target Customers: ${params.targetCustomerDescription || 'Not specified yet'}
-Known Competitors: ${params.competitorNames.join(', ') || 'Generic alternatives & manual workarounds'}
-Founder Idea Context: ${params.brainDumpText || 'Not specified'}
+Target Customers: ${sanitizePromptInput(params.targetCustomerDescription, 1000) || 'Not specified yet'}
+Known Competitors: ${sanitizePromptInput(params.competitorNames.join(', '), 600) || 'Generic alternatives & manual workarounds'}
+Founder Idea Context: ${sanitizePromptInput(params.brainDumpText, 2000) || 'Not specified'}
 
 Return JSON with this exact structure:
 {
   "comparisonRows": [
     {
-      "label": "${params.planTitle} (You)",
+      "label": "${sanitizePromptInput(params.planTitle, 120)} (You)",
       "isYourStartup": true,
       "priceValueScore": "LOW" | "MEDIUM" | "HIGH",
       "speedTimeSavedScore": "LOW" | "MEDIUM" | "HIGH",
@@ -1436,6 +1513,7 @@ Include 3 to 4 rows in comparisonRows: Row 1 MUST be the founder's startup ("isY
           systemInstruction,
           responseMimeType: 'application/json',
           temperature: 0.35,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
       });
 
@@ -1507,40 +1585,16 @@ Include 3 to 4 rows in comparisonRows: Row 1 MUST be the founder's startup ("isY
     resultPayload = buildSmartFallbackCompetitiveEdge(params);
   }
 
-  if (isUuid && params.userId) {
-    try {
-      const [updatedEnt] = await db
-        .update(userEntitlements)
-        .set({
-          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(userEntitlements.userId, params.userId))
-        .returning();
-
-      if (updatedEnt) {
-        creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
-      }
-
-      const isPlanUuid =
-        params.planId &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          params.planId
-        );
-
-      await db.insert(aiUsageLogs).values({
-        userId: params.userId,
-        planId: isPlanUuid ? params.planId : null,
-        promptKey: 'MOD_B_COMPETITIVE_EDGE',
-        modelUsed: engineMode,
-        inputTokens: inputTokensCount,
-        outputTokens: outputTokensCount,
-        usedByokKey: Boolean(customByokKey),
-      });
-    } catch {
-      // Ignore logging error in offline fallback
-    }
-  }
+  const creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+    verifiedUserId: authCtx.verifiedUserId,
+    planId: params.planId,
+    promptKey: 'MOD_B_COMPETITIVE_EDGE',
+    modelUsed: engineMode,
+    inputTokens: inputTokensCount,
+    outputTokens: outputTokensCount,
+    usedByokKey: authCtx.usedByokKey,
+    fallbackCreditsUsed: authCtx.currentCreditsUsed,
+  });
 
   return {
     allowed: true,
@@ -2443,56 +2497,19 @@ export async function generateModuleCSurveyViaRouter(params: {
 }): Promise<ModuleCSurveyGenerationResult> {
   const countryPack = getCountryRulePack(params.hqCountryCode);
   const ctx = extractModuleABSurveyContext(params);
-  let customByokKey: string | null = null;
-  let creditsUsedAfter = 1;
 
-  const isUuid =
-    params.userId &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      params.userId
-    );
-
-  if (isUuid && params.userId) {
-    try {
-      const [entRow] = await db
-        .select()
-        .from(userEntitlements)
-        .where(eq(userEntitlements.userId, params.userId))
-        .limit(1);
-
-      if (entRow) {
-        const snapshot: EntitlementSnapshot = {
-          userId: entRow.userId,
-          planType: entRow.planType,
-          stackedCodesCount: entRow.stackedCodesCount,
-          maxStartupPlans: entRow.maxStartupPlans,
-          maxSeatsPerPlan: entRow.maxSeatsPerPlan,
-          monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
-          aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
-          whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
-          customApiKeyEncrypted: entRow.customApiKeyEncrypted,
-          accessExpiresAt: entRow.accessExpiresAt,
-          isVaultReadonly: entRow.isVaultReadonly,
-        };
-        const check = canConsumeAiCredits(snapshot, 1);
-        if (!check.allowed) {
-          const fallback = buildSmartFallbackSurvey(params);
-          return {
-            allowed: false,
-            reason: check.reason,
-            ...fallback,
-            engineMode: 'smart-synthesizer',
-          };
-        }
-        customByokKey = entRow.customApiKeyEncrypted || null;
-        creditsUsedAfter = entRow.aiCreditsUsedThisMonth + 1;
-      }
-    } catch {
-      // Offline fallback
-    }
+  const authCtx = await authorizeAndPrepareGeminiCall('MOD_C_GENERATE_SURVEY');
+  if (authCtx.creditCheckBlocked) {
+    const fallback = buildSmartFallbackSurvey(params);
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      ...fallback,
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
   }
 
-  const activeApiKey = hasConfiguredGeminiKey(customByokKey);
   let resultPayload: {
     title: string;
     introDescription: string;
@@ -2503,13 +2520,13 @@ export async function generateModuleCSurveyViaRouter(params: {
   let inputTokensCount = 460;
   let outputTokensCount = 580;
 
-  if (activeApiKey) {
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
       const focusDescriptions = params.focusAreas
         .map((fa) =>
           fa === 'OTHER' && params.otherFocusAreaText?.trim()
-            ? `Custom Focus: ${params.otherFocusAreaText.trim()}`
+            ? `Custom Focus: ${sanitizePromptInput(params.otherFocusAreaText, 300)}`
             : FOCUS_AREA_LABELS[fa]
         )
         .join('; ');
@@ -2526,14 +2543,14 @@ export async function generateModuleCSurveyViaRouter(params: {
 Generate a smart, natural, conversational customer validation survey that understands the founder's startup concept and shapes questions from the RESPONDENT'S real-life perspective:
 
 === MODULE A: IDEATION & CONCEPT CANVAS ===
-- Startup Title: ${params.planTitle}
-- Industry: ${params.industryCategory} (${countryPack.countryName}, ${countryPack.defaultCurrency})
-- Raw Founder Idea Notes: ${params.brainDumpText || 'Not specified'}
-- Core Problem to Validate (Founder's Notes): ${params.coreProblem || ctx.problemSummary}
+- Startup Title: ${sanitizePromptInput(params.planTitle, 200)}
+- Industry: ${sanitizePromptInput(params.industryCategory, 120)} (${countryPack.countryName}, ${countryPack.defaultCurrency})
+- Raw Founder Idea Notes: ${sanitizePromptInput(params.brainDumpText, 2000) || 'Not specified'}
+- Core Problem to Validate (Founder's Notes): ${sanitizePromptInput(params.coreProblem || ctx.problemSummary, 1000)}
 - Translated Customer Workflow Activity: ${ctx.customerWorkflowGerund}
-- Target Customer (Module A): ${params.targetCustomer || ctx.shortPersona}
-- Proposed Solution (Context only — DO NOT pitch in questions): ${params.proposedSolution || 'Not specified'}
-- Unfair Advantage: ${params.unfairAdvantage || 'Not specified'}
+- Target Customer (Module A): ${sanitizePromptInput(params.targetCustomer || ctx.shortPersona, 800)}
+- Proposed Solution (Context only — DO NOT pitch in questions): ${sanitizePromptInput(params.proposedSolution, 800) || 'Not specified'}
+- Unfair Advantage: ${sanitizePromptInput(params.unfairAdvantage, 600) || 'Not specified'}
 
 === MODULE B: BEACHHEAD PERSONA, COMPETITORS, PRICING & WEDGE ===
 - Specific Beachhead Persona (Module B Step 1): ${ctx.shortPersona}
@@ -2547,7 +2564,7 @@ ${competitorContextLines || '  • Manual spreadsheets / generic tools'}
 
 === FOUNDER'S SURVEY FOCUS SELECTION ===
 - Selected Focus Areas: ${focusDescriptions || 'Problem & Pain Intensity; Current Workarounds'}
-- Founder's Specific Angle / Custom Request: ${params.customAiFocusPrompt || 'None'}
+- Founder's Specific Angle / Custom Request: ${sanitizePromptInput(params.customAiFocusPrompt, 600) || 'None'}
 - Number of Questions to Generate: ${desiredCount}
 
 CRITICAL PERSPECTIVE & MOM TEST RULES:
@@ -2556,7 +2573,7 @@ CRITICAL PERSPECTIVE & MOM TEST RULES:
    - ✅ GOOD (Natural customer perspective): 'Thinking back over the past 30 days of working on your startup idea, which part of turning your concept into a real business has slowed you down the most?'
 2. Translate the founder's idea from "Founder Pitch Perspective" (what the founder wants to build/help with) into "Customer Workflow Perspective" (what ${ctx.shortPersona} actually experience when ${ctx.customerWorkflowGerund}).
 3. Shape every question and multiple-choice option around the real bottlenecks, tools (${ctx.competitorNames.join(', ')}), frustrations, triggers, and past spending (${ctx.lowBracket} to ${ctx.highBracket}) relevant to this specific idea.
-4. NEVER ask "Would you buy/use ${params.planTitle}?" or "Do you think our idea is good?". Ask ONLY about past behavior, current workarounds, real pain intensity, actual money already spent, and a specific "walk me through the last time" open-text story.
+4. NEVER ask "Would you buy/use ${sanitizePromptInput(params.planTitle, 120)}?" or "Do you think our idea is good?". Ask ONLY about past behavior, current workarounds, real pain intensity, actual money already spent, and a specific "walk me through the last time" open-text story.
 5. Use a balanced mix of "MULTIPLE_CHOICE", "MULTI_SELECT", "SCALE_1_5", and 1 final "OPEN_TEXT" question.
 
 Return strictly valid JSON matching this schema:
@@ -2582,9 +2599,10 @@ Return strictly valid JSON matching this schema:
         model: 'gemini-2.5-flash',
         contents: userPrompt,
         config: {
-          systemInstruction: DEFAULT_SYSTEM_PROMPT,
+          systemInstruction: authCtx.systemInstruction,
           responseMimeType: 'application/json',
           temperature: 0.35,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
       });
 
@@ -2677,35 +2695,16 @@ Return strictly valid JSON matching this schema:
     resultPayload = buildSmartFallbackSurvey(params);
   }
 
-  if (isUuid && params.userId) {
-    try {
-      await db
-        .update(userEntitlements)
-        .set({
-          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(userEntitlements.userId, params.userId));
-
-      const isPlanUuid =
-        params.planId &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          params.planId
-        );
-
-      await db.insert(aiUsageLogs).values({
-        userId: params.userId,
-        planId: isPlanUuid ? params.planId : null,
-        promptKey: 'MOD_C_GENERATE_SURVEY',
-        modelUsed: engineMode,
-        inputTokens: inputTokensCount,
-        outputTokens: outputTokensCount,
-        usedByokKey: Boolean(customByokKey),
-      });
-    } catch {
-      // Ignore logging error in offline fallback
-    }
-  }
+  const creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+    verifiedUserId: authCtx.verifiedUserId,
+    planId: params.planId,
+    promptKey: 'MOD_C_GENERATE_SURVEY',
+    modelUsed: engineMode,
+    inputTokens: inputTokensCount,
+    outputTokens: outputTokensCount,
+    usedByokKey: authCtx.usedByokKey,
+    fallbackCreditsUsed: authCtx.currentCreditsUsed,
+  });
 
   return {
     allowed: true,
@@ -2732,7 +2731,7 @@ export async function checkAndRewriteMomTestQuestionViaRouter(params: {
   questionType: SurveyQuestionType;
   currentOptions?: string[];
 }): Promise<MomTestCheckResult> {
-  const rawQ = params.questionText.trim();
+  const rawQ = sanitizePromptInput(params.questionText, 600);
   const lower = rawQ.toLowerCase();
   const ctx = extractModuleABSurveyContext({
     planTitle: params.planTitle,
@@ -2822,12 +2821,22 @@ export async function checkAndRewriteMomTestQuestionViaRouter(params: {
     };
   };
 
-  const activeApiKey = hasConfiguredGeminiKey(null);
-  if (activeApiKey) {
+  const authCtx = await authorizeAndPrepareGeminiCall('MOD_C_MOM_TEST_CHECK');
+  if (authCtx.creditCheckBlocked) {
+    const fallback = buildSmartMomTestCheck();
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      ...fallback,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
       const prompt = `Evaluate this customer survey question using Rob Fitzpatrick's "The Mom Test" and shape the rewrite naturally around the customer's real-life workflow (NEVER copy-paste raw founder notes in quotes):
-Startup: ${params.planTitle}
+Startup: ${sanitizePromptInput(params.planTitle, 200)}
 Target Persona (Module B Step 1): ${ctx.shortPersona}
 Customer Workflow Activity: ${ctx.customerWorkflowGerund}
 Buying Trigger (Module B Step 1): ${ctx.triggerPhrase || 'Not specified'}
@@ -2855,6 +2864,7 @@ Return JSON:
         config: {
           responseMimeType: 'application/json',
           temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
       });
       const text = response.text;
@@ -2866,6 +2876,16 @@ Return JSON:
           suggestedOptions?: string[];
         };
         if (parsed.momTestFeedback && parsed.momTestSuggestedRewrite) {
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_C_MOM_TEST_CHECK',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 210,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 180,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
           return {
             allowed: true,
             momTestPassed: Boolean(parsed.momTestPassed),
@@ -3199,32 +3219,45 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
     };
   };
 
-  const activeApiKey = hasConfiguredGeminiKey(null);
-  if (activeApiKey && (totalResponses > 0 || totalInterviews > 0)) {
+  const authCtx = await authorizeAndPrepareGeminiCall('MOD_C_ANALYZE_RESULTS');
+  if (authCtx.creditCheckBlocked) {
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      insights: buildSmartFallbackInsights(),
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  if (
+    authCtx.canCallLiveGemini &&
+    authCtx.activeApiKey &&
+    (totalResponses > 0 || totalInterviews > 0)
+  ) {
     try {
-      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
       const fallback = buildSmartFallbackInsights();
       const prompt = `Analyze these customer validation survey results and 1-on-1 customer interviews using Rob Fitzpatrick's "The Mom Test" (Signal vs. Polite Noise):
-Startup: ${params.planTitle}
-Survey: ${params.surveyTitle}
+Startup: ${sanitizePromptInput(params.planTitle, 200)}
+Survey: ${sanitizePromptInput(params.surveyTitle, 200)}
 Total Survey Responses: ${totalResponses}
 Waitlist Opt-Ins: ${waitlistLeads.length} (${waitlistConversionPct}%)
 1-on-1 Customer Interviews Logged: ${totalInterviews} (${strongSignalInterviews.length} Strong Signal, ${politeFluffInterviews.length} Polite Fluff)
 Interview Summaries: ${JSON.stringify(
         interviews.slice(0, 6).map((i) => ({
-          interviewee: i.intervieweeNameOrRole,
+          interviewee: sanitizePromptInput(i.intervieweeNameOrRole, 120),
           painScore: i.painScore1To5,
           signal: i.signalBadge,
           outcome: i.commitmentOutcome,
-          otherOutcome: i.otherCommitmentText,
-          workaroundAndSpend: i.workaroundAndSpend,
-          keyTakeaway: i.keyTakeaway,
-          verbatimQuote: i.verbatimQuote,
+          otherOutcome: sanitizePromptInput(i.otherCommitmentText, 160),
+          workaroundAndSpend: sanitizePromptInput(i.workaroundAndSpend, 300),
+          keyTakeaway: sanitizePromptInput(i.keyTakeaway, 300),
+          verbatimQuote: sanitizePromptInput(i.verbatimQuote, 300),
         }))
       )}
 Average 1-5 Scale Score: ${avgScale} / 5.0
 Top Option Tallies: ${JSON.stringify(optionTallies)}
-Sample Verbatim Quotes: ${JSON.stringify(openQuotes.slice(0, 8))}
+Sample Verbatim Quotes: ${JSON.stringify(openQuotes.slice(0, 8).map((q) => sanitizePromptInput(q, 300)))}
 
 Return JSON matching:
 {
@@ -3242,12 +3275,23 @@ Return JSON matching:
         config: {
           responseMimeType: 'application/json',
           temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
       });
       const text = response.text;
       if (text) {
         const parsed = JSON.parse(text) as Partial<SurveyAiInsightsSummary>;
         if (parsed.headlineTakeaway && Array.isArray(parsed.validatedPainPoints)) {
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_C_ANALYZE_RESULTS',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 320,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 280,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
           return {
             allowed: true,
             insights: {
@@ -3312,7 +3356,7 @@ export async function extractMomTestInterviewInsightsViaRouter(params: {
   intervieweeRoleOrCompany: string;
   rawNotes: string;
 }): Promise<ExtractMomTestInterviewOutput> {
-  const raw = params.rawNotes.trim();
+  const raw = sanitizePromptInput(params.rawNotes, 3000);
   const lower = raw.toLowerCase();
 
   const buildSmartFallbackExtraction = (): Omit<
@@ -3431,62 +3475,27 @@ export async function extractMomTestInterviewInsightsViaRouter(params: {
     };
   };
 
-  let customByokKey: string | null = null;
-  let creditsUsedAfter = 1;
-  const isUuid =
-    params.userId &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      params.userId
-    );
-
-  if (isUuid && params.userId) {
-    try {
-      const [entRow] = await db
-        .select()
-        .from(userEntitlements)
-        .where(eq(userEntitlements.userId, params.userId))
-        .limit(1);
-
-      if (entRow) {
-        const snapshot: EntitlementSnapshot = {
-          userId: entRow.userId,
-          planType: entRow.planType,
-          stackedCodesCount: entRow.stackedCodesCount,
-          maxStartupPlans: entRow.maxStartupPlans,
-          maxSeatsPerPlan: entRow.maxSeatsPerPlan,
-          monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
-          aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
-          whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
-          customApiKeyEncrypted: entRow.customApiKeyEncrypted,
-          accessExpiresAt: entRow.accessExpiresAt,
-          isVaultReadonly: entRow.isVaultReadonly,
-        };
-        const creditCheck = canConsumeAiCredits(snapshot, 1);
-        if (!creditCheck.allowed) {
-          return {
-            allowed: false,
-            reason: creditCheck.reason,
-            ...buildSmartFallbackExtraction(),
-            creditsUsedAfter: entRow.aiCreditsUsedThisMonth,
-            engineMode: 'smart-synthesizer',
-          };
-        }
-        customByokKey = entRow.customApiKeyEncrypted;
-      }
-    } catch {
-      // Offline preview fallback
-    }
+  const authCtx = await authorizeAndPrepareGeminiCall('MOD_C_INTERVIEW_EXTRACTOR');
+  if (authCtx.creditCheckBlocked) {
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      ...buildSmartFallbackExtraction(),
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
   }
 
-  const activeApiKey = hasConfiguredGeminiKey(customByokKey);
-  if (activeApiKey && raw.length > 10) {
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey && raw.length > 10) {
     try {
-      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
       const prompt = `You are a supportive co-founder and "The Mom Test" customer discovery coach.
 Extract structured Mom-Test signal from the founder's raw 1-on-1 customer interview notes.
 
-Startup: ${params.planTitle} (${params.industryCategory || 'Startup'})
-Interviewee: ${params.intervieweeName || 'Customer'} (${params.intervieweeRoleOrCompany || 'Target Persona'})
+Startup: ${sanitizePromptInput(params.planTitle, 200)} (${sanitizePromptInput(params.industryCategory, 120) || 'Startup'})
+Interviewee: ${sanitizePromptInput(params.intervieweeName, 120) || 'Customer'} (${sanitizePromptInput(params.intervieweeRoleOrCompany, 160) || 'Target Persona'})
 Founder's Raw Call Notes:
 """
 ${raw}
@@ -3515,6 +3524,7 @@ Return JSON:
         config: {
           responseMimeType: 'application/json',
           temperature: 0.25,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
       });
 
@@ -3523,37 +3533,16 @@ Return JSON:
         const parsed = JSON.parse(text) as Partial<ExtractMomTestInterviewOutput>;
         const fallback = buildSmartFallbackExtraction();
         if (parsed.keyTakeaway) {
-          if (isUuid && params.userId) {
-            try {
-              const [updatedEnt] = await db
-                .update(userEntitlements)
-                .set({
-                  aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
-                  updatedAt: new Date(),
-                })
-                .where(eq(userEntitlements.userId, params.userId))
-                .returning();
-              if (updatedEnt) {
-                creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
-              }
-              const isPlanUuid =
-                params.planId &&
-                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                  params.planId
-                );
-              await db.insert(aiUsageLogs).values({
-                userId: params.userId,
-                planId: isPlanUuid ? params.planId : null,
-                promptKey: 'MOD_C_INTERVIEW_EXTRACTOR',
-                modelUsed: 'gemini-2.5-flash',
-                inputTokens: response.usageMetadata?.promptTokenCount || 180,
-                outputTokens: response.usageMetadata?.candidatesTokenCount || 160,
-                usedByokKey: Boolean(customByokKey),
-              });
-            } catch {
-              // Ignore DB log error in offline mode
-            }
-          }
+          creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_C_INTERVIEW_EXTRACTOR',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 180,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 160,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
 
           return {
             allowed: true,

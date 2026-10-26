@@ -44,7 +44,7 @@ npm run db:seed
 
 ---
 
-## Step 4: Deploy Phase 1 to Google Cloud Run (`gcloud run deploy`)
+## Step 4: Deploy to Google Cloud Run (`gcloud run deploy`)
 
 ```powershell
 gcloud run deploy bmu-v2 `
@@ -53,5 +53,19 @@ gcloud run deploy bmu-v2 `
   --region=europe-west1 `
   --allow-unauthenticated `
   --add-cloudsql-instances="bmu-v3:europe-west1:bmu-postgres" `
-  --set-env-vars="NODE_ENV=production,BETTER_AUTH_SECRET=bmu-v3-prod-secret-2026,DATABASE_URL=postgresql://bmu_user:Clanmahonrd01!@localhost/bmu_prod?host=/cloudsql/bmu-v3:europe-west1:bmu-postgres"
+  --set-env-vars="NODE_ENV=production,MAX_DAILY_PLATFORM_AI_CALLS=500,BETTER_AUTH_SECRET=<YOUR-32-BYTE-RANDOM-SECRET>,SUPER_ADMIN_MASTER_PASSWORD=<YOUR-STRONG-ADMIN-PASSWORD>,GEMINI_API_KEY=<YOUR-GEMINI-API-KEY>,DATABASE_URL=postgresql://bmu_user:Clanmahonrd01!@localhost/bmu_prod?host=/cloudsql/bmu-v3:europe-west1:bmu-postgres"
 ```
+
+---
+
+## Step 5: Security & Billing Protection Checklist
+
+1. **AI Billing Circuit Breaker (`MAX_DAILY_PLATFORM_AI_CALLS=500`):**
+   * Enforced server-side in `src/lib/ai/router.ts`. Caps total paid platform Gemini API calls at **500 calls per 24 hours** across all users, plus **8 calls/min** and **60 calls/hr** per user, and `maxOutputTokens: 2048` per request.
+   * When the 500/day ceiling is reached, the router automatically switches to deterministic `smart-synthesizer` fallback for the remainder of the UTC day with zero downtime.
+2. **Google Cloud Billing Budget & API Quota (Recommended Defense-in-Depth):**
+   * In **Google Cloud Console → APIs & Services → Generative Language API → Quotas**, set a daily request quota and per-minute rate limit.
+   * In **Google Cloud Console → Billing → Budgets & alerts**, configure budget alerts at **€10, €25, and €50/month**.
+3. **Production Secrets (`BETTER_AUTH_SECRET` & `SUPER_ADMIN_MASTER_PASSWORD`):**
+   * `BETTER_AUTH_SECRET` signs all `HttpOnly` session cookies (with `crypto.timingSafeEqual` and 30-day/12-hour TTLs) and derives the **AES-256-GCM** key used to encrypt user BYOK Gemini API keys at rest.
+   * Never expose `GEMINI_API_KEY` as a `NEXT_PUBLIC_*` variable.

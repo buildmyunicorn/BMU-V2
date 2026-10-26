@@ -17,6 +17,7 @@ import type {
   SavedModuleBData,
 } from '@/lib/auth/session-store';
 import type { SupportedCountryCode } from '@/lib/localization';
+import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
 import {
   scoutModuleBCompetitorsViaRouter,
   estimateModuleBMarketSizingViaRouter,
@@ -40,6 +41,11 @@ export async function saveModuleBStep1BeachheadAction(input: {
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
     return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
   }
 
   try {
@@ -122,11 +128,16 @@ export async function parkModuleBOpenQuestionAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
   try {
     await db.insert(openQuestionsParkingLot).values({
       planId: input.planId,
       sourceModule: 'MOD_B_MARKET',
-      questionText: input.questionText.trim(),
+      questionText: input.questionText.trim().slice(0, 1000),
       status: 'OPEN',
     });
     return { ok: true, persistedToCloudSql: true };
@@ -146,6 +157,11 @@ export async function saveModuleBStep2CompetitorsAction(input: {
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
     return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
   }
 
   try {
@@ -246,6 +262,11 @@ export async function saveModuleBStep3MarketSizingAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
   try {
     const existingMod = await db
       .select()
@@ -342,6 +363,11 @@ export async function saveModuleBStep4CompetitiveWedgeAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
   try {
     const existingMod = await db
       .select()
@@ -435,6 +461,11 @@ export async function saveModuleBStep5CompleteAction(input: {
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
     return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
   }
 
   try {

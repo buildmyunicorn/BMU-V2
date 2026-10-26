@@ -27,6 +27,10 @@ import {
 } from '@/lib/auth/session-store';
 import type { SupportedCountryCode } from '@/lib/localization';
 import {
+  verifyActiveSessionAndPlanOwnership,
+  checkRateLimit,
+} from '@/lib/auth/server-auth';
+import {
   generateModuleCSurveyViaRouter,
   checkAndRewriteMomTestQuestionViaRouter,
   suggestNextMomTestQuestionViaRouter,
@@ -120,6 +124,11 @@ export async function saveValidationSurveyAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
   try {
     await ensureModuleCodeEnumValues();
     // 1. Upsert into validation_surveys by publicSlug
@@ -141,6 +150,9 @@ export async function saveValidationSurveyAction(input: {
 
     if (existingBySlug.length > 0) {
       const existingRow = existingBySlug[0];
+      if (existingRow.planId !== input.planId) {
+        return { ok: false, persistedToCloudSql: false };
+      }
       surveyDbId = existingRow.id;
       const dbQuestions = (existingRow.questionsJsonb || []) as SurveyQuestionItem[];
       const existingMeta = (existingRow.outreachTemplatesJsonb || {}) as {
@@ -444,10 +456,20 @@ export async function deleteValidationSurveyAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
   try {
     await db
       .delete(validationSurveys)
-      .where(eq(validationSurveys.publicSlug, input.publicSlug));
+      .where(
+        and(
+          eq(validationSurveys.publicSlug, input.publicSlug),
+          eq(validationSurveys.planId, input.planId)
+        )
+      );
 
     if (input.remainingSurveys.length === 0) {
       await db
@@ -516,12 +538,14 @@ export async function deleteValidationSurveyAction(input: {
 
 /**
  * Fetches a public survey by its slug (`buildmyunicorn.com/v/[slug]`) with zero login required.
+ * SECURITY PRIVACY INVARIANT: Never return respondent emails, answers, or internal AI insights
+ * to anonymous public visitors. Use `getFounderSurveyResponsesBySlugAction` inside the authenticated workspace.
  */
 export async function getPublicSurveyBySlugAction(publicSlug: string): Promise<{
   found: boolean;
   survey?: SavedValidationSurvey & { planTitle?: string };
 }> {
-  const cleanSlug = decodeURIComponent(publicSlug).trim();
+  const cleanSlug = decodeURIComponent(publicSlug).trim().slice(0, 140);
   if (!cleanSlug) {
     return { found: false };
   }
@@ -538,6 +562,93 @@ export async function getPublicSurveyBySlugAction(publicSlug: string): Promise<{
     }
 
     const row = rows[0];
+    let planTitle = 'Startup Discovery Survey';
+    try {
+      const planRows = await db
+        .select({ title: startupPlans.title })
+        .from(startupPlans)
+        .where(eq(startupPlans.id, row.planId))
+        .limit(1);
+      if (planRows[0]?.title) {
+        planTitle = planRows[0].title;
+      }
+    } catch {
+      // Ignore
+    }
+
+    const rowMeta = (row.outreachTemplatesJsonb || {}) as {
+      isPublished?: boolean;
+      publishedAt?: string;
+    };
+    const isPublished =
+      typeof rowMeta.isPublished === 'boolean' ? rowMeta.isPublished : true;
+
+    return {
+      found: true,
+      survey: {
+        id: row.id,
+        planId: row.planId,
+        publicSlug: row.publicSlug,
+        title: row.title,
+        introDescription: row.introDescription || '',
+        isActive: row.isActive,
+        isPublished,
+        publishedAt:
+          rowMeta.publishedAt ||
+          (isPublished ? row.createdAt.toISOString() : undefined),
+        collectLeadEmails: row.collectLeadEmails,
+        waitlistIncentiveText: row.waitlistIncentiveText || '',
+        questions: (row.questionsJsonb || []) as SurveyQuestionItem[],
+        // Privacy protection: public route never receives respondent answers or waitlist emails
+        responses: [],
+        aiInsightsSummary: undefined,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.createdAt.toISOString(),
+        planTitle,
+      },
+    };
+  } catch {
+    return { found: false };
+  }
+}
+
+/**
+ * Authenticated founder-only action to sync full survey responses (including waitlist emails
+ * and AI insights) into the Module C workspace. Verifies plan ownership before returning PII.
+ */
+export async function getFounderSurveyResponsesBySlugAction(input: {
+  planId: string;
+  publicSlug: string;
+}): Promise<{
+  found: boolean;
+  survey?: SavedValidationSurvey & { planTitle?: string };
+}> {
+  const cleanSlug = decodeURIComponent(input.publicSlug).trim().slice(0, 140);
+  if (!cleanSlug) {
+    return { found: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { found: false };
+  }
+
+  try {
+    const rows = await db
+      .select()
+      .from(validationSurveys)
+      .where(eq(validationSurveys.publicSlug, cleanSlug))
+      .limit(1);
+
+    if (rows.length === 0) {
+      return { found: false };
+    }
+
+    const row = rows[0];
+    if (UUID_REGEX.test(input.planId) && row.planId !== input.planId) {
+      return { found: false };
+    }
+
     let planTitle = 'Startup Discovery Survey';
     try {
       const planRows = await db
@@ -603,9 +714,57 @@ export async function getPublicSurveyBySlugAction(publicSlug: string): Promise<{
   }
 }
 
+const MAX_PUBLIC_RESPONSES_PER_SURVEY = 2500;
+
+function sanitizeSurveyAnswersMap(
+  rawAnswers: Record<string, SurveyResponseAnswerValue>
+): Record<string, SurveyResponseAnswerValue> {
+  const sanitized: Record<string, SurveyResponseAnswerValue> = {};
+  const entries = Object.entries(rawAnswers || {}).slice(0, 50);
+  for (const [questionId, val] of entries) {
+    const cleanQId = String(questionId).slice(0, 80);
+    if (!val || typeof val !== 'object') continue;
+    const cleanSelectedOption =
+      typeof val.selectedOption === 'string'
+        ? val.selectedOption.trim().slice(0, 500)
+        : undefined;
+    const cleanSelectedOptions = Array.isArray(val.selectedOptions)
+      ? val.selectedOptions
+          .slice(0, 20)
+          .map((opt) => String(opt).trim().slice(0, 500))
+      : undefined;
+    const cleanOtherText =
+      typeof val.otherText === 'string'
+        ? val.otherText.trim().slice(0, 600)
+        : undefined;
+    const cleanOpenText =
+      typeof val.openText === 'string'
+        ? val.openText.trim().slice(0, 1500)
+        : undefined;
+    const cleanScale =
+      typeof val.scaleValue === 'number' && Number.isFinite(val.scaleValue)
+        ? Math.max(0, Math.min(10, val.scaleValue))
+        : undefined;
+
+    sanitized[cleanQId] = {
+      ...(cleanSelectedOption !== undefined
+        ? { selectedOption: cleanSelectedOption }
+        : {}),
+      ...(cleanSelectedOptions !== undefined
+        ? { selectedOptions: cleanSelectedOptions }
+        : {}),
+      ...(cleanOtherText !== undefined ? { otherText: cleanOtherText } : {}),
+      ...(cleanOpenText !== undefined ? { openText: cleanOpenText } : {}),
+      ...(cleanScale !== undefined ? { scaleValue: cleanScale } : {}),
+    };
+  }
+  return sanitized;
+}
+
 /**
  * Submits an anonymous or waitlist-opted-in response from the public `/v/[slug]` page.
- * Does NOT require any user login.
+ * Does NOT require any user login, but enforces anti-spam rate limiting, payload sanitization,
+ * and forces `isSimulated: false`.
  */
 export async function submitPublicSurveyResponseAction(input: {
   publicSlug: string;
@@ -615,10 +774,29 @@ export async function submitPublicSurveyResponseAction(input: {
   persistedToCloudSql: boolean;
   savedResponseId?: string;
 }> {
-  const cleanSlug = decodeURIComponent(input.publicSlug).trim();
+  const cleanSlug = decodeURIComponent(input.publicSlug).trim().slice(0, 140);
   if (!cleanSlug) {
     return { ok: false, persistedToCloudSql: false };
   }
+
+  // Anti-spam rate limit: max 15 submissions per minute per public survey slug
+  const rateLimit = checkRateLimit(`survey:submit:${cleanSlug}`, 15, 60_000);
+  if (!rateLimit.allowed) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
+  const sanitizedAnswers = sanitizeSurveyAnswersMap(
+    input.response?.answers || {}
+  );
+  const sanitizedNameOrRole =
+    typeof input.response?.respondentNameOrRole === 'string'
+      ? input.response.respondentNameOrRole.trim().slice(0, 120) || undefined
+      : undefined;
+  const sanitizedEmail =
+    typeof input.response?.respondentEmail === 'string'
+      ? input.response.respondentEmail.trim().toLowerCase().slice(0, 200) ||
+        undefined
+      : undefined;
 
   try {
     await ensureModuleCodeEnumValues();
@@ -637,18 +815,30 @@ export async function submitPublicSurveyResponseAction(input: {
       return { ok: false, persistedToCloudSql: false };
     }
 
+    // Cap total stored responses per survey to prevent DB bloat
+    const countRows = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(surveyResponses)
+      .where(eq(surveyResponses.surveyId, surveyRow.id));
+    if ((countRows[0]?.count ?? 0) >= MAX_PUBLIC_RESPONSES_PER_SURVEY) {
+      return { ok: false, persistedToCloudSql: false };
+    }
+
     const [insertedResp] = await db
       .insert(surveyResponses)
       .values({
         surveyId: surveyRow.id,
         answersJsonb: {
-          answers: input.response.answers,
-          respondentNameOrRole: input.response.respondentNameOrRole,
-          isSimulated: input.response.isSimulated ?? false,
-          clientResponseId: input.response.clientResponseId || input.response.id,
+          answers: sanitizedAnswers,
+          respondentNameOrRole: sanitizedNameOrRole,
+          // Public route submissions are always real respondents, never simulated
+          isSimulated: false,
+          clientResponseId: String(
+            input.response.clientResponseId || input.response.id || ''
+          ).slice(0, 100),
         },
-        respondentEmail: input.response.respondentEmail || null,
-        joinedWaitlist: input.response.joinedWaitlist,
+        respondentEmail: sanitizedEmail || null,
+        joinedWaitlist: Boolean(input.response.joinedWaitlist),
       })
       .returning();
 
@@ -667,12 +857,14 @@ export async function submitPublicSurveyResponseAction(input: {
     const savedRespObj: SavedSurveyResponse = {
       id: insertedResp.id,
       surveyId: surveyRow.id,
-      answers: input.response.answers,
-      respondentNameOrRole: input.response.respondentNameOrRole,
-      respondentEmail: input.response.respondentEmail || undefined,
-      joinedWaitlist: input.response.joinedWaitlist,
-      isSimulated: input.response.isSimulated ?? false,
-      clientResponseId: input.response.clientResponseId || input.response.id,
+      answers: sanitizedAnswers,
+      respondentNameOrRole: sanitizedNameOrRole,
+      respondentEmail: sanitizedEmail,
+      joinedWaitlist: Boolean(input.response.joinedWaitlist),
+      isSimulated: false,
+      clientResponseId: String(
+        input.response.clientResponseId || input.response.id || ''
+      ).slice(0, 100),
       submittedAt: insertedResp.submittedAt.toISOString(),
     };
 
@@ -824,6 +1016,11 @@ export async function saveCustomerInterviewLogsAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
   try {
     await ensureModuleCodeEnumValues();
 
@@ -833,7 +1030,12 @@ export async function saveCustomerInterviewLogsAction(input: {
         .set({
           interviewLogsJsonb: input.interviewLogs,
         })
-        .where(eq(validationSurveys.publicSlug, input.activeSurveySlug));
+        .where(
+          and(
+            eq(validationSurveys.publicSlug, input.activeSurveySlug),
+            eq(validationSurveys.planId, input.planId)
+          )
+        );
     }
 
     const existingMod = await db
@@ -909,11 +1111,16 @@ export async function parkModuleCOpenQuestionAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
   try {
     await db.insert(openQuestionsParkingLot).values({
       planId: input.planId,
       sourceModule: 'MOD_C_SURVEYS_FEEDBACK',
-      questionText: input.questionText.trim(),
+      questionText: input.questionText.trim().slice(0, 1000),
       status: 'OPEN',
     });
     return { ok: true, persistedToCloudSql: true };
@@ -932,6 +1139,11 @@ export async function saveModuleCBlindSpotsAction(input: {
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
     return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
   }
 
   try {

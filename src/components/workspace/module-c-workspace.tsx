@@ -95,7 +95,7 @@ import {
   INTERVIEW_SIGNAL_LABELS,
   type ModuleCBriefData,
 } from '@/lib/export/module-c-brief';
-import { getPublicSurveyBySlugAction } from '@/app/actions/module-c';
+import { getFounderSurveyResponsesBySlugAction } from '@/app/actions/module-c';
 import {
   generateQrCodeMatrix,
   generateQrCodeSvgString,
@@ -792,9 +792,10 @@ export function ModuleCWorkspace({
       const localCopy = loadPublicSurveyFromLocalRegistry(
         currentActive.publicSlug
       );
-      const cloudRes = await getPublicSurveyBySlugAction(
-        currentActive.publicSlug
-      );
+      const cloudRes = await getFounderSurveyResponsesBySlugAction({
+        planId: plan.id,
+        publicSlug: currentActive.publicSlug,
+      });
 
       // Re-read currentActive after await in case questions/title changed while fetching
       const latestActive = activeSurveyRef.current || currentActive;
