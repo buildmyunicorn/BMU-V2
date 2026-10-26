@@ -6461,7 +6461,10 @@ export function ModuleCWorkspace({
                 <Button
                   type="button"
                   size="sm"
-                  onClick={onContinueToModuleD}
+                  onClick={async () => {
+                    await handleSaveModuleCComplete();
+                    onContinueToModuleD();
+                  }}
                   className="bg-indigo-600 text-white hover:bg-indigo-700"
                 >
                   Save &amp; Continue
@@ -6474,7 +6477,10 @@ export function ModuleCWorkspace({
               <Button
                 type="button"
                 size="sm"
-                onClick={onContinueToModuleD}
+                onClick={async () => {
+                  await handleSaveModuleCComplete();
+                  onContinueToModuleD();
+                }}
                 className="bg-indigo-600 text-white hover:bg-indigo-700"
               >
                 Save &amp; Continue

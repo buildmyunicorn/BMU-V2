@@ -267,6 +267,7 @@ export default function WorkspacePage() {
     null
   );
   const [openQuestions, setOpenQuestions] = useState<string[]>([]);
+  const [showAllOpenQuestions, setShowAllOpenQuestions] = useState(false);
   const [brainDumpText, setBrainDumpText] = useState('');
   const [cloudDbConnected, setCloudDbConnected] = useState<boolean | null>(
     null
@@ -628,11 +629,28 @@ export default function WorkspacePage() {
     if (!openQuestions.includes(clean)) {
       const next = [...openQuestions, clean];
       setOpenQuestions(next);
+      const updatedPlans = session.plans.map((p) =>
+        p.id === currentPlan.id ? { ...p, openQuestions: next } : p
+      );
+      const nextSession = { ...session, plans: updatedPlans };
+      setSession(nextSession);
+      saveBmuSession(nextSession);
       await parkOpenQuestionAction({
         planId: currentPlan.id,
         questionText: clean,
       });
     }
+  }
+
+  function handleResolveOpenQuestion(indexToRemove: number) {
+    const next = openQuestions.filter((_, idx) => idx !== indexToRemove);
+    setOpenQuestions(next);
+    const updatedPlans = session.plans.map((p) =>
+      p.id === currentPlan.id ? { ...p, openQuestions: next } : p
+    );
+    const nextSession = { ...session, plans: updatedPlans };
+    setSession(nextSession);
+    saveBmuSession(nextSession);
   }
 
   function handleParkQuestion() {
@@ -2038,21 +2056,49 @@ export default function WorkspacePage() {
                 No open questions parked yet. Use &ldquo;Park Question&rdquo; on any step when you want to come back to a detail later.
               </div>
             ) : (
-              <ul className="mt-2.5 space-y-1.5 text-xs text-slate-700">
-                {openQuestions.slice(0, 4).map((q, idx) => (
-                  <li
-                    key={idx}
-                    className="rounded-lg border border-amber-200/60 bg-white px-2.5 py-1.5 text-[11px] leading-snug"
+              <>
+                <ul className="mt-2.5 space-y-1.5 text-xs text-slate-700">
+                  {(showAllOpenQuestions
+                    ? openQuestions
+                    : openQuestions.slice(0, 4)
+                  ).map((q, idx) => (
+                    <li
+                      key={idx}
+                      className="group flex items-start justify-between gap-1.5 rounded-lg border border-amber-200/60 bg-white px-2.5 py-1.5 text-[11px] leading-snug"
+                    >
+                      <span>• {q}</span>
+                      {!activeEntitlement.isVaultReadonly && (
+                        <button
+                          type="button"
+                          onClick={() => handleResolveOpenQuestion(idx)}
+                          title="Mark resolved & remove from Parking Lot"
+                          className="mt-0.5 shrink-0 rounded p-0.5 text-slate-400 opacity-70 transition-opacity hover:bg-amber-100 hover:text-amber-900 group-hover:opacity-100"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {openQuestions.length > 4 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowAllOpenQuestions(!showAllOpenQuestions)
+                    }
+                    className="mt-2 w-full rounded-lg border border-amber-200/70 bg-white/80 py-1 text-center text-[11px] font-semibold text-amber-900 hover:bg-amber-100/60"
                   >
-                    • {q}
-                  </li>
-                ))}
-              </ul>
+                    {showAllOpenQuestions
+                      ? 'Show Fewer Questions'
+                      : `Show All ${openQuestions.length} Parked Questions`}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </aside>
 
-        {/* CENTER WORKSPACE: Module A or Module B */}
+        {/* CENTER WORKSPACE: Module A, Module B, or Module C */}
         <main className="space-y-6 lg:col-span-8 xl:col-span-9">
           {/* Read-Only Vault Banner if Expired */}
           {activeEntitlement.isVaultReadonly && (
@@ -2074,8 +2120,23 @@ export default function WorkspacePage() {
             </div>
           )}
 
+          {/* Global Workspace Status / Save Banner */}
+          {synthesisBanner && (
+            <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-950 shadow-2xs">
+              <span>{synthesisBanner}</span>
+              <button
+                type="button"
+                onClick={() => setSynthesisBanner(null)}
+                className="ml-3 rounded-md px-2 py-0.5 text-[11px] font-bold text-emerald-900 underline opacity-80 hover:bg-emerald-100 hover:opacity-100"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           {activeModule === 'MOD_C_SURVEYS_FEEDBACK' ? (
             <ModuleCWorkspace
+              key={currentPlan.id}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -2106,6 +2167,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_B_MARKET' ? (
             <ModuleBWorkspace
+              key={currentPlan.id}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -2199,36 +2261,43 @@ export default function WorkspacePage() {
                     {
                       step: 'Step 1',
                       title: 'Raw Idea Capture',
+                      targetId: 'mod-a-step-1',
                       done: moduleAReadinessSteps[0]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 2',
                       title: 'Concept Canvas',
+                      targetId: 'mod-a-step-2',
                       done: moduleAReadinessSteps[1]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 3',
                       title: 'Personal "Why"',
+                      targetId: 'mod-a-step-3',
                       done: moduleAReadinessSteps[2]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 4',
                       title: 'Team & Budget',
+                      targetId: 'mod-a-step-4',
                       done: moduleAReadinessSteps[3]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 5',
                       title: 'Reality Check',
+                      targetId: 'mod-a-step-5',
                       done: moduleAReadinessSteps[4]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 6',
                       title: 'Blind-Spot Review',
+                      targetId: 'mod-a-step-6',
                       done: moduleAReadinessSteps[5]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 7',
                       title: 'Readiness Brief',
+                      targetId: 'mod-a-step-7',
                       done: completedReadinessCount === 6,
                     },
                   ].map((item, idx, arr) => {
@@ -2238,9 +2307,19 @@ export default function WorkspacePage() {
                         ? idx === arr.length - 1
                         : idx === firstIncompleteIdx;
                     return (
-                      <div
+                      <button
                         key={item.step}
-                        className={`rounded-xl border px-3 py-2 text-xs transition-all ${
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById(item.targetId);
+                          if (el) {
+                            el.scrollIntoView({
+                              behavior: 'smooth',
+                              block: 'start',
+                            });
+                          }
+                        }}
+                        className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
                           isActive
                             ? 'border-amber-300/80 bg-white/15 text-white shadow-xs'
                             : item.done
@@ -2259,14 +2338,17 @@ export default function WorkspacePage() {
                         <div className="mt-0.5 truncate text-[11px]">
                           {item.title}
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
               {/* STEP 1: RAW IDEA BRAIN DUMP CARD */}
-              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
+              <div
+                id="mod-a-step-1"
+                className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
@@ -2507,7 +2589,7 @@ export default function WorkspacePage() {
           </div>
 
           {/* STEP 2: FLESH OUT YOUR IDEA (USER-TYPED 5-BLOCK CONCEPT CANVAS + AI TIDY UP) */}
-          <Card>
+          <Card id="mod-a-step-2" className="scroll-mt-24">
             <CardHeader className="pb-3">
               <div>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -2527,19 +2609,6 @@ export default function WorkspacePage() {
                   at the bottom of this card anytime to polish your wording.
                 </CardDescription>
               </div>
-
-              {synthesisBanner && (
-                <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-medium text-emerald-900">
-                  <span>{synthesisBanner}</span>
-                  <button
-                    type="button"
-                    onClick={() => setSynthesisBanner(null)}
-                    className="ml-3 text-[11px] font-bold underline opacity-75 hover:opacity-100"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              )}
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -2727,7 +2796,7 @@ export default function WorkspacePage() {
           </Card>
 
           {/* STEP 3: YOUR PERSONAL "WHY" & AMBITION (FOUNDER MOTIVATION) */}
-          <Card>
+          <Card id="mod-a-step-3" className="scroll-mt-24">
             <CardHeader>
               <div>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -2981,7 +3050,7 @@ export default function WorkspacePage() {
           </Card>
 
           {/* STEP 4: YOUR TEAM & STARTING BUDGET (DAY-1 RESOURCES) */}
-          <Card>
+          <Card id="mod-a-step-4" className="scroll-mt-24">
             <CardHeader>
               <div>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -3351,7 +3420,7 @@ export default function WorkspacePage() {
           </Card>
 
           {/* STEP 5: FOUNDER FIT, DEALBREAKERS & REALITY CHECK */}
-          <Card>
+          <Card id="mod-a-step-5" className="scroll-mt-24">
             <CardHeader>
               <div>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -3917,7 +3986,10 @@ export default function WorkspacePage() {
           </Card>
 
           {/* STEP 6: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARD */}
-          <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 p-5 shadow-xs">
+          <div
+            id="mod-a-step-6"
+            className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 p-5 shadow-xs"
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
@@ -4035,7 +4107,10 @@ export default function WorkspacePage() {
           {/* ========================================================= */}
           {/* STEP 7: DOWNLOADABLE STARTUP CONCEPT & READINESS BRIEF     */}
           {/* ========================================================= */}
-          <Card className="border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm">
+          <Card
+            id="mod-a-step-7"
+            className="scroll-mt-24 border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm"
+          >
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -4462,9 +4537,11 @@ export default function WorkspacePage() {
                   <span className="font-semibold text-indigo-300">
                     Ready to validate {currentPlan.title} in the real world?
                   </span>{' '}
-                  Unlock Module B to auto-generate your shareable Customer
-                  Validation Survey link (<code>/v/my-startup</code>) &amp; AI
-                  Market Scout.
+                  Continue to <strong>Module B</strong> to map your Target
+                  Customer Persona, run the AI Competitor Scout, calculate
+                  Bottom-Up Market Sizing (TAM/SAM/SOM), and unlock{' '}
+                  <strong>Module C</strong> (<code>/v/{currentPlan.moduleCData?.surveys?.[0]?.publicSlug || 'my-startup'}</code>{' '}
+                  Surveys &amp; 1-on-1 Interviews).
                 </div>
                 <Button
                   size="sm"
@@ -4476,7 +4553,7 @@ export default function WorkspacePage() {
                     if (!modBAccess.allowed) {
                       setPendingModuleAfterUnlock('MOD_B_MARKET');
                       setPaywallModalFeature(
-                        `Module B: Market & Validation Survey (${modBAccess.reason})`
+                        `Module B: Market Sizing, Competitor Scout & Buyer Persona (${modBAccess.reason})`
                       );
                       return;
                     }
@@ -4527,7 +4604,13 @@ export default function WorkspacePage() {
                   Ask Unicorn (Co-Founder AI)
                 </div>
                 <div className="text-[10px] text-indigo-100">
-                  Context: {currentPlan.title} • {selectedCountry}
+                  Context: {currentPlan.title} •{' '}
+                  {activeModule === 'MOD_A_IDEATION'
+                    ? 'Module A (Ideation)'
+                    : activeModule === 'MOD_B_MARKET'
+                      ? 'Module B (Market & Competitors)'
+                      : 'Module C (Surveys & Interviews)'}{' '}
+                  • {selectedCountry}
                 </div>
               </div>
             </div>
@@ -4543,28 +4626,68 @@ export default function WorkspacePage() {
             <div className="rounded-xl bg-slate-100 p-3 text-slate-700">
               👋 Hi <strong>{session.user.name.split(' ')[0]}</strong>! I can
               see you&apos;re working on <strong>{currentPlan.title}</strong> (
-              {countryPack.countryName} • {countryPack.defaultCurrency}). Want me
-              to suggest 3 sharper ways to phrase your customer pain point?
+              {countryPack.countryName} • {countryPack.defaultCurrency}) in{' '}
+              <strong>
+                {activeModule === 'MOD_A_IDEATION'
+                  ? 'Module A: Ideation & Founder Fit'
+                  : activeModule === 'MOD_B_MARKET'
+                    ? 'Module B: Market & Competitors'
+                    : 'Module C: Customer Surveys & Interviews'}
+              </strong>
+              .{' '}
+              {activeModule === 'MOD_A_IDEATION'
+                ? 'Want me to suggest a sharper way to quantify your customer pain point or park a pricing question for later?'
+                : activeModule === 'MOD_B_MARKET'
+                  ? 'Focus on a narrow, reachable Beachhead buyer first—and don’t forget to include the "Do Nothing / Spreadsheets" status quo in your competitor list!'
+                  : 'Keep your survey & interview questions focused on past behaviour and real workarounds ("The Mom Test") rather than asking if people like your idea.'}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  setBrainDumpText(
-                    brainDumpText +
-                      '\n\n[Unicorn Suggestion]: Highlight how much money or time the customer loses every single week before buying your solution.'
-                  )
-                }
-                className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
-              >
-                ✨ Quantify weekly customer pain
-              </button>
+              {activeModule === 'MOD_A_IDEATION' && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setBrainDumpText(
+                      brainDumpText +
+                        '\n\n[Unicorn Suggestion]: Highlight how much money or time the customer loses every single week before buying your solution.'
+                    )
+                  }
+                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
+                >
+                  ✨ Quantify weekly customer pain
+                </button>
+              )}
+              {activeModule === 'MOD_B_MARKET' && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleParkSpecificQuestion(
+                      `Verify bottom-up target customer count & annual spend in ${countryPack.countryName} (${countryPack.defaultCurrency}) with 3 industry buyers.`
+                    )
+                  }
+                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
+                >
+                  📌 Park TAM/SAM/SOM check
+                </button>
+              )}
+              {activeModule === 'MOD_C_SURVEYS_FEEDBACK' && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleParkSpecificQuestion(
+                      `Follow up with our first 5 waitlist leads & interview respondents to test V1 feature priorities in Module D.`
+                    )
+                  }
+                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
+                >
+                  📌 Park Waitlist follow-up for Module D
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleParkQuestion}
                 className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 font-medium text-amber-800 hover:bg-amber-100"
               >
-                📌 Park pricing question for Module D
+                📌 Park pricing question for Module F
               </button>
             </div>
           </div>
