@@ -617,8 +617,128 @@ export interface ProductVehicleStep1Data {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type SalesChannelOptionType =
+  // SaaS / Software / AI
+  | 'DIRECT_WEB_STRIPE'
+  | 'LTD_LAUNCH_MARKETPLACE'
+  | 'B2B_INSTITUTIONAL_INVOICE'
+  | 'APP_STORE_PLUGIN_MARKETPLACE'
+  // Physical Product / Craft / E-Com
+  | 'ETSY_MARKETPLACE'
+  | 'AMAZON_FBA'
+  | 'AMAZON_FBM'
+  | 'DIRECT_WEB_CRAFT_MARKETS'
+  | 'WHOLESALE_RETAIL_STOCKISTS'
+  // Education / Guided Support Platform
+  | 'DIRECT_WEB_PORTAL_STRIPE'
+  | 'HOSTED_COURSE_COMMUNITY'
+  | 'CHARITY_CLINIC_PARTNERSHIPS'
+  | 'MOBILE_IN_APP_PURCHASE'
+  // Marketplace
+  | 'DIRECT_WEB_MANAGED_ESCROW'
+  | 'B2B_ANNUAL_SUBSCRIPTION_PLUS_TAKE'
+  | 'SOCIAL_COMMUNITY_REFERRAL_LOOP'
+  // Productized Service / Agency
+  | 'DIRECT_STRIPE_SUBSCRIPTION_LINK'
+  | 'B2B_INVOICE_BANK_TRANSFER'
+  | 'FREELANCE_EXPERT_MARKETPLACE'
+  // Hybrid Hardware + Software
+  | 'DIRECT_HARDWARE_BUNDLE_WEB'
+  | 'AMAZON_PLUS_COMPANION_PORTAL'
+  | 'B2B_CHANNEL_RESELLER'
+  | 'OTHER';
+
+export type DeliveryFulfillmentModelType =
+  // SaaS / Software
+  | 'INSTANT_SELF_SERVE_ONBOARDING'
+  | 'HYBRID_SELF_SERVE_PLUS_COHORT_CODE'
+  | 'FOUNDER_CONCIERGE_SETUP_CALL'
+  // Physical Product / Craft
+  | 'WORKSHOP_PACK_AND_COURIER'
+  | 'HYBRID_FBA_STANDARD_WORKSHOP_CUSTOM'
+  | 'THIRD_PARTY_3PL_WAREHOUSE'
+  | 'LOCAL_PICKUP_AND_MARKETS'
+  // Education / Guided Support
+  | 'INSTANT_24_7_PORTAL_PLUS_PRINTABLES'
+  | 'HYBRID_ON_DEMAND_PLUS_LIVE_QA'
+  | 'SCHEDULED_COHORT_START_DATES'
+  // Marketplace / Service / Hybrid
+  | 'MANUAL_CONCIERGE_FULFILLMENT'
+  | 'CLIENT_PORTAL_ASYNC_DELIVERY'
+  | 'HARDWARE_SHIP_PLUS_QR_ACTIVATION'
+  | 'OTHER';
+
+export interface ChannelMatrixStep2Data {
+  primaryChannel: SalesChannelOptionType;
+  otherPrimaryChannelText?: string;
+  secondaryChannels: SalesChannelOptionType[];
+  otherSecondaryChannelText?: string;
+  primaryChannelSharePercent: number;
+  estimatedBlendedFeePercent: number;
+  deliveryFulfillmentModel: DeliveryFulfillmentModelType;
+  otherDeliveryFulfillmentText?: string;
+  rentToOwnBridgeStrategy: string;
+  channelWhyItFitsNotes: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type ScopeBucketType =
+  | 'MUST_HAVE_V1'
+  | 'FAST_FOLLOW_V1_5'
+  | 'PARKING_LOT_V2';
+
+export type ScopeItemEffortType = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export type V1ScopeDisciplineRuleType =
+  // SaaS / Software
+  | 'CORE_AHA_FLOW_ONLY_NO_NATIVE_APP'
+  | 'MANUAL_ADMIN_BEHIND_SCENES_V1'
+  | 'SINGLE_PERSONA_SINGLE_INTEGRATION'
+  | 'SINGLE_TENANT_CONCIERGE_FIRST_10'
+  | 'NO_CUSTOM_INTEGRATIONS_CSV_EXPORT_FIRST'
+  // Physical Product / Craft
+  | 'MAX_2_3_HERO_SKUS_STANDARD_JIG'
+  | 'STANDARD_BOX_SIZE_UNDER_2KG_TIER'
+  | 'MADE_TO_ORDER_ZERO_DEAD_STOCK'
+  | 'SINGLE_FLAGSHIP_SKU_ZERO_VARIATIONS'
+  | 'PRE_ORDER_BATCH_DROP_ONLY'
+  // Education / Support
+  | 'BITE_SIZED_5MIN_AUDIO_NO_CUSTOM_APP'
+  | 'SELL_PILOT_COHORT_BEFORE_FULL_LIBRARY'
+  | 'PRINTABLE_TOOLS_PLUS_WEEKLY_LIVE_QA'
+  | 'PILOT_COHORT_LIVE_BEFORE_RECORDING'
+  // Marketplace / Service / Hybrid
+  | 'CONCIERGE_MATCHING_BEFORE_ALGORITHMS'
+  | 'FIXED_SPRINT_SCOPE_NO_CUSTOM_RETROFITS'
+  | 'OFF_THE_SHELF_HARDWARE_FOR_FIRST_50'
+  | 'OTHER';
+
+export interface ScopeFilterItem {
+  id: string;
+  title: string;
+  bucket: ScopeBucketType;
+  categoryTag: string;
+  otherCategoryText?: string;
+  otherCategoryTagText?: string;
+  effortImpact: ScopeItemEffortType;
+  rationaleOrNote: string;
+}
+
+export interface ScopeFilterStep3Data {
+  items: ScopeFilterItem[];
+  scopeDisciplineRule: V1ScopeDisciplineRuleType | '';
+  otherScopeDisciplineRuleText?: string;
+  whatWeRefuseToBuildInV1Narrative: string;
+  whyThisLeanV1WinsFasterNarrative: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface SavedModuleDData {
   productVehicle?: ProductVehicleStep1Data;
+  channelMatrix?: ChannelMatrixStep2Data;
+  scopeFilter?: ScopeFilterStep3Data;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;
 }

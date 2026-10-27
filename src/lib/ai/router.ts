@@ -48,6 +48,10 @@ import type {
   ProductFormFactorType,
   V1PrototypeApproachType,
   V1LaunchTimelineType,
+  SalesChannelOptionType,
+  DeliveryFulfillmentModelType,
+  ScopeFilterItem,
+  V1ScopeDisciplineRuleType,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -3830,5 +3834,495 @@ Return strictly valid JSON with:
   };
 }
 
+export interface ModuleDScopeFilterGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  items: ScopeFilterItem[];
+  scopeDisciplineRule: V1ScopeDisciplineRuleType | '';
+  whatWeRefuseToBuildInV1Narrative: string;
+  whyThisLeanV1WinsFasterNarrative: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
 
+export async function generateModuleDScopeFilterViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  formFactor?: ProductFormFactorType;
+  primaryChannel?: SalesChannelOptionType;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  beachheadSegment?: string;
+  validatedPainSummary?: string;
+  currentScopeItems?: ScopeFilterItem[];
+}): Promise<ModuleDScopeFilterGenerationResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_D_STEP3_SCOPE_FILTER'
+  );
+
+  const userItems = Array.isArray(params.currentScopeItems)
+    ? params.currentScopeItems
+    : [];
+  const v1Titles = userItems
+    .filter((i) => i.bucket === 'MUST_HAVE_V1')
+    .map((i) => i.title.trim())
+    .filter(Boolean);
+  const v15Titles = userItems
+    .filter((i) => i.bucket === 'FAST_FOLLOW_V1_5')
+    .map((i) => i.title.trim())
+    .filter(Boolean);
+  const v2Titles = userItems
+    .filter((i) => i.bucket === 'PARKING_LOT_V2')
+    .map((i) => i.title.trim())
+    .filter(Boolean);
+
+  const buildSmartFallback = (): Omit<
+    ModuleDScopeFilterGenerationResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const track = params.selectedTrack || 'SAAS_SOFTWARE_AI';
+
+    // If the founder has entered their own items on the Scope Board, synthesize the Charter directly from their items
+    if (userItems.length > 0) {
+      const refuseParts: string[] = [];
+      if (v2Titles.length > 0) {
+        refuseParts.push(
+          `In Version 1, we explicitly refuse to build or stock: ${v2Titles.join('; ')}.`
+        );
+      } else {
+        refuseParts.push(
+          'In Version 1, we strictly refuse any unvalidated feature bloat, custom one-off requests, or secondary product lines outside our core Day-1 launch gate.'
+        );
+      }
+      if (v15Titles.length > 0) {
+        refuseParts.push(
+          `We are also deferring (${v15Titles.join('; ')}) to our Version 1.5 Fast-Follow roadmap until our Day-1 core is live with paying customers.`
+        );
+      }
+
+      const whyLeanText =
+        v1Titles.length > 0
+          ? `By locking our non-negotiable Version 1 launch scope strictly to ${v1Titles.length} core ${
+              v1Titles.length === 1 ? 'deliverable' : 'deliverables'
+            } (${v1Titles.join('; ')}), we eliminate scope creep, protect our launch budget, and reach paying customers faster.`
+          : 'Keeping Version 1 tightly focused on our core customer outcome eliminates scope creep and lets us validate real customer retention faster.';
+
+      return {
+        scopeDisciplineRule: '',
+        items: userItems,
+        whatWeRefuseToBuildInV1Narrative: refuseParts.join(' '),
+        whyThisLeanV1WinsFasterNarrative: whyLeanText,
+      };
+    }
+
+    if (track === 'PHYSICAL_PRODUCT_ECOM') {
+      return {
+        scopeDisciplineRule: '',
+        items: [],
+        whatWeRefuseToBuildInV1Narrative:
+          'In Version 1, we strictly refuse custom one-off dimensions, complex multi-part assemblies, and stocking excessive SKU variations that break standardized batch production and packaging.',
+        whyThisLeanV1WinsFasterNarrative:
+          'Restricting Version 1 to a focused set of standardized hero SKUs lets us batch-produce efficiently, keep courier shipping weights predictable, and protect gross margins across direct and marketplace channels.',
+      };
+    }
+
+    if (track === 'EDUCATION_PROGRAM_COHORT') {
+      return {
+        scopeDisciplineRule: '',
+        items: [],
+        whatWeRefuseToBuildInV1Narrative:
+          'In Version 1, we refuse to spend months building a custom native iOS/Android mobile app or recording dozens of hours of academic theory before families complete our core program.',
+        whyThisLeanV1WinsFasterNarrative:
+          'Launching our focused curriculum and actionable toolkits inside a mobile-ready web portal lets us onboard paying members in weeks, gather real outcome proof, and keep 95%+ gross margin.',
+      };
+    }
+
+    if (track === 'MARKETPLACE_PLATFORM') {
+      return {
+        scopeDisciplineRule: '',
+        items: [],
+        whatWeRefuseToBuildInV1Narrative:
+          'In Version 1, we refuse to build automated bidding algorithms, custom in-app video chat, or dual native mobile apps for buyers and suppliers before proving repeat booking liquidity on our first 50 transactions.',
+        whyThisLeanV1WinsFasterNarrative:
+          'Combining a clean web booking checkout with founder-curated matching for our initial cohort of suppliers guarantees high-trust matches on Day 1 and proves our commission take-rate in weeks.',
+      };
+    }
+
+    if (track === 'PRODUCTIZED_SERVICE_AGENCY') {
+      return {
+        scopeDisciplineRule: '',
+        items: [],
+        whatWeRefuseToBuildInV1Narrative:
+          'In Version 1, we refuse open-ended hourly consulting, bespoke out-of-scope client requests, and building a custom self-serve software portal before delivering 20 profitable client sprints.',
+        whyThisLeanV1WinsFasterNarrative:
+          'A standardized fixed-scope package with a structured intake checklist and internal SOPs lets us generate profitable cashflow in under 14 days with 70%+ gross margins.',
+      };
+    }
+
+    if (track === 'HYBRID_HARDWARE_SOFTWARE') {
+      return {
+        scopeDisciplineRule: '',
+        items: [],
+        whatWeRefuseToBuildInV1Narrative:
+          'In Version 1, we refuse expensive injection-moulded tooling, custom factory MOQs, and native mobile app store builds before our first 50 pilot kits are operating in real customer hands.',
+        whyThisLeanV1WinsFasterNarrative:
+          'Pairing pre-certified small-batch hardware with a QR-activated web dashboard lets us ship pilot kits in weeks, prove recurring subscription retention, and unlock R&D grant funding with real field data.',
+      };
+    }
+
+    // Default: SAAS_SOFTWARE_AI (or OTHER)
+    return {
+      scopeDisciplineRule: '',
+      items: [],
+      whatWeRefuseToBuildInV1Narrative:
+        'In Version 1, we strictly refuse to build native iOS/Android mobile apps, complex third-party ERP integrations, or enterprise SSO before validating our core web workflow with paying users.',
+      whyThisLeanV1WinsFasterNarrative:
+        'Keeping Version 1 focused on our essential Day-1 web capabilities lets us ship faster, validate willingness-to-pay with real customers, and iterate based on actual usage data rather than assumptions.',
+    };
+  };
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const countryPack = getCountryRulePack(params.hqCountryCode);
+
+      const prompt = `You are a ruthless Startup Product & Scope Strategist helping a founder draft the "Anti-Scope-Creep Charter & Grant Justification" in Step 3 of Module D.
+
+Startup Context:
+- Title: ${sanitizePromptInput(params.planTitle, 180)}
+- Industry: ${sanitizePromptInput(params.industryCategory, 120)} (HQ: ${countryPack.countryName})
+- Selected Product Track (Step 1): ${sanitizePromptInput(params.selectedTrack, 80)}
+- Form Factor (Step 1): ${sanitizePromptInput(params.formFactor, 80) || 'N/A'}
+- Primary Sales Channel (Step 2): ${sanitizePromptInput(params.primaryChannel, 80) || 'N/A'}
+- Core Problem: ${sanitizePromptInput(params.coreProblem, 350) || 'N/A'}
+- Proposed Solution: ${sanitizePromptInput(params.proposedSolution, 350) || 'N/A'}
+- Validated Customer Pain (Module C): ${sanitizePromptInput(params.validatedPainSummary, 350) || 'N/A'}
+
+Founder's Saved Scope Board Items (DO NOT invent new scope items; base your charter directly on these if provided):
+- MUST-HAVE FOR V1 (Day-1 Core): ${v1Titles.length > 0 ? sanitizePromptInput(v1Titles.join(' | '), 500) : 'None listed yet'}
+- FAST-FOLLOW V1.5 (Deferred to Months 3-6): ${v15Titles.length > 0 ? sanitizePromptInput(v15Titles.join(' | '), 400) : 'None listed yet'}
+- V2 ICEBOX (Explicitly Refused in V1): ${v2Titles.length > 0 ? sanitizePromptInput(v2Titles.join(' | '), 400) : 'None listed yet'}
+
+CRITICAL RULES:
+- Match ALL terminology strictly to the Selected Product Track (${params.selectedTrack}) and the founder's saved scope items above.
+- Specifically reference the founder's MUST-HAVE FOR V1 items in "whyThisLeanV1WinsFasterNarrative" and their FAST-FOLLOW V1.5 / V2 ICEBOX items in "whatWeRefuseToBuildInV1Narrative" whenever provided.
+
+Return strictly valid JSON with:
+{
+  "whatWeRefuseToBuildInV1Narrative": "2 concrete sentences stating what the founder explicitly refuses to build or stock in Version 1 (and what is deferred to V1.5/V2) to prevent scope creep or inventory bloat.",
+  "whyThisLeanV1WinsFasterNarrative": "2 concrete sentences explaining why launching with the founder's non-negotiable V1 scope gets to paying customers faster and protects unit margins."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.35,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          whatWeRefuseToBuildInV1Narrative?: string;
+          whyThisLeanV1WinsFasterNarrative?: string;
+        };
+
+        if (
+          parsed.whatWeRefuseToBuildInV1Narrative &&
+          parsed.whyThisLeanV1WinsFasterNarrative
+        ) {
+          creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_D_STEP3_SCOPE_FILTER',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 280,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 180,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            scopeDisciplineRule: '',
+            items: userItems,
+            whatWeRefuseToBuildInV1Narrative:
+              parsed.whatWeRefuseToBuildInV1Narrative.trim(),
+            whyThisLeanV1WinsFasterNarrative:
+              parsed.whyThisLeanV1WinsFasterNarrative.trim(),
+            creditsUsedAfter,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export interface ModuleDChannelMatrixGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  primaryChannel: SalesChannelOptionType;
+  secondaryChannels: SalesChannelOptionType[];
+  primaryChannelSharePercent: number;
+  estimatedBlendedFeePercent: number;
+  deliveryFulfillmentModel: DeliveryFulfillmentModelType;
+  rentToOwnBridgeStrategy: string;
+  channelWhyItFitsNotes: string;
+  creditsUsedAfter: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleDChannelMatrixViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  formFactor?: ProductFormFactorType;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  beachheadSegment?: string;
+}): Promise<ModuleDChannelMatrixGenerationResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_D_STEP2_CHANNEL_MATRIX'
+  );
+
+  const buildSmartFallback = (): Omit<
+    ModuleDChannelMatrixGenerationResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const cleanTitle = params.planTitle?.trim() || 'your product';
+    const combinedText = [
+      params.planTitle,
+      params.industryCategory,
+      params.brainDumpText,
+      params.coreProblem,
+      params.proposedSolution,
+      params.beachheadSegment,
+      params.targetCustomer,
+      params.otherProductTrackText,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    const customerLabel =
+      params.beachheadSegment?.trim() ||
+      params.targetCustomer?.trim() ||
+      'your target customers';
+
+    const track = params.selectedTrack;
+
+    if (track === 'PHYSICAL_PRODUCT_ECOM') {
+      const isWoodworking =
+        /wood|board|chopping|timber|craft|artisan|furniture|joinery/.test(
+          combinedText
+        );
+      return {
+        primaryChannel: 'ETSY_MARKETPLACE',
+        secondaryChannels: ['AMAZON_FBA', 'DIRECT_WEB_CRAFT_MARKETS'],
+        primaryChannelSharePercent: 55,
+        estimatedBlendedFeePercent: 16.5,
+        deliveryFulfillmentModel: 'HYBRID_FBA_STANDARD_WORKSHOP_CUSTOM',
+        rentToOwnBridgeStrategy: isWoodworking
+          ? `Every ${cleanTitle} chopping board shipped via Etsy or Amazon includes a branded kraft care card with a QR code offering a free "Heirloom Timber Care Guide + 15% off Beeswax Board Butter Refills" on our direct website—turning one-off rented marketplace gift buyers into owned direct repeat customers.`
+          : `Include a QR registration & care insert inside every Amazon and Etsy package offering a reorder discount or refill bundle on ${cleanTitle}'s direct store so we build an owned customer email list from day one.`,
+        channelWhyItFitsNotes: isWoodworking
+          ? `Etsy (~10.5% fee) gives us immediate high-intent handmade gift buyers for custom engraved boards shipped from our workshop, while Amazon FBA (~31% total fee) moves standard non-engraved boards on Prime autopilot. Our direct website & craft markets (~2.9% fee) capture 97% gross margin on corporate and repeat orders.`
+          : `Combining marketplace discovery (Etsy/Amazon) with a direct brand checkout balances Day-1 buyer traffic with long-term margin protection, keeping our blended platform commission around ~16.5% for Module G pricing.`,
+      };
+    }
+
+    if (track === 'EDUCATION_PROGRAM_COHORT') {
+      const isSleepOrParent =
+        /sleep|autis|parent|child|neuro|sensory|bedtime|family/.test(
+          combinedText
+        );
+      return {
+        primaryChannel: 'DIRECT_WEB_PORTAL_STRIPE',
+        secondaryChannels: [
+          'CHARITY_CLINIC_PARTNERSHIPS',
+          'HOSTED_COURSE_COMMUNITY',
+        ],
+        primaryChannelSharePercent: 75,
+        estimatedBlendedFeePercent: 4.5,
+        deliveryFulfillmentModel: 'HYBRID_ON_DEMAND_PLUS_LIVE_QA',
+        rentToOwnBridgeStrategy: isSleepOrParent
+          ? `Exhausted parents discover ${cleanTitle} via autism charities, OT clinics, and parent support groups using a free "5-Minute Sensory Bedtime Checklist & Visual Routine Card" lead magnet—capturing 100% owned parent emails before they enrol on our direct web portal (avoiding Apple/Google's 30% in-app purchase tax).`
+          : `Offer a free diagnostic mini-guide and printable action tool on ${cleanTitle}'s direct web portal so learners join our owned email list before upgrading to the full guided program.`,
+        channelWhyItFitsNotes: isSleepOrParent
+          ? `Selling directly via our mobile-friendly web portal with Stripe (~2.9% fee) plus charity/clinic referral partners keeps blended fees at ~4.5% instead of losing 30% to the Apple App Store, while instant 24/7 audio/visual access + weekly live Q&A supports parents at 2am when bedtime struggles happen.`
+          : `Direct web checkout paired with trusted community/clinic referral partners protects ~95.5% of gross revenue and gives ${customerLabel} immediate mobile & desktop access without app-store gatekeeping.`,
+      };
+    }
+
+    if (track === 'MARKETPLACE_PLATFORM') {
+      return {
+        primaryChannel: 'DIRECT_WEB_MANAGED_ESCROW',
+        secondaryChannels: ['SOCIAL_COMMUNITY_REFERRAL_LOOP'],
+        primaryChannelSharePercent: 80,
+        estimatedBlendedFeePercent: 3.2,
+        deliveryFulfillmentModel: 'MANUAL_CONCIERGE_FULFILLMENT',
+        rentToOwnBridgeStrategy: `Both buyers and providers create verified profiles directly on ${cleanTitle}'s web platform to unlock booking protection and automated invoicing—keeping repeat bookings on-platform instead of leaking to off-platform cash deals.`,
+        channelWhyItFitsNotes: `Direct web escrow via Stripe Connect keeps payment processing around ~3.2% and lets us manually curate and verify the first 50 matches before scaling automated self-serve bookings.`,
+      };
+    }
+
+    if (track === 'PRODUCTIZED_SERVICE_AGENCY') {
+      return {
+        primaryChannel: 'DIRECT_STRIPE_SUBSCRIPTION_LINK',
+        secondaryChannels: ['B2B_INVOICE_BANK_TRANSFER'],
+        primaryChannelSharePercent: 70,
+        estimatedBlendedFeePercent: 2.2,
+        deliveryFulfillmentModel: 'CLIENT_PORTAL_ASYNC_DELIVERY',
+        rentToOwnBridgeStrategy: `Prospects book via a free 5-minute diagnostic audit on ${cleanTitle}'s website and receive a dedicated client workspace—owning 100% of the client relationship with zero freelance-marketplace commissions.`,
+        channelWhyItFitsNotes: `Direct Stripe checkout links and B2B bank transfers keep payment fees at ~2.2% and eliminate 10%–20% agency marketplace cuts while asynchronous portal delivery protects founder time.`,
+      };
+    }
+
+    if (track === 'HYBRID_HARDWARE_SOFTWARE') {
+      return {
+        primaryChannel: 'DIRECT_HARDWARE_BUNDLE_WEB',
+        secondaryChannels: [
+          'AMAZON_PLUS_COMPANION_PORTAL',
+          'B2B_CHANNEL_RESELLER',
+        ],
+        primaryChannelSharePercent: 65,
+        estimatedBlendedFeePercent: 9.5,
+        deliveryFulfillmentModel: 'HARDWARE_SHIP_PLUS_QR_ACTIVATION',
+        rentToOwnBridgeStrategy: `Every physical device box includes a mandatory QR onboarding code that activates the user's cloud dashboard on ${cleanTitle}'s direct web portal—converting even Amazon hardware buyers into 100% owned recurring software subscribers.`,
+        channelWhyItFitsNotes: `Selling the hardware + software bundle direct on our website plus selected B2B/Amazon discovery keeps blended fees under 10% while ensuring all recurring companion subscriptions bill through Stripe (~2.9%).`,
+      };
+    }
+
+    // Default: SAAS_SOFTWARE_AI (or OTHER)
+    return {
+      primaryChannel: 'DIRECT_WEB_STRIPE',
+      secondaryChannels: [
+        'LTD_LAUNCH_MARKETPLACE',
+        'B2B_INSTITUTIONAL_INVOICE',
+      ],
+      primaryChannelSharePercent: 75,
+      estimatedBlendedFeePercent: 5.5,
+      deliveryFulfillmentModel: 'HYBRID_SELF_SERVE_PLUS_COHORT_CODE',
+      rentToOwnBridgeStrategy: `Founders and buyers enter through ${cleanTitle}'s free interactive hook (Module A / free diagnostic) or redeem a launch/institutional voucher code directly on our web domain—so we own 100% of user emails, workspace data, and upgrade paths without paying a 30% mobile app store tax.`,
+      channelWhyItFitsNotes: `Direct Web Checkout via Stripe (~2.9% fee) preserves 97% gross margin on core passes, while tactical launch marketplaces (e.g., AppSumo LTD) and B2B institutional cohort invoices bring rapid word-of-mouth and bulk seats with zero upfront ad spend.`,
+    };
+  };
+
+  if (authCtx.creditCheckBlocked) {
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      ...buildSmartFallback(),
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const countryPack = getCountryRulePack(params.hqCountryCode);
+      const fallback = buildSmartFallback();
+
+      const prompt = `You are a startup Commercial & Channel Strategist helping a founder complete Step 2 of Module D ("Own vs. Rent Sales & Fulfillment Channel Matrix").
+
+Startup Context:
+- Title: ${sanitizePromptInput(params.planTitle, 180)}
+- Industry: ${sanitizePromptInput(params.industryCategory, 120)} (HQ: ${countryPack.countryName}, ${countryPack.defaultCurrency})
+- Product Track (Step 1): ${sanitizePromptInput(params.selectedTrack, 80)}
+- Form Factor (Step 1): ${sanitizePromptInput(params.formFactor, 80) || 'N/A'}
+- Core Problem: ${sanitizePromptInput(params.coreProblem, 400) || 'N/A'}
+- Proposed Solution: ${sanitizePromptInput(params.proposedSolution, 400) || 'N/A'}
+- Target Beachhead Customer: ${sanitizePromptInput(params.beachheadSegment || params.targetCustomer, 350) || 'N/A'}
+
+CRITICAL TRACK-SPECIFIC RULES:
+- Match ALL terminology strictly to the Selected Product Track (${params.selectedTrack}).
+- If PHYSICAL_PRODUCT_ECOM: Focus on Etsy (~10.5% fee), Amazon FBA (~31% total fee) vs. FBM (~15% referral fee), Direct Shopify/Web (~2.9% fee), packaging QR inserts to turn rented marketplace buyers into owned repeat buyers, and workshop vs. FBA fulfillment. NEVER mention SaaS APIs or app stores.
+- If EDUCATION_PROGRAM_COHORT: Focus on Direct Web Portal + Stripe (~2.9% fee, avoiding Apple's 30% app store tax), charity/clinic/community referral partnerships, free diagnostic/checklist lead magnets, and 24/7 on-demand + live Q&A delivery.
+- If SAAS_SOFTWARE_AI: Focus on Direct Web Stripe checkout (~2.9% fee, 100% owned audience), launch marketplaces (AppSumo/ProductHunt) or B2B cohort licensing, and self-serve onboarding.
+
+Return strictly valid JSON with:
+{
+  "rentToOwnBridgeStrategy": "2 concrete sentences explaining how the founder captures 100% owned customer emails/relationships and bridges any rented marketplace traffic back to their direct channel.",
+  "channelWhyItFitsNotes": "2 concrete sentences explaining why this channel mix and fulfillment setup maximizes early traction while protecting gross margins for Module G pricing."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.35,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          rentToOwnBridgeStrategy?: string;
+          channelWhyItFitsNotes?: string;
+        };
+        if (parsed.rentToOwnBridgeStrategy && parsed.channelWhyItFitsNotes) {
+          creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_D_STEP2_CHANNEL_MATRIX',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 270,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 195,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            ...fallback,
+            rentToOwnBridgeStrategy: parsed.rentToOwnBridgeStrategy.trim(),
+            channelWhyItFitsNotes: parsed.channelWhyItFitsNotes.trim(),
+            creditsUsedAfter,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
 

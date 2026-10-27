@@ -100,6 +100,11 @@ import {
   type InterviewChannelType,
   type ProductVehicleStep1Data,
   type ProductTrackType,
+  type ProductFormFactorType,
+  type SalesChannelOptionType,
+  type ChannelMatrixStep2Data,
+  type ScopeFilterItem,
+  type ScopeFilterStep3Data,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -134,8 +139,12 @@ import {
 } from '@/app/actions/module-c';
 import {
   saveModuleDStep1ProductVehicleAction,
+  saveModuleDStep2ChannelMatrixAction,
+  saveModuleDStep3ScopeFilterAction,
   parkModuleDOpenQuestionAction,
   generateModuleDProductVehicleWithAiAction,
+  generateModuleDChannelMatrixWithAiAction,
+  generateModuleDScopeFilterWithAiAction,
 } from '@/app/actions/module-d';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
@@ -360,7 +369,9 @@ export default function WorkspacePage() {
       }
       setThingsToConsider(activePlan.thingsToConsider || []);
       setOpenQuestions(activePlan.openQuestions || []);
-      if (activePlan.currentModuleStep?.startsWith('MOD_C')) {
+      if (activePlan.currentModuleStep?.startsWith('MOD_D')) {
+        setActiveModule('MOD_D_PRODUCT_BUILD');
+      } else if (activePlan.currentModuleStep?.startsWith('MOD_C')) {
         setActiveModule('MOD_C_SURVEYS_FEEDBACK');
       } else if (activePlan.currentModuleStep?.startsWith('MOD_B')) {
         setActiveModule('MOD_B_MARKET');
@@ -372,6 +383,22 @@ export default function WorkspacePage() {
         setCloudDbConnected(res.dbConnected);
         if (res.authenticated && res.session) {
           setSession((prev) => {
+            const pickNewerBySavedAt = <T extends { lastSavedAt?: string }>(
+              localVal?: T,
+              dbVal?: T
+            ): T | undefined => {
+              if (localVal && !dbVal) return localVal;
+              if (!localVal && dbVal) return dbVal;
+              if (!localVal && !dbVal) return undefined;
+              const localTs = localVal?.lastSavedAt
+                ? new Date(localVal.lastSavedAt).getTime()
+                : 0;
+              const dbTs = dbVal?.lastSavedAt
+                ? new Date(dbVal.lastSavedAt).getTime()
+                : 0;
+              return localTs >= dbTs ? localVal : dbVal;
+            };
+
             const mergedPlans = res.session!.plans.map((dbPlan) => {
               const localPlan = prev.plans.find((lp) => lp.id === dbPlan.id);
               if (!localPlan) return dbPlan;
@@ -428,9 +455,46 @@ export default function WorkspacePage() {
                   )
                 : combinedSurveys.slice(0, 1);
 
+              const mergedModuleDData =
+                localPlan.moduleDData || dbPlan.moduleDData
+                  ? {
+                      ...(dbPlan.moduleDData || {}),
+                      ...(localPlan.moduleDData || {}),
+                      productVehicle: pickNewerBySavedAt(
+                        localPlan.moduleDData?.productVehicle,
+                        dbPlan.moduleDData?.productVehicle
+                      ),
+                      channelMatrix: pickNewerBySavedAt(
+                        localPlan.moduleDData?.channelMatrix,
+                        dbPlan.moduleDData?.channelMatrix
+                      ),
+                      scopeFilter: pickNewerBySavedAt(
+                        localPlan.moduleDData?.scopeFilter,
+                        dbPlan.moduleDData?.scopeFilter
+                      ),
+                      thingsToConsider:
+                        dbPlan.moduleDData?.thingsToConsider ||
+                        localPlan.moduleDData?.thingsToConsider,
+                      lastSavedAt:
+                        pickNewerBySavedAt(
+                          localPlan.moduleDData,
+                          dbPlan.moduleDData
+                        )?.lastSavedAt ||
+                        localPlan.moduleDData?.lastSavedAt ||
+                        dbPlan.moduleDData?.lastSavedAt,
+                    }
+                  : undefined;
+
+              const resolvedCurrentStep =
+                localPlan.currentModuleStep?.startsWith('MOD_D') &&
+                !dbPlan.currentModuleStep?.startsWith('MOD_D')
+                  ? localPlan.currentModuleStep
+                  : dbPlan.currentModuleStep || localPlan.currentModuleStep;
+
               return {
                 ...localPlan,
                 ...dbPlan,
+                currentModuleStep: resolvedCurrentStep,
                 moduleBData: dbPlan.moduleBData || localPlan.moduleBData,
                 moduleCData:
                   cleanedSurveys.length > 0
@@ -442,6 +506,7 @@ export default function WorkspacePage() {
                           cleanedSurveys[0]?.id,
                       }
                     : dbPlan.moduleCData || localPlan.moduleCData,
+                moduleDData: mergedModuleDData,
               };
             });
 
@@ -472,7 +537,9 @@ export default function WorkspacePage() {
             }
             setThingsToConsider(dbPlan.thingsToConsider || []);
             setOpenQuestions(dbPlan.openQuestions || []);
-            if (dbPlan.currentModuleStep?.startsWith('MOD_C')) {
+            if (dbPlan.currentModuleStep?.startsWith('MOD_D')) {
+              setActiveModule('MOD_D_PRODUCT_BUILD');
+            } else if (dbPlan.currentModuleStep?.startsWith('MOD_C')) {
               setActiveModule('MOD_C_SURVEYS_FEEDBACK');
             } else if (dbPlan.currentModuleStep?.startsWith('MOD_B')) {
               setActiveModule('MOD_B_MARKET');
@@ -1420,6 +1487,88 @@ export default function WorkspacePage() {
     });
   }
 
+  async function handleSaveModuleDStep2ChannelMatrix(
+    channelMatrix: ChannelMatrixStep2Data
+  ) {
+    const progress =
+      channelMatrix.rentToOwnBridgeStrategy.trim().length > 10 &&
+      channelMatrix.channelWhyItFitsNotes.trim().length > 10
+        ? 50
+        : 35;
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_D_STEP_2',
+          moduleDData: {
+            ...(p.moduleDData || {}),
+            channelMatrix,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleDStep2ChannelMatrixAction({
+      planId: currentPlan.id,
+      channelMatrix,
+      completionPercentage: progress,
+    });
+  }
+
+  async function handleSaveModuleDStep3ScopeFilter(
+    scopeFilter: ScopeFilterStep3Data
+  ) {
+    const v1Count = scopeFilter.items.filter(
+      (i) => i.bucket === 'MUST_HAVE_V1'
+    ).length;
+    const deferredCount = scopeFilter.items.filter(
+      (i) => i.bucket !== 'MUST_HAVE_V1'
+    ).length;
+    const progress =
+      v1Count > 0 &&
+      deferredCount > 0 &&
+      scopeFilter.whatWeRefuseToBuildInV1Narrative.trim().length > 10 &&
+      scopeFilter.whyThisLeanV1WinsFasterNarrative.trim().length > 10
+        ? 75
+        : 60;
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_D_STEP_3',
+          moduleDData: {
+            ...(p.moduleDData || {}),
+            scopeFilter,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleDStep3ScopeFilterAction({
+      planId: currentPlan.id,
+      scopeFilter,
+      completionPercentage: progress,
+    });
+  }
+
   async function handleParkModuleDQuestion(questionText: string) {
     const clean = questionText.trim();
     if (!clean) return;
@@ -1493,6 +1642,136 @@ export default function WorkspacePage() {
       reason: res.reason,
       ahaMomentNarrative: res.ahaMomentNarrative,
       whyThisVehicleFitsCustomer: res.whyThisVehicleFitsCustomer,
+      engineMode: res.engineMode,
+    };
+  }
+
+  async function handleGenerateModuleDChannelMatrixWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    formFactor?: ProductFormFactorType;
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Channel Matrix & Rent-to-Own Bridge Draft (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        primaryChannel: 'DIRECT_WEB_STRIPE' as const,
+        secondaryChannels: [],
+        primaryChannelSharePercent: 100,
+        estimatedBlendedFeePercent: 3.5,
+        deliveryFulfillmentModel: 'INSTANT_SELF_SERVE_ONBOARDING' as const,
+        rentToOwnBridgeStrategy: '',
+        channelWhyItFitsNotes: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleDChannelMatrixWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      beachheadSegment: currentPlan.moduleBData?.beachhead?.beachheadSegment,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      formFactor: params.formFactor,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      primaryChannel: res.primaryChannel,
+      secondaryChannels: res.secondaryChannels,
+      primaryChannelSharePercent: res.primaryChannelSharePercent,
+      estimatedBlendedFeePercent: res.estimatedBlendedFeePercent,
+      deliveryFulfillmentModel: res.deliveryFulfillmentModel,
+      rentToOwnBridgeStrategy: res.rentToOwnBridgeStrategy,
+      channelWhyItFitsNotes: res.channelWhyItFitsNotes,
+      engineMode: res.engineMode,
+    };
+  }
+
+  async function handleGenerateModuleDScopeFilterWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    formFactor?: ProductFormFactorType;
+    primaryChannel?: SalesChannelOptionType;
+    validatedPainSummary?: string;
+    currentScopeItems?: ScopeFilterItem[];
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Anti-Scope-Creep Charter & Grant Justification Draft (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        scopeDisciplineRule: '' as const,
+        items: params.currentScopeItems || [],
+        whatWeRefuseToBuildInV1Narrative: '',
+        whyThisLeanV1WinsFasterNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleDScopeFilterWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      beachheadSegment: currentPlan.moduleBData?.beachhead?.beachheadSegment,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      formFactor: params.formFactor,
+      primaryChannel: params.primaryChannel,
+      validatedPainSummary: params.validatedPainSummary,
+      currentScopeItems: params.currentScopeItems,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      scopeDisciplineRule: res.scopeDisciplineRule,
+      items: res.items,
+      whatWeRefuseToBuildInV1Narrative: res.whatWeRefuseToBuildInV1Narrative,
+      whyThisLeanV1WinsFasterNarrative: res.whyThisLeanV1WinsFasterNarrative,
       engineMode: res.engineMode,
     };
   }
@@ -1809,12 +2088,29 @@ export default function WorkspacePage() {
         : 0;
 
   const savedModDVehicle = currentPlan.moduleDData?.productVehicle;
-  const totalModDScore = savedModDVehicle
+  const savedModDChannelMatrix = currentPlan.moduleDData?.channelMatrix;
+  const savedModDScopeFilter = currentPlan.moduleDData?.scopeFilter;
+  const step1ModDScore = savedModDVehicle
     ? savedModDVehicle.ahaMomentNarrative.trim().length > 10 &&
       savedModDVehicle.whyThisVehicleFitsCustomer.trim().length > 10
       ? 25
       : 15
     : 0;
+  const step2ModDScore = savedModDChannelMatrix
+    ? savedModDChannelMatrix.rentToOwnBridgeStrategy.trim().length > 10 &&
+      savedModDChannelMatrix.channelWhyItFitsNotes.trim().length > 10
+      ? 25
+      : 15
+    : 0;
+  const step3ModDScore = savedModDScopeFilter
+    ? savedModDScopeFilter.items.some((i) => i.bucket === 'MUST_HAVE_V1') &&
+      savedModDScopeFilter.items.some((i) => i.bucket !== 'MUST_HAVE_V1') &&
+      savedModDScopeFilter.whatWeRefuseToBuildInV1Narrative.trim().length > 10 &&
+      savedModDScopeFilter.whyThisLeanV1WinsFasterNarrative.trim().length > 10
+      ? 25
+      : 15
+    : 0;
+  const totalModDScore = step1ModDScore + step2ModDScore + step3ModDScore;
   const moduleDProgressPercent =
     totalModDScore > 0
       ? totalModDScore
@@ -2352,8 +2648,16 @@ export default function WorkspacePage() {
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               onSaveStep1ProductVehicle={handleSaveModuleDStep1ProductVehicle}
+              onSaveStep2ChannelMatrix={handleSaveModuleDStep2ChannelMatrix}
+              onSaveStep3ScopeFilter={handleSaveModuleDStep3ScopeFilter}
               onGenerateAiProductVehicle={
                 handleGenerateModuleDProductVehicleWithAi
+              }
+              onGenerateAiChannelMatrix={
+                handleGenerateModuleDChannelMatrixWithAi
+              }
+              onGenerateAiScopeFilter={
+                handleGenerateModuleDScopeFilterWithAi
               }
               onParkOpenQuestion={handleParkModuleDQuestion}
               onBackToModuleC={() => setActiveModule('MOD_C_SURVEYS_FEEDBACK')}
