@@ -13,7 +13,7 @@ import {
 import { relations } from 'drizzle-orm';
 
 // ==========================================
-// 1. ENUMS
+// 1. ENUMS & SHARED TYPES
 // ==========================================
 export const userRoleEnum = pgEnum('user_role', [
   'FOUNDER',
@@ -61,11 +61,13 @@ export const moduleCodeEnum = pgEnum('module_code', [
   'MOD_B_MARKET',
   'MOD_C_SURVEYS_FEEDBACK',
   'MOD_D_PRODUCT_BUILD',
-  'MOD_E_OPERATIONS_TEAM',
-  'MOD_F_REVENUE',
-  'MOD_G_MARKETING',
-  'MOD_H_FINANCE_GRANTS',
-  'MOD_I_BUSINESS_PLAN',
+  'MOD_E_OPERATIONS',
+  'MOD_F_COFOUNDER_TEAM',
+  'MOD_G_REVENUE',
+  'MOD_H_MARKETING',
+  'MOD_I_FINANCE',
+  'MOD_J_GRANTS_FUNDING',
+  'MOD_K_BUSINESS_PLAN',
 ]);
 
 export const questionStatusEnum = pgEnum('question_status', [
@@ -97,7 +99,7 @@ export type BlindSpotItem = {
 export const tenants = pgTable('tenants', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
-  slug: text('slug').notNull().unique(), // e.g., 'default', 'ucd-nova', 'leo-dublin'
+  slug: text('slug').notNull().unique(), // e.g., 'default', 'ucd-nova', 'leo-dublin', 'barclays-eagle-labs'
   customDomain: text('custom_domain'),
   brandingJson: jsonb('branding_json')
     .$type<{
@@ -168,7 +170,7 @@ export const userEntitlements = pgTable('user_entitlements', {
   aiCreditsUsedThisMonth: integer('ai_credits_used_this_month').default(0).notNull(),
   creditsResetAt: timestamp('credits_reset_at'),
   whiteLabelExportEnabled: boolean('white_label_export_enabled').default(false).notNull(),
-  customApiKeyEncrypted: text('custom_api_key_encrypted'), // BYOK for Tier 3 AppSumo
+  customApiKeyEncrypted: text('custom_api_key_encrypted'), // BYOK for Tier 3 AppSumo (AES-256-GCM encrypted)
   accessExpiresAt: timestamp('access_expires_at'), // NULL for AppSumo LTD, +6 months for Passes
   isVaultReadonly: boolean('is_vault_readonly').default(false).notNull(),
   stripeCustomerId: text('stripe_customer_id'),
@@ -190,7 +192,7 @@ export const vouchers = pgTable('vouchers', {
 });
 
 // ==========================================
-// 4. STARTUP PLANS (1-TO-MANY WORKSPACES) & COLLABORATORS
+// 4. STARTUP PLANS (1-TO-MANY WORKSPACES) & COLLABORATORS (MODULE F)
 // ==========================================
 export const startupPlans = pgTable('startup_plans', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -203,14 +205,130 @@ export const startupPlans = pgTable('startup_plans', {
   title: text('title').notNull(),
   oneLinerSummary: text('one_liner_summary'),
   industryCategory: text('industry_category'),
+  grantEligibilitySector: text('grant_eligibility_sector'), // 'MANUFACTURING', 'INTERNALLY_TRADED_SERVICE', 'LOCAL_RETAIL_OR_SERVICE'
+  innovateUkResearchCategory: text('innovate_uk_research_category'), // 'FEASIBILITY_STUDY_70', 'INDUSTRIAL_RESEARCH_70', 'EXPERIMENTAL_DEVELOPMENT_45'
   productVehicleType: text('product_vehicle_type'), // 'PHYSICAL', 'SOFTWARE', 'SERVICE', 'CONTENT_COMMUNITY', 'HYBRID'
   primarySalesChannel: text('primary_sales_channel'), // 'AMAZON_MARKETPLACE', 'OWN_SHOPIFY_D2C', 'HYBRID_TROJAN_HORSE', 'WEB_SAAS', 'MOBILE_APP_STORE', 'B2B_DIRECT'
   selectedBuildTier: text('selected_build_tier'), // 'TIER_1_CONCIERGE_NOCODE', 'TIER_2_LOWCODE_WHITELABEL', 'TIER_3_CUSTOM_CODE_MANUFACTURING'
   hqCountryCode: text('hq_country_code').default('IE').notNull(), // 'IE', 'GB', 'US', 'AU', 'CA', 'EU', 'ROW'
+  localAuthorityOrRegion: text('local_authority_or_region'), // e.g., 'LEO Dublin City', 'LEO Galway (BMW 60%)', 'Scottish Enterprise', 'Innovate UK England'
   baseCurrency: text('base_currency').default('EUR').notNull(), // 'EUR', 'GBP', 'USD', 'AUD', 'CAD'
   targetMarketsArray: jsonb('target_markets_array').$type<string[]>().default(['IE']),
   targetLaunchDate: timestamp('target_launch_date'), // Used by the Reverse-Engineered Launch Calendar
   currentModuleStep: text('current_module_step').default('MOD_A_STEP_1').notNull(),
+  // Module J: IE LEO & UK (Innovate UK / Start Up Loans / HMRC SEIS-EIS) Grant & Tax Compliance Metadata
+  grantComplianceMetadataJson: jsonb('grant_compliance_metadata_json')
+    .$type<{
+      selectedTargetGrants?: string[]; // e.g., ['IE_LEO_PRIMING', 'UK_SEIS_ASSURANCE']
+      // Shared IE & UK Corporate Identifiers
+      croOrCompaniesHouseNumber?: string;
+      incorporationDate?: string;
+      tradingStartDate?: string; // Mandatory for HMRC SEIS (< 3 years from first trade)
+      ukUtrTaxReference?: string; // 10-digit Unique Taxpayer Reference required for HMRC SEIS/EIS
+      legalStructure?:
+        | 'SOLE_TRADER'
+        | 'PARTNERSHIP'
+        | 'LIMITED_COMPANY'
+        | 'PRE_INCORPORATION';
+      premisesType?:
+        | 'HOME_OFFICE'
+        | 'HUB_COWORKING'
+        | 'LEASED_COMMERCIAL'
+        | 'RATEABLE_UNIT';
+      taxClearanceAccessNumber?: string; // Ireland eTax Clearance
+      vatRegistered?: boolean;
+      vatNumber?: string;
+      // State Aid / Subsidy Control Limits
+      deMinimisAidPast3YearsEur?: number; // IE/EU €300,000 limit
+      ukMinimalFinancialAssistancePast3YearsGbp?: number; // UK £315,000 MFA limit
+      receivingWelfareEnterpriseAllowance?: boolean; // IE BTWEA / STEA
+      // Match Funding & Founder Contribution
+      moneyInvestedByFoundersToDate?: number;
+      matchFundingSource?:
+        | 'OWN_SAVINGS'
+        | 'BANK_OR_MFI_OR_STARTUPLOAN'
+        | 'ANGEL_SEIS_INVESTOR'
+        | 'MIXED';
+      matchFundingConfirmedInBank?: boolean;
+      // Ireland LEO Specifics
+      nonDisplacementJustification?: string;
+      exportGrowthNarrative?: string;
+      // UK Innovate UK Specifics (IFS Portal)
+      innovateUkPublicDescription300Words?: string;
+      innovateUkScopeSummary400Words?: string;
+      innovateUkAdditionalityJustification?: string; // Why public money is needed (Q5)
+      innovateUkWiderEconomicAndNetZeroImpact?: string; // Q7 Impact & Benefits
+      allRdCarriedOutInUkConfirmed?: boolean;
+      involvesAnimalTesting?: boolean; // Mandatory Q2 declaration
+      permitsAndLicencesSummary?: string; // Mandatory Q3 declaration
+      workPackagesSchedule?: Array<{
+        wpNumber: string; // e.g., 'WP1'
+        title: string;
+        startMonth: number;
+        endMonth: number;
+        leadPartnerOrRole: string;
+        deliverablesSummary: string;
+        allocatedLabourCost: number;
+      }>;
+      projectRiskRegister?: Array<{
+        id: string;
+        category: 'TECHNICAL' | 'COMMERCIAL' | 'MANAGERIAL' | 'ENVIRONMENTAL';
+        riskDescription: string;
+        likelihoodScore1To5: number;
+        impactScore1To5: number;
+        mitigationStrategy: string;
+      }>;
+      // UK HMRC SEIS / EIS Advance Assurance Specifics
+      seisExcludedTradeChecked?: boolean;
+      seisRiskToCapitalStatement?: string;
+      seisOrdinarySharesConfirmed?: boolean;
+      seisNamedProspectiveInvestors?: Array<{
+        investorName: string;
+        investorType:
+          | 'INDIVIDUAL_ANGEL'
+          | 'SEIS_FUND'
+          | 'FCA_CROWDFUNDING_PLATFORM';
+        addressOrFirm: string;
+        proposedAmountGbp: number;
+      }>;
+      // Advisors & Job Creation
+      advisorsDirectory?: {
+        bankNameAndBranch?: string;
+        accountantFirm?: string;
+        solicitorFirm?: string;
+        insuranceBroker?: string;
+      };
+      projectedJobsTable?: {
+        currentFullTime: number;
+        currentPartTime: number;
+        year1NewFullTime: number;
+        year2NewFullTime: number;
+        year3NewFullTime: number;
+      };
+      // Grant Expenditure & Capital Depreciation Schedule
+      grantExpenditureSchedule?: Array<{
+        id: string;
+        itemDescription: string;
+        category:
+          | 'CAPITAL_EQUIPMENT'
+          | 'SALARY'
+          | 'CONSULTANCY_SUBCONTRACTOR'
+          | 'MATERIALS'
+          | 'UTILITY_RENT_FITOUT'
+          | 'FEASIBILITY_OWN_LABOUR';
+        netCostExVat: number;
+        isExcludedMobileAsset: boolean; // True if laptop/phone/tablet/vehicle -> blocks IE LEO claim
+        // Innovate UK Capital Usage / Depreciation fields
+        depreciationPeriodMonths?: number;
+        projectDurationMonthsUsed?: number;
+        percentUsedOnProject?: number;
+        eligibleInnovateUkDepreciatedCost?: number;
+        quotesRequiredCount: 1 | 3; // 3 quotes if > €5,000 for IE LEO
+        quotesCollectedCount: number;
+        supplierNames?: string[];
+      }>;
+    }>()
+    .default({}),
   ideaComparatorScoresJson: jsonb('idea_comparator_scores_json')
     .$type<{
       easeOfLaunch?: number;
@@ -235,11 +353,33 @@ export const planCollaborators = pgTable(
     invitedEmail: text('invited_email').notNull(),
     inviteAccepted: boolean('invite_accepted').default(false).notNull(),
     role: collaboratorRoleEnum('role').default('CO_FOUNDER').notNull(),
-    // Module C Step 3: Startup Hats assigned to this person
+    // Module F Step 2: Promoter Background Profile (IE LEO Min 150 words + UK Innovate UK Q8 Team Capability)
+    promoterBackgroundProfileJson: jsonb('promoter_background_profile_json')
+      .$type<{
+        educationAndQualifications?: string;
+        relevantTrainingCourses?: string; // e.g., LEO Start Your Own Business course
+        workAndSelfEmploymentHistory?: string;
+        compiled150WordNarrative?: string;
+        cvReadyForAppendixD?: boolean;
+      }>()
+      .default({}),
+    // Module F Step 3: Personal Survival Budget (Mandatory Tab #2 of UK Start Up Loans Workbook)
+    personalSurvivalBudgetJson: jsonb('personal_survival_budget_json')
+      .$type<{
+        monthlyMortgageOrRent?: number;
+        monthlyCouncilTaxAndUtilities?: number;
+        monthlyFoodAndHousehold?: number;
+        monthlyTransportAndCarLoans?: number;
+        monthlyPersonalDebtsAndChildcare?: number;
+        monthlyOtherPersonalIncome?: number; // Partner contribution, part-time work, etc.
+        calculatedMinimumMonthlyDrawingsNeeded?: number;
+      }>()
+      .default({}),
+    // Module F Step 4: 7 Startup Hats assigned to this person
     assignedHatsArray: jsonb('assigned_hats_array')
       .$type<StartupHat[]>()
       .default([]),
-    // Module C Step 4: Blind-Reveal Co-Founder Alignment Answers (Locked until all submit)
+    // Module F Step 5: Blind-Reveal Co-Founder Alignment Answers (Locked until all submit)
     alignmentInterviewCompleted: boolean('alignment_interview_completed')
       .default(false)
       .notNull(),
@@ -248,11 +388,20 @@ export const planCollaborators = pgTable(
         mediaSpokesperson?: string;
         willingToRelocate?: string;
         weeklyHoursCommitment?: string;
+        dayJobQuitMilestone?: string;
         personalRunwayMonths?: number;
+        minimumMonthlySalaryNeeded?: number;
+        dayOneCashContribution?: number;
         earlyExit2MDecision?: string;
+        hireFriendsAndFamilyRule?: string;
+        pivotCommittedIfIdeaFails?: string;
+        underperformanceEquityRule?: string;
         deadlockResolutionMethod?: string;
       }>()
       .default({}),
+    proposedEquityPercent: numeric('proposed_equity_percent'),
+    vestingScheduleMonths: integer('vesting_schedule_months').default(48),
+    cliffMonths: integer('cliff_months').default(12),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -418,11 +567,12 @@ export const countryRules = pgTable('country_rules', {
 
 export const grantsDirectory = pgTable('grants_directory', {
   id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').notNull().unique(), // For public SEO pages: buildmyunicorn.com/grants/[slug]
   countryCode: text('country_code').notNull(), // 'IE', 'GB', 'US', 'AU', 'CA', 'EU'
   grantName: text('grant_name').notNull(), // e.g., 'LEO Feasibility Study Grant'
   providerAgency: text('provider_agency').notNull(), // e.g., 'Local Enterprise Office (Ireland)'
-  fundingType: text('funding_type').notNull(), // 'GRANT', 'TAX_RELIEF', 'R_AND_D_CREDIT', 'EQUITY_MATCH'
-  maxAmountFormatted: text('max_amount_formatted').notNull(), // e.g., '€15,000 (50% Match)'
+  fundingType: text('funding_type').notNull(), // 'GRANT', 'TAX_RELIEF', 'R_AND_D_CREDIT', 'EQUITY_MATCH', 'STARTUP_LOAN'
+  maxAmountFormatted: text('max_amount_formatted').notNull(), // e.g., '€15,000 (50% Match / 60% in BMW Region)'
   reimbursementWarning: text('reimbursement_warning').notNull(),
   eligibilityRulesJsonb: jsonb('eligibility_rules_jsonb').default({}).notNull(),
   officialUrl: text('official_url'),
@@ -432,7 +582,7 @@ export const grantsDirectory = pgTable('grants_directory', {
 
 export const aiPrompts = pgTable('ai_prompts', {
   id: uuid('id').defaultRandom().primaryKey(),
-  promptKey: text('prompt_key').notNull().unique(), // e.g., 'MOD_A_CONCEPT_CANVAS', 'MOD_B_MOM_TEST_CHECK'
+  promptKey: text('prompt_key').notNull().unique(), // e.g., 'MOD_A_CONCEPT_CANVAS', 'MOD_C_MOM_TEST_SURVEY'
   moduleCode: moduleCodeEnum('module_code').notNull(),
   modelName: text('model_name').default('gemini-2.5-flash').notNull(),
   systemInstruction: text('system_instruction').notNull(),

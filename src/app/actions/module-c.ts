@@ -58,19 +58,25 @@ async function ensureModuleCodeEnumValues(): Promise<void> {
       sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_D_PRODUCT_BUILD'`
     );
     await db.execute(
-      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_E_OPERATIONS_TEAM'`
+      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_E_OPERATIONS'`
     );
     await db.execute(
-      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_F_REVENUE'`
+      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_F_COFOUNDER_TEAM'`
     );
     await db.execute(
-      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_G_MARKETING'`
+      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_G_REVENUE'`
     );
     await db.execute(
-      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_H_FINANCE_GRANTS'`
+      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_H_MARKETING'`
     );
     await db.execute(
-      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_I_BUSINESS_PLAN'`
+      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_I_FINANCE'`
+    );
+    await db.execute(
+      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_J_GRANTS_FUNDING'`
+    );
+    await db.execute(
+      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_K_BUSINESS_PLAN'`
     );
     moduleEnumEnsured = true;
   } catch {

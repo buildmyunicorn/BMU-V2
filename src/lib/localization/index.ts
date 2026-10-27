@@ -21,10 +21,16 @@ export interface CountryRuleSeed {
 }
 
 export interface GrantDirectorySeed {
+  slug: string;
   countryCode: SupportedCountryCode;
   grantName: string;
   providerAgency: string;
-  fundingType: 'GRANT' | 'TAX_RELIEF' | 'R_AND_D_CREDIT' | 'EQUITY_MATCH';
+  fundingType:
+    | 'GRANT'
+    | 'TAX_RELIEF'
+    | 'R_AND_D_CREDIT'
+    | 'EQUITY_MATCH'
+    | 'STARTUP_LOAN';
   maxAmountFormatted: string;
   reimbursementWarning: string;
   eligibilityRulesJsonb: Record<string, unknown>;
@@ -135,11 +141,12 @@ export const DEFAULT_COUNTRY_RULES: CountryRuleSeed[] = [
 
 export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
   {
+    slug: 'ie-leo-feasibility-study-grant',
     countryCode: 'IE',
     grantName: 'LEO Feasibility Study Grant',
     providerAgency: 'Local Enterprise Office (Ireland)',
     fundingType: 'GRANT',
-    maxAmountFormatted: '€15,000 (50%–60% Match)',
+    maxAmountFormatted: '€15,000 (50% Match / 60% in BMW Region)',
     reimbursementWarning:
       'Paid strictly on reimbursement of vouched receipts after formal approval. Do not spend money before receiving your Letter of Offer.',
     eligibilityRulesJsonb: {
@@ -151,13 +158,14 @@ export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
     isActive: true,
   },
   {
+    slug: 'ie-leo-priming-grant',
     countryCode: 'IE',
     grantName: 'LEO Priming Grant',
     providerAgency: 'Local Enterprise Office (Ireland)',
     fundingType: 'GRANT',
-    maxAmountFormatted: '€150,000 (Up to 50% of Eligible Costs)',
+    maxAmountFormatted: '€150,000 (Up to 50%–60% of Eligible Costs)',
     reimbursementWarning:
-      'Salary support and capital outlays are reimbursed in tranches upon proof of expenditure and tax clearance.',
+      'Salary support and capital outlays are reimbursed in tranches upon proof of expenditure and tax clearance. Laptops, phones, and vehicles are excluded.',
     eligibilityRulesJsonb: {
       monthsSinceIncorporationMax: 18,
       maxEmployees: 10,
@@ -167,14 +175,15 @@ export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
     isActive: true,
   },
   {
+    slug: 'ie-enterprise-ireland-pssf-new-frontiers',
     countryCode: 'IE',
-    grantName: 'Enterprise Ireland Pre-Seed Start Fund (PSSF)',
+    grantName: 'Enterprise Ireland New Frontiers & Pre-Seed Start Fund (PSSF)',
     providerAgency: 'Enterprise Ireland',
     fundingType: 'EQUITY_MATCH',
     maxAmountFormatted:
-      '€50,000 or €100,000 (Convertible Loan Note + 10% Match)',
+      '€15,000 Stipend (New Frontiers) / €50k–€100k CLN (PSSF)',
     reimbursementWarning:
-      'Requires an incorporated Irish Limited company and private co-funding match of at least 10% (€5k or €10k).',
+      'PSSF requires an incorporated Irish Limited company and private co-funding match of at least 10% (€5k or €10k).',
     eligibilityRulesJsonb: {
       requiresHpsuPotential: true,
       requiresIncorporatedLtd: true,
@@ -183,8 +192,9 @@ export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
     isActive: true,
   },
   {
+    slug: 'ie-sure-eii-rd-tax-relief',
     countryCode: 'IE',
-    grantName: 'SURE & EII Investor Tax Relief Schemes',
+    grantName: 'SURE, EII & 30% R&D Tax Credit Schemes',
     providerAgency: 'Revenue Commissioners (Ireland)',
     fundingType: 'TAX_RELIEF',
     maxAmountFormatted: 'Up to 41% Income Tax Refund (SURE) / 40% Relief (EII)',
@@ -198,14 +208,31 @@ export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
     isActive: true,
   },
   {
+    slug: 'uk-british-business-bank-start-up-loans',
     countryCode: 'GB',
-    grantName: 'SEIS & EIS Seed Enterprise Investment Scheme',
+    grantName: 'British Business Bank Start Up Loans',
+    providerAgency: 'British Business Bank (UK)',
+    fundingType: 'STARTUP_LOAN',
+    maxAmountFormatted: 'Up to £25,000 per Co-Founder (£100k max per team) @ 6%',
+    reimbursementWarning:
+      'Personal government-backed loan requiring a Personal Survival Budget, Written Sales Assumptions, and 12–36 Month Cashflow Forecast.',
+    eligibilityRulesJsonb: {
+      monthsTradingMax: 36,
+      requiresPersonalSurvivalBudget: true,
+    },
+    officialUrl: 'https://www.startuploans.co.uk/',
+    isActive: true,
+  },
+  {
+    slug: 'uk-hmrc-seis-eis-advance-assurance',
+    countryCode: 'GB',
+    grantName: 'HMRC SEIS & EIS Seed Enterprise Investment Scheme',
     providerAgency: 'HM Revenue & Customs (UK)',
     fundingType: 'TAX_RELIEF',
     maxAmountFormatted:
       '£250,000 SEIS (50% Angel Tax Relief) / £5M EIS (30% Relief)',
     reimbursementWarning:
-      'Not a cash grant—unlocks massive tax relief for UK angel investors backing your startup. Apply for SEIS Advance Assurance first.',
+      'Not a cash grant—unlocks massive tax relief for UK angel investors backing your startup. Requires a named prospective investor and Risk-to-Capital statement.',
     eligibilityRulesJsonb: {
       ukPermanentEstablishment: true,
       requiresIncorporatedLtd: true,
@@ -215,8 +242,9 @@ export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
     isActive: true,
   },
   {
+    slug: 'uk-innovate-uk-smart-grants',
     countryCode: 'GB',
-    grantName: 'Innovate UK Smart Grants',
+    grantName: 'Innovate UK Smart Grants & Sector Competitions',
     providerAgency: 'Innovate UK (UKRI)',
     fundingType: 'GRANT',
     maxAmountFormatted: '£100,000 – £500,000 (Up to 70% of Eligible R&D Costs)',
@@ -230,6 +258,7 @@ export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
     isActive: true,
   },
   {
+    slug: 'us-sbir-sttr-seed-fund',
     countryCode: 'US',
     grantName: 'America’s Seed Fund (NSF / NIH SBIR & STTR Phase I)',
     providerAgency: 'U.S. Small Business Administration / NSF',
@@ -245,6 +274,7 @@ export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
     isActive: true,
   },
   {
+    slug: 'au-rd-tax-incentive-emdg',
     countryCode: 'AU',
     grantName: 'R&D Tax Incentive & EMDG Export Market Development Grant',
     providerAgency: 'AusIndustry & Austrade',
@@ -259,6 +289,7 @@ export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
     isActive: true,
   },
   {
+    slug: 'ca-sred-nrc-irap',
     countryCode: 'CA',
     grantName: 'SR&ED Tax Credits & NRC IRAP Funding',
     providerAgency: 'CRA & National Research Council Canada',
