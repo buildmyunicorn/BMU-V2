@@ -45,6 +45,7 @@ import {
   type SavedFounderRealityCheck,
   type SavedModuleBData,
   type SavedModuleCData,
+  type SavedModuleDData,
   type SavedValidationSurvey,
   type SavedSurveyResponse,
   type SurveyQuestionItem,
@@ -129,6 +130,7 @@ async function buildSessionFromDbUser(
     const modA = modRows.find((m) => m.moduleCode === 'MOD_A_IDEATION');
     const modB = modRows.find((m) => m.moduleCode === 'MOD_B_MARKET');
     const modC = modRows.find((m) => m.moduleCode === 'MOD_C_SURVEYS_FEEDBACK');
+    const modD = modRows.find((m) => m.moduleCode === 'MOD_D_PRODUCT_BUILD');
     const structuredInputs = (modA?.structuredInputsJsonb ?? {}) as {
       brainDumpText?: string;
       exportPotential?: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
@@ -148,6 +150,7 @@ async function buildSessionFromDbUser(
 
     const modBInputs = (modB?.structuredInputsJsonb ?? {}) as SavedModuleBData;
     const modCInputs = (modC?.structuredInputsJsonb ?? {}) as SavedModuleCData;
+    const modDInputs = (modD?.structuredInputsJsonb ?? {}) as SavedModuleDData;
 
     const mergedSurveysBySlug = new Map<string, SavedValidationSurvey>();
 
@@ -404,6 +407,14 @@ async function buildSessionFromDbUser(
             thingsToConsider: Array.isArray(modC?.aiThingsToConsiderJsonb)
               ? modC.aiThingsToConsiderJsonb
               : modCInputs.thingsToConsider,
+          }
+        : undefined,
+      moduleDData: modD
+        ? {
+            ...modDInputs,
+            thingsToConsider: Array.isArray(modD.aiThingsToConsiderJsonb)
+              ? modD.aiThingsToConsiderJsonb
+              : modDInputs.thingsToConsider,
           }
         : undefined,
       openQuestions: questionRows.map((q) => q.questionText),

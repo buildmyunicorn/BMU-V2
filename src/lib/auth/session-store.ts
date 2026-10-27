@@ -521,6 +521,108 @@ export interface SavedModuleCData {
   lastSavedAt?: string;
 }
 
+export type ProductTrackType =
+  | 'SAAS_SOFTWARE_AI'
+  | 'PHYSICAL_PRODUCT_ECOM'
+  | 'MARKETPLACE_PLATFORM'
+  | 'EDUCATION_PROGRAM_COHORT'
+  | 'PRODUCTIZED_SERVICE_AGENCY'
+  | 'HYBRID_HARDWARE_SOFTWARE'
+  | 'OTHER';
+
+export type ProductFormFactorType =
+  // SaaS / Software / AI
+  | 'WEB_PLATFORM'
+  | 'MOBILE_APP_IOS_ANDROID'
+  | 'WEB_AND_MOBILE_BOTH'
+  | 'EXTENSION_PLUGIN_API'
+  // Physical Product / Craft / E-Com
+  | 'SINGLE_HERO_SKU'
+  | 'CURATED_2_3_SKUS'
+  | 'CONSUMABLE_REFILL_SUB'
+  | 'MADE_TO_ORDER_BESPOKE'
+  // Marketplace
+  | 'MANAGED_CURATED_MARKETPLACE'
+  | 'SELF_SERVE_BOOKING_DIRECTORY'
+  | 'B2B_PROCUREMENT_EXCHANGE'
+  | 'COMMUNITY_PEER_MARKETPLACE'
+  // Education / Digital Curriculum / Parent & Patient Support
+  | 'MOBILE_WEB_PORTAL_AUDIO_VIDEO'
+  | 'COHORT_LIVE_PLUS_CURRICULUM'
+  | 'MEMBERSHIP_COMMUNITY_LIBRARY'
+  | 'B2B_SCHOOL_CLINIC_LICENCE'
+  // Productized Service / Agency
+  | 'FIXED_SCOPE_SPRINT'
+  | 'MONTHLY_RETAINER_SUBSCRIPTION'
+  | 'TECH_ENABLED_DONE_FOR_YOU'
+  | 'DIAGNOSTIC_PAID_PILOT'
+  // Hybrid
+  | 'DEVICE_PLUS_COMPANION_APP'
+  | 'PHYSICAL_PRODUCT_PLUS_DIGITAL_CLUB'
+  | 'IN_PERSON_PLUS_DIGITAL_PORTAL'
+  | 'CUSTOM_HYBRID_FORMAT'
+  | 'OTHER';
+
+export type V1PrototypeApproachType =
+  // SaaS / Software
+  | 'FOCUSED_FULL_CODE_V1'
+  | 'NO_CODE_LOW_CODE_MVP'
+  | 'CONCIERGE_AI_ASSISTED_MVP'
+  | 'CLICKABLE_PROTOTYPE_PREORDER'
+  // Physical Product / Craft
+  | 'IN_HOUSE_SMALL_BATCH_WORKSHOP'
+  | 'WHITE_LABEL_CUSTOMISED_PILOT'
+  | 'LOCAL_CO_PACKER_MAKER_RUN'
+  | 'PREORDER_BEFORE_TOOLING'
+  // Marketplace
+  | 'CONCIERGE_MANUAL_MATCHING'
+  | 'SINGLE_SIDE_DIRECTORY_BOOKING'
+  | 'NO_CODE_MARKETPLACE_PORTAL'
+  | 'CUSTOM_TWO_SIDED_BUILD'
+  // Education / Support
+  | 'HOSTED_PORTAL_PLUS_LIVE_QA'
+  | 'FOUNDING_BETA_COHORT_LIVE'
+  | 'MOBILE_PWA_BITE_SIZED_AUDIO'
+  | 'CUSTOM_EDUCATION_APP_BUILD'
+  // Service
+  | 'REPEATABLE_SOP_PLUS_STRIPE'
+  | 'CLIENT_PORTAL_PLUS_AUTOMATION'
+  | 'PAID_PILOT_SPRINT_FIRST_5'
+  // Hybrid
+  | 'OFF_THE_SHELF_HARDWARE_PLUS_WEB'
+  | 'SMALL_BATCH_PHYSICAL_PLUS_CONCIERGE'
+  | 'CUSTOM_HARDWARE_AND_APP'
+  | 'OTHER';
+
+export type V1LaunchTimelineType =
+  | 'UNDER_4_WEEKS'
+  | '1_TO_3_MONTHS'
+  | '3_TO_6_MONTHS'
+  | 'OVER_6_MONTHS'
+  | 'OTHER';
+
+export interface ProductVehicleStep1Data {
+  productTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  isTrackAutoDetected?: boolean;
+  formFactor: ProductFormFactorType;
+  otherFormFactorText?: string;
+  v1PrototypeApproach: V1PrototypeApproachType;
+  otherV1PrototypeApproachText?: string;
+  launchTimeline: V1LaunchTimelineType;
+  otherLaunchTimelineText?: string;
+  ahaMomentNarrative: string;
+  whyThisVehicleFitsCustomer: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export interface SavedModuleDData {
+  productVehicle?: ProductVehicleStep1Data;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
 export type FounderStage =
   | 'IDEA_EXPLORER'
   | 'BUILDING_MVP'
@@ -569,6 +671,7 @@ export interface ActiveStartupPlan {
   thingsToConsider?: BlindSpotItem[];
   moduleBData?: SavedModuleBData;
   moduleCData?: SavedModuleCData;
+  moduleDData?: SavedModuleDData;
   openQuestions: string[];
 }
 

@@ -44,6 +44,10 @@ import type {
   InterviewCommitmentOutcomeType,
   InterviewSignalBadgeType,
   SavedModuleBData,
+  ProductTrackType,
+  ProductFormFactorType,
+  V1PrototypeApproachType,
+  V1LaunchTimelineType,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -3589,5 +3593,242 @@ Return JSON:
     engineMode: 'smart-synthesizer',
   };
 }
+
+export interface ModuleDProductVehicleEstimateResult {
+  allowed: boolean;
+  reason?: string;
+  productTrack: ProductTrackType;
+  formFactor: ProductFormFactorType;
+  v1PrototypeApproach: V1PrototypeApproachType;
+  launchTimeline: V1LaunchTimelineType;
+  ahaMomentNarrative: string;
+  whyThisVehicleFitsCustomer: string;
+  creditsUsedAfter: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleDProductVehicleViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  unfairAdvantage?: string;
+  beachheadSegment?: string;
+  validatedPainSummary?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+}): Promise<ModuleDProductVehicleEstimateResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_D_STEP1_PRODUCT_VEHICLE'
+  );
+
+  const combinedText = [
+    params.planTitle,
+    params.brainDumpText,
+    params.coreProblem,
+    params.proposedSolution,
+    params.targetCustomer,
+    params.beachheadSegment,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const buildSmartFallback = (): Omit<
+    ModuleDProductVehicleEstimateResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const cleanTitle = params.planTitle?.trim() || 'our startup';
+    const customerLabel =
+      params.beachheadSegment?.trim() ||
+      params.targetCustomer?.trim() ||
+      'our target customers';
+    const problemRef =
+      params.validatedPainSummary?.trim() ||
+      params.coreProblem?.trim() ||
+      'their most urgent day-to-day bottleneck';
+
+    const track = params.selectedTrack;
+
+    if (track === 'PHYSICAL_PRODUCT_ECOM') {
+      const isWoodworking =
+        /wood|board|chopping|timber|craft|artisan|furniture|joinery/.test(
+          combinedText
+        );
+      return {
+        productTrack: 'PHYSICAL_PRODUCT_ECOM',
+        formFactor: 'CURATED_2_3_SKUS',
+        v1PrototypeApproach: 'IN_HOUSE_SMALL_BATCH_WORKSHOP',
+        launchTimeline: 'UNDER_4_WEEKS',
+        ahaMomentNarrative: isWoodworking
+          ? `When a customer unboxes their ${cleanTitle} parcel from Amazon or Etsy, they lift out a heavy, satin-finished hardwood chopping board wrapped in kraft gift paper with a custom laser-engraved name, a tin of beeswax board butter, and a care card with a QR code—immediately feeling heirloom quality that makes cheap warped supermarket boards look disposable.`
+          : `When ${customerLabel} unbox their first ${cleanTitle} order, they experience immediate tactile quality, clear first-use instructions, and a QR insert for easy repeat ordering—solving "${problemRef.slice(0, 120)}" from day one without SKU bloat.`,
+        whyThisVehicleFitsCustomer: isWoodworking
+          ? `Starting with a focused 2–3 SKU hero range produced in repeatable workshop batches of 20 boards protects maker margins on Etsy and Amazon, avoids custom one-off dimension bottlenecks, and keeps boxed weight inside standard courier tiers.`
+          : `A tightly curated 2–3 SKU hero range produced in small initial batches lets ${cleanTitle} validate repeat demand and marketplace conversion on Etsy/Amazon/Shopify before locking capital into large factory MOQs.`,
+      };
+    }
+
+    if (track === 'EDUCATION_PROGRAM_COHORT') {
+      const isSleepOrParent =
+        /sleep|autis|parent|child|neuro|sensory|bedtime|family/.test(
+          combinedText
+        );
+      return {
+        productTrack: 'EDUCATION_PROGRAM_COHORT',
+        formFactor: 'MOBILE_WEB_PORTAL_AUDIO_VIDEO',
+        v1PrototypeApproach: 'HOSTED_PORTAL_PLUS_LIVE_QA',
+        launchTimeline: 'UNDER_4_WEEKS',
+        ahaMomentNarrative: isSleepOrParent
+          ? `Within 3 minutes of joining ${cleanTitle} on their phone, an exhausted parent completes the Sensory Bedtime Profile Quiz, listens to a 5-minute "listen-in-the-dark" audio guide tailored to their child's sensory triggers, and prints or opens tonight's visual bedtime schedule—feeling calm, understood, and equipped with a concrete plan for tonight.`
+          : `Within 5 minutes of enrolling in ${cleanTitle}, ${customerLabel} complete a quick baseline diagnostic and unlock their first bite-sized action module and tracker on their phone—getting an immediate, practical win without sitting through hours of theory.`,
+        whyThisVehicleFitsCustomer: isSleepOrParent
+          ? `Sleep-deprived parents of autistic children cannot watch 60-minute desktop lectures or wait for a custom iOS build. A mobile-ready web portal with 5-minute audio guides, visual routine cards, and weekly live Q&A launches in under 4 weeks and retains 97% margin (zero Apple App Store 30% cut).`
+          : `A mobile-ready learning portal paired with interactive trackers and live weekly Q&A delivers measurable outcomes for ${customerLabel} in weeks rather than spending months building a custom native app from scratch.`,
+      };
+    }
+
+    if (track === 'MARKETPLACE_PLATFORM') {
+      return {
+        productTrack: 'MARKETPLACE_PLATFORM',
+        formFactor: 'MANAGED_CURATED_MARKETPLACE',
+        v1PrototypeApproach: 'CONCIERGE_MANUAL_MATCHING',
+        launchTimeline: 'UNDER_4_WEEKS',
+        ahaMomentNarrative: `When a buyer submits their brief on ${cleanTitle}, they receive 2–3 pre-vetted, availability-checked matches within 24 hours and can book securely in one click—skipping weeks of cold outreach and unvetted directory spam.`,
+        whyThisVehicleFitsCustomer: `A curated, concierge-managed marketplace solves the "chicken-and-egg" liquidity trap on Day 1: ${customerLabel} get guaranteed quality matches immediately while we prove transaction take-rates before automating self-serve matching.`,
+      };
+    }
+
+    if (track === 'PRODUCTIZED_SERVICE_AGENCY') {
+      return {
+        productTrack: 'PRODUCTIZED_SERVICE_AGENCY',
+        formFactor: 'FIXED_SCOPE_SPRINT',
+        v1PrototypeApproach: 'REPEATABLE_SOP_PLUS_STRIPE',
+        launchTimeline: 'UNDER_4_WEEKS',
+        ahaMomentNarrative: `Immediately after booking ${cleanTitle}'s fixed-scope package, ${customerLabel} complete a 5-minute onboarding intake and receive a guaranteed delivery timeline and live workspace link—turning a vague consulting project into a predictable, productized outcome.`,
+        whyThisVehicleFitsCustomer: `Packaging our expertise into a fixed-scope, fixed-price deliverable removes custom proposal friction for ${customerLabel} and lets us use internal checklists and AI automation to deliver high gross margins from Customer #1.`,
+      };
+    }
+
+    if (track === 'HYBRID_HARDWARE_SOFTWARE') {
+      return {
+        productTrack: 'HYBRID_HARDWARE_SOFTWARE',
+        formFactor: 'DEVICE_PLUS_COMPANION_APP',
+        v1PrototypeApproach: 'OFF_THE_SHELF_HARDWARE_PLUS_WEB',
+        launchTimeline: '1_TO_3_MONTHS',
+        ahaMomentNarrative: `When ${customerLabel} power on their ${cleanTitle} kit and scan the setup QR code, live data immediately appears on their companion web dashboard with clear, plain-English action alerts within 60 seconds.`,
+        whyThisVehicleFitsCustomer: `Pairing proven off-the-shelf or small-batch hardware with a responsive web dashboard lets ${cleanTitle} prove real-world customer retention and subscription willingness-to-pay before committing to expensive custom injection molds or native mobile app stores.`,
+      };
+    }
+
+    // Default: SAAS_SOFTWARE_AI (or OTHER)
+    return {
+      productTrack: track,
+      formFactor: 'WEB_PLATFORM',
+      v1PrototypeApproach: 'FOCUSED_FULL_CODE_V1',
+      launchTimeline: '1_TO_3_MONTHS',
+      ahaMomentNarrative: `Within 60 seconds of signing up for ${cleanTitle} in their browser, ${customerLabel} enter their raw inputs and immediately see a structured, tailored output with blind-spot recommendations and exportable next steps—turning hours of spreadsheet guesswork into a clear, actionable plan.`,
+      whyThisVehicleFitsCustomer: `A desktop-and-mobile responsive Web Platform eliminates Apple/Google App Store 15–30% commissions, allows instant daily deployments as we learn from our first 20 users, and directly solves "${problemRef.slice(0, 120)}" where ${customerLabel} already work.`,
+    };
+  };
+
+  if (authCtx.creditCheckBlocked) {
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      ...buildSmartFallback(),
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const countryPack = getCountryRulePack(params.hqCountryCode);
+      const prompt = `You are a pragmatic startup CTO & Product Architect helping a founder define Step 1 of Module D ("What Are We Actually Building? — Product Vehicle & V1 Format").
+
+Startup Context:
+- Title: ${sanitizePromptInput(params.planTitle, 180)}
+- Industry: ${sanitizePromptInput(params.industryCategory, 120)} (HQ: ${countryPack.countryName})
+- Selected Product Track: ${sanitizePromptInput(params.selectedTrack, 80)} ${params.otherProductTrackText ? `(${sanitizePromptInput(params.otherProductTrackText, 120)})` : ''}
+- Founder Brain Dump: ${sanitizePromptInput(params.brainDumpText, 800) || 'N/A'}
+- Core Problem (Module A): ${sanitizePromptInput(params.coreProblem, 500) || 'N/A'}
+- Proposed Solution (Module A): ${sanitizePromptInput(params.proposedSolution, 500) || 'N/A'}
+- Target Beachhead Customer (Module B): ${sanitizePromptInput(params.beachheadSegment || params.targetCustomer, 400) || 'N/A'}
+- Validated Customer Survey/Interview Insight (Module C): ${sanitizePromptInput(params.validatedPainSummary, 500) || 'N/A'}
+
+CRITICAL TRACK-SPECIFIC RULES:
+- Match ALL terminology strictly to the Selected Product Track (${params.selectedTrack}).
+- If PHYSICAL_PRODUCT_ECOM: NEVER mention coding, web apps, or software APIs. Speak about hero SKUs, small-batch workshop/co-packer production, unboxing quality, packaging, and Amazon/Etsy/Shopify readiness.
+- If EDUCATION_PROGRAM_COHORT: Speak about bite-sized audio/video lessons, interactive trackers/assessments, mobile-ready learning portals, and high completion rates for busy learners/parents.
+- If SAAS_SOFTWARE_AI: Speak about responsive web vs. mobile app form factors, fast time-to-value, and lean V1 architecture.
+- If MARKETPLACE_PLATFORM: Speak about curated matching, overcoming chicken-and-egg supply/demand, and concierge V1 validation.
+- If PRODUCTIZED_SERVICE_AGENCY: Speak about fixed-scope deliverables, repeatable SOPs, and fast client onboarding.
+
+Return strictly valid JSON with:
+{
+  "ahaMomentNarrative": "2 vivid sentences describing the 60-second 'Aha! Moment' when a customer buys, unboxes, or opens V1 for the very first time and gets immediate value.",
+  "whyThisVehicleFitsCustomer": "2 practical sentences explaining why this V1 format and lean launch approach is the smartest, lowest-risk way to serve this specific customer and protect margins."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.35,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          ahaMomentNarrative?: string;
+          whyThisVehicleFitsCustomer?: string;
+        };
+        const fallback = buildSmartFallback();
+        if (parsed.ahaMomentNarrative && parsed.whyThisVehicleFitsCustomer) {
+          creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_D_STEP1_PRODUCT_VEHICLE',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 260,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 190,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            ...fallback,
+            ahaMomentNarrative: parsed.ahaMomentNarrative.trim(),
+            whyThisVehicleFitsCustomer: parsed.whyThisVehicleFitsCustomer.trim(),
+            creditsUsedAfter,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
 
 

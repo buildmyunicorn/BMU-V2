@@ -98,6 +98,8 @@ import {
   type SurveyQuestionItem,
   type SavedCustomerInterviewLog,
   type InterviewChannelType,
+  type ProductVehicleStep1Data,
+  type ProductTrackType,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -130,8 +132,14 @@ import {
   extractMomTestInterviewWithAiAction,
   saveModuleCBlindSpotsAction,
 } from '@/app/actions/module-c';
+import {
+  saveModuleDStep1ProductVehicleAction,
+  parkModuleDOpenQuestionAction,
+  generateModuleDProductVehicleWithAiAction,
+} from '@/app/actions/module-d';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
+import { ModuleDWorkspace } from '@/components/workspace/module-d-workspace';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 import {
   buildModuleAMarkdownBrief,
@@ -1380,6 +1388,115 @@ export default function WorkspacePage() {
     };
   }
 
+  async function handleSaveModuleDStep1ProductVehicle(
+    productVehicle: ProductVehicleStep1Data,
+    progress: number
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_D_STEP_1',
+          moduleDData: {
+            ...(p.moduleDData || {}),
+            productVehicle,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleDStep1ProductVehicleAction({
+      planId: currentPlan.id,
+      productVehicle,
+      completionPercentage: progress,
+    });
+  }
+
+  async function handleParkModuleDQuestion(questionText: string) {
+    const clean = questionText.trim();
+    if (!clean) return;
+    const nextQuestions = [...openQuestions, `[Module D] ${clean}`];
+    setOpenQuestions(nextQuestions);
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) =>
+        p.id === currentPlan.id ? { ...p, openQuestions: nextQuestions } : p
+      );
+      const updatedSession = { ...prev, plans: updatedPlans };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await parkModuleDOpenQuestionAction({
+      planId: currentPlan.id,
+      questionText: `[Module D] ${clean}`,
+    });
+  }
+
+  async function handleGenerateModuleDProductVehicleWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    validatedPainSummary?: string;
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Product Vehicle & Aha! Moment Draft (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        ahaMomentNarrative: '',
+        whyThisVehicleFitsCustomer: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleDProductVehicleWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      unfairAdvantage: effectiveCanvas.unfairAdvantage,
+      beachheadSegment: currentPlan.moduleBData?.beachhead?.beachheadSegment,
+      validatedPainSummary: params.validatedPainSummary,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      ahaMomentNarrative: res.ahaMomentNarrative,
+      whyThisVehicleFitsCustomer: res.whyThisVehicleFitsCustomer,
+      engineMode: res.engineMode,
+    };
+  }
+
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
     coreProblem: '',
     targetCustomer: '',
@@ -1691,6 +1808,20 @@ export default function WorkspacePage() {
         ? 10
         : 0;
 
+  const savedModDVehicle = currentPlan.moduleDData?.productVehicle;
+  const totalModDScore = savedModDVehicle
+    ? savedModDVehicle.ahaMomentNarrative.trim().length > 10 &&
+      savedModDVehicle.whyThisVehicleFitsCustomer.trim().length > 10
+      ? 25
+      : 15
+    : 0;
+  const moduleDProgressPercent =
+    totalModDScore > 0
+      ? totalModDScore
+      : activeModule === 'MOD_D_PRODUCT_BUILD'
+        ? 10
+        : 0;
+
   const moduleABriefData: ModuleABriefData = {
     planTitle: currentPlan.title,
     founderName: session.user.name,
@@ -1972,7 +2103,9 @@ export default function WorkspacePage() {
                   ? 'A'
                   : activeModule === 'MOD_B_MARKET'
                     ? 'B'
-                    : 'C'}
+                    : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+                      ? 'C'
+                      : 'D'}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-xs font-bold text-slate-900">
@@ -1980,7 +2113,9 @@ export default function WorkspacePage() {
                     ? 'Module A: Ideation & Founder Fit'
                     : activeModule === 'MOD_B_MARKET'
                       ? 'Module B: Market & Competitors'
-                      : 'Module C: Customer Surveys & Feedback'}
+                      : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+                        ? 'Module C: Customer Surveys & Feedback'
+                        : 'Module D: Product & Build Vehicle'}
                 </div>
                 <div className="text-[11px] text-indigo-700">
                   {mobileSidebarOpen
@@ -2018,7 +2153,9 @@ export default function WorkspacePage() {
                         ? moduleBProgressPercent
                         : mod.code === 'MOD_C_SURVEYS_FEEDBACK'
                           ? moduleCProgressPercent
-                          : mod.progress;
+                          : mod.code === 'MOD_D_PRODUCT_BUILD'
+                            ? moduleDProgressPercent
+                            : mod.progress;
 
                   return (
                     <button
@@ -2035,7 +2172,8 @@ export default function WorkspacePage() {
                         if (
                           mod.code === 'MOD_A_IDEATION' ||
                           mod.code === 'MOD_B_MARKET' ||
-                          mod.code === 'MOD_C_SURVEYS_FEEDBACK'
+                          mod.code === 'MOD_C_SURVEYS_FEEDBACK' ||
+                          mod.code === 'MOD_D_PRODUCT_BUILD'
                         ) {
                           setActiveModule(mod.code);
                           setMobileSidebarOpen(false);
@@ -2204,7 +2342,23 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {activeModule === 'MOD_C_SURVEYS_FEEDBACK' ? (
+          {activeModule === 'MOD_D_PRODUCT_BUILD' ? (
+            <ModuleDWorkspace
+              key={currentPlan.id}
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              onSaveStep1ProductVehicle={handleSaveModuleDStep1ProductVehicle}
+              onGenerateAiProductVehicle={
+                handleGenerateModuleDProductVehicleWithAi
+              }
+              onParkOpenQuestion={handleParkModuleDQuestion}
+              onBackToModuleC={() => setActiveModule('MOD_C_SURVEYS_FEEDBACK')}
+            />
+          ) : activeModule === 'MOD_C_SURVEYS_FEEDBACK' ? (
             <ModuleCWorkspace
               key={currentPlan.id}
               plan={{
@@ -2229,8 +2383,20 @@ export default function WorkspacePage() {
               onParkQuestion={handleParkModuleBQuestion}
               onBackToModuleB={() => setActiveModule('MOD_B_MARKET')}
               onContinueToModuleD={() => {
+                const access = canAccessModule(
+                  activeEntitlement,
+                  'MOD_D_PRODUCT_BUILD'
+                );
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock('MOD_D_PRODUCT_BUILD');
+                  setPaywallModalFeature(
+                    `Module D: Product & Build Vehicle — ${access.reason}`
+                  );
+                  return;
+                }
+                setActiveModule('MOD_D_PRODUCT_BUILD');
                 setSynthesisBanner(
-                  '✅ Module C Customer Validation Surveys & Insights saved! Ready for Module D: Product & Build Vehicle.'
+                  '✅ Module C Customer Validation Surveys & Insights saved! Welcome to Module D (Step 1: Adaptive Product Vehicle).'
                 );
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
@@ -4679,7 +4845,9 @@ export default function WorkspacePage() {
                     ? 'Module A (Ideation)'
                     : activeModule === 'MOD_B_MARKET'
                       ? 'Module B (Market & Competitors)'
-                      : 'Module C (Surveys & Interviews)'}{' '}
+                      : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+                        ? 'Module C (Surveys & Interviews)'
+                        : 'Module D (Product & Build Vehicle)'}{' '}
                   • {selectedCountry}
                 </div>
               </div>
@@ -4702,14 +4870,18 @@ export default function WorkspacePage() {
                   ? 'Module A: Ideation & Founder Fit'
                   : activeModule === 'MOD_B_MARKET'
                     ? 'Module B: Market & Competitors'
-                    : 'Module C: Customer Surveys & Interviews'}
+                    : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+                      ? 'Module C: Customer Surveys & Interviews'
+                      : 'Module D: Product & Build Vehicle'}
               </strong>
               .{' '}
               {activeModule === 'MOD_A_IDEATION'
                 ? 'Want me to suggest a sharper way to quantify your customer pain point or park a pricing question for later?'
                 : activeModule === 'MOD_B_MARKET'
                   ? 'Focus on a narrow, reachable Beachhead buyer first—and don’t forget to include the "Do Nothing / Spreadsheets" status quo in your competitor list!'
-                  : 'Keep your survey & interview questions focused on past behaviour and real workarounds ("The Mom Test") rather than asking if people like your idea.'}
+                  : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+                    ? 'Keep your survey & interview questions focused on past behaviour and real workarounds ("The Mom Test") rather than asking if people like your idea.'
+                    : 'Choose the Product Track that matches what your buyer actually receives so every downstream question stays 100% relevant to your business model.'}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {activeModule === 'MOD_A_IDEATION' && (
@@ -4750,6 +4922,19 @@ export default function WorkspacePage() {
                   className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
                 >
                   📌 Park Waitlist follow-up for Module D
+                </button>
+              )}
+              {activeModule === 'MOD_D_PRODUCT_BUILD' && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleParkSpecificQuestion(
+                      `Verify V1 unit cost / hosting stack or supplier minimums before locking pricing in Module G.`
+                    )
+                  }
+                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
+                >
+                  📌 Park V1 Cost &amp; Supplier Check
                 </button>
               )}
               <button
@@ -4835,7 +5020,8 @@ export default function WorkspacePage() {
                   if (
                     pendingModuleAfterUnlock === 'MOD_B_MARKET' ||
                     pendingModuleAfterUnlock === 'MOD_A_IDEATION' ||
-                    pendingModuleAfterUnlock === 'MOD_C_SURVEYS_FEEDBACK'
+                    pendingModuleAfterUnlock === 'MOD_C_SURVEYS_FEEDBACK' ||
+                    pendingModuleAfterUnlock === 'MOD_D_PRODUCT_BUILD'
                   ) {
                     setActiveModule(pendingModuleAfterUnlock);
                     setPendingModuleAfterUnlock(null);
