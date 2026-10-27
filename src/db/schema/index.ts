@@ -604,6 +604,19 @@ export const aiUsageLogs = pgTable('ai_usage_logs', {
 });
 
 // ==========================================
+// 7B. EARLY-ACCESS WAITLIST LEADS (Landing Page)
+// ==========================================
+export const earlyAccessWaitlist = pgTable('early_access_waitlist', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: text('email').notNull().unique(),
+  jurisdictionCode: text('jurisdiction_code').default('IE').notNull(), // 'IE' | 'GB' | 'EU' | 'US' | 'AU_CA' | 'OTHER'
+  customJurisdictionText: text('custom_jurisdiction_text'),
+  source: text('source').default('LANDING_HERO').notNull(),
+  status: text('status').default('PENDING').notNull(), // 'PENDING' | 'INVITED'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ==========================================
 // 8. DRIZZLE RELATIONS
 // ==========================================
 export const tenantsRelations = relations(tenants, ({ many }) => ({

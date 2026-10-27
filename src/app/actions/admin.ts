@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc, inArray, sql } from 'drizzle-orm';
 import {
   db,
   tenants,
@@ -9,6 +9,7 @@ import {
   startupPlans,
   validationSurveys,
   vouchers,
+  earlyAccessWaitlist,
 } from '@/db';
 import {
   hashPassword,
@@ -763,5 +764,283 @@ export async function updateAdminUserNotesAndRoleAction(input: {
     return { ok: true, dbConnected: true };
   } catch {
     return { ok: true, dbConnected: false };
+  }
+}
+
+// ==========================================
+// EARLY-ACCESS WAITLIST LEADS (PUBLIC CAPTURE & ADMIN VIEW)
+// ==========================================
+
+export interface EarlyAccessLeadRecord {
+  id: string;
+  email: string;
+  jurisdictionCode: string;
+  customJurisdictionText: string | null;
+  source: string;
+  status: 'PENDING' | 'INVITED';
+  createdAt: string;
+}
+
+const globalForWaitlist = globalThis as unknown as {
+  bmuWaitlistFallback?: EarlyAccessLeadRecord[];
+  bmuWaitlistTableInitialized?: boolean;
+};
+
+function getInMemoryWaitlistFallback(): EarlyAccessLeadRecord[] {
+  if (!globalForWaitlist.bmuWaitlistFallback) {
+    globalForWaitlist.bmuWaitlistFallback = [];
+  }
+  return globalForWaitlist.bmuWaitlistFallback;
+}
+
+async function ensureEarlyAccessWaitlistTable(): Promise<void> {
+  if (globalForWaitlist.bmuWaitlistTableInitialized) return;
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS early_access_waitlist (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      email text NOT NULL UNIQUE,
+      jurisdiction_code text NOT NULL DEFAULT 'IE',
+      custom_jurisdiction_text text,
+      source text NOT NULL DEFAULT 'LANDING_HERO',
+      status text NOT NULL DEFAULT 'PENDING',
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  globalForWaitlist.bmuWaitlistTableInitialized = true;
+}
+
+/**
+ * Public Server Action for the Landing Page Early-Access Waitlist form.
+ * Enforces rate limiting, sanitizes inputs, and saves the lead to PostgreSQL (with local fallback).
+ */
+export async function submitEarlyAccessWaitlistAction(input: {
+  email: string;
+  jurisdictionCode: string;
+  customJurisdictionText?: string;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  lead?: EarlyAccessLeadRecord;
+}> {
+  const cleanEmail = (input.email || '').trim().toLowerCase().slice(0, 180);
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return {
+      ok: false,
+      error: 'Please enter a valid email address.',
+    };
+  }
+
+  const rateLimit = checkRateLimit(
+    `waitlist:submit:${cleanEmail}`,
+    5,
+    10 * 60_000
+  );
+  if (!rateLimit.allowed) {
+    return {
+      ok: false,
+      error: `Too many requests. Please wait ${rateLimit.retryAfterSeconds} seconds.`,
+    };
+  }
+
+  const allowedJurisdictions = new Set([
+    'IE',
+    'GB',
+    'EU',
+    'US',
+    'AU_CA',
+    'OTHER',
+  ]);
+  const cleanJurisdiction = allowedJurisdictions.has(input.jurisdictionCode)
+    ? input.jurisdictionCode
+    : 'IE';
+  const cleanCustomText =
+    cleanJurisdiction === 'OTHER' && input.customJurisdictionText
+      ? input.customJurisdictionText.trim().slice(0, 120) || null
+      : null;
+
+  const fallbackRecord: EarlyAccessLeadRecord = {
+    id: `wl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    email: cleanEmail,
+    jurisdictionCode: cleanJurisdiction,
+    customJurisdictionText: cleanCustomText,
+    source: 'LANDING_HERO',
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+  };
+
+  // Always mirror in server memory so local dev works even if Docker Postgres is stopped
+  const memoryList = getInMemoryWaitlistFallback();
+  const existingIdx = memoryList.findIndex((item) => item.email === cleanEmail);
+  if (existingIdx >= 0) {
+    memoryList[existingIdx] = {
+      ...memoryList[existingIdx],
+      jurisdictionCode: cleanJurisdiction,
+      customJurisdictionText: cleanCustomText,
+    };
+  } else {
+    memoryList.unshift(fallbackRecord);
+  }
+
+  try {
+    await ensureEarlyAccessWaitlistTable();
+
+    const [existing] = await db
+      .select()
+      .from(earlyAccessWaitlist)
+      .where(eq(earlyAccessWaitlist.email, cleanEmail))
+      .limit(1);
+
+    if (existing) {
+      const [updated] = await db
+        .update(earlyAccessWaitlist)
+        .set({
+          jurisdictionCode: cleanJurisdiction,
+          customJurisdictionText: cleanCustomText,
+        })
+        .where(eq(earlyAccessWaitlist.id, existing.id))
+        .returning();
+
+      return {
+        ok: true,
+        lead: {
+          id: updated.id,
+          email: updated.email,
+          jurisdictionCode: updated.jurisdictionCode,
+          customJurisdictionText: updated.customJurisdictionText ?? null,
+          source: updated.source,
+          status: updated.status === 'INVITED' ? 'INVITED' : 'PENDING',
+          createdAt: updated.createdAt.toISOString(),
+        },
+      };
+    }
+
+    const [inserted] = await db
+      .insert(earlyAccessWaitlist)
+      .values({
+        email: cleanEmail,
+        jurisdictionCode: cleanJurisdiction,
+        customJurisdictionText: cleanCustomText,
+        source: 'LANDING_HERO',
+        status: 'PENDING',
+      })
+      .returning();
+
+    return {
+      ok: true,
+      lead: {
+        id: inserted.id,
+        email: inserted.email,
+        jurisdictionCode: inserted.jurisdictionCode,
+        customJurisdictionText: inserted.customJurisdictionText ?? null,
+        source: inserted.source,
+        status: inserted.status === 'INVITED' ? 'INVITED' : 'PENDING',
+        createdAt: inserted.createdAt.toISOString(),
+      },
+    };
+  } catch {
+    return {
+      ok: true,
+      lead: fallbackRecord,
+    };
+  }
+}
+
+/**
+ * Super Admin action to list all Early-Access Waitlist leads.
+ */
+export async function listEarlyAccessWaitlistAction(): Promise<{
+  ok: boolean;
+  dbConnected: boolean;
+  leads: EarlyAccessLeadRecord[];
+}> {
+  const adminSession = await requireSuperAdminSession();
+  if (!adminSession) {
+    return { ok: false, dbConnected: false, leads: [] };
+  }
+
+  try {
+    await ensureEarlyAccessWaitlistTable();
+    const rows = await db
+      .select()
+      .from(earlyAccessWaitlist)
+      .orderBy(desc(earlyAccessWaitlist.createdAt));
+
+    return {
+      ok: true,
+      dbConnected: true,
+      leads: rows.map((r) => ({
+        id: r.id,
+        email: r.email,
+        jurisdictionCode: r.jurisdictionCode,
+        customJurisdictionText: r.customJurisdictionText ?? null,
+        source: r.source,
+        status: r.status === 'INVITED' ? 'INVITED' : 'PENDING',
+        createdAt: r.createdAt.toISOString(),
+      })),
+    };
+  } catch {
+    return {
+      ok: true,
+      dbConnected: false,
+      leads: getInMemoryWaitlistFallback(),
+    };
+  }
+}
+
+/**
+ * Super Admin action to toggle a waitlist lead's status between PENDING and INVITED.
+ */
+export async function updateEarlyAccessLeadStatusAction(input: {
+  id: string;
+  status: 'PENDING' | 'INVITED';
+}): Promise<{ ok: boolean }> {
+  const adminSession = await requireSuperAdminSession();
+  if (!adminSession) {
+    return { ok: false };
+  }
+
+  const memoryList = getInMemoryWaitlistFallback();
+  const memItem = memoryList.find((item) => item.id === input.id);
+  if (memItem) {
+    memItem.status = input.status;
+  }
+
+  try {
+    await ensureEarlyAccessWaitlistTable();
+    await db
+      .update(earlyAccessWaitlist)
+      .set({ status: input.status })
+      .where(eq(earlyAccessWaitlist.id, input.id));
+    return { ok: true };
+  } catch {
+    return { ok: true };
+  }
+}
+
+/**
+ * Super Admin action to remove a lead from the Early-Access Waitlist.
+ */
+export async function deleteEarlyAccessLeadAction(input: {
+  id: string;
+}): Promise<{ ok: boolean }> {
+  const adminSession = await requireSuperAdminSession();
+  if (!adminSession) {
+    return { ok: false };
+  }
+
+  const memoryList = getInMemoryWaitlistFallback();
+  const idx = memoryList.findIndex((item) => item.id === input.id);
+  if (idx >= 0) {
+    memoryList.splice(idx, 1);
+  }
+
+  try {
+    await ensureEarlyAccessWaitlistTable();
+    await db
+      .delete(earlyAccessWaitlist)
+      .where(eq(earlyAccessWaitlist.id, input.id));
+    return { ok: true };
+  } catch {
+    return { ok: true };
   }
 }
