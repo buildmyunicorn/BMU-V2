@@ -105,6 +105,8 @@ import {
   type ChannelMatrixStep2Data,
   type ScopeFilterItem,
   type ScopeFilterStep3Data,
+  type BuildVsBuyItem,
+  type BuildVsBuyStep4Data,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -141,10 +143,12 @@ import {
   saveModuleDStep1ProductVehicleAction,
   saveModuleDStep2ChannelMatrixAction,
   saveModuleDStep3ScopeFilterAction,
+  saveModuleDStep4BuildVsBuyAction,
   parkModuleDOpenQuestionAction,
   generateModuleDProductVehicleWithAiAction,
   generateModuleDChannelMatrixWithAiAction,
   generateModuleDScopeFilterWithAiAction,
+  generateModuleDBuildVsBuyWithAiAction,
 } from '@/app/actions/module-d';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
@@ -471,6 +475,10 @@ export default function WorkspacePage() {
                       scopeFilter: pickNewerBySavedAt(
                         localPlan.moduleDData?.scopeFilter,
                         dbPlan.moduleDData?.scopeFilter
+                      ),
+                      buildVsBuy: pickNewerBySavedAt(
+                        localPlan.moduleDData?.buildVsBuy,
+                        dbPlan.moduleDData?.buildVsBuy
                       ),
                       thingsToConsider:
                         dbPlan.moduleDData?.thingsToConsider ||
@@ -1569,6 +1577,47 @@ export default function WorkspacePage() {
     });
   }
 
+  async function handleSaveModuleDStep4BuildVsBuy(
+    buildVsBuy: BuildVsBuyStep4Data
+  ) {
+    const inHouseCount = buildVsBuy.items.filter(
+      (i) => i.tier === 'BUILD_IN_HOUSE'
+    ).length;
+    const progress =
+      inHouseCount > 0 &&
+      buildVsBuy.secretSauceInHouseNarrative.trim().length > 10 &&
+      buildVsBuy.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10
+        ? 85
+        : 75;
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_D_STEP_4',
+          moduleDData: {
+            ...(p.moduleDData || {}),
+            buildVsBuy,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleDStep4BuildVsBuyAction({
+      planId: currentPlan.id,
+      buildVsBuy,
+      completionPercentage: progress,
+    });
+  }
+
   async function handleParkModuleDQuestion(questionText: string) {
     const clean = questionText.trim();
     if (!clean) return;
@@ -1772,6 +1821,75 @@ export default function WorkspacePage() {
       items: res.items,
       whatWeRefuseToBuildInV1Narrative: res.whatWeRefuseToBuildInV1Narrative,
       whyThisLeanV1WinsFasterNarrative: res.whyThisLeanV1WinsFasterNarrative,
+      engineMode: res.engineMode,
+    };
+  }
+
+  async function handleGenerateModuleDBuildVsBuyWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    formFactor?: ProductFormFactorType;
+    primaryChannel?: SalesChannelOptionType;
+    validatedPainSummary?: string;
+    v1MustHaveTitles?: string[];
+    currentBoardItems?: BuildVsBuyItem[];
+    mode?: 'POPULATE_BOARD_AND_CHARTER' | 'CHARTER_ONLY';
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Build-vs-Buy & Secret Sauce Matrix (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        coreIpOwnershipRule: '' as const,
+        items: params.currentBoardItems || [],
+        secretSauceInHouseNarrative: '',
+        whyBuyAndPartnerSavesTimeNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleDBuildVsBuyWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      beachheadSegment: currentPlan.moduleBData?.beachhead?.beachheadSegment,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      formFactor: params.formFactor,
+      primaryChannel: params.primaryChannel,
+      validatedPainSummary: params.validatedPainSummary,
+      v1MustHaveTitles: params.v1MustHaveTitles,
+      currentBoardItems: params.currentBoardItems,
+      mode: params.mode,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      coreIpOwnershipRule: res.coreIpOwnershipRule,
+      items: res.items,
+      secretSauceInHouseNarrative: res.secretSauceInHouseNarrative,
+      whyBuyAndPartnerSavesTimeNarrative: res.whyBuyAndPartnerSavesTimeNarrative,
       engineMode: res.engineMode,
     };
   }
@@ -2090,27 +2208,35 @@ export default function WorkspacePage() {
   const savedModDVehicle = currentPlan.moduleDData?.productVehicle;
   const savedModDChannelMatrix = currentPlan.moduleDData?.channelMatrix;
   const savedModDScopeFilter = currentPlan.moduleDData?.scopeFilter;
+  const savedModDBuildVsBuy = currentPlan.moduleDData?.buildVsBuy;
   const step1ModDScore = savedModDVehicle
     ? savedModDVehicle.ahaMomentNarrative.trim().length > 10 &&
       savedModDVehicle.whyThisVehicleFitsCustomer.trim().length > 10
-      ? 25
-      : 15
+      ? 20
+      : 10
     : 0;
   const step2ModDScore = savedModDChannelMatrix
     ? savedModDChannelMatrix.rentToOwnBridgeStrategy.trim().length > 10 &&
       savedModDChannelMatrix.channelWhyItFitsNotes.trim().length > 10
-      ? 25
-      : 15
+      ? 20
+      : 10
     : 0;
   const step3ModDScore = savedModDScopeFilter
     ? savedModDScopeFilter.items.some((i) => i.bucket === 'MUST_HAVE_V1') &&
-      savedModDScopeFilter.items.some((i) => i.bucket !== 'MUST_HAVE_V1') &&
       savedModDScopeFilter.whatWeRefuseToBuildInV1Narrative.trim().length > 10 &&
       savedModDScopeFilter.whyThisLeanV1WinsFasterNarrative.trim().length > 10
+      ? 20
+      : 10
+    : 0;
+  const step4ModDScore = savedModDBuildVsBuy
+    ? savedModDBuildVsBuy.items.some((i) => i.tier === 'BUILD_IN_HOUSE') &&
+      savedModDBuildVsBuy.secretSauceInHouseNarrative.trim().length > 10 &&
+      savedModDBuildVsBuy.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10
       ? 25
       : 15
     : 0;
-  const totalModDScore = step1ModDScore + step2ModDScore + step3ModDScore;
+  const totalModDScore =
+    step1ModDScore + step2ModDScore + step3ModDScore + step4ModDScore;
   const moduleDProgressPercent =
     totalModDScore > 0
       ? totalModDScore
@@ -2650,6 +2776,7 @@ export default function WorkspacePage() {
               onSaveStep1ProductVehicle={handleSaveModuleDStep1ProductVehicle}
               onSaveStep2ChannelMatrix={handleSaveModuleDStep2ChannelMatrix}
               onSaveStep3ScopeFilter={handleSaveModuleDStep3ScopeFilter}
+              onSaveStep4BuildVsBuy={handleSaveModuleDStep4BuildVsBuy}
               onGenerateAiProductVehicle={
                 handleGenerateModuleDProductVehicleWithAi
               }
@@ -2658,6 +2785,9 @@ export default function WorkspacePage() {
               }
               onGenerateAiScopeFilter={
                 handleGenerateModuleDScopeFilterWithAi
+              }
+              onGenerateAiBuildVsBuy={
+                handleGenerateModuleDBuildVsBuyWithAi
               }
               onParkOpenQuestion={handleParkModuleDQuestion}
               onBackToModuleC={() => setActiveModule('MOD_C_SURVEYS_FEEDBACK')}

@@ -52,6 +52,10 @@ import type {
   DeliveryFulfillmentModelType,
   ScopeFilterItem,
   V1ScopeDisciplineRuleType,
+  BuildVsBuyItem,
+  BuildVsBuyTierType,
+  BuildVsBuyCostModelType,
+  CoreIpOwnershipRuleType,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -4325,4 +4329,511 @@ Return strictly valid JSON with:
     engineMode: 'smart-synthesizer',
   };
 }
+
+export interface ModuleDBuildVsBuyGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  items: BuildVsBuyItem[];
+  coreIpOwnershipRule: CoreIpOwnershipRuleType | '';
+  secretSauceInHouseNarrative: string;
+  whyBuyAndPartnerSavesTimeNarrative: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleDBuildVsBuyViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  formFactor?: ProductFormFactorType;
+  primaryChannel?: SalesChannelOptionType;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  beachheadSegment?: string;
+  validatedPainSummary?: string;
+  v1MustHaveTitles?: string[];
+  currentBoardItems?: BuildVsBuyItem[];
+  mode?: 'POPULATE_BOARD_AND_CHARTER' | 'CHARTER_ONLY';
+}): Promise<ModuleDBuildVsBuyGenerationResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_D_STEP4_BUILD_VS_BUY'
+  );
+
+  const mode = params.mode || 'POPULATE_BOARD_AND_CHARTER';
+  const existingItems = Array.isArray(params.currentBoardItems)
+    ? params.currentBoardItems
+    : [];
+
+  const buildSmartFallback = (): Omit<
+    ModuleDBuildVsBuyGenerationResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const track = params.selectedTrack || 'SAAS_SOFTWARE_AI';
+
+    // If CHARTER_ONLY mode and the founder has items on the board, synthesize narratives directly from their items
+    if (mode === 'CHARTER_ONLY' && existingItems.length > 0) {
+      const inHouseItems = existingItems
+        .filter((i) => i.tier === 'BUILD_IN_HOUSE')
+        .map((i) => i.title.trim())
+        .filter(Boolean);
+      const buyRentItems = existingItems
+        .filter((i) => i.tier === 'BUY_RENT_OFF_SHELF')
+        .map((i) => i.title.trim())
+        .filter(Boolean);
+      const partnerItems = existingItems
+        .filter((i) => i.tier === 'OUTSOURCE_PARTNER')
+        .map((i) => i.title.trim())
+        .filter(Boolean);
+
+      const secretSauceText =
+        inHouseItems.length > 0
+          ? `We retain 100% in-house ownership and craftsmanship over our core defensible IP (${inHouseItems.join('; ')}), ensuring our core customer value and grant-eligible innovation never depend on a generic agency or commodity template.`
+          : 'We retain 100% in-house ownership over our core customer workflow, domain rules, and proprietary customer experience.';
+
+      const buyAndPartnerParts: string[] = [];
+      if (buyRentItems.length > 0) {
+        buyAndPartnerParts.push(
+          `Instead of wasting months reinventing commodity infrastructure, we rent/buy proven off-the-shelf tools and stock (${buyRentItems.join('; ')})`
+        );
+      }
+      if (partnerItems.length > 0) {
+        buyAndPartnerParts.push(
+          `and partner with specialist suppliers/contractors for (${partnerItems.join('; ')})`
+        );
+      }
+      const whyBuyText =
+        buyAndPartnerParts.length > 0
+          ? `${buyAndPartnerParts.join(' ')}—cutting our Version 1 launch timeline and upfront capital burn dramatically.`
+          : 'By renting proven off-the-shelf tools for commodity plumbing and using specialist partners only where needed, we launch faster and preserve cash for customer acquisition.';
+
+      return {
+        coreIpOwnershipRule: '',
+        items: existingItems,
+        secretSauceInHouseNarrative: secretSauceText,
+        whyBuyAndPartnerSavesTimeNarrative: whyBuyText,
+      };
+    }
+
+    if (track === 'PHYSICAL_PRODUCT_ECOM') {
+      return {
+        coreIpOwnershipRule:
+          'IN_HOUSE_CRAFT_AND_FINISHING_BUY_STOCK_PACKAGING',
+        items:
+          mode === 'CHARTER_ONLY'
+            ? existingItems
+            : [
+                {
+                  id: 'bvb-phys-1',
+                  title:
+                    'Signature Hardwood Grain Matching, Batch Glue-Up & Router Jig Finishing',
+                  tier: 'BUILD_IN_HOUSE',
+                  categoryTag: 'In-House Craft & IP',
+                  costModel: 'SWEAT_EQUITY_ZERO',
+                  estimatedCostAmount: 0,
+                  vendorOrToolName: 'Founder Workshop',
+                  rationaleOrNote:
+                    'Our core artisan quality and repeatable workshop jig process that commands a premium gift price.',
+                },
+                {
+                  id: 'bvb-phys-2',
+                  title:
+                    'Custom Laser-Engraved Gift Personalization Templates & Beeswax Finish Blend',
+                  tier: 'BUILD_IN_HOUSE',
+                  categoryTag: 'High-Margin Secret Sauce',
+                  costModel: 'ONE_OFF_PURCHASE',
+                  estimatedCostAmount: 350,
+                  vendorOrToolName: 'In-House Desktop Laser + Wax Jig',
+                  rationaleOrNote:
+                    'One-off setup for engraving templates and beeswax batching that adds €15–€20 margin per board.',
+                },
+                {
+                  id: 'bvb-phys-3',
+                  title:
+                    'Kiln-Dried Hardwood Timber Batch (Walnut, Oak & Maple Boards — Batch 1)',
+                  tier: 'OUTSOURCE_PARTNER',
+                  categoryTag: 'Raw Timber Batch (Once-Off)',
+                  costModel: 'ONE_OFF_PURCHASE',
+                  estimatedCostAmount: 650,
+                  vendorOrToolName: 'Local Kiln-Dried Timber Mill',
+                  rationaleOrNote:
+                    'One-off bulk purchase of pre-planed, kiln-dried hardwood for our first 50 flagship boards.',
+                },
+                {
+                  id: 'bvb-phys-4',
+                  title:
+                    'Stock Double-Walled <2kg Kraft Gift Boxes, 50ml Wax Tins & QR Care Cards',
+                  tier: 'BUY_RENT_OFF_SHELF',
+                  categoryTag: 'Off-the-Shelf Packaging',
+                  costModel: 'ONE_OFF_PURCHASE',
+                  estimatedCostAmount: 180,
+                  vendorOrToolName: 'Stock Packaging Supplier',
+                  rationaleOrNote:
+                    'Buying standard stock mailer boxes once-off avoids €3,000 custom die-cut tooling minimums.',
+                },
+                {
+                  id: 'bvb-phys-5',
+                  title:
+                    'Direct Online Storefront & Inventory Sync (Shopify + Etsy/Amazon Integration)',
+                  tier: 'BUY_RENT_OFF_SHELF',
+                  categoryTag: 'Monthly E-Com Software',
+                  costModel: 'MONTHLY_SUBSCRIPTION',
+                  estimatedCostAmount: 36,
+                  vendorOrToolName: 'Shopify + Stripe',
+                  rationaleOrNote:
+                    'Low monthly subscription gives us an instant checkout and synced inventory across channels.',
+                },
+                {
+                  id: 'bvb-phys-6',
+                  title:
+                    'Tracked <2kg Parcel Delivery & Prime FBA Logistics Fulfillment',
+                  tier: 'OUTSOURCE_PARTNER',
+                  categoryTag: 'Courier & 3PL Partner',
+                  costModel: 'PER_UNIT_COGS',
+                  estimatedCostAmount: 6.5,
+                  vendorOrToolName: 'An Post / DPD / Amazon FBA',
+                  rationaleOrNote:
+                    'Per-order courier shipping kept under the 2kg weight threshold to protect unit margins.',
+                },
+              ],
+        secretSauceInHouseNarrative:
+          'We keep 100% of timber grain selection, precision router-jig shaping, food-safe beeswax finishing, and custom laser gift engraving in-house so every chopping board carries unmistakable artisan quality.',
+        whyBuyAndPartnerSavesTimeNarrative:
+          'We buy kiln-dried, rough-planed hardwood in one-off batches from a local timber mill, use off-the-shelf <2kg double-walled kraft gift boxes (avoiding custom box tooling), and rent Shopify/Etsy/Amazon for €36/month.',
+      };
+    }
+
+    if (track === 'EDUCATION_PROGRAM_COHORT') {
+      return {
+        coreIpOwnershipRule:
+          'OWN_CURRICULUM_AND_METHOD_RENT_COURSE_PORTAL',
+        items:
+          mode === 'CHARTER_ONLY'
+            ? existingItems
+            : [
+                {
+                  id: 'bvb-edu-1',
+                  title:
+                    'Proprietary 6-Module "Sensory Seeker vs. Avoider" Autism Sleep Methodology & Scripts',
+                  tier: 'BUILD_IN_HOUSE',
+                  categoryTag: 'Core Curriculum IP',
+                  costModel: 'SWEAT_EQUITY_ZERO',
+                  estimatedCostAmount: 0,
+                  vendorOrToolName: 'Founder In-House IP',
+                  rationaleOrNote:
+                    '100% founder-created sensory bedtime framework and "Listen-in-the-Dark" 5-minute audio scripts.',
+                },
+                {
+                  id: 'bvb-edu-2',
+                  title:
+                    'Printable Visual Bedtime Routine Cards, Sensory Checklists & 14-Night Sleep Tracker',
+                  tier: 'BUILD_IN_HOUSE',
+                  categoryTag: 'Parent Action Toolkit',
+                  costModel: 'SWEAT_EQUITY_ZERO',
+                  estimatedCostAmount: 0,
+                  vendorOrToolName: 'In-House Design & Templates',
+                  rationaleOrNote:
+                    'Tangible visual supports families use every evening—owned 100% in-house as core brand IP.',
+                },
+                {
+                  id: 'bvb-edu-3',
+                  title:
+                    'Mobile-Friendly Course & Community Hosting Portal + Video/Audio Streaming',
+                  tier: 'BUY_RENT_OFF_SHELF',
+                  categoryTag: 'Monthly Hosting Stack',
+                  costModel: 'MONTHLY_SUBSCRIPTION',
+                  estimatedCostAmount: 49,
+                  vendorOrToolName: 'Hosted Course Portal / Web App + Zoom',
+                  rationaleOrNote:
+                    'Renting an off-the-shelf mobile-ready portal for €49/mo saves €25,000 and 6 months of custom app coding.',
+                },
+                {
+                  id: 'bvb-edu-4',
+                  title:
+                    'Broadcast Microphone & Quiet Home Audio Recording Setup (Once-Off)',
+                  tier: 'BUY_RENT_OFF_SHELF',
+                  categoryTag: 'Recording Equipment (Once-Off)',
+                  costModel: 'ONE_OFF_PURCHASE',
+                  estimatedCostAmount: 190,
+                  vendorOrToolName: 'Shure / Rode USB Podcast Mic',
+                  rationaleOrNote:
+                    'One-off purchase to record warm, studio-clear 5-minute bedtime audio guides from home.',
+                },
+                {
+                  id: 'bvb-edu-5',
+                  title:
+                    'Independent Pediatric Occupational Therapist (OT) & Sleep Safety Advisory Review',
+                  tier: 'OUTSOURCE_PARTNER',
+                  categoryTag: 'Clinical Credibility Partner',
+                  costModel: 'ONE_OFF_PURCHASE',
+                  estimatedCostAmount: 450,
+                  vendorOrToolName: 'Specialist Pediatric OT Contractor',
+                  rationaleOrNote:
+                    'One-off specialist review of our 6 modules to endorse clinical safety and win charity/clinic referrals.',
+                },
+              ],
+        secretSauceInHouseNarrative:
+          'We author and own 100% of our proprietary 6-module sensory sleep curriculum, 5-minute "Listen-in-the-Dark" audio guides, and printable visual bedtime routine cards in-house.',
+        whyBuyAndPartnerSavesTimeNarrative:
+          'Instead of spending €25,000 building a custom native mobile app, we rent a proven mobile-ready course portal + Stripe for ~€49/month and pay a one-off fee for an independent Pediatric OT review.',
+      };
+    }
+
+    // Default: SAAS_SOFTWARE_AI (e.g. Build My Unicorn) & other tracks
+    return {
+      coreIpOwnershipRule: 'OWN_PROPRIETARY_WORKFLOW_RENT_PLUMBING',
+      items:
+        mode === 'CHARTER_ONLY'
+          ? existingItems
+          : [
+              {
+                id: 'bvb-saas-1',
+                title:
+                  'Proprietary Multi-Step Guided Workflow, Domain Scoring Engine & Prompt Architecture',
+                tier: 'BUILD_IN_HOUSE',
+                categoryTag: 'Core Defensible IP',
+                costModel: 'SWEAT_EQUITY_ZERO',
+                estimatedCostAmount: 0,
+                vendorOrToolName: 'In-House TypeScript / Next.js Codebase',
+                rationaleOrNote:
+                  'Our core "Secret Sauce" that delivers the 60-second Aha! Moment and satisfies IE/UK grant IP ownership rules.',
+              },
+              {
+                id: 'bvb-saas-2',
+                title:
+                  'Localized Country Rule Packs, Grant Readiness Logic & Interactive Export Compiler',
+                tier: 'BUILD_IN_HOUSE',
+                categoryTag: 'Proprietary Dataset & Rules',
+                costModel: 'SWEAT_EQUITY_ZERO',
+                estimatedCostAmount: 0,
+                vendorOrToolName: 'In-House Rules Engine',
+                rationaleOrNote:
+                  'Domain-specific IE/UK grant & financial rules built in-house that generic AI wrappers cannot replicate.',
+              },
+              {
+                id: 'bvb-saas-3',
+                title:
+                  'Google Cloud / Vercel Hosting, Managed PostgreSQL (Drizzle) & Gemini API',
+                tier: 'BUY_RENT_OFF_SHELF',
+                categoryTag: 'Monthly Cloud & AI Stack',
+                costModel: 'MONTHLY_SUBSCRIPTION',
+                estimatedCostAmount: 65,
+                vendorOrToolName: 'Google Cloud + Vercel + Gemini API',
+                rationaleOrNote:
+                  'Predictable monthly cloud infrastructure with hard 500 calls/day AI cost circuit breakers.',
+              },
+              {
+                id: 'bvb-saas-4',
+                title:
+                  'Authentication (Better-Auth), Stripe Checkout & Transactional Email',
+                tier: 'BUY_RENT_OFF_SHELF',
+                categoryTag: 'Commodity SaaS Plumbing',
+                costModel: 'MONTHLY_SUBSCRIPTION',
+                estimatedCostAmount: 20,
+                vendorOrToolName: 'Better-Auth + Stripe + Resend',
+                rationaleOrNote:
+                  'Zero reason to code custom billing or auth servers from scratch in Version 1.',
+              },
+              {
+                id: 'bvb-saas-5',
+                title:
+                  'One-Off Specialist Legal Terms / GDPR Privacy & R&D Grant Accounting Review',
+                tier: 'OUTSOURCE_PARTNER',
+                categoryTag: 'Specialist Compliance (Once-Off)',
+                costModel: 'ONE_OFF_PURCHASE',
+                estimatedCostAmount: 500,
+                vendorOrToolName: 'Startup Legal / Grant Accountant',
+                rationaleOrNote:
+                  'One-off external review to verify GDPR data compliance and R&D / LEO grant eligibility.',
+              },
+            ],
+      secretSauceInHouseNarrative:
+        'We build and own 100% of our core guided workflow, localized grant/financial scoring engine, and structured AI prompt architecture in-house so all defensible IP stays on our company balance sheet.',
+      whyBuyAndPartnerSavesTimeNarrative:
+        'We rent commodity cloud infrastructure (Google Cloud, PostgreSQL, Better-Auth, Stripe, and Gemini API) on a low monthly subscription (~€85/mo) instead of wasting months reinventing login or payment plumbing.',
+    };
+  };
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const countryPack = getCountryRulePack(params.hqCountryCode);
+      const fallback = buildSmartFallback();
+
+      const v1ContextList =
+        Array.isArray(params.v1MustHaveTitles) &&
+        params.v1MustHaveTitles.length > 0
+          ? params.v1MustHaveTitles.join(' | ')
+          : 'None specified yet';
+
+      const boardContextList =
+        existingItems.length > 0
+          ? existingItems
+              .map(
+                (i) =>
+                  `[${i.tier}] ${i.title} (${i.costModel}: ${countryPack.defaultCurrency} ${i.estimatedCostAmount})`
+              )
+              .join(' | ')
+          : 'Board is currently empty';
+
+      const prompt = `You are a pragmatic Startup CTO, COO & Grant Assessor helping a founder complete Step 4 of Module D ("3-Tier Build-vs-Buy & Secret Sauce Matrix").
+
+Startup Context:
+- Title: ${sanitizePromptInput(params.planTitle, 180)}
+- Industry: ${sanitizePromptInput(params.industryCategory, 120)} (HQ: ${countryPack.countryName}, Currency: ${countryPack.defaultCurrency})
+- Selected Product Track (Step 1): ${sanitizePromptInput(params.selectedTrack, 80)}
+- Form Factor (Step 1): ${sanitizePromptInput(params.formFactor, 80) || 'N/A'}
+- Primary Sales Channel (Step 2): ${sanitizePromptInput(params.primaryChannel, 80) || 'N/A'}
+- Founder's Step 3 MUST-HAVE V1 Deliverables: ${sanitizePromptInput(v1ContextList, 500)}
+- Current Step 4 Board Items: ${sanitizePromptInput(boardContextList, 600)}
+- Core Problem: ${sanitizePromptInput(params.coreProblem, 350) || 'N/A'}
+- Proposed Solution: ${sanitizePromptInput(params.proposedSolution, 350) || 'N/A'}
+
+CRITICAL SMART COST MODEL RULES:
+Every item MUST use the smart, realistic costModel that matches how it is actually paid for in the real world:
+- "MONTHLY_SUBSCRIPTION": Use for recurring monthly cloud/software/hosting tools (e.g., Google Cloud, AWS, Vercel, Shopify, Course Hosting Portal, Zoom, SaaS tools).
+- "ONE_OFF_PURCHASE": Use for one-off upfront purchases, raw material batches, workshop equipment/jigs, or one-off contractor reviews (e.g., buying a batch of kiln-dried wood/timber, buying a stock batch of packaging boxes, buying a microphone or laser jig, or a one-off legal/clinical review).
+- "PER_UNIT_COGS": Use for per-order / per-unit direct fulfillment or shipping costs (e.g., courier shipping per parcel).
+- "SWEAT_EQUITY_ZERO": Use (with estimatedCostAmount: 0) when the founder is building/crafting their core IP in-house using their own time.
+
+Return strictly valid JSON with:
+{
+  "secretSauceInHouseNarrative": "2 concrete sentences explaining what core IP, craftsmanship, or methodology is built and owned 100% in-house (Tier 1) and why that makes the startup defensible for investors and grants.",
+  "whyBuyAndPartnerSavesTimeNarrative": "2 concrete sentences explaining what commodity tools/materials are bought off-the-shelf (Tier 2) or outsourced to specialists/suppliers (Tier 3) to save months of time and upfront cash.",
+  "items": [
+    {
+      "id": "bvb-1",
+      "title": "Specific component, tool, material batch, or specialist service",
+      "tier": "BUILD_IN_HOUSE",
+      "categoryTag": "Short 2-3 word tag",
+      "costModel": "MONTHLY_SUBSCRIPTION",
+      "estimatedCostAmount": 45,
+      "vendorOrToolName": "Specific vendor/tool or 'Founder In-House'",
+      "rationaleOrNote": "1 concise sentence explaining why this belongs in BUILD_IN_HOUSE, BUY_RENT_OFF_SHELF, or OUTSOURCE_PARTNER."
+    }
+  ]
+}
+Include 2 items in "BUILD_IN_HOUSE", 2 items in "BUY_RENT_OFF_SHELF", and 1 to 2 items in "OUTSOURCE_PARTNER".`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.35,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          secretSauceInHouseNarrative?: string;
+          whyBuyAndPartnerSavesTimeNarrative?: string;
+          items?: Array<{
+            id?: string;
+            title?: string;
+            tier?: string;
+            categoryTag?: string;
+            costModel?: string;
+            estimatedCostAmount?: number;
+            vendorOrToolName?: string;
+            rationaleOrNote?: string;
+          }>;
+        };
+
+        if (
+          parsed.secretSauceInHouseNarrative &&
+          parsed.whyBuyAndPartnerSavesTimeNarrative
+        ) {
+          creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_D_STEP4_BUILD_VS_BUY',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 300,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 250,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          const validTiers = new Set([
+            'BUILD_IN_HOUSE',
+            'BUY_RENT_OFF_SHELF',
+            'OUTSOURCE_PARTNER',
+          ]);
+          const validCostModels = new Set([
+            'MONTHLY_SUBSCRIPTION',
+            'ONE_OFF_PURCHASE',
+            'PER_UNIT_COGS',
+            'SWEAT_EQUITY_ZERO',
+          ]);
+
+          const sanitizedItems: BuildVsBuyItem[] =
+            mode === 'CHARTER_ONLY'
+              ? existingItems
+              : Array.isArray(parsed.items) && parsed.items.length >= 3
+                ? parsed.items.slice(0, 8).map((it, idx) => ({
+                    id: `ai-bvb-${idx + 1}-${Date.now()}`,
+                    title:
+                      sanitizePromptInput(it.title, 140) ||
+                      `Component #${idx + 1}`,
+                    tier: validTiers.has(String(it.tier))
+                      ? (it.tier as BuildVsBuyTierType)
+                      : idx < 2
+                        ? 'BUILD_IN_HOUSE'
+                        : idx < 4
+                          ? 'BUY_RENT_OFF_SHELF'
+                          : 'OUTSOURCE_PARTNER',
+                    categoryTag:
+                      sanitizePromptInput(it.categoryTag, 40) || 'V1 Stack',
+                    costModel: validCostModels.has(String(it.costModel))
+                      ? (it.costModel as BuildVsBuyCostModelType)
+                      : 'ONE_OFF_PURCHASE',
+                    estimatedCostAmount:
+                      typeof it.estimatedCostAmount === 'number' &&
+                      !Number.isNaN(it.estimatedCostAmount) &&
+                      it.estimatedCostAmount >= 0
+                        ? Math.round(it.estimatedCostAmount * 100) / 100
+                        : 0,
+                    vendorOrToolName:
+                      sanitizePromptInput(it.vendorOrToolName, 60) || '',
+                    rationaleOrNote:
+                      sanitizePromptInput(it.rationaleOrNote, 240) ||
+                      'Prioritized for lean V1 execution.',
+                  }))
+                : fallback.items;
+
+          return {
+            allowed: true,
+            coreIpOwnershipRule: fallback.coreIpOwnershipRule,
+            items: sanitizedItems,
+            secretSauceInHouseNarrative:
+              parsed.secretSauceInHouseNarrative.trim(),
+            whyBuyAndPartnerSavesTimeNarrative:
+              parsed.whyBuyAndPartnerSavesTimeNarrative.trim(),
+            creditsUsedAfter,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
 

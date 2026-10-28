@@ -69,6 +69,11 @@ import type {
   V1ScopeDisciplineRuleType,
   ScopeFilterItem,
   ScopeFilterStep3Data,
+  BuildVsBuyTierType,
+  BuildVsBuyCostModelType,
+  CoreIpOwnershipRuleType,
+  BuildVsBuyItem,
+  BuildVsBuyStep4Data,
 } from '@/lib/auth/session-store';
 
 export interface ModuleDWorkspaceProps {
@@ -85,6 +90,10 @@ export interface ModuleDWorkspaceProps {
   ) => Promise<void>;
   onSaveStep3ScopeFilter: (
     data: ScopeFilterStep3Data,
+    progress: number
+  ) => Promise<void>;
+  onSaveStep4BuildVsBuy: (
+    data: BuildVsBuyStep4Data,
     progress: number
   ) => Promise<void>;
   onParkOpenQuestion: (questionText: string) => Promise<void>;
@@ -129,6 +138,24 @@ export interface ModuleDWorkspaceProps {
     scopeDisciplineRule: V1ScopeDisciplineRuleType | '';
     whatWeRefuseToBuildInV1Narrative: string;
     whyThisLeanV1WinsFasterNarrative: string;
+    engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  }>;
+  onGenerateAiBuildVsBuy: (params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    formFactor?: ProductFormFactorType;
+    primaryChannel?: SalesChannelOptionType;
+    validatedPainSummary?: string;
+    currentScopeItems?: ScopeFilterItem[];
+    currentBuildVsBuyItems?: BuildVsBuyItem[];
+    mode?: 'POPULATE_BOARD_AND_CHARTER' | 'CHARTER_ONLY';
+  }) => Promise<{
+    allowed: boolean;
+    reason?: string;
+    items: BuildVsBuyItem[];
+    coreIpOwnershipRule: CoreIpOwnershipRuleType | '';
+    secretSauceInHouseNarrative: string;
+    whyBuyAndPartnerSavesTimeNarrative: string;
     engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
   }>;
   onBackToModuleC: () => void;
@@ -2763,7 +2790,661 @@ const ADAPTIVE_STEP3_CONFIG_BY_TRACK: Record<
   },
 };
 
+// ============================================================================
+// STEP 4: 3-TIER BUILD-VS-BUY (MAKE-VS-BUY) & SMART COST DETECTOR
+// ============================================================================
 
+export const COST_MODEL_OPTIONS: Array<{
+  value: BuildVsBuyCostModelType;
+  label: string;
+  shortLabel: string;
+  suffix: string;
+  badgeClass: string;
+}> = [
+  {
+    value: 'MONTHLY_SUBSCRIPTION',
+    label: 'Monthly Recurring Cost (e.g. Google Cloud, Shopify, SaaS)',
+    shortLabel: 'Monthly (/mo)',
+    suffix: '/mo',
+    badgeClass: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+  },
+  {
+    value: 'ONE_OFF_PURCHASE',
+    label: 'Once-Off Purchase / Batch (e.g. Buying Wood, Equipment, Contractor)',
+    shortLabel: 'Once-Off Purchase',
+    suffix: ' once-off',
+    badgeClass: 'border-amber-200 bg-amber-50 text-amber-800',
+  },
+  {
+    value: 'PER_UNIT_COGS',
+    label: 'Per-Unit / Per-Order Direct Cost (e.g. Courier, Per-Unit Part)',
+    shortLabel: 'Per-Unit (/unit)',
+    suffix: '/unit',
+    badgeClass: 'border-teal-200 bg-teal-50 text-teal-800',
+  },
+  {
+    value: 'SWEAT_EQUITY_ZERO',
+    label: '€0 Cash Outlay (Founder Sweat Equity / In-House Time)',
+    shortLabel: '€0 Sweat Equity',
+    suffix: ' (Sweat Equity)',
+    badgeClass: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other / Custom Cost Structure',
+    shortLabel: 'Custom Cost',
+    suffix: '',
+    badgeClass: 'border-slate-200 bg-slate-50 text-slate-800',
+  },
+];
+
+/**
+ * Smartly auto-detects whether an item is a Monthly Recurring Subscription
+ * (e.g. Google Cloud, AWS, Vercel, Shopify, Kajabi, Zoom), a Once-Off Purchase
+ * (e.g. buying wood/timber, batch packaging boxes, workshop jig, CNC, microphone,
+ * one-off legal/clinical review), a Per-Unit Cost, or Founder Sweat Equity.
+ */
+export function inferSmartCostModelFromTitle(
+  rawText: string,
+  tier: BuildVsBuyTierType
+): {
+  costModel: BuildVsBuyCostModelType;
+  suggestedAmount: number;
+  reasonHint: string;
+} {
+  const lower = rawText.toLowerCase();
+
+  // 1. Check for explicit per-unit / per-order / shipping indicators
+  if (
+    lower.includes('per unit') ||
+    lower.includes('per order') ||
+    lower.includes('per board') ||
+    lower.includes('per parcel') ||
+    lower.includes('per box') ||
+    lower.includes('postage') ||
+    lower.includes('an post') ||
+    lower.includes('royal mail') ||
+    lower.includes('dpd') ||
+    lower.includes('dhl') ||
+    lower.includes('fulfillment fee') ||
+    lower.includes('fba fee')
+  ) {
+    return {
+      costModel: 'PER_UNIT_COGS',
+      suggestedAmount: 6,
+      reasonHint: 'Auto-detected as Per-Unit / Order direct cost',
+    };
+  }
+
+  // 2. Check for Once-Off Purchases (wood, timber, materials batch, hardware, equipment, one-off contractor)
+  if (
+    lower.includes('wood') ||
+    lower.includes('timber') ||
+    lower.includes('walnut') ||
+    lower.includes('oak') ||
+    lower.includes('birch') ||
+    lower.includes('plywood') ||
+    lower.includes('beeswax') ||
+    lower.includes('acrylic') ||
+    lower.includes('steel') ||
+    lower.includes('fabric') ||
+    lower.includes('packaging') ||
+    lower.includes('kraft box') ||
+    lower.includes('boxes') ||
+    lower.includes('labels') ||
+    lower.includes('jig') ||
+    lower.includes('router') ||
+    lower.includes('sander') ||
+    lower.includes('saw') ||
+    lower.includes('laser') ||
+    lower.includes('cnc') ||
+    lower.includes('3d print') ||
+    lower.includes('mold') ||
+    lower.includes('mould') ||
+    lower.includes('tooling') ||
+    lower.includes('sample') ||
+    lower.includes('batch') ||
+    lower.includes('inventory') ||
+    lower.includes('stock') ||
+    lower.includes('microphone') ||
+    lower.includes('camera') ||
+    lower.includes('lighting') ||
+    lower.includes('barcode') ||
+    lower.includes('gs1') ||
+    lower.includes('trademark') ||
+    lower.includes('legal') ||
+    lower.includes('solicitor') ||
+    lower.includes('accountant') ||
+    lower.includes('audit') ||
+    lower.includes('safety test') ||
+    lower.includes('ce mark') ||
+    lower.includes('ukca') ||
+    lower.includes('en71') ||
+    lower.includes('ot review') ||
+    lower.includes('clinical review') ||
+    lower.includes('freelance') ||
+    lower.includes('contractor') ||
+    lower.includes('photographer') ||
+    lower.includes('videographer') ||
+    lower.includes('once off') ||
+    lower.includes('one-off') ||
+    lower.includes('one off')
+  ) {
+    return {
+      costModel: 'ONE_OFF_PURCHASE',
+      suggestedAmount: tier === 'OUTSOURCE_PARTNER' ? 300 : 180,
+      reasonHint: 'Auto-detected as Once-Off Purchase / Batch / Fixed Fee',
+    };
+  }
+
+  // 3. Check for Monthly Cloud / SaaS / Platform Subscriptions
+  if (
+    lower.includes('google cloud') ||
+    lower.includes('gcp') ||
+    lower.includes('aws') ||
+    lower.includes('azure') ||
+    lower.includes('vercel') ||
+    lower.includes('supabase') ||
+    lower.includes('neon') ||
+    lower.includes('postgres') ||
+    lower.includes('database') ||
+    lower.includes('hosting') ||
+    lower.includes('server') ||
+    lower.includes('cloud') ||
+    lower.includes('shopify') ||
+    lower.includes('etsy') ||
+    lower.includes('amazon') ||
+    lower.includes('stripe') ||
+    lower.includes('kajabi') ||
+    lower.includes('teachable') ||
+    lower.includes('skool') ||
+    lower.includes('circle') ||
+    lower.includes('zoom') ||
+    lower.includes('loom') ||
+    lower.includes('vimeo') ||
+    lower.includes('tally') ||
+    lower.includes('typeform') ||
+    lower.includes('cal.com') ||
+    lower.includes('calendly') ||
+    lower.includes('resend') ||
+    lower.includes('postmark') ||
+    lower.includes('mailchimp') ||
+    lower.includes('klaviyo') ||
+    lower.includes('convertkit') ||
+    lower.includes('hubspot') ||
+    lower.includes('zapier') ||
+    lower.includes('make.com') ||
+    lower.includes('airtable') ||
+    lower.includes('notion') ||
+    lower.includes('figma') ||
+    lower.includes('canva') ||
+    lower.includes('github') ||
+    lower.includes('cursor') ||
+    lower.includes('openai') ||
+    lower.includes('gemini') ||
+    lower.includes('anthropic') ||
+    lower.includes('claude') ||
+    lower.includes('clerk') ||
+    lower.includes('auth') ||
+    lower.includes('saas') ||
+    lower.includes('subscription') ||
+    lower.includes('monthly')
+  ) {
+    return {
+      costModel: 'MONTHLY_SUBSCRIPTION',
+      suggestedAmount: 29,
+      reasonHint: 'Auto-detected as Monthly Cloud / SaaS Subscription (/mo)',
+    };
+  }
+
+  // 4. Fallback based on selected Tier
+  if (tier === 'BUILD_IN_HOUSE') {
+    return {
+      costModel: 'SWEAT_EQUITY_ZERO',
+      suggestedAmount: 0,
+      reasonHint: 'In-House Secret Sauce defaults to €0 Founder Sweat Equity (or switch to Once-Off if buying materials)',
+    };
+  }
+  if (tier === 'BUY_RENT_OFF_SHELF') {
+    return {
+      costModel: 'MONTHLY_SUBSCRIPTION',
+      suggestedAmount: 25,
+      reasonHint: 'Off-the-Shelf Tool defaults to Monthly Subscription (or switch to Once-Off for materials/batches)',
+    };
+  }
+  return {
+    costModel: 'ONE_OFF_PURCHASE',
+    suggestedAmount: 250,
+    reasonHint: 'Specialist Partner / Contractor defaults to Once-Off Fixed Fee',
+  };
+}
+
+interface AdaptiveStep4Config {
+  stepTitle: string;
+  stepSubtitle: string;
+  whyAskingText: string;
+  tier1Label: string;
+  tier1Subtitle: string;
+  tier1Badge: string;
+  tier2Label: string;
+  tier2Subtitle: string;
+  tier2Badge: string;
+  tier3Label: string;
+  tier3Subtitle: string;
+  tier3Badge: string;
+  categoryOptions: string[];
+  ipRules: Array<{
+    value: CoreIpOwnershipRuleType;
+    label: string;
+    subtitle: string;
+    badge: string;
+  }>;
+  secretSaucePromptLabel: string;
+  secretSaucePromptPlaceholder: string;
+  whyBuySavesTimeLabel: string;
+  whyBuySavesTimePlaceholder: string;
+}
+
+const ADAPTIVE_STEP4_CONFIG_BY_TRACK: Record<ProductTrackType, AdaptiveStep4Config> = {
+  SAAS_SOFTWARE_AI: {
+    stepTitle: '3-Tier Build-vs-Buy Stack & Core IP Matrix',
+    stepSubtitle:
+      'Separate your proprietary "Secret Sauce" code/data from commodity cloud & SaaS tools (Google Cloud, Stripe, Auth) so you launch faster with a lean monthly burn.',
+    whyAskingText:
+      'Enterprise Ireland, Innovate UK, and seed investors reject software plans that waste months rebuilding commodity plumbing (auth, billing, email). They want 100% of your engineering hours focused on your defensible Secret Sauce IP while renting off-the-shelf cloud infrastructure.',
+    tier1Label: 'TIER 1: BUILD IN-HOUSE (SECRET SAUCE IP)',
+    tier1Subtitle: 'Proprietary workflows, domain algorithms, custom UX & prompts we own 100%',
+    tier1Badge: 'Core Defensible IP',
+    tier2Label: 'TIER 2: BUY / SUBSCRIBE OFF-THE-SHELF',
+    tier2Subtitle: 'Monthly cloud, hosting, auth, payments & email APIs (e.g. Google Cloud, Stripe)',
+    tier2Badge: 'Commodity Stack',
+    tier3Label: 'TIER 3: PARTNER / SPECIALIST CONTRACTOR',
+    tier3Subtitle: 'Targeted one-off audits, legal/GDPR review, or specialist domain QA',
+    tier3Badge: 'Targeted External Help',
+    categoryOptions: [
+      'Core Domain Logic & AI',
+      'Cloud Hosting & Database',
+      'Auth, Billing & Email APIs',
+      'Security, Legal & Compliance',
+      'UX Design & QA',
+    ],
+    ipRules: [
+      {
+        value: 'OWN_PROPRIETARY_WORKFLOW_RENT_PLUMBING',
+        label: '100% In-House Ownership of Core Code & Workflows; Rent Commodity Plumbing',
+        subtitle:
+          'We own all custom application code, domain rules, and proprietary datasets in-house; we only rent commodity cloud hosting, auth, and payment rails.',
+        badge: 'Recommended for SaaS / AI',
+      },
+      {
+        value: 'OWN_DOMAIN_DATA_AND_PROMPTS_IN_HOUSE',
+        label: 'Defensible Proprietary Dataset, Prompts & Industry Benchmark Moat',
+        subtitle:
+          'Every customer interaction compounds our proprietary benchmark dataset and prompt architecture that competitors cannot replicate.',
+        badge: 'Data & Prompt Moat',
+      },
+      {
+        value: 'NO_EXTERNAL_DEV_AGENCY_FOR_CORE_IP',
+        label: 'Zero External Dev Agency for Core Product IP',
+        subtitle:
+          'We never outsource our core product engineering to external dev shops; external contractors are strictly limited to compliance/security audits.',
+        badge: 'Grant & Investor Favourite',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom IP Ownership Rule',
+        subtitle: 'Define your own custom intellectual property and build-vs-buy rule.',
+        badge: 'Custom Rule',
+      },
+    ],
+    secretSaucePromptLabel:
+      '1. Our Defensible "Secret Sauce" (What We Build & Own 100% In-House):',
+    secretSaucePromptPlaceholder:
+      'Explain what makes your core software/AI workflow genuinely unique and why you are building and owning this intellectual property in-house...',
+    whyBuySavesTimeLabel:
+      '2. Why Renting Off-the-Shelf Tools & Targeted Partners Saves Months & Capital:',
+    whyBuySavesTimePlaceholder:
+      'Explain how using managed cloud/SaaS tools (e.g. Google Cloud, Vercel, Stripe) and targeted contractors eliminates months of boilerplate coding...',
+  },
+
+  PHYSICAL_PRODUCT_ECOM: {
+    stepTitle: '3-Tier Make-vs-Buy, Materials & Craftsmanship Matrix',
+    stepSubtitle:
+      'Separate what you design, craft, and finish in-house (your Secret Sauce) from once-off raw material batches (e.g. buying wood, stock packaging) and specialist partners.',
+    whyAskingText:
+      'Whether you hand-craft in a workshop or work with contract manufacturers, unit economics fall apart when founders buy the wrong machinery too early or pay custom tooling fees on Batch 1. Separating In-House Craft/Design from Once-Off Material Batches and Fulfilment Partners gives you an exact V1 production budget.',
+    tier1Label: 'TIER 1: MAKE / CRAFT IN-HOUSE (SECRET SAUCE)',
+    tier1Subtitle: 'Proprietary product design, CAD/jigs, hand-finishing, sensory/quality QA & brand story',
+    tier1Badge: 'In-House Craft & Design IP',
+    tier2Label: 'TIER 2: BUY RAW MATERIALS, PACKAGING & TOOLS',
+    tier2Subtitle: 'Once-off timber/wood batches, hardware fittings, stock kraft boxes & e-commerce tools',
+    tier2Badge: 'Materials & Off-the-Shelf',
+    tier3Label: 'TIER 3: PARTNER / CONTRACT MANUFACTURER / COURIER',
+    tier3Subtitle: 'Heavy CNC/laser cutting, safety/clinical sign-off, Amazon FBA or tracked courier',
+    tier3Badge: 'Production & Delivery Partners',
+    categoryOptions: [
+      'Product Design, Jigs & Finishing',
+      'Raw Materials & Timber/Components',
+      'Packaging, Inserts & Barcodes',
+      'Workshop Tools & Equipment',
+      'Courier, FBA & Safety Testing',
+    ],
+    ipRules: [
+      {
+        value: 'IN_HOUSE_CRAFT_AND_FINISHING_BUY_STOCK_PACKAGING',
+        label: '100% In-House Design, Craft & Finishing; Buy Stock Packaging & Materials',
+        subtitle:
+          'We own all original physical dimensions, workshop templates/CAD files, hand-finishing, and quality standards; suppliers provide raw materials and stock eco-packaging.',
+        badge: 'Recommended for Physical Products',
+      },
+      {
+        value: 'OWN_JIGS_AND_ENGRAVING_OUTSOURCE_RAW_MILLING',
+        label: 'Own Proprietary Jigs, CAD & Engraving; Outsource Heavy Raw Milling',
+        subtitle:
+          'We retain 100% ownership of our CAD templates, jigs, and final assembly while using trade partners for heavy CNC/laser cutting.',
+        badge: 'Hybrid Craft + Partner',
+      },
+      {
+        value: 'BATCH_MATERIALS_ONCE_OFF_ZERO_CUSTOM_TOOLING',
+        label: 'Once-Off Material Batches in V1 with Zero Custom Factory Tooling CAPEX',
+        subtitle:
+          'We purchase timber/materials in small once-off batches and refuse expensive injection molds or factory tooling until V1 demand is proven.',
+        badge: 'Cashflow Protection Rule',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Craftsmanship & IP Rule',
+        subtitle: 'Define your own custom physical design, manufacturing, or IP ownership rule.',
+        badge: 'Custom Rule',
+      },
+    ],
+    secretSaucePromptLabel:
+      '1. Our Defensible Craftsmanship & Design "Secret Sauce" (Kept 100% In-House):',
+    secretSaucePromptPlaceholder:
+      'Explain what you design, craft, assemble, or quality-check in-house (e.g. ergonomic specs, tactile finish, custom jigs) that cheap mass-market imports cannot copy...',
+    whyBuySavesTimeLabel:
+      '2. How Smart Material Sourcing & Partners Protect Our V1 Cashflow:',
+    whyBuySavesTimePlaceholder:
+      'Explain how buying kiln-dried timber/materials in once-off batches, using stock eco-boxes with custom stickers, and using tracked couriers avoids heavy upfront factory CAPEX...',
+  },
+
+  EDUCATION_PROGRAM_COHORT: {
+    stepTitle: '3-Tier Curriculum IP vs. Off-the-Shelf Platform Stack',
+    stepSubtitle:
+      'Keep 100% of your energy on your proprietary curriculum, templates, and coaching (Tier 1) while renting proven off-the-shelf learning & video tools (Tier 2).',
+    whyAskingText:
+      'The #1 trap for education, training, and parent/founder support businesses is spending €15,000+ and 6 months building a custom LMS website before selling a single seat. Renting Kajabi/Skool/Zoom for €30–€99/mo lets you launch Cohort 1 in weeks while owning 100% of your curriculum IP.',
+    tier1Label: 'TIER 1: CREATE IN-HOUSE (CURRICULUM & METHOD IP)',
+    tier1Subtitle: 'Proprietary modules, parent/founder toolkits, templates & live coaching methodology',
+    tier1Badge: '100% Owned Curriculum IP',
+    tier2Label: 'TIER 2: RENT OFF-THE-SHELF LEARNING & VIDEO TOOLS',
+    tier2Subtitle: 'Course portal (Skool/Kajabi/Notion), Zoom/Loom, Stripe checkout & once-off mic/lighting',
+    tier2Badge: 'No-Code Delivery Stack',
+    tier3Label: 'TIER 3: GUEST EXPERTS & SPECIALIST REVIEWERS',
+    tier3Subtitle: 'Guest clinical/legal/industry speakers or one-off workbook design polish',
+    tier3Badge: 'Credibility Partners',
+    categoryOptions: [
+      'Core Curriculum & Frameworks',
+      'Downloadable Templates & Toolkits',
+      'Course Portal & Video Hosting',
+      'Recording Gear (Once-Off)',
+      'Guest Experts & Accreditation',
+    ],
+    ipRules: [
+      {
+        value: 'OWN_CURRICULUM_AND_METHOD_RENT_COURSE_PORTAL',
+        label: '100% Ownership of Proprietary Curriculum & Toolkits; Rent Course Portal',
+        subtitle:
+          'We retain 100% copyright and IP over all lessons, workbooks, diagnostic rubrics, and recorded workshops—hosted on portable off-the-shelf platforms.',
+        badge: 'Recommended for Education / Cohorts',
+      },
+      {
+        value: 'IN_HOUSE_AUDIO_AND_TOOLKITS_PARTNER_CLINICAL_REVIEW',
+        label: 'In-House Audio, Scripts & Toolkits + External Clinical / Specialist Review',
+        subtitle:
+          'We author all core guides and scripts in-house and use targeted guest specialists for clinical/professional peer review.',
+        badge: 'High-Trust Method',
+      },
+      {
+        value: 'ZERO_CUSTOM_APP_CODE_UNTIL_100_FAMILIES',
+        label: 'Zero Custom App Code Until First 100 Paying Families / Members',
+        subtitle:
+          'We refuse to spend capital on custom mobile/web code until our curriculum and retention are proven on off-the-shelf tools.',
+        badge: 'Anti-Burn Rule',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Curriculum IP Rule',
+        subtitle: 'Define your own custom curriculum and platform ownership rule.',
+        badge: 'Custom Rule',
+      },
+    ],
+    secretSaucePromptLabel:
+      '1. Our Defensible Curriculum & Methodology "Secret Sauce" (Created 100% In-House):',
+    secretSaucePromptPlaceholder:
+      'Explain why your proprietary framework, step-by-step templates, and lived/clinical expertise deliver outcomes that generic YouTube videos or courses cannot match...',
+    whyBuySavesTimeLabel:
+      '2. Why Renting Off-the-Shelf Course & Video Tools Lets Us Launch in Weeks:',
+    whyBuySavesTimePlaceholder:
+      'Explain why hosting Version 1 on proven off-the-shelf tools (Zoom, Loom, Skool/Kajabi, Stripe) saves thousands in custom software development...',
+  },
+
+  MARKETPLACE_PLATFORM: {
+    stepTitle: '3-Tier Marketplace Trust IP vs. Off-the-Shelf Booking Stack',
+    stepSubtitle:
+      'Focus in-house on supply curation, vetting, and liquidity matching (Tier 1) while using Stripe Connect and off-the-shelf scheduling/hosting tools (Tier 2).',
+    whyAskingText:
+      'Early marketplaces fail because of the chicken-and-egg liquidity problem, not because they lacked a custom-coded payment ledger. Owning the vetting/matching logic in-house while renting Stripe Connect and booking tools lets you prove GMV fast.',
+    tier1Label: 'TIER 1: BUILD IN-HOUSE (VETTING & MATCHING IP)',
+    tier1Subtitle: 'Supply vetting rubric, curated matching rules & niche liquidity playbook',
+    tier1Badge: 'Liquidity & Trust Moat',
+    tier2Label: 'TIER 2: BUY / RENT MARKETPLACE INFRASTRUCTURE',
+    tier2Subtitle: 'Stripe Connect split payouts, cloud hosting, scheduling & transactional notifications',
+    tier2Badge: 'Managed Rails',
+    tier3Label: 'TIER 3: PARTNER / INSURANCE / LEGAL ESCROW',
+    tier3Subtitle: 'Marketplace terms of service, ID verification partner, or liability cover',
+    tier3Badge: 'Trust & Legal Partners',
+    categoryOptions: [
+      'Matching & Supply Vetting IP',
+      'Split Payments & Escrow (Stripe)',
+      'Cloud Hosting & Messaging',
+      'Legal Terms & ID Verification',
+    ],
+    ipRules: [
+      {
+        value: 'OWN_SUPPLY_RELATIONSHIPS_RENT_BOOKING_STACK',
+        label: 'Own Supply Vetting, Matching Rules & Relationships; Rent Booking/Payment Rails',
+        subtitle:
+          'We own the curated supply network, quality vetting data, and matching workflow while using Stripe Connect for regulated payouts.',
+        badge: 'Recommended for Marketplaces',
+      },
+      {
+        value: 'OWN_PROPRIETARY_WORKFLOW_RENT_PLUMBING',
+        label: 'Proprietary Matching & Pricing Workflow IP',
+        subtitle:
+          'Every completed transaction enriches our proprietary pricing and provider reliability data.',
+        badge: 'Pricing Data Moat',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Marketplace IP Rule',
+        subtitle: 'Define your own custom marketplace IP and infrastructure rule.',
+        badge: 'Custom Rule',
+      },
+    ],
+    secretSaucePromptLabel:
+      '1. Our Defensible Matching & Trust "Secret Sauce" (Owned In-House):',
+    secretSaucePromptPlaceholder:
+      'Explain how you vet supply, match buyers and sellers, and prevent disintermediation in your niche...',
+    whyBuySavesTimeLabel:
+      '2. Why Using Stripe Connect & Off-the-Shelf Tools Saves Months of Compliance Work:',
+    whyBuySavesTimePlaceholder:
+      'Explain how using Stripe Connect and managed cloud tools avoids months of custom KYC/payment engineering...',
+  },
+
+  PRODUCTIZED_SERVICE_AGENCY: {
+    stepTitle: '3-Tier Productized Diagnostic IP vs. Delivery Tool Stack',
+    stepSubtitle:
+      'Codify your proprietary diagnostic scorecard, SOPs, and templates in-house (Tier 1) while automating intake, billing, and reporting with off-the-shelf SaaS (Tier 2).',
+    whyAskingText:
+      'A productized service achieves software-like margins (70%+) when your methodology is codified into repeatable templates and AI-assisted SOPs rather than reinvented from scratch for every client.',
+    tier1Label: 'TIER 1: CODIFY IN-HOUSE (METHODOLOGY & SOPS)',
+    tier1Subtitle: 'Proprietary diagnostic scorecard, fixed-scope deliverable templates & AI prompts',
+    tier1Badge: 'Repeatable Delivery IP',
+    tier2Label: 'TIER 2: RENT OFF-THE-SHELF AUTOMATION & PORTAL',
+    tier2Subtitle: 'Stripe recurring billing, client workspace (Notion/Portal), intake forms & scheduling',
+    tier2Badge: 'Automation Stack',
+    tier3Label: 'TIER 3: SPECIALIST SUB-CONTRACTORS (OVERFLOW)',
+    tier3Subtitle: 'Vetted overflow specialists working strictly inside your SOP templates',
+    tier3Badge: 'Elastic Delivery Capacity',
+    categoryOptions: [
+      'Proprietary Scorecard & SOPs',
+      'Client Portal & Reporting',
+      'Billing, Intake & Scheduling',
+      'Specialist Overflow Contractors',
+    ],
+    ipRules: [
+      {
+        value: 'OWN_DELIVERY_PLAYBOOK_RENT_CLIENT_PORTAL',
+        label: '100% Ownership of Codified SOPs & Diagnostic Scorecards; Rent Client Portal',
+        subtitle:
+          'Clients receive the output for their business, while we retain 100% IP ownership of our underlying diagnostic engine, templates, and automation library.',
+        badge: 'Recommended for Productized Services',
+      },
+      {
+        value: 'OWN_DOMAIN_DATA_AND_PROMPTS_IN_HOUSE',
+        label: 'Internal AI Delivery Co-Pilot & Cross-Client Benchmark Database',
+        subtitle:
+          'Every client audit adds anonymized data points to our industry benchmark database and internal AI prompts.',
+        badge: 'Benchmark Moat',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Productized IP Rule',
+        subtitle: 'Define your own custom IP and client licensing rule.',
+        badge: 'Custom Rule',
+      },
+    ],
+    secretSaucePromptLabel:
+      '1. Our Codified "Secret Sauce" Methodology & Templates (Owned 100% In-House):',
+    secretSaucePromptPlaceholder:
+      'Explain your proprietary diagnostic framework, repeatable templates, and internal SOPs that let you deliver high-value outcomes in a fraction of traditional agency hours...',
+    whyBuySavesTimeLabel:
+      '2. How Off-the-Shelf Automation & Vetted Contractors Protect Our Margins:',
+    whyBuySavesTimePlaceholder:
+      'Explain how off-the-shelf intake/billing tools and SOP-trained contractors let you scale client capacity without bloated overhead...',
+  },
+
+  HYBRID_HARDWARE_SOFTWARE: {
+    stepTitle: '3-Tier Hardware + Software Make-vs-Buy Matrix',
+    stepSubtitle:
+      'Keep custom firmware, enclosure CAD, and cloud analytics in-house (Tier 1), buy certified off-the-shelf sensors/modules (Tier 2), and use PCB/compliance partners (Tier 3).',
+    whyAskingText:
+      'Hardware + Software startups burn through seed capital when they design custom silicon or uncertified radios from scratch. Using pre-certified off-the-shelf compute/sensor modules while owning the firmware, enclosure CAD, and cloud dashboard cuts certification costs by 80%.',
+    tier1Label: 'TIER 1: BUILD IN-HOUSE (FIRMWARE, CAD & CLOUD IP)',
+    tier1Subtitle: 'Custom firmware logic, 3D enclosure CAD, telemetry pipeline & web dashboard',
+    tier1Badge: 'Core Hardware + Cloud IP',
+    tier2Label: 'TIER 2: BUY PRE-CERTIFIED MODULES & CLOUD INFRA',
+    tier2Subtitle: 'Once-off pre-certified MCU/sensor batches, power supplies & monthly Google Cloud/AWS IoT',
+    tier2Badge: 'Off-the-Shelf Modules & Cloud',
+    tier3Label: 'TIER 3: PCB FAB, ENCLOSURE & CE/UKCA LAB PARTNERS',
+    tier3Subtitle: 'Short-run PCB assembly (PCBA), enclosure fabrication & EMC/CE/UKCA pre-compliance',
+    tier3Badge: 'Fab & Compliance Partners',
+    categoryOptions: [
+      'Firmware, CAD & Cloud App IP',
+      'Pre-Certified Sensors & MCUs (Once-Off)',
+      'Cloud Telemetry & Hosting (/mo)',
+      'PCBA Fab & CE/UKCA Testing',
+    ],
+    ipRules: [
+      {
+        value: 'OWN_FIRMWARE_AND_DASHBOARD_BUY_OFF_SHELF_ENCLOSURE',
+        label: '100% Ownership of Firmware, CAD & Cloud Dashboard; Buy Pre-Certified Modules',
+        subtitle:
+          'We own all custom firmware, schematics, enclosure CAD, and cloud analytics while sourcing pre-certified commodity wireless/power modules.',
+        badge: 'Recommended for Connected Hardware',
+      },
+      {
+        value: 'OWN_DOMAIN_DATA_AND_PROMPTS_IN_HOUSE',
+        label: 'Proprietary Sensor Telemetry & Predictive Diagnostics Dataset',
+        subtitle:
+          'Continuous real-world sensor telemetry builds a defensible predictive dataset.',
+        badge: 'Telemetry Data Moat',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Hardware + Software IP Rule',
+        subtitle: 'Define your own custom hardware/software IP ownership rule.',
+        badge: 'Custom Rule',
+      },
+    ],
+    secretSaucePromptLabel:
+      '1. Our Defensible Hardware + Software "Secret Sauce" (Owned 100% In-House):',
+    secretSaucePromptPlaceholder:
+      'Explain what you engineer and own in-house across your firmware, industrial design, and cloud analytics dashboard...',
+    whyBuySavesTimeLabel:
+      '2. Why Pre-Certified Modules, Cloud Hosting & Fab Partners De-Risk Batch 1:',
+    whyBuySavesTimePlaceholder:
+      'Explain how using pre-certified sensor/radio modules, monthly cloud infrastructure, and short-run PCBA partners saves 6+ months and tens of thousands in certification and tooling...',
+  },
+
+  OTHER: {
+    stepTitle: '3-Tier Build-vs-Buy & Secret Sauce Matrix',
+    stepSubtitle:
+      'Separate what you build and own in-house (Tier 1) from off-the-shelf tools/materials (Tier 2) and specialist partners (Tier 3).',
+    whyAskingText:
+      'Clear separation between your proprietary Secret Sauce and off-the-shelf tools/materials keeps your Version 1 launch fast, lean, and defensible.',
+    tier1Label: 'TIER 1: BUILD / MAKE IN-HOUSE (SECRET SAUCE)',
+    tier1Subtitle: 'Core value proposition, proprietary IP, design & customer experience we own 100%',
+    tier1Badge: 'In-House Secret Sauce',
+    tier2Label: 'TIER 2: BUY / RENT OFF-THE-SHELF',
+    tier2Subtitle: 'Monthly software subscriptions or once-off raw materials, supplies & equipment',
+    tier2Badge: 'Off-the-Shelf Tools & Supplies',
+    tier3Label: 'TIER 3: PARTNER / SPECIALIST CONTRACTOR',
+    tier3Subtitle: 'Targeted external contractors, compliance reviewers, or fulfillment partners',
+    tier3Badge: 'External Partners',
+    categoryOptions: [
+      'Core Secret Sauce IP',
+      'Monthly Software & Cloud (/mo)',
+      'Once-Off Materials & Equipment',
+      'External Specialist / Delivery',
+    ],
+    ipRules: [
+      {
+        value: 'OWN_PROPRIETARY_WORKFLOW_RENT_PLUMBING',
+        label: '100% In-House Ownership of Core Product, Workflow & Brand IP',
+        subtitle:
+          'We own all core product designs, workflows, and customer relationships in-house while renting commodity infrastructure.',
+        badge: 'Core IP Ownership',
+      },
+      {
+        value: 'IN_HOUSE_CRAFT_AND_FINISHING_BUY_STOCK_PACKAGING',
+        label: 'Original Design, Craftsmanship & Brand Trademark Ownership',
+        subtitle: 'We own all original designs, specifications, and brand assets.',
+        badge: 'Design & Brand IP',
+      },
+      {
+        value: 'OWN_CURRICULUM_AND_METHOD_RENT_COURSE_PORTAL',
+        label: 'Proprietary Methodology, Content & Playbook Ownership',
+        subtitle: 'We own 100% of our underlying methodology, guides, and frameworks.',
+        badge: 'Methodology IP',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom IP Ownership Rule',
+        subtitle: 'Define your own custom IP ownership rule.',
+        badge: 'Custom Rule',
+      },
+    ],
+    secretSaucePromptLabel: '1. Our Defensible "Secret Sauce" (Owned 100% In-House):',
+    secretSaucePromptPlaceholder:
+      'Explain what you build, craft, or create in-house that forms your defensible competitive advantage...',
+    whyBuySavesTimeLabel:
+      '2. How Off-the-Shelf Tools, Materials & Partners Save Time & Budget:',
+    whyBuySavesTimePlaceholder:
+      'Explain how buying off-the-shelf tools/materials and using targeted partners keeps Version 1 lean and fast...',
+  },
+};
 
 export function ModuleDWorkspace({
   plan,
@@ -2772,10 +3453,12 @@ export function ModuleDWorkspace({
   onSaveStep1ProductVehicle,
   onSaveStep2ChannelMatrix,
   onSaveStep3ScopeFilter,
+  onSaveStep4BuildVsBuy,
   onParkOpenQuestion,
   onGenerateAiProductVehicle,
   onGenerateAiChannelMatrix,
   onGenerateAiScopeFilter,
+  onGenerateAiBuildVsBuy,
   onBackToModuleC,
 }: ModuleDWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
@@ -2783,6 +3466,7 @@ export function ModuleDWorkspace({
   const [activeTab, setActiveTab] = useState<
     'STEP_1' | 'STEP_2' | 'STEP_3' | 'STEP_4' | 'STEP_5' | 'STEP_6'
   >(() => {
+    if (plan.currentModuleStep === 'MOD_D_STEP_4') return 'STEP_4';
     if (plan.currentModuleStep === 'MOD_D_STEP_3') return 'STEP_3';
     if (plan.currentModuleStep === 'MOD_D_STEP_2') return 'STEP_2';
     return 'STEP_1';
@@ -2793,9 +3477,11 @@ export function ModuleDWorkspace({
   const [isSavingStep1, setIsSavingStep1] = useState(false);
   const [isSavingStep2, setIsSavingStep2] = useState(false);
   const [isSavingStep3, setIsSavingStep3] = useState(false);
+  const [isSavingStep4, setIsSavingStep4] = useState(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [isGeneratingStep2Ai, setIsGeneratingStep2Ai] = useState(false);
   const [isGeneratingStep3Ai, setIsGeneratingStep3Ai] = useState(false);
+  const [isGeneratingStep4Ai, setIsGeneratingStep4Ai] = useState(false);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
   const [parkQuestionInput, setParkQuestionInput] = useState('');
   const [showParkInput, setShowParkInput] = useState(false);
@@ -2811,6 +3497,26 @@ export function ModuleDWorkspace({
     useState<ScopeItemEffortType>('MEDIUM');
   const [newScopeItemNote, setNewScopeItemNote] = useState('');
   const [showClearScopeBoardConfirm, setShowClearScopeBoardConfirm] =
+    useState(false);
+
+  // Custom item form state for Step 4 Build-vs-Buy & Smart Cost Card Creator
+  const [newBvbTitle, setNewBvbTitle] = useState('');
+  const [newBvbTier, setNewBvbTier] =
+    useState<BuildVsBuyTierType>('BUILD_IN_HOUSE');
+  const [newBvbCategory, setNewBvbCategory] = useState('');
+  const [newBvbOtherCategory, setNewBvbOtherCategory] = useState('');
+  const [newBvbVendor, setNewBvbVendor] = useState('');
+  const [newBvbCostModel, setNewBvbCostModel] =
+    useState<BuildVsBuyCostModelType>('SWEAT_EQUITY_ZERO');
+  const [newBvbOtherCostModelText, setNewBvbOtherCostModelText] = useState('');
+  const [newBvbCostAmount, setNewBvbCostAmount] = useState<string>('0');
+  const [newBvbSmartCostHint, setNewBvbSmartCostHint] = useState<string>(
+    'Smart Cost Detector: Type an item or tool (e.g., "Google Cloud" -> Monthly /mo, or "Kiln-Dried Walnut Wood" -> Once-Off Purchase)'
+  );
+  const [newBvbCostManuallyOverridden, setNewBvbCostManuallyOverridden] =
+    useState(false);
+  const [newBvbNote, setNewBvbNote] = useState('');
+  const [showClearStep4BoardConfirm, setShowClearStep4BoardConfirm] =
     useState(false);
 
   // Initialize Step 1 state from saved plan.moduleDData or smart auto-detection from Modules A/B
@@ -2883,9 +3589,25 @@ export function ModuleDWorkspace({
     };
   });
 
+  // Initialize Step 4 state from saved plan.moduleDData.buildVsBuy or completely empty board (user preference: start completely empty)
+  const [step4Data, setStep4Data] = useState<BuildVsBuyStep4Data>(() => {
+    if (plan.moduleDData?.buildVsBuy) {
+      return plan.moduleDData.buildVsBuy;
+    }
+    return {
+      items: [],
+      coreIpOwnershipRule: '',
+      otherCoreIpOwnershipRuleText: '',
+      secretSauceInHouseNarrative: '',
+      whyBuyAndPartnerSavesTimeNarrative: '',
+    };
+  });
+
   // Sync if active plan switches or when saved moduleDData hydrates from localStorage / Cloud SQL
   useEffect(() => {
-    if (plan.currentModuleStep === 'MOD_D_STEP_3') {
+    if (plan.currentModuleStep === 'MOD_D_STEP_4') {
+      setActiveTab('STEP_4');
+    } else if (plan.currentModuleStep === 'MOD_D_STEP_3') {
       setActiveTab('STEP_3');
     } else if (plan.currentModuleStep === 'MOD_D_STEP_2') {
       setActiveTab('STEP_2');
@@ -2953,11 +3675,24 @@ export function ModuleDWorkspace({
         whyThisLeanV1WinsFasterNarrative: '',
       });
     }
+
+    if (plan.moduleDData?.buildVsBuy) {
+      setStep4Data(plan.moduleDData.buildVsBuy);
+    } else {
+      setStep4Data({
+        items: [],
+        coreIpOwnershipRule: '',
+        otherCoreIpOwnershipRuleText: '',
+        secretSauceInHouseNarrative: '',
+        whyBuyAndPartnerSavesTimeNarrative: '',
+      });
+    }
   }, [
     plan.id,
     plan.moduleDData?.productVehicle?.lastSavedAt,
     plan.moduleDData?.channelMatrix?.lastSavedAt,
     plan.moduleDData?.scopeFilter?.lastSavedAt,
+    plan.moduleDData?.buildVsBuy?.lastSavedAt,
   ]);
 
   const activeTrackConfig =
@@ -2971,6 +3706,10 @@ export function ModuleDWorkspace({
   const activeStep3TrackConfig =
     ADAPTIVE_STEP3_CONFIG_BY_TRACK[step1Data.productTrack] ||
     ADAPTIVE_STEP3_CONFIG_BY_TRACK.SAAS_SOFTWARE_AI;
+
+  const activeStep4TrackConfig =
+    ADAPTIVE_STEP4_CONFIG_BY_TRACK[step1Data.productTrack] ||
+    ADAPTIVE_STEP4_CONFIG_BY_TRACK.SAAS_SOFTWARE_AI;
 
   // Extract Upstream Proof from Modules A, B, and C
   const activeSurvey =
@@ -3644,7 +4383,7 @@ export function ModuleDWorkspace({
     }
   };
 
-  const handleSaveStep3 = async () => {
+  const handleSaveStep3 = async (advanceToStep4?: boolean) => {
     if (isVaultReadonly || isSavingStep3) return;
     setIsSavingStep3(true);
     setSaveBanner(null);
@@ -3660,17 +4399,425 @@ export function ModuleDWorkspace({
         },
         progress
       );
+      if (advanceToStep4) {
+        setActiveTab('STEP_4');
+      }
       setSaveBanner(
         `Step 3 (Ruthless V1 Scope Filter: ${
           step3Data.items.filter((i) => i.bucket === 'MUST_HAVE_V1').length
         } Day-1 Core items vs. ${
           step3Data.items.filter((i) => i.bucket !== 'MUST_HAVE_V1').length
-        } Deferred/Refused items) saved!`
+        } Deferred/Refused items) saved!${
+          advanceToStep4 ? ' Moved to Step 4 (Build-vs-Buy Matrix).' : ''
+        }`
       );
     } finally {
       setIsSavingStep3(false);
     }
   };
+
+  // =========================================================================
+  // STEP 4 HANDLERS: 3-TIER BUILD-VS-BUY & SMART COST MATRIX
+  // =========================================================================
+
+  const persistStep4BuildVsBuy = (nextData: BuildVsBuyStep4Data) => {
+    if (isVaultReadonly) return;
+    const stamped: BuildVsBuyStep4Data = {
+      ...nextData,
+      lastSavedAt: new Date().toISOString(),
+    };
+    const hasNarratives =
+      stamped.secretSauceInHouseNarrative.trim().length > 10 &&
+      stamped.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10;
+    const progress = hasNarratives ? 82 : 72;
+    void onSaveStep4BuildVsBuy(stamped, progress);
+  };
+
+  const handleBvbTitleOrVendorChange = (
+    nextTitle: string,
+    nextVendor: string,
+    activeTier: BuildVsBuyTierType
+  ) => {
+    if (!newBvbCostManuallyOverridden) {
+      const combined = `${nextTitle} ${nextVendor}`.trim();
+      if (combined.length >= 2) {
+        const inferred = inferSmartCostModelFromTitle(combined, activeTier);
+        setNewBvbCostModel(inferred.costModel);
+        setNewBvbCostAmount(String(inferred.suggestedAmount));
+        setNewBvbSmartCostHint(`✨ ${inferred.reasonHint}`);
+      } else {
+        setNewBvbSmartCostHint(
+          'Smart Cost Detector: Type an item or tool (e.g., "Google Cloud" -> Monthly /mo, or "Buying Wood" -> Once-Off Purchase)'
+        );
+      }
+    }
+  };
+
+  const handleAddCustomBvbItem = () => {
+    if (isVaultReadonly) return;
+    const cleanTitle = newBvbTitle.trim();
+    if (!cleanTitle) return;
+
+    const categoryToUse =
+      newBvbCategory ||
+      activeStep4TrackConfig.categoryOptions[0] ||
+      'Core Stack';
+    const parsedCost = Math.max(0, Number(newBvbCostAmount) || 0);
+
+    const newItem: BuildVsBuyItem = {
+      id: `bvb-${Date.now().toString(36)}-${Math.random()
+        .toString(36)
+        .slice(2, 6)}`,
+      title: cleanTitle,
+      tier: newBvbTier,
+      categoryTag: categoryToUse,
+      otherCategoryTagText:
+        categoryToUse === 'OTHER' ? newBvbOtherCategory.trim() : undefined,
+      vendorOrToolName: newBvbVendor.trim() || undefined,
+      costModel: newBvbCostModel,
+      otherCostModelText:
+        newBvbCostModel === 'OTHER'
+          ? newBvbOtherCostModelText.trim()
+          : undefined,
+      estimatedCostAmount:
+        newBvbCostModel === 'SWEAT_EQUITY_ZERO' ? 0 : parsedCost,
+      rationaleOrNote:
+        newBvbNote.trim() ||
+        (newBvbTier === 'BUILD_IN_HOUSE'
+          ? 'Built/crafted in-house as part of our core defensible Secret Sauce IP.'
+          : newBvbTier === 'BUY_RENT_OFF_SHELF'
+            ? 'Sourced off-the-shelf to save time and avoid reinventing the wheel.'
+            : 'Handled via specialist external partner/contractor.'),
+      isCustom: true,
+    };
+
+    const nextItems = [...step4Data.items, newItem];
+    const autoDefaultRule =
+      step4Data.coreIpOwnershipRule ||
+      activeStep4TrackConfig.ipRules[0]?.value ||
+      'OWN_PROPRIETARY_WORKFLOW_RENT_PLUMBING';
+
+    const nextStep4: BuildVsBuyStep4Data = {
+      ...step4Data,
+      items: nextItems,
+      coreIpOwnershipRule: autoDefaultRule,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep4Data(nextStep4);
+    persistStep4BuildVsBuy(nextStep4);
+
+    // Reset form
+    setNewBvbTitle('');
+    setNewBvbVendor('');
+    setNewBvbNote('');
+    setNewBvbCostManuallyOverridden(false);
+    const defaultInferred = inferSmartCostModelFromTitle('', newBvbTier);
+    setNewBvbCostModel(defaultInferred.costModel);
+    setNewBvbCostAmount(String(defaultInferred.suggestedAmount));
+    setNewBvbSmartCostHint(
+      'Smart Cost Detector: Type an item or tool (e.g., "Google Cloud" -> Monthly /mo, or "Buying Wood" -> Once-Off Purchase)'
+    );
+    setSaveBanner(`Added "${cleanTitle}" to your Build-vs-Buy board!`);
+  };
+
+  const handleMoveBvbItemTier = (
+    itemId: string,
+    targetTier: BuildVsBuyTierType
+  ) => {
+    if (isVaultReadonly) return;
+    const nextItems = step4Data.items.map((item) =>
+      item.id === itemId ? { ...item, tier: targetTier } : item
+    );
+    const nextStep4: BuildVsBuyStep4Data = {
+      ...step4Data,
+      items: nextItems,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep4Data(nextStep4);
+    persistStep4BuildVsBuy(nextStep4);
+  };
+
+  const handleUpdateBvbItemCost = (
+    itemId: string,
+    updates: Partial<
+      Pick<
+        BuildVsBuyItem,
+        'costModel' | 'otherCostModelText' | 'estimatedCostAmount' | 'vendorOrToolName'
+      >
+    >
+  ) => {
+    if (isVaultReadonly) return;
+    const nextItems = step4Data.items.map((item) => {
+      if (item.id !== itemId) return item;
+      const updatedModel = updates.costModel ?? item.costModel;
+      const updatedAmount =
+        updatedModel === 'SWEAT_EQUITY_ZERO'
+          ? 0
+          : updates.estimatedCostAmount !== undefined
+            ? Math.max(0, Number(updates.estimatedCostAmount) || 0)
+            : item.estimatedCostAmount;
+      return {
+        ...item,
+        ...updates,
+        costModel: updatedModel,
+        estimatedCostAmount: updatedAmount,
+      };
+    });
+    const nextStep4: BuildVsBuyStep4Data = {
+      ...step4Data,
+      items: nextItems,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep4Data(nextStep4);
+    persistStep4BuildVsBuy(nextStep4);
+  };
+
+  const handleRemoveBvbItem = (itemId: string) => {
+    if (isVaultReadonly) return;
+    const nextItems = step4Data.items.filter((item) => item.id !== itemId);
+    const nextStep4: BuildVsBuyStep4Data = {
+      ...step4Data,
+      items: nextItems,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep4Data(nextStep4);
+    persistStep4BuildVsBuy(nextStep4);
+  };
+
+  const handleImportMustHaveFromStep3 = () => {
+    if (isVaultReadonly) return;
+    const mustHaveV1Items = step3Data.items.filter(
+      (i) => i.bucket === 'MUST_HAVE_V1'
+    );
+    if (mustHaveV1Items.length === 0) {
+      setSaveBanner(
+        'No MUST-HAVE FOR V1 items found in Step 3 yet. Add items in Step 3 or use "Populate Board with AI"!'
+      );
+      return;
+    }
+
+    const existingTitles = new Set(
+      step4Data.items.map((i) => i.title.toLowerCase().trim())
+    );
+    const imported: BuildVsBuyItem[] = [];
+
+    for (const s3Item of mustHaveV1Items) {
+      if (existingTitles.has(s3Item.title.toLowerCase().trim())) continue;
+      // Determine smart tier from title keywords
+      const lower = s3Item.title.toLowerCase();
+      let smartTier: BuildVsBuyTierType = 'BUILD_IN_HOUSE';
+      if (
+        lower.includes('stripe') ||
+        lower.includes('shopify') ||
+        lower.includes('google cloud') ||
+        lower.includes('hosting') ||
+        lower.includes('zoom') ||
+        lower.includes('kajabi') ||
+        lower.includes('wood') ||
+        lower.includes('timber') ||
+        lower.includes('packaging') ||
+        lower.includes('kraft box') ||
+        lower.includes('barcode')
+      ) {
+        smartTier = 'BUY_RENT_OFF_SHELF';
+      } else if (
+        lower.includes('courier') ||
+        lower.includes('fba') ||
+        lower.includes('audit') ||
+        lower.includes('legal') ||
+        lower.includes('contractor')
+      ) {
+        smartTier = 'OUTSOURCE_PARTNER';
+      }
+
+      const refinedCost = inferSmartCostModelFromTitle(s3Item.title, smartTier);
+      imported.push({
+        id: `bvb-imp-${Date.now().toString(36)}-${Math.random()
+          .toString(36)
+          .slice(2, 6)}`,
+        title: s3Item.title,
+        tier: smartTier,
+        categoryTag:
+          s3Item.categoryTag ||
+          activeStep4TrackConfig.categoryOptions[0] ||
+          'Core V1 Scope',
+        costModel: refinedCost.costModel,
+        estimatedCostAmount: refinedCost.suggestedAmount,
+        rationaleOrNote:
+          s3Item.rationaleOrNote ||
+          'Imported from Step 3 MUST-HAVE FOR V1 core scope.',
+        isCustom: true,
+      });
+    }
+
+    if (imported.length === 0) {
+      setSaveBanner(
+        'All of your Step 3 MUST-HAVE FOR V1 items are already on your Step 4 board!'
+      );
+      return;
+    }
+
+    const nextStep4: BuildVsBuyStep4Data = {
+      ...step4Data,
+      items: [...step4Data.items, ...imported],
+      coreIpOwnershipRule:
+        step4Data.coreIpOwnershipRule ||
+        activeStep4TrackConfig.ipRules[0]?.value ||
+        'OWN_PROPRIETARY_WORKFLOW_RENT_PLUMBING',
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep4Data(nextStep4);
+    persistStep4BuildVsBuy(nextStep4);
+    setSaveBanner(
+      `Imported ${imported.length} MUST-HAVE FOR V1 item${
+        imported.length === 1 ? '' : 's'
+      } from Step 3 with smart cost classifications!`
+    );
+  };
+
+  const handleClearStep4Board = () => {
+    if (isVaultReadonly) return;
+    const cleared: BuildVsBuyStep4Data = {
+      items: [],
+      coreIpOwnershipRule: '',
+      otherCoreIpOwnershipRuleText: '',
+      secretSauceInHouseNarrative: '',
+      whyBuyAndPartnerSavesTimeNarrative: '',
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep4Data(cleared);
+    setShowClearStep4BoardConfirm(false);
+    persistStep4BuildVsBuy(cleared);
+    setSaveBanner(
+      'Cleared all items from the Build-vs-Buy board and reset your IP Ownership Rule.'
+    );
+  };
+
+  const handleAiPopulateStep4Board = async () => {
+    if (isVaultReadonly || isGeneratingStep4Ai) return;
+    setIsGeneratingStep4Ai(true);
+    setSaveBanner(null);
+    try {
+      const res = await onGenerateAiBuildVsBuy({
+        selectedTrack: step1Data.productTrack,
+        otherProductTrackText: step1Data.otherProductTrackText,
+        formFactor: step1Data.formFactor,
+        primaryChannel: step2Data.primaryChannel,
+        validatedPainSummary: validatedPainPoint,
+        currentScopeItems: step3Data.items,
+        currentBuildVsBuyItems: step4Data.items,
+        mode: 'POPULATE_BOARD_AND_CHARTER',
+      });
+      const nextStep4: BuildVsBuyStep4Data = {
+        items: res.items.length > 0 ? res.items : step4Data.items,
+        coreIpOwnershipRule:
+          res.coreIpOwnershipRule ||
+          step4Data.coreIpOwnershipRule ||
+          activeStep4TrackConfig.ipRules[0]?.value ||
+          'OWN_PROPRIETARY_WORKFLOW_RENT_PLUMBING',
+        otherCoreIpOwnershipRuleText: step4Data.otherCoreIpOwnershipRuleText,
+        secretSauceInHouseNarrative:
+          res.secretSauceInHouseNarrative ||
+          step4Data.secretSauceInHouseNarrative,
+        whyBuyAndPartnerSavesTimeNarrative:
+          res.whyBuyAndPartnerSavesTimeNarrative ||
+          step4Data.whyBuyAndPartnerSavesTimeNarrative,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+      setStep4Data(nextStep4);
+      persistStep4BuildVsBuy(nextStep4);
+      setSaveBanner(
+        `Populated 3-Tier Build-vs-Buy Board (${nextStep4.items.length} items with smart Monthly vs. Once-Off costs) & IP Charter (${
+          res.engineMode === 'gemini-2.5-flash'
+            ? 'Gemini 2.5 Flash'
+            : 'Smart Synthesizer'
+        })!`
+      );
+    } finally {
+      setIsGeneratingStep4Ai(false);
+    }
+  };
+
+  const handleAiDraftStep4CharterOnly = async () => {
+    if (isVaultReadonly || isGeneratingStep4Ai) return;
+    setIsGeneratingStep4Ai(true);
+    setSaveBanner(null);
+    try {
+      const res = await onGenerateAiBuildVsBuy({
+        selectedTrack: step1Data.productTrack,
+        otherProductTrackText: step1Data.otherProductTrackText,
+        formFactor: step1Data.formFactor,
+        primaryChannel: step2Data.primaryChannel,
+        validatedPainSummary: validatedPainPoint,
+        currentScopeItems: step3Data.items,
+        currentBuildVsBuyItems: step4Data.items,
+        mode: 'CHARTER_ONLY',
+      });
+      // Preserve step4Data.items untouched — only update the charter narratives
+      const nextStep4: BuildVsBuyStep4Data = {
+        ...step4Data,
+        items: step4Data.items,
+        secretSauceInHouseNarrative:
+          res.secretSauceInHouseNarrative ||
+          step4Data.secretSauceInHouseNarrative,
+        whyBuyAndPartnerSavesTimeNarrative:
+          res.whyBuyAndPartnerSavesTimeNarrative ||
+          step4Data.whyBuyAndPartnerSavesTimeNarrative,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+      setStep4Data(nextStep4);
+      persistStep4BuildVsBuy(nextStep4);
+      setSaveBanner(
+        `Drafted & saved Secret Sauce & Build-vs-Buy Charter (${
+          res.engineMode === 'gemini-2.5-flash'
+            ? 'Gemini 2.5 Flash'
+            : 'Smart Synthesizer'
+        }) without altering your board items!`
+      );
+    } finally {
+      setIsGeneratingStep4Ai(false);
+    }
+  };
+
+  const handleSaveStep4 = async () => {
+    if (isVaultReadonly || isSavingStep4) return;
+    setIsSavingStep4(true);
+    setSaveBanner(null);
+    try {
+      const hasNarratives =
+        step4Data.secretSauceInHouseNarrative.trim().length > 10 &&
+        step4Data.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10;
+      const progress = hasNarratives ? 82 : 72;
+      await onSaveStep4BuildVsBuy(
+        {
+          ...step4Data,
+          lastSavedAt: new Date().toISOString(),
+        },
+        progress
+      );
+      setSaveBanner(
+        `Step 4 (3-Tier Build-vs-Buy & Secret Sauce Matrix: ${step4Data.items.length} items) saved!`
+      );
+    } finally {
+      setIsSavingStep4(false);
+    }
+  };
+
+  // Compute Live Cost & IP Summary Totals for Step 4
+  const step4MonthlyTotal = step4Data.items
+    .filter((i) => i.costModel === 'MONTHLY_SUBSCRIPTION')
+    .reduce((sum, i) => sum + (Number(i.estimatedCostAmount) || 0), 0);
+  const step4OneOffTotal = step4Data.items
+    .filter((i) => i.costModel === 'ONE_OFF_PURCHASE')
+    .reduce((sum, i) => sum + (Number(i.estimatedCostAmount) || 0), 0);
+  const step4PerUnitTotal = step4Data.items
+    .filter((i) => i.costModel === 'PER_UNIT_COGS')
+    .reduce((sum, i) => sum + (Number(i.estimatedCostAmount) || 0), 0);
+  const step4SecretSauceCount = step4Data.items.filter(
+    (i) => i.tier === 'BUILD_IN_HOUSE'
+  ).length;
 
   const selectedTrackMeta =
     PRODUCT_TRACK_OPTIONS.find((t) => t.value === step1Data.productTrack) ||
@@ -3768,9 +4915,9 @@ export function ModuleDWorkspace({
                 id: 'STEP_4' as const,
                 stepNum: 'Step 4',
                 title: 'Make/Build vs. Buy',
-                subtitle: '3-Tier Stack & Secret Sauce',
+                subtitle: '3-Tier Stack & Smart Costs',
                 icon: Wrench,
-                ready: false,
+                ready: true,
               },
               {
                 id: 'STEP_5' as const,
@@ -3824,6 +4971,12 @@ export function ModuleDWorkspace({
                         step2Data.rentToOwnBridgeStrategy.trim().length > 10 && (
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
                         )}
+                      {tab.id === 'STEP_3' && step3Data.items.length > 0 && (
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                      )}
+                      {tab.id === 'STEP_4' && step4Data.items.length > 0 && (
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                      )}
                     </div>
                     <div className="truncate text-xs font-semibold">
                       {tab.title}
@@ -6790,10 +7943,11 @@ export function ModuleDWorkspace({
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
+                    variant="outline"
                     size="sm"
                     disabled={isVaultReadonly || isSavingStep3}
-                    onClick={handleSaveStep3}
-                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                    onClick={() => void handleSaveStep3(false)}
+                    className="border-indigo-300 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
                   >
                     {isSavingStep3 ? (
                       <>
@@ -6803,9 +7957,19 @@ export function ModuleDWorkspace({
                     ) : (
                       <>
                         <Save className="mr-1.5 h-3.5 w-3.5" />
-                        Save Step 3 (Ruthless V1 Scope Filter)
+                        Save Step 3
                       </>
                     )}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isSavingStep3}
+                    onClick={() => void handleSaveStep3(true)}
+                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  >
+                    Save &amp; Continue to Step 4 (Build-vs-Buy)
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
@@ -6853,7 +8017,7 @@ export function ModuleDWorkspace({
                   variant="outline"
                   className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
                 >
-                  Feeds Step 5 Work Packages &amp; Module K Grant Roadmap
+                  Feeds Step 4 Build-vs-Buy &amp; Step 5 Work Packages
                 </Badge>
               </div>
             </CardHeader>
@@ -6944,6 +8108,1161 @@ export function ModuleDWorkspace({
             </CardContent>
           </Card>
         </div>
+      ) : activeTab === 'STEP_4' ? (
+        <div className="space-y-6">
+          {/* =============================================================== */}
+          {/* STEP 4 MICRO-COACHING & WHY CARD                                */}
+          {/* =============================================================== */}
+          <Card className="border-indigo-200 bg-white shadow-xs">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-indigo-100 p-2.5 text-indigo-700">
+                    <Wrench className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className="bg-indigo-600 text-[10px] text-white">
+                        Step 4 of 6 • Make/Build vs. Buy &amp; Smart Cost Matrix
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-800"
+                      >
+                        Adapted for: {selectedTrackMeta.label}
+                      </Badge>
+                    </div>
+                    <h2 className="mt-1 text-base font-bold text-slate-900 sm:text-lg">
+                      {activeStep4TrackConfig.stepTitle}
+                    </h2>
+                    <p className="mt-0.5 text-xs text-slate-600">
+                      {activeStep4TrackConfig.stepSubtitle}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowWhyCard((prev) => !prev)}
+                    className="border-indigo-200 bg-indigo-50/70 text-xs text-indigo-800 hover:bg-indigo-100"
+                  >
+                    <HelpCircle className="mr-1.5 h-3.5 w-3.5" />
+                    {showWhyCard ? 'Hide Why' : 'Why Ask This?'}
+                  </Button>
+                </div>
+              </div>
+
+              {showWhyCard && (
+                <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5 text-xs leading-relaxed text-slate-700">
+                  <span className="font-semibold text-indigo-900">
+                    💡 Co-Founder Coaching Note:{' '}
+                  </span>
+                  {activeStep4TrackConfig.whyAskingText}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* =============================================================== */}
+          {/* SECTION 1: 3-TIER BUILD-VS-BUY BOARD & SMART COST MODEL         */}
+          {/* =============================================================== */}
+          <Card className="border-slate-200 shadow-xs">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    1. 3-Tier Build-vs-Buy Board &amp; Smart Cost Cards
+                  </CardTitle>
+                  <CardDescription className="mt-0.5 text-xs text-slate-600">
+                    Starts completely empty so you are in full control. Add your
+                    own items below (smartly detects{' '}
+                    <strong>Monthly /mo</strong> for cloud/SaaS vs.{' '}
+                    <strong>Once-Off Purchase</strong> for buying wood, materials
+                    or equipment), import your Step 3 V1 items, or click{' '}
+                    <strong>Populate Board with AI</strong>.
+                  </CardDescription>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {step3Data.items.some((i) => i.bucket === 'MUST_HAVE_V1') && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isVaultReadonly}
+                      onClick={handleImportMustHaveFromStep3}
+                      className="border-emerald-300 bg-emerald-50/80 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                    >
+                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                      Import My MUST-HAVE V1 Items ({
+                        step3Data.items.filter(
+                          (i) => i.bucket === 'MUST_HAVE_V1'
+                        ).length
+                      })
+                    </Button>
+                  )}
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isGeneratingStep4Ai}
+                    onClick={handleAiPopulateStep4Board}
+                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  >
+                    {isGeneratingStep4Ai ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Populating with AI...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                        Populate Board with AI
+                      </>
+                    )}
+                  </Button>
+
+                  {(step4Data.items.length > 0 ||
+                    step4Data.coreIpOwnershipRule !== '') && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isVaultReadonly}
+                      onClick={() => setShowClearStep4BoardConfirm(true)}
+                      className="border-rose-200 bg-rose-50/70 text-xs text-rose-700 hover:bg-rose-100"
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      Clear Board ({step4Data.items.length})
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Confirmation Banner before clearing Step 4 Board */}
+              {showClearStep4BoardConfirm && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-950">
+                  <div>
+                    <span className="font-bold">
+                      Are you sure you want to clear your 3-Tier Build-vs-Buy
+                      Board?
+                    </span>{' '}
+                    This will remove all {step4Data.items.length} item(s) and
+                    reset your Core IP Ownership Rule &amp; Charter narratives.
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowClearStep4BoardConfirm(false)}
+                      className="border-slate-300 bg-white text-xs text-slate-700"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleClearStep4Board}
+                      className="bg-rose-600 text-xs text-white hover:bg-rose-700"
+                    >
+                      Yes, Clear Everything
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardHeader>
+
+            <CardContent className="space-y-5 pt-5">
+              {/* =========================================================== */}
+              {/* LIVE COST & IP SUMMARY BAR                                  */}
+              {/* =========================================================== */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                    In-House Secret Sauce IP
+                  </div>
+                  <div className="mt-1 text-lg font-extrabold text-emerald-950">
+                    {step4SecretSauceCount}{' '}
+                    <span className="text-xs font-medium text-emerald-800">
+                      core item{step4SecretSauceCount === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-emerald-700">
+                    Owned 100% in-house (Tier 1)
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">
+                    Monthly Recurring Stack (/mo)
+                  </div>
+                  <div className="mt-1 text-lg font-extrabold text-indigo-950">
+                    {formatPlanCurrency(step4MonthlyTotal, plan.baseCurrency)}
+                    <span className="text-xs font-medium text-indigo-800">
+                      /mo
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-indigo-700">
+                    Cloud, SaaS &amp; subscriptions (feeds Mod I)
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-amber-900">
+                    Once-Off Purchases &amp; Batches
+                  </div>
+                  <div className="mt-1 text-lg font-extrabold text-amber-950">
+                    {formatPlanCurrency(step4OneOffTotal, plan.baseCurrency)}
+                  </div>
+                  <div className="text-[11px] text-amber-800">
+                    Materials (e.g. wood), equipment &amp; fixed fees
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-teal-900">
+                    Per-Unit Direct Cost (/unit)
+                  </div>
+                  <div className="mt-1 text-lg font-extrabold text-teal-950">
+                    {formatPlanCurrency(step4PerUnitTotal, plan.baseCurrency)}
+                    <span className="text-xs font-medium text-teal-800">
+                      /unit
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-teal-800">
+                    Per-order parts, packaging or courier (feeds Mod G)
+                  </div>
+                </div>
+              </div>
+
+              {/* =========================================================== */}
+              {/* SMART CUSTOM ITEM CREATOR WITH AUTO COST-TYPE DETECTION      */}
+              {/* =========================================================== */}
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs font-bold text-slate-900">
+                    ➕ Add an Item, Tool, Material Batch or Partner to Your
+                    Build-vs-Buy Board
+                  </div>
+                  <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-medium text-indigo-700 shadow-2xs">
+                    {newBvbSmartCostHint}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-12">
+                  <div className="sm:col-span-4">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-700">
+                      Item / Component / Material / Tool Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newBvbTitle}
+                      disabled={isVaultReadonly}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewBvbTitle(val);
+                        handleBvbTitleOrVendorChange(
+                          val,
+                          newBvbVendor,
+                          newBvbTier
+                        );
+                      }}
+                      placeholder="e.g., Google Cloud Hosting, Kiln-Dried Walnut Wood Batch, Custom Sensory Board CAD..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-700">
+                      Which Tier?
+                    </label>
+                    <select
+                      value={newBvbTier}
+                      disabled={isVaultReadonly}
+                      onChange={(e) => {
+                        const nextTier = e.target.value as BuildVsBuyTierType;
+                        setNewBvbTier(nextTier);
+                        handleBvbTitleOrVendorChange(
+                          newBvbTitle,
+                          newBvbVendor,
+                          nextTier
+                        );
+                      }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    >
+                      <option value="BUILD_IN_HOUSE">
+                        Tier 1: Build / Make In-House (Secret Sauce)
+                      </option>
+                      <option value="BUY_RENT_OFF_SHELF">
+                        Tier 2: Buy / Subscribe Off-the-Shelf
+                      </option>
+                      <option value="OUTSOURCE_PARTNER">
+                        Tier 3: Partner / Contractor / 3PL
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-700">
+                      Smart Cost Type (Auto-Detected)
+                    </label>
+                    <select
+                      value={newBvbCostModel}
+                      disabled={isVaultReadonly}
+                      onChange={(e) => {
+                        const chosen = e.target
+                          .value as BuildVsBuyCostModelType;
+                        setNewBvbCostModel(chosen);
+                        setNewBvbCostManuallyOverridden(true);
+                        if (chosen === 'SWEAT_EQUITY_ZERO') {
+                          setNewBvbCostAmount('0');
+                        }
+                      }}
+                      className="w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-2 text-base font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    >
+                      {COST_MODEL_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-700">
+                      Est. Cost ({plan.baseCurrency})
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={0}
+                        step="1"
+                        disabled={
+                          isVaultReadonly ||
+                          newBvbCostModel === 'SWEAT_EQUITY_ZERO'
+                        }
+                        value={
+                          newBvbCostModel === 'SWEAT_EQUITY_ZERO'
+                            ? '0'
+                            : newBvbCostAmount
+                        }
+                        onChange={(e) => {
+                          setNewBvbCostAmount(e.target.value);
+                          setNewBvbCostManuallyOverridden(true);
+                        }}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base font-semibold text-slate-900 focus:border-indigo-500 focus:outline-hidden disabled:bg-slate-100 sm:text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Optional Vendor, Category & Rationale Row */}
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-12">
+                  <div className="sm:col-span-3">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-700">
+                      Supplier / Tool / Vendor (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={newBvbVendor}
+                      disabled={isVaultReadonly}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewBvbVendor(val);
+                        handleBvbTitleOrVendorChange(
+                          newBvbTitle,
+                          val,
+                          newBvbTier
+                        );
+                      }}
+                      placeholder="e.g., Google Cloud, Timber Ireland, Stripe, In-House..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-700">
+                      Category Tag
+                    </label>
+                    <select
+                      value={
+                        newBvbCategory ||
+                        activeStep4TrackConfig.categoryOptions[0] ||
+                        ''
+                      }
+                      disabled={isVaultReadonly}
+                      onChange={(e) => setNewBvbCategory(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    >
+                      {activeStep4TrackConfig.categoryOptions.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      <option value="OTHER">Other (Specify Custom Tag)</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-700">
+                      Why Build / Buy / Partner? (Optional Note)
+                    </label>
+                    <input
+                      type="text"
+                      value={newBvbNote}
+                      disabled={isVaultReadonly}
+                      onChange={(e) => setNewBvbNote(e.target.value)}
+                      placeholder="e.g., Once-off batch of wood for first 25 boards; or monthly cloud hosting..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+
+                  <div className="flex items-end sm:col-span-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isVaultReadonly || !newBvbTitle.trim()}
+                      onClick={handleAddCustomBvbItem}
+                      className="w-full bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Add Card
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Inline Other inputs for Rule 1.5 compliance */}
+                {(newBvbCategory === 'OTHER' ||
+                  newBvbCostModel === 'OTHER') && (
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {newBvbCategory === 'OTHER' && (
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold text-indigo-900">
+                          Custom Category Tag Name:
+                        </label>
+                        <input
+                          type="text"
+                          value={newBvbOtherCategory}
+                          onChange={(e) =>
+                            setNewBvbOtherCategory(e.target.value)
+                          }
+                          placeholder="e.g., Sensory Hardware Components..."
+                          className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                        />
+                      </div>
+                    )}
+                    {newBvbCostModel === 'OTHER' && (
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold text-indigo-900">
+                          Custom Cost Structure Label:
+                        </label>
+                        <input
+                          type="text"
+                          value={newBvbOtherCostModelText}
+                          onChange={(e) =>
+                            setNewBvbOtherCostModelText(e.target.value)
+                          }
+                          placeholder="e.g., Annual license / Revenue-share..."
+                          className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* =========================================================== */}
+              {/* 3-COLUMN BUILD-VS-BUY KANBAN BOARD                          */}
+              {/* =========================================================== */}
+              {step4Data.items.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-6 text-center">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
+                    <Wrench className="h-5 w-5" />
+                  </div>
+                  <h4 className="mt-2 text-sm font-bold text-slate-900">
+                    Your 3-Tier Build-vs-Buy Board Is Empty &amp; Ready
+                  </h4>
+                  <p className="mx-auto mt-1 max-w-xl text-xs text-slate-600">
+                    Add your own items above (e.g. type{' '}
+                    <strong>&ldquo;Google Cloud&rdquo;</strong> and watch it
+                    auto-set to <strong>Monthly (/mo)</strong>, or type{' '}
+                    <strong>&ldquo;Buying Walnut Wood&rdquo;</strong> and watch
+                    it auto-set to <strong>Once-Off Purchase</strong>), import
+                    your Step 3 V1 items, or populate a tailored starter board
+                    with AI.
+                  </p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {step3Data.items.some(
+                      (i) => i.bucket === 'MUST_HAVE_V1'
+                    ) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isVaultReadonly}
+                        onClick={handleImportMustHaveFromStep3}
+                        className="border-emerald-300 bg-white text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                      >
+                        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                        Import My Step 3 MUST-HAVE V1 Items
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isVaultReadonly || isGeneratingStep4Ai}
+                      onClick={handleAiPopulateStep4Board}
+                      className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                    >
+                      <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                      Populate Build-vs-Buy Board with AI
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  {(
+                    [
+                      {
+                        tier: 'BUILD_IN_HOUSE' as const,
+                        title: activeStep4TrackConfig.tier1Label,
+                        subtitle: activeStep4TrackConfig.tier1Subtitle,
+                        badge: activeStep4TrackConfig.tier1Badge,
+                        borderClass: 'border-emerald-300 bg-emerald-50/30',
+                        headerBg: 'bg-emerald-950 text-white',
+                        badgeClass: 'bg-emerald-500/20 text-emerald-200',
+                      },
+                      {
+                        tier: 'BUY_RENT_OFF_SHELF' as const,
+                        title: activeStep4TrackConfig.tier2Label,
+                        subtitle: activeStep4TrackConfig.tier2Subtitle,
+                        badge: activeStep4TrackConfig.tier2Badge,
+                        borderClass: 'border-indigo-300 bg-indigo-50/30',
+                        headerBg: 'bg-indigo-950 text-white',
+                        badgeClass: 'bg-indigo-500/20 text-indigo-200',
+                      },
+                      {
+                        tier: 'OUTSOURCE_PARTNER' as const,
+                        title: activeStep4TrackConfig.tier3Label,
+                        subtitle: activeStep4TrackConfig.tier3Subtitle,
+                        badge: activeStep4TrackConfig.tier3Badge,
+                        borderClass: 'border-amber-300 bg-amber-50/30',
+                        headerBg: 'bg-slate-900 text-white',
+                        badgeClass: 'bg-amber-500/20 text-amber-200',
+                      },
+                    ] as const
+                  ).map((col) => {
+                    const colItems = step4Data.items.filter(
+                      (i) => i.tier === col.tier
+                    );
+                    return (
+                      <div
+                        key={col.tier}
+                        className={`flex flex-col rounded-xl border ${col.borderClass} overflow-hidden shadow-2xs`}
+                      >
+                        <div className={`p-3.5 ${col.headerBg}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${col.badgeClass}`}
+                            >
+                              {col.badge}
+                            </span>
+                            <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-bold text-white">
+                              {colItems.length}
+                            </span>
+                          </div>
+                          <div className="mt-1.5 text-xs font-bold tracking-tight">
+                            {col.title}
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-slate-300">
+                            {col.subtitle}
+                          </div>
+                        </div>
+
+                        <div className="flex-1 space-y-2.5 p-3">
+                          {colItems.length === 0 ? (
+                            <div className="rounded-lg border border-dashed border-slate-300 bg-white/70 p-4 text-center text-[11px] text-slate-500">
+                              No items in this tier yet. Add a card above or
+                              move an existing card here.
+                            </div>
+                          ) : (
+                            colItems.map((item) => {
+                              const costMeta =
+                                COST_MODEL_OPTIONS.find(
+                                  (c) => c.value === item.costModel
+                                ) || COST_MODEL_OPTIONS[0];
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs transition hover:border-indigo-300"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+                                          {item.categoryTag === 'OTHER' &&
+                                          item.otherCategoryTagText
+                                            ? item.otherCategoryTagText
+                                            : item.categoryTag}
+                                        </span>
+                                        {item.vendorOrToolName && (
+                                          <span className="rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-800">
+                                            {item.vendorOrToolName}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="mt-1 text-xs font-bold text-slate-900">
+                                        {item.title}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      disabled={isVaultReadonly}
+                                      onClick={() =>
+                                        handleRemoveBvbItem(item.id)
+                                      }
+                                      className="rounded-md p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                      title="Remove card"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+
+                                  {item.rationaleOrNote && (
+                                    <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                                      {item.rationaleOrNote}
+                                    </p>
+                                  )}
+
+                                  {/* SMART INLINE COST EDITOR ON EVERY CARD */}
+                                  <div className="mt-2.5 rounded-lg border border-slate-200 bg-slate-50/80 p-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                      <span
+                                        className={`rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${costMeta.badgeClass}`}
+                                      >
+                                        {item.costModel === 'OTHER' &&
+                                        item.otherCostModelText
+                                          ? item.otherCostModelText
+                                          : costMeta.shortLabel}
+                                      </span>
+                                      <span className="text-xs font-extrabold text-slate-900">
+                                        {item.costModel === 'SWEAT_EQUITY_ZERO'
+                                          ? `${formatPlanCurrency(0, plan.baseCurrency)} (Sweat Equity)`
+                                          : `${formatPlanCurrency(
+                                              item.estimatedCostAmount || 0,
+                                              plan.baseCurrency
+                                            )}${costMeta.suffix}`}
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-12">
+                                      <div className="sm:col-span-7">
+                                        <select
+                                          value={item.costModel}
+                                          disabled={isVaultReadonly}
+                                          onChange={(e) =>
+                                            handleUpdateBvbItemCost(item.id, {
+                                              costModel: e.target
+                                                .value as BuildVsBuyCostModelType,
+                                            })
+                                          }
+                                          className="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-base text-slate-800 focus:border-indigo-500 focus:outline-hidden sm:text-[11px]"
+                                        >
+                                          <option value="MONTHLY_SUBSCRIPTION">
+                                            Monthly (/mo — e.g. Cloud/SaaS)
+                                          </option>
+                                          <option value="ONE_OFF_PURCHASE">
+                                            Once-Off (e.g. Wood/Batch/Equip)
+                                          </option>
+                                          <option value="PER_UNIT_COGS">
+                                            Per-Unit (/unit Direct Cost)
+                                          </option>
+                                          <option value="SWEAT_EQUITY_ZERO">
+                                            €0 (In-House Sweat Equity)
+                                          </option>
+                                          <option value="OTHER">
+                                            Other / Custom Cost Type
+                                          </option>
+                                        </select>
+                                      </div>
+
+                                      <div className="sm:col-span-5">
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          step="1"
+                                          disabled={
+                                            isVaultReadonly ||
+                                            item.costModel ===
+                                              'SWEAT_EQUITY_ZERO'
+                                          }
+                                          value={
+                                            item.costModel ===
+                                            'SWEAT_EQUITY_ZERO'
+                                              ? 0
+                                              : item.estimatedCostAmount
+                                          }
+                                          onChange={(e) =>
+                                            handleUpdateBvbItemCost(item.id, {
+                                              estimatedCostAmount:
+                                                Number(e.target.value) || 0,
+                                            })
+                                          }
+                                          className="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-base font-semibold text-slate-900 focus:border-indigo-500 focus:outline-hidden disabled:bg-slate-100 sm:text-[11px]"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Move between Tier 1 / Tier 2 / Tier 3 buttons */}
+                                  <div className="mt-2 flex flex-wrap items-center justify-between gap-1 border-t border-slate-100 pt-2">
+                                    <span className="text-[10px] font-medium text-slate-400">
+                                      Move tier:
+                                    </span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {col.tier !== 'BUILD_IN_HOUSE' && (
+                                        <button
+                                          type="button"
+                                          disabled={isVaultReadonly}
+                                          onClick={() =>
+                                            handleMoveBvbItemTier(
+                                              item.id,
+                                              'BUILD_IN_HOUSE'
+                                            )
+                                          }
+                                          className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                                        >
+                                          → Tier 1 (In-House)
+                                        </button>
+                                      )}
+                                      {col.tier !== 'BUY_RENT_OFF_SHELF' && (
+                                        <button
+                                          type="button"
+                                          disabled={isVaultReadonly}
+                                          onClick={() =>
+                                            handleMoveBvbItemTier(
+                                              item.id,
+                                              'BUY_RENT_OFF_SHELF'
+                                            )
+                                          }
+                                          className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-800 hover:bg-indigo-100"
+                                        >
+                                          → Tier 2 (Buy/Rent)
+                                        </button>
+                                      )}
+                                      {col.tier !== 'OUTSOURCE_PARTNER' && (
+                                        <button
+                                          type="button"
+                                          disabled={isVaultReadonly}
+                                          onClick={() =>
+                                            handleMoveBvbItemTier(
+                                              item.id,
+                                              'OUTSOURCE_PARTNER'
+                                            )
+                                          }
+                                          className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-900 hover:bg-amber-100"
+                                        >
+                                          → Tier 3 (Partner)
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* =============================================================== */}
+          {/* SECTION 2: CORE IP OWNERSHIP RULE & DEFENSIBILITY CHARTER       */}
+          {/* =============================================================== */}
+          <Card className="border-slate-200 shadow-xs">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    2. Core IP Ownership Rule &amp; Defensible &ldquo;Secret
+                    Sauce&rdquo; Charter
+                  </CardTitle>
+                  <CardDescription className="mt-0.5 text-xs text-slate-600">
+                    Grant assessors (LEO, Enterprise Ireland, Innovate UK) and
+                    SEIS/EIS investors require clarity on what Intellectual
+                    Property your company owns vs. what you rent or subcontract.
+                  </CardDescription>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isVaultReadonly || isGeneratingStep4Ai}
+                  onClick={handleAiDraftStep4CharterOnly}
+                  className="border-indigo-300 bg-indigo-50/80 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                >
+                  {isGeneratingStep4Ai ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Drafting Charter...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-700" />
+                      Draft IP &amp; Build-vs-Buy Charter with AI
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-5 pt-5">
+              {/* IP Ownership Rule Tile Selector (with OTHER per Rule 1.5) */}
+              <div>
+                <label className="mb-2 block text-xs font-bold text-slate-900">
+                  Your Core IP &amp; Craftsmanship Ownership Rule:
+                </label>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {activeStep4TrackConfig.ipRules.map((rule) => {
+                    const isSelected =
+                      step4Data.coreIpOwnershipRule === rule.value;
+                    return (
+                      <button
+                        key={rule.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() => {
+                          const nextStep4: BuildVsBuyStep4Data = {
+                            ...step4Data,
+                            coreIpOwnershipRule: rule.value,
+                            lastSavedAt: new Date().toISOString(),
+                          };
+                          setStep4Data(nextStep4);
+                          persistStep4BuildVsBuy(nextStep4);
+                        }}
+                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            : 'border-slate-200 bg-white hover:border-indigo-300'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="rounded-md bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">
+                              {rule.badge}
+                            </span>
+                            {isSelected && (
+                              <CheckCircle2 className="h-4 w-4 text-indigo-600" />
+                            )}
+                          </div>
+                          <div className="mt-1.5 text-xs font-bold text-slate-900">
+                            {rule.label}
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            {rule.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {step4Data.coreIpOwnershipRule === 'OTHER' && (
+                  <div className="mt-3">
+                    <label className="mb-1 block text-xs font-semibold text-indigo-900">
+                      Specify Your Custom IP Ownership &amp; Build-vs-Buy Rule:
+                    </label>
+                    <input
+                      type="text"
+                      value={step4Data.otherCoreIpOwnershipRuleText || ''}
+                      disabled={isVaultReadonly}
+                      onChange={(e) => {
+                        const nextStep4: BuildVsBuyStep4Data = {
+                          ...step4Data,
+                          otherCoreIpOwnershipRuleText: e.target.value,
+                        };
+                        setStep4Data(nextStep4);
+                      }}
+                      onBlur={() => persistStep4BuildVsBuy(step4Data)}
+                      placeholder="Describe how your startup owns and protects its core IP..."
+                      className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Narrative 1: Secret Sauce In-House Narrative */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-900">
+                    {activeStep4TrackConfig.secretSaucePromptLabel}
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={step4Data.secretSauceInHouseNarrative}
+                    disabled={isVaultReadonly}
+                    onChange={(e) =>
+                      setStep4Data((prev) => ({
+                        ...prev,
+                        secretSauceInHouseNarrative: e.target.value,
+                      }))
+                    }
+                    onBlur={() => persistStep4BuildVsBuy(step4Data)}
+                    placeholder={
+                      activeStep4TrackConfig.secretSaucePromptPlaceholder
+                    }
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                  />
+                </div>
+
+                {/* Narrative 2: Why Buy & Partner Saves Time & Capital */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-900">
+                    {activeStep4TrackConfig.whyBuySavesTimeLabel}
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={step4Data.whyBuyAndPartnerSavesTimeNarrative}
+                    disabled={isVaultReadonly}
+                    onChange={(e) =>
+                      setStep4Data((prev) => ({
+                        ...prev,
+                        whyBuyAndPartnerSavesTimeNarrative: e.target.value,
+                      }))
+                    }
+                    onBlur={() => persistStep4BuildVsBuy(step4Data)}
+                    placeholder={
+                      activeStep4TrackConfig.whyBuySavesTimePlaceholder
+                    }
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Step 4 Footer Actions */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab('STEP_3')}
+                    className="border-slate-300 bg-white text-xs text-slate-700"
+                  >
+                    <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                    Back to Step 3 (V1 Scope)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowParkInput((prev) => !prev)}
+                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
+                  >
+                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
+                    Park a Supplier / Tool Question
+                  </Button>
+                  {step4Data.lastSavedAt && (
+                    <span className="text-[11px] text-slate-500">
+                      Last saved:{' '}
+                      {new Date(step4Data.lastSavedAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isSavingStep4}
+                    onClick={handleSaveStep4}
+                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  >
+                    {isSavingStep4 ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Saving Step 4...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-1.5 h-3.5 w-3.5" />
+                        Save Step 4 (Build-vs-Buy &amp; Smart Costs)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {showParkInput && (
+                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    value={parkQuestionInput}
+                    onChange={(e) => setParkQuestionInput(e.target.value)}
+                    placeholder="e.g., Get 3 quotes from kiln-dried timber suppliers or compare Google Cloud vs. Vercel pricing..."
+                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      const clean = parkQuestionInput.trim();
+                      if (!clean) return;
+                      await onParkOpenQuestion(clean);
+                      setParkQuestionInput('');
+                      setShowParkInput(false);
+                      setSaveBanner(
+                        'Parked supplier/tool question in your Open Questions Parking Lot!'
+                      );
+                    }}
+                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
+                  >
+                    Save to Parking Lot
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* LIVE STEP 4 OUTPUT PREVIEW CARD */}
+          <Card className="border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 shadow-xs">
+            <CardHeader className="pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-sm font-bold text-slate-900">
+                  📋 Live Step 4 Output Preview (3-Tier Build-vs-Buy &amp; Cost
+                  Summary)
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
+                >
+                  Feeds Module G Unit Economics, Module I Overheads &amp; Module
+                  K Grant Technical Case
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs text-slate-700">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-emerald-200 bg-white p-3">
+                  <div className="text-[10px] font-bold uppercase text-emerald-700">
+                    Tier 1: In-House Secret Sauce (
+                    {
+                      step4Data.items.filter(
+                        (i) => i.tier === 'BUILD_IN_HOUSE'
+                      ).length
+                    }
+                    )
+                  </div>
+                  <ul className="mt-1.5 space-y-1 text-[11px] font-medium text-slate-800">
+                    {step4Data.items
+                      .filter((i) => i.tier === 'BUILD_IN_HOUSE')
+                      .map((i) => (
+                        <li key={i.id}>
+                          • {i.title}{' '}
+                          <span className="text-[10px] text-slate-500">
+                            (
+                            {i.costModel === 'SWEAT_EQUITY_ZERO'
+                              ? 'Sweat Equity'
+                              : `${formatPlanCurrency(
+                                  i.estimatedCostAmount,
+                                  plan.baseCurrency
+                                )}${
+                                  i.costModel === 'MONTHLY_SUBSCRIPTION'
+                                    ? '/mo'
+                                    : i.costModel === 'PER_UNIT_COGS'
+                                      ? '/unit'
+                                      : ' once-off'
+                                }`}
+                            )
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-lg border border-indigo-200 bg-white p-3">
+                  <div className="text-[10px] font-bold uppercase text-indigo-700">
+                    Tier 2: Buy / Subscribe Off-the-Shelf (
+                    {
+                      step4Data.items.filter(
+                        (i) => i.tier === 'BUY_RENT_OFF_SHELF'
+                      ).length
+                    }
+                    )
+                  </div>
+                  <ul className="mt-1.5 space-y-1 text-[11px] text-slate-700">
+                    {step4Data.items
+                      .filter((i) => i.tier === 'BUY_RENT_OFF_SHELF')
+                      .map((i) => (
+                        <li key={i.id}>
+                          • {i.title}{' '}
+                          <span className="font-semibold text-indigo-800">
+                            (
+                            {formatPlanCurrency(
+                              i.estimatedCostAmount,
+                              plan.baseCurrency
+                            )}
+                            {i.costModel === 'MONTHLY_SUBSCRIPTION'
+                              ? '/mo'
+                              : i.costModel === 'PER_UNIT_COGS'
+                                ? '/unit'
+                                : ' once-off'}
+                            )
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-white p-3">
+                  <div className="text-[10px] font-bold uppercase text-amber-800">
+                    Tier 3: Partners &amp; Contractors (
+                    {
+                      step4Data.items.filter(
+                        (i) => i.tier === 'OUTSOURCE_PARTNER'
+                      ).length
+                    }
+                    )
+                  </div>
+                  <ul className="mt-1.5 space-y-1 text-[11px] text-slate-700">
+                    {step4Data.items
+                      .filter((i) => i.tier === 'OUTSOURCE_PARTNER')
+                      .map((i) => (
+                        <li key={i.id}>
+                          • {i.title}{' '}
+                          <span className="font-semibold text-amber-900">
+                            (
+                            {formatPlanCurrency(
+                              i.estimatedCostAmount,
+                              plan.baseCurrency
+                            )}
+                            {i.costModel === 'MONTHLY_SUBSCRIPTION'
+                              ? '/mo'
+                              : i.costModel === 'PER_UNIT_COGS'
+                                ? '/unit'
+                                : ' once-off'}
+                            )
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       ) : (
         <Card className="border-slate-200 shadow-xs">
           <CardContent className="p-6 text-center">
@@ -6954,9 +9273,10 @@ export function ModuleDWorkspace({
               Step-by-Step Build Mode: {activeTab.replace('_', ' ')} Ready Next
             </h3>
             <p className="mx-auto mt-1 max-w-lg text-xs text-slate-600">
-              <strong>Steps 1, 2 &amp; 3</strong> are live! Next up is{' '}
+              <strong>Steps 1, 2, 3 &amp; 4</strong> are live! Next up is{' '}
               <strong>
-                Step 4 (3-Tier Make/Build vs. Buy &amp; Secret Sauce Matrix)
+                Step 5 (Grant-Ready Work Packages WP1–WP4 &amp; Technical Merit
+                Flow)
               </strong>{' '}
               tailored to your active{' '}
               <span className="font-semibold text-indigo-700">
@@ -6964,7 +9284,7 @@ export function ModuleDWorkspace({
               </span>{' '}
               track.
             </p>
-            <div className="mt-4 flex justify-center gap-2">
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -6985,11 +9305,20 @@ export function ModuleDWorkspace({
               </Button>
               <Button
                 type="button"
+                variant="outline"
                 size="sm"
                 onClick={() => setActiveTab('STEP_3')}
+                className="text-xs"
+              >
+                Go to Step 3
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setActiveTab('STEP_4')}
                 className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
               >
-                Go to Step 3 (V1 Scope Filter)
+                Go to Step 4 (Build-vs-Buy Matrix)
               </Button>
             </div>
           </CardContent>

@@ -735,10 +735,66 @@ export interface ScopeFilterStep3Data {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type BuildVsBuyTierType =
+  | 'BUILD_IN_HOUSE'
+  | 'BUY_RENT_OFF_SHELF'
+  | 'OUTSOURCE_PARTNER';
+
+export type BuildVsBuyCostModelType =
+  | 'MONTHLY_SUBSCRIPTION'
+  | 'ONE_OFF_PURCHASE'
+  | 'PER_UNIT_COGS'
+  | 'SWEAT_EQUITY_ZERO'
+  | 'OTHER';
+
+export type CoreIpOwnershipRuleType =
+  // SaaS / Software
+  | 'OWN_PROPRIETARY_WORKFLOW_RENT_PLUMBING'
+  | 'OWN_DOMAIN_DATA_AND_PROMPTS_IN_HOUSE'
+  | 'NO_EXTERNAL_DEV_AGENCY_FOR_CORE_IP'
+  // Physical Product / Craft
+  | 'IN_HOUSE_CRAFT_AND_FINISHING_BUY_STOCK_PACKAGING'
+  | 'OWN_JIGS_AND_ENGRAVING_OUTSOURCE_RAW_MILLING'
+  | 'BATCH_MATERIALS_ONCE_OFF_ZERO_CUSTOM_TOOLING'
+  // Education / Support
+  | 'OWN_CURRICULUM_AND_METHOD_RENT_COURSE_PORTAL'
+  | 'IN_HOUSE_AUDIO_AND_TOOLKITS_PARTNER_CLINICAL_REVIEW'
+  | 'ZERO_CUSTOM_APP_CODE_UNTIL_100_FAMILIES'
+  // Marketplace / Service / Hybrid
+  | 'OWN_SUPPLY_RELATIONSHIPS_RENT_BOOKING_STACK'
+  | 'OWN_DELIVERY_PLAYBOOK_RENT_CLIENT_PORTAL'
+  | 'OWN_FIRMWARE_AND_DASHBOARD_BUY_OFF_SHELF_ENCLOSURE'
+  | 'OTHER';
+
+export interface BuildVsBuyItem {
+  id: string;
+  title: string;
+  tier: BuildVsBuyTierType;
+  categoryTag: string;
+  otherCategoryTagText?: string;
+  costModel: BuildVsBuyCostModelType;
+  otherCostModelText?: string;
+  estimatedCostAmount: number;
+  vendorOrToolName?: string;
+  rationaleOrNote: string;
+  isCustom?: boolean;
+}
+
+export interface BuildVsBuyStep4Data {
+  items: BuildVsBuyItem[];
+  coreIpOwnershipRule: CoreIpOwnershipRuleType | '';
+  otherCoreIpOwnershipRuleText?: string;
+  secretSauceInHouseNarrative: string;
+  whyBuyAndPartnerSavesTimeNarrative: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface SavedModuleDData {
   productVehicle?: ProductVehicleStep1Data;
   channelMatrix?: ChannelMatrixStep2Data;
   scopeFilter?: ScopeFilterStep3Data;
+  buildVsBuy?: BuildVsBuyStep4Data;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;
 }

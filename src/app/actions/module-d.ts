@@ -12,6 +12,8 @@ import type {
   ChannelMatrixStep2Data,
   ScopeFilterItem,
   ScopeFilterStep3Data,
+  BuildVsBuyItem,
+  BuildVsBuyStep4Data,
   ProductTrackType,
   ProductFormFactorType,
   SalesChannelOptionType,
@@ -23,9 +25,11 @@ import {
   generateModuleDProductVehicleViaRouter,
   generateModuleDChannelMatrixViaRouter,
   generateModuleDScopeFilterViaRouter,
+  generateModuleDBuildVsBuyViaRouter,
   type ModuleDProductVehicleEstimateResult,
   type ModuleDChannelMatrixGenerationResult,
   type ModuleDScopeFilterGenerationResult,
+  type ModuleDBuildVsBuyGenerationResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -402,5 +406,119 @@ export async function generateModuleDScopeFilterWithAiAction(input: {
 }): Promise<ModuleDScopeFilterGenerationResult> {
   return generateModuleDScopeFilterViaRouter(input);
 }
+
+/**
+ * Persists Module D Step 4 (3-Tier Build-vs-Buy & Secret Sauce Matrix + Smart Cost Model)
+ * to `plan_modules_data` (`MOD_D_PRODUCT_BUILD`).
+ */
+export async function saveModuleDStep4BuildVsBuyAction(input: {
+  planId: string;
+  buildVsBuy: BuildVsBuyStep4Data;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
+  try {
+    await ensureModuleDEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_D_PRODUCT_BUILD')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleDData;
+
+    const nowIso = new Date().toISOString();
+    const updatedPayload: SavedModuleDData = {
+      ...existingPayload,
+      buildVsBuy: {
+        ...input.buildVsBuy,
+        lastSavedAt: nowIso,
+      },
+      lastSavedAt: nowIso,
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage ?? 0,
+      input.completionPercentage ?? 80
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_D_PRODUCT_BUILD',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_D_STEP_4',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module D] Could not persist Step 4 Build-vs-Buy to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Calls the central AI router (`generateModuleDBuildVsBuyViaRouter`) to either populate
+ * the 3-Tier Build-vs-Buy board + charter or draft only the IP charter narratives.
+ */
+export async function generateModuleDBuildVsBuyWithAiAction(input: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  formFactor?: ProductFormFactorType;
+  primaryChannel?: SalesChannelOptionType;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  beachheadSegment?: string;
+  validatedPainSummary?: string;
+  v1MustHaveTitles?: string[];
+  currentBoardItems?: BuildVsBuyItem[];
+  mode?: 'POPULATE_BOARD_AND_CHARTER' | 'CHARTER_ONLY';
+}): Promise<ModuleDBuildVsBuyGenerationResult> {
+  return generateModuleDBuildVsBuyViaRouter(input);
+}
+
 
 
