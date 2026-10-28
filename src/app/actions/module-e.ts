@@ -17,6 +17,9 @@ import type {
   PremisesSetupModeType,
   PremisesComplianceStatusType,
   EquipmentAssetItem,
+  RiskRegisterStep3Data,
+  SupplierRedundancyPostureType,
+  ProjectRiskRegisterItem,
   ProductTrackType,
   SalesChannelOptionType,
   DeliveryFulfillmentModelType,
@@ -29,6 +32,8 @@ import {
   type ModuleEOperationsBlueprintGenerationResult,
   generateModuleEPremisesEquipmentViaRouter,
   type ModuleEPremisesEquipmentGenerationResult,
+  generateModuleERiskRegisterViaRouter,
+  type ModuleERiskRegisterGenerationResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -304,4 +309,117 @@ export async function generateModuleEPremisesEquipmentWithAiAction(input: {
   mode?: 'POPULATE_ASSETS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
 }): Promise<ModuleEPremisesEquipmentGenerationResult> {
   return generateModuleEPremisesEquipmentViaRouter(input);
+}
+
+/**
+ * Persists Module E Step 3 (Supply-Chain Resilience & Formal 4-Category Project Risk Register)
+ * to `plan_modules_data` (`MOD_E_OPERATIONS`).
+ */
+export async function saveModuleEStep3RiskRegisterAction(input: {
+  planId: string;
+  riskRegister: RiskRegisterStep3Data;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
+  try {
+    await ensureModuleEEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_E_OPERATIONS')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleEData;
+
+    const nowIso = new Date().toISOString();
+    const updatedPayload: SavedModuleEData = {
+      ...existingPayload,
+      riskRegister: {
+        ...input.riskRegister,
+        lastSavedAt: nowIso,
+      },
+      lastSavedAt: nowIso,
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage ?? 0,
+      input.completionPercentage ?? 75
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_E_OPERATIONS',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_E_STEP_3',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module E] Could not persist Step 3 Risk Register to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Calls the central AI router (`generateModuleERiskRegisterViaRouter`) to draft
+ * a 4-Category Grant-Ready Project Risk Register + Supply-Chain Resilience & Risk Governance Narratives.
+ */
+export async function generateModuleERiskRegisterWithAiAction(input: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  currentSupplierRedundancyPosture?: SupplierRedundancyPostureType | '';
+  currentLeadTimeBufferDays?: number;
+  currentPrimarySuppliersSummary?: string;
+  currentBackupSuppliersSummary?: string;
+  currentRiskItems?: ProjectRiskRegisterItem[];
+  mode?: 'POPULATE_RISKS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleERiskRegisterGenerationResult> {
+  return generateModuleERiskRegisterViaRouter(input);
 }

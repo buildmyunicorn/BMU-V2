@@ -77,6 +77,10 @@ import type {
   EquipmentFundingSourceType,
   EquipmentQuoteComplianceStatusType,
   EquipmentAssetItem,
+  SupplierRedundancyPostureType,
+  ProjectRiskCategoryType,
+  ResidualRiskRatingType,
+  ProjectRiskRegisterItem,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -7144,6 +7148,462 @@ Return ONLY valid JSON matching this exact structure:
             parsed.premisesAndLocationJustificationNarrative.trim(),
           equipmentRoiAndGrantComplianceNarrative:
             parsed.equipmentRoiAndGrantComplianceNarrative.trim(),
+          creditsUsedAfter,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    }
+  } catch {
+    // Fallback to deterministic synthesizer below
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+// ============================================================================
+// MODULE E STEP 3: SUPPLY-CHAIN RESILIENCE & 4-CATEGORY RISK REGISTER ROUTER
+// ============================================================================
+
+export interface ModuleERiskRegisterGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  supplierRedundancyPosture: SupplierRedundancyPostureType;
+  leadTimeBufferDays: number;
+  primarySuppliersSummary: string;
+  backupSuppliersSummary: string;
+  riskItems: ProjectRiskRegisterItem[];
+  supplyChainResilienceNarrative: string;
+  riskManagementGovernanceNarrative: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleERiskRegisterViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  currentSupplierRedundancyPosture?: SupplierRedundancyPostureType | '';
+  currentLeadTimeBufferDays?: number;
+  currentPrimarySuppliersSummary?: string;
+  currentBackupSuppliersSummary?: string;
+  currentRiskItems?: ProjectRiskRegisterItem[];
+  mode?: 'POPULATE_RISKS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleERiskRegisterGenerationResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_E_STEP3_RISK_REGISTER'
+  );
+
+  const countryPack = getCountryRulePack(params.hqCountryCode);
+  const cleanTitle =
+    sanitizePromptInput(params.planTitle, 100) || 'the business';
+  const isNarrativesOnly = params.mode === 'NARRATIVES_ONLY';
+
+  const grantGovernanceLabel =
+    params.hqCountryCode === 'IE'
+      ? 'Ireland Local Enterprise Office (LEO) & Enterprise Ireland'
+      : params.hqCountryCode === 'GB'
+        ? 'UK Innovate UK (Question 8 / 9 Risk Register Appendix) & British Business Bank Start Up Loans'
+        : `${countryPack.countryName} Grant & Lending Evaluators`;
+
+  const buildSmartFallback = (): Omit<
+    ModuleERiskRegisterGenerationResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const isPhysicalOrHardware =
+      params.selectedTrack === 'PHYSICAL_PRODUCT_ECOM' ||
+      params.selectedTrack === 'HYBRID_HARDWARE_SOFTWARE';
+
+    const defaultPosture: SupplierRedundancyPostureType =
+      (params.currentSupplierRedundancyPosture as SupplierRedundancyPostureType) ||
+      (isPhysicalOrHardware
+        ? 'DUAL_SOURCED_VERIFIED'
+        : 'CLOUD_MULTI_REGION_FAILOVER');
+
+    const defaultLeadTimeBufferDays =
+      params.currentLeadTimeBufferDays ?? (isPhysicalOrHardware ? 21 : 7);
+
+    const defaultPrimarySuppliers =
+      params.currentPrimarySuppliersSummary?.trim() ||
+      (isPhysicalOrHardware
+        ? params.hqCountryCode === 'IE'
+          ? `Primary production inputs, packaging, and tracked parcel courier partners sourced from vetted Irish/EU trade suppliers with agreed lead-time SLAs and ${defaultLeadTimeBufferDays} days of safety buffer stock.`
+          : params.hqCountryCode === 'GB'
+            ? `Primary production inputs, packaging, and tracked parcel courier partners sourced from vetted UK trade suppliers with agreed lead-time SLAs and ${defaultLeadTimeBufferDays} days of safety buffer stock.`
+            : `Primary raw materials, packaging, and courier logistics sourced from vetted trade suppliers with ${defaultLeadTimeBufferDays} days of buffer inventory.`
+        : `Primary managed cloud application hosting, database cluster, payment webhooks, and core API infrastructure with strict SLAs.`);
+
+    const defaultBackupSuppliers =
+      params.currentBackupSuppliersSummary?.trim() ||
+      (isPhysicalOrHardware
+        ? params.hqCountryCode === 'IE'
+          ? `Pre-qualified secondary Irish/EU material & packaging suppliers on account (aligned with Module E Step 2 3-quote bench) plus secondary tracked courier account.`
+          : params.hqCountryCode === 'GB'
+            ? `Pre-qualified secondary UK domestic material & packaging suppliers on account (aligned with Module E Step 2 3-quote bench) plus secondary tracked courier account.`
+            : `Pre-qualified secondary material & packaging suppliers on account plus backup tracked courier partner.`
+        : `Automated daily off-site database snapshots, multi-region cloud failover, hard API rate-limiting circuit breakers, and deterministic fallback mode.`);
+
+    const fallbackRisks: ProjectRiskRegisterItem[] =
+      isNarrativesOnly &&
+      params.currentRiskItems &&
+      params.currentRiskItems.length > 0
+        ? params.currentRiskItems
+        : isPhysicalOrHardware
+          ? [
+              {
+                id: 'risk-1',
+                riskCategory: 'TECHNICAL_PRODUCTION',
+                riskTitle:
+                  'Batch quality variance, material defect, or primary workshop machine downtime delaying customer order turnaround',
+                likelihoodScore: 3,
+                impactScore: 4,
+                grossRiskScore: 12,
+                mitigationAndContingencyPlan:
+                  'Enforce incoming raw-material inspection before batch production, maintain spare wearable tooling parts on-site, and run a standardized pre-dispatch QC checklist on 100% of units.',
+                ownerAndWorkPackage: 'Founder / Operations Lead • WP1 & WP2',
+                residualRiskRating: 'LOW',
+              },
+              {
+                id: 'risk-2',
+                riskCategory: 'COMMERCIAL_MARKET',
+                riskTitle:
+                  'Seasonal demand fluctuations or slower-than-projected initial D2C conversion rates compressing monthly order volume',
+                likelihoodScore: 3,
+                impactScore: 4,
+                grossRiskScore: 12,
+                mitigationAndContingencyPlan:
+                  'Balance direct-to-consumer seasonal spikes with recurring B2B trade/corporate accounts and validate pricing with pre-launch waitlist buyers before committing to large batch runs.',
+                ownerAndWorkPackage: 'Founder / Commercial Lead • WP3',
+                residualRiskRating: 'LOW',
+              },
+              {
+                id: 'risk-3',
+                riskCategory: 'FINANCIAL_SUPPLY_CHAIN',
+                riskTitle:
+                  params.hqCountryCode === 'IE'
+                    ? 'Primary raw-material supplier price hike (>20%) or cashflow timing gap while awaiting IE LEO vouched grant reimbursement'
+                    : params.hqCountryCode === 'GB'
+                      ? 'Primary raw-material supplier price hike (>20%) or working-capital timing gap across quarterly UK project milestones'
+                      : 'Primary supplier stockout or >20% input cost inflation compressing unit gross margin',
+                likelihoodScore: 3,
+                impactScore: 4,
+                grossRiskScore: 12,
+                mitigationAndContingencyPlan:
+                  params.hqCountryCode === 'IE'
+                    ? 'Maintain accounts with at least 2 independent IE/EU suppliers, hold 3 weeks of buffer stock on fast-moving SKUs, and ring-fence working capital to bridge vouched IE LEO grant drawdowns.'
+                    : params.hqCountryCode === 'GB'
+                      ? 'Maintain accounts with at least 2 independent UK suppliers, hold 3 weeks of buffer stock on core SKUs, and align working capital with British Business Bank Start Up Loan / milestone schedules.'
+                      : 'Maintain dual-sourced supplier accounts, hold 3 weeks of buffer inventory, and lock in volume tier pricing.',
+                ownerAndWorkPackage: 'Founder / Finance Lead • WP2',
+                residualRiskRating: 'LOW',
+              },
+              {
+                id: 'risk-4',
+                riskCategory: 'MANAGERIAL_REGULATORY',
+                riskTitle:
+                  'Key-person founder unavailability (illness/injury) or product safety, labelling, and workshop H&S audit bottleneck',
+                likelihoodScore: 2,
+                impactScore: 5,
+                grossRiskScore: 10,
+                mitigationAndContingencyPlan:
+                  'Document step-by-step production & packing SOPs so a trained part-time assistant or contractor can fulfill orders within 48 hours, and maintain full product traceability and public/product liability insurance.',
+                ownerAndWorkPackage: 'Founder / Compliance Lead • WP4',
+                residualRiskRating: 'LOW',
+              },
+            ]
+          : [
+              {
+                id: 'risk-1',
+                riskCategory: 'TECHNICAL_PRODUCTION',
+                riskTitle:
+                  'Third-party cloud/AI API latency, upstream outage, or V1 scope creep delaying core workflow release',
+                likelihoodScore: 3,
+                impactScore: 4,
+                grossRiskScore: 12,
+                mitigationAndContingencyPlan:
+                  'Enforce ruthless V1 scope freeze around the core user workflow, implement automated API circuit breakers and deterministic fallback responses, and ship weekly incremental builds.',
+                ownerAndWorkPackage: 'Technical Lead • WP1 & WP2',
+                residualRiskRating: 'LOW',
+              },
+              {
+                id: 'risk-2',
+                riskCategory: 'COMMERCIAL_MARKET',
+                riskTitle:
+                  'Longer B2B/customer onboarding cycles or paid acquisition costs exceeding initial CAC assumptions',
+                likelihoodScore: 3,
+                impactScore: 4,
+                grossRiskScore: 12,
+                mitigationAndContingencyPlan:
+                  'Convert warm Module C survey & waitlist leads first via founder-led onboarding, offer a low-friction entry hook, and secure partner/channel distribution before scaling paid ads.',
+                ownerAndWorkPackage: 'Founder / Growth Lead • WP3',
+                residualRiskRating: 'LOW',
+              },
+              {
+                id: 'risk-3',
+                riskCategory: 'FINANCIAL_SUPPLY_CHAIN',
+                riskTitle:
+                  params.hqCountryCode === 'IE'
+                    ? 'Runaway cloud/API consumption costs or working-capital bridge gap prior to IE LEO vouched grant drawdown'
+                    : params.hqCountryCode === 'GB'
+                      ? 'Runaway cloud/API consumption costs or working-capital bridge gap across UK quarterly claim periods'
+                      : 'Unexpected cloud/API usage spikes or working-capital timing gap during V1 ramp-up',
+                likelihoodScore: 3,
+                impactScore: 3,
+                grossRiskScore: 9,
+                mitigationAndContingencyPlan:
+                  'Enforce hard daily API usage ceilings and per-user rate limits, keep fixed premises overhead near zero in Year 1, and maintain a 3-month cash runway buffer.',
+                ownerAndWorkPackage: 'Founder / Finance Lead • WP2',
+                residualRiskRating: 'LOW',
+              },
+              {
+                id: 'risk-4',
+                riskCategory: 'MANAGERIAL_REGULATORY',
+                riskTitle:
+                  'Solo-founder bandwidth bottleneck across engineering and sales, or GDPR / multi-tenant data privacy compliance gap',
+                likelihoodScore: 2,
+                impactScore: 5,
+                grossRiskScore: 10,
+                mitigationAndContingencyPlan:
+                  'Automate onboarding and billing workflows, enforce strict server-side tenant/plan ownership checks and encryption at rest, and document runbooks for contractor handover.',
+                ownerAndWorkPackage: 'Founder / Security Lead • WP4',
+                residualRiskRating: 'LOW',
+              },
+            ];
+
+    const avgGross =
+      fallbackRisks.length > 0
+        ? (
+            fallbackRisks.reduce(
+              (sum, r) => sum + (Number(r.grossRiskScore) || 0),
+              0
+            ) / fallbackRisks.length
+          ).toFixed(1)
+        : '11.0';
+
+    return {
+      supplierRedundancyPosture: defaultPosture,
+      leadTimeBufferDays: defaultLeadTimeBufferDays,
+      primarySuppliersSummary: defaultPrimarySuppliers,
+      backupSuppliersSummary: defaultBackupSuppliers,
+      riskItems: fallbackRisks,
+      supplyChainResilienceNarrative: `${cleanTitle} eliminates single-point-of-failure supply chain exposure through a ${defaultPosture.replace(/_/g, ' ').toLowerCase()} posture with a ${defaultLeadTimeBufferDays}-day operational buffer. ${defaultPrimarySuppliers} ${defaultBackupSuppliers}`,
+      riskManagementGovernanceNarrative: `Our formal 4-category Risk Register covers Technical/Production, Commercial/Market, Financial/Supply-Chain, and Managerial/Regulatory pillars in full alignment with ${grantGovernanceLabel} standards. Across ${fallbackRisks.length} tracked risks (average gross score ${avgGross}/25), each risk is assigned to a specific Work Package owner with concrete preventative controls that reduce residual exposure to Low.`,
+    };
+  };
+
+  if (!authCtx.canCallLiveGemini || !authCtx.activeApiKey) {
+    return {
+      allowed: true,
+      ...buildSmartFallback(),
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const fallback = buildSmartFallback();
+
+    const countryRiskPromptRules =
+      params.hqCountryCode === 'IE'
+        ? `1. Tailor all risk governance and financial/supply-chain mitigations strictly to Ireland Local Enterprise Office (LEO) and Enterprise Ireland standards (e.g., vouched grant expenditure timing, Irish/EU supplier redundancy, HSA/FSAI/GDPR compliance).
+2. Do NOT mention UK Innovate UK or British Business Bank rules for an Ireland-based startup.`
+        : params.hqCountryCode === 'GB'
+          ? `1. Tailor all risk governance and mitigations strictly to UK Innovate UK Smart Grants (Question 9 Risk Register Appendix) and British Business Bank Start Up Loans standards (e.g., 4 mandatory risk categories linked to Work Packages WP1..WP4, UK domestic/international supplier redundancy, HSE/UK GDPR compliance).
+2. Do NOT mention Ireland LEO or Enterprise Ireland rules for a UK-based startup.`
+          : `1. Tailor all risk governance and mitigations to ${countryPack.countryName} operational, supply-chain, and grant underwriting standards.`;
+
+    const prompt = `You are an expert startup COO and ${grantGovernanceLabel} risk assessor.
+Generate Module E Step 3 (Supply-Chain Resilience & Formal 4-Category Project Risk Register) for:
+- Startup Title: ${sanitizePromptInput(params.planTitle, 120)}
+- Industry Category: ${sanitizePromptInput(params.industryCategory, 80)}
+- HQ Country: ${params.hqCountryCode}
+- Product Track: ${params.selectedTrack} ${params.otherProductTrackText ? `(${sanitizePromptInput(params.otherProductTrackText, 100)})` : ''}
+- Core Problem: ${sanitizePromptInput(params.coreProblem, 250)}
+- Proposed Solution: ${sanitizePromptInput(params.proposedSolution, 250)}
+- Mode: ${isNarrativesOnly ? 'NARRATIVES_ONLY (synthesize narratives from current risks)' : 'POPULATE_RISKS_AND_NARRATIVES (generate 4 specific risks across all 4 mandatory categories: TECHNICAL_PRODUCTION, COMMERCIAL_MARKET, FINANCIAL_SUPPLY_CHAIN, MANAGERIAL_REGULATORY)'}
+
+CRITICAL COUNTRY & RISK RULES:
+${countryRiskPromptRules}
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "supplierRedundancyPosture": "DUAL_SOURCED_VERIFIED" | "BUFFER_STOCK_HELD" | "CLOUD_MULTI_REGION_FAILOVER" | "SINGLE_SOURCE_CONTRACTED",
+  "leadTimeBufferDays": 14,
+  "primarySuppliersSummary": "1-2 specific sentences naming primary supplier types, MOQs, or cloud architecture for this exact business",
+  "backupSuppliersSummary": "1-2 specific sentences naming secondary backup suppliers or failover controls",
+  "riskItems": [
+    {
+      "riskCategory": "TECHNICAL_PRODUCTION" | "COMMERCIAL_MARKET" | "FINANCIAL_SUPPLY_CHAIN" | "MANAGERIAL_REGULATORY",
+      "riskTitle": "Specific operational/project risk and what triggers it",
+      "likelihoodScore": 3,
+      "impactScore": 4,
+      "mitigationAndContingencyPlan": "Concrete, actionable prevention and fallback protocol",
+      "ownerAndWorkPackage": "Founder / Role • WP1",
+      "residualRiskRating": "LOW" | "MEDIUM" | "HIGH"
+    }
+  ],
+  "supplyChainResilienceNarrative": "2-3 sentences explaining how supply chain, supplier lead times, and single points of failure are protected",
+  "riskManagementGovernanceNarrative": "2-3 sentences summarizing the 4-category Risk Register and how mitigations keep residual risk low"
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        temperature: 0.3,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const rawText = response.text?.trim() || '';
+    if (rawText) {
+      const parsed = JSON.parse(rawText) as {
+        supplierRedundancyPosture?: string;
+        leadTimeBufferDays?: number;
+        primarySuppliersSummary?: string;
+        backupSuppliersSummary?: string;
+        riskItems?: Array<{
+          riskCategory?: string;
+          riskTitle?: string;
+          likelihoodScore?: number;
+          impactScore?: number;
+          mitigationAndContingencyPlan?: string;
+          ownerAndWorkPackage?: string;
+          residualRiskRating?: string;
+        }>;
+        supplyChainResilienceNarrative?: string;
+        riskManagementGovernanceNarrative?: string;
+      };
+
+      if (
+        typeof parsed.supplyChainResilienceNarrative === 'string' &&
+        parsed.supplyChainResilienceNarrative.trim().length > 20 &&
+        typeof parsed.riskManagementGovernanceNarrative === 'string' &&
+        parsed.riskManagementGovernanceNarrative.trim().length > 20
+      ) {
+        creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+          verifiedUserId: authCtx.verifiedUserId,
+          planId: params.planId,
+          promptKey: 'MOD_E_STEP3_RISK_REGISTER',
+          modelUsed: 'gemini-2.5-flash',
+          inputTokens: response.usageMetadata?.promptTokenCount || 320,
+          outputTokens: response.usageMetadata?.candidatesTokenCount || 380,
+          usedByokKey: authCtx.usedByokKey,
+          fallbackCreditsUsed: authCtx.currentCreditsUsed,
+        });
+
+        const validPostures = new Set<string>([
+          'DUAL_SOURCED_VERIFIED',
+          'BUFFER_STOCK_HELD',
+          'CLOUD_MULTI_REGION_FAILOVER',
+          'SINGLE_SOURCE_CONTRACTED',
+          'OTHER',
+        ]);
+        const validRiskCategories = new Set<string>([
+          'TECHNICAL_PRODUCTION',
+          'COMMERCIAL_MARKET',
+          'FINANCIAL_SUPPLY_CHAIN',
+          'MANAGERIAL_REGULATORY',
+          'OTHER',
+        ]);
+        const validResidualRatings = new Set<string>([
+          'LOW',
+          'MEDIUM',
+          'HIGH',
+          'OTHER',
+        ]);
+
+        const items: ProjectRiskRegisterItem[] =
+          isNarrativesOnly &&
+          params.currentRiskItems &&
+          params.currentRiskItems.length > 0
+            ? params.currentRiskItems
+            : Array.isArray(parsed.riskItems) && parsed.riskItems.length >= 2
+              ? parsed.riskItems.slice(0, 8).map((r, idx) => {
+                  const likelihood = Math.max(
+                    1,
+                    Math.min(5, Math.round(Number(r.likelihoodScore) || 3))
+                  );
+                  const impact = Math.max(
+                    1,
+                    Math.min(5, Math.round(Number(r.impactScore) || 4))
+                  );
+                  return {
+                    id: `ai-risk-${idx + 1}-${Date.now()}`,
+                    riskCategory: validRiskCategories.has(
+                      String(r.riskCategory)
+                    )
+                      ? (r.riskCategory as ProjectRiskCategoryType)
+                      : 'TECHNICAL_PRODUCTION',
+                    riskTitle:
+                      sanitizePromptInput(r.riskTitle, 220) ||
+                      `Operational Risk #${idx + 1}`,
+                    likelihoodScore: likelihood,
+                    impactScore: impact,
+                    grossRiskScore: likelihood * impact,
+                    mitigationAndContingencyPlan:
+                      sanitizePromptInput(
+                        r.mitigationAndContingencyPlan,
+                        280
+                      ) ||
+                      'Documented operational fallback and secondary supplier/system redundancy in place.',
+                    ownerAndWorkPackage:
+                      sanitizePromptInput(r.ownerAndWorkPackage, 90) ||
+                      `Founder / Ops Lead • WP${(idx % 4) + 1}`,
+                    residualRiskRating: validResidualRatings.has(
+                      String(r.residualRiskRating)
+                    )
+                      ? (r.residualRiskRating as ResidualRiskRatingType)
+                      : 'LOW',
+                  };
+                })
+              : fallback.riskItems;
+
+        return {
+          allowed: true,
+          supplierRedundancyPosture: validPostures.has(
+            String(parsed.supplierRedundancyPosture)
+          )
+            ? (parsed.supplierRedundancyPosture as SupplierRedundancyPostureType)
+            : fallback.supplierRedundancyPosture,
+          leadTimeBufferDays: Math.max(
+            0,
+            Math.min(
+              180,
+              Math.round(
+                Number(
+                  parsed.leadTimeBufferDays ?? fallback.leadTimeBufferDays
+                )
+              )
+            )
+          ),
+          primarySuppliersSummary:
+            sanitizePromptInput(parsed.primarySuppliersSummary, 300) ||
+            fallback.primarySuppliersSummary,
+          backupSuppliersSummary:
+            sanitizePromptInput(parsed.backupSuppliersSummary, 300) ||
+            fallback.backupSuppliersSummary,
+          riskItems: items,
+          supplyChainResilienceNarrative:
+            parsed.supplyChainResilienceNarrative.trim(),
+          riskManagementGovernanceNarrative:
+            parsed.riskManagementGovernanceNarrative.trim(),
           creditsUsedAfter,
           engineMode: 'gemini-2.5-flash',
         };

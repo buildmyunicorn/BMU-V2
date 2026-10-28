@@ -124,6 +124,9 @@ import {
   type PremisesComplianceStatusType,
   type EquipmentAssetItem,
   type PremisesAndEquipmentStep2Data,
+  type SupplierRedundancyPostureType,
+  type ProjectRiskRegisterItem,
+  type RiskRegisterStep3Data,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -174,9 +177,11 @@ import {
 import {
   saveModuleEStep1OperationsBlueprintAction,
   saveModuleEStep2PremisesEquipmentAction,
+  saveModuleEStep3RiskRegisterAction,
   parkModuleEOpenQuestionAction,
   generateModuleEOperationsBlueprintWithAiAction,
   generateModuleEPremisesEquipmentWithAiAction,
+  generateModuleERiskRegisterWithAiAction,
 } from '@/app/actions/module-e';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
@@ -2457,6 +2462,115 @@ export default function WorkspacePage() {
     };
   }
 
+  async function handleSaveModuleEStep3RiskRegister(
+    riskRegister: RiskRegisterStep3Data,
+    progress = 70
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_E_STEP_3',
+          moduleEData: {
+            ...(p.moduleEData || {}),
+            riskRegister,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleEStep3RiskRegisterAction({
+      planId: currentPlan.id,
+      riskRegister,
+      completionPercentage: progress,
+    });
+  }
+
+  async function handleGenerateModuleERiskRegisterWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    currentSupplierRedundancyPosture?: SupplierRedundancyPostureType | '';
+    currentLeadTimeBufferDays?: number;
+    currentPrimarySuppliersSummary?: string;
+    currentBackupSuppliersSummary?: string;
+    currentRiskItems?: ProjectRiskRegisterItem[];
+    mode?: 'POPULATE_RISKS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Risk Register & Supply-Chain Resilience (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        supplierRedundancyPosture:
+          (params.currentSupplierRedundancyPosture as SupplierRedundancyPostureType) ||
+          'DUAL_SOURCED_VERIFIED',
+        leadTimeBufferDays: params.currentLeadTimeBufferDays ?? 7,
+        primarySuppliersSummary: params.currentPrimarySuppliersSummary || '',
+        backupSuppliersSummary: params.currentBackupSuppliersSummary || '',
+        riskItems: params.currentRiskItems || [],
+        supplyChainResilienceNarrative: '',
+        riskManagementGovernanceNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleERiskRegisterWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      baseCurrency: currentPlan.baseCurrency,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      currentSupplierRedundancyPosture: params.currentSupplierRedundancyPosture,
+      currentLeadTimeBufferDays: params.currentLeadTimeBufferDays,
+      currentPrimarySuppliersSummary: params.currentPrimarySuppliersSummary,
+      currentBackupSuppliersSummary: params.currentBackupSuppliersSummary,
+      currentRiskItems: params.currentRiskItems,
+      mode: params.mode,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      supplierRedundancyPosture: res.supplierRedundancyPosture,
+      leadTimeBufferDays: res.leadTimeBufferDays,
+      primarySuppliersSummary: res.primarySuppliersSummary,
+      backupSuppliersSummary: res.backupSuppliersSummary,
+      riskItems: res.riskItems,
+      supplyChainResilienceNarrative: res.supplyChainResilienceNarrative,
+      riskManagementGovernanceNarrative: res.riskManagementGovernanceNarrative,
+      engineMode: res.engineMode,
+    };
+  }
+
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
     coreProblem: '',
     targetCustomer: '',
@@ -3411,6 +3525,10 @@ export default function WorkspacePage() {
               }
               onGenerateAiPremisesEquipment={
                 handleGenerateModuleEPremisesEquipmentWithAi
+              }
+              onSaveStep3RiskRegister={handleSaveModuleEStep3RiskRegister}
+              onGenerateAiRiskRegister={
+                handleGenerateModuleERiskRegisterWithAi
               }
               onParkOpenQuestion={handleParkModuleEQuestion}
               onBackToModuleD={() => setActiveModule('MOD_D_PRODUCT_BUILD')}

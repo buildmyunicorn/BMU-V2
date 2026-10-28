@@ -1097,9 +1097,54 @@ export interface PremisesAndEquipmentStep2Data {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type SupplierRedundancyPostureType =
+  | 'DUAL_SOURCED_VERIFIED'
+  | 'BUFFER_STOCK_HELD'
+  | 'CLOUD_MULTI_REGION_FAILOVER'
+  | 'SINGLE_SOURCE_CONTRACTED'
+  | 'OTHER';
+
+export type ProjectRiskCategoryType =
+  | 'TECHNICAL_PRODUCTION'
+  | 'COMMERCIAL_MARKET'
+  | 'FINANCIAL_SUPPLY_CHAIN'
+  | 'MANAGERIAL_REGULATORY'
+  | 'OTHER';
+
+export type ResidualRiskRatingType = 'LOW' | 'MEDIUM' | 'HIGH' | 'OTHER';
+
+export interface ProjectRiskRegisterItem {
+  id: string;
+  riskCategory: ProjectRiskCategoryType;
+  otherRiskCategoryText?: string;
+  riskTitle: string;
+  likelihoodScore: number; // 1 to 5
+  impactScore: number; // 1 to 5
+  grossRiskScore: number; // 1 to 25 (likelihoodScore * impactScore)
+  mitigationAndContingencyPlan: string;
+  ownerAndWorkPackage: string;
+  residualRiskRating: ResidualRiskRatingType;
+  otherResidualRiskRatingText?: string;
+  isCustom?: boolean;
+}
+
+export interface RiskRegisterStep3Data {
+  supplierRedundancyPosture: SupplierRedundancyPostureType | '';
+  otherSupplierRedundancyPostureText?: string;
+  leadTimeBufferDays: number;
+  primarySuppliersSummary: string;
+  backupSuppliersSummary: string;
+  riskItems: ProjectRiskRegisterItem[];
+  supplyChainResilienceNarrative: string;
+  riskManagementGovernanceNarrative: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface SavedModuleEData {
   operationsBlueprint?: OperationsBlueprintStep1Data;
   premisesAndEquipment?: PremisesAndEquipmentStep2Data;
+  riskRegister?: RiskRegisterStep3Data;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;
 }

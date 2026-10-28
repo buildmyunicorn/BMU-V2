@@ -64,6 +64,11 @@ import type {
   EquipmentQuoteComplianceStatusType,
   EquipmentAssetItem,
   PremisesAndEquipmentStep2Data,
+  SupplierRedundancyPostureType,
+  ProjectRiskCategoryType,
+  ResidualRiskRatingType,
+  ProjectRiskRegisterItem,
+  RiskRegisterStep3Data,
 } from '@/lib/auth/session-store';
 
 export interface ModuleEWorkspaceProps {
@@ -119,6 +124,31 @@ export interface ModuleEWorkspaceProps {
     equipmentItems: EquipmentAssetItem[];
     premisesAndLocationJustificationNarrative: string;
     equipmentRoiAndGrantComplianceNarrative: string;
+    engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  }>;
+  onSaveStep3RiskRegister: (
+    data: RiskRegisterStep3Data,
+    progress: number
+  ) => Promise<void>;
+  onGenerateAiRiskRegister: (params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    currentSupplierRedundancyPosture?: SupplierRedundancyPostureType | '';
+    currentLeadTimeBufferDays?: number;
+    currentPrimarySuppliersSummary?: string;
+    currentBackupSuppliersSummary?: string;
+    currentRiskItems?: ProjectRiskRegisterItem[];
+    mode?: 'POPULATE_RISKS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) => Promise<{
+    allowed: boolean;
+    reason?: string;
+    supplierRedundancyPosture: SupplierRedundancyPostureType;
+    leadTimeBufferDays: number;
+    primarySuppliersSummary: string;
+    backupSuppliersSummary: string;
+    riskItems: ProjectRiskRegisterItem[];
+    supplyChainResilienceNarrative: string;
+    riskManagementGovernanceNarrative: string;
     engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
   }>;
   onParkOpenQuestion: (questionText: string) => Promise<void>;
@@ -940,6 +970,244 @@ function buildDefaultStep2DataForPlan(
   };
 }
 
+const SUPPLIER_REDUNDANCY_POSTURE_OPTIONS: Array<{
+  value: SupplierRedundancyPostureType;
+  label: string;
+  subtitle: string;
+  badge: string;
+}> = [
+  {
+    value: 'DUAL_SOURCED_VERIFIED',
+    label: 'Dual-Sourced Verified Suppliers (Primary + Pre-Vetted Backup)',
+    subtitle:
+      'Every critical raw material, component, or courier route has a primary supplier plus at least one tested secondary supplier.',
+    badge: 'Recommended',
+  },
+  {
+    value: 'BUFFER_STOCK_HELD',
+    label: 'Safety Buffer Inventory Held On-Site (14–30 Days Stock)',
+    subtitle:
+      'You hold physical buffer stock of raw materials, packaging, or finished blanks to absorb supplier lead-time spikes.',
+    badge: 'Maker & Physical',
+  },
+  {
+    value: 'CLOUD_MULTI_REGION_FAILOVER',
+    label: 'Cloud Multi-Provider / Deterministic API Failover',
+    subtitle:
+      'Managed cloud infrastructure with automated rate-limit circuit breakers, daily database backups, and deterministic fallback.',
+    badge: 'SaaS & Digital',
+  },
+  {
+    value: 'SINGLE_SOURCE_CONTRACTED',
+    label: 'Contracted Primary Partner with SLA Notice Period',
+    subtitle:
+      'Single specialist manufacturer, lab, or platform provider under written SLA with contractual notice and escrow/tooling protection.',
+    badge: 'Contract SLA',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other (Custom Supply-Chain & Redundancy Posture)',
+    subtitle:
+      'Describe your custom sourcing, vertical integration, or hybrid redundancy strategy in your own words.',
+    badge: 'Custom Posture',
+  },
+];
+
+const PROJECT_RISK_CATEGORY_OPTIONS: Array<{
+  value: ProjectRiskCategoryType;
+  label: string;
+  shortLabel: string;
+}> = [
+  {
+    value: 'TECHNICAL_PRODUCTION',
+    label: '⚙️ Technical, Production & Quality Risk',
+    shortLabel: 'Technical / Production',
+  },
+  {
+    value: 'COMMERCIAL_MARKET',
+    label: '📈 Commercial, Customer Adoption & Channel Risk',
+    shortLabel: 'Commercial / Market',
+  },
+  {
+    value: 'FINANCIAL_SUPPLY_CHAIN',
+    label: '💶 Financial, Cashflow & Supply-Chain Risk',
+    shortLabel: 'Financial / Supply-Chain',
+  },
+  {
+    value: 'MANAGERIAL_REGULATORY',
+    label: '🛡️ Managerial, Key-Person & Regulatory Compliance Risk',
+    shortLabel: 'Managerial / Regulatory',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Project Risk Category)',
+    shortLabel: 'Other / Custom',
+  },
+];
+
+const RESIDUAL_RISK_RATING_OPTIONS: Array<{
+  value: ResidualRiskRatingType;
+  label: string;
+}> = [
+  {
+    value: 'LOW',
+    label: '🟢 Low Residual Risk (Controlled & Monitored)',
+  },
+  {
+    value: 'MEDIUM',
+    label: '🟡 Medium Residual Risk (Active Contingency Ready)',
+  },
+  {
+    value: 'HIGH',
+    label: '🔴 High Residual Risk (⚠️ Needs Stronger Mitigation for Grants)',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Residual Risk Rating)',
+  },
+];
+
+function buildDefaultStep3DataForPlan(
+  plan: ActiveStartupPlan,
+  selectedCountry: SupportedCountryCode
+): RiskRegisterStep3Data {
+  const saved = plan.moduleEData?.riskRegister;
+  if (saved && saved.riskItems && saved.riskItems.length > 0) {
+    return {
+      supplierRedundancyPosture:
+        saved.supplierRedundancyPosture || 'DUAL_SOURCED_VERIFIED',
+      otherSupplierRedundancyPostureText:
+        saved.otherSupplierRedundancyPostureText || '',
+      leadTimeBufferDays: saved.leadTimeBufferDays ?? 14,
+      primarySuppliersSummary: saved.primarySuppliersSummary || '',
+      backupSuppliersSummary: saved.backupSuppliersSummary || '',
+      riskItems: saved.riskItems,
+      supplyChainResilienceNarrative:
+        saved.supplyChainResilienceNarrative || '',
+      riskManagementGovernanceNarrative:
+        saved.riskManagementGovernanceNarrative || '',
+      lastSavedAt: saved.lastSavedAt,
+      aiEngineUsed: saved.aiEngineUsed,
+    };
+  }
+
+  const track =
+    plan.moduleDData?.productVehicle?.productTrack ||
+    detectRecommendedProductTrack(plan);
+  const isPhysical = track === 'PHYSICAL_PRODUCT_ECOM';
+  const isService = track === 'PRODUCTIZED_SERVICE_AGENCY';
+  const isIE = selectedCountry === 'IE';
+  const isUK = selectedCountry === 'GB';
+  const currencySymbol = plan.baseCurrency === 'GBP' ? '£' : '€';
+  const cleanTitle = (plan.title || 'Our Venture').trim();
+
+  return {
+    supplierRedundancyPosture: isPhysical
+      ? 'DUAL_SOURCED_VERIFIED'
+      : isService
+        ? 'DUAL_SOURCED_VERIFIED'
+        : 'CLOUD_MULTI_REGION_FAILOVER',
+    otherSupplierRedundancyPostureText: '',
+    leadTimeBufferDays: isPhysical ? 21 : isService ? 7 : 3,
+    primarySuppliersSummary: isPhysical
+      ? isIE
+        ? 'Primary raw material, packaging, and tracked parcel courier partners in Ireland with agreed trade account terms and quality specifications.'
+        : isUK
+          ? 'Primary raw material, packaging, and tracked parcel courier partners in the UK with agreed trade account terms and quality specifications.'
+          : 'Primary raw material, packaging, and tracked courier suppliers with agreed lead-time SLAs and quality specifications.'
+      : isService
+        ? 'Core delivery workflow stack, client onboarding tools, and primary specialist delivery resources.'
+        : 'Managed cloud application hosting, PostgreSQL database cluster, Stripe checkout webhooks, and primary AI/API gateway.',
+    backupSuppliersSummary: isPhysical
+      ? isIE
+        ? 'Pre-vetted secondary Irish/EU material & packaging suppliers (aligned with Appendix C 3-quote bench) plus secondary tracked courier account.'
+        : isUK
+          ? 'Pre-vetted secondary UK material & packaging suppliers (aligned with 3-quote procurement bench) plus secondary tracked courier account.'
+          : 'Pre-vetted secondary material & packaging suppliers plus backup tracked courier account.'
+      : isService
+        ? 'Vetted bench of associate specialists under NDA and standardized SOP playbooks for seamless handover.'
+        : 'Automated daily off-site database snapshots, hard API rate-limit circuit breakers, and secondary transactional email/API failover.',
+    riskItems: [
+      {
+        id: 'risk-1',
+        riskCategory: 'TECHNICAL_PRODUCTION',
+        riskTitle: isPhysical
+          ? `Production Bottleneck, Equipment Downtime or Batch Quality Variance for ${cleanTitle}`
+          : isService
+            ? `Service Delivery Capacity Bottleneck or Scope Creep on Client Sprints`
+            : `Core Platform Reliability, API Latency or V1 Feature Scope Overrun`,
+        likelihoodScore: 3,
+        impactScore: 4,
+        grossRiskScore: 12,
+        mitigationAndContingencyPlan: isPhysical
+          ? 'Enforce a standardized 5-stage incoming material & pre-dispatch QC checklist, maintain critical machine wear-spares on-site, and batch-prepare core sub-assemblies ahead of peak demand.'
+          : isService
+            ? 'Standardize client deliverables into fixed-scope sprint templates with explicit change-order gates and automated intake checklists.'
+            : 'Enforce a ruthless V1 scope filter (Module D), automated CI/CD regression testing, and deterministic fallback guardrails so core workflows remain 99.9% available.',
+        ownerAndWorkPackage: 'Founder / Technical & Production Lead (WP1 / WP2)',
+        residualRiskRating: 'LOW',
+      },
+      {
+        id: 'risk-2',
+        riskCategory: 'COMMERCIAL_MARKET',
+        riskTitle:
+          'Slower Initial Customer Conversion or Seasonal Demand Concentration',
+        likelihoodScore: 3,
+        impactScore: 4,
+        grossRiskScore: 12,
+        mitigationAndContingencyPlan:
+          'Convert pre-qualified Module C survey & waitlist leads first, pair direct D2C/self-serve acquisition with recurring B2B/partner accounts, and validate willingness-to-pay before scaling ad spend.',
+        ownerAndWorkPackage: 'Founder / Commercial Lead (WP3 — Go-to-Market)',
+        residualRiskRating: 'LOW',
+      },
+      {
+        id: 'risk-3',
+        riskCategory: 'FINANCIAL_SUPPLY_CHAIN',
+        riskTitle: isPhysical
+          ? isIE
+            ? `Raw Material Price Inflation, Supplier Lead-Time Delays or IE LEO Grant Reimbursement Timing Gap`
+            : isUK
+              ? `Raw Material Price Inflation, Supplier Lead-Time Delays or UK Quarterly Grant Claim Timing Gap`
+              : `Raw Material Price Inflation, Supplier Lead-Time Delays or Working Capital Timing Gap`
+          : isIE
+            ? `Third-Party API / Cloud Cost Spikes or IE LEO Grant Reimbursement Cashflow Timing Gap`
+            : isUK
+              ? `Third-Party API / Cloud Cost Spikes or UK Innovate UK / Start Up Loan Working Capital Timing Gap`
+              : `Third-Party API / Cloud Cost Spikes or Working Capital Timing Gap`,
+        likelihoodScore: 3,
+        impactScore: 4,
+        grossRiskScore: 12,
+        mitigationAndContingencyPlan: isPhysical
+          ? isIE
+            ? `Maintain dual-sourced Irish/EU suppliers (backed by 3 written quotes >= ${currencySymbol}1,000 in Appendix C), hold 21 days of buffer stock, and ring-fence working capital to bridge retrospective IE LEO grant claims.`
+            : isUK
+              ? `Maintain dual-sourced UK suppliers (backed by 3 written quotes >= ${currencySymbol}1,000), hold 21 days of buffer stock, and ring-fence working capital for British Business Bank Start Up Loan / Innovate UK quarterly milestones.`
+              : `Maintain dual-sourced suppliers (backed by 3 written quotes >= ${currencySymbol}1,000), hold 21 days of buffer stock, and protect unit gross margins in Module G.`
+          : `Enforce hard daily API/cloud cost circuit breakers, maintain 3-quote vendor comparisons for contracts >= ${currencySymbol}1,000, and stage discretionary spend against verified revenue milestones.`,
+        ownerAndWorkPackage: 'Founder / Finance & Ops Lead (WP2 / Module I)',
+        residualRiskRating: 'LOW',
+      },
+      {
+        id: 'risk-4',
+        riskCategory: 'MANAGERIAL_REGULATORY',
+        riskTitle: isPhysical
+          ? 'Single-Founder Bandwidth Constraint & Product Safety / Workshop Health & Safety Compliance'
+          : 'Founder Bandwidth Constraint & GDPR / Data Privacy / IP Protection Compliance',
+        likelihoodScore: 2,
+        impactScore: 4,
+        grossRiskScore: 8,
+        mitigationAndContingencyPlan: isPhysical
+          ? 'Document all 5 production stages in a repeatable SOP manual so part-time workshop assistance can be onboarded smoothly; maintain product liability insurance, safety extraction, and batch traceability.'
+          : 'Document all core operational SOPs, enforce least-privilege access & encrypted data storage (GDPR compliant), and automate routine customer onboarding.',
+        ownerAndWorkPackage: 'Founding Team / Operations Lead (WP1 / WP4)',
+        residualRiskRating: 'LOW',
+      },
+    ],
+    supplyChainResilienceNarrative: '',
+    riskManagementGovernanceNarrative: '',
+  };
+}
+
 export function ModuleEWorkspace({
   plan,
   selectedCountry,
@@ -948,6 +1216,8 @@ export function ModuleEWorkspace({
   onGenerateAiOperationsBlueprint,
   onSaveStep2PremisesEquipment,
   onGenerateAiPremisesEquipment,
+  onSaveStep3RiskRegister,
+  onGenerateAiRiskRegister,
   onParkOpenQuestion,
   onBackToModuleD,
 }: ModuleEWorkspaceProps) {
@@ -974,6 +1244,10 @@ export function ModuleEWorkspace({
     buildDefaultStep2DataForPlan(plan, selectedCountry)
   );
 
+  const [step3Data, setStep3Data] = useState<RiskRegisterStep3Data>(() =>
+    buildDefaultStep3DataForPlan(plan, selectedCountry)
+  );
+
   const [showWhyAsking, setShowWhyAsking] = useState(false);
   const [showExampleDrawer, setShowExampleDrawer] = useState(false);
   const [examplePersonaTab, setExamplePersonaTab] = useState<
@@ -990,6 +1264,13 @@ export function ModuleEWorkspace({
   const [parkQuestionInputStep2, setParkQuestionInputStep2] = useState('');
   const [isSavingStep2, setIsSavingStep2] = useState(false);
   const [isGeneratingAiStep2, setIsGeneratingAiStep2] = useState(false);
+
+  const [showWhyAskingStep3, setShowWhyAskingStep3] = useState(false);
+  const [showExampleDrawerStep3, setShowExampleDrawerStep3] = useState(false);
+  const [showParkInputStep3, setShowParkInputStep3] = useState(false);
+  const [parkQuestionInputStep3, setParkQuestionInputStep3] = useState('');
+  const [isSavingStep3, setIsSavingStep3] = useState(false);
+  const [isGeneratingAiStep3, setIsGeneratingAiStep3] = useState(false);
 
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
 
@@ -1779,6 +2060,219 @@ export function ModuleEWorkspace({
     }
   }
 
+  // Live computed Step 3 Risk Register & Supply-Chain Resilience Metrics
+  const mandatoryRiskCategories: Array<{
+    code: ProjectRiskCategoryType;
+    label: string;
+  }> = [
+    { code: 'TECHNICAL_PRODUCTION', label: 'Technical / Production' },
+    { code: 'COMMERCIAL_MARKET', label: 'Commercial / Market' },
+    { code: 'FINANCIAL_SUPPLY_CHAIN', label: 'Financial / Supply-Chain' },
+    { code: 'MANAGERIAL_REGULATORY', label: 'Managerial / Regulatory' },
+  ];
+
+  const coveredMandatoryCategories = mandatoryRiskCategories.filter((cat) =>
+    step3Data.riskItems.some((r) => r.riskCategory === cat.code)
+  );
+  const missingMandatoryCategories = mandatoryRiskCategories.filter(
+    (cat) => !step3Data.riskItems.some((r) => r.riskCategory === cat.code)
+  );
+
+  const totalGrossRiskScore = step3Data.riskItems.reduce(
+    (sum, r) =>
+      sum +
+      Math.max(1, Math.min(5, Number(r.likelihoodScore) || 3)) *
+        Math.max(1, Math.min(5, Number(r.impactScore) || 3)),
+    0
+  );
+  const averageGrossRiskScore =
+    step3Data.riskItems.length > 0
+      ? Math.round((totalGrossRiskScore / step3Data.riskItems.length) * 10) / 10
+      : 0;
+
+  const highGrossRiskItemsCount = step3Data.riskItems.filter(
+    (r) =>
+      Math.max(1, Math.min(5, Number(r.likelihoodScore) || 3)) *
+        Math.max(1, Math.min(5, Number(r.impactScore) || 3)) >=
+      12
+  ).length;
+
+  const highResidualRisksCount = step3Data.riskItems.filter(
+    (r) => r.residualRiskRating === 'HIGH'
+  ).length;
+  const lowOrMediumResidualRisksCount = step3Data.riskItems.filter(
+    (r) =>
+      r.residualRiskRating === 'LOW' || r.residualRiskRating === 'MEDIUM'
+  ).length;
+
+  function handleUpdateRiskItem(
+    riskId: string,
+    patch: Partial<ProjectRiskRegisterItem>
+  ) {
+    if (isVaultReadonly) return;
+    setStep3Data((prev) => ({
+      ...prev,
+      riskItems: prev.riskItems.map((item) => {
+        if (item.id !== riskId) return item;
+        const merged = { ...item, ...patch };
+        const likelihoodScore = Math.max(
+          1,
+          Math.min(5, Number(merged.likelihoodScore) || 3)
+        );
+        const impactScore = Math.max(
+          1,
+          Math.min(5, Number(merged.impactScore) || 3)
+        );
+        return {
+          ...merged,
+          likelihoodScore,
+          impactScore,
+          grossRiskScore: likelihoodScore * impactScore,
+        };
+      }),
+    }));
+  }
+
+  function handleAddRiskItem() {
+    if (isVaultReadonly) return;
+    setStep3Data((prev) => {
+      const nextMissingCat =
+        missingMandatoryCategories[0]?.code || 'TECHNICAL_PRODUCTION';
+      const newRisk: ProjectRiskRegisterItem = {
+        id: `risk-custom-${Date.now()}`,
+        riskCategory: nextMissingCat,
+        riskTitle: 'New Project Operational or Supply-Chain Risk',
+        likelihoodScore: 3,
+        impactScore: 4,
+        grossRiskScore: 12,
+        mitigationAndContingencyPlan:
+          'Define concrete preventative controls and a clear contingency trigger if this risk materializes.',
+        ownerAndWorkPackage: 'Founder / Operations Lead (WP1 / WP2)',
+        residualRiskRating: 'LOW',
+        isCustom: true,
+      };
+      return {
+        ...prev,
+        riskItems: [...prev.riskItems, newRisk],
+      };
+    });
+  }
+
+  function handleRemoveRiskItem(riskId: string) {
+    if (isVaultReadonly) return;
+    setStep3Data((prev) => {
+      if (prev.riskItems.length <= 1) return prev;
+      return {
+        ...prev,
+        riskItems: prev.riskItems.filter((r) => r.id !== riskId),
+      };
+    });
+  }
+
+  function handleApplyStep3IndustryBenchmark() {
+    if (isVaultReadonly) return;
+    const benchmarkDefaults = buildDefaultStep3DataForPlan(
+      {
+        ...plan,
+        moduleEData: {
+          ...(plan.moduleEData || {}),
+          riskRegister: undefined,
+        },
+      },
+      selectedCountry
+    );
+    setStep3Data((prev) => ({
+      ...benchmarkDefaults,
+      supplyChainResilienceNarrative:
+        prev.supplyChainResilienceNarrative ||
+        benchmarkDefaults.supplyChainResilienceNarrative,
+      riskManagementGovernanceNarrative:
+        prev.riskManagementGovernanceNarrative ||
+        benchmarkDefaults.riskManagementGovernanceNarrative,
+    }));
+    setSaveBanner(
+      '📊 Applied industry benchmark supply-chain buffer & 4-category risk structure for your product track! Click Save Step 3 below to persist.'
+    );
+  }
+
+  async function handleRunAiStep3(
+    mode: 'POPULATE_RISKS_AND_NARRATIVES' | 'NARRATIVES_ONLY'
+  ) {
+    if (isVaultReadonly) return;
+    setIsGeneratingAiStep3(true);
+    setSaveBanner(null);
+    try {
+      const res = await onGenerateAiRiskRegister({
+        selectedTrack: inheritedTrack,
+        otherProductTrackText: inheritedOtherTrackText,
+        currentSupplierRedundancyPosture: step3Data.supplierRedundancyPosture,
+        currentLeadTimeBufferDays: step3Data.leadTimeBufferDays,
+        currentPrimarySuppliersSummary: step3Data.primarySuppliersSummary,
+        currentBackupSuppliersSummary: step3Data.backupSuppliersSummary,
+        currentRiskItems: step3Data.riskItems,
+        mode,
+      });
+
+      if (!res.allowed) return;
+
+      const nextData: RiskRegisterStep3Data = {
+        ...step3Data,
+        supplierRedundancyPosture:
+          step3Data.supplierRedundancyPosture || res.supplierRedundancyPosture,
+        leadTimeBufferDays:
+          step3Data.leadTimeBufferDays ?? res.leadTimeBufferDays,
+        primarySuppliersSummary:
+          step3Data.primarySuppliersSummary.trim() ||
+          res.primarySuppliersSummary,
+        backupSuppliersSummary:
+          step3Data.backupSuppliersSummary.trim() || res.backupSuppliersSummary,
+        riskItems:
+          mode === 'NARRATIVES_ONLY' && step3Data.riskItems.length > 0
+            ? step3Data.riskItems
+            : res.riskItems,
+        supplyChainResilienceNarrative: res.supplyChainResilienceNarrative,
+        riskManagementGovernanceNarrative:
+          res.riskManagementGovernanceNarrative,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+
+      setStep3Data(nextData);
+      await onSaveStep3RiskRegister(nextData, 70);
+      setSaveBanner(
+        mode === 'NARRATIVES_ONLY'
+          ? '✨ Synthesized your Supply-Chain Resilience & Risk Governance Narratives and saved Step 3!'
+          : '✨ Generated your 4-Category Grant-Ready Risk Register + Narratives and saved Step 3!'
+      );
+    } finally {
+      setIsGeneratingAiStep3(false);
+    }
+  }
+
+  async function handleSaveStep3() {
+    if (isVaultReadonly) return;
+    setIsSavingStep3(true);
+    setSaveBanner(null);
+    try {
+      const nowIso = new Date().toISOString();
+      const nextData: RiskRegisterStep3Data = {
+        ...step3Data,
+        lastSavedAt: nowIso,
+      };
+      setStep3Data(nextData);
+      const isComplete =
+        Boolean(nextData.supplierRedundancyPosture) &&
+        nextData.riskItems.length >= 4 &&
+        nextData.riskManagementGovernanceNarrative.trim().length > 10;
+      await onSaveStep3RiskRegister(nextData, isComplete ? 70 : 58);
+      setSaveBanner(
+        '✅ Saved Module E Step 3 (Supply-Chain Resilience & 4-Category Project Risk Register)!'
+      );
+    } finally {
+      setIsSavingStep3(false);
+    }
+  }
+
   const STEP_TABS: Array<{
     id: 'STEP_1' | 'STEP_2' | 'STEP_3' | 'STEP_4' | 'STEP_5' | 'STEP_6';
     short: string;
@@ -1809,7 +2303,10 @@ export function ModuleEWorkspace({
       id: 'STEP_3',
       short: 'Step 3',
       title: '4-Category Risk Register',
-      isComplete: false,
+      isComplete:
+        Boolean(step3Data.supplierRedundancyPosture) &&
+        step3Data.riskItems.length >= 4 &&
+        step3Data.riskManagementGovernanceNarrative.trim().length > 10,
     },
     {
       id: 'STEP_4',
@@ -1998,35 +2495,6 @@ export function ModuleEWorkspace({
                     <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
                     Show Me an Example
                   </Button>
-                </div>
-              </div>
-
-              {/* Quick Interactive Persona Switcher Bar (BMU vs. Woodworker Chopping Boards) */}
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs">
-                <span className="font-semibold text-slate-700">
-                  🎯 Want to test or start from a proven operational template?
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={isVaultReadonly}
-                    onClick={() =>
-                      handleLoadPresetPersona('WOODWORKER_BOARDS')
-                    }
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 font-semibold text-amber-950 transition hover:bg-amber-100"
-                  >
-                    <Hammer className="h-3.5 w-3.5 text-amber-700" />
-                    Load Woodworker (Chopping Boards) Blueprint
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isVaultReadonly}
-                    onClick={() => handleLoadPresetPersona('BMU_SAAS')}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-semibold text-indigo-900 transition hover:bg-indigo-100"
-                  >
-                    <Laptop className="h-3.5 w-3.5 text-indigo-600" />
-                    Load Build My Unicorn (Cloud AI SaaS) Blueprint
-                  </button>
                 </div>
               </div>
             </CardHeader>
@@ -3081,42 +3549,6 @@ export function ModuleEWorkspace({
                   >
                     <Gauge className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
                     Use Industry Benchmark
-                  </Button>
-                </div>
-              </div>
-
-              {/* Quick 1-Click Persona Switcher Bar */}
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-3 py-2">
-                <div className="flex items-center gap-2 text-xs font-medium text-indigo-950">
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
-                  <span>
-                    Compare or load a complete Grant-Ready Equipment &amp;
-                    Premises Schedule:
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={isVaultReadonly}
-                    onClick={() =>
-                      handleLoadStep2PresetPersona('WOODWORKER_BOARDS')
-                    }
-                    className="h-7 border-amber-300 bg-white px-2.5 text-[11px] font-semibold text-amber-950 hover:bg-amber-50"
-                  >
-                    🪵 Load Woodworker (Chopping Boards) Capex &amp; 3-Quote
-                    Schedule
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={isVaultReadonly}
-                    onClick={() => handleLoadStep2PresetPersona('BMU_SAAS')}
-                    className="h-7 border-indigo-300 bg-white px-2.5 text-[11px] font-semibold text-indigo-950 hover:bg-indigo-50"
-                  >
-                    🦄 Load Build My Unicorn (Cloud AI SaaS) Ring-Fenced Schedule
                   </Button>
                 </div>
               </div>
@@ -4558,6 +4990,21 @@ export function ModuleEWorkspace({
                       </>
                     )}
                   </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isSavingStep2}
+                    onClick={async () => {
+                      if (!isVaultReadonly) {
+                        await handleSaveStep2();
+                      }
+                      setActiveTab('STEP_3');
+                    }}
+                    className="bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700"
+                  >
+                    Save &amp; Continue to Step 3
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
 
@@ -4801,42 +5248,1253 @@ export function ModuleEWorkspace({
       )}
 
       {/* ===================================================================== */}
-      {/* UPCOMING STEPS 3–6 PREVIEW CARDS (READY FOR NEXT ITERATIONS)          */}
+      {/* STEP 3: SUPPLY-CHAIN RESILIENCE & 4-CATEGORY PROJECT RISK REGISTER    */}
       {/* ===================================================================== */}
-      {activeTab !== 'STEP_1' && activeTab !== 'STEP_2' && (
-        <Card className="border-slate-200 bg-white shadow-xs">
-          <CardHeader>
-            <CardTitle className="text-base font-bold text-slate-900">
-              {STEP_TABS.find((t) => t.id === activeTab)?.short}:{' '}
-              {STEP_TABS.find((t) => t.id === activeTab)?.title}
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-600">
-              Complete Steps 1 and 2 first—we are building Steps 3–6
-              sequentially next!
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setActiveTab('STEP_1')}
-              className="text-xs"
-            >
-              &larr; Return to Step 1 (Day in the Life of an Order)
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setActiveTab('STEP_2')}
-              className="text-xs"
-            >
-              &larr; Return to Step 2 (Premises, Equipment &amp; 3 Quotes)
-            </Button>
-          </CardContent>
-        </Card>
+      {activeTab === 'STEP_3' && (
+        <div className="space-y-5">
+          <Card className="border-indigo-200 bg-white shadow-xs">
+            <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
+              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-indigo-600 text-white">
+                      Step 3 of 6 • Supply-Chain Resilience &amp; 4-Category
+                      Risk Register
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-900"
+                    >
+                      {selectedCountry === 'IE'
+                        ? '🇮🇪 IE LEO Project Risk Table & Enterprise Ireland Supply-Chain Audit Ready'
+                        : selectedCountry === 'GB'
+                          ? '🇬🇧 UK Innovate UK Q9 Risk Register Appendix & Start Up Loan Ready'
+                          : '🌍 4-Category Project Risk Register & Supply-Chain Audit Ready'}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-base font-bold text-slate-900 sm:text-lg">
+                    How Do You Prevent Single Points of Failure &amp; De-Risk
+                    Execution?
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    {selectedCountry === 'IE' ? (
+                      <>
+                        Define your backup supplier strategy and build a formal{' '}
+                        <strong>
+                          4-Category Project Risk Register (Likelihood 1–5
+                          &times; Impact 1–5)
+                        </strong>{' '}
+                        covering Technical/Production, Commercial/Market,
+                        Financial/Supply-Chain, and Managerial/Regulatory risks
+                        for your{' '}
+                        <strong>
+                          🇮🇪 IE Local Enterprise Office (LEO) / Enterprise
+                          Ireland
+                        </strong>{' '}
+                        business plan.
+                      </>
+                    ) : selectedCountry === 'GB' ? (
+                      <>
+                        Define your backup supplier strategy and build a formal{' '}
+                        <strong>
+                          4-Category Project Risk Register (Likelihood 1–5
+                          &times; Impact 1–5)
+                        </strong>{' '}
+                        covering Technical/Production, Commercial/Market,
+                        Financial/Supply-Chain, and Managerial/Regulatory risks
+                        for{' '}
+                        <strong>
+                          🇬🇧 UK Innovate UK Question 9 (Risk Register Appendix)
+                        </strong>{' '}
+                        and{' '}
+                        <strong>British Business Bank Start Up Loans</strong>.
+                      </>
+                    ) : (
+                      <>
+                        Define your backup supplier strategy and build a formal{' '}
+                        <strong>
+                          4-Category Project Risk Register (Likelihood 1–5
+                          &times; Impact 1–5)
+                        </strong>{' '}
+                        covering Technical/Production, Commercial/Market,
+                        Financial/Supply-Chain, and Managerial/Regulatory risks
+                        for Module K.
+                      </>
+                    )}
+                  </CardDescription>
+                </div>
+
+                {/* 4-Layer Built-In Support Buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowWhyAskingStep3(!showWhyAskingStep3)}
+                    className="border-indigo-200 bg-indigo-50/60 text-xs text-indigo-900 hover:bg-indigo-100"
+                  >
+                    <HelpCircle className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    Why Are We Asking This?
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setShowExampleDrawerStep3(!showExampleDrawerStep3)
+                    }
+                    className="border-emerald-200 bg-emerald-50/70 text-xs text-emerald-900 hover:bg-emerald-100"
+                  >
+                    <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                    Show Me an Example
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isVaultReadonly}
+                    onClick={handleApplyStep3IndustryBenchmark}
+                    className="border-amber-200 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
+                  >
+                    <Gauge className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                    Use Industry Benchmark
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-6 pt-5">
+              {/* MICRO-COACHING DRAWER: WHY ARE WE ASKING THIS? */}
+              {showWhyAskingStep3 && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-indigo-900">
+                      <ShieldCheck className="h-4 w-4 text-indigo-700" />
+                      Why Grant Evaluators &amp; Underwriters Require a Scored
+                      4-Category Risk Register
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowWhyAskingStep3(false)}
+                      className="text-[11px] font-semibold text-indigo-700 underline"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  {selectedCountry === 'IE' ? (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                        <div className="font-bold text-slate-900">
+                          1. 🇮🇪 IE LEO / Enterprise Ireland 4-Category Rule
+                        </div>
+                        <p className="mt-1 leading-relaxed text-slate-600">
+                          Irish grant evaluators reject generic statements like
+                          &ldquo;we have no major risks.&rdquo; They look for a
+                          structured table covering{' '}
+                          <strong>
+                            Technical/Production, Commercial/Market,
+                            Financial/Supply-Chain, and Managerial/Regulatory
+                          </strong>{' '}
+                          risks with concrete mitigations that reduce residual
+                          risk to Low or Medium.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                        <div className="font-bold text-slate-900">
+                          2. Dual-Sourced Supply-Chain Resilience
+                        </div>
+                        <p className="mt-1 leading-relaxed text-slate-600">
+                          Because IE LEO requires 3 written quotes for items
+                          &ge; {formatPlanCurrency(1000, plan.baseCurrency)} in
+                          Appendix C, evaluators check that your runner-up
+                          quoted suppliers also act as pre-vetted backup
+                          suppliers if your primary vendor faces stockouts or
+                          price spikes.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                        <div className="font-bold text-slate-900">
+                          3. Retrospective Grant Cashflow Timing Risk
+                        </div>
+                        <p className="mt-1 leading-relaxed text-slate-600">
+                          IE LEO capital grants are paid retrospectively after
+                          you pay the supplier and submit receipts. Including a
+                          Financial/Supply-Chain mitigation for working-capital
+                          timing proves commercial maturity to the Evaluation
+                          Committee.
+                        </p>
+                      </div>
+                    </div>
+                  ) : selectedCountry === 'GB' ? (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                        <div className="font-bold text-slate-900">
+                          1. 🇬🇧 UK Innovate UK Question 9 (Risk Register)
+                        </div>
+                        <p className="mt-1 leading-relaxed text-slate-600">
+                          Innovate UK assessors score Question 9 specifically on
+                          whether you identify{' '}
+                          <strong>
+                            Technical, Commercial, Financial, and
+                            Managerial/Environmental
+                          </strong>{' '}
+                          risks, score Likelihood (1–5) &times; Impact (1–5),
+                          assign a Work Package owner, and demonstrate how
+                          mitigations reduce residual risk.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                        <div className="font-bold text-slate-900">
+                          2. British Business Bank Start Up Loan Underwriting
+                        </div>
+                        <p className="mt-1 leading-relaxed text-slate-600">
+                          Start Up Loan underwriters test what happens if a key
+                          supplier delays delivery, customer conversion takes 60
+                          days longer than planned, or a solo founder is
+                          temporarily unavailable.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                        <div className="font-bold text-slate-900">
+                          3. Linked to Module D Work Packages (WP1..n)
+                        </div>
+                        <p className="mt-1 leading-relaxed text-slate-600">
+                          Linking each risk to a named owner and Work Package
+                          (e.g., WP1 Engineering / Production, WP3 Go-to-Market)
+                          compiles directly into your 2-page Risk Register
+                          Appendix in Module K.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                        <div className="font-bold text-slate-900">
+                          1. Complete 4-Category Coverage
+                        </div>
+                        <p className="mt-1 leading-relaxed text-slate-600">
+                          Assessors and lenders expect a balanced Risk Register
+                          covering Technical/Production, Commercial/Market,
+                          Financial/Supply-Chain, and Managerial/Regulatory
+                          risks.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                        <div className="font-bold text-slate-900">
+                          2. Quantified Gross vs. Residual Risk
+                        </div>
+                        <p className="mt-1 leading-relaxed text-slate-600">
+                          Scoring Likelihood (1–5) &times; Impact (1–5) = Gross
+                          Score (/25) and showing how your mitigation drops
+                          Residual Risk to Low/Medium proves operational
+                          readiness.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                        <div className="font-bold text-slate-900">
+                          3. No Single Point of Failure
+                        </div>
+                        <p className="mt-1 leading-relaxed text-slate-600">
+                          Documenting primary and backup suppliers plus a lead
+                          time buffer protects your unit economics in Module G
+                          and cashflow in Module I.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SHOW ME AN EXAMPLE DRAWER */}
+              {showExampleDrawerStep3 && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs text-emerald-950">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-emerald-900">
+                      <Lightbulb className="h-4 w-4 text-emerald-700" />
+                      Industry Example: How a Scored Risk Row Reads in Module K
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowExampleDrawerStep3(false)}
+                      className="text-[11px] font-semibold text-emerald-800 underline"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="rounded-lg border border-emerald-200 bg-white p-3">
+                      <div className="font-bold text-slate-900">
+                        Physical / Maker Supply-Chain Risk Example
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-600">
+                        <strong>Risk:</strong> Primary raw material supplier
+                        stockout or courier damage during Q4 peak (Likelihood 3
+                        &times; Impact 4 = <strong>12/25 Gross</strong>).{' '}
+                        <br />
+                        <strong>Mitigation:</strong> Dual-source across 2
+                        pre-vetted suppliers from our Step 2 3-quote bench, hold
+                        21 days of buffer inventory on-site, and maintain a
+                        backup tracked courier account &rarr;{' '}
+                        <strong className="text-emerald-700">
+                          LOW Residual Risk
+                        </strong>
+                        .
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200 bg-white p-3">
+                      <div className="font-bold text-slate-900">
+                        Digital / SaaS Infrastructure Risk Example
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-600">
+                        <strong>Risk:</strong> Third-party AI API rate spike or
+                        upstream cloud outage (Likelihood 3 &times; Impact 5 ={' '}
+                        <strong>15/25 Gross</strong>). <br />
+                        <strong>Mitigation:</strong> Enforce hard daily API call
+                        circuit breakers, automatic deterministic fallback, and
+                        daily encrypted off-site PostgreSQL snapshots &rarr;{' '}
+                        <strong className="text-emerald-700">
+                          LOW Residual Risk
+                        </strong>
+                        .
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ============================================================= */}
+              {/* LIVE 4-CARD RISK & RESILIENCE METRICS STRIP                   */}
+              {/* ============================================================= */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    4-Category Coverage
+                  </div>
+                  <div className="mt-1 text-lg font-extrabold text-slate-900">
+                    {coveredMandatoryCategories.length} / 4 Categories
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-600">
+                    {missingMandatoryCategories.length === 0 ? (
+                      <span className="font-semibold text-emerald-700">
+                        ✓ Tech, Commercial, Financial &amp; Managerial covered
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-amber-800">
+                        Missing:{' '}
+                        {missingMandatoryCategories
+                          .map((c) => c.label)
+                          .join(', ')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-800">
+                    Average Gross Risk Score
+                  </div>
+                  <div className="mt-1 text-lg font-extrabold text-indigo-950">
+                    {averageGrossRiskScore} / 25
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-indigo-900/80">
+                    {highGrossRiskItemsCount} high-severity gross risk(s) (&ge;
+                    12/25) identified
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">
+                    Post-Mitigation Residual Risk
+                  </div>
+                  <div className="mt-1 text-lg font-extrabold text-emerald-950">
+                    {lowOrMediumResidualRisksCount} /{' '}
+                    {step3Data.riskItems.length} Controlled
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-emerald-900/80">
+                    {highResidualRisksCount === 0
+                      ? '✓ Zero unmitigated High residual risks'
+                      : `⚠️ ${highResidualRisksCount} risk(s) still rated HIGH residual`}
+                  </div>
+                </div>
+
+                {selectedCountry === 'IE' ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-900">
+                      🇮🇪 IE LEO / EI Risk Audit Status
+                    </div>
+                    <div className="mt-1 text-lg font-extrabold text-amber-950">
+                      {coveredMandatoryCategories.length === 4 &&
+                      highResidualRisksCount === 0
+                        ? '100% Grant-Ready'
+                        : 'Action Recommended'}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-amber-900/80">
+                      {step3Data.leadTimeBufferDays}d supply buffer • Dual-source
+                      &amp; 4-category table active
+                    </div>
+                  </div>
+                ) : selectedCountry === 'GB' ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-900">
+                      🇬🇧 UK Innovate UK Q9 Status
+                    </div>
+                    <div className="mt-1 text-lg font-extrabold text-amber-950">
+                      {coveredMandatoryCategories.length === 4 &&
+                      highResidualRisksCount === 0
+                        ? 'Q9 Appendix Ready'
+                        : 'Action Recommended'}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-amber-900/80">
+                      {step3Data.leadTimeBufferDays}d supply buffer • Scored L
+                      &times; I matrix &amp; WP owners active
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-900">
+                      Supply-Chain Buffer &amp; Audit
+                    </div>
+                    <div className="mt-1 text-lg font-extrabold text-amber-950">
+                      {step3Data.leadTimeBufferDays} Days Buffer
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-amber-900/80">
+                      {coveredMandatoryCategories.length === 4 &&
+                      highResidualRisksCount === 0
+                        ? '✓ All 4 risk categories mitigated'
+                        : 'Complete all 4 categories for Module K'}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ============================================================= */}
+              {/* SECTION 1: SUPPLY-CHAIN RESILIENCE & BACKUP SOURCING          */}
+              {/* ============================================================= */}
+              <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      1. Supply-Chain Resilience &amp; Backup Supplier Posture
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      How do you prevent a single supplier delay, raw material
+                      shortage, or cloud API outage from halting customer
+                      orders?
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs">
+                    <label className="font-bold text-slate-700">
+                      Safety Stock / Lead-Time Buffer (Days):
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={180}
+                      step={1}
+                      disabled={isVaultReadonly}
+                      value={step3Data.leadTimeBufferDays}
+                      onChange={(e) =>
+                        setStep3Data((prev) => ({
+                          ...prev,
+                          leadTimeBufferDays: Math.max(
+                            0,
+                            Math.min(180, Number(e.target.value) || 0)
+                          ),
+                        }))
+                      }
+                      className="w-20 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-center text-base font-bold text-indigo-900 sm:text-xs"
+                    />
+                    <span className="text-[11px] text-slate-500">days</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {SUPPLIER_REDUNDANCY_POSTURE_OPTIONS.map((opt) => {
+                    const isSelected =
+                      step3Data.supplierRedundancyPosture === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() =>
+                          setStep3Data((prev) => ({
+                            ...prev,
+                            supplierRedundancyPosture: opt.value,
+                          }))
+                        }
+                        className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-600/20'
+                            : 'border-slate-200 bg-white hover:border-indigo-300'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                              {opt.badge}
+                            </span>
+                            {isSelected && (
+                              <Check className="h-4 w-4 text-indigo-600" />
+                            )}
+                          </div>
+                          <div className="mt-1.5 text-xs font-bold text-slate-900">
+                            {opt.label}
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            {opt.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {step3Data.supplierRedundancyPosture === 'OTHER' && (
+                  <div className="rounded-xl border border-indigo-200 bg-white p-3">
+                    <label className="mb-1 block text-xs font-bold text-slate-800">
+                      Describe Your Custom Supply-Chain Redundancy Strategy:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={isVaultReadonly}
+                      value={step3Data.otherSupplierRedundancyPostureText || ''}
+                      onChange={(e) =>
+                        setStep3Data((prev) => ({
+                          ...prev,
+                          otherSupplierRedundancyPostureText: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Co-operative local farm sourcing + seasonal cold-storage buffer..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-slate-800">
+                      1B. Primary Suppliers, Couriers or Critical Cloud Stack
+                    </label>
+                    <textarea
+                      rows={2}
+                      disabled={isVaultReadonly}
+                      value={step3Data.primarySuppliersSummary}
+                      onChange={(e) =>
+                        setStep3Data((prev) => ({
+                          ...prev,
+                          primarySuppliersSummary: e.target.value,
+                        }))
+                      }
+                      placeholder="List your primary raw material suppliers, contract manufacturers, couriers, or primary cloud/API infrastructure..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-slate-800">
+                      1C. Verified Backup Suppliers &amp; Failover Protocol
+                    </label>
+                    <textarea
+                      rows={2}
+                      disabled={isVaultReadonly}
+                      value={step3Data.backupSuppliersSummary}
+                      onChange={(e) =>
+                        setStep3Data((prev) => ({
+                          ...prev,
+                          backupSuppliersSummary: e.target.value,
+                        }))
+                      }
+                      placeholder="List your secondary backup suppliers, alternate courier account, or automated cloud failover / circuit-breaker setup..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* SECTION 2: INTERACTIVE 4-CATEGORY PROJECT RISK REGISTER       */}
+              {/* ============================================================= */}
+              <div className="space-y-4">
+                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      2. Interactive 4-Category Project Risk Register (Likelihood
+                      1–5 &times; Impact 1–5 = Gross Score /25)
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      {selectedCountry === 'IE'
+                        ? 'Score each operational risk and document concrete preventative actions & contingency triggers for your IE LEO / Enterprise Ireland evaluation.'
+                        : selectedCountry === 'GB'
+                          ? 'Score each operational risk, assign a Work Package owner, and document concrete mitigations for UK Innovate UK Question 9 & Start Up Loans.'
+                          : 'Score each operational risk, assign an owner, and document concrete preventative actions & contingency triggers.'}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isVaultReadonly || isGeneratingAiStep3}
+                      onClick={() =>
+                        handleRunAiStep3('POPULATE_RISKS_AND_NARRATIVES')
+                      }
+                      className="border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                    >
+                      {isGeneratingAiStep3 ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          Drafting Risk Register...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                          AI Draft 4-Category Risk Register
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isVaultReadonly}
+                      onClick={handleAddRiskItem}
+                      className="border-indigo-300 bg-white text-xs font-semibold text-indigo-900 hover:bg-indigo-50"
+                    >
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      Add Risk Row
+                    </Button>
+                  </div>
+                </div>
+
+                {missingMandatoryCategories.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-950">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700" />
+                      <span>
+                        <strong>Missing Core Grant Risk Category:</strong> Add
+                        at least one risk row for{' '}
+                        <strong>
+                          {missingMandatoryCategories
+                            .map((c) => c.label)
+                            .join(', ')}
+                        </strong>{' '}
+                        so all 4 mandatory grant categories are covered.
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAddRiskItem}
+                      disabled={isVaultReadonly}
+                      className="h-7 bg-amber-700 px-2.5 text-[11px] font-semibold text-white hover:bg-amber-800"
+                    >
+                      + Add Missing Category Row
+                    </Button>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {step3Data.riskItems.map((risk, idx) => {
+                    const grossScore =
+                      Math.max(1, Math.min(5, Number(risk.likelihoodScore) || 3)) *
+                      Math.max(1, Math.min(5, Number(risk.impactScore) || 3));
+                    const grossBadgeColor =
+                      grossScore >= 15
+                        ? 'border-rose-300 bg-rose-100 text-rose-900'
+                        : grossScore >= 8
+                          ? 'border-amber-300 bg-amber-100 text-amber-950'
+                          : 'border-emerald-300 bg-emerald-100 text-emerald-900';
+
+                    const residualBadgeColor =
+                      risk.residualRiskRating === 'HIGH'
+                        ? 'border-rose-300 bg-rose-100 text-rose-900'
+                        : risk.residualRiskRating === 'MEDIUM'
+                          ? 'border-amber-300 bg-amber-100 text-amber-950'
+                          : 'border-emerald-300 bg-emerald-100 text-emerald-900';
+
+                    return (
+                      <div
+                        key={risk.id}
+                        className="space-y-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge className="bg-slate-900 text-[10px] text-white">
+                              Risk #{idx + 1}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] font-bold ${grossBadgeColor}`}
+                            >
+                              Gross Score: {risk.likelihoodScore} &times;{' '}
+                              {risk.impactScore} = {grossScore}/25
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] font-bold ${residualBadgeColor}`}
+                            >
+                              Residual:{' '}
+                              {risk.residualRiskRating === 'OTHER' &&
+                              risk.otherResidualRiskRatingText
+                                ? risk.otherResidualRiskRatingText
+                                : risk.residualRiskRating}
+                            </Badge>
+                          </div>
+
+                          {step3Data.riskItems.length > 1 && (
+                            <button
+                              type="button"
+                              disabled={isVaultReadonly}
+                              onClick={() => handleRemoveRiskItem(risk.id)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-800"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Remove
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+                          <div className="md:col-span-4">
+                            <label className="mb-1 block text-[11px] font-bold text-slate-700">
+                              Risk Category (4 Grant Pillars)
+                            </label>
+                            <select
+                              disabled={isVaultReadonly}
+                              value={risk.riskCategory}
+                              onChange={(e) =>
+                                handleUpdateRiskItem(risk.id, {
+                                  riskCategory: e.target
+                                    .value as ProjectRiskCategoryType,
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                            >
+                              {PROJECT_RISK_CATEGORY_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            {risk.riskCategory === 'OTHER' && (
+                              <input
+                                type="text"
+                                disabled={isVaultReadonly}
+                                value={risk.otherRiskCategoryText || ''}
+                                onChange={(e) =>
+                                  handleUpdateRiskItem(risk.id, {
+                                    otherRiskCategoryText: e.target.value,
+                                  })
+                                }
+                                placeholder="Specify custom risk category..."
+                                className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
+                              />
+                            )}
+                          </div>
+
+                          <div className="md:col-span-8">
+                            <label className="mb-1 block text-[11px] font-bold text-slate-700">
+                              Specific Risk Title / Failure Mode
+                            </label>
+                            <input
+                              type="text"
+                              disabled={isVaultReadonly}
+                              value={risk.riskTitle}
+                              onChange={(e) =>
+                                handleUpdateRiskItem(risk.id, {
+                                  riskTitle: e.target.value,
+                                })
+                              }
+                              placeholder="e.g., Primary supplier lead-time spike or CNC / production bottleneck during Q4 peak..."
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base font-semibold text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+                          <div className="grid grid-cols-2 gap-2 md:col-span-4">
+                            <div>
+                              <label className="mb-1 block text-[11px] font-bold text-slate-700">
+                                Likelihood (1–5)
+                              </label>
+                              <select
+                                disabled={isVaultReadonly}
+                                value={risk.likelihoodScore}
+                                onChange={(e) =>
+                                  handleUpdateRiskItem(risk.id, {
+                                    likelihoodScore: Number(e.target.value),
+                                  })
+                                }
+                                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-base font-bold text-slate-900 sm:text-xs"
+                              >
+                                <option value={1}>1 — Rare</option>
+                                <option value={2}>2 — Unlikely</option>
+                                <option value={3}>3 — Possible</option>
+                                <option value={4}>4 — Likely</option>
+                                <option value={5}>5 — Almost Certain</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="mb-1 block text-[11px] font-bold text-slate-700">
+                                Impact (1–5)
+                              </label>
+                              <select
+                                disabled={isVaultReadonly}
+                                value={risk.impactScore}
+                                onChange={(e) =>
+                                  handleUpdateRiskItem(risk.id, {
+                                    impactScore: Number(e.target.value),
+                                  })
+                                }
+                                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-base font-bold text-slate-900 sm:text-xs"
+                              >
+                                <option value={1}>1 — Negligible</option>
+                                <option value={2}>2 — Minor</option>
+                                <option value={3}>3 — Moderate</option>
+                                <option value={4}>4 — Major</option>
+                                <option value={5}>5 — Critical</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="md:col-span-4">
+                            <label className="mb-1 block text-[11px] font-bold text-slate-700">
+                              Owner &amp; Work Package (WP1..n)
+                            </label>
+                            <input
+                              type="text"
+                              disabled={isVaultReadonly}
+                              value={risk.ownerAndWorkPackage}
+                              onChange={(e) =>
+                                handleUpdateRiskItem(risk.id, {
+                                  ownerAndWorkPackage: e.target.value,
+                                })
+                              }
+                              placeholder="e.g., Founder / Ops Lead (WP2)"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                            />
+                          </div>
+
+                          <div className="md:col-span-4">
+                            <label className="mb-1 block text-[11px] font-bold text-slate-700">
+                              Residual Risk (After Mitigation)
+                            </label>
+                            <select
+                              disabled={isVaultReadonly}
+                              value={risk.residualRiskRating}
+                              onChange={(e) =>
+                                handleUpdateRiskItem(risk.id, {
+                                  residualRiskRating: e.target
+                                    .value as ResidualRiskRatingType,
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                            >
+                              {RESIDUAL_RISK_RATING_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            {risk.residualRiskRating === 'OTHER' && (
+                              <input
+                                type="text"
+                                disabled={isVaultReadonly}
+                                value={risk.otherResidualRiskRatingText || ''}
+                                onChange={(e) =>
+                                  handleUpdateRiskItem(risk.id, {
+                                    otherResidualRiskRatingText: e.target.value,
+                                  })
+                                }
+                                placeholder="Specify custom residual rating..."
+                                className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-[11px] font-bold text-slate-700">
+                            Concrete Preventative Mitigation &amp; Contingency
+                            Trigger
+                          </label>
+                          <textarea
+                            rows={2}
+                            disabled={isVaultReadonly}
+                            value={risk.mitigationAndContingencyPlan}
+                            onChange={(e) =>
+                              handleUpdateRiskItem(risk.id, {
+                                mitigationAndContingencyPlan: e.target.value,
+                              })
+                            }
+                            placeholder="Explain your preventative controls today AND what automatic contingency triggers if this risk occurs..."
+                            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-800 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* SECTION 3: AI SUPPLY-CHAIN & RISK GOVERNANCE NARRATIVES       */}
+              {/* ============================================================= */}
+              <div className="space-y-4 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Wand2 className="h-4 w-4 text-indigo-600" />
+                      <h3 className="text-sm font-bold text-slate-900">
+                        3. Supply-Chain Resilience &amp; Risk Management
+                        Governance Narratives
+                      </h3>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-slate-600">
+                      {selectedCountry === 'IE'
+                        ? 'Synthesize your formal Supply-Chain Resilience and 4-Category Risk Management narratives for your IE LEO / Enterprise Ireland Business Plan in Module K.'
+                        : selectedCountry === 'GB'
+                          ? 'Synthesize your formal Supply-Chain Resilience and UK Innovate UK Question 9 / Start Up Loan Risk Management narratives for Module K.'
+                          : 'Synthesize your formal Supply-Chain Resilience and 4-Category Risk Management narratives for Module K.'}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isVaultReadonly || isGeneratingAiStep3}
+                      onClick={() => handleRunAiStep3('NARRATIVES_ONLY')}
+                      className="border-indigo-300 bg-white text-xs font-semibold text-indigo-900 hover:bg-indigo-50"
+                    >
+                      {isGeneratingAiStep3 ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                      )}
+                      Synthesize Narratives from My Register
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isVaultReadonly || isGeneratingAiStep3}
+                      onClick={() =>
+                        handleRunAiStep3('POPULATE_RISKS_AND_NARRATIVES')
+                      }
+                      className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                    >
+                      {isGeneratingAiStep3 ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      Auto-Draft Full Register &amp; Narratives
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-800">
+                      3A. Supply-Chain Resilience &amp; Backup Sourcing
+                      Narrative
+                    </label>
+                    <textarea
+                      rows={4}
+                      disabled={isVaultReadonly}
+                      value={step3Data.supplyChainResilienceNarrative}
+                      onChange={(e) =>
+                        setStep3Data((prev) => ({
+                          ...prev,
+                          supplyChainResilienceNarrative: e.target.value,
+                        }))
+                      }
+                      placeholder="Explain how your dual-sourcing, safety buffer stock, or multi-region cloud failover eliminates single points of failure..."
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-800">
+                      3B. Project Risk Management &amp; Mitigation Governance
+                      Narrative
+                    </label>
+                    <textarea
+                      rows={4}
+                      disabled={isVaultReadonly}
+                      value={step3Data.riskManagementGovernanceNarrative}
+                      onChange={(e) =>
+                        setStep3Data((prev) => ({
+                          ...prev,
+                          riskManagementGovernanceNarrative: e.target.value,
+                        }))
+                      }
+                      placeholder="Summarize how your 4-category Risk Register is reviewed across Work Packages so residual operational, commercial, and financial risk remains Low..."
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* BOTTOM ACTION BAR: PARK QUESTION + SAVE STEP 3                */}
+              {/* ============================================================= */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab('STEP_2')}
+                    className="text-xs"
+                  >
+                    <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                    Back to Step 2
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowParkInputStep3(!showParkInputStep3)}
+                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
+                  >
+                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
+                    Park Supply-Chain / Risk Question
+                  </Button>
+                  {step3Data.lastSavedAt && (
+                    <span className="text-[11px] font-medium text-emerald-700">
+                      ✓ Saved{' '}
+                      {new Date(step3Data.lastSavedAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isSavingStep3}
+                    onClick={handleSaveStep3}
+                    className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                  >
+                    {isSavingStep3 ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Saving Step 3...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-1.5 h-3.5 w-3.5" />
+                        Save Step 3 Risk Register
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isSavingStep3}
+                    onClick={async () => {
+                      if (!isVaultReadonly) {
+                        await handleSaveStep3();
+                      }
+                      setActiveTab('STEP_4');
+                    }}
+                    className="bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700"
+                  >
+                    Save &amp; Continue to Step 4
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+
+              {showParkInputStep3 && (
+                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    value={parkQuestionInputStep3}
+                    onChange={(e) => setParkQuestionInputStep3(e.target.value)}
+                    placeholder="e.g., Confirm secondary packaging supplier lead time and minimum order quantity..."
+                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      const clean = parkQuestionInputStep3.trim();
+                      if (!clean) return;
+                      await onParkOpenQuestion(clean);
+                      setParkQuestionInputStep3('');
+                      setShowParkInputStep3(false);
+                      setSaveBanner(
+                        '📌 Parked supply-chain/risk question in your Open Questions Parking Lot!'
+                      );
+                    }}
+                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
+                  >
+                    Save to Parking Lot
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ================================================================= */}
+          {/* LIVE STEP 3 OUTPUT PREVIEW TABLE (MODULE K RISK COMPILER)         */}
+          {/* ================================================================= */}
+          <Card className="border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 shadow-xs">
+            <CardHeader className="pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-sm font-bold text-slate-900">
+                  📋 Live Step 3 Output Preview (
+                  {selectedCountry === 'IE'
+                    ? '🇮🇪 Module K — IE LEO / Enterprise Ireland 4-Category Project Risk Table'
+                    : selectedCountry === 'GB'
+                      ? '🇬🇧 Module K — UK Innovate UK Question 9 Risk Register Appendix'
+                      : 'Module K — 4-Category Project Risk Register'}
+                  )
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
+                >
+                  Synced to Module K Grant &amp; Business Plan Compiler
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs text-slate-700">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <table className="w-full min-w-[680px] text-left text-[11px]">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase text-slate-600">
+                    <tr>
+                      <th className="px-3 py-2">Category</th>
+                      <th className="px-3 py-2">Risk &amp; Mitigation Plan</th>
+                      <th className="px-3 py-2">Owner / WP</th>
+                      <th className="px-3 py-2 text-center">
+                        Gross (L&times;I)
+                      </th>
+                      <th className="px-3 py-2 text-right">Residual</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {step3Data.riskItems.map((risk) => {
+                      const gross =
+                        Math.max(
+                          1,
+                          Math.min(5, Number(risk.likelihoodScore) || 3)
+                        ) *
+                        Math.max(1, Math.min(5, Number(risk.impactScore) || 3));
+                      const catObj = PROJECT_RISK_CATEGORY_OPTIONS.find(
+                        (c) => c.value === risk.riskCategory
+                      );
+                      return (
+                        <tr key={risk.id}>
+                          <td className="px-3 py-2 font-semibold text-slate-800">
+                            {risk.riskCategory === 'OTHER' &&
+                            risk.otherRiskCategoryText
+                              ? risk.otherRiskCategoryText
+                              : catObj?.shortLabel || risk.riskCategory}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="font-bold text-slate-900">
+                              {risk.riskTitle}
+                            </div>
+                            <div className="mt-0.5 text-[10px] text-slate-600">
+                              <span className="font-semibold text-indigo-800">
+                                Mitigation:
+                              </span>{' '}
+                              {risk.mitigationAndContingencyPlan}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-slate-700">
+                            {risk.ownerAndWorkPackage}
+                          </td>
+                          <td className="px-3 py-2 text-center font-bold text-slate-900">
+                            {risk.likelihoodScore}&times;{risk.impactScore} ={' '}
+                            {gross}/25
+                          </td>
+                          <td className="px-3 py-2 text-right font-bold">
+                            <span
+                              className={
+                                risk.residualRiskRating === 'HIGH'
+                                  ? 'text-rose-700'
+                                  : risk.residualRiskRating === 'MEDIUM'
+                                    ? 'text-amber-700'
+                                    : 'text-emerald-700'
+                              }
+                            >
+                              {risk.residualRiskRating === 'OTHER' &&
+                              risk.otherResidualRiskRatingText
+                                ? risk.otherResidualRiskRatingText
+                                : risk.residualRiskRating}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
+
+      {/* ===================================================================== */}
+      {/* UPCOMING STEPS 4–6 PREVIEW CARDS (READY FOR NEXT ITERATIONS)          */}
+      {/* ===================================================================== */}
+      {activeTab !== 'STEP_1' &&
+        activeTab !== 'STEP_2' &&
+        activeTab !== 'STEP_3' && (
+          <Card className="border-slate-200 bg-white shadow-xs">
+            <CardHeader>
+              <CardTitle className="text-base font-bold text-slate-900">
+                {STEP_TABS.find((t) => t.id === activeTab)?.short}:{' '}
+                {STEP_TABS.find((t) => t.id === activeTab)?.title}
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-600">
+                Complete Steps 1, 2, and 3 first—we are building Steps 4–6
+                sequentially next!
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveTab('STEP_1')}
+                className="text-xs"
+              >
+                &larr; Return to Step 1 (Day in the Life of an Order)
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveTab('STEP_2')}
+                className="text-xs"
+              >
+                &larr; Return to Step 2 (Premises, Equipment &amp; 3 Quotes)
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveTab('STEP_3')}
+                className="text-xs"
+              >
+                &larr; Return to Step 3 (4-Category Risk Register)
+              </Button>
+            </CardContent>
+          </Card>
+        )}
     </div>
   );
 }
