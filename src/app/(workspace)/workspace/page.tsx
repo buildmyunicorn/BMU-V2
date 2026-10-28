@@ -69,6 +69,7 @@ import {
 } from '@/lib/localization';
 import {
   loadBmuSession,
+  loadBmuSessionForEmail,
   saveBmuSession,
   getDefaultDemoSession,
   deduplicateSurveyResponses,
@@ -102,6 +103,7 @@ import {
   type ProductTrackType,
   type ProductFormFactorType,
   type SalesChannelOptionType,
+  type DeliveryFulfillmentModelType,
   type ChannelMatrixStep2Data,
   type ScopeFilterItem,
   type ScopeFilterStep3Data,
@@ -113,6 +115,15 @@ import {
   type V1LaunchTimelineType,
   type ProductBlindSpotItem,
   type BlindSpotAuditStep6Data,
+  type OperationsFulfillmentModeType,
+  type OrderTurnaroundSlaType,
+  type OperationalCapacityConstraintType,
+  type OrderLifecycleStageItem,
+  type OperationsBlueprintStep1Data,
+  type PremisesSetupModeType,
+  type PremisesComplianceStatusType,
+  type EquipmentAssetItem,
+  type PremisesAndEquipmentStep2Data,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -160,9 +171,18 @@ import {
   generateModuleDWorkPackagesWithAiAction,
   generateModuleDBlindSpotAuditWithAiAction,
 } from '@/app/actions/module-d';
+import {
+  saveModuleEStep1OperationsBlueprintAction,
+  saveModuleEStep2PremisesEquipmentAction,
+  parkModuleEOpenQuestionAction,
+  generateModuleEOperationsBlueprintWithAiAction,
+  generateModuleEPremisesEquipmentWithAiAction,
+} from '@/app/actions/module-e';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
 import { ModuleDWorkspace } from '@/components/workspace/module-d-workspace';
+import { ModuleEWorkspace } from '@/components/workspace/module-e-workspace';
+import { LocalBugCaptureWidget } from '@/components/workspace/local-bug-capture-widget';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 import {
   buildModuleAMarkdownBrief,
@@ -383,7 +403,9 @@ export default function WorkspacePage() {
       }
       setThingsToConsider(activePlan.thingsToConsider || []);
       setOpenQuestions(activePlan.openQuestions || []);
-      if (activePlan.currentModuleStep?.startsWith('MOD_D')) {
+      if (activePlan.currentModuleStep?.startsWith('MOD_E')) {
+        setActiveModule('MOD_E_OPERATIONS');
+      } else if (activePlan.currentModuleStep?.startsWith('MOD_D')) {
         setActiveModule('MOD_D_PRODUCT_BUILD');
       } else if (activePlan.currentModuleStep?.startsWith('MOD_C')) {
         setActiveModule('MOD_C_SURVEYS_FEEDBACK');
@@ -413,8 +435,16 @@ export default function WorkspacePage() {
               return localTs >= dbTs ? localVal : dbVal;
             };
 
+            const cloudEmail = res.session!.user.email.trim().toLowerCase();
+            const localSourcePlans =
+              prev.user.email?.trim().toLowerCase() === cloudEmail
+                ? prev.plans
+                : loadBmuSessionForEmail(cloudEmail)?.plans || [];
+
             const mergedPlans = res.session!.plans.map((dbPlan) => {
-              const localPlan = prev.plans.find((lp) => lp.id === dbPlan.id);
+              const localPlan = localSourcePlans.find(
+                (lp) => lp.id === dbPlan.id
+              );
               if (!localPlan) return dbPlan;
 
               // Merge moduleCData surveys & responses by publicSlug so neither local nor cloud loses questions or responses
@@ -511,11 +541,40 @@ export default function WorkspacePage() {
                     }
                   : undefined;
 
+              const mergedModuleEData =
+                localPlan.moduleEData || dbPlan.moduleEData
+                  ? {
+                      ...(dbPlan.moduleEData || {}),
+                      ...(localPlan.moduleEData || {}),
+                      operationsBlueprint: pickNewerBySavedAt(
+                        localPlan.moduleEData?.operationsBlueprint,
+                        dbPlan.moduleEData?.operationsBlueprint
+                      ),
+                      premisesAndEquipment: pickNewerBySavedAt(
+                        localPlan.moduleEData?.premisesAndEquipment,
+                        dbPlan.moduleEData?.premisesAndEquipment
+                      ),
+                      thingsToConsider:
+                        dbPlan.moduleEData?.thingsToConsider ||
+                        localPlan.moduleEData?.thingsToConsider,
+                      lastSavedAt:
+                        pickNewerBySavedAt(
+                          localPlan.moduleEData,
+                          dbPlan.moduleEData
+                        )?.lastSavedAt ||
+                        localPlan.moduleEData?.lastSavedAt ||
+                        dbPlan.moduleEData?.lastSavedAt,
+                    }
+                  : undefined;
+
               const resolvedCurrentStep =
-                localPlan.currentModuleStep?.startsWith('MOD_D') &&
-                !dbPlan.currentModuleStep?.startsWith('MOD_D')
+                localPlan.currentModuleStep?.startsWith('MOD_E') &&
+                !dbPlan.currentModuleStep?.startsWith('MOD_E')
                   ? localPlan.currentModuleStep
-                  : dbPlan.currentModuleStep || localPlan.currentModuleStep;
+                  : localPlan.currentModuleStep?.startsWith('MOD_D') &&
+                      !dbPlan.currentModuleStep?.startsWith('MOD_D')
+                    ? localPlan.currentModuleStep
+                    : dbPlan.currentModuleStep || localPlan.currentModuleStep;
 
               return {
                 ...localPlan,
@@ -533,6 +592,7 @@ export default function WorkspacePage() {
                       }
                     : dbPlan.moduleCData || localPlan.moduleCData,
                 moduleDData: mergedModuleDData,
+                moduleEData: mergedModuleEData,
               };
             });
 
@@ -563,7 +623,9 @@ export default function WorkspacePage() {
             }
             setThingsToConsider(dbPlan.thingsToConsider || []);
             setOpenQuestions(dbPlan.openQuestions || []);
-            if (dbPlan.currentModuleStep?.startsWith('MOD_D')) {
+            if (dbPlan.currentModuleStep?.startsWith('MOD_E')) {
+              setActiveModule('MOD_E_OPERATIONS');
+            } else if (dbPlan.currentModuleStep?.startsWith('MOD_D')) {
               setActiveModule('MOD_D_PRODUCT_BUILD');
             } else if (dbPlan.currentModuleStep?.startsWith('MOD_C')) {
               setActiveModule('MOD_C_SURVEYS_FEEDBACK');
@@ -2144,6 +2206,257 @@ export default function WorkspacePage() {
     };
   }
 
+  async function handleSaveModuleEStep1OperationsBlueprint(
+    operationsBlueprint: OperationsBlueprintStep1Data,
+    progress = 25
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_E_STEP_1',
+          moduleEData: {
+            ...(p.moduleEData || {}),
+            operationsBlueprint,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleEStep1OperationsBlueprintAction({
+      planId: currentPlan.id,
+      operationsBlueprint,
+      completionPercentage: progress,
+    });
+  }
+
+  async function handleParkModuleEQuestion(questionText: string) {
+    const clean = questionText.trim();
+    if (!clean) return;
+    const nextQuestions = [...openQuestions, `[Module E] ${clean}`];
+    setOpenQuestions(nextQuestions);
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) =>
+        p.id === currentPlan.id ? { ...p, openQuestions: nextQuestions } : p
+      );
+      const updatedSession = { ...prev, plans: updatedPlans };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await parkModuleEOpenQuestionAction({
+      planId: currentPlan.id,
+      questionText: `[Module E] ${clean}`,
+    });
+  }
+
+  async function handleGenerateModuleEOperationsBlueprintWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    primaryChannel?: SalesChannelOptionType;
+    deliveryFulfillmentModel?: DeliveryFulfillmentModelType;
+    weeklyOpsHoursAllocated?: number;
+    currentFulfillmentMode?: OperationsFulfillmentModeType | '';
+    currentTurnaroundSla?: OrderTurnaroundSlaType | '';
+    currentCapacityConstraint?: OperationalCapacityConstraintType | '';
+    currentStages?: OrderLifecycleStageItem[];
+    mode?: 'POPULATE_STAGES_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Day in the Life of an Order Blueprint (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        fulfillmentMode:
+          (params.currentFulfillmentMode as OperationsFulfillmentModeType) ||
+          'HYBRID_AUTOMATED_PLUS_HUMAN',
+        turnaroundSla:
+          (params.currentTurnaroundSla as OrderTurnaroundSlaType) ||
+          'INSTANT_UNDER_5_MINS',
+        capacityConstraint:
+          (params.currentCapacityConstraint as OperationalCapacityConstraintType) ||
+          'FOUNDER_MANUAL_HOURS',
+        orderLifecycleStages: params.currentStages || [],
+        endToEndFulfillmentNarrative: '',
+        scalingAndBottleneckDeRiskingNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleEOperationsBlueprintWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      baseCurrency: currentPlan.baseCurrency,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      primaryChannel: params.primaryChannel,
+      deliveryFulfillmentModel: params.deliveryFulfillmentModel,
+      weeklyOpsHoursAllocated: params.weeklyOpsHoursAllocated,
+      currentFulfillmentMode: params.currentFulfillmentMode,
+      currentTurnaroundSla: params.currentTurnaroundSla,
+      currentCapacityConstraint: params.currentCapacityConstraint,
+      currentStages: params.currentStages,
+      mode: params.mode,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      fulfillmentMode: res.fulfillmentMode,
+      turnaroundSla: res.turnaroundSla,
+      capacityConstraint: res.capacityConstraint,
+      orderLifecycleStages: res.orderLifecycleStages,
+      endToEndFulfillmentNarrative: res.endToEndFulfillmentNarrative,
+      scalingAndBottleneckDeRiskingNarrative:
+        res.scalingAndBottleneckDeRiskingNarrative,
+      engineMode: res.engineMode,
+    };
+  }
+
+  async function handleSaveModuleEStep2PremisesEquipment(
+    premisesAndEquipment: PremisesAndEquipmentStep2Data,
+    progress = 45
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_E_STEP_2',
+          moduleEData: {
+            ...(p.moduleEData || {}),
+            premisesAndEquipment,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleEStep2PremisesEquipmentAction({
+      planId: currentPlan.id,
+      premisesAndEquipment,
+      completionPercentage: progress,
+    });
+  }
+
+  async function handleGenerateModuleEPremisesEquipmentWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    currentPremisesSetupMode?: PremisesSetupModeType | '';
+    currentPremisesLocationSummary?: string;
+    currentMonthlyPremisesCost?: number;
+    currentPremisesComplianceStatus?: PremisesComplianceStatusType | '';
+    currentEquipmentItems?: EquipmentAssetItem[];
+    mode?: 'POPULATE_ASSETS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Premises & Equipment Schedule (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        premisesSetupMode:
+          (params.currentPremisesSetupMode as PremisesSetupModeType) ||
+          'REMOTE_CLOUD_HOME_OFFICE',
+        premisesLocationSummary: params.currentPremisesLocationSummary || '',
+        monthlyPremisesAndUtilitiesCost:
+          params.currentMonthlyPremisesCost ?? 95,
+        premisesComplianceStatus:
+          (params.currentPremisesComplianceStatus as PremisesComplianceStatusType) ||
+          'NO_PERMIT_REQUIRED_REMOTE',
+        equipmentItems: params.currentEquipmentItems || [],
+        premisesAndLocationJustificationNarrative: '',
+        equipmentRoiAndGrantComplianceNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleEPremisesEquipmentWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      baseCurrency: currentPlan.baseCurrency,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      currentPremisesSetupMode: params.currentPremisesSetupMode,
+      currentPremisesLocationSummary: params.currentPremisesLocationSummary,
+      currentMonthlyPremisesCost: params.currentMonthlyPremisesCost,
+      currentPremisesComplianceStatus: params.currentPremisesComplianceStatus,
+      currentEquipmentItems: params.currentEquipmentItems,
+      mode: params.mode,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      premisesSetupMode: res.premisesSetupMode,
+      premisesLocationSummary: res.premisesLocationSummary,
+      monthlyPremisesAndUtilitiesCost: res.monthlyPremisesAndUtilitiesCost,
+      premisesComplianceStatus: res.premisesComplianceStatus,
+      equipmentItems: res.equipmentItems,
+      premisesAndLocationJustificationNarrative:
+        res.premisesAndLocationJustificationNarrative,
+      equipmentRoiAndGrantComplianceNarrative:
+        res.equipmentRoiAndGrantComplianceNarrative,
+      engineMode: res.engineMode,
+    };
+  }
+
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
     coreProblem: '',
     targetCustomer: '',
@@ -2517,6 +2830,32 @@ export default function WorkspacePage() {
         ? 10
         : 0;
 
+  const savedModEBlueprint = currentPlan.moduleEData?.operationsBlueprint;
+  const savedModEPremisesEquipment =
+    currentPlan.moduleEData?.premisesAndEquipment;
+  const step1ModEScore = savedModEBlueprint
+    ? savedModEBlueprint.orderLifecycleStages.length >= 3 &&
+      savedModEBlueprint.endToEndFulfillmentNarrative.trim().length > 10 &&
+      savedModEBlueprint.scalingAndBottleneckDeRiskingNarrative.trim().length >
+        10
+      ? 22
+      : 12
+    : 0;
+  const step2ModEScore = savedModEPremisesEquipment
+    ? savedModEPremisesEquipment.equipmentItems.length >= 1 &&
+      savedModEPremisesEquipment.equipmentRoiAndGrantComplianceNarrative.trim()
+        .length > 10
+      ? 23
+      : 12
+    : 0;
+  const totalModEScore = step1ModEScore + step2ModEScore;
+  const moduleEProgressPercent =
+    totalModEScore > 0
+      ? Math.min(100, totalModEScore)
+      : activeModule === 'MOD_E_OPERATIONS'
+        ? 10
+        : 0;
+
   const moduleABriefData: ModuleABriefData = {
     planTitle: currentPlan.title,
     founderName: session.user.name,
@@ -2630,6 +2969,14 @@ export default function WorkspacePage() {
                 {activeEntitlement.planType}
               </Badge>
             </div>
+
+            <LocalBugCaptureWidget
+              activeModule={activeModule}
+              activeStepContext={currentPlan.currentModuleStep}
+              planId={currentPlan.id}
+              planTitle={currentPlan.title}
+              userEmail={session.user.email}
+            />
 
             <Link href="/onboarding" title="Plan Settings">
               <Button
@@ -2800,7 +3147,9 @@ export default function WorkspacePage() {
                     ? 'B'
                     : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
                       ? 'C'
-                      : 'D'}
+                      : activeModule === 'MOD_D_PRODUCT_BUILD'
+                        ? 'D'
+                        : 'E'}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-xs font-bold text-slate-900">
@@ -2810,7 +3159,9 @@ export default function WorkspacePage() {
                       ? 'Module B: Market & Competitors'
                       : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
                         ? 'Module C: Customer Surveys & Feedback'
-                        : 'Module D: Product & Build Vehicle'}
+                        : activeModule === 'MOD_D_PRODUCT_BUILD'
+                          ? 'Module D: Product & Build Vehicle'
+                          : 'Module E: Operations & Fulfillment'}
                 </div>
                 <div className="text-[11px] text-indigo-700">
                   {mobileSidebarOpen
@@ -2850,7 +3201,9 @@ export default function WorkspacePage() {
                           ? moduleCProgressPercent
                           : mod.code === 'MOD_D_PRODUCT_BUILD'
                             ? moduleDProgressPercent
-                            : mod.progress;
+                            : mod.code === 'MOD_E_OPERATIONS'
+                              ? moduleEProgressPercent
+                              : mod.progress;
 
                   return (
                     <button
@@ -2868,7 +3221,8 @@ export default function WorkspacePage() {
                           mod.code === 'MOD_A_IDEATION' ||
                           mod.code === 'MOD_B_MARKET' ||
                           mod.code === 'MOD_C_SURVEYS_FEEDBACK' ||
-                          mod.code === 'MOD_D_PRODUCT_BUILD'
+                          mod.code === 'MOD_D_PRODUCT_BUILD' ||
+                          mod.code === 'MOD_E_OPERATIONS'
                         ) {
                           setActiveModule(mod.code);
                           setMobileSidebarOpen(false);
@@ -3037,7 +3391,31 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {activeModule === 'MOD_D_PRODUCT_BUILD' ? (
+          {activeModule === 'MOD_E_OPERATIONS' ? (
+            <ModuleEWorkspace
+              key={currentPlan.id}
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              onSaveStep1OperationsBlueprint={
+                handleSaveModuleEStep1OperationsBlueprint
+              }
+              onGenerateAiOperationsBlueprint={
+                handleGenerateModuleEOperationsBlueprintWithAi
+              }
+              onSaveStep2PremisesEquipment={
+                handleSaveModuleEStep2PremisesEquipment
+              }
+              onGenerateAiPremisesEquipment={
+                handleGenerateModuleEPremisesEquipmentWithAi
+              }
+              onParkOpenQuestion={handleParkModuleEQuestion}
+              onBackToModuleD={() => setActiveModule('MOD_D_PRODUCT_BUILD')}
+            />
+          ) : activeModule === 'MOD_D_PRODUCT_BUILD' ? (
             <ModuleDWorkspace
               key={currentPlan.id}
               plan={{
@@ -3072,6 +3450,10 @@ export default function WorkspacePage() {
               }
               onParkOpenQuestion={handleParkModuleDQuestion}
               onBackToModuleC={() => setActiveModule('MOD_C_SURVEYS_FEEDBACK')}
+              onContinueToModuleE={() => {
+                setActiveModule('MOD_E_OPERATIONS');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
             />
           ) : activeModule === 'MOD_C_SURVEYS_FEEDBACK' ? (
@@ -5737,7 +6119,8 @@ export default function WorkspacePage() {
                     pendingModuleAfterUnlock === 'MOD_B_MARKET' ||
                     pendingModuleAfterUnlock === 'MOD_A_IDEATION' ||
                     pendingModuleAfterUnlock === 'MOD_C_SURVEYS_FEEDBACK' ||
-                    pendingModuleAfterUnlock === 'MOD_D_PRODUCT_BUILD'
+                    pendingModuleAfterUnlock === 'MOD_D_PRODUCT_BUILD' ||
+                    pendingModuleAfterUnlock === 'MOD_E_OPERATIONS'
                   ) {
                     setActiveModule(pendingModuleAfterUnlock);
                     setPendingModuleAfterUnlock(null);

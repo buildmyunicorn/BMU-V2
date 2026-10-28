@@ -924,6 +924,186 @@ export interface SavedModuleDData {
   lastSavedAt?: string;
 }
 
+// ============================================================================
+// MODULE E (OPERATIONS, PREMISES, EQUIPMENT SCHEDULE & RISK REGISTER) TYPES
+// ============================================================================
+
+export type OperationsFulfillmentModeType =
+  | 'AUTOMATED_CLOUD_SELF_SERVE'
+  | 'IN_HOUSE_WORKSHOP_BATCH'
+  | 'CONTRACT_MANUFACTURED_3PL'
+  | 'FOUNDER_LED_CONCIERGE_COHORT'
+  | 'HYBRID_AUTOMATED_PLUS_HUMAN'
+  | 'OTHER';
+
+export type OrderTurnaroundSlaType =
+  | 'INSTANT_UNDER_5_MINS'
+  | 'SAME_OR_NEXT_DAY_24_48H'
+  | 'STANDARD_CRAFT_CYCLE_3_7_DAYS'
+  | 'BESPOKE_OR_SPRINT_2_4_WEEKS'
+  | 'COHORT_OR_SCHEDULED_WINDOW'
+  | 'OTHER';
+
+export type OperationalCapacityConstraintType =
+  | 'FOUNDER_MANUAL_HOURS'
+  | 'EQUIPMENT_OR_CURE_BATCH_LIMIT'
+  | 'SUPPLIER_OR_PARTNER_TURNAROUND'
+  | 'CLOUD_API_RATE_OR_INFRA_GUARDRAIL'
+  | 'PROVIDER_SUPPLY_LIQUIDITY'
+  | 'OTHER';
+
+export type OrderStageOwnerType =
+  | 'AUTOMATED_SYSTEM'
+  | 'FOUNDER_MAKER'
+  | 'COFOUNDER_TEAM'
+  | 'EXTERNAL_SUPPLIER_3PL'
+  | 'PARTNER_CONCIERGE'
+  | 'OTHER';
+
+export interface OrderLifecycleStageItem {
+  id: string;
+  stageNumber: number;
+  stageTitle: string;
+  ownerType: OrderStageOwnerType;
+  otherOwnerTypeText?: string;
+  whatHappensStepByStep: string;
+  toolsEquipmentOrSupplier: string;
+  activeMinutesPerOrder: number;
+  directVariableCostPerOrder: number;
+  isCustom?: boolean;
+}
+
+export interface OperationsBlueprintStep1Data {
+  fulfillmentMode: OperationsFulfillmentModeType | '';
+  otherFulfillmentModeText?: string;
+  turnaroundSla: OrderTurnaroundSlaType | '';
+  otherTurnaroundSlaText?: string;
+  capacityConstraint: OperationalCapacityConstraintType | '';
+  otherCapacityConstraintText?: string;
+  weeklyOpsHoursAllocated: number;
+  orderLifecycleStages: OrderLifecycleStageItem[];
+  endToEndFulfillmentNarrative: string;
+  scalingAndBottleneckDeRiskingNarrative: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type PremisesSetupModeType =
+  | 'HOME_OFFICE_ZERO_RENT'
+  | 'HOME_WORKSHOP_GARAGE_SHED'
+  | 'SHARED_COWORKING_MAKER_SPACE'
+  | 'COMMERCIAL_INDUSTRIAL_UNIT'
+  | 'RETAIL_OR_CLIENT_PREMISES'
+  | 'REMOTE_CLOUD_HOME_OFFICE'
+  | 'HOME_GARAGE_GARDEN_WORKSHOP'
+  | 'SHARED_COWORKING_INCUBATOR_HUB'
+  | 'COMMERCIAL_WORKSHOP_INDUSTRIAL_UNIT'
+  | 'RETAIL_HIGH_STREET_PREMISES'
+  | 'OTHER';
+
+export type PremisesComplianceStatusType =
+  | 'NOT_REQUIRED_REMOTE'
+  | 'COVERED_EXEMPT_HOME_STUDIO'
+  | 'COMMERCIAL_LEASE_COMPLIANT'
+  | 'NEEDS_PLANNING_OR_FIRE_CERT_CHECK'
+  | 'NO_PERMIT_REQUIRED_REMOTE'
+  | 'EXEMPT_DOMESTIC_GARAGE_SHED'
+  | 'COMMERCIAL_ZONING_APPROVED'
+  | 'PLANNING_OR_HSE_PENDING'
+  | 'OTHER';
+
+export type EquipmentAssetCategoryType =
+  | 'PRODUCTION_MACHINERY_TOOLS'
+  | 'SPECIALIST_R_AND_D_HARDWARE'
+  | 'PACKAGING_FULFILLMENT_EQUIPMENT'
+  | 'WORKSHOP_EXTRACTION_SAFETY'
+  | 'IT_LAPTOP_MOBILE_DEVICE'
+  | 'OFFICE_FURNITURE_FITOUT'
+  | 'CLOUD_INFRA_RESERVATION'
+  | 'SAFETY_EXTRACTION_FOOD_HYGIENE'
+  | 'PACKAGING_BENCH_FIXTURES'
+  | 'SPECIALIST_RND_TEST_RIG'
+  | 'OTHER';
+
+export type EquipmentAcquisitionModeType =
+  | 'BUY_NEW_GRANT_ELIGIBLE'
+  | 'BUY_SECOND_HAND_BOOTSTRAP'
+  | 'LEASE_OR_RENT_MONTHLY'
+  | 'ALREADY_OWNED_SWEAT_ASSET'
+  | 'BUY_NEW_OUTRIGHT'
+  | 'SECOND_HAND_REFURBISHED'
+  | 'LEASE_HIRE_PURCHASE'
+  | 'ALREADY_OWNED_BYOD'
+  | 'OTHER';
+
+export type EquipmentFundingSourceType =
+  | 'GRANT_CO_FUNDED'
+  | 'OWN_FUNDS_OR_LOAN_100'
+  | 'MONTHLY_OPERATING_EXPENSE'
+  | 'GRANT_50_MATCH'
+  | 'OWN_FUNDS_100'
+  | 'STARTUP_LOAN_FINANCE'
+  | 'OTHER';
+
+export type EquipmentQuoteComplianceStatusType =
+  | 'NOT_REQUIRED_UNDER_THRESHOLD'
+  | 'NEEDS_3_QUOTES'
+  | 'REQUESTED_VIA_BMU_CONCIERGE'
+  | 'THREE_QUOTES_UPLOADED_READY'
+  | 'NEEDS_3_QUOTES_CONCIERGE'
+  | 'HAVE_3_WRITTEN_QUOTES'
+  | 'UNDER_1K_SINGLE_QUOTE_OK'
+  | 'ALREADY_OWNED_EXEMPT'
+  | 'OTHER';
+
+export interface EquipmentAssetItem {
+  id: string;
+  assetName: string;
+  assetCategory: EquipmentAssetCategoryType;
+  otherAssetCategoryText?: string;
+  acquisitionMode: EquipmentAcquisitionModeType;
+  otherAcquisitionModeText?: string;
+  fundingSource: EquipmentFundingSourceType;
+  otherFundingSourceText?: string;
+  quantity: number;
+  unitCostExVat: number;
+  totalCostExVat: number;
+  usefulLifeMonths: number;
+  projectUsagePercent: number;
+  quoteComplianceStatus: EquipmentQuoteComplianceStatusType;
+  otherQuoteComplianceText?: string;
+  otherQuoteComplianceStatusText?: string;
+  preferredSuppliersOrSpecs?: string;
+  supplierQuotesSummary?: string;
+  operationalRoiNote?: string;
+  conciergeQuotesRequested?: boolean;
+  isMobileOrLaptopIneligibleForLeoGrant?: boolean;
+  isFlaggedLaptopOrMobileAsset?: boolean;
+  isCustom?: boolean;
+}
+
+export interface PremisesAndEquipmentStep2Data {
+  premisesSetupMode: PremisesSetupModeType | '';
+  otherPremisesSetupModeText?: string;
+  premisesLocationSummary: string;
+  monthlyPremisesAndUtilitiesCost: number;
+  premisesComplianceStatus: PremisesComplianceStatusType | '';
+  otherPremisesComplianceStatusText?: string;
+  equipmentItems: EquipmentAssetItem[];
+  conciergeRfpRequestedAt?: string;
+  premisesAndLocationJustificationNarrative: string;
+  equipmentRoiAndGrantComplianceNarrative: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export interface SavedModuleEData {
+  operationsBlueprint?: OperationsBlueprintStep1Data;
+  premisesAndEquipment?: PremisesAndEquipmentStep2Data;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
 export type FounderStage =
   | 'IDEA_EXPLORER'
   | 'BUILDING_MVP'
@@ -973,6 +1153,7 @@ export interface ActiveStartupPlan {
   moduleBData?: SavedModuleBData;
   moduleCData?: SavedModuleCData;
   moduleDData?: SavedModuleDData;
+  moduleEData?: SavedModuleEData;
   openQuestions: string[];
 }
 
@@ -985,7 +1166,55 @@ export interface BmuLocalSession {
 }
 
 const STORAGE_KEY = 'bmu_v2_session_state_v1';
+const PER_USER_STORAGE_PREFIX = 'bmu_v2_session_by_email_v1::';
 const PUBLIC_SURVEYS_REGISTRY_KEY = 'bmu_v2_public_surveys_registry_v1';
+
+function getPerUserStorageKey(email: string): string {
+  return `${PER_USER_STORAGE_PREFIX}${email.trim().toLowerCase()}`;
+}
+
+export function loadBmuSessionForEmail(email: string): BmuLocalSession | null {
+  if (typeof window === 'undefined' || !email?.trim()) return null;
+  try {
+    const cleanEmail = email.trim().toLowerCase();
+    const raw = window.localStorage.getItem(getPerUserStorageKey(cleanEmail));
+    if (!raw) {
+      // Also check if the active STORAGE_KEY currently belongs to this email
+      const activeRaw = window.localStorage.getItem(STORAGE_KEY);
+      if (activeRaw) {
+        const activeParsed = JSON.parse(activeRaw) as BmuLocalSession;
+        if (activeParsed?.user?.email?.trim().toLowerCase() === cleanEmail) {
+          return activeParsed;
+        }
+      }
+      return null;
+    }
+    const parsed = JSON.parse(raw) as BmuLocalSession;
+    if (parsed.entitlement?.accessExpiresAt) {
+      parsed.entitlement.accessExpiresAt = new Date(
+        parsed.entitlement.accessExpiresAt
+      );
+    }
+    if (Array.isArray(parsed.plans)) {
+      parsed.plans = parsed.plans.map((p) => {
+        if (!p.moduleCData?.surveys) return p;
+        return {
+          ...p,
+          moduleCData: {
+            ...p.moduleCData,
+            surveys: p.moduleCData.surveys.map((s) => ({
+              ...s,
+              responses: deduplicateSurveyResponses(s.responses || []),
+            })),
+          },
+        };
+      });
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 export function getDefaultDemoSession(): BmuLocalSession {
   const limits = calculatePassLimits('FREE_HOOK');
@@ -1094,6 +1323,23 @@ export function saveBmuSession(session: BmuLocalSession): void {
     }),
   };
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanedSession));
+  try {
+    const cleanEmail = cleanedSession.user?.email?.trim().toLowerCase();
+    if (cleanEmail && cleanEmail !== 'founder@buildmyunicorn.com') {
+      const perUserKey = getPerUserStorageKey(cleanEmail);
+      const isBlankDemoFallback =
+        cleanedSession.user.id === 'user-aoife-1' &&
+        cleanedSession.plans.length === 1 &&
+        cleanedSession.plans[0]?.id === 'plan-greencart-1' &&
+        !cleanedSession.plans[0]?.brainDumpText;
+
+      if (!isBlankDemoFallback) {
+        window.localStorage.setItem(perUserKey, JSON.stringify(cleanedSession));
+      }
+    }
+  } catch {
+    // Ignore localStorage quota issues
+  }
   try {
     const rawRegistry = window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY);
     const registry: Record<string, SavedValidationSurvey & { planTitle?: string }> =

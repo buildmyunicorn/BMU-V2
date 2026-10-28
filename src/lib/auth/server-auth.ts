@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
-import { db } from '@/db';
+import { db, ensureDatabaseSchemaSynced } from '@/db';
 import { startupPlans, users } from '@/db/schema';
 
 const SESSION_COOKIE_NAME = 'bmu_session_token';
@@ -323,6 +323,8 @@ export async function verifyActiveSessionAndPlanOwnership(planId?: string): Prom
   }
 
   try {
+    await ensureDatabaseSchemaSynced();
+
     // Super-admin virtual session (master env credentials) or DB user check
     let isSuperAdmin = Boolean(adminSession && adminSession.role === 'SUPER_ADMIN');
     if (activeSession.userId !== 'super-admin-root') {

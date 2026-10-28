@@ -28,6 +28,7 @@ import {
   Mail,
   Download,
   Copy,
+  Bug,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +53,10 @@ import {
   listEarlyAccessWaitlistAction,
   updateEarlyAccessLeadStatusAction,
   deleteEarlyAccessLeadAction,
+  listSupportTicketsAction,
+  createSupportTicketAction,
+  updateSupportTicketAction,
+  deleteSupportTicketAction,
   type AdminUserRecord,
   type AccountPresetType,
   type UserRoleType,
@@ -61,6 +66,19 @@ import {
   loadBmuSession,
   saveBmuSession,
 } from '@/lib/auth/session-store';
+import {
+  loadLocalSupportTickets,
+  saveLocalSupportTickets,
+  upsertLocalSupportTicket,
+  removeLocalSupportTicket,
+  mergeSupportTickets,
+  type SupportTicketRecord,
+  type SupportTicketType,
+  type SupportTicketPriority,
+  type SupportTicketStatus,
+  type SupportModuleScope,
+} from '@/lib/support-tracker-store';
+import { SupportBugTrackerTab } from '@/components/admin/support-bug-tracker-tab';
 
 type StatusFilterTab =
   | 'ALL_ACTIVE'
@@ -283,6 +301,12 @@ export default function AdminDashboardPage() {
   const [waitlistLeads, setWaitlistLeads] = useState<EarlyAccessLeadRecord[]>(
     []
   );
+  const [supportTicketsList, setSupportTicketsList] = useState<
+    SupportTicketRecord[]
+  >([]);
+  const [activeAdminSection, setActiveAdminSection] = useState<
+    'ACCOUNTS_AND_WAITLIST' | 'SUPPORT_AND_BUGS'
+  >('ACCOUNTS_AND_WAITLIST');
   const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(false);
   const [adminEmail, setAdminEmail] = useState<string>('');
   const [dbConnected, setDbConnected] = useState<boolean>(false);
@@ -314,9 +338,10 @@ export default function AdminDashboardPage() {
   async function fetchUsers() {
     setIsLoading(true);
     try {
-      const [res, waitlistRes] = await Promise.all([
+      const [res, waitlistRes, supportRes] = await Promise.all([
         listAdminUsersAction(),
         listEarlyAccessWaitlistAction(),
+        listSupportTicketsAction(),
       ]);
       if (!res.authenticated) {
         router.replace('/admin/login');
@@ -354,9 +379,111 @@ export default function AdminDashboardPage() {
         }
       }
       setWaitlistLeads(Array.from(mergedMap.values()));
+
+      // Merge server/PostgreSQL support & bug tracker items with local browser-cached items
+      const localTickets = loadLocalSupportTickets();
+      const mergedTickets = mergeSupportTickets(
+        supportRes.tickets || [],
+        localTickets
+      );
+      setSupportTicketsList(mergedTickets);
+      saveLocalSupportTickets(mergedTickets);
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleCreateSupportTicket(input: {
+    ticketType: SupportTicketType;
+    customTypeText?: string | null;
+    priority: SupportTicketPriority;
+    moduleScope: SupportModuleScope;
+    stepContext?: string | null;
+    pageUrl?: string | null;
+    title: string;
+    description: string;
+    expectedBehavior?: string | null;
+    adminNotes?: string | null;
+  }) {
+    const res = await createSupportTicketAction({
+      ...input,
+      source: 'ADMIN_TRACKER',
+      reporterEmail: adminEmail || 'admin@buildmyunicorn.com',
+    });
+    if (res.ok && res.ticket) {
+      const updated = upsertLocalSupportTicket(res.ticket);
+      setSupportTicketsList((prev) => mergeSupportTickets([res.ticket!], prev));
+      saveLocalSupportTickets(updated);
+      setBannerMessage({
+        type: 'success',
+        text: `Logged "${res.ticket.title}" to the Support & Bug Tracker.`,
+      });
+    } else if (res.error) {
+      setBannerMessage({
+        type: 'warning',
+        text: res.error,
+      });
+    }
+  }
+
+  async function handleUpdateSupportTicket(input: {
+    id: string;
+    status?: SupportTicketStatus;
+    priority?: SupportTicketPriority;
+    ticketType?: SupportTicketType;
+    customTypeText?: string | null;
+    moduleScope?: SupportModuleScope;
+    stepContext?: string | null;
+    title?: string;
+    description?: string;
+    expectedBehavior?: string | null;
+    adminNotes?: string | null;
+  }) {
+    await updateSupportTicketAction(input);
+    setSupportTicketsList((prev) => {
+      const next = prev.map((t) => {
+        if (t.id !== input.id) return t;
+        return {
+          ...t,
+          status: input.status ?? t.status,
+          priority: input.priority ?? t.priority,
+          ticketType: input.ticketType ?? t.ticketType,
+          customTypeText:
+            input.customTypeText !== undefined
+              ? input.customTypeText
+              : t.customTypeText,
+          moduleScope: input.moduleScope ?? t.moduleScope,
+          stepContext:
+            input.stepContext !== undefined ? input.stepContext : t.stepContext,
+          title: input.title !== undefined ? input.title : t.title,
+          description:
+            input.description !== undefined ? input.description : t.description,
+          expectedBehavior:
+            input.expectedBehavior !== undefined
+              ? input.expectedBehavior
+              : t.expectedBehavior,
+          adminNotes:
+            input.adminNotes !== undefined ? input.adminNotes : t.adminNotes,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      saveLocalSupportTickets(next);
+      return next;
+    });
+    setBannerMessage({
+      type: 'success',
+      text: 'Updated ticket in Support & Bug Tracker.',
+    });
+  }
+
+  async function handleDeleteSupportTicket(id: string) {
+    await deleteSupportTicketAction({ id });
+    removeLocalSupportTicket(id);
+    setSupportTicketsList((prev) => prev.filter((t) => t.id !== id));
+    setBannerMessage({
+      type: 'warning',
+      text: 'Deleted item from Support & Bug Tracker.',
+    });
   }
 
   async function handleToggleWaitlistStatus(lead: EarlyAccessLeadRecord) {
@@ -448,6 +575,12 @@ export default function AdminDashboardPage() {
   }
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') === 'support') {
+        setActiveAdminSection('SUPPORT_AND_BUGS');
+      }
+    }
     fetchUsers();
   }, []);
 
@@ -907,7 +1040,78 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* 4 KPI Summary Cards */}
+        {/* Top-Level Admin Section Navigation Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xs">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveAdminSection('ACCOUNTS_AND_WAITLIST')}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeAdminSection === 'ACCOUNTS_AND_WAITLIST'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Users className="h-4 w-4" />
+              <span>Accounts, Entitlements &amp; Waitlist</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeAdminSection === 'ACCOUNTS_AND_WAITLIST'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-200 text-slate-700'
+                }`}
+              >
+                {stats.totalAccounts}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveAdminSection('SUPPORT_AND_BUGS')}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeAdminSection === 'SUPPORT_AND_BUGS'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Bug className="h-4 w-4" />
+              <span>Support &amp; Bug Tracker</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeAdminSection === 'SUPPORT_AND_BUGS'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-amber-100 text-amber-800'
+                }`}
+              >
+                {
+                  supportTicketsList.filter(
+                    (t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS'
+                  ).length
+                }{' '}
+                Open
+              </span>
+            </button>
+          </div>
+
+          <span className="hidden pr-2 text-xs text-slate-400 md:inline">
+            {activeAdminSection === 'SUPPORT_AND_BUGS'
+              ? 'QA Bug Backlog, UX Improvements & Phase 2 Founder Support Hub'
+              : 'Manage Founder Tiers, Lifetime Access & Early-Access Leads'}
+          </span>
+        </div>
+
+        {activeAdminSection === 'SUPPORT_AND_BUGS' ? (
+          <SupportBugTrackerTab
+            tickets={supportTicketsList}
+            adminEmail={adminEmail}
+            onCreateTicket={handleCreateSupportTicket}
+            onUpdateTicket={handleUpdateSupportTicket}
+            onDeleteTicket={handleDeleteSupportTicket}
+            onNotify={(type, text) => setBannerMessage({ type, text })}
+          />
+        ) : (
+          <>
+            {/* 4 KPI Summary Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardContent className="p-5">
@@ -1497,6 +1701,8 @@ export default function AdminDashboardPage() {
             )}
           </CardContent>
         </Card>
+          </>
+        )}
       </main>
 
       {/* ========================================================= */}

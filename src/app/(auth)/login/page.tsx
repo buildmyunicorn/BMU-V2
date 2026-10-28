@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   getDefaultDemoSession,
-  loadBmuSession,
+  loadBmuSessionForEmail,
   saveBmuSession,
   type BmuLocalSession,
 } from '@/lib/auth/session-store';
@@ -65,8 +65,29 @@ export default function LoginPage() {
       }
 
       if (result.session) {
-        saveBmuSession(result.session);
-        if (!result.session.user.onboardingCompleted) {
+        const cachedForEmail = loadBmuSessionForEmail(result.session.user.email);
+        const mergedSession: BmuLocalSession = cachedForEmail
+          ? {
+              ...result.session,
+              plans: result.session.plans.map((dbPlan) => {
+                const localMatch = cachedForEmail.plans.find(
+                  (lp) => lp.id === dbPlan.id
+                );
+                if (!localMatch) return dbPlan;
+                return {
+                  ...localMatch,
+                  ...dbPlan,
+                  moduleBData: dbPlan.moduleBData || localMatch.moduleBData,
+                  moduleCData: dbPlan.moduleCData || localMatch.moduleCData,
+                  moduleDData: dbPlan.moduleDData || localMatch.moduleDData,
+                  moduleEData: dbPlan.moduleEData || localMatch.moduleEData,
+                };
+              }),
+            }
+          : result.session;
+
+        saveBmuSession(mergedSession);
+        if (!mergedSession.user.onboardingCompleted) {
           router.push('/onboarding');
         } else {
           router.push('/workspace');
@@ -74,23 +95,21 @@ export default function LoginPage() {
         return;
       }
 
-      // Offline / local fallback: preserve existing session if email matches
-      const existing = loadBmuSession();
-      if (
-        existing.user.email.toLowerCase() !== email.trim().toLowerCase() ||
-        existing.plans.length === 0
-      ) {
+      // Offline / local fallback: restore per-email cached session if present
+      const cachedForEmail = loadBmuSessionForEmail(email);
+      if (cachedForEmail && cachedForEmail.plans.length > 0) {
+        saveBmuSession(cachedForEmail);
+      } else {
         const base = getDefaultDemoSession();
         base.user.email = email.trim();
         saveBmuSession(base);
       }
       router.push('/workspace');
     } catch {
-      const existing = loadBmuSession();
-      if (
-        existing.user.email.toLowerCase() !== email.trim().toLowerCase() ||
-        existing.plans.length === 0
-      ) {
+      const cachedForEmail = loadBmuSessionForEmail(email);
+      if (cachedForEmail && cachedForEmail.plans.length > 0) {
+        saveBmuSession(cachedForEmail);
+      } else {
         const base = getDefaultDemoSession();
         if (email.trim()) {
           base.user.email = email.trim();
@@ -114,8 +133,20 @@ export default function LoginPage() {
         router.push('/workspace');
         return;
       }
+      const cached = loadBmuSessionForEmail('thomaswalsh@google.com');
+      if (cached && cached.plans.length > 0) {
+        saveBmuSession(cached);
+        router.push('/workspace');
+        return;
+      }
       loginWithDevPersona('FREE');
     } catch {
+      const cached = loadBmuSessionForEmail('thomaswalsh@google.com');
+      if (cached && cached.plans.length > 0) {
+        saveBmuSession(cached);
+        router.push('/workspace');
+        return;
+      }
       loginWithDevPersona('FREE');
     } finally {
       setIsSubmitting(false);

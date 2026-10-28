@@ -227,6 +227,7 @@ export interface ModuleDWorkspaceProps {
     engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
   }>;
   onBackToModuleC: () => void;
+  onContinueToModuleE?: () => void;
   whiteLabelEnabled?: boolean;
 }
 
@@ -4343,6 +4344,7 @@ export function ModuleDWorkspace({
   onGenerateAiWorkPackages,
   onGenerateAiBlindSpotAudit,
   onBackToModuleC,
+  onContinueToModuleE,
   whiteLabelEnabled,
 }: ModuleDWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
@@ -13982,6 +13984,23 @@ export function ModuleDWorkspace({
                       </>
                     )}
                   </Button>
+                  {onContinueToModuleE && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isSavingStep6}
+                      onClick={async () => {
+                        if (!isVaultReadonly) {
+                          await handleSaveStep6();
+                        }
+                        onContinueToModuleE();
+                      }}
+                      className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                    >
+                      Continue to Module E: Operations &amp; Fulfillment
+                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
 

@@ -65,6 +65,18 @@ import type {
   ProductBlindSpotSeverityType,
   ProductReadinessConfidenceType,
   ProductBlindSpotItem,
+  OperationsFulfillmentModeType,
+  OrderTurnaroundSlaType,
+  OperationalCapacityConstraintType,
+  OrderStageOwnerType,
+  OrderLifecycleStageItem,
+  PremisesSetupModeType,
+  PremisesComplianceStatusType,
+  EquipmentAssetCategoryType,
+  EquipmentAcquisitionModeType,
+  EquipmentFundingSourceType,
+  EquipmentQuoteComplianceStatusType,
+  EquipmentAssetItem,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -3848,6 +3860,7 @@ Return strictly valid JSON with:
 }
 
 
+
 export interface ModuleDScopeFilterGenerationResult {
   allowed: boolean;
   reason?: string;
@@ -4092,6 +4105,7 @@ Return strictly valid JSON with:
     engineMode: 'smart-synthesizer',
   };
 }
+
 
 
 export interface ModuleDChannelMatrixGenerationResult {
@@ -4340,6 +4354,7 @@ Return strictly valid JSON with:
     engineMode: 'smart-synthesizer',
   };
 }
+
 
 
 export interface ModuleDBuildVsBuyGenerationResult {
@@ -4847,6 +4862,7 @@ Include 2 items in "BUILD_IN_HOUSE", 2 items in "BUY_RENT_OFF_SHELF", and 1 to 2
     engineMode: 'smart-synthesizer',
   };
 }
+
 
 
 export interface ModuleDWorkPackagesGenerationResult {
@@ -5532,6 +5548,7 @@ Return ONLY valid JSON matching this exact structure:
   };
 }
 
+
 export interface ModuleDBlindSpotAuditGenerationResult {
   allowed: boolean;
   reason?: string;
@@ -5860,6 +5877,1290 @@ Return strict JSON with keys:
     engineMode: 'smart-synthesizer',
   };
 }
+
+
+// ============================================================================
+// MODULE E STEP 1: "A DAY IN THE LIFE OF AN ORDER" (OPERATIONS BLUEPRINT)
+// ============================================================================
+
+export interface ModuleEOperationsBlueprintGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  fulfillmentMode: OperationsFulfillmentModeType;
+  turnaroundSla: OrderTurnaroundSlaType;
+  capacityConstraint: OperationalCapacityConstraintType;
+  orderLifecycleStages: OrderLifecycleStageItem[];
+  endToEndFulfillmentNarrative: string;
+  scalingAndBottleneckDeRiskingNarrative: string;
+  creditsUsedAfter: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleEOperationsBlueprintViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  primaryChannel?: SalesChannelOptionType;
+  deliveryFulfillmentModel?: DeliveryFulfillmentModelType;
+  weeklyOpsHoursAllocated?: number;
+  currentFulfillmentMode?: OperationsFulfillmentModeType | '';
+  currentTurnaroundSla?: OrderTurnaroundSlaType | '';
+  currentCapacityConstraint?: OperationalCapacityConstraintType | '';
+  currentStages?: OrderLifecycleStageItem[];
+  mode?: 'POPULATE_STAGES_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleEOperationsBlueprintGenerationResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_E_STEP1_OPERATIONS_BLUEPRINT'
+  );
+
+  const isNarrativesOnly = params.mode === 'NARRATIVES_ONLY';
+  const currency = params.baseCurrency || 'EUR';
+  const weeklyHours = Math.max(5, params.weeklyOpsHoursAllocated || 25);
+
+  const combinedText = [
+    params.planTitle,
+    params.brainDumpText,
+    params.coreProblem,
+    params.proposedSolution,
+    params.targetCustomer,
+    params.otherProductTrackText,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const isWoodworkerOrMaker =
+    /wood|chopping board|cutting board|timber|joinery|carpenter|furniture|craft|artisan|turning|cnc/.test(
+      combinedText
+    );
+
+  const buildSmartFallback = (): Omit<
+    ModuleEOperationsBlueprintGenerationResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const cleanTitle = params.planTitle?.trim() || 'our startup';
+    const isIE = params.hqCountryCode === 'IE';
+    const courierLabel = isIE
+      ? 'An Post Advantage / DPD Ireland Tracked'
+      : 'Royal Mail Tracked 48 / DPD UK';
+
+    if (
+      isWoodworkerOrMaker ||
+      params.selectedTrack === 'PHYSICAL_PRODUCT_ECOM'
+    ) {
+      const stages: OrderLifecycleStageItem[] =
+        isNarrativesOnly &&
+        params.currentStages &&
+        params.currentStages.length > 0
+          ? params.currentStages
+          : isWoodworkerOrMaker
+            ? [
+                {
+                  id: 'ops-stage-1',
+                  stageNumber: 1,
+                  stageTitle: '1. Order Trigger & Kiln-Dried Timber Selection',
+                  ownerType: 'FOUNDER_MAKER',
+                  whatHappensStepByStep:
+                    'Order arrives via Shopify D2C / Craft Market POS; select kiln-dried hardwood (Walnut, Ash, Beech at 8%–10% moisture content) and rip-saw strips to size.',
+                  toolsEquipmentOrSupplier:
+                    'Shopify Order Webhook + Table Saw + Planer-Thicknesser (FSC Kiln-Dried Hardwood Supplier)',
+                  activeMinutesPerOrder: 15,
+                  directVariableCostPerOrder: 18.5,
+                },
+                {
+                  id: 'ops-stage-2',
+                  stageNumber: 2,
+                  stageTitle: '2. Food-Safe Glue-Up & Parallel Clamp Curing',
+                  ownerType: 'FOUNDER_MAKER',
+                  whatHappensStepByStep:
+                    'Assemble edge/end-grain timber pattern using FDA food-contact waterproof glue (Titebond III) and lock into parallel clamp rack (24h passive cure).',
+                  toolsEquipmentOrSupplier:
+                    'Parallel Clamp Rack + Titebond III Food-Safe Waterproof PVA Glue',
+                  activeMinutesPerOrder: 15,
+                  directVariableCostPerOrder: 1.8,
+                },
+                {
+                  id: 'ops-stage-3',
+                  stageNumber: 3,
+                  stageTitle:
+                    '3. Drum Sanding, CNC Juice Groove & Laser Engraving',
+                  ownerType: 'FOUNDER_MAKER',
+                  whatHappensStepByStep:
+                    'Flatten board through dual-drum sander, rout juice groove & chamfered finger grips, laser-engrave custom gift message/logo, and orbital sand to 240-grit.',
+                  toolsEquipmentOrSupplier:
+                    'Dual-Drum Sander + CNC Router + Diode Laser Engraver + ATEX Dust Extractor',
+                  activeMinutesPerOrder: 25,
+                  directVariableCostPerOrder: 2.2,
+                },
+                {
+                  id: 'ops-stage-4',
+                  stageNumber: 4,
+                  stageTitle:
+                    '4. Food-Grade Mineral Oil Bath & Beeswax Buffing',
+                  ownerType: 'FOUNDER_MAKER',
+                  whatHappensStepByStep:
+                    'Submerge in USP food-grade mineral oil bath to seal wood fibres, wipe dry, and hand-buff with local beeswax & carnauba board butter.',
+                  toolsEquipmentOrSupplier:
+                    'Stainless Dipping Tank + USP Mineral Oil + Irish Beeswax Board Butter',
+                  activeMinutesPerOrder: 10,
+                  directVariableCostPerOrder: 2.5,
+                },
+                {
+                  id: 'ops-stage-5',
+                  stageNumber: 5,
+                  stageTitle: '5. Eco-Packaging, Care Card & Tracked Dispatch',
+                  ownerType: 'FOUNDER_MAKER',
+                  whatHappensStepByStep:
+                    'Pass 5-point flatness & moisture QC check, wrap in honeycomb kraft paper with care guide & wax tin, and book tracked courier label.',
+                  toolsEquipmentOrSupplier: `Branded Kraft Box + ${courierLabel}`,
+                  activeMinutesPerOrder: 8,
+                  directVariableCostPerOrder: 9.5,
+                },
+              ]
+            : [
+                {
+                  id: 'ops-stage-1',
+                  stageNumber: 1,
+                  stageTitle: '1. Order Capture & Inventory Allocation',
+                  ownerType: 'AUTOMATED_SYSTEM',
+                  whatHappensStepByStep:
+                    'Customer completes checkout on Shopify / marketplace; payment clears and SKU stock is automatically reserved with packing slip queued.',
+                  toolsEquipmentOrSupplier:
+                    'Shopify / Stripe Checkout + Inventory Sync',
+                  activeMinutesPerOrder: 1,
+                  directVariableCostPerOrder: 1.9,
+                },
+                {
+                  id: 'ops-stage-2',
+                  stageNumber: 2,
+                  stageTitle: '2. Raw Material & Batch Production Prep',
+                  ownerType: 'FOUNDER_MAKER',
+                  whatHappensStepByStep:
+                    'Pull raw ingredients/components from batch inventory and prepare product unit according to standard operating recipe/spec.',
+                  toolsEquipmentOrSupplier:
+                    'In-House Production Bench + Vetted Raw Material Suppliers',
+                  activeMinutesPerOrder: 18,
+                  directVariableCostPerOrder: 11.5,
+                },
+                {
+                  id: 'ops-stage-3',
+                  stageNumber: 3,
+                  stageTitle: '3. Finishing, Labelling & Batch Traceability',
+                  ownerType: 'FOUNDER_MAKER',
+                  whatHappensStepByStep:
+                    'Apply primary product finish, batch code/barcode label, and protective seal ready for retail or direct dispatch.',
+                  toolsEquipmentOrSupplier:
+                    'Thermal Label Printer + Primary Packaging Stock',
+                  activeMinutesPerOrder: 8,
+                  directVariableCostPerOrder: 2.4,
+                },
+                {
+                  id: 'ops-stage-4',
+                  stageNumber: 4,
+                  stageTitle: '4. Quality Control Inspection & Protective Boxing',
+                  ownerType: 'FOUNDER_MAKER',
+                  whatHappensStepByStep:
+                    'Verify product weight, finish quality, and order accuracy; pack into crush-proof recyclable mailer with unboxing insert.',
+                  toolsEquipmentOrSupplier:
+                    'QC Checklist + Recyclable Corrugated Mailer Boxes',
+                  activeMinutesPerOrder: 5,
+                  directVariableCostPerOrder: 2.2,
+                },
+                {
+                  id: 'ops-stage-5',
+                  stageNumber: 5,
+                  stageTitle: '5. Courier Collection & Automated Tracking Update',
+                  ownerType: 'EXTERNAL_SUPPLIER_3PL',
+                  whatHappensStepByStep:
+                    'Scan manifest for daily courier collection; automated tracking link and post-delivery review request sent to customer.',
+                  toolsEquipmentOrSupplier: courierLabel,
+                  activeMinutesPerOrder: 3,
+                  directVariableCostPerOrder: 6.5,
+                },
+              ];
+
+      const totalMins = stages.reduce(
+        (acc, s) => acc + (Number(s.activeMinutesPerOrder) || 0),
+        0
+      );
+      const totalCogs = stages.reduce(
+        (acc, s) => acc + (Number(s.directVariableCostPerOrder) || 0),
+        0
+      );
+      const maxWeeklyUnits =
+        totalMins > 0 ? Math.floor((weeklyHours * 60) / totalMins) : 250;
+
+      return {
+        fulfillmentMode:
+          (params.currentFulfillmentMode as OperationsFulfillmentModeType) ||
+          'IN_HOUSE_WORKSHOP_BATCH',
+        turnaroundSla:
+          (params.currentTurnaroundSla as OrderTurnaroundSlaType) ||
+          'STANDARD_CRAFT_CYCLE_3_7_DAYS',
+        capacityConstraint:
+          (params.currentCapacityConstraint as OperationalCapacityConstraintType) ||
+          'EQUIPMENT_OR_CURE_BATCH_LIMIT',
+        orderLifecycleStages: stages,
+        endToEndFulfillmentNarrative: `Every ${cleanTitle} order follows a standardized 5-stage workshop fulfillment workflow taking ${totalMins} active hands-on minutes and ${formatPlanCurrency(totalCogs, currency)} in direct variable materials, consumables, and tracked shipping (COGS). Raw materials are pre-batched to strict quality tolerances before undergoing precision finishing, food-safe/protective treatment, a 5-point quality control gate, and tracked dispatch via ${courierLabel} within a 3–5 business day turnaround SLA.`,
+        scalingAndBottleneckDeRiskingNarrative: `At ${totalMins} active minutes per unit across ${weeklyHours} workshop hours/week, solo one-by-one production caps weekly output at ~${maxWeeklyUnits} units/week. We de-risk peak seasonal demand (such as Q4 Christmas gifting and B2B corporate batches) in two ways: (1) pre-milling and batch-curing un-engraved blank units in blocks of 25 so final personalization and oiling takes under 12 minutes per order, and (2) investing in grant-supported production machinery (Step 2 Dual-Drum Sander & CNC Router) to cut hands-on labour per unit by 45%+.`,
+      };
+    }
+
+    if (params.selectedTrack === 'EDUCATION_PROGRAM_COHORT') {
+      const stages: OrderLifecycleStageItem[] =
+        isNarrativesOnly &&
+        params.currentStages &&
+        params.currentStages.length > 0
+          ? params.currentStages
+          : [
+              {
+                id: 'ops-stage-1',
+                stageNumber: 1,
+                stageTitle: '1. Enrolment Checkout & Instant Portal Welcome',
+                ownerType: 'AUTOMATED_SYSTEM',
+                whatHappensStepByStep:
+                  'Parent/learner completes checkout; Stripe webhook provisions learning portal login and sends instant welcome email + baseline intake form.',
+                toolsEquipmentOrSupplier:
+                  'Stripe Checkout + Web Portal + Transactional Email',
+                activeMinutesPerOrder: 0,
+                directVariableCostPerOrder: 2.1,
+              },
+              {
+                id: 'ops-stage-2',
+                stageNumber: 2,
+                stageTitle: '2. Baseline Routine / Needs Assessment Triage',
+                ownerType: 'FOUNDER_MAKER',
+                whatHappensStepByStep:
+                  'Learner completes 3-minute onboarding profile; system recommends personalized module track and flags any high-priority notes for specialist review.',
+                toolsEquipmentOrSupplier:
+                  'Guided Onboarding Diagnostic + Specialist Dashboard',
+                activeMinutesPerOrder: 5,
+                directVariableCostPerOrder: 0.4,
+              },
+              {
+                id: 'ops-stage-3',
+                stageNumber: 3,
+                stageTitle:
+                  '3. Bite-Sized Audio/Video Lesson & Action Plan Delivery',
+                ownerType: 'AUTOMATED_SYSTEM',
+                whatHappensStepByStep:
+                  'User accesses self-paced 5-minute audio/video modules, printable visual schedules, and daily habit tracker on mobile or desktop.',
+                toolsEquipmentOrSupplier:
+                  'Hosted Video/Audio CDN + Interactive Progress Tracker',
+                activeMinutesPerOrder: 0,
+                directVariableCostPerOrder: 0.35,
+              },
+              {
+                id: 'ops-stage-4',
+                stageNumber: 4,
+                stageTitle: '4. Weekly Live Q&A Clinic / Community Check-In',
+                ownerType: 'FOUNDER_MAKER',
+                whatHappensStepByStep:
+                  'Founder/specialist hosts structured group office hours to answer submitted questions in a 1-to-many format (amortized across cohort).',
+                toolsEquipmentOrSupplier:
+                  'Zoom / Moderated Community Q&A Thread',
+                activeMinutesPerOrder: 8,
+                directVariableCostPerOrder: 0.25,
+              },
+              {
+                id: 'ops-stage-5',
+                stageNumber: 5,
+                stageTitle:
+                  '5. Milestone Outcome Check & Referral / Renewal Loop',
+                ownerType: 'AUTOMATED_SYSTEM',
+                whatHappensStepByStep:
+                  'Day-14 & Day-30 progress check captures measurable improvement data (for grant/clinical proof) and prompts ongoing membership or referral.',
+                toolsEquipmentOrSupplier:
+                  'Automated Outcome Survey + Subscription Billing',
+                activeMinutesPerOrder: 2,
+                directVariableCostPerOrder: 0.1,
+              },
+            ];
+
+      const totalMins = stages.reduce(
+        (acc, s) => acc + (Number(s.activeMinutesPerOrder) || 0),
+        0
+      );
+      const totalCogs = stages.reduce(
+        (acc, s) => acc + (Number(s.directVariableCostPerOrder) || 0),
+        0
+      );
+
+      return {
+        fulfillmentMode:
+          (params.currentFulfillmentMode as OperationsFulfillmentModeType) ||
+          'HYBRID_AUTOMATED_PLUS_HUMAN',
+        turnaroundSla:
+          (params.currentTurnaroundSla as OrderTurnaroundSlaType) ||
+          'INSTANT_UNDER_5_MINS',
+        capacityConstraint:
+          (params.currentCapacityConstraint as OperationalCapacityConstraintType) ||
+          'FOUNDER_MANUAL_HOURS',
+        orderLifecycleStages: stages,
+        endToEndFulfillmentNarrative: `${cleanTitle} combines instant (<60 second) automated digital onboarding with structured 1-to-many specialist support. Each enrolled family/member costs ${formatPlanCurrency(totalCogs, currency)} in direct payment and hosting fees and requires only ${totalMins} amortized minutes of specialist time—ensuring immediate access to core guidance at 11pm while preserving high-trust human accountability via weekly group clinics.`,
+        scalingAndBottleneckDeRiskingNarrative: `To prevent 1-on-1 coaching burnout as enrolment grows from 25 to 250+ active members, core curriculum delivery and baseline diagnostics are 100% automated, while live support is delivered in 1-to-many themed group Q&A sessions and searchable answer libraries rather than unscalable private 1-on-1 calls.`,
+      };
+    }
+
+    // Default: Cloud SaaS / AI / Marketplace / Service (e.g. Build My Unicorn)
+    const stages: OrderLifecycleStageItem[] =
+      isNarrativesOnly &&
+      params.currentStages &&
+      params.currentStages.length > 0
+        ? params.currentStages
+        : [
+            {
+              id: 'ops-stage-1',
+              stageNumber: 1,
+              stageTitle:
+                '1. Checkout / Voucher Redemption & Account Provisioning',
+              ownerType: 'AUTOMATED_SYSTEM',
+              whatHappensStepByStep:
+                'Customer completes Stripe checkout or redeems cohort/AppSumo voucher; webhook updates user_entitlements and unlocks multi-module workspace in <5 seconds.',
+              toolsEquipmentOrSupplier:
+                'Stripe Checkout + Better-Auth + PostgreSQL (Drizzle ORM)',
+              activeMinutesPerOrder: 0,
+              directVariableCostPerOrder: 2.05,
+            },
+            {
+              id: 'ops-stage-2',
+              stageNumber: 2,
+              stageTitle:
+                '2. Guided Onboarding & Geo-Localized Workspace Setup',
+              ownerType: 'AUTOMATED_SYSTEM',
+              whatHappensStepByStep:
+                'Edge Geo-IP pre-selects HQ country (IE/GB), currency, and regional grant rules; founder captures initial brain dump and 1-page Concept Canvas.',
+              toolsEquipmentOrSupplier:
+                'Next.js Edge Middleware + Google Cloud Run + Cloud SQL',
+              activeMinutesPerOrder: 0,
+              directVariableCostPerOrder: 0.05,
+            },
+            {
+              id: 'ops-stage-3',
+              stageNumber: 3,
+              stageTitle:
+                '3. AI-Assisted Module Execution & Live Survey Hosting',
+              ownerType: 'AUTOMATED_SYSTEM',
+              whatHappensStepByStep:
+                'Founder progresses through Modules A–K using rate-limited Gemini 2.5 Flash/Pro synthesis, Mom-Test survey hosting (/v/[slug]), and financial modelling.',
+              toolsEquipmentOrSupplier:
+                'Google GenAI SDK (router.ts 500/day ceiling) + Public Survey Engine',
+              activeMinutesPerOrder: 0,
+              directVariableCostPerOrder: 0.85,
+            },
+            {
+              id: 'ops-stage-4',
+              stageNumber: 4,
+              stageTitle:
+                '4. 3-Quote Concierge & Partner Marketplace Hand-Off',
+              ownerType: 'PARTNER_CONCIERGE',
+              whatHappensStepByStep:
+                'When a founder requests 3 LEO-compliant dev/equipment quotes or banking/insurance perks, standardized RFP specs route to vetted IE/UK partners within 48h.',
+              toolsEquipmentOrSupplier:
+                'BMU 3-Quote Concierge Engine + Vetted IE/UK Partner Network',
+              activeMinutesPerOrder: 5,
+              directVariableCostPerOrder: 0.0,
+            },
+            {
+              id: 'ops-stage-5',
+              stageNumber: 5,
+              stageTitle:
+                '5. Grant Pre-Flight Audit, Export & Living Vault Renewal',
+              ownerType: 'AUTOMATED_SYSTEM',
+              whatHappensStepByStep:
+                'Founder compiles LEO / Innovate UK / Start Up Loans pack in Module K; at Month 6, automated lifecycle check prompts €9/mo Grant Radar & Living Vault renewal.',
+              toolsEquipmentOrSupplier:
+                'Module K Grant Compiler + Resend Transactional Lifecycle',
+              activeMinutesPerOrder: 2,
+              directVariableCostPerOrder: 0.05,
+            },
+          ];
+
+    const totalMins = stages.reduce(
+      (acc, s) => acc + (Number(s.activeMinutesPerOrder) || 0),
+      0
+    );
+    const totalCogs = stages.reduce(
+      (acc, s) => acc + (Number(s.directVariableCostPerOrder) || 0),
+      0
+    );
+
+    return {
+      fulfillmentMode:
+        (params.currentFulfillmentMode as OperationsFulfillmentModeType) ||
+        'HYBRID_AUTOMATED_PLUS_HUMAN',
+      turnaroundSla:
+        (params.currentTurnaroundSla as OrderTurnaroundSlaType) ||
+        'INSTANT_UNDER_5_MINS',
+      capacityConstraint:
+        (params.currentCapacityConstraint as OperationalCapacityConstraintType) ||
+        'CLOUD_API_RATE_OR_INFRA_GUARDRAIL',
+      orderLifecycleStages: stages,
+      endToEndFulfillmentNarrative: `${cleanTitle} operates a high-margin cloud fulfillment pipeline where core account provisioning, geo-localization, and AI-guided module synthesis execute in under 60 seconds with ${formatPlanCurrency(totalCogs, currency)} in direct variable payment and AI token costs (COGS) per customer. Human touchpoints are reserved strictly for high-value exception triage and routing standardized 3-Quote Concierge RFPs to vetted Irish and UK partner suppliers (${totalMins} mins average ops time per customer).`,
+      scalingAndBottleneckDeRiskingNarrative: `We protect unit economics and operational uptime at scale through three guardrails: (1) a hard 500-call/day platform AI circuit breaker and 2,048 max-output-token cap in router.ts with deterministic smart-synthesizer fallback, (2) self-serve 4-layer in-app micro-coaching ('Why Are We Asking This?', industry examples, and 'Ask Unicorn') to keep support ticket volume below 5%, and (3) pre-vetted IE/UK supplier SLAs for 48-hour quote turnaround.`,
+    };
+  };
+
+  if (!authCtx.canCallLiveGemini || !authCtx.activeApiKey) {
+    return {
+      allowed: true,
+      ...buildSmartFallback(),
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const fallback = buildSmartFallback();
+
+    const prompt = `You are an expert startup COO and IE Local Enterprise Office (LEO) / UK Innovate UK & Start Up Loans operational advisor.
+Generate the Module E Step 1 ("A Day in the Life of an Order" — End-to-End Fulfillment & Unit Operations Blueprint) for:
+- Startup Title: ${sanitizePromptInput(params.planTitle, 120)}
+- Industry Category: ${sanitizePromptInput(params.industryCategory, 80)}
+- HQ Country: ${params.hqCountryCode} (Currency: ${currency})
+- Product Track: ${params.selectedTrack} ${params.otherProductTrackText ? `(${sanitizePromptInput(params.otherProductTrackText, 100)})` : ''}
+- Core Problem: ${sanitizePromptInput(params.coreProblem, 250)}
+- Proposed Solution: ${sanitizePromptInput(params.proposedSolution, 250)}
+- Target Customer: ${sanitizePromptInput(params.targetCustomer, 200)}
+- Weekly Ops Hours Available: ${weeklyHours} hours/week
+- Mode: ${isNarrativesOnly ? 'NARRATIVES_ONLY (synthesize narratives from current stages)' : 'POPULATE_STAGES_AND_NARRATIVES'}
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "fulfillmentMode": "AUTOMATED_CLOUD_SELF_SERVE" | "IN_HOUSE_WORKSHOP_BATCH" | "CONTRACT_MANUFACTURED_3PL" | "FOUNDER_LED_CONCIERGE_COHORT" | "HYBRID_AUTOMATED_PLUS_HUMAN",
+  "turnaroundSla": "INSTANT_UNDER_5_MINS" | "SAME_OR_NEXT_DAY_24_48H" | "STANDARD_CRAFT_CYCLE_3_7_DAYS" | "BESPOKE_OR_SPRINT_2_4_WEEKS" | "COHORT_OR_SCHEDULED_WINDOW",
+  "capacityConstraint": "FOUNDER_MANUAL_HOURS" | "EQUIPMENT_OR_CURE_BATCH_LIMIT" | "SUPPLIER_OR_PARTNER_TURNAROUND" | "CLOUD_API_RATE_OR_INFRA_GUARDRAIL" | "PROVIDER_SUPPLY_LIQUIDITY",
+  "orderLifecycleStages": [
+    {
+      "stageNumber": 1,
+      "stageTitle": "1. ...",
+      "ownerType": "AUTOMATED_SYSTEM" | "FOUNDER_MAKER" | "COFOUNDER_TEAM" | "EXTERNAL_SUPPLIER_3PL" | "PARTNER_CONCIERGE",
+      "whatHappensStepByStep": "Specific operational step...",
+      "toolsEquipmentOrSupplier": "Specific tool, machine, or supplier...",
+      "activeMinutesPerOrder": 10,
+      "directVariableCostPerOrder": 5.5
+    }
+  ],
+  "endToEndFulfillmentNarrative": "2-3 sentences explaining the end-to-end order lifecycle, SLA, and direct unit COGS...",
+  "scalingAndBottleneckDeRiskingNarrative": "2-3 sentences explaining how the business scales order volume 5x without breaking the primary operational bottleneck..."
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        maxOutputTokens: 2048,
+        temperature: 0.35,
+      },
+    });
+
+    const rawText = response.text?.trim() || '';
+    if (rawText) {
+      const parsed = JSON.parse(rawText) as Partial<{
+        fulfillmentMode: OperationsFulfillmentModeType;
+        turnaroundSla: OrderTurnaroundSlaType;
+        capacityConstraint: OperationalCapacityConstraintType;
+        orderLifecycleStages: Array<Partial<OrderLifecycleStageItem>>;
+        endToEndFulfillmentNarrative: string;
+        scalingAndBottleneckDeRiskingNarrative: string;
+      }>;
+
+      const validModes = new Set<string>([
+        'AUTOMATED_CLOUD_SELF_SERVE',
+        'IN_HOUSE_WORKSHOP_BATCH',
+        'CONTRACT_MANUFACTURED_3PL',
+        'FOUNDER_LED_CONCIERGE_COHORT',
+        'HYBRID_AUTOMATED_PLUS_HUMAN',
+        'OTHER',
+      ]);
+      const validSlas = new Set<string>([
+        'INSTANT_UNDER_5_MINS',
+        'SAME_OR_NEXT_DAY_24_48H',
+        'STANDARD_CRAFT_CYCLE_3_7_DAYS',
+        'BESPOKE_OR_SPRINT_2_4_WEEKS',
+        'COHORT_OR_SCHEDULED_WINDOW',
+        'OTHER',
+      ]);
+      const validConstraints = new Set<string>([
+        'FOUNDER_MANUAL_HOURS',
+        'EQUIPMENT_OR_CURE_BATCH_LIMIT',
+        'SUPPLIER_OR_PARTNER_TURNAROUND',
+        'CLOUD_API_RATE_OR_INFRA_GUARDRAIL',
+        'PROVIDER_SUPPLY_LIQUIDITY',
+        'OTHER',
+      ]);
+      const validOwners = new Set<string>([
+        'AUTOMATED_SYSTEM',
+        'FOUNDER_MAKER',
+        'COFOUNDER_TEAM',
+        'EXTERNAL_SUPPLIER_3PL',
+        'PARTNER_CONCIERGE',
+        'OTHER',
+      ]);
+
+      if (
+        typeof parsed.endToEndFulfillmentNarrative === 'string' &&
+        parsed.endToEndFulfillmentNarrative.trim().length > 20 &&
+        typeof parsed.scalingAndBottleneckDeRiskingNarrative === 'string' &&
+        parsed.scalingAndBottleneckDeRiskingNarrative.trim().length > 20
+      ) {
+        creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+          verifiedUserId: authCtx.verifiedUserId,
+          planId: params.planId,
+          promptKey: 'MOD_E_STEP1_OPERATIONS_BLUEPRINT',
+          modelUsed: 'gemini-2.5-flash',
+          inputTokens: response.usageMetadata?.promptTokenCount || 320,
+          outputTokens: response.usageMetadata?.candidatesTokenCount || 300,
+          usedByokKey: authCtx.usedByokKey,
+          fallbackCreditsUsed: authCtx.currentCreditsUsed,
+        });
+
+        const stages: OrderLifecycleStageItem[] =
+          isNarrativesOnly &&
+          params.currentStages &&
+          params.currentStages.length > 0
+            ? params.currentStages
+            : Array.isArray(parsed.orderLifecycleStages) &&
+                parsed.orderLifecycleStages.length >= 3
+              ? parsed.orderLifecycleStages.slice(0, 7).map((st, idx) => ({
+                  id: `ai-ops-stage-${idx + 1}-${Date.now()}`,
+                  stageNumber: idx + 1,
+                  stageTitle:
+                    sanitizePromptInput(st.stageTitle, 110) ||
+                    `${idx + 1}. Operational Stage ${idx + 1}`,
+                  ownerType: validOwners.has(String(st.ownerType))
+                    ? (st.ownerType as OrderStageOwnerType)
+                    : 'FOUNDER_MAKER',
+                  whatHappensStepByStep:
+                    sanitizePromptInput(st.whatHappensStepByStep, 280) ||
+                    'Execute standardized operational step.',
+                  toolsEquipmentOrSupplier:
+                    sanitizePromptInput(st.toolsEquipmentOrSupplier, 160) ||
+                    'Core operational tool/supplier',
+                  activeMinutesPerOrder: Math.max(
+                    0,
+                    Math.min(
+                      2400,
+                      Math.round(Number(st.activeMinutesPerOrder) || 0)
+                    )
+                  ),
+                  directVariableCostPerOrder: Math.max(
+                    0,
+                    Math.round(
+                      (Number(st.directVariableCostPerOrder) || 0) * 100
+                    ) / 100
+                  ),
+                }))
+              : fallback.orderLifecycleStages;
+
+        return {
+          allowed: true,
+          fulfillmentMode: validModes.has(String(parsed.fulfillmentMode))
+            ? (parsed.fulfillmentMode as OperationsFulfillmentModeType)
+            : fallback.fulfillmentMode,
+          turnaroundSla: validSlas.has(String(parsed.turnaroundSla))
+            ? (parsed.turnaroundSla as OrderTurnaroundSlaType)
+            : fallback.turnaroundSla,
+          capacityConstraint: validConstraints.has(
+            String(parsed.capacityConstraint)
+          )
+            ? (parsed.capacityConstraint as OperationalCapacityConstraintType)
+            : fallback.capacityConstraint,
+          orderLifecycleStages: stages,
+          endToEndFulfillmentNarrative:
+            parsed.endToEndFulfillmentNarrative.trim(),
+          scalingAndBottleneckDeRiskingNarrative:
+            parsed.scalingAndBottleneckDeRiskingNarrative.trim(),
+          creditsUsedAfter,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    }
+  } catch {
+    // Fallback to deterministic synthesizer below
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+// ============================================================================
+// MODULE E STEP 2: PREMISES, WORKSHOP & EQUIPMENT SCHEDULE (LEO / INNOVATE UK)
+// ============================================================================
+
+export interface ModuleEPremisesEquipmentGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  premisesSetupMode: PremisesSetupModeType;
+  premisesLocationSummary: string;
+  monthlyPremisesAndUtilitiesCost: number;
+  premisesComplianceStatus: PremisesComplianceStatusType;
+  equipmentItems: EquipmentAssetItem[];
+  premisesAndLocationJustificationNarrative: string;
+  equipmentRoiAndGrantComplianceNarrative: string;
+  creditsUsedAfter: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export function isLikelyLaptopOrMobileAsset(
+  assetName: string,
+  category?: EquipmentAssetCategoryType
+): boolean {
+  if (category === 'IT_LAPTOP_MOBILE_DEVICE') return true;
+  const lower = (assetName || '').toLowerCase();
+  return /laptop|macbook|ipad|iphone|smartphone|mobile phone|tablet|thinkpad|surface pro|vehicle|van|car/.test(
+    lower
+  );
+}
+
+export async function generateModuleEPremisesEquipmentViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  currentPremisesSetupMode?: PremisesSetupModeType | '';
+  currentPremisesLocationSummary?: string;
+  currentMonthlyPremisesCost?: number;
+  currentPremisesComplianceStatus?: PremisesComplianceStatusType | '';
+  currentEquipmentItems?: EquipmentAssetItem[];
+  mode?: 'POPULATE_ASSETS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleEPremisesEquipmentGenerationResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_E_STEP2_PREMISES_EQUIPMENT'
+  );
+
+  const countryPack = getCountryRulePack(params.hqCountryCode);
+  const currency = params.baseCurrency || countryPack.defaultCurrency;
+  const cleanTitle = sanitizePromptInput(params.planTitle, 100) || 'Our Startup';
+  const combinedContext = [
+    params.planTitle,
+    params.brainDumpText,
+    params.coreProblem,
+    params.proposedSolution,
+    params.otherProductTrackText,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const isWoodworkerOrMaker =
+    /wood|chopping|board|timber|walnut|oak|carpentr|craft|furniture|engraving|cnc|sander|artisan|workshop/.test(
+      combinedContext
+    );
+  const isNarrativesOnly = params.mode === 'NARRATIVES_ONLY';
+
+  const buildSmartFallback = (): Omit<
+    ModuleEPremisesEquipmentGenerationResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const grantAgencyLabel =
+      params.hqCountryCode === 'IE'
+        ? 'Local Enterprise Office (LEO) / Enterprise Ireland'
+        : params.hqCountryCode === 'GB'
+          ? 'Innovate UK & British Business Bank Start Up Loans'
+          : `${countryPack.countryName} Grant & Lending Assessors`;
+
+    if (params.selectedTrack === 'PHYSICAL_PRODUCT_ECOM' || isWoodworkerOrMaker) {
+      const items: EquipmentAssetItem[] =
+        isNarrativesOnly &&
+        params.currentEquipmentItems &&
+        params.currentEquipmentItems.length > 0
+          ? params.currentEquipmentItems
+          : isWoodworkerOrMaker
+            ? [
+                {
+                  id: 'eq-wood-1',
+                  assetName:
+                    'Dual-Drum Thickness Sander (e.g. Jet JWDS-2244 / Laguna)',
+                  assetCategory: 'PRODUCTION_MACHINERY_TOOLS',
+                  acquisitionMode: 'BUY_NEW_GRANT_ELIGIBLE',
+                  fundingSource: 'GRANT_CO_FUNDED',
+                  quantity: 1,
+                  unitCostExVat: 2400,
+                  totalCostExVat: 2400,
+                  usefulLifeMonths: 36,
+                  projectUsagePercent: 100,
+                  quoteComplianceStatus: 'THREE_QUOTES_UPLOADED_READY',
+                  supplierQuotesSummary:
+                    params.hqCountryCode === 'IE'
+                      ? '1. Felder Group Ireland (2,350), 2. Caulfield Industrial (2,420), 3. McQuillan Tools (2,480)'
+                      : params.hqCountryCode === 'GB'
+                        ? '1. Felder Group UK (2,350), 2. Axminster Tools UK (2,480), 3. Machine Mart UK (2,420)'
+                        : '1. Felder Group (2,350), 2. Axminster Tools (2,480), 3. Industrial Tooling Quote (2,420)',
+                  operationalRoiNote:
+                    'Cuts end-grain & edge-grain sanding time from 35 mins/board down to 8 mins/board (+60% weekly workshop output).',
+                  isFlaggedLaptopOrMobileAsset: false,
+                },
+                {
+                  id: 'eq-wood-2',
+                  assetName:
+                    'Desktop CNC Router & Laser Engraving Bed (Juice Grooves & Gift Inlays)',
+                  assetCategory: 'PRODUCTION_MACHINERY_TOOLS',
+                  acquisitionMode: 'BUY_NEW_GRANT_ELIGIBLE',
+                  fundingSource: 'GRANT_CO_FUNDED',
+                  quantity: 1,
+                  unitCostExVat: 3200,
+                  totalCostExVat: 3200,
+                  usefulLifeMonths: 36,
+                  projectUsagePercent: 100,
+                  quoteComplianceStatus: 'THREE_QUOTES_UPLOADED_READY',
+                  supplierQuotesSummary:
+                    params.hqCountryCode === 'IE'
+                      ? '1. Shapeoko Pro XXL IE Quote (3,150), 2. Caulfield CNC Ireland (3,290), 3. Stepcraft Europe (3,380)'
+                      : params.hqCountryCode === 'GB'
+                        ? '1. Shapeoko Pro XXL UK Quote (3,150), 2. Ooznest WorkBee CNC UK (3,290), 3. HPC Laser UK (3,380)'
+                        : '1. Shapeoko Pro XXL Quote (3,150), 2. WorkBee CNC Quote (3,290), 3. Stepcraft Quote (3,380)',
+                  operationalRoiNote:
+                    'Automates precision perimeter juice grooves and bespoke wedding/corporate laser engraving in 6 mins with zero jig tear-out.',
+                  isFlaggedLaptopOrMobileAsset: false,
+                },
+                {
+                  id: 'eq-wood-3',
+                  assetName:
+                    'HEPA Workshop Dust Extraction & Fine Particulate Filtration Unit',
+                  assetCategory: 'WORKSHOP_EXTRACTION_SAFETY',
+                  acquisitionMode: 'BUY_NEW_GRANT_ELIGIBLE',
+                  fundingSource: 'GRANT_CO_FUNDED',
+                  quantity: 1,
+                  unitCostExVat: 850,
+                  totalCostExVat: 850,
+                  usefulLifeMonths: 36,
+                  projectUsagePercent: 100,
+                  quoteComplianceStatus: 'NOT_REQUIRED_UNDER_THRESHOLD',
+                  supplierQuotesSummary:
+                    'Under 1,000 threshold — single written supplier quote on file.',
+                  operationalRoiNote:
+                    'Mandatory hardwood dust extraction for workshop health & safety compliance and spotless mineral-oil/beeswax finishing.',
+                  isFlaggedLaptopOrMobileAsset: false,
+                },
+                {
+                  id: 'eq-wood-4',
+                  assetName:
+                    'Heavy-Duty Parallel Glue-Up Clamp Rack (Batch of 16 Clamps)',
+                  assetCategory: 'PRODUCTION_MACHINERY_TOOLS',
+                  acquisitionMode: 'ALREADY_OWNED_SWEAT_ASSET',
+                  fundingSource: 'OWN_FUNDS_OR_LOAN_100',
+                  quantity: 1,
+                  unitCostExVat: 640,
+                  totalCostExVat: 640,
+                  usefulLifeMonths: 60,
+                  projectUsagePercent: 100,
+                  quoteComplianceStatus: 'NOT_REQUIRED_UNDER_THRESHOLD',
+                  supplierQuotesSummary: `Existing founder-owned workshop tooling (Bessey K-Body parallel clamps) — ${formatPlanCurrency(0, currency)} new cash outflow.`,
+                  operationalRoiNote:
+                    'Enables batch glue-up of 15–20 chopping boards simultaneously overnight.',
+                  isFlaggedLaptopOrMobileAsset: false,
+                },
+                {
+                  id: 'eq-wood-5',
+                  assetName:
+                    'Founder Laptop / Tablet for CAD & Shipping Labels (Ring-Fenced Own Funds)',
+                  assetCategory: 'IT_LAPTOP_MOBILE_DEVICE',
+                  acquisitionMode: 'ALREADY_OWNED_SWEAT_ASSET',
+                  fundingSource: 'OWN_FUNDS_OR_LOAN_100',
+                  quantity: 1,
+                  unitCostExVat: 1100,
+                  totalCostExVat: 1100,
+                  usefulLifeMonths: 36,
+                  projectUsagePercent: 100,
+                  quoteComplianceStatus: 'NOT_REQUIRED_UNDER_THRESHOLD',
+                  supplierQuotesSummary:
+                    params.hqCountryCode === 'IE'
+                      ? 'Ring-fenced as 100% Own Funds (Excluded from IE LEO Grant Claim per Mobile IT / Laptop Ban rule).'
+                      : 'Ring-fenced as 100% Own Funds (Excluded from capital grant claim per Mobile IT ring-fencing rule).',
+                  operationalRoiNote:
+                    params.hqCountryCode === 'IE'
+                      ? 'Used for CNC toolpaths, Etsy/Shopify order dispatch, and accounting; excluded from grant claim to ensure 100% IE LEO compliance.'
+                      : 'Used for CNC toolpaths, Etsy/Shopify order dispatch, and accounting; ring-fenced under 100% Own Funds.',
+                  isFlaggedLaptopOrMobileAsset: true,
+                },
+              ]
+            : [
+                {
+                  id: 'eq-phys-1',
+                  assetName:
+                    'Semi-Automated Batch Production & Assembly Station',
+                  assetCategory: 'PRODUCTION_MACHINERY_TOOLS',
+                  acquisitionMode: 'BUY_NEW_GRANT_ELIGIBLE',
+                  fundingSource: 'GRANT_CO_FUNDED',
+                  quantity: 1,
+                  unitCostExVat: 2800,
+                  totalCostExVat: 2800,
+                  usefulLifeMonths: 36,
+                  projectUsagePercent: 100,
+                  quoteComplianceStatus: 'THREE_QUOTES_UPLOADED_READY',
+                  supplierQuotesSummary:
+                    '3 comparable written supplier quotes gathered and ready for Module K Appendix C.',
+                  operationalRoiNote:
+                    'Doubles hourly batch output and enforces consistent unit tolerances across production runs.',
+                  isFlaggedLaptopOrMobileAsset: false,
+                },
+                {
+                  id: 'eq-phys-2',
+                  assetName:
+                    'Precision Quality Control, Weighing & Thermal Label Dispatch Station',
+                  assetCategory: 'PACKAGING_FULFILLMENT_EQUIPMENT',
+                  acquisitionMode: 'BUY_NEW_GRANT_ELIGIBLE',
+                  fundingSource: 'GRANT_CO_FUNDED',
+                  quantity: 1,
+                  unitCostExVat: 650,
+                  totalCostExVat: 650,
+                  usefulLifeMonths: 36,
+                  projectUsagePercent: 100,
+                  quoteComplianceStatus: 'NOT_REQUIRED_UNDER_THRESHOLD',
+                  supplierQuotesSummary:
+                    'Under 1,000 threshold — single supplier quote on file.',
+                  operationalRoiNote:
+                    'Cuts parcel packing & courier manifest labelling time to under 3 minutes per order.',
+                  isFlaggedLaptopOrMobileAsset: false,
+                },
+                {
+                  id: 'eq-phys-3',
+                  assetName:
+                    'Founder Laptop for Inventory & Order Management (Ring-Fenced Own Funds)',
+                  assetCategory: 'IT_LAPTOP_MOBILE_DEVICE',
+                  acquisitionMode: 'ALREADY_OWNED_SWEAT_ASSET',
+                  fundingSource: 'OWN_FUNDS_OR_LOAN_100',
+                  quantity: 1,
+                  unitCostExVat: 1150,
+                  totalCostExVat: 1150,
+                  usefulLifeMonths: 36,
+                  projectUsagePercent: 100,
+                  quoteComplianceStatus: 'NOT_REQUIRED_UNDER_THRESHOLD',
+                  supplierQuotesSummary:
+                    params.hqCountryCode === 'IE'
+                      ? 'Ring-fenced as 100% Own Funds (Excluded from IE LEO Grant Claim per Mobile IT / Laptop Ban rule).'
+                      : 'Ring-fenced as 100% Own Funds (Excluded from capital grant claim).',
+                  operationalRoiNote:
+                    'Standard mobile IT device funded 100% by founder equity so grant claim focuses strictly on specialist production equipment.',
+                  isFlaggedLaptopOrMobileAsset: true,
+                },
+              ];
+
+      const totalCapex = items.reduce(
+        (sum, it) => sum + (Number(it.totalCostExVat) || 0),
+        0
+      );
+      const grantEligibleCapex = items
+        .filter(
+          (it) =>
+            it.fundingSource === 'GRANT_CO_FUNDED' &&
+            !it.isFlaggedLaptopOrMobileAsset
+        )
+        .reduce((sum, it) => sum + (Number(it.totalCostExVat) || 0), 0);
+
+      return {
+        premisesSetupMode:
+          (params.currentPremisesSetupMode as PremisesSetupModeType) ||
+          'HOME_WORKSHOP_GARAGE_SHED',
+        premisesLocationSummary:
+          params.currentPremisesLocationSummary ||
+          (isWoodworkerOrMaker
+            ? 'Dedicated 35 sq.m insulated home workshop / studio with 3-phase-ready power supply, dry timber racking, and dust extraction.'
+            : 'Dedicated light production workshop / micro-fulfillment studio with dry storage and courier collection access.'),
+        monthlyPremisesAndUtilitiesCost:
+          params.currentMonthlyPremisesCost ?? 180,
+        premisesComplianceStatus:
+          (params.currentPremisesComplianceStatus as PremisesComplianceStatusType) ||
+          'COVERED_EXEMPT_HOME_STUDIO',
+        equipmentItems: items,
+        premisesAndLocationJustificationNarrative: `${cleanTitle} operates from a low-overhead dedicated workshop studio (${formatPlanCurrency(params.currentMonthlyPremisesCost ?? 180, currency)}/mo utilities & power contribution) rather than signing a premature multi-year commercial industrial lease. This keeps fixed monthly overhead near zero during Year 1 while providing dedicated dry storage, dust/safety isolation, and direct courier collection access for up to 60+ units/week.`,
+        equipmentRoiAndGrantComplianceNarrative: `Our capital equipment schedule totals ${formatPlanCurrency(totalCapex, currency)} ex-VAT, with ${formatPlanCurrency(grantEligibleCapex, currency)} allocated to specialist production machinery eligible for ${grantAgencyLabel} co-funding. Every capital item >= 1,000 is backed by 3 independent comparable written supplier quotes for Module K Appendix C, while standard mobile IT/laptop hardware is strictly ring-fenced under 100% Own Funds to comply with ${params.hqCountryCode === 'IE' ? 'IE LEO Mobile Asset exclusion rules' : 'grant capital eligibility rules'}.`,
+      };
+    }
+
+    // Default: Cloud SaaS / AI / Education / Service (e.g. Build My Unicorn)
+    const items: EquipmentAssetItem[] =
+      isNarrativesOnly &&
+      params.currentEquipmentItems &&
+      params.currentEquipmentItems.length > 0
+        ? params.currentEquipmentItems
+        : [
+            {
+              id: 'eq-saas-1',
+              assetName:
+                'Dedicated Cloud R&D, Security & Automated Load-Testing Sandbox',
+              assetCategory: 'CLOUD_INFRA_RESERVATION',
+              acquisitionMode: 'LEASE_OR_RENT_MONTHLY',
+              fundingSource: 'MONTHLY_OPERATING_EXPENSE',
+              quantity: 1,
+              unitCostExVat: 950,
+              totalCostExVat: 950,
+              usefulLifeMonths: 12,
+              projectUsagePercent: 100,
+              quoteComplianceStatus: 'NOT_REQUIRED_UNDER_THRESHOLD',
+              supplierQuotesSummary:
+                'Google Cloud / Vercel / Managed PostgreSQL production & staging reservation (under 1,000 threshold).',
+              operationalRoiNote:
+                'Provides isolated staging, automated E2E QA, and pgvector database backups with zero physical server CapEx.',
+              isFlaggedLaptopOrMobileAsset: false,
+            },
+            {
+              id: 'eq-saas-2',
+              assetName:
+                'Founder MacBook Pro 16" Dev Workstation (Ring-Fenced Own Funds)',
+              assetCategory: 'IT_LAPTOP_MOBILE_DEVICE',
+              acquisitionMode: 'ALREADY_OWNED_SWEAT_ASSET',
+              fundingSource: 'OWN_FUNDS_OR_LOAN_100',
+              quantity: 1,
+              unitCostExVat: 2200,
+              totalCostExVat: 2200,
+              usefulLifeMonths: 36,
+              projectUsagePercent: 100,
+              quoteComplianceStatus: 'NOT_REQUIRED_UNDER_THRESHOLD',
+              supplierQuotesSummary:
+                params.hqCountryCode === 'IE'
+                  ? 'Founder-owned development laptop — strictly excluded from IE LEO capital grant claim per Mobile IT / Laptop Ban rule.'
+                  : 'Founder-owned development laptop — strictly ring-fenced under 100% Own Funds.',
+              operationalRoiNote:
+                'Primary software engineering & AI testing workstation contributed as founder sweat asset (0 grant claim).',
+              isFlaggedLaptopOrMobileAsset: true,
+            },
+            {
+              id: 'eq-saas-3',
+              assetName:
+                'Dual 4K Ergonomic Engineering Monitor & Home Office Setup',
+              assetCategory: 'OFFICE_FURNITURE_FITOUT',
+              acquisitionMode: 'ALREADY_OWNED_SWEAT_ASSET',
+              fundingSource: 'OWN_FUNDS_OR_LOAN_100',
+              quantity: 1,
+              unitCostExVat: 750,
+              totalCostExVat: 750,
+              usefulLifeMonths: 36,
+              projectUsagePercent: 100,
+              quoteComplianceStatus: 'NOT_REQUIRED_UNDER_THRESHOLD',
+              supplierQuotesSummary:
+                'Funded 100% via founder own funds; zero grant CapEx requested.',
+              operationalRoiNote:
+                'Supports high-output full-stack engineering and customer discovery calls from zero-rent home office.',
+              isFlaggedLaptopOrMobileAsset: false,
+            },
+          ];
+
+    return {
+      premisesSetupMode:
+        (params.currentPremisesSetupMode as PremisesSetupModeType) ||
+        'HOME_OFFICE_ZERO_RENT',
+      premisesLocationSummary:
+        params.currentPremisesLocationSummary ||
+        '100% Cloud-Native Remote / Home Office setup with zero commercial rent commitment in Year 1; co-working hot-desk used only as needed for board/partner meetings.',
+      monthlyPremisesAndUtilitiesCost: params.currentMonthlyPremisesCost ?? 60,
+      premisesComplianceStatus:
+        (params.currentPremisesComplianceStatus as PremisesComplianceStatusType) ||
+        'NOT_REQUIRED_REMOTE',
+      equipmentItems: items,
+      premisesAndLocationJustificationNarrative: `${cleanTitle} operates a 100% cloud-native remote architecture from a home office setup (${formatPlanCurrency(params.currentMonthlyPremisesCost ?? 60, currency)}/mo broadband & utility allocation), avoiding ${formatPlanCurrency(15000, currency)}–${formatPlanCurrency(25000, currency)}/year in unnecessary commercial office lease liabilities during V1 validation. All application infrastructure, databases, and AI pipelines run on managed cloud servers in ${params.hqCountryCode === 'IE' ? 'Ireland/EU' : params.hqCountryCode === 'GB' ? 'UK' : countryPack.countryName} regions.`,
+      equipmentRoiAndGrantComplianceNarrative: `In full compliance with ${grantAgencyLabel} guidelines, we do not claim standard founder laptops or mobile IT devices as grant-funded capital expenditure—our engineering workstation is ring-fenced under 100% Own Funds. This ensures our grant application is 100% audit-compliant and focuses funding strictly on eligible R&D, technical consultancy (3-Quote Concierge), and export market development.`,
+    };
+  };
+
+  if (!authCtx.canCallLiveGemini || !authCtx.activeApiKey) {
+    return {
+      allowed: true,
+      ...buildSmartFallback(),
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const fallback = buildSmartFallback();
+
+    const countryGrantRulesPrompt =
+      params.hqCountryCode === 'IE'
+        ? `1. Ireland Local Enterprise Office (LEO) Priming/Feasibility grants strictly ban standard laptops/mobile phones as grant-funded capital items — any laptop/mobile IT item MUST have "isFlaggedLaptopOrMobileAsset": true and "fundingSource": "OWN_FUNDS_OR_LOAN_100".
+2. Any capital item with totalCostExVat >= 1000 requires 3 comparable written supplier quotes ("quoteComplianceStatus": "THREE_QUOTES_UPLOADED_READY" or "NEEDS_3_QUOTES") for Module K Appendix C.
+3. Do NOT mention UK Innovate UK or British Business Bank rules for an Ireland-based startup.`
+        : params.hqCountryCode === 'GB'
+          ? `1. UK Innovate UK claims 12-month capital usage depreciation over usefulLifeMonths (typically 36 months) rather than 100% upfront asset price, and British Business Bank Start Up Loans require itemized capital justification.
+2. Any capital item with totalCostExVat >= 1000 requires 3 comparable written supplier quotes ("quoteComplianceStatus": "THREE_QUOTES_UPLOADED_READY" or "NEEDS_3_QUOTES"). Standard founder laptops must be ring-fenced under "fundingSource": "OWN_FUNDS_OR_LOAN_100".
+3. Do NOT mention Ireland LEO rules for a UK-based startup.`
+          : `1. Standard founder laptops/mobile phones should be ring-fenced under "fundingSource": "OWN_FUNDS_OR_LOAN_100".
+2. Any capital item with totalCostExVat >= 1000 requires 3 comparable written supplier quotes ("quoteComplianceStatus": "THREE_QUOTES_UPLOADED_READY" or "NEEDS_3_QUOTES").`;
+
+    const prompt = `You are an expert startup COO and ${params.hqCountryCode === 'IE' ? 'Ireland Local Enterprise Office (LEO) / Enterprise Ireland' : params.hqCountryCode === 'GB' ? 'UK Innovate UK & British Business Bank Start Up Loans' : countryPack.countryName} grant compliance advisor.
+Generate Module E Step 2 (Premises, Workshop & Equipment Schedule) for:
+- Startup Title: ${sanitizePromptInput(params.planTitle, 120)}
+- Industry Category: ${sanitizePromptInput(params.industryCategory, 80)}
+- HQ Country: ${params.hqCountryCode} (Currency: ${currency})
+- Product Track: ${params.selectedTrack} ${params.otherProductTrackText ? `(${sanitizePromptInput(params.otherProductTrackText, 100)})` : ''}
+- Core Problem: ${sanitizePromptInput(params.coreProblem, 250)}
+- Proposed Solution: ${sanitizePromptInput(params.proposedSolution, 250)}
+- Mode: ${isNarrativesOnly ? 'NARRATIVES_ONLY (synthesize narratives from current equipment items)' : 'POPULATE_ASSETS_AND_NARRATIVES'}
+
+CRITICAL GRANT RULES TO ENFORCE:
+${countryGrantRulesPrompt}
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "premisesSetupMode": "HOME_OFFICE_ZERO_RENT" | "HOME_WORKSHOP_GARAGE_SHED" | "SHARED_COWORKING_MAKER_SPACE" | "COMMERCIAL_INDUSTRIAL_UNIT" | "RETAIL_OR_CLIENT_PREMISES",
+  "premisesLocationSummary": "1-2 sentences describing the physical workshop, studio, or cloud-native remote setup",
+  "monthlyPremisesAndUtilitiesCost": 150,
+  "premisesComplianceStatus": "NOT_REQUIRED_REMOTE" | "COVERED_EXEMPT_HOME_STUDIO" | "COMMERCIAL_LEASE_COMPLIANT" | "NEEDS_PLANNING_OR_FIRE_CERT_CHECK",
+  "equipmentItems": [
+    {
+      "assetName": "Specific machine, tool, or workstation name",
+      "assetCategory": "PRODUCTION_MACHINERY_TOOLS" | "SPECIALIST_R_AND_D_HARDWARE" | "PACKAGING_FULFILLMENT_EQUIPMENT" | "WORKSHOP_EXTRACTION_SAFETY" | "IT_LAPTOP_MOBILE_DEVICE" | "OFFICE_FURNITURE_FITOUT" | "CLOUD_INFRA_RESERVATION",
+      "acquisitionMode": "BUY_NEW_GRANT_ELIGIBLE" | "BUY_SECOND_HAND_BOOTSTRAP" | "LEASE_OR_RENT_MONTHLY" | "ALREADY_OWNED_SWEAT_ASSET",
+      "fundingSource": "GRANT_CO_FUNDED" | "OWN_FUNDS_OR_LOAN_100" | "MONTHLY_OPERATING_EXPENSE",
+      "quantity": 1,
+      "unitCostExVat": 2400,
+      "usefulLifeMonths": 36,
+      "projectUsagePercent": 100,
+      "quoteComplianceStatus": "NOT_REQUIRED_UNDER_THRESHOLD" | "NEEDS_3_QUOTES" | "REQUESTED_VIA_BMU_CONCIERGE" | "THREE_QUOTES_UPLOADED_READY",
+      "supplierQuotesSummary": "3 comparable supplier quotes or own-funds note",
+      "operationalRoiNote": "1 sentence on how many minutes/unit this saves or why it is essential"
+    }
+  ],
+  "premisesAndLocationJustificationNarrative": "2-3 sentences justifying why this premises setup is lean, compliant, and right-sized for Year 1",
+  "equipmentRoiAndGrantComplianceNarrative": "2-3 sentences explaining the production ROI of the equipment schedule and confirming 3-quote & mobile-asset grant compliance"
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        temperature: 0.3,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const rawText = response.text?.trim() || '';
+    if (rawText) {
+      const parsed = JSON.parse(rawText) as {
+        premisesSetupMode?: string;
+        premisesLocationSummary?: string;
+        monthlyPremisesAndUtilitiesCost?: number;
+        premisesComplianceStatus?: string;
+        equipmentItems?: Array<{
+          assetName?: string;
+          assetCategory?: string;
+          acquisitionMode?: string;
+          fundingSource?: string;
+          quantity?: number;
+          unitCostExVat?: number;
+          usefulLifeMonths?: number;
+          projectUsagePercent?: number;
+          quoteComplianceStatus?: string;
+          supplierQuotesSummary?: string;
+          operationalRoiNote?: string;
+        }>;
+        premisesAndLocationJustificationNarrative?: string;
+        equipmentRoiAndGrantComplianceNarrative?: string;
+      };
+
+      if (
+        typeof parsed.premisesAndLocationJustificationNarrative === 'string' &&
+        parsed.premisesAndLocationJustificationNarrative.trim().length > 20 &&
+        typeof parsed.equipmentRoiAndGrantComplianceNarrative === 'string' &&
+        parsed.equipmentRoiAndGrantComplianceNarrative.trim().length > 20
+      ) {
+        creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+          verifiedUserId: authCtx.verifiedUserId,
+          planId: params.planId,
+          promptKey: 'MOD_E_STEP2_PREMISES_EQUIPMENT',
+          modelUsed: 'gemini-2.5-flash',
+          inputTokens: response.usageMetadata?.promptTokenCount || 320,
+          outputTokens: response.usageMetadata?.candidatesTokenCount || 360,
+          usedByokKey: authCtx.usedByokKey,
+          fallbackCreditsUsed: authCtx.currentCreditsUsed,
+        });
+
+        const validPremisesModes = new Set<string>([
+          'HOME_OFFICE_ZERO_RENT',
+          'HOME_WORKSHOP_GARAGE_SHED',
+          'SHARED_COWORKING_MAKER_SPACE',
+          'COMMERCIAL_INDUSTRIAL_UNIT',
+          'RETAIL_OR_CLIENT_PREMISES',
+          'OTHER',
+        ]);
+        const validCompliance = new Set<string>([
+          'NOT_REQUIRED_REMOTE',
+          'COVERED_EXEMPT_HOME_STUDIO',
+          'COMMERCIAL_LEASE_COMPLIANT',
+          'NEEDS_PLANNING_OR_FIRE_CERT_CHECK',
+          'OTHER',
+        ]);
+        const validCategories = new Set<string>([
+          'PRODUCTION_MACHINERY_TOOLS',
+          'SPECIALIST_R_AND_D_HARDWARE',
+          'PACKAGING_FULFILLMENT_EQUIPMENT',
+          'WORKSHOP_EXTRACTION_SAFETY',
+          'IT_LAPTOP_MOBILE_DEVICE',
+          'OFFICE_FURNITURE_FITOUT',
+          'CLOUD_INFRA_RESERVATION',
+          'OTHER',
+        ]);
+        const validAcqModes = new Set<string>([
+          'BUY_NEW_GRANT_ELIGIBLE',
+          'BUY_SECOND_HAND_BOOTSTRAP',
+          'LEASE_OR_RENT_MONTHLY',
+          'ALREADY_OWNED_SWEAT_ASSET',
+          'OTHER',
+        ]);
+        const validFunding = new Set<string>([
+          'GRANT_CO_FUNDED',
+          'OWN_FUNDS_OR_LOAN_100',
+          'MONTHLY_OPERATING_EXPENSE',
+          'OTHER',
+        ]);
+        const validQuotes = new Set<string>([
+          'NOT_REQUIRED_UNDER_THRESHOLD',
+          'NEEDS_3_QUOTES',
+          'REQUESTED_VIA_BMU_CONCIERGE',
+          'THREE_QUOTES_UPLOADED_READY',
+          'OTHER',
+        ]);
+
+        const items: EquipmentAssetItem[] =
+          isNarrativesOnly &&
+          params.currentEquipmentItems &&
+          params.currentEquipmentItems.length > 0
+            ? params.currentEquipmentItems
+            : Array.isArray(parsed.equipmentItems) &&
+                parsed.equipmentItems.length >= 2
+              ? parsed.equipmentItems.slice(0, 8).map((it, idx) => {
+                  const cleanName =
+                    sanitizePromptInput(it.assetName, 120) ||
+                    `Equipment Asset #${idx + 1}`;
+                  const cat: EquipmentAssetCategoryType = validCategories.has(
+                    String(it.assetCategory)
+                  )
+                    ? (it.assetCategory as EquipmentAssetCategoryType)
+                    : 'PRODUCTION_MACHINERY_TOOLS';
+                  const qty = Math.max(
+                    1,
+                    Math.min(100, Math.round(Number(it.quantity) || 1))
+                  );
+                  const unitCost = Math.max(
+                    0,
+                    Math.round((Number(it.unitCostExVat) || 0) * 100) / 100
+                  );
+                  const totalCost = Math.round(qty * unitCost * 100) / 100;
+                  const isLaptop = isLikelyLaptopOrMobileAsset(cleanName, cat);
+                  const rawFunding: EquipmentFundingSourceType =
+                    validFunding.has(String(it.fundingSource))
+                      ? (it.fundingSource as EquipmentFundingSourceType)
+                      : 'GRANT_CO_FUNDED';
+
+                  return {
+                    id: `ai-eq-${idx + 1}-${Date.now()}`,
+                    assetName: cleanName,
+                    assetCategory: cat,
+                    acquisitionMode: validAcqModes.has(
+                      String(it.acquisitionMode)
+                    )
+                      ? (it.acquisitionMode as EquipmentAcquisitionModeType)
+                      : 'BUY_NEW_GRANT_ELIGIBLE',
+                    fundingSource: isLaptop
+                      ? 'OWN_FUNDS_OR_LOAN_100'
+                      : rawFunding,
+                    quantity: qty,
+                    unitCostExVat: unitCost,
+                    totalCostExVat: totalCost,
+                    usefulLifeMonths: Math.max(
+                      12,
+                      Math.min(120, Math.round(Number(it.usefulLifeMonths) || 36))
+                    ),
+                    projectUsagePercent: Math.max(
+                      10,
+                      Math.min(
+                        100,
+                        Math.round(Number(it.projectUsagePercent) || 100)
+                      )
+                    ),
+                    quoteComplianceStatus:
+                      totalCost < 1000
+                        ? 'NOT_REQUIRED_UNDER_THRESHOLD'
+                        : validQuotes.has(String(it.quoteComplianceStatus))
+                          ? (it.quoteComplianceStatus as EquipmentQuoteComplianceStatusType)
+                          : 'NEEDS_3_QUOTES',
+                    supplierQuotesSummary:
+                      sanitizePromptInput(it.supplierQuotesSummary, 220) ||
+                      (totalCost >= 1000
+                        ? '3 comparable written supplier quotes required (>= 1,000 threshold).'
+                        : 'Under 1,000 threshold — single supplier quote sufficient.'),
+                    operationalRoiNote:
+                      sanitizePromptInput(it.operationalRoiNote, 240) ||
+                      'Reduces unit production time and supports V1 capacity targets.',
+                    isFlaggedLaptopOrMobileAsset: isLaptop,
+                  };
+                })
+              : fallback.equipmentItems;
+
+        return {
+          allowed: true,
+          premisesSetupMode: validPremisesModes.has(
+            String(parsed.premisesSetupMode)
+          )
+            ? (parsed.premisesSetupMode as PremisesSetupModeType)
+            : fallback.premisesSetupMode,
+          premisesLocationSummary:
+            sanitizePromptInput(parsed.premisesLocationSummary, 260) ||
+            fallback.premisesLocationSummary,
+          monthlyPremisesAndUtilitiesCost: Math.max(
+            0,
+            Math.round(
+              Number(
+                parsed.monthlyPremisesAndUtilitiesCost ??
+                  fallback.monthlyPremisesAndUtilitiesCost
+              )
+            )
+          ),
+          premisesComplianceStatus: validCompliance.has(
+            String(parsed.premisesComplianceStatus)
+          )
+            ? (parsed.premisesComplianceStatus as PremisesComplianceStatusType)
+            : fallback.premisesComplianceStatus,
+          equipmentItems: items,
+          premisesAndLocationJustificationNarrative:
+            parsed.premisesAndLocationJustificationNarrative.trim(),
+          equipmentRoiAndGrantComplianceNarrative:
+            parsed.equipmentRoiAndGrantComplianceNarrative.trim(),
+          creditsUsedAfter,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    }
+  } catch {
+    // Fallback to deterministic synthesizer below
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
 
 
 

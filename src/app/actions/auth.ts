@@ -3,6 +3,7 @@
 import { eq, desc } from 'drizzle-orm';
 import {
   db,
+  ensureDatabaseSchemaSynced,
   tenants,
   cohorts,
   users,
@@ -46,6 +47,7 @@ import {
   type SavedModuleBData,
   type SavedModuleCData,
   type SavedModuleDData,
+  type SavedModuleEData,
   type SavedValidationSurvey,
   type SavedSurveyResponse,
   type SurveyQuestionItem,
@@ -97,6 +99,8 @@ async function ensureDefaultTenantId(): Promise<string> {
 async function buildSessionFromDbUser(
   dbUser: typeof users.$inferSelect
 ): Promise<BmuLocalSession> {
+  await ensureDatabaseSchemaSynced();
+
   const [entRow] = await db
     .select()
     .from(userEntitlements)
@@ -131,6 +135,7 @@ async function buildSessionFromDbUser(
     const modB = modRows.find((m) => m.moduleCode === 'MOD_B_MARKET');
     const modC = modRows.find((m) => m.moduleCode === 'MOD_C_SURVEYS_FEEDBACK');
     const modD = modRows.find((m) => m.moduleCode === 'MOD_D_PRODUCT_BUILD');
+    const modE = modRows.find((m) => m.moduleCode === 'MOD_E_OPERATIONS');
     const structuredInputs = (modA?.structuredInputsJsonb ?? {}) as {
       brainDumpText?: string;
       exportPotential?: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
@@ -151,6 +156,7 @@ async function buildSessionFromDbUser(
     const modBInputs = (modB?.structuredInputsJsonb ?? {}) as SavedModuleBData;
     const modCInputs = (modC?.structuredInputsJsonb ?? {}) as SavedModuleCData;
     const modDInputs = (modD?.structuredInputsJsonb ?? {}) as SavedModuleDData;
+    const modEInputs = (modE?.structuredInputsJsonb ?? {}) as SavedModuleEData;
 
     const mergedSurveysBySlug = new Map<string, SavedValidationSurvey>();
 
@@ -415,6 +421,14 @@ async function buildSessionFromDbUser(
             thingsToConsider: Array.isArray(modD.aiThingsToConsiderJsonb)
               ? modD.aiThingsToConsiderJsonb
               : modDInputs.thingsToConsider,
+          }
+        : undefined,
+      moduleEData: modE
+        ? {
+            ...modEInputs,
+            thingsToConsider: Array.isArray(modE.aiThingsToConsiderJsonb)
+              ? modE.aiThingsToConsiderJsonb
+              : modEInputs.thingsToConsider,
           }
         : undefined,
       openQuestions: questionRows.map((q) => q.questionText),
@@ -760,6 +774,8 @@ export async function completeOnboardingAction(input: {
         mode: 'local_fallback',
       };
     }
+
+    await ensureDatabaseSchemaSynced();
 
     const [dbUser] = await db
       .select()

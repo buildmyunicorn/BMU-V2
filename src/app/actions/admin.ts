@@ -10,7 +10,16 @@ import {
   validationSurveys,
   vouchers,
   earlyAccessWaitlist,
+  supportTickets,
 } from '@/db';
+import type {
+  SupportTicketRecord,
+  SupportTicketSource,
+  SupportTicketType,
+  SupportTicketPriority,
+  SupportTicketStatus,
+  SupportModuleScope,
+} from '@/lib/support-tracker-store';
 import {
   hashPassword,
   verifyPassword,
@@ -1039,6 +1048,356 @@ export async function deleteEarlyAccessLeadAction(input: {
     await db
       .delete(earlyAccessWaitlist)
       .where(eq(earlyAccessWaitlist.id, input.id));
+    return { ok: true };
+  } catch {
+    return { ok: true };
+  }
+}
+
+// ==========================================
+// ADMIN SUPPORT & BUG TRACKER (QA LOGS + PHASE 2 USER SUPPORT)
+// ==========================================
+
+const globalForSupportTracker = globalThis as unknown as {
+  bmuSupportTicketsFallback?: SupportTicketRecord[];
+  bmuSupportTicketsTableInitialized?: boolean;
+};
+
+function getInMemorySupportTicketsFallback(): SupportTicketRecord[] {
+  if (!globalForSupportTracker.bmuSupportTicketsFallback) {
+    globalForSupportTracker.bmuSupportTicketsFallback = [];
+  }
+  return globalForSupportTracker.bmuSupportTicketsFallback;
+}
+
+async function ensureSupportTicketsTable(): Promise<void> {
+  if (globalForSupportTracker.bmuSupportTicketsTableInitialized) return;
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS support_tickets (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      source text NOT NULL DEFAULT 'ADMIN_TRACKER',
+      ticket_type text NOT NULL DEFAULT 'BUG',
+      custom_type_text text,
+      priority text NOT NULL DEFAULT 'MEDIUM',
+      status text NOT NULL DEFAULT 'OPEN',
+      module_scope text NOT NULL DEFAULT 'GLOBAL',
+      step_context text,
+      page_url text,
+      plan_id text,
+      plan_title text,
+      reporter_email text,
+      title text NOT NULL,
+      description text NOT NULL,
+      expected_behavior text,
+      admin_notes text,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  globalForSupportTracker.bmuSupportTicketsTableInitialized = true;
+}
+
+function mapSupportTicketRow(
+  r: typeof supportTickets.$inferSelect
+): SupportTicketRecord {
+  return {
+    id: r.id,
+    source: (r.source as SupportTicketSource) || 'ADMIN_TRACKER',
+    ticketType: (r.ticketType as SupportTicketType) || 'BUG',
+    customTypeText: r.customTypeText ?? null,
+    priority: (r.priority as SupportTicketPriority) || 'MEDIUM',
+    status: (r.status as SupportTicketStatus) || 'OPEN',
+    moduleScope: (r.moduleScope as SupportModuleScope) || 'GLOBAL',
+    stepContext: r.stepContext ?? null,
+    pageUrl: r.pageUrl ?? null,
+    planId: r.planId ?? null,
+    planTitle: r.planTitle ?? null,
+    reporterEmail: r.reporterEmail ?? null,
+    title: r.title,
+    description: r.description,
+    expectedBehavior: r.expectedBehavior ?? null,
+    adminNotes: r.adminNotes ?? null,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Lists all Support & Bug Tracker tickets for the Super Admin panel.
+ */
+export async function listSupportTicketsAction(): Promise<{
+  ok: boolean;
+  dbConnected: boolean;
+  tickets: SupportTicketRecord[];
+}> {
+  const adminSession = await requireSuperAdminSession();
+  if (!adminSession) {
+    return { ok: false, dbConnected: false, tickets: [] };
+  }
+
+  try {
+    await ensureSupportTicketsTable();
+    const rows = await db
+      .select()
+      .from(supportTickets)
+      .orderBy(desc(supportTickets.createdAt));
+
+    return {
+      ok: true,
+      dbConnected: true,
+      tickets: rows.map(mapSupportTicketRow),
+    };
+  } catch {
+    return {
+      ok: true,
+      dbConnected: false,
+      tickets: getInMemorySupportTicketsFallback(),
+    };
+  }
+}
+
+/**
+ * Creates a new Support / Bug / Improvement ticket.
+ * Allowed for Super Admins in production, and also allowed locally in development
+ * so the in-workspace Quick-Capture button can log issues while testing without switching tabs.
+ */
+export async function createSupportTicketAction(input: {
+  source?: SupportTicketSource;
+  ticketType: SupportTicketType;
+  customTypeText?: string | null;
+  priority: SupportTicketPriority;
+  moduleScope: SupportModuleScope;
+  stepContext?: string | null;
+  pageUrl?: string | null;
+  planId?: string | null;
+  planTitle?: string | null;
+  reporterEmail?: string | null;
+  title: string;
+  description: string;
+  expectedBehavior?: string | null;
+  adminNotes?: string | null;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  ticket?: SupportTicketRecord;
+}> {
+  const adminSession = await requireSuperAdminSession();
+  const isLocalDev = process.env.NODE_ENV !== 'production';
+
+  if (!adminSession && !isLocalDev) {
+    return {
+      ok: false,
+      error: 'Unauthorized: Super Admin session required.',
+    };
+  }
+
+  const cleanTitle = (input.title || '').trim().slice(0, 220);
+  const cleanDescription = (input.description || '').trim().slice(0, 4000);
+  if (!cleanTitle) {
+    return { ok: false, error: 'Please enter a short title for this issue.' };
+  }
+  if (!cleanDescription) {
+    return { ok: false, error: 'Please describe the bug or improvement.' };
+  }
+
+  const nowIso = new Date().toISOString();
+  const cleanTicket: SupportTicketRecord = {
+    id: `tkt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    source: input.source || 'ADMIN_TRACKER',
+    ticketType: input.ticketType || 'BUG',
+    customTypeText:
+      input.ticketType === 'OTHER' && input.customTypeText
+        ? input.customTypeText.trim().slice(0, 120) || null
+        : null,
+    priority: input.priority || 'MEDIUM',
+    status: 'OPEN',
+    moduleScope: input.moduleScope || 'GLOBAL',
+    stepContext: input.stepContext
+      ? input.stepContext.trim().slice(0, 140) || null
+      : null,
+    pageUrl: input.pageUrl ? input.pageUrl.trim().slice(0, 300) || null : null,
+    planId: input.planId ? input.planId.trim().slice(0, 120) || null : null,
+    planTitle: input.planTitle
+      ? input.planTitle.trim().slice(0, 180) || null
+      : null,
+    reporterEmail:
+      (input.reporterEmail || adminSession?.email || 'local-admin@buildmyunicorn.com')
+        .trim()
+        .slice(0, 180),
+    title: cleanTitle,
+    description: cleanDescription,
+    expectedBehavior: input.expectedBehavior
+      ? input.expectedBehavior.trim().slice(0, 2000) || null
+      : null,
+    adminNotes: input.adminNotes
+      ? input.adminNotes.trim().slice(0, 2000) || null
+      : null,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  const memoryList = getInMemorySupportTicketsFallback();
+  memoryList.unshift(cleanTicket);
+
+  try {
+    await ensureSupportTicketsTable();
+    const [inserted] = await db
+      .insert(supportTickets)
+      .values({
+        source: cleanTicket.source,
+        ticketType: cleanTicket.ticketType,
+        customTypeText: cleanTicket.customTypeText,
+        priority: cleanTicket.priority,
+        status: cleanTicket.status,
+        moduleScope: cleanTicket.moduleScope,
+        stepContext: cleanTicket.stepContext,
+        pageUrl: cleanTicket.pageUrl,
+        planId: cleanTicket.planId,
+        planTitle: cleanTicket.planTitle,
+        reporterEmail: cleanTicket.reporterEmail,
+        title: cleanTicket.title,
+        description: cleanTicket.description,
+        expectedBehavior: cleanTicket.expectedBehavior,
+        adminNotes: cleanTicket.adminNotes,
+      })
+      .returning();
+
+    const mapped = mapSupportTicketRow(inserted);
+    // Keep fallback ID synced with DB UUID
+    memoryList[0] = mapped;
+
+    return {
+      ok: true,
+      ticket: mapped,
+    };
+  } catch {
+    return {
+      ok: true,
+      ticket: cleanTicket,
+    };
+  }
+}
+
+/**
+ * Updates an existing Support / Bug Tracker ticket (status, priority, notes, or details).
+ */
+export async function updateSupportTicketAction(input: {
+  id: string;
+  status?: SupportTicketStatus;
+  priority?: SupportTicketPriority;
+  ticketType?: SupportTicketType;
+  customTypeText?: string | null;
+  moduleScope?: SupportModuleScope;
+  stepContext?: string | null;
+  title?: string;
+  description?: string;
+  expectedBehavior?: string | null;
+  adminNotes?: string | null;
+}): Promise<{
+  ok: boolean;
+  ticket?: SupportTicketRecord;
+}> {
+  const adminSession = await requireSuperAdminSession();
+  if (!adminSession) {
+    return { ok: false };
+  }
+
+  const now = new Date();
+  const memoryList = getInMemorySupportTicketsFallback();
+  const memIdx = memoryList.findIndex((t) => t.id === input.id);
+  if (memIdx >= 0) {
+    const prev = memoryList[memIdx];
+    memoryList[memIdx] = {
+      ...prev,
+      status: input.status ?? prev.status,
+      priority: input.priority ?? prev.priority,
+      ticketType: input.ticketType ?? prev.ticketType,
+      customTypeText:
+        input.customTypeText !== undefined
+          ? input.customTypeText
+          : prev.customTypeText,
+      moduleScope: input.moduleScope ?? prev.moduleScope,
+      stepContext:
+        input.stepContext !== undefined ? input.stepContext : prev.stepContext,
+      title: input.title !== undefined ? input.title.trim() : prev.title,
+      description:
+        input.description !== undefined
+          ? input.description.trim()
+          : prev.description,
+      expectedBehavior:
+        input.expectedBehavior !== undefined
+          ? input.expectedBehavior
+          : prev.expectedBehavior,
+      adminNotes:
+        input.adminNotes !== undefined ? input.adminNotes : prev.adminNotes,
+      updatedAt: now.toISOString(),
+    };
+  }
+
+  try {
+    await ensureSupportTicketsTable();
+    const updatePayload: Partial<typeof supportTickets.$inferInsert> = {
+      updatedAt: now,
+    };
+    if (input.status !== undefined) updatePayload.status = input.status;
+    if (input.priority !== undefined) updatePayload.priority = input.priority;
+    if (input.ticketType !== undefined)
+      updatePayload.ticketType = input.ticketType;
+    if (input.customTypeText !== undefined)
+      updatePayload.customTypeText = input.customTypeText;
+    if (input.moduleScope !== undefined)
+      updatePayload.moduleScope = input.moduleScope;
+    if (input.stepContext !== undefined)
+      updatePayload.stepContext = input.stepContext;
+    if (input.title !== undefined) updatePayload.title = input.title.trim();
+    if (input.description !== undefined)
+      updatePayload.description = input.description.trim();
+    if (input.expectedBehavior !== undefined)
+      updatePayload.expectedBehavior = input.expectedBehavior;
+    if (input.adminNotes !== undefined)
+      updatePayload.adminNotes = input.adminNotes;
+
+    const [updated] = await db
+      .update(supportTickets)
+      .set(updatePayload)
+      .where(eq(supportTickets.id, input.id))
+      .returning();
+
+    if (updated) {
+      return { ok: true, ticket: mapSupportTicketRow(updated) };
+    }
+    return {
+      ok: true,
+      ticket: memIdx >= 0 ? memoryList[memIdx] : undefined,
+    };
+  } catch {
+    return {
+      ok: true,
+      ticket: memIdx >= 0 ? memoryList[memIdx] : undefined,
+    };
+  }
+}
+
+/**
+ * Deletes a Support / Bug Tracker ticket permanently.
+ */
+export async function deleteSupportTicketAction(input: {
+  id: string;
+}): Promise<{ ok: boolean }> {
+  const adminSession = await requireSuperAdminSession();
+  if (!adminSession) {
+    return { ok: false };
+  }
+
+  const memoryList = getInMemorySupportTicketsFallback();
+  const idx = memoryList.findIndex((t) => t.id === input.id);
+  if (idx >= 0) {
+    memoryList.splice(idx, 1);
+  }
+
+  try {
+    await ensureSupportTicketsTable();
+    await db.delete(supportTickets).where(eq(supportTickets.id, input.id));
     return { ok: true };
   } catch {
     return { ok: true };

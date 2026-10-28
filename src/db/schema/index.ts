@@ -617,6 +617,30 @@ export const earlyAccessWaitlist = pgTable('early_access_waitlist', {
 });
 
 // ==========================================
+// 7C. ADMIN SUPPORT & BUG TRACKER (Internal QA + Phase 2 User Support)
+// ==========================================
+export const supportTickets = pgTable('support_tickets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  source: text('source').default('ADMIN_TRACKER').notNull(), // 'ADMIN_TRACKER' | 'FOUNDER_SUPPORT'
+  ticketType: text('ticket_type').default('BUG').notNull(), // 'BUG' | 'IMPROVEMENT' | 'AI_PROMPT_TUNING' | 'USER_SUPPORT' | 'OTHER'
+  customTypeText: text('custom_type_text'),
+  priority: text('priority').default('MEDIUM').notNull(), // 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  status: text('status').default('OPEN').notNull(), // 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'ARCHIVED'
+  moduleScope: text('module_scope').default('GLOBAL').notNull(), // 'GLOBAL' | 'LANDING' | 'ADMIN' | 'MOD_A_IDEATION' .. 'MOD_K_BUSINESS_PLAN'
+  stepContext: text('step_context'),
+  pageUrl: text('page_url'),
+  planId: text('plan_id'),
+  planTitle: text('plan_title'),
+  reporterEmail: text('reporter_email'),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  expectedBehavior: text('expected_behavior'),
+  adminNotes: text('admin_notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ==========================================
 // 8. DRIZZLE RELATIONS
 // ==========================================
 export const tenantsRelations = relations(tenants, ({ many }) => ({
