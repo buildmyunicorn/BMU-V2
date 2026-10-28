@@ -56,6 +56,15 @@ import type {
   BuildVsBuyTierType,
   BuildVsBuyCostModelType,
   CoreIpOwnershipRuleType,
+  ProductWorkPackageItem,
+  ProductFlowStageItem,
+  WorkPackageExecutionModeType,
+  WorkPackageTimelineWindowType,
+  WorkPackageCadenceRuleType,
+  ProductBlindSpotCategoryType,
+  ProductBlindSpotSeverityType,
+  ProductReadinessConfidenceType,
+  ProductBlindSpotItem,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -3838,6 +3847,7 @@ Return strictly valid JSON with:
   };
 }
 
+
 export interface ModuleDScopeFilterGenerationResult {
   allowed: boolean;
   reason?: string;
@@ -4082,6 +4092,7 @@ Return strictly valid JSON with:
     engineMode: 'smart-synthesizer',
   };
 }
+
 
 export interface ModuleDChannelMatrixGenerationResult {
   allowed: boolean;
@@ -4329,6 +4340,7 @@ Return strictly valid JSON with:
     engineMode: 'smart-synthesizer',
   };
 }
+
 
 export interface ModuleDBuildVsBuyGenerationResult {
   allowed: boolean;
@@ -4835,5 +4847,1020 @@ Include 2 items in "BUILD_IN_HOUSE", 2 items in "BUY_RENT_OFF_SHELF", and 1 to 2
     engineMode: 'smart-synthesizer',
   };
 }
+
+
+export interface ModuleDWorkPackagesGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  workPackages: ProductWorkPackageItem[];
+  flowStages: ProductFlowStageItem[];
+  executionCadenceRule: WorkPackageCadenceRuleType | '';
+  technicalMeritAndInnovationNarrative: string;
+  bottleneckAndDeRiskingNarrative: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleDWorkPackagesViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  formFactor?: ProductFormFactorType;
+  primaryChannel?: SalesChannelOptionType;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  beachheadSegment?: string;
+  validatedPainSummary?: string;
+  currentScopeItems?: ScopeFilterItem[];
+  currentBuildVsBuyItems?: BuildVsBuyItem[];
+  currentWorkPackages?: ProductWorkPackageItem[];
+  currentFlowStages?: ProductFlowStageItem[];
+  mode?: 'POPULATE_WPS_AND_FLOW' | 'CHARTER_ONLY';
+}): Promise<ModuleDWorkPackagesGenerationResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_D_STEP5_WORK_PACKAGES'
+  );
+
+  const mode = params.mode || 'POPULATE_WPS_AND_FLOW';
+  const existingWps = Array.isArray(params.currentWorkPackages)
+    ? params.currentWorkPackages
+    : [];
+  const existingFlow = Array.isArray(params.currentFlowStages)
+    ? params.currentFlowStages
+    : [];
+  const bvbItems = Array.isArray(params.currentBuildVsBuyItems)
+    ? params.currentBuildVsBuyItems
+    : [];
+  const scopeItems = Array.isArray(params.currentScopeItems)
+    ? params.currentScopeItems
+    : [];
+
+  const safeTitle = sanitizePromptInput(params.planTitle, 140) || 'Our Startup';
+  const countryPack = getCountryRulePack(params.hqCountryCode);
+
+  const buildSmartFallback = (): Omit<
+    ModuleDWorkPackagesGenerationResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const track = params.selectedTrack || 'SAAS_SOFTWARE_AI';
+
+    let defaultWps: ProductWorkPackageItem[] = [];
+    let defaultFlow: ProductFlowStageItem[] = [];
+    let defaultRule: WorkPackageCadenceRuleType =
+      'WEEKLY_SHIPPABLE_INCREMENTS_NO_BIG_BANG';
+    let defaultTechMerit = '';
+    let defaultBottleneck = '';
+
+    if (track === 'PHYSICAL_PRODUCT_ECOM') {
+      defaultRule = 'JIG_AND_PROTOTYPE_APPROVAL_BEFORE_BATCH_TIMBER_BUY';
+      defaultWps = [
+        {
+          id: 'wp-phys-1',
+          wpCode: 'WP1',
+          title:
+            'Hero SKU CAD, Repeatable Workshop Jigs & First Sample Sign-Off',
+          timelineWindow: 'WEEKS_1_2',
+          executionMode: 'IN_HOUSE',
+          costModel: 'SWEAT_EQUITY_ZERO',
+          estimatedCostAmount: 0,
+          deliverableMilestoneProof:
+            '2 repeatable CNC/router templates + 3 physical master sample boards passing drop-test & <2kg weight check.',
+          linkedTaskSummary:
+            'Lock dimensions for 2–3 Hero SKUs, build repeatable cutting/juice-groove jigs, and verify custom laser-engraving settings.',
+          isGrantEligibleRAndDOrPrototype: true,
+        },
+        {
+          id: 'wp-phys-2',
+          wpCode: 'WP2',
+          title:
+            'Kiln-Dried Timber Batch & Double-Walled Packaging Procurement',
+          timelineWindow: 'WEEKS_3_4',
+          executionMode: 'SUPPLIER_OFF_SHELF',
+          costModel: 'ONE_OFF_PURCHASE',
+          estimatedCostAmount: 530,
+          deliverableMilestoneProof:
+            'Kiln-dried Walnut/Oak batch (<10% moisture) + 100 double-walled kraft gift boxes & beeswax tins delivered to workshop.',
+          linkedTaskSummary:
+            'Order initial timber batch (€350 once-off) and standardized <2kg protective kraft mailers + QR care cards (€180 once-off).',
+          isGrantEligibleRAndDOrPrototype: true,
+        },
+        {
+          id: 'wp-phys-3',
+          wpCode: 'WP3',
+          title:
+            'Initial 25-Unit Production Run, Food-Safe Cure & Photography',
+          timelineWindow: 'WEEKS_5_8',
+          executionMode: 'IN_HOUSE',
+          costModel: 'SWEAT_EQUITY_ZERO',
+          estimatedCostAmount: 0,
+          deliverableMilestoneProof:
+            '25 finished, mineral-oil/beeswax cured boards boxed with GS1 barcodes + 15 high-converting studio product photos.',
+          linkedTaskSummary:
+            'Batch-mill, sand, cure, and package first 25 Hero SKU units in under 40 mins labour/unit and shoot lifestyle unboxing photos.',
+          isGrantEligibleRAndDOrPrototype: false,
+        },
+        {
+          id: 'wp-phys-4',
+          wpCode: 'WP4',
+          title:
+            'Etsy Direct Launch, Amazon FBA Carton Dispatch & First 10 Orders',
+          timelineWindow: 'PRE_LAUNCH_FINAL',
+          executionMode: 'EXTERNAL_PARTNER',
+          costModel: 'PER_UNIT_COGS',
+          estimatedCostAmount: 8.5,
+          deliverableMilestoneProof:
+            'Live Etsy + Direct Web listings, first master carton checked into Amazon FBA warehouse, and first 10 customer orders shipped.',
+          linkedTaskSummary:
+            'Publish SEO listings, ship standard non-engraved SKU carton to Amazon FBA, and fulfill custom engraved orders via tracked courier.',
+          isGrantEligibleRAndDOrPrototype: false,
+        },
+      ];
+
+      defaultFlow = [
+        {
+          id: 'flow-phys-1',
+          stageNumber: 1,
+          stageTitle: 'Kiln-Dried Timber & Repeatable Jig Setup',
+          executionBadge: 'SUPPLIER_OFF_SHELF',
+          whatHappensHere:
+            'Verified <10% moisture hardwood boards are planed and mounted into our standardized in-house CNC/router workshop jigs.',
+          outputOrHandOff:
+            'Dimensionally identical Hero SKU blanks ready for finishing.',
+        },
+        {
+          id: 'flow-phys-2',
+          stageNumber: 2,
+          stageTitle: 'Batch Milling, Laser Personalisation & Cure',
+          executionBadge: 'IN_HOUSE',
+          whatHappensHere:
+            'Deep juice grooves are routed, custom gift names are laser-engraved, and boards undergo a 3-coat food-safe mineral oil & beeswax cure.',
+          outputOrHandOff:
+            'Heirloom-grade finished product inspected for zero warp.',
+        },
+        {
+          id: 'flow-phys-3',
+          stageNumber: 3,
+          stageTitle: 'Standardized <2kg Kraft Gift Boxing & QR Bridge',
+          executionBadge: 'SUPPLIER_OFF_SHELF',
+          whatHappensHere:
+            'Packed into a single double-walled kraft gift box with beeswax tin, GS1 barcode, and QR care card linking to our owned web store.',
+          outputOrHandOff: 'Drop-tested parcel under 2kg courier threshold.',
+        },
+        {
+          id: 'flow-phys-4',
+          stageNumber: 4,
+          stageTitle: 'Dual-Channel Dispatch (Etsy Direct + Amazon FBA)',
+          executionBadge: 'EXTERNAL_PARTNER',
+          whatHappensHere:
+            'Standard SKUs ship on Prime autopilot via Amazon FBA; custom engraved orders ship direct from our workshop via tracked courier.',
+          outputOrHandOff:
+            '5-star customer unboxing + repeat refill capture via QR code.',
+        },
+      ];
+
+      defaultTechMerit = `For ${safeTitle}, our technical and production innovation lies in replacing slow, unscalable bespoke craft work (3+ hours per unit) with a standardized 2–3 Hero SKU jig-and-batch manufacturing system (<40 minutes per unit). By combining kiln-dried timber moisture control (<10%), repeatable router/CNC templates, and a single <2kg double-walled gift box specification, we achieve artisan quality with 60%+ gross margins across Etsy and Amazon FBA.`;
+      defaultBottleneck = `Our primary Version 1 operational risk is timber warping, courier transit damage, or excessive workshop labour during peak gifting weeks. We de-risk this across WP1–WP4 by enforcing strict kiln-dried moisture checks upon delivery, drop-testing our standardized kraft gift box before batch production, and pre-stocking standard non-engraved SKUs in Amazon FBA so workshop time is reserved exclusively for high-margin custom engraved orders.`;
+    } else if (track === 'EDUCATION_PROGRAM_COHORT') {
+      defaultRule = 'RECORD_MODULE_1_AND_QUIZ_BEFORE_FULL_CURRICULUM';
+      defaultWps = [
+        {
+          id: 'wp-edu-1',
+          wpCode: 'WP1',
+          title: 'Diagnostic Intake Quiz & Core 6-Module Curriculum Blueprint',
+          timelineWindow: 'WEEKS_1_2',
+          executionMode: 'IN_HOUSE',
+          costModel: 'SWEAT_EQUITY_ZERO',
+          estimatedCostAmount: 0,
+          deliverableMilestoneProof:
+            'Interactive 3-minute Sensory Bedtime Profile Quiz + 6-module script & clinical safeguarding boundaries signed off.',
+          linkedTaskSummary:
+            'Design the parent intake quiz logic, structure the 6 step-by-step modules, and finalize medical/clinical disclaimer language.',
+          isGrantEligibleRAndDOrPrototype: true,
+        },
+        {
+          id: 'wp-edu-2',
+          wpCode: 'WP2',
+          title:
+            '5-Minute Audio/Video Guides & Printable Visual Routine Toolkit',
+          timelineWindow: 'WEEKS_3_4',
+          executionMode: 'IN_HOUSE',
+          costModel: 'SWEAT_EQUITY_ZERO',
+          estimatedCostAmount: 0,
+          deliverableMilestoneProof:
+            '18 bite-sized 5-minute "listen-in-the-dark" audio tracks + printable visual bedtime schedule cards & 14-night sleep log.',
+          linkedTaskSummary:
+            'Record and master all 5-minute parent audio lessons and export neuro-affirming printable PDF visual routine cards.',
+          isGrantEligibleRAndDOrPrototype: true,
+        },
+        {
+          id: 'wp-edu-3',
+          wpCode: 'WP3',
+          title: 'Mobile-Ready Course Portal, Stripe Checkout & Zoom Q&A Setup',
+          timelineWindow: 'WEEKS_5_8',
+          executionMode: 'SUPPLIER_OFF_SHELF',
+          costModel: 'MONTHLY_SUBSCRIPTION',
+          estimatedCostAmount: 115,
+          deliverableMilestoneProof:
+            'Live mobile-friendly web portal + Stripe checkout (97.1% net payout) + automated welcome email & weekly Zoom Q&A link.',
+          linkedTaskSummary:
+            'Configure hosted course portal (€99/mo) + Zoom Pro (€16/mo) + Stripe checkout so parents get instant access in 60 seconds.',
+          isGrantEligibleRAndDOrPrototype: false,
+        },
+        {
+          id: 'wp-edu-4',
+          wpCode: 'WP4',
+          title:
+            'Founding 20-Family Pilot Cohort & 14-Night Outcome Validation',
+          timelineWindow: 'PRE_LAUNCH_FINAL',
+          executionMode: 'EXTERNAL_PARTNER',
+          costModel: 'ONE_OFF_PURCHASE',
+          estimatedCostAmount: 450,
+          deliverableMilestoneProof:
+            'First 20 families onboarded, specialist OT/clinical peer review completed, and baseline vs. Night-14 sleep data captured.',
+          linkedTaskSummary:
+            'Complete external OT/clinical safeguarding review (€450 once-off), onboard founding waitlist parents, and collect outcome proof.',
+          isGrantEligibleRAndDOrPrototype: true,
+        },
+      ];
+
+      defaultFlow = [
+        {
+          id: 'flow-edu-1',
+          stageNumber: 1,
+          stageTitle: 'Direct Web Checkout & 3-Min Sensory Intake Quiz',
+          executionBadge: 'IN_HOUSE',
+          whatHappensHere:
+            'Parent joins via our mobile web portal (Stripe 2.9% fee, zero 30% App Store tax) and completes the Sensory Bedtime Profile Quiz.',
+          outputOrHandOff:
+            'Personalized sensory sleep pathway matched to the child.',
+        },
+        {
+          id: 'flow-edu-2',
+          stageNumber: 2,
+          stageTitle: '5-Minute "Listen-in-the-Dark" Audio & Visual Cards',
+          executionBadge: 'IN_HOUSE',
+          whatHappensHere:
+            'Exhausted parents listen to bite-sized 5-minute audio guides on their phone at bedtime and print visual routine schedules.',
+          outputOrHandOff:
+            'Immediate Night-1 calm bedtime routine implementation.',
+        },
+        {
+          id: 'flow-edu-3',
+          stageNumber: 3,
+          stageTitle: '14-Night Sleep Settling Tracker & Quick Wins',
+          executionBadge: 'SUPPLIER_OFF_SHELF',
+          whatHappensHere:
+            'Parents log bedtime settling time and night wakings across 14 nights inside the mobile portal.',
+          outputOrHandOff: 'Quantified family sleep improvement metrics.',
+        },
+        {
+          id: 'flow-edu-4',
+          stageNumber: 4,
+          stageTitle: 'Weekly Live Group Q&A & Charity/Clinic Referral Loop',
+          executionBadge: 'EXTERNAL_PARTNER',
+          whatHappensHere:
+            'Parents submit questions ahead of weekly recorded Zoom Q&A sessions while anonymized outcome data feeds charity/clinic partners.',
+          outputOrHandOff:
+            'High completion rate + trusted word-of-mouth referrals.',
+        },
+      ];
+
+      defaultTechMerit = `For ${safeTitle}, our innovation replaces overwhelming 60-minute desktop video lectures and expensive €25,000 custom native apps with a neuro-affirming, mobile-first micro-intervention system. By pairing a 3-minute Sensory Bedtime Diagnostic Quiz with 5-minute "listen-in-the-dark" audio guides, printable visual schedules, and a 14-night outcome tracker, we deliver measurable family sleep improvements within 14 days at a 97% gross margin.`;
+      defaultBottleneck = `Our primary Version 1 risk is parent overwhelm (exhausted parents dropping out before finishing lessons) and clinical safeguarding boundaries. We de-risk this across WP1–WP4 by capping every audio guide at 5 minutes, validating Module 1 + the intake quiz with a founding 20-family pilot cohort first, and having an independent specialist review our educational vs. medical disclaimer boundaries before public launch.`;
+    } else {
+      defaultRule = 'WEEKLY_SHIPPABLE_INCREMENTS_NO_BIG_BANG';
+      defaultWps = [
+        {
+          id: 'wp-saas-1',
+          wpCode: 'WP1',
+          title: 'Core PostgreSQL Schema, Auth & Guardrailed AI Router',
+          timelineWindow: 'WEEKS_1_2',
+          executionMode: 'IN_HOUSE',
+          costModel: 'SWEAT_EQUITY_ZERO',
+          estimatedCostAmount: 0,
+          deliverableMilestoneProof:
+            'Multi-tenant PostgreSQL/Drizzle schema deployed + HttpOnly session auth + 500 calls/day AI billing circuit breaker passing tests.',
+          linkedTaskSummary:
+            'Build core database tables, plan ownership IDOR guards, and fail-closed AI router with deterministic Smart Synthesizer fallback.',
+          isGrantEligibleRAndDOrPrototype: true,
+        },
+        {
+          id: 'wp-saas-2',
+          wpCode: 'WP2',
+          title: 'Core "Aha! Moment" Workflow & Public Validation Engine',
+          timelineWindow: 'WEEKS_3_4',
+          executionMode: 'IN_HOUSE',
+          costModel: 'SWEAT_EQUITY_ZERO',
+          estimatedCostAmount: 0,
+          deliverableMilestoneProof:
+            'Interactive founder workspace + mobile-ready public validation page (/v/[slug]) capturing live responses in <60 seconds.',
+          linkedTaskSummary:
+            'Implement the core browser workflow, adaptive industry tracks, and anti-spam public survey/waitlist engine.',
+          isGrantEligibleRAndDOrPrototype: true,
+        },
+        {
+          id: 'wp-saas-3',
+          wpCode: 'WP3',
+          title: 'Cloud Hosting Stack, Stripe Checkout & Entitlement Paywall',
+          timelineWindow: 'WEEKS_5_8',
+          executionMode: 'SUPPLIER_OFF_SHELF',
+          costModel: 'MONTHLY_SUBSCRIPTION',
+          estimatedCostAmount: 65,
+          deliverableMilestoneProof:
+            'Production Google Cloud / Vercel + PostgreSQL deployment (€65/mo) + Stripe webhook unlocking 6-Month Pass & Cohort codes.',
+          linkedTaskSummary:
+            'Provision managed cloud hosting, connect Stripe checkout (~2.9% fee), and enforce Free Hook vs. Paid Pass entitlements.',
+          isGrantEligibleRAndDOrPrototype: false,
+        },
+        {
+          id: 'wp-saas-4',
+          wpCode: 'WP4',
+          title: 'Pre-Launch Security Check, Waitlist Pilot & Export Compiler',
+          timelineWindow: 'PRE_LAUNCH_FINAL',
+          executionMode: 'EXTERNAL_PARTNER',
+          costModel: 'ONE_OFF_PURCHASE',
+          estimatedCostAmount: 850,
+          deliverableMilestoneProof:
+            'Independent penetration/GDPR check completed + first 15 waitlist founders onboarded + official IE/UK grant PDF export live.',
+          linkedTaskSummary:
+            'Run fixed-scope pre-launch security review (€850 once-off), onboard first cohort of waitlist users, and verify export packs.',
+          isGrantEligibleRAndDOrPrototype: true,
+        },
+      ];
+
+      defaultFlow = [
+        {
+          id: 'flow-saas-1',
+          stageNumber: 1,
+          stageTitle: 'Authenticated Browser Input & Plan Localization',
+          executionBadge: 'IN_HOUSE',
+          whatHappensHere:
+            'User signs in via HttpOnly session cookie, selects their HQ country (IE/GB/US/EU), and enters structured inputs in the workspace.',
+          outputOrHandOff:
+            'Sanitized, plan-scoped state with IDOR ownership verification.',
+        },
+        {
+          id: 'flow-saas-2',
+          stageNumber: 2,
+          stageTitle: 'Proprietary Domain Engine & Guardrailed AI Router',
+          executionBadge: 'IN_HOUSE',
+          whatHappensHere:
+            'In-house domain rules combine with our fail-closed Gemini 2.5 router (capped at 500 calls/day + Smart Synthesizer fallback).',
+          outputOrHandOff:
+            'Structured financial, unit-economics & grant-ready data blocks.',
+        },
+        {
+          id: 'flow-saas-3',
+          stageNumber: 3,
+          stageTitle: 'Managed Cloud Persistence & Stripe Entitlement Gate',
+          executionBadge: 'SUPPLIER_OFF_SHELF',
+          whatHappensHere:
+            'Data persists in managed PostgreSQL (Drizzle ORM) while Stripe webhooks manage Free Hook vs. 6-Month Pass & Cohort access.',
+          outputOrHandOff:
+            'Real-time synced multi-plan vault with 97% gross margin.',
+        },
+        {
+          id: 'flow-saas-4',
+          stageNumber: 4,
+          stageTitle: 'Live Public Proof (/v/[slug]) & Official Grant Exports',
+          executionBadge: 'IN_HOUSE',
+          whatHappensHere:
+            'Compiles validated survey proof, unit economics, and Work Packages directly into IE LEO, Enterprise Ireland & UK Innovate UK packs.',
+          outputOrHandOff:
+            'Submission-ready business plan & grant application.',
+        },
+      ];
+
+      defaultTechMerit = `For ${safeTitle}, our technical merit centres on our proprietary domain workflow, localized ${countryPack.countryName} compliance/grant rule engine, and fail-closed AI architecture built 100% in-house. Rather than building commodity infrastructure from scratch, we pair our custom TypeScript/Drizzle application layer and hard-capped AI router with managed cloud hosting and Stripe—delivering a production-grade V1 in weeks with predictable unit economics.`;
+      defaultBottleneck = `Our primary Version 1 technical risk is scope creep into non-core integrations or runaway cloud/AI API costs during early user spikes. We de-risk this across WP1–WP4 by enforcing weekly shippable increments, locking V1 to the core browser "Aha! Moment" flow, enforcing a hard 500 calls/day AI circuit breaker with deterministic fallback, and piloting with our waitlist cohort before scaling traffic.`;
+    }
+
+    if (existingWps.length > 0) {
+      const inHouseWps = existingWps.filter(
+        (w) => w.executionMode === 'IN_HOUSE'
+      );
+      const partnerOrSupplierWps = existingWps.filter(
+        (w) => w.executionMode !== 'IN_HOUSE'
+      );
+      const inHouseSummary =
+        inHouseWps.map((w) => `${w.wpCode} (${w.title})`).join(', ') ||
+        'our core in-house work packages';
+      const externalSummary =
+        partnerOrSupplierWps
+          .map((w) => `${w.wpCode} (${w.title})`)
+          .join(', ') || 'off-the-shelf tools and specialist partners';
+
+      defaultTechMerit = `For ${safeTitle}, our Version 1 execution plan is structured into ${existingWps.length} milestone-driven Work Packages. We concentrate our in-house engineering and craft capacity on ${inHouseSummary} so that 100% of our defensible IP and customer "Aha! Moment" is owned internally, while leveraging ${externalSummary} to accelerate time-to-market.`;
+      defaultBottleneck = `To prevent Version 1 schedule slippage or budget overruns across our ${existingWps.length} Work Packages, every work package requires a concrete deliverable proof before advancing to the next phase. By validating our core in-house deliverables (${inHouseSummary}) before committing downstream marketing or scale spend, we keep our launch lean, auditable, and grant-ready for ${countryPack.countryName} assessors.`;
+    }
+
+    return {
+      workPackages: mode === 'CHARTER_ONLY' ? existingWps : defaultWps,
+      flowStages: mode === 'CHARTER_ONLY' ? existingFlow : defaultFlow,
+      executionCadenceRule: defaultRule,
+      technicalMeritAndInnovationNarrative: defaultTechMerit,
+      bottleneckAndDeRiskingNarrative: defaultBottleneck,
+    };
+  };
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const fallback = buildSmartFallback();
+
+      const bvbContext =
+        bvbItems.length > 0
+          ? bvbItems
+              .slice(0, 12)
+              .map(
+                (i) =>
+                  `- [${i.tier}] ${sanitizePromptInput(i.title, 100)} (${i.costModel}: ${i.estimatedCostAmount})`
+              )
+              .join('\n')
+          : 'None specified yet';
+
+      const scopeContext =
+        scopeItems.length > 0
+          ? scopeItems
+              .filter((i) => i.bucket === 'MUST_HAVE_V1')
+              .slice(0, 8)
+              .map(
+                (i) => `- [MUST_HAVE_V1] ${sanitizePromptInput(i.title, 100)}`
+              )
+              .join('\n')
+          : 'None specified yet';
+
+      const existingWpContext =
+        existingWps.length > 0
+          ? existingWps
+              .slice(0, 10)
+              .map(
+                (w) =>
+                  `- ${w.wpCode}: ${sanitizePromptInput(w.title, 100)} [${w.executionMode}, ${w.timelineWindow}, ${w.costModel}: ${w.estimatedCostAmount}] -> Deliverable: ${sanitizePromptInput(w.deliverableMilestoneProof, 140)}`
+              )
+              .join('\n')
+          : 'No Work Packages on board yet';
+
+      const prompt = `You are a supportive startup co-founder and grant project architect (specializing in Ireland LEO / Enterprise Ireland and UK Innovate UK / Start Up Loans work package structures).
+Startup: "${safeTitle}"
+Industry: ${sanitizePromptInput(params.industryCategory, 120)} (HQ: ${countryPack.countryName}, Currency: ${countryPack.defaultCurrency})
+Product Track: ${params.selectedTrack} ${params.otherProductTrackText ? `(${sanitizePromptInput(params.otherProductTrackText, 80)})` : ''}
+Form Factor: ${params.formFactor || 'Standard V1'}
+Primary Channel: ${params.primaryChannel || 'Direct'}
+Validated Customer Pain: ${sanitizePromptInput(params.validatedPainSummary || params.coreProblem, 350) || 'Customers need a reliable, fast Version 1 solution.'}
+
+Step 3 MUST-HAVE V1 Scope Items:
+${scopeContext}
+
+Step 4 Build-vs-Buy Items & Smart Costs:
+${bvbContext}
+
+Current Step 5 Work Packages on Board:
+${existingWpContext}
+
+Mode: ${mode}
+
+Task:
+${
+  mode === 'CHARTER_ONLY'
+    ? 'Draft ONLY the two concise, grant-ready narratives (technicalMeritAndInnovationNarrative and bottleneckAndDeRiskingNarrative) based strictly on the founder’s current Work Packages and Build-vs-Buy stack. Do not invent unrelated work packages.'
+    : 'Generate 4 concrete, sequential Version 1 Work Packages (WP1 to WP4) with smart cost classifications (MONTHLY_SUBSCRIPTION for cloud/SaaS, ONE_OFF_PURCHASE for materials batches like wood/equipment/audits, PER_UNIT_COGS for per-unit fulfillment, or SWEAT_EQUITY_ZERO for €0 founder build), PLUS a 4-stage end-to-end Technical/Production Flow Diagram (Stage 1 to Stage 4), PLUS the two concise grant-ready narratives.'
+}
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "technicalMeritAndInnovationNarrative": "2-3 sentences explaining the technical merit, craft methodology, or process innovation built in-house and why it outperforms status-quo alternatives",
+  "bottleneckAndDeRiskingNarrative": "2-3 sentences explaining the #1 build/production bottleneck or risk and how the sequential Work Packages de-risk it before scaling"${
+    mode === 'POPULATE_WPS_AND_FLOW'
+      ? `,
+  "workPackages": [
+    {
+      "wpCode": "WP1",
+      "title": "Short specific Work Package title",
+      "timelineWindow": "WEEKS_1_2",
+      "executionMode": "IN_HOUSE",
+      "costModel": "SWEAT_EQUITY_ZERO",
+      "estimatedCostAmount": 0,
+      "deliverableMilestoneProof": "Concrete measurable deliverable that proves this WP is complete",
+      "linkedTaskSummary": "1-sentence practical summary of key tasks in this WP",
+      "isGrantEligibleRAndDOrPrototype": true
+    }
+  ],
+  "flowStages": [
+    {
+      "stageNumber": 1,
+      "stageTitle": "Short stage title",
+      "executionBadge": "IN_HOUSE",
+      "whatHappensHere": "1-2 sentences on what happens in this stage",
+      "outputOrHandOff": "Short phrase describing what is handed off to the next stage"
+    }
+  ]`
+      : ''
+  }
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+          temperature: 0.35,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const rawText = response.text || '';
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]) as {
+          technicalMeritAndInnovationNarrative?: string;
+          bottleneckAndDeRiskingNarrative?: string;
+          workPackages?: Array<{
+            wpCode?: string;
+            title?: string;
+            timelineWindow?: string;
+            executionMode?: string;
+            costModel?: string;
+            estimatedCostAmount?: number;
+            deliverableMilestoneProof?: string;
+            linkedTaskSummary?: string;
+            isGrantEligibleRAndDOrPrototype?: boolean;
+          }>;
+          flowStages?: Array<{
+            stageNumber?: number;
+            stageTitle?: string;
+            executionBadge?: string;
+            whatHappensHere?: string;
+            outputOrHandOff?: string;
+          }>;
+        };
+
+        if (
+          parsed.technicalMeritAndInnovationNarrative &&
+          parsed.bottleneckAndDeRiskingNarrative
+        ) {
+          creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_D_STEP5_WORK_PACKAGES',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 320,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 280,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          const validWindows = new Set([
+            'WEEKS_1_2',
+            'WEEKS_3_4',
+            'WEEKS_5_8',
+            'MONTH_2_3',
+            'PRE_LAUNCH_FINAL',
+          ]);
+          const validModes = new Set([
+            'IN_HOUSE',
+            'SUPPLIER_OFF_SHELF',
+            'EXTERNAL_PARTNER',
+          ]);
+          const validCostModels = new Set([
+            'MONTHLY_SUBSCRIPTION',
+            'ONE_OFF_PURCHASE',
+            'PER_UNIT_COGS',
+            'SWEAT_EQUITY_ZERO',
+          ]);
+
+          const sanitizedWps: ProductWorkPackageItem[] =
+            mode === 'CHARTER_ONLY'
+              ? existingWps
+              : Array.isArray(parsed.workPackages) &&
+                  parsed.workPackages.length >= 2
+                ? parsed.workPackages.slice(0, 6).map((wp, idx) => ({
+                    id: `ai-wp-${idx + 1}-${Date.now()}`,
+                    wpCode:
+                      sanitizePromptInput(wp.wpCode, 12) || `WP${idx + 1}`,
+                    title:
+                      sanitizePromptInput(wp.title, 140) ||
+                      `Work Package ${idx + 1}`,
+                    timelineWindow: validWindows.has(String(wp.timelineWindow))
+                      ? (wp.timelineWindow as WorkPackageTimelineWindowType)
+                      : idx === 0
+                        ? 'WEEKS_1_2'
+                        : idx === 1
+                          ? 'WEEKS_3_4'
+                          : idx === 2
+                            ? 'WEEKS_5_8'
+                            : 'PRE_LAUNCH_FINAL',
+                    executionMode: validModes.has(String(wp.executionMode))
+                      ? (wp.executionMode as WorkPackageExecutionModeType)
+                      : 'IN_HOUSE',
+                    costModel: validCostModels.has(String(wp.costModel))
+                      ? (wp.costModel as BuildVsBuyCostModelType)
+                      : 'SWEAT_EQUITY_ZERO',
+                    estimatedCostAmount:
+                      typeof wp.estimatedCostAmount === 'number' &&
+                      !Number.isNaN(wp.estimatedCostAmount) &&
+                      wp.estimatedCostAmount >= 0
+                        ? Math.round(wp.estimatedCostAmount * 100) / 100
+                        : 0,
+                    deliverableMilestoneProof:
+                      sanitizePromptInput(wp.deliverableMilestoneProof, 220) ||
+                      'Verified milestone deliverable signed off.',
+                    linkedTaskSummary:
+                      sanitizePromptInput(wp.linkedTaskSummary, 240) ||
+                      'Core execution tasks for this work package.',
+                    isGrantEligibleRAndDOrPrototype:
+                      typeof wp.isGrantEligibleRAndDOrPrototype === 'boolean'
+                        ? wp.isGrantEligibleRAndDOrPrototype
+                        : idx < 2,
+                  }))
+                : fallback.workPackages;
+
+          const sanitizedFlow: ProductFlowStageItem[] =
+            mode === 'CHARTER_ONLY'
+              ? existingFlow
+              : Array.isArray(parsed.flowStages) &&
+                  parsed.flowStages.length >= 3
+                ? parsed.flowStages.slice(0, 4).map((st, idx) => ({
+                    id: `ai-flow-${idx + 1}-${Date.now()}`,
+                    stageNumber: idx + 1,
+                    stageTitle:
+                      sanitizePromptInput(st.stageTitle, 100) ||
+                      `Stage ${idx + 1}`,
+                    executionBadge: validModes.has(String(st.executionBadge))
+                      ? (st.executionBadge as WorkPackageExecutionModeType)
+                      : 'IN_HOUSE',
+                    whatHappensHere:
+                      sanitizePromptInput(st.whatHappensHere, 220) ||
+                      'Core processing step in the delivery flow.',
+                    outputOrHandOff:
+                      sanitizePromptInput(st.outputOrHandOff, 140) ||
+                      'Verified output passed to next stage.',
+                  }))
+                : fallback.flowStages;
+
+          return {
+            allowed: true,
+            workPackages: sanitizedWps,
+            flowStages: sanitizedFlow,
+            executionCadenceRule: fallback.executionCadenceRule,
+            technicalMeritAndInnovationNarrative:
+              parsed.technicalMeritAndInnovationNarrative.trim(),
+            bottleneckAndDeRiskingNarrative:
+              parsed.bottleneckAndDeRiskingNarrative.trim(),
+            creditsUsedAfter,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export interface ModuleDBlindSpotAuditGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  blindSpots: ProductBlindSpotItem[];
+  readinessConfidence: ProductReadinessConfidenceType;
+  executiveProductBriefSummary: string;
+  keyDeRiskingSignOffNarrative: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleDBlindSpotAuditViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  formFactor?: ProductFormFactorType;
+  v1LaunchTimeline?: V1LaunchTimelineType;
+  primaryChannel?: SalesChannelOptionType;
+  estimatedBlendedFeePercent?: number;
+  v1MustHaveCount?: number;
+  v1HighEffortCount?: number;
+  monthlyBurnTotal?: number;
+  onceOffCapExTotal?: number;
+  perUnitCogsTotal?: number;
+  workPackageCount?: number;
+  grantEligibleWpCount?: number;
+  currentBlindSpots?: ProductBlindSpotItem[];
+  mode?: 'FULL_AUDIT' | 'SUMMARY_ONLY';
+}): Promise<ModuleDBlindSpotAuditGenerationResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_D_STEP6_BLIND_SPOT_AUDIT'
+  );
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+  const cleanTitle =
+    sanitizePromptInput(params.planTitle, 140) || 'Your Startup';
+  const isSummaryOnly = params.mode === 'SUMMARY_ONLY';
+  const v1Count = params.v1MustHaveCount ?? 0;
+  const highEffortCount = params.v1HighEffortCount ?? 0;
+  const blendedFee = params.estimatedBlendedFeePercent ?? 3;
+  const monthlyBurn = params.monthlyBurnTotal ?? 0;
+  const onceOffTotal = params.onceOffCapExTotal ?? 0;
+  const unitCogs = params.perUnitCogsTotal ?? 0;
+  const wpCount = params.workPackageCount ?? 0;
+  const grantWpCount = params.grantEligibleWpCount ?? 0;
+
+  const grantAgencyLabel =
+    params.hqCountryCode === 'IE'
+      ? 'Local Enterprise Office (LEO) / Enterprise Ireland'
+      : params.hqCountryCode === 'GB'
+        ? 'Innovate UK / British Business Bank Start Up Loans'
+        : 'Seed / Innovation Grant Assessors';
+
+  const buildSmartFallback = (): Omit<
+    ModuleDBlindSpotAuditGenerationResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const dynamicBlindSpots: ProductBlindSpotItem[] = [];
+
+    // 1. Check Scope vs. Timeline alignment
+    if (
+      (params.v1LaunchTimeline === 'UNDER_4_WEEKS' && v1Count > 4) ||
+      highEffortCount >= 3
+    ) {
+      dynamicBlindSpots.push({
+        id: 'bs-scope-timeline-1',
+        title: `V1 Scope Density vs. Target Launch Window (${v1Count} Must-Haves, ${highEffortCount} High-Effort)`,
+        category: 'SCOPE_CREEP_TIMELINE',
+        severity: highEffortCount >= 4 ? 'CRITICAL' : 'IMPORTANT',
+        whyItMatters: `Having ${v1Count} Day-1 Must-Have items (${highEffortCount} marked High Effort) increases the risk of delaying first customer feedback and revenue.`,
+        recommendedActionOrFix:
+          'Demote at least 1–2 High-Effort items to Version 1.5 Fast-Follow in Step 3, or use a manual/no-code concierge bridge for the first 10 customers.',
+        founderMitigationNote: '',
+        isResolved: false,
+      });
+    } else {
+      dynamicBlindSpots.push({
+        id: 'bs-scope-timeline-ok',
+        title: 'Protect Your Version 1 Launch Boundary Against Early Custom Requests',
+        category: 'SCOPE_CREEP_TIMELINE',
+        severity: 'WATCH',
+        whyItMatters:
+          'Early pilot customers frequently request edge-case features or bespoke product variations that can derail WP1–WP3 delivery.',
+        recommendedActionOrFix:
+          'Log all new pilot requests into the Version 1.5 Fast-Follow queue until your first 10 paying orders complete the core 4-stage flow.',
+        founderMitigationNote: '',
+        isResolved: false,
+      });
+    }
+
+    // 2. Check Channel Fee + Unit COGS pressure
+    if (blendedFee >= 12 || unitCogs > 0) {
+      dynamicBlindSpots.push({
+        id: 'bs-margin-fee-2',
+        title: `Blended Channel Commission (${blendedFee}%) & Unit Cost Buffer for Module G Pricing`,
+        category: 'UNIT_MARGIN_CHANNEL_FEE',
+        severity: blendedFee >= 15 ? 'IMPORTANT' : 'WATCH',
+        whyItMatters: `With a ${blendedFee}% blended channel fee${unitCogs > 0 ? ` and ${unitCogs} per-unit COGS` : ''}, underpricing in Module G could compress your net pocket profit per order.`,
+        recommendedActionOrFix:
+          'Ensure Module G retail/tier pricing builds in at least a 65%+ gross margin after marketplace/payment fees and packaging/fulfillment costs.',
+        founderMitigationNote: '',
+        isResolved: false,
+      });
+    }
+
+    // 3. Check Single-Supplier / Technical Bottleneck
+    if (params.selectedTrack === 'PHYSICAL_PRODUCT_ECOM') {
+      dynamicBlindSpots.push({
+        id: 'bs-phys-supplier-3',
+        title: 'Raw Material Lead-Time, Batch Yield & Damage-in-Transit Buffer',
+        category: 'SUPPLIER_DEPENDENCY',
+        severity: 'IMPORTANT',
+        whyItMatters:
+          'Relying on a single timber/raw material supplier or untested courier packaging can stall order fulfillment during seasonal peaks.',
+        recommendedActionOrFix:
+          'Qualify a secondary local material supplier in Module E and run a 48-hour courier drop-test before scaling paid traffic.',
+        founderMitigationNote: '',
+        isResolved: false,
+      });
+    } else if (params.selectedTrack === 'HYBRID_HARDWARE_SOFTWARE') {
+      dynamicBlindSpots.push({
+        id: 'bs-hw-cert-3',
+        title: 'Pre-Certified Component Selection & Enclosure Tooling De-Risking',
+        category: 'TECHNICAL_BOTTLENECK',
+        severity: 'CRITICAL',
+        whyItMatters:
+          'Custom radio/wireless certification (CE/UKCA/FCC) and injection-mould tooling too early can consume 6+ months and €30k+ before field validation.',
+        recommendedActionOrFix:
+          'Use pre-certified wireless/compute modules and 3D-printed/CNC enclosures for the first 10–25 field pilot units in WP1–WP3.',
+        founderMitigationNote: '',
+        isResolved: false,
+      });
+    } else {
+      dynamicBlindSpots.push({
+        id: 'bs-tech-bottleneck-3',
+        title: 'Third-Party API / Platform Dependency & Data Portability Safeguard',
+        category: 'TECHNICAL_BOTTLENECK',
+        severity: 'WATCH',
+        whyItMatters:
+          'Building on managed SaaS/AI APIs accelerates V1 launch, but hardcoding vendor-specific schemas can create switching friction later.',
+        recommendedActionOrFix:
+          'Keep core customer records, prompts, and proprietary business logic in an exportable schema controlled in-house.',
+        founderMitigationNote: '',
+        isResolved: false,
+      });
+    }
+
+    // 4. Check Grant Compliance & IP Assignment Readiness
+    dynamicBlindSpots.push({
+      id: 'bs-grant-ip-4',
+      title: `${grantAgencyLabel} Procurement & Full IP Assignment Readiness`,
+      category: 'GRANT_COMPLIANCE_IP',
+      severity: onceOffTotal >= 1000 ? 'IMPORTANT' : 'WATCH',
+      whyItMatters: `${grantAgencyLabel} rules require clear proof that core IP is owned by the applicant company and that any external spend or equipment over threshold is backed by comparable written quotes.`,
+      recommendedActionOrFix:
+        'Ensure any external specialist or sub-contractor signs a written IP assignment agreement upon payment and retain dated specification sheets for Module E & Module K.',
+      founderMitigationNote: '',
+      isResolved: false,
+    });
+
+    const readinessConfidence: ProductReadinessConfidenceType =
+      highEffortCount >= 4 || wpCount === 0
+        ? 'NEEDS_MINOR_DE_RISKING'
+        : 'READY_TO_BUILD_V1';
+
+    const executiveProductBriefSummary = `${cleanTitle} is executing a disciplined Version 1 build on the ${params.selectedTrack.replace(/_/g, ' ')} track${params.formFactor ? ` (${params.formFactor.replace(/_/g, ' ')})` : ''}. By locking V1 scope to ${v1Count || 'essential'} Day-1 Must-Have capabilities, utilizing a ${blendedFee}% blended sales channel strategy, and structuring delivery across ${wpCount || 4} milestone-gated Work Packages (${grantWpCount} R&D/prototype eligible), the business minimizes upfront burn (${monthlyBurn}/mo recurring, ${onceOffTotal} once-off setup) while accelerating time-to-first-paying-customer.`;
+
+    const keyDeRiskingSignOffNarrative = `Technical, operational, and commercial execution risks have been systematically mitigated across Steps 1–5: non-essential features are ring-fenced in Version 1.5/V2, commodity infrastructure is rented/sourced off-the-shelf so 100% of founder capacity focuses on proprietary customer value, and every Work Package has an explicit verification gate before capital is committed to the next stage.`;
+
+    return {
+      blindSpots: isSummaryOnly
+        ? params.currentBlindSpots || []
+        : dynamicBlindSpots,
+      readinessConfidence,
+      executiveProductBriefSummary,
+      keyDeRiskingSignOffNarrative,
+    };
+  };
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const existingBsSummary = (params.currentBlindSpots || [])
+        .slice(0, 8)
+        .map((b) => `${b.title} [${b.category} / ${b.severity}]`)
+        .join('; ');
+
+      const prompt = `You are a supportive startup co-founder, product architect, and ${grantAgencyLabel} grant assessor reviewing Module D (Product & Technical Build) for "${cleanTitle}" (${params.hqCountryCode}).
+Track: ${params.selectedTrack} ${params.otherProductTrackText ? `(${sanitizePromptInput(params.otherProductTrackText, 80)})` : ''}
+Form Factor: ${params.formFactor || 'Not specified'}
+Target V1 Launch Timeline: ${params.v1LaunchTimeline || 'Not specified'}
+Primary Channel: ${params.primaryChannel || 'Not specified'} (Blended channel fee: ${blendedFee}%)
+Step 3 V1 Must-Haves: ${v1Count} items (${highEffortCount} High-Effort)
+Step 4/5 Smart Costs: ${monthlyBurn}/mo recurring, ${onceOffTotal} once-off setup/CapEx, ${unitCogs}/unit COGS
+Step 5 Work Packages: ${wpCount} WPs (${grantWpCount} marked Grant-Eligible R&D/Prototype)
+Existing Blind Spots (if any): ${existingBsSummary || 'None yet'}
+Generation Mode: ${isSummaryOnly ? 'SUMMARY_ONLY (Only draft executiveProductBriefSummary and keyDeRiskingSignOffNarrative; return empty array for blindSpots)' : 'FULL_AUDIT (Generate 4 constructive, specific blindSpots + executiveProductBriefSummary + keyDeRiskingSignOffNarrative)'}
+
+Return strict JSON with keys:
+- "readinessConfidence": one of "READY_TO_BUILD_V1", "NEEDS_MINOR_DE_RISKING", "NEEDS_PROTOTYPE_SPIKE_FIRST"
+- "blindSpots": array of 4 objects (or [] if SUMMARY_ONLY), each with:
+  - "title": string (concise, constructive blind-spot title, max 95 chars)
+  - "category": one of "SCOPE_CREEP_TIMELINE", "UNIT_MARGIN_CHANNEL_FEE", "TECHNICAL_BOTTLENECK", "SUPPLIER_DEPENDENCY", "GRANT_COMPLIANCE_IP"
+  - "severity": one of "WATCH", "IMPORTANT", "CRITICAL"
+  - "whyItMatters": string (1-2 sentences explaining why this matters for their specific product track and ${grantAgencyLabel})
+  - "recommendedActionOrFix": string (1-2 actionable sentences on how to mitigate or solve it)
+- "executiveProductBriefSummary": string (3-4 sentences synthesizing their Product Vehicle, Channel Strategy, V1 Scope Discipline, Smart Cost Structure, and Work Packages into an investor/grant-ready executive summary)
+- "keyDeRiskingSignOffNarrative": string (2-3 sentences explaining how their V1 architecture, Build-vs-Buy choices, and WP1-WP4 verification gates de-risk execution)`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+          temperature: 0.35,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const rawText = response.text?.trim() || '';
+      if (rawText) {
+        const parsed = JSON.parse(rawText) as {
+          readinessConfidence?: string;
+          blindSpots?: Array<{
+            title?: string;
+            category?: string;
+            severity?: string;
+            whyItMatters?: string;
+            recommendedActionOrFix?: string;
+          }>;
+          executiveProductBriefSummary?: string;
+          keyDeRiskingSignOffNarrative?: string;
+        };
+
+        const fallback = buildSmartFallback();
+        const validCategories = new Set<string>([
+          'SCOPE_CREEP_TIMELINE',
+          'UNIT_MARGIN_CHANNEL_FEE',
+          'TECHNICAL_BOTTLENECK',
+          'SUPPLIER_DEPENDENCY',
+          'GRANT_COMPLIANCE_IP',
+          'OTHER',
+        ]);
+        const validSeverities = new Set<string>([
+          'WATCH',
+          'IMPORTANT',
+          'CRITICAL',
+        ]);
+        const validConfidence = new Set<string>([
+          'READY_TO_BUILD_V1',
+          'NEEDS_MINOR_DE_RISKING',
+          'NEEDS_PROTOTYPE_SPIKE_FIRST',
+          'OTHER',
+        ]);
+
+        if (
+          typeof parsed.executiveProductBriefSummary === 'string' &&
+          parsed.executiveProductBriefSummary.trim().length > 20 &&
+          typeof parsed.keyDeRiskingSignOffNarrative === 'string' &&
+          parsed.keyDeRiskingSignOffNarrative.trim().length > 20
+        ) {
+          creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_D_STEP6_BLIND_SPOT_AUDIT',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 300,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 280,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+          const sanitizedBlindSpots: ProductBlindSpotItem[] = isSummaryOnly
+            ? params.currentBlindSpots || []
+            : Array.isArray(parsed.blindSpots) && parsed.blindSpots.length >= 2
+              ? parsed.blindSpots.slice(0, 6).map((bs, idx) => ({
+                  id: `ai-bs-${idx + 1}-${Date.now()}`,
+                  title:
+                    sanitizePromptInput(bs.title, 110) ||
+                    `Product Blind Spot #${idx + 1}`,
+                  category: validCategories.has(String(bs.category))
+                    ? (bs.category as ProductBlindSpotCategoryType)
+                    : 'TECHNICAL_BOTTLENECK',
+                  severity: validSeverities.has(String(bs.severity))
+                    ? (bs.severity as ProductBlindSpotSeverityType)
+                    : 'IMPORTANT',
+                  whyItMatters:
+                    sanitizePromptInput(bs.whyItMatters, 300) ||
+                    'Important product execution risk to monitor during V1 delivery.',
+                  recommendedActionOrFix:
+                    sanitizePromptInput(bs.recommendedActionOrFix, 300) ||
+                    'Validate with a small pilot test before committing additional budget.',
+                  founderMitigationNote: '',
+                  isResolved: false,
+                }))
+              : fallback.blindSpots;
+
+          return {
+            allowed: true,
+            blindSpots: sanitizedBlindSpots,
+            readinessConfidence: validConfidence.has(
+              String(parsed.readinessConfidence)
+            )
+              ? (parsed.readinessConfidence as ProductReadinessConfidenceType)
+              : fallback.readinessConfidence,
+            executiveProductBriefSummary:
+              parsed.executiveProductBriefSummary.trim(),
+            keyDeRiskingSignOffNarrative:
+              parsed.keyDeRiskingSignOffNarrative.trim(),
+            creditsUsedAfter,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+
 
 

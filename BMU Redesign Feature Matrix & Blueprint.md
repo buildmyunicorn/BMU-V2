@@ -75,9 +75,11 @@ Since we are building from scratch and dropping high-maintenance video tutorials
   * Voice dictation (microphone) or free-text input where the founder explains the lightbulb moment and how the idea works in their own words.
 * **Step 3: Instant 1-Page Concept Canvas + "Name & Tagline Polisher"**
   * AI mirrors their messy brain dump back as a crisp **1-Page Concept Canvas** (*The Problem, The Target Customer, The Core Solution, The "Why Now" Edge*) AND generates **3 punchy 1-Sentence Elevator Pitches**.
+  * **Instant Domain & Business Email Availability Check (Affiliate Hook):** Automatically checks live `.ie`, `.co.uk`, and `.com` availability for the AI-polished startup names and displays a 1-click **"Secure Your Domain & Google Workspace"** perk card (powered by Blacknight / Namecheap / Cloudflare affiliate links with `planId` sub-ID tracking).
 * **Step 4: Visual "Customer Journey Storyboard" ("Before vs. After Your Startup")**
   * Generates a visual 3-step **"Old Painful Way"** vs. **"New Way With Your Product"** flow so they see their product through a real human's eyes.
 * **Step 5: Guided Business Model Archetype, Localization & Grant Sector Pre-Check**
+  * **Zero-Friction Geo-Cookie Pre-Selection:** Reads the `bmu_region` cookie set on the Geo-Targeted Landing Page (`IE`, `GB`, `CA`, `AU`, `US`) to automatically pre-select the founder's HQ Country and default currency before they even touch the dropdown.
   * Sets HQ Country (`IE`, `GB`, `US`, `AU`, `CA`, `EU`, `ROW`), Local Authority / Region:
     * **For Ireland (`IE`):** County / LEO Region (automatically distinguishes **50% Standard** vs. **60% Border, Midlands & West / BMW region**).
     * **For United Kingdom (`GB`):** Region (*England Local Growth Hub, Scottish Enterprise, Welsh Government, Invest Northern Ireland*) — plus checks if the business operates in an **HMRC Excluded Trade** (e.g., property development, financial/legal services, energy generation) which would disqualify it from **SEIS/EIS**.
@@ -123,6 +125,8 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 * **Step 1: The "Product Vehicle" Selector:** Physical Product, Software/Digital, Productized Service, Content/Community, or Hybrid.
 * **Step 2: The "Where Does It Live?" Channel & Platform Decision Matrix (Own vs. Rent the Shelf):** Amazon/Etsy vs. Own Shopify D2C vs. "Trojan Horse" Hybrid; Web App vs. iOS/Android App Store.
 * **Step 3: The "Build vs. Buy vs. Stitch" Architecture Recommender (3 Realistic Build Tiers):** Tier 1 (€0–€500 No-Code/Concierge), Tier 2 (€500–€5,000 Shopify/Low-Code/White-Label), Tier 3 (€15k+ Custom Build/Manufacturing).
+  * **Contextual Tech Stack Perks (Affiliate Hook — Steps 2 & 3):** When a founder selects their Product Vehicle and Build Tier (e.g., Shopify D2C, Webflow/Bubble No-Code, or Stripe), displays a tailored **"Claim Founder Stack Credits"** card (e.g., Shopify Partner trial + cashback, Stripe fee-free processing credits).
+  * **"Request 3 LEO-Compliant Dev/Build Quotes" Button (3-Quote Marketplace Hook):** For Tier 2 (€500–€5,000) and Tier 3 (€15k+ Custom Build) projects, allows the founder to click **"Get 3 Vetted Agency Quotes in 48 Hours"**—auto-packaging their Module D Product Scope & Work Packages (`WP1–WP3`) into a standardized RFP sent to vetted Irish/UK partner agencies.
 * **Step 4: Product Scope & The Ruthless "Version 1" Feature/SKU Filter**
 * **Step 5: Work Packages, Technical Merit Diagram & Subcontractor Plan (IE LEO + UK Innovate UK Ready!):**
   * **For IE LEO Feasibility Grant:** Structures the R&D Work Plan, start/completion dates, and external consultant qualifications.
@@ -138,11 +142,13 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 * **Step 1: "A Day in the Life of an Order" (End-to-End Fulfillment Blueprint)**
 * **Step 2: Premises, Plant & Equipment Schedule + Grant Asset Rules (IE LEO vs. UK Innovate UK):**
   * **For Ireland (LEO Priming/Feasibility):** Enforces the **1-Quote (<€5k) / 3-Quote (>€5k) Rule** and automatically blocks **Excluded Mobile Assets** (laptops, tablets, smartphones, and vehicles) from being placed in the LEO Capital Grant claim.
+  * **The "3-Quote Concierge" Supplier Engine (3-Quote Marketplace Hook):** Directly solves the IE LEO **1-Quote (<€5k) / 3-Quote (>€5k) Rule**. Next to any equipment, branding, or R&D consultancy line item without uploaded PDF quotes, founders can click **"Auto-Request 3 LEO-Compliant Quotes"** from BMU's Verified Supplier Marketplace. Uploaded partner quotes automatically attach to Appendix C of the LEO compilation pack in Module K.
   * **For UK (Innovate UK Smart Grant):** Includes an automatic **Innovate UK Capital Usage & Depreciation Calculator** (since Innovate UK only funds the depreciated usage of equipment during the grant project months).
 * **Step 3: Formal Project Risk Register (Mandatory for UK Innovate UK Q8 Appendix & UK Start Up Loans):**
   * Generates a structured **Risk Register Table** across **Technical, Commercial, Managerial, and Environmental Risks** (Likelihood 1–5, Impact 1–5, Mitigation)—formatted to export as the mandatory **2-Page A4 Risk Register PDF Appendix** for Innovate UK.
 * **Step 4: Customer Support, Refunds & Quality Control Playbook**
-* **Step 5: Permits, Licences, Animal Testing Declaration & Industry Compliance**
+* **Step 5: Permits, Licences, Animal Testing Declaration & Industry Compliance:**
+  * **Instant Startup Insurance Matcher (Affiliate Hook):** Prompts founders who need Public Liability, Employer's Liability, or Professional Indemnity cover with a 1-click quote link via vetted UK/IE startup insurers (e.g., Superscript, Hiscox, Dolmen).
 * **Step 6: "Operational Things to Consider"**
 
 ---
@@ -189,10 +195,14 @@ Since we are building from scratch and dropping high-maintenance video tutorials
   * 70% pre-assembled in their chosen base currency from **Module G (Pocket Profit)**, **Module H (Marketing Budget)**, and **Module F (Team & Hiring)**, with interactive scenario sliders.
 * **Step 2: The "Forgotten Overheads" & Localized Tax Checklist:**
   * Automatically switches between **Ireland** (*Employer PRSI 11.15%, VAT 23%*), **United Kingdom** (*Employer National Insurance 13.8%, Workplace Pension 3% Auto-Enrolment, VAT 20% above £90k threshold, Corporation Tax 19–25%*), **US**, **AU**, **CA**, and **EU**.
+  * **Cloud Accounting Software Setup (Affiliate Hook):** Offers 50%–75% off first 6 months on **Xero, QuickBooks, FreeAgent, or Surf Accounts** directly alongside the 36-Month Cashflow export.
 * **Step 3: 36-Month Cashflow Trough, P&L & Balance Sheet Generator:**
   * Separates **Paper Profit (P&L)** from **Actual Cashflow**, showing exact monthly breakeven and calculating the exact **Maximum Cash Trough / Funding Gap** (e.g., *"You hit a cash trough of -€32,000 in Month 11 before turning cashflow-positive in Month 14"*), which feeds straight into **Module J (Grants & Funding Matcher)**! Includes 1-click IFRS/GAAP Excel/CSV export.
 * **Step 4: Corporate Structure, Cap Table, IP Assignment Shield & Advisors Directory:**
   * Captures LTD vs. Sole Trader status, IP assignment agreements for developers/freelancers, and the names of the startup's **Bank, Accountant, Solicitor, and Insurance Broker**.
+  * **Business Bank Account & LTD Incorporation Perks Drawer (Bank Bounty Hook):** If the founder selects *"Not Incorporated Yet"* or *"No Business Bank Account Yet"*, opens a localized **"Fast-Track Incorporation & Banking"** drawer:
+    * **UK (`GB`):** 1-click free/discounted Companies House LTD registration + £50–£100 founder cash bonus when opening a business bank account via **Tide, Revolut Business, Starling, or Anna Money**.
+    * **Ireland (`IE`):** Discounted CRO LTD incorporation bundle + instant Irish IBAN business banking via **Revolut Business or Wise Business**.
 * **Step 5: "Financial & Legal Things to Consider"**
 
 ---
@@ -209,9 +219,11 @@ Since we are building from scratch and dropping high-maintenance video tutorials
   * **Ireland (`IE`) Programs Matched:**
     1. **LEO Feasibility Study Grant:** Up to €15,000 (50% match, or 60% in BMW counties).
     2. **LEO Priming Grant:** Up to €150,000 (for startups within first 18 months; up to €15,000 per new full-time job created + eligible capital/consultancy/marketing costs).
-    3. **Enterprise Ireland New Frontiers (€15,000 tax-free stipend) & Pre-Seed Start Fund (PSSF — €50k–€100k).**
-    4. **SURE (Startup Refunds for Entrepreneurs):** Refunds up to 41% of previous PAYE income tax paid over the last 6 years when investing savings into your own LTD company.
-    5. **Revenue R&D Tax Credit (30%) & Employment Investment Incentive (EII) Scheme.**
+    3. **LEO "Digital for Business" Consultancy & "Grow Digital / AI Voucher":** Free expert digital/AI strategy consultancy (worth ~€2,700) + up to **€5,000 grant (50% match)** for AI tools, CRM, e-commerce, or cybersecurity implementation (crucially eligible across wider SME sectors, even where Priming Grants are restricted).
+    4. **Enterprise Ireland "Digital Discovery" Grant:** **80% funding up to €5,000** for external digital/AI readiness consultancy for EI/Údarás clients and exporting SMEs.
+    5. **Enterprise Ireland New Frontiers (€15,000 tax-free stipend) & Pre-Seed Start Fund (PSSF — €50k–€100k).**
+    6. **SURE (Startup Refunds for Entrepreneurs):** Refunds up to 41% of previous PAYE income tax paid over the last 6 years when investing savings into your own LTD company.
+    7. **Revenue R&D Tax Credit (30%) & Employment Investment Incentive (EII) Scheme.**
   * **United Kingdom (`GB`) Programs Matched:**
     1. **British Business Bank Start Up Loans:** Up to **£25,000 per co-founder** (up to £100k per team) at a fixed 6% interest rate + 12 months free mentoring.
     2. **Innovate UK Smart Grants & Sector Competitions:** £100k–£500k+ R&D grants (up to **70% funded for micro/small SMEs** on feasibility/industrial research).
@@ -221,6 +233,7 @@ Since we are building from scratch and dropping high-maintenance video tutorials
   * **Global (`US`, `AU`, `CA`) Programs Matched:** SBIR/STTR, AusIndustry R&D Tax Incentive & EMDG, CRA SR&ED & NRC IRAP.
 
 * **Step 2: Interactive "Grant Readiness Scorecard" & Missing Evidence Checklist**
+  * **Automated Incorporation & Banking Unlocker (Bank Bounty Hook):** Whenever a grant is marked 🟡 *"Eligible Once Incorporated / Business Bank Account Opened"*, displays an inline action card: **"Unlock This Grant in 10 Minutes — Register Your LTD & Open Your Business Bank Account (Plus Claim €50–£100 Startup Cash)"**.
   * For every grant the founder selects, displays a live readiness bar (e.g., **`90% Complete from Modules A–I`**) and prompts ONLY for the remaining grant-specific items in one clean screen:
     * **For IE LEO Priming/Feasibility:** Verifies the **1-Quote (<€5k) / 3-Quote (>€5k) Schedule**, flags any accidentally included laptops/phones, checks **50%/60% Match Funding proof**, and captures **CRO Number, eTax Clearance Access Number, and EU *De Minimis* State Aid declaration**.
     * **For UK Innovate UK Smart Grant:** Generates the **Q5 Additionality / Justification for Public Funding narrative** (why private investors won't fund the R&D risk today), **Q9 Value for Money for the UK Taxpayer**, confirms **100% UK R&D location**, and checks the **UK Minimal Financial Assistance (£315k MFA)** subsidy limit.
@@ -259,7 +272,7 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 ---
 
 ## Section 3: Master Admin Panel ("The Control Room") — *LOCKED IN*
-**The Goal:** Give you (and your team) complete control over users, account moderation, deep user analytics, AppSumo voucher campaigns, Stripe passes, AI prompts, country tax/grant rules, and future white-label tenants from a single web dashboard.
+**The Goal:** Give you (and your team) complete control over users, account moderation, deep user analytics, AppSumo voucher campaigns, Stripe passes, AI prompts, country tax/grant rules, partner monetization, and future white-label tenants from a single web dashboard.
 
 ### 3.1 User Lifecycle, Moderation & Workspace Management
 * **360° User & Startup Plan Directory:** Search, sort, and filter all users by signup date, country, pass/LTD tier, cohort/tenant, last active date, number of Startup Plans created, current module progress, or AI token consumption.
@@ -290,21 +303,46 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 ### 3.5 AI Prompt Studio, Guardrails & Cost Control ("The Brain Manager")
 * Live-edit system instructions and model routing (`gemini-2.5-flash` vs. `gemini-2.5-pro`) for all 11 modules without redeploying code.
 
+### 3.6 Partner Perks, Affiliate Links & "3-Quote Concierge" Manager
+* **Contextual Affiliate CMS:** Manage partner cards, promo codes, and tracking URLs segmented by Country (`IE`, `GB`, `CA`, `AU`, `US`) and Module Step (`MODULE_A_DOMAIN`, `MODULE_D_SHOPIFY`, `MODULE_E_INSURANCE`, `MODULE_I_BANK`, `MODULE_I_ACCOUNTING`).
+* **Sub-ID & Webhook Attribution:** Automatically appends `?subid=[planId]_[userId]` to all outbound bank, formation, and software affiliate links to track conversion payouts (via Impact, PartnerStack, Awin) and auto-check off the founder's *"Business Bank Account Opened"* milestone in Module J.
+* **"3-Quote Concierge" Vendor Routing:** Manage vetted dev agencies, R&D consultants, and equipment suppliers by category; automatically route founder quote requests from Module D/E and track lead fees (€50–€100/lead) or project finder's fees (5%–10%).
+
 ---
 
-## Section 4: Direct Monetization, Paywall & Institutional Architecture — *LOCKED IN*
+## Section 4: Monetization, Renewals & Partner Revenue Architecture
 
-### 4.1 Direct Founder Flow: Option 1 ("Module A Free Hook $\rightarrow$ 6-Month Launch Pass")
-1. **The Free Hook (Module A – Ideation):** Any founder can sign up for free and complete **Module A (Steps 1–8)**.
-2. **Where the Paywall Hits:** Clicking into **Modules B–K**, **Multi-Plan / Clone & Pivot**, **Co-Founder Alignment Interview (Module F)**, **Public Survey Publishing (Module C)**, **Grant Matcher (Module J)**, or **Business Plan Export (Module K)** triggers the upgrade modal.
-3. **The Direct Pricing Menu (One-Off 6-Month Passes):**
-   * **6-Month "Solo Founder Pass" (€99 / $99 One-Off):** Full access to Modules A–K for 6 months, 1 Startup Plan, 1 User Seat, Hosted Validation Survey, Grant Matcher, and Unlimited Exports.
-   * **6-Month "Co-Founder & Pivot Pass" (€149 / $149 One-Off):** Everything above + **Up to 3 Startup Plans (Clone & Pivot + Idea Comparator)** + **Up to 3 Co-Founder Seats** (unlocks the *Module F Blind-Reveal Co-Founder Alignment Interview*).
-4. **Post-6-Month "Vault Mode" & Renewal:** Drops into Read-Only Vault Mode (`is_vault_readonly = true`) after 6 months unless renewed.
+1. **Core B2C Launch Passes (Option 1 Locked In):**
+   * Free "Module A Hook" (Steps 1–7) $\rightarrow$ Paywall at Module B offering a **One-Off 6-Month Launch Pass** (**Solo Pass: €129 / £109** or **Co-Founder Team Pass: €199 / £169**).
+   * Includes full access to Modules A–K, the Hosted Customer Survey Engine (`/v/[slug]`), the Blind-Reveal Co-Founder Engine, and Official Grant/SEIS Application Exports.
 
-### 4.2 Accelerators, Universities & LEOs / UK Growth Hubs
-* **Stage 1 (Day 1 Ready): "Cohort Pass Bundles"** unlocked via a single institutional invite code (`cohorts.invite_code`).
-* **Stage 2 (Phase 2 Rollout): Full White-Label Portal + "Mentor / Lecturer View"** (`tenants` table).
+2. **Month-6 "Grant Radar & Living Vault" Micro-Subscription (Renewal Engine):**
+   * At the end of the 6-Month Launch Pass, founders can either let their plan drop into **Read-Only Vault Mode (Free)** OR activate the **€9/month (or €79/year) "Grant Radar & Living Vault" Subscription**.
+   * **What It Unlocks:** Keeps all 11 modules editable, maintains live public survey/waitlist pages, and runs an automated **24/7 Grant & Tax Relief Radar** that emails the founder the moment a new regional grant opens (or when their company crosses key age/headcount milestones, such as moving from LEO Feasibility $\rightarrow$ LEO Priming $\rightarrow$ Enterprise Ireland PSSF) with 90% of the new application pre-filled.
+
+3. **AppSumo LTD Tiers:**
+   * **1 Code:** Solo Founder, 1 Active Business Plan.
+   * **2 Codes:** 3 Active Business Plans, 3 Co-Founder Seats + Module F Blind-Reveal Co-Founder Alignment Engine unlocked.
+   * **3+ Codes:** 10 Active Business Plans, 5 Seats, Custom Branding on Public Surveys (`/v/[slug]`) & PDF Exports, plus BYOK (Bring Your Own API Key) support.
+   * Includes 60-day refund auto-downgrade and monthly replenishing Unicorn AI Credits.
+
+4. **B2B Institutional Cohort Pass Bundles:**
+   * Designed for **Universities, Accelerators, Irish LEOs (SYOB courses), Enterprise Ireland New Frontiers, and UK Growth Hubs**.
+   * Sold as bulk 6-Month Cohort Pass Bundles (€2,500–€5,000 per cohort) unlocked via a single institutional invite code, paired with White-Label Mentor Escalation (Section 0.4).
+
+5. **Business Bank & LTD Incorporation Bounties (Modules I & J):**
+   * High-converting CPA partner bounties (€50–€120 per activated account) triggered when unincorporated founders register their UK/Irish LTD company and open their mandatory business bank account (via **Tide, Revolut Business, Starling, Anna Money, Wise Business, and local CRO/Companies House formation partners**).
+   * Framed as a **Founder Cash Perk** (e.g., *"Get £75–£100 free startup cash + free LTD incorporation"*).
+
+6. **The "3-Quote Concierge" Supplier Marketplace (Modules D & E):**
+   * Monetizes the mandatory **IE LEO 1-Quote (<€5k) / 3-Quote (>€5k) Rule** and UK R&D subcontractor sourcing.
+   * Founders click *"Request 3 LEO-Compliant Quotes in 48 Hours"* in Module D (Tech Build) or Module E (Equipment/Consultancy); vetted partner agencies/suppliers pay BMU a **€50–€100 qualified lead fee** or a **5%–10% finder's fee** on grant-funded contracts won.
+
+7. **Contextual Tech Stack, Domain & Insurance Affiliates (Modules A, D, E & I):**
+   * Native, non-intrusive "Founder Perks" embedded at the exact moment of buyer intent:
+     * **Module A (Step 3):** Domain registration (`.ie`, `.co.uk`, `.com`) & Google Workspace bundles.
+     * **Module D (Steps 2–3):** E-commerce & No-Code platform referrals (**Shopify Partner Program** up to $150/merchant, Webflow, Bubble, Stripe).
+     * **Module E (Step 5) & Module I (Step 4):** Startup Business Insurance (**Superscript, Hiscox, Dolmen**) and Cloud Accounting (**Xero, QuickBooks, FreeAgent**).
 
 ---
 
@@ -319,6 +357,11 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 | **AI Engine** | **Google GenAI SDK (`@google/genai`)** via `src/lib/ai/router.ts` | **Vertex AI / Gemini API** (`gemini-2.5-flash` & `gemini-2.5-pro`) |
 | **Email Testing** | **Mailpit** (`localhost:8025` via `docker-compose.yml`) | **Resend** or **SendGrid** transactional emails |
 
+### Next.js Edge Geo-IP Detection
+* **Zero-Latency Geo-IP Middleware (`src/middleware.ts`):**
+  * Inspects incoming HTTP edge headers (`cf-ipcountry` via Cloudflare or `x-appengine-country` / `x-client-region` via Google Cloud Load Balancer) on the server before rendering HTML—preventing client-side layout shift or text flicker.
+  * Sets an `x-bmu-region` request header and a persistent `bmu_region` cookie (`IE`, `GB`, `CA`, `AU`, `US`), plus a visible Top-Navbar Country Switcher Pill (`[ 🇮🇪 Ireland ▾ | 🇬🇧 UK ]`) so users on VPNs or in border regions (e.g., Northern Ireland cross-shopping Invest NI and InterTradeIreland) can switch manually at any time.
+
 ---
 
 ## Section 6: Feature Spotlight — The "Reverse-Engineered Launch Calendar"
@@ -332,6 +375,12 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 3. **Viral Loop #2:** Co-Founder Invites & social challenges built around **Module F's Awkward Co-Founder Questions**.
 4. **Viral Loop #3:** Public SEO-indexed **IE & UK Startup Grant Directory** (`buildmyunicorn.com/grants/[slug]`) feeding straight into **Module J**.
 5. **AppSumo Launch + B2B University / LEO / UK Growth Hub Cohort Partnerships.**
+6. **Dynamic Regional Landing Pages & SEO Routes:**
+   * **Dynamic Regional Homepage Personalization (`IE` vs. `GB`):**
+     * **Ireland (`IE`) View:** Displays Irish trust banner, hero headline focused on **LEO Feasibility (€15k), LEO Priming (€150k), LEO Digital for Business / Grow Digital & AI Voucher (€5k), Enterprise Ireland Digital Discovery (80% up to €5k) & New Frontiers, and SURE Tax Refunds (41%)**, interactive County Selector (*50% Standard vs. 60% BMW Region*), Irish tax proof (*Employer PRSI, 23% VAT, CRO & eTax Clearance*), and Euro pricing (**€129 / €199**).
+     * **United Kingdom (`GB`) View:** Displays UK trust banner, hero headline focused on **British Business Bank Start Up Loans (£25k/founder), Innovate UK Smart Grants (up to 70% R&D), and HMRC SEIS/EIS Advance Assurance**, UK tax/compliance proof (*Employer NI, 3% Workplace Pension, £90k VAT threshold, UTR & HMRC Excluded Trades*), and GBP pricing (**£109 / £169**).
+   * **Dedicated Indexable SEO Routes (`hreflang` Support):**
+     * Alongside dynamic root (`/`) detection, exposes static indexable routes at `/ie` (`hreflang="en-ie"`) and `/uk` (`hreflang="en-gb"`) so Googlebot (which crawls primarily from US IPs) indexes both the Irish and UK landing pages independently for local search rankings.
 
 ---
 

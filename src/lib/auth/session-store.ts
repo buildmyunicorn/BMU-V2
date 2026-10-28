@@ -790,11 +790,136 @@ export interface BuildVsBuyStep4Data {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type WorkPackageExecutionModeType =
+  | 'IN_HOUSE'
+  | 'SUPPLIER_OFF_SHELF'
+  | 'EXTERNAL_PARTNER'
+  | 'OTHER';
+
+export type WorkPackageTimelineWindowType =
+  | 'WEEKS_1_2'
+  | 'WEEKS_1_TO_2'
+  | 'WEEKS_3_4'
+  | 'WEEKS_3_TO_4'
+  | 'WEEKS_5_8'
+  | 'MONTH_2'
+  | 'MONTH_2_3'
+  | 'MONTH_3'
+  | 'PRE_LAUNCH_FINAL'
+  | 'OTHER';
+
+export type WorkPackageCadenceRuleType =
+  // SaaS / Software
+  | 'WEEKLY_SHIPPABLE_INCREMENTS_NO_BIG_BANG'
+  | 'CORE_DB_AND_AHA_WORKFLOW_BEFORE_BILLING_POLISH'
+  | 'PILOT_WITH_10_WAITLIST_USERS_BEFORE_PUBLIC_LAUNCH'
+  | 'TWO_WEEK_AGILE_SPRINTS_USER_DEMO'
+  | 'MILESTONE_GATED_TECHNICAL_SPRINT'
+  // Physical Product / Craft
+  | 'JIG_AND_PROTOTYPE_APPROVAL_BEFORE_BATCH_TIMBER_BUY'
+  | 'BATCH_OF_20_STANDARD_UNITS_BEFORE_FBA_SHIPMENT'
+  | 'DROP_TEST_AND_BARCODE_CHECK_BEFORE_MARKETPLACE_LISTING'
+  | 'BATCH_PROTOTYPE_JIG_AND_PILOT_RUN'
+  // Education / Support
+  | 'RECORD_MODULE_1_AND_QUIZ_BEFORE_FULL_CURRICULUM'
+  | 'PILOT_COHORT_OF_10_FAMILIES_BEFORE_SCALING'
+  | 'CLINICAL_SAFEGUARDING_SIGN_OFF_BEFORE_PUBLIC_ENROLMENT'
+  | 'CURRICULUM_PILOT_COHORT_ITERATION'
+  // Marketplace / Service / Hybrid
+  | 'ONBOARD_SUPPLY_SIDE_FIRST_BEFORE_BUYER_TRAFFIC'
+  | 'STANDARDIZE_SOP_ON_FIRST_5_CLIENTS_BEFORE_AUTOMATION'
+  | 'BENCHTOP_PROTOTYPE_VALIDATION_BEFORE_ENCLOSURE_RUN'
+  | 'OTHER';
+
+export interface ProductWorkPackageItem {
+  id: string;
+  wpCode: string; // e.g., 'WP1', 'WP2', 'WP3', 'WP4'
+  title: string;
+  timelineWindow: WorkPackageTimelineWindowType;
+  otherTimelineWindowText?: string;
+  executionMode: WorkPackageExecutionModeType;
+  otherExecutionModeText?: string;
+  costModel: BuildVsBuyCostModelType;
+  otherCostModelText?: string;
+  estimatedCostAmount: number;
+  deliverableMilestoneProof?: string;
+  linkedTaskSummary?: string;
+  deliverableMilestone?: string;
+  verificationGateOrDeRisking?: string;
+  isGrantEligibleRAndDOrPrototype?: boolean;
+  isCustom?: boolean;
+}
+
+export interface ProductFlowStageItem {
+  id: string;
+  stageNumber: number;
+  stageTitle: string;
+  executionBadge?: WorkPackageExecutionModeType;
+  otherExecutionBadgeText?: string;
+  whatHappensHere?: string;
+  outputOrHandOff?: string;
+  stageSubtitle?: string;
+  keyToolsOrMaterials?: string;
+  outputOrHandoff?: string;
+}
+
+export interface WorkPackagesStep5Data {
+  workPackages: ProductWorkPackageItem[];
+  flowStages: ProductFlowStageItem[];
+  executionCadenceRule: WorkPackageCadenceRuleType | '';
+  otherExecutionCadenceRuleText?: string;
+  technicalMeritAndInnovationNarrative: string;
+  bottleneckAndDeRiskingNarrative: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type ProductBlindSpotCategoryType =
+  | 'SCOPE_CREEP_TIMELINE'
+  | 'UNIT_MARGIN_CHANNEL_FEE'
+  | 'TECHNICAL_BOTTLENECK'
+  | 'SUPPLIER_DEPENDENCY'
+  | 'GRANT_COMPLIANCE_IP'
+  | 'OTHER';
+
+export type ProductBlindSpotSeverityType = 'WATCH' | 'IMPORTANT' | 'CRITICAL';
+
+export type ProductReadinessConfidenceType =
+  | 'READY_TO_BUILD_V1'
+  | 'NEEDS_MINOR_DE_RISKING'
+  | 'NEEDS_PROTOTYPE_SPIKE_FIRST'
+  | 'OTHER';
+
+export interface ProductBlindSpotItem {
+  id: string;
+  title: string;
+  category: ProductBlindSpotCategoryType;
+  otherCategoryText?: string;
+  severity: ProductBlindSpotSeverityType;
+  whyItMatters: string;
+  recommendedActionOrFix: string;
+  founderMitigationNote?: string;
+  isResolved?: boolean;
+  isCustom?: boolean;
+}
+
+export interface BlindSpotAuditStep6Data {
+  blindSpots: ProductBlindSpotItem[];
+  readinessConfidence: ProductReadinessConfidenceType | '';
+  otherReadinessConfidenceText?: string;
+  executiveProductBriefSummary: string;
+  keyDeRiskingSignOffNarrative: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface SavedModuleDData {
   productVehicle?: ProductVehicleStep1Data;
   channelMatrix?: ChannelMatrixStep2Data;
   scopeFilter?: ScopeFilterStep3Data;
   buildVsBuy?: BuildVsBuyStep4Data;
+  workPackagesAndFlow?: WorkPackagesStep5Data;
+  blindSpotAudit?: BlindSpotAuditStep6Data;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;
 }

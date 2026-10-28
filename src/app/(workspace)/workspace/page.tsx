@@ -107,6 +107,12 @@ import {
   type ScopeFilterStep3Data,
   type BuildVsBuyItem,
   type BuildVsBuyStep4Data,
+  type ProductWorkPackageItem,
+  type ProductFlowStageItem,
+  type WorkPackagesStep5Data,
+  type V1LaunchTimelineType,
+  type ProductBlindSpotItem,
+  type BlindSpotAuditStep6Data,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -144,11 +150,15 @@ import {
   saveModuleDStep2ChannelMatrixAction,
   saveModuleDStep3ScopeFilterAction,
   saveModuleDStep4BuildVsBuyAction,
+  saveModuleDStep5WorkPackagesAction,
+  saveModuleDStep6BlindSpotAuditAction,
   parkModuleDOpenQuestionAction,
   generateModuleDProductVehicleWithAiAction,
   generateModuleDChannelMatrixWithAiAction,
   generateModuleDScopeFilterWithAiAction,
   generateModuleDBuildVsBuyWithAiAction,
+  generateModuleDWorkPackagesWithAiAction,
+  generateModuleDBlindSpotAuditWithAiAction,
 } from '@/app/actions/module-d';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
@@ -479,6 +489,14 @@ export default function WorkspacePage() {
                       buildVsBuy: pickNewerBySavedAt(
                         localPlan.moduleDData?.buildVsBuy,
                         dbPlan.moduleDData?.buildVsBuy
+                      ),
+                      workPackagesAndFlow: pickNewerBySavedAt(
+                        localPlan.moduleDData?.workPackagesAndFlow,
+                        dbPlan.moduleDData?.workPackagesAndFlow
+                      ),
+                      blindSpotAudit: pickNewerBySavedAt(
+                        localPlan.moduleDData?.blindSpotAudit,
+                        dbPlan.moduleDData?.blindSpotAudit
                       ),
                       thingsToConsider:
                         dbPlan.moduleDData?.thingsToConsider ||
@@ -1618,6 +1636,84 @@ export default function WorkspacePage() {
     });
   }
 
+  async function handleSaveModuleDStep5WorkPackages(
+    workPackagesAndFlow: WorkPackagesStep5Data
+  ) {
+    const wpCount = workPackagesAndFlow.workPackages.length;
+    const progress =
+      wpCount > 0 &&
+      workPackagesAndFlow.technicalMeritAndInnovationNarrative.trim().length >
+        10 &&
+      workPackagesAndFlow.bottleneckAndDeRiskingNarrative.trim().length > 10
+        ? 95
+        : 85;
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_D_STEP_5',
+          moduleDData: {
+            ...(p.moduleDData || {}),
+            workPackagesAndFlow,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleDStep5WorkPackagesAction({
+      planId: currentPlan.id,
+      workPackagesAndFlow,
+      completionPercentage: progress,
+    });
+  }
+
+  async function handleSaveModuleDStep6BlindSpotAudit(
+    blindSpotAudit: BlindSpotAuditStep6Data
+  ) {
+    const progress =
+      blindSpotAudit.readinessConfidence &&
+      (blindSpotAudit.executiveProductBriefSummary.trim().length > 10 ||
+        blindSpotAudit.blindSpots.length > 0)
+        ? 100
+        : 95;
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_D_STEP_6',
+          moduleDData: {
+            ...(p.moduleDData || {}),
+            blindSpotAudit,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleDStep6BlindSpotAuditAction({
+      planId: currentPlan.id,
+      blindSpotAudit,
+      completionPercentage: progress,
+    });
+  }
+
   async function handleParkModuleDQuestion(questionText: string) {
     const clean = questionText.trim();
     if (!clean) return;
@@ -1890,6 +1986,160 @@ export default function WorkspacePage() {
       items: res.items,
       secretSauceInHouseNarrative: res.secretSauceInHouseNarrative,
       whyBuyAndPartnerSavesTimeNarrative: res.whyBuyAndPartnerSavesTimeNarrative,
+      engineMode: res.engineMode,
+    };
+  }
+
+  async function handleGenerateModuleDWorkPackagesWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    formFactor?: ProductFormFactorType;
+    primaryChannel?: SalesChannelOptionType;
+    validatedPainSummary?: string;
+    v1MustHaveTitles?: string[];
+    buildVsBuyItems?: BuildVsBuyItem[];
+    currentWorkPackages?: ProductWorkPackageItem[];
+    currentFlowStages?: ProductFlowStageItem[];
+    mode?: 'POPULATE_WPS_AND_FLOW' | 'CHARTER_ONLY';
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Work Packages & Technical Flow Diagram (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        executionCadenceRule: '' as const,
+        workPackages: params.currentWorkPackages || [],
+        flowStages: params.currentFlowStages || [],
+        technicalMeritAndInnovationNarrative: '',
+        bottleneckAndDeRiskingNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleDWorkPackagesWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      beachheadSegment: currentPlan.moduleBData?.beachhead?.beachheadSegment,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      formFactor: params.formFactor,
+      primaryChannel: params.primaryChannel,
+      validatedPainSummary: params.validatedPainSummary,
+      v1MustHaveTitles: params.v1MustHaveTitles,
+      buildVsBuyItems: params.buildVsBuyItems,
+      currentWorkPackages: params.currentWorkPackages,
+      currentFlowStages: params.currentFlowStages,
+      mode: params.mode,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      executionCadenceRule: res.executionCadenceRule,
+      workPackages: res.workPackages,
+      flowStages: res.flowStages,
+      technicalMeritAndInnovationNarrative:
+        res.technicalMeritAndInnovationNarrative,
+      bottleneckAndDeRiskingNarrative: res.bottleneckAndDeRiskingNarrative,
+      engineMode: res.engineMode,
+    };
+  }
+
+  async function handleGenerateModuleDBlindSpotAuditWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    formFactor?: ProductFormFactorType;
+    v1LaunchTimeline?: V1LaunchTimelineType;
+    primaryChannel?: SalesChannelOptionType;
+    estimatedBlendedFeePercent?: number;
+    v1MustHaveCount?: number;
+    v1HighEffortCount?: number;
+    monthlyBurnTotal?: number;
+    onceOffCapExTotal?: number;
+    perUnitCogsTotal?: number;
+    workPackageCount?: number;
+    grantEligibleWpCount?: number;
+    currentBlindSpots?: ProductBlindSpotItem[];
+    mode?: 'FULL_AUDIT' | 'SUMMARY_ONLY';
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Blind-Spot Audit & Executive Brief (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        blindSpots: params.currentBlindSpots || [],
+        readinessConfidence: 'READY_TO_BUILD_V1' as const,
+        executiveProductBriefSummary: '',
+        keyDeRiskingSignOffNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleDBlindSpotAuditWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      formFactor: params.formFactor,
+      v1LaunchTimeline: params.v1LaunchTimeline,
+      primaryChannel: params.primaryChannel,
+      estimatedBlendedFeePercent: params.estimatedBlendedFeePercent,
+      v1MustHaveCount: params.v1MustHaveCount,
+      v1HighEffortCount: params.v1HighEffortCount,
+      monthlyBurnTotal: params.monthlyBurnTotal,
+      onceOffCapExTotal: params.onceOffCapExTotal,
+      perUnitCogsTotal: params.perUnitCogsTotal,
+      workPackageCount: params.workPackageCount,
+      grantEligibleWpCount: params.grantEligibleWpCount,
+      currentBlindSpots: params.currentBlindSpots,
+      mode: params.mode,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      blindSpots: res.blindSpots,
+      readinessConfidence: res.readinessConfidence,
+      executiveProductBriefSummary: res.executiveProductBriefSummary,
+      keyDeRiskingSignOffNarrative: res.keyDeRiskingSignOffNarrative,
       engineMode: res.engineMode,
     };
   }
@@ -2209,37 +2459,60 @@ export default function WorkspacePage() {
   const savedModDChannelMatrix = currentPlan.moduleDData?.channelMatrix;
   const savedModDScopeFilter = currentPlan.moduleDData?.scopeFilter;
   const savedModDBuildVsBuy = currentPlan.moduleDData?.buildVsBuy;
+  const savedModDWorkPackages = currentPlan.moduleDData?.workPackagesAndFlow;
+  const savedModDBlindSpotAudit = currentPlan.moduleDData?.blindSpotAudit;
   const step1ModDScore = savedModDVehicle
     ? savedModDVehicle.ahaMomentNarrative.trim().length > 10 &&
       savedModDVehicle.whyThisVehicleFitsCustomer.trim().length > 10
-      ? 20
+      ? 18
       : 10
     : 0;
   const step2ModDScore = savedModDChannelMatrix
     ? savedModDChannelMatrix.rentToOwnBridgeStrategy.trim().length > 10 &&
       savedModDChannelMatrix.channelWhyItFitsNotes.trim().length > 10
-      ? 20
-      : 10
+      ? 16
+      : 8
     : 0;
   const step3ModDScore = savedModDScopeFilter
     ? savedModDScopeFilter.items.some((i) => i.bucket === 'MUST_HAVE_V1') &&
       savedModDScopeFilter.whatWeRefuseToBuildInV1Narrative.trim().length > 10 &&
       savedModDScopeFilter.whyThisLeanV1WinsFasterNarrative.trim().length > 10
-      ? 20
-      : 10
+      ? 16
+      : 8
     : 0;
   const step4ModDScore = savedModDBuildVsBuy
     ? savedModDBuildVsBuy.items.some((i) => i.tier === 'BUILD_IN_HOUSE') &&
       savedModDBuildVsBuy.secretSauceInHouseNarrative.trim().length > 10 &&
       savedModDBuildVsBuy.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10
-      ? 25
-      : 15
+      ? 16
+      : 8
+    : 0;
+  const step5ModDScore = savedModDWorkPackages
+    ? savedModDWorkPackages.workPackages.length > 0 &&
+      savedModDWorkPackages.technicalMeritAndInnovationNarrative.trim().length >
+        10 &&
+      savedModDWorkPackages.bottleneckAndDeRiskingNarrative.trim().length > 10
+      ? 18
+      : 9
+    : 0;
+  const step6ModDScore = savedModDBlindSpotAudit
+    ? savedModDBlindSpotAudit.readinessConfidence &&
+      (savedModDBlindSpotAudit.executiveProductBriefSummary.trim().length >
+        10 ||
+        savedModDBlindSpotAudit.blindSpots.length > 0)
+      ? 16
+      : 8
     : 0;
   const totalModDScore =
-    step1ModDScore + step2ModDScore + step3ModDScore + step4ModDScore;
+    step1ModDScore +
+    step2ModDScore +
+    step3ModDScore +
+    step4ModDScore +
+    step5ModDScore +
+    step6ModDScore;
   const moduleDProgressPercent =
     totalModDScore > 0
-      ? totalModDScore
+      ? Math.min(100, totalModDScore)
       : activeModule === 'MOD_D_PRODUCT_BUILD'
         ? 10
         : 0;
@@ -2777,6 +3050,8 @@ export default function WorkspacePage() {
               onSaveStep2ChannelMatrix={handleSaveModuleDStep2ChannelMatrix}
               onSaveStep3ScopeFilter={handleSaveModuleDStep3ScopeFilter}
               onSaveStep4BuildVsBuy={handleSaveModuleDStep4BuildVsBuy}
+              onSaveStep5WorkPackages={handleSaveModuleDStep5WorkPackages}
+              onSaveStep6BlindSpotAudit={handleSaveModuleDStep6BlindSpotAudit}
               onGenerateAiProductVehicle={
                 handleGenerateModuleDProductVehicleWithAi
               }
@@ -2789,8 +3064,15 @@ export default function WorkspacePage() {
               onGenerateAiBuildVsBuy={
                 handleGenerateModuleDBuildVsBuyWithAi
               }
+              onGenerateAiWorkPackages={
+                handleGenerateModuleDWorkPackagesWithAi
+              }
+              onGenerateAiBlindSpotAudit={
+                handleGenerateModuleDBlindSpotAuditWithAi
+              }
               onParkOpenQuestion={handleParkModuleDQuestion}
               onBackToModuleC={() => setActiveModule('MOD_C_SURVEYS_FEEDBACK')}
+              whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
             />
           ) : activeModule === 'MOD_C_SURVEYS_FEEDBACK' ? (
             <ModuleCWorkspace

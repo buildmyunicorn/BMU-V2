@@ -39,6 +39,9 @@ import {
   AlertTriangle,
   Ban,
   Rocket,
+  Download,
+  Printer,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -74,6 +77,17 @@ import type {
   CoreIpOwnershipRuleType,
   BuildVsBuyItem,
   BuildVsBuyStep4Data,
+  WorkPackageExecutionModeType,
+  WorkPackageTimelineWindowType,
+  WorkPackageCadenceRuleType,
+  ProductWorkPackageItem,
+  ProductFlowStageItem,
+  WorkPackagesStep5Data,
+  ProductBlindSpotCategoryType,
+  ProductBlindSpotSeverityType,
+  ProductReadinessConfidenceType,
+  ProductBlindSpotItem,
+  BlindSpotAuditStep6Data,
 } from '@/lib/auth/session-store';
 
 export interface ModuleDWorkspaceProps {
@@ -94,6 +108,14 @@ export interface ModuleDWorkspaceProps {
   ) => Promise<void>;
   onSaveStep4BuildVsBuy: (
     data: BuildVsBuyStep4Data,
+    progress: number
+  ) => Promise<void>;
+  onSaveStep5WorkPackages: (
+    data: WorkPackagesStep5Data,
+    progress: number
+  ) => Promise<void>;
+  onSaveStep6BlindSpotAudit: (
+    data: BlindSpotAuditStep6Data,
     progress: number
   ) => Promise<void>;
   onParkOpenQuestion: (questionText: string) => Promise<void>;
@@ -158,7 +180,54 @@ export interface ModuleDWorkspaceProps {
     whyBuyAndPartnerSavesTimeNarrative: string;
     engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
   }>;
+  onGenerateAiWorkPackages: (params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    formFactor?: ProductFormFactorType;
+    primaryChannel?: SalesChannelOptionType;
+    validatedPainSummary?: string;
+    v1MustHaveTitles?: string[];
+    buildVsBuyItems?: BuildVsBuyItem[];
+    currentWorkPackages?: ProductWorkPackageItem[];
+    currentFlowStages?: ProductFlowStageItem[];
+    mode?: 'POPULATE_WPS_AND_FLOW' | 'CHARTER_ONLY';
+  }) => Promise<{
+    allowed: boolean;
+    reason?: string;
+    executionCadenceRule: WorkPackageCadenceRuleType | '';
+    workPackages: ProductWorkPackageItem[];
+    flowStages: ProductFlowStageItem[];
+    technicalMeritAndInnovationNarrative: string;
+    bottleneckAndDeRiskingNarrative: string;
+    engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  }>;
+  onGenerateAiBlindSpotAudit: (params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    formFactor?: ProductFormFactorType;
+    v1LaunchTimeline?: V1LaunchTimelineType;
+    primaryChannel?: SalesChannelOptionType;
+    estimatedBlendedFeePercent?: number;
+    v1MustHaveCount?: number;
+    v1HighEffortCount?: number;
+    monthlyBurnTotal?: number;
+    onceOffCapExTotal?: number;
+    perUnitCogsTotal?: number;
+    workPackageCount?: number;
+    grantEligibleWpCount?: number;
+    currentBlindSpots?: ProductBlindSpotItem[];
+    mode?: 'FULL_AUDIT' | 'SUMMARY_ONLY';
+  }) => Promise<{
+    allowed: boolean;
+    reason?: string;
+    blindSpots: ProductBlindSpotItem[];
+    readinessConfidence: ProductReadinessConfidenceType;
+    executiveProductBriefSummary: string;
+    keyDeRiskingSignOffNarrative: string;
+    engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  }>;
   onBackToModuleC: () => void;
+  whiteLabelEnabled?: boolean;
 }
 
 export function detectRecommendedProductTrack(
@@ -3446,6 +3515,816 @@ const ADAPTIVE_STEP4_CONFIG_BY_TRACK: Record<ProductTrackType, AdaptiveStep4Conf
   },
 };
 
+export const WP_TIMELINE_WINDOW_OPTIONS: Array<{
+  value: WorkPackageTimelineWindowType;
+  label: string;
+  shortLabel: string;
+  badgeColor: string;
+}> = [
+  {
+    value: 'WEEKS_1_TO_2',
+    label: 'Weeks 1–2 (Foundation & Setup)',
+    shortLabel: 'Weeks 1–2',
+    badgeColor: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+  },
+  {
+    value: 'WEEKS_1_2',
+    label: 'Weeks 1–2 (Foundation & Setup)',
+    shortLabel: 'Weeks 1–2',
+    badgeColor: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+  },
+  {
+    value: 'WEEKS_3_TO_4',
+    label: 'Weeks 3–4 (Core Build / Batch #1)',
+    shortLabel: 'Weeks 3–4',
+    badgeColor: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  },
+  {
+    value: 'WEEKS_3_4',
+    label: 'Weeks 3–4 (Core Build / Batch #1)',
+    shortLabel: 'Weeks 3–4',
+    badgeColor: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  },
+  {
+    value: 'WEEKS_5_8',
+    label: 'Weeks 5–8 (Integration & Pilot Testing)',
+    shortLabel: 'Weeks 5–8',
+    badgeColor: 'border-amber-200 bg-amber-50 text-amber-800',
+  },
+  {
+    value: 'MONTH_2',
+    label: 'Month 2 (Packaging / Integration & Pilot)',
+    shortLabel: 'Month 2',
+    badgeColor: 'border-amber-200 bg-amber-50 text-amber-800',
+  },
+  {
+    value: 'MONTH_2_3',
+    label: 'Month 2–3 (Commercial Launch & Scale)',
+    shortLabel: 'Month 2–3',
+    badgeColor: 'border-violet-200 bg-violet-50 text-violet-800',
+  },
+  {
+    value: 'MONTH_3',
+    label: 'Month 3 (Commercial Launch & Scale)',
+    shortLabel: 'Month 3',
+    badgeColor: 'border-violet-200 bg-violet-50 text-violet-800',
+  },
+  {
+    value: 'PRE_LAUNCH_FINAL',
+    label: 'Pre-Launch Final Gate & Rollout',
+    shortLabel: 'Pre-Launch Gate',
+    badgeColor: 'border-violet-200 bg-violet-50 text-violet-800',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other / Custom Timeline Window',
+    shortLabel: 'Custom Timeline',
+    badgeColor: 'border-slate-300 bg-slate-100 text-slate-800',
+  },
+];
+
+export const WP_EXECUTION_MODE_OPTIONS: Array<{
+  value: WorkPackageExecutionModeType;
+  label: string;
+  shortLabel: string;
+  subtitle: string;
+  badgeColor: string;
+}> = [
+  {
+    value: 'IN_HOUSE',
+    label: 'Built / Crafted In-House (Founder / Team)',
+    shortLabel: 'In-House',
+    subtitle: 'Executed directly by you or your core team (named roles mapped in Module F)',
+    badgeColor: 'border-emerald-300 bg-emerald-50 text-emerald-800',
+  },
+  {
+    value: 'SUPPLIER_OFF_SHELF',
+    label: 'Off-the-Shelf Tool / Material Supplier',
+    shortLabel: 'Off-the-Shelf / Supplier',
+    subtitle: 'Configured from an off-the-shelf SaaS platform or raw material supplier',
+    badgeColor: 'border-indigo-300 bg-indigo-50 text-indigo-800',
+  },
+  {
+    value: 'EXTERNAL_PARTNER',
+    label: 'External Specialist / Fulfillment Partner',
+    shortLabel: 'External Partner',
+    subtitle: 'Delivered with a targeted external contractor, courier, or compliance partner',
+    badgeColor: 'border-amber-300 bg-amber-50 text-amber-900',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other / Hybrid Execution Mode',
+    shortLabel: 'Other Mode',
+    subtitle: 'Custom or hybrid execution arrangement',
+    badgeColor: 'border-slate-300 bg-slate-100 text-slate-800',
+  },
+];
+
+interface AdaptiveStep5TrackConfig {
+  stepTitle: string;
+  stepSubtitle: string;
+  whyThisMattersText: string;
+  wpBoardTitle: string;
+  wpBoardSubtitle: string;
+  flowDiagramTitle: string;
+  flowDiagramSubtitle: string;
+  cadenceRules: Array<{
+    value: WorkPackageCadenceRuleType;
+    label: string;
+    subtitle: string;
+    badge: string;
+  }>;
+  technicalMeritLabel: string;
+  technicalMeritPlaceholder: string;
+  deRiskingLabel: string;
+  deRiskingPlaceholder: string;
+  defaultFlowStages: ProductFlowStageItem[];
+}
+
+export const ADAPTIVE_STEP5_CONFIG_BY_TRACK: Record<
+  ProductTrackType,
+  AdaptiveStep5TrackConfig
+> = {
+  SAAS_SOFTWARE_AI: {
+    stepTitle:
+      'Step 5: Grant-Ready Work Packages (WP1–WP4) & 4-Stage System Architecture Flow',
+    stepSubtitle:
+      'Group your Version 1 software scope & Build-vs-Buy stack into sequential Work Packages (WP1–WP4) with verifiable milestones, smart costs, and a plain-English 4-Stage Technical Architecture Diagram ready for IE LEO, Enterprise Ireland & UK Innovate UK assessors.',
+    whyThisMattersText:
+      'Grant assessors (Enterprise Ireland, LEO Feasibility/Priming, UK Innovate UK Smart Grants) and technical investors never fund a vague feature list—they require numbered Work Packages (WP1–WP4) with clear deliverables, smart cost allocations, and a 4-Stage System Flow Diagram showing how user input becomes your core Aha! output.',
+    wpBoardTitle: '1. Version 1 Work Packages & Milestones (WP1–WP4)',
+    wpBoardSubtitle:
+      'Start empty, click "Build Work Packages from My Steps 3 & 4" to auto-group your saved scope & costs, or click "Populate with AI". Named Co-Founder/Team owners in Module F will automatically attach to these Work Packages.',
+    flowDiagramTitle:
+      '2. 4-Stage Technical Architecture & Data Flow Diagram (Plain-English)',
+    flowDiagramSubtitle:
+      'Show investors and grant assessors how a user moves from Onboarding (Stage 1) -> Proprietary AI/Workflow Engine (Stage 2) -> Managed Cloud & Security (Stage 3) -> Export / Value Delivery (Stage 4).',
+    cadenceRules: [
+      {
+        value: 'TWO_WEEK_AGILE_SPRINTS_USER_DEMO',
+        label: '2-Week Agile Build Sprints + Live Customer Demo Gate',
+        subtitle:
+          'Every Work Package closes with a working browser build tested with real beta users before unlocking the next milestone.',
+        badge: 'Recommended SaaS Cadence',
+      },
+      {
+        value: 'MILESTONE_GATED_TECHNICAL_SPRINT',
+        label: 'Milestone-Gated R&D & Technical Verification Sprints',
+        subtitle:
+          'Each Work Package requires passing a technical benchmark (latency, cost-per-call circuit breaker, security check) before advancing.',
+        badge: 'Grant R&D Gate',
+      },
+      {
+        value: 'BATCH_PROTOTYPE_JIG_AND_PILOT_RUN',
+        label: 'Rapid Prototype -> Paid Pilot Cohort Release',
+        subtitle:
+          'Ship a lean clickable/functional V1 to an initial pilot cohort first, then iterate based on live usage telemetry.',
+        badge: 'Pilot-First Cadence',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Execution Cadence Rule',
+        subtitle: 'Define your own custom sprint or milestone cadence.',
+        badge: 'Custom Rule',
+      },
+    ],
+    technicalMeritLabel:
+      '1. Technical Merit, Proprietary Architecture & Innovation (For Grants & Investors):',
+    technicalMeritPlaceholder:
+      'Explain what makes your Version 1 technical architecture innovative or defensible (e.g., domain-tuned AI router, hard 500 calls/day billing circuit breaker, multi-country rules engine)...',
+    deRiskingLabel:
+      '2. Critical Bottleneck & Milestone De-Risking Plan (How We Prevent Delays):',
+    deRiskingPlaceholder:
+      'Explain the #1 technical or delivery bottleneck in WP1–WP4 and how your milestone verification gates and off-the-shelf infrastructure eliminate that risk...',
+    defaultFlowStages: [
+      {
+        id: 'flow-saas-1',
+        stageNumber: 1,
+        stageTitle: 'Stage 1: User Input & Onboarding',
+        stageSubtitle:
+          'Founder enters raw business context or customer survey responses in browser',
+        keyToolsOrMaterials: 'Next.js Web App + Better-Auth Session',
+        outputOrHandoff: 'Sanitized, structured JSON context payload',
+      },
+      {
+        id: 'flow-saas-2',
+        stageNumber: 2,
+        stageTitle: 'Stage 2: Core Secret Sauce Engine',
+        stageSubtitle:
+          'Proprietary AI Router + Country Rules & Unit Economics Synthesizer processes payload',
+        keyToolsOrMaterials: 'In-House Domain Engine + Gemini 2.5 Flash/Pro',
+        outputOrHandoff: 'Validated financial, survey & grant-ready structured output',
+      },
+      {
+        id: 'flow-saas-3',
+        stageNumber: 3,
+        stageTitle: 'Stage 3: Cloud Persistence & Guardrails',
+        stageSubtitle:
+          'Multi-tenant PostgreSQL storage with 500/day AI billing circuit breaker & IDOR checks',
+        keyToolsOrMaterials: 'Drizzle ORM + Cloud SQL PostgreSQL + Stripe',
+        outputOrHandoff: 'Encrypted, tenant-isolated plan state & entitlement check',
+      },
+      {
+        id: 'flow-saas-4',
+        stageNumber: 4,
+        stageTitle: 'Stage 4: Customer Aha! & Grant Export',
+        stageSubtitle:
+          'Instant interactive workspace + hosted /v/[slug] survey + 1-click PDF/HTML brief',
+        keyToolsOrMaterials: 'Browser Print/PDF Compiler + Public Survey Route',
+        outputOrHandoff: 'Submission-ready Business Plan & Grant Pack',
+      },
+    ],
+  },
+  PHYSICAL_PRODUCT_ECOM: {
+    stepTitle:
+      'Step 5: Production Work Packages (WP1–WP4) & 4-Stage Workshop-to-Customer Flow',
+    stepSubtitle:
+      'Organize your Version 1 physical product launch into 4 practical Work Packages (WP1 Timber/Material Sourcing & Jigs -> WP2 Pilot Batch Production -> WP3 Gift Packaging & Drop-Test -> WP4 Etsy & Amazon FBA Launch) plus a 4-Stage Production & Fulfillment Flow.',
+    whyThisMattersText:
+      'Whether you are applying for a Local Enterprise Office (LEO) / Start Up Loan equipment grant or scaling on Etsy and Amazon FBA, mapping your 4-stage production flow proves you can produce consistent batches at a profitable unit cost without drowning in manual one-off labour.',
+    wpBoardTitle: '1. Workshop & Production Work Packages (WP1–WP4)',
+    wpBoardSubtitle:
+      'Start empty, click "Build Work Packages from My Steps 3 & 4" to auto-group your Hero SKUs, raw materials & packaging, or click "Populate with AI".',
+    flowDiagramTitle:
+      '2. 4-Stage Workshop Production & Order Fulfillment Flow Diagram',
+    flowDiagramSubtitle:
+      'Map how raw materials move from Timber/Material Prep & Jig Batching (Stage 1) -> Custom Finishing & Engraving (Stage 2) -> Gift-Ready <2kg Packaging (Stage 3) -> Etsy Direct / Amazon FBA Dispatch (Stage 4).',
+    cadenceRules: [
+      {
+        value: 'BATCH_PROTOTYPE_JIG_AND_PILOT_RUN',
+        label: 'Standardized Jig Setup -> 20-Unit Pilot Batch -> QC Gate',
+        subtitle:
+          'Never cut custom one-off sizes in V1: build repeatable workshop jigs first, run a 20-unit batch, and verify unit labour time and <2kg parcel weight.',
+        badge: 'Recommended Maker / E-Com Cadence',
+      },
+      {
+        value: 'TWO_WEEK_AGILE_SPRINTS_USER_DEMO',
+        label: '2-Week Sample & Customer Unboxing Feedback Cycles',
+        subtitle:
+          'Test physical prototypes and gift packaging with early buyers before ordering larger raw material or carton runs.',
+        badge: 'Sample-First Cadence',
+      },
+      {
+        value: 'MILESTONE_GATED_TECHNICAL_SPRINT',
+        label: 'Supplier 3-Quote & Compliance Gate Before Tooling Spend',
+        subtitle:
+          'Collect 3 formal supplier quotes (IE LEO procurement rule) and pass drop/safety checks before committing capital.',
+        badge: 'Grant Procurement Gate',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Production Cadence Rule',
+        subtitle: 'Define your own workshop or contract manufacturing cadence.',
+        badge: 'Custom Rule',
+      },
+    ],
+    technicalMeritLabel:
+      '1. Production Process, Repeatable Jig Efficiency & Quality Control:',
+    technicalMeritPlaceholder:
+      'Explain how your workshop jigs, batch production process, and finishing standards cut labour time per unit and ensure heirloom quality...',
+    deRiskingLabel:
+      '2. Supply Chain, Parcel Weight (<2kg) & Marketplace Fulfillment De-Risking:',
+    deRiskingPlaceholder:
+      'Explain how you prevent timber warping, shipping damage, or Amazon FBA / Etsy fee surprises (e.g., kiln-dried moisture checks, <2kg double-walled kraft box, QR care card)...',
+    defaultFlowStages: [
+      {
+        id: 'flow-phys-1',
+        stageNumber: 1,
+        stageTitle: 'Stage 1: Raw Material Prep & CNC/Router Jigs',
+        stageSubtitle:
+          'Kiln-dried hardwood boards milled and cut in repeatable 20-unit batches using workshop jigs',
+        keyToolsOrMaterials: 'Kiln-Dried Timber + Workshop Router/CNC Jigs',
+        outputOrHandoff: 'Dimensioned, juice-grooved raw Hero SKU blanks',
+      },
+      {
+        id: 'flow-phys-2',
+        stageNumber: 2,
+        stageTitle: 'Stage 2: Custom Engraving & Food-Safe Finishing',
+        stageSubtitle:
+          'Multi-grit sanding, personalized laser engraving (for Etsy gift orders), and organic beeswax conditioning',
+        keyToolsOrMaterials: 'Laser Engraver + Food-Safe Mineral Oil & Beeswax',
+        outputOrHandoff: 'QC-inspected, satin-finished heirloom chopping boards',
+      },
+      {
+        id: 'flow-phys-3',
+        stageNumber: 3,
+        stageTitle: 'Stage 3: <2kg Gift-Ready Packaging & QR Insert',
+        stageSubtitle:
+          'Packed in standardized double-walled kraft gift box with care card QR code & Amazon FNSKU barcode',
+        keyToolsOrMaterials: 'Custom Kraft Gift Box + QR Care Card (Direct Refill Hook)',
+        outputOrHandoff: 'Drop-tested parcel under 2kg courier threshold',
+      },
+      {
+        id: 'flow-phys-4',
+        stageNumber: 4,
+        stageTitle: 'Stage 4: Dual-Channel Dispatch & Repeat Loop',
+        stageSubtitle:
+          'Standard SKUs shipped in bulk cartons to Amazon FBA; custom engraved boards dispatched direct via Etsy/Web',
+        keyToolsOrMaterials: 'Amazon FBA Prime + Etsy Tracked Courier + Direct Web',
+        outputOrHandoff: '5-star customer unboxing + QR code repeat wax/oil sales',
+      },
+    ],
+  },
+  EDUCATION_PROGRAM_COHORT: {
+    stepTitle:
+      'Step 5: Curriculum Work Packages (WP1–WP4) & 4-Stage Parent/Learner Delivery Flow',
+    stepSubtitle:
+      'Structure your Version 1 educational / support platform into 4 clear Work Packages (WP1 Core Curriculum & Printable Toolkit -> WP2 Bite-Sized 5-Min Audio/Video Recording -> WP3 Mobile Web Portal & Stripe Setup -> WP4 Pilot Family Cohort & Outcome Tracking) plus a 4-Stage Learner Journey Diagram.',
+    whyThisMattersText:
+      'Busy or exhausted learners (like sleep-deprived parents of autistic children) abandon 40-hour academic courses, and building a custom €25k native app wastes 6 months. Breaking V1 into 4 practical curriculum & portal Work Packages proves you can launch in under 4 weeks and track measurable 14-day outcomes.',
+    wpBoardTitle: '1. Curriculum & Portal Work Packages (WP1–WP4)',
+    wpBoardSubtitle:
+      'Start empty, click "Build Work Packages from My Steps 3 & 4" to auto-group your saved modules & portal tools, or click "Populate with AI".',
+    flowDiagramTitle:
+      '2. 4-Stage Parent / Learner Onboarding & Outcome Flow Diagram',
+    flowDiagramSubtitle:
+      'Show how a family or learner moves from Intake Quiz (Stage 1) -> Bite-Sized 5-Min Audio & Visual Routine (Stage 2) -> Live Q&A & Daily Tracker (Stage 3) -> Measurable 14-Night Outcome & Referral (Stage 4).',
+    cadenceRules: [
+      {
+        value: 'CURRICULUM_PILOT_COHORT_ITERATION',
+        label: 'Founding Pilot Cohort (First 20–50 Families) -> 14-Day Outcome Gate',
+        subtitle:
+          'Launch the core 6-step toolkit and mobile web portal to a founding cohort first, measure 14-day completion and outcomes, and refine modules from live Q&A questions.',
+        badge: 'Recommended Education Cadence',
+      },
+      {
+        value: 'TWO_WEEK_AGILE_SPRINTS_USER_DEMO',
+        label: 'Weekly Module Release + Parent/Learner Feedback Loop',
+        subtitle:
+          'Record and release bite-sized 5-minute audio/video guides in weekly sprints so you never block launch on recording 100% of future content upfront.',
+        badge: 'Drip-Release Cadence',
+      },
+      {
+        value: 'MILESTONE_GATED_TECHNICAL_SPRINT',
+        label: 'Clinical / Safeguarding & GDPR Review Gate Before Public Launch',
+        subtitle:
+          'Verify safeguarding disclaimers, GDPR privacy, and OT/specialist review before opening public enrolment.',
+        badge: 'Safeguarding & Quality Gate',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Curriculum Cadence Rule',
+        subtitle: 'Define your own curriculum production and cohort schedule.',
+        badge: 'Custom Rule',
+      },
+    ],
+    technicalMeritLabel:
+      '1. Pedagogical Innovation, Bite-Sized Accessibility & Delivery Format:',
+    technicalMeritPlaceholder:
+      'Explain why your structured 5-minute audio/video format, printable visual schedules, and mobile web portal deliver superior engagement and outcomes compared to generic courses or expensive apps...',
+    deRiskingLabel:
+      '2. Learner Completion, Safeguarding & Zero-App-Tax De-Risking Plan:',
+    deRiskingPlaceholder:
+      'Explain how you prevent parent/learner overwhelm (e.g., 5-min dark-mode audio, weekly live Q&A) and avoid Apple/Google 30% app store fees via direct mobile web checkout...',
+    defaultFlowStages: [
+      {
+        id: 'flow-edu-1',
+        stageNumber: 1,
+        stageTitle: 'Stage 1: Sensory / Needs Profile Intake Quiz',
+        stageSubtitle:
+          'Parent/learner completes a 3-minute mobile intake quiz after joining via Stripe or Charity Referral',
+        keyToolsOrMaterials: 'Mobile Web Portal + Stripe Checkout + Intake Quiz',
+        outputOrHandoff: 'Personalized Sensory Bedtime & Routine Profile',
+      },
+      {
+        id: 'flow-edu-2',
+        stageNumber: 2,
+        stageTitle: 'Stage 2: 5-Min Audio Guides & Visual Toolkit',
+        stageSubtitle:
+          'Instant access to bite-sized "listen-in-the-dark" audio tracks and printable visual bedtime schedules',
+        keyToolsOrMaterials: 'Proprietary 6-Module Curriculum + Printable PDF Cards',
+        outputOrHandoff: 'Same-night calming bedtime routine in action',
+      },
+      {
+        id: 'flow-edu-3',
+        stageNumber: 3,
+        stageTitle: 'Stage 3: 14-Night Tracker & Weekly Live Q&A',
+        stageSubtitle:
+          'Parents log nightly sleep settling time in 30 seconds and bring edge-case questions to weekly Zoom Q&A',
+        keyToolsOrMaterials: 'Interactive 14-Night Log + Weekly Live Group Q&A',
+        outputOrHandoff: 'Accountability, troubleshooting & community support',
+      },
+      {
+        id: 'flow-edu-4',
+        stageNumber: 4,
+        stageTitle: 'Stage 4: Verified Outcome Proof & Referral Loop',
+        stageSubtitle:
+          'Before-and-after 14-night sleep improvement summary shared with family + charity/clinic partner case studies',
+        keyToolsOrMaterials: 'Automated Outcome Summary + Partner Referral Kit',
+        outputOrHandoff: 'Measurable impact data for grants, schools & word-of-mouth',
+      },
+    ],
+  },
+  MARKETPLACE_PLATFORM: {
+    stepTitle:
+      'Step 5: Marketplace Work Packages (WP1–WP4) & 4-Stage Supply-to-Booking Flow',
+    stepSubtitle:
+      'Break your two-sided marketplace launch into 4 sequential Work Packages (Supply Onboarding -> Search & Listing Portal -> Escrow/Stripe Connect -> Liquidity & Repeat Loop) and map your 4-Stage Transaction Flow.',
+    whyThisMattersText:
+      'Marketplaces fail when founders over-build automated algorithms before solving the chicken-and-egg supply/demand loop. Sequential Work Packages keep V1 focused on curating initial supply and completing the first 50 verified bookings.',
+    wpBoardTitle: '1. Marketplace Work Packages & Milestones (WP1–WP4)',
+    wpBoardSubtitle:
+      'Start empty, click "Build Work Packages from My Steps 3 & 4", or click "Populate with AI".',
+    flowDiagramTitle: '2. 4-Stage Supply Onboarding to Verified Booking Flow',
+    flowDiagramSubtitle:
+      'Map how vetted suppliers and buyers discover, match, transact via escrow, and re-book on your platform.',
+    cadenceRules: [
+      {
+        value: 'TWO_WEEK_AGILE_SPRINTS_USER_DEMO',
+        label: 'Supply-First Curation -> Managed Concierge Matching Sprints',
+        subtitle:
+          'Onboard and verify anchor supply partners in WP1 before opening buyer traffic in WP3–WP4.',
+        badge: 'Liquidity-First Cadence',
+      },
+      {
+        value: 'MILESTONE_GATED_TECHNICAL_SPRINT',
+        label: 'Milestone-Gated Liquidity & Take-Rate Verification',
+        subtitle:
+          'Verify repeat booking rates and payment escrow settlement before automating secondary workflows.',
+        badge: 'Escrow & Trust Gate',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Marketplace Cadence Rule',
+        subtitle: 'Define your own marketplace rollout cadence.',
+        badge: 'Custom Rule',
+      },
+    ],
+    technicalMeritLabel:
+      '1. Matching Engine, Vetting Standard & Anti-Circumvention Architecture:',
+    technicalMeritPlaceholder:
+      'Explain why buyers and suppliers stay on your platform (e.g., proprietary matching workflow, escrow protection, workflow tools)...',
+    deRiskingLabel:
+      '2. Chicken-and-Egg Liquidity & Disintermediation De-Risking Plan:',
+    deRiskingPlaceholder:
+      'Explain how you solve initial supply/demand balance in a single niche before expanding...',
+    defaultFlowStages: [
+      {
+        id: 'flow-mkt-1',
+        stageNumber: 1,
+        stageTitle: 'Stage 1: Vetted Supply Onboarding',
+        stageSubtitle: 'Curated providers complete verification and structured profile setup',
+        keyToolsOrMaterials: 'Supplier Onboarding Portal + Vetting Checklist',
+        outputOrHandoff: 'Bookable, high-trust supply inventory',
+      },
+      {
+        id: 'flow-mkt-2',
+        stageNumber: 2,
+        stageTitle: 'Stage 2: Buyer Discovery & Smart Matching',
+        stageSubtitle: 'Buyers filter and match with vetted providers for their exact need',
+        keyToolsOrMaterials: 'Proprietary Matching Rules + Search UI',
+        outputOrHandoff: 'Qualified booking request & quote',
+      },
+      {
+        id: 'flow-mkt-3',
+        stageNumber: 3,
+        stageTitle: 'Stage 3: Stripe Connect Escrow & Delivery',
+        stageSubtitle: 'Secure checkout, milestone hold, and automated split payout',
+        keyToolsOrMaterials: 'Stripe Connect Escrow + Booking Workflow',
+        outputOrHandoff: 'Completed transaction + platform commission captured',
+      },
+      {
+        id: 'flow-mkt-4',
+        stageNumber: 4,
+        stageTitle: 'Stage 4: Verified Reviews & Repeat Re-Booking',
+        stageSubtitle: 'Two-way trust rating and 1-click repeat booking tools',
+        keyToolsOrMaterials: 'Verified Review Engine + Re-Booking Automation',
+        outputOrHandoff: 'Compounding marketplace liquidity & retention',
+      },
+    ],
+  },
+  PRODUCTIZED_SERVICE_AGENCY: {
+    stepTitle:
+      'Step 5: Delivery Work Packages (WP1–WP4) & 4-Stage Client Fulfillment Flow',
+    stepSubtitle:
+      'Turn your productized service into 4 repeatable Work Packages (SOP & Diagnostic Playbook -> Internal Automation Engine -> Client Intake & Billing Portal -> Case Study & Retainer Loop) plus a 4-Stage Client Delivery Diagram.',
+    whyThisMattersText:
+      'Productized services scale when delivery is standardized into a repeatable 4-stage assembly line—allowing you to deliver fixed-price outcomes in half the hours of a traditional agency.',
+    wpBoardTitle: '1. Productized Service Work Packages (WP1–WP4)',
+    wpBoardSubtitle:
+      'Start empty, click "Build Work Packages from My Steps 3 & 4", or click "Populate with AI".',
+    flowDiagramTitle: '2. 4-Stage Client Intake to Turnkey Deliverable Flow',
+    flowDiagramSubtitle:
+      'Map how a B2B client moves from Fixed-Scope Checkout (Stage 1) -> Automated Diagnostic (Stage 2) -> Expert QA (Stage 3) -> Turnkey Handover & Retainer (Stage 4).',
+    cadenceRules: [
+      {
+        value: 'TWO_WEEK_AGILE_SPRINTS_USER_DEMO',
+        label: '5-Day Fixed-Turnaround Delivery SLA + SOP Refinement',
+        subtitle:
+          'Every client engagement follows a strict checklist and internal automation pipeline to protect 70%+ gross margins.',
+        badge: 'Recommended Productized Cadence',
+      },
+      {
+        value: 'MILESTONE_GATED_TECHNICAL_SPRINT',
+        label: 'Pilot Client Case Study -> Internal Tooling Automation Gate',
+        subtitle:
+          'Deliver manually for the first 5 paying clients, then automate the highest-friction steps in WP2.',
+        badge: 'Concierge-to-Automated Gate',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Delivery Cadence Rule',
+        subtitle: 'Define your own service delivery cadence.',
+        badge: 'Custom Rule',
+      },
+    ],
+    technicalMeritLabel:
+      '1. Proprietary Methodology, Internal Tooling & Gross Margin Advantage:',
+    technicalMeritPlaceholder:
+      'Explain the proprietary templates, AI scripts, or diagnostic datasets that allow you to deliver faster and at higher margin than manual consultancies...',
+    deRiskingLabel:
+      '2. Scope-Creep Prevention & Delivery Bottleneck De-Risking Plan:',
+    deRiskingPlaceholder:
+      'Explain how standardized intake forms and fixed deliverable boundaries prevent custom consulting creep...',
+    defaultFlowStages: [
+      {
+        id: 'flow-b2b-1',
+        stageNumber: 1,
+        stageTitle: 'Stage 1: Fixed-Scope Checkout & Structured Intake',
+        stageSubtitle: 'Client purchases fixed-price package and submits standardized intake data',
+        keyToolsOrMaterials: 'Stripe Checkout + Guided Client Intake Portal',
+        outputOrHandoff: 'Complete client brief with zero discovery call bloat',
+      },
+      {
+        id: 'flow-b2b-2',
+        stageNumber: 2,
+        stageTitle: 'Stage 2: Internal AI & Playbook Processing',
+        stageSubtitle: 'Proprietary scripts, benchmarks, and templates generate 80% of the deliverable',
+        keyToolsOrMaterials: 'In-House Automation Scripts + Benchmark Database',
+        outputOrHandoff: 'Structured draft audit / implementation pack',
+      },
+      {
+        id: 'flow-b2b-3',
+        stageNumber: 3,
+        stageTitle: 'Stage 3: Expert QA & Custom Calibration',
+        stageSubtitle: 'Founder/specialist reviews edge cases and polishes executive recommendations',
+        keyToolsOrMaterials: 'Internal QA Checklist + Domain Expertise',
+        outputOrHandoff: 'Verified, board-ready client deliverable',
+      },
+      {
+        id: 'flow-b2b-4',
+        stageNumber: 4,
+        stageTitle: 'Stage 4: Turnkey Handover & Monthly Retainer Bridge',
+        stageSubtitle: 'Client receives interactive deliverable and option to upgrade to recurring monitoring',
+        keyToolsOrMaterials: 'Client Portal + Recurring Retainer Subscription',
+        outputOrHandoff: 'Measurable client ROI + recurring MRR',
+      },
+    ],
+  },
+  HYBRID_HARDWARE_SOFTWARE: {
+    stepTitle:
+      'Step 5: R&D Work Packages (WP1–WP4) & 4-Stage Hardware-to-Cloud System Flow',
+    stepSubtitle:
+      'Structure your hardware/deep-tech roadmap into official grant-ready Work Packages (WP1 Benchtop Proof-of-Concept -> WP2 Firmware & Cloud Telemetry -> WP3 Enclosure, CE/UKCA Pre-Scan & Pilot Batch -> WP4 Field Pilot Validation) plus a 4-Stage System Block Diagram.',
+    whyThisMattersText:
+      'Innovate UK Smart Grants and Enterprise Ireland R&D assessors score your application directly on Work Package structure, TRL progression (TRL 4 -> TRL 7), and how you de-risk custom tooling by using off-the-shelf certified modules in V1.',
+    wpBoardTitle: '1. Hardware & R&D Work Packages (WP1–WP4)',
+    wpBoardSubtitle:
+      'Start empty, click "Build Work Packages from My Steps 3 & 4", or click "Populate with AI". Toggle Grant-Eligible R&D on technical packages.',
+    flowDiagramTitle: '2. 4-Stage Hardware Sensor -> Firmware -> Cloud -> Dashboard Flow',
+    flowDiagramSubtitle:
+      'Map how physical sensor/hardware capture (Stage 1) -> Edge Firmware (Stage 2) -> Secure Cloud Ingestion (Stage 3) -> Customer Alert/Action (Stage 4) work together.',
+    cadenceRules: [
+      {
+        value: 'MILESTONE_GATED_TECHNICAL_SPRINT',
+        label: 'TRL-Gated Hardware & Firmware Verification Milestones (TRL 4 -> TRL 7)',
+        subtitle:
+          'Never commit to injection moulding or large PCB runs until 10–25 field pilot units pass environmental and telemetry verification.',
+        badge: 'Recommended Hardware / Grant Cadence',
+      },
+      {
+        value: 'BATCH_PROTOTYPE_JIG_AND_PILOT_RUN',
+        label: '3D-Printed / CNC Pilot Batch + Paid Customer Field Trial',
+        subtitle:
+          'Deploy small-batch pilot units with real industrial/commercial customers to capture validation data.',
+        badge: 'Field-Pilot Cadence',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom R&D Cadence Rule',
+        subtitle: 'Define your own hardware/deep-tech milestone cadence.',
+        badge: 'Custom Rule',
+      },
+    ],
+    technicalMeritLabel:
+      '1. Technical Innovation, Firmware/Algorithm IP & TRL Progression (Grant Technical Case):',
+    technicalMeritPlaceholder:
+      'Explain the core technical challenge, your proprietary firmware/sensor/algorithm innovation, and how V1 advances your Technology Readiness Level (TRL)...',
+    deRiskingLabel:
+      '2. Supply Chain, Pre-Certified Modules (CE/UKCA/FCC) & Tooling De-Risking Plan:',
+    deRiskingPlaceholder:
+      'Explain how using pre-certified wireless/compute modules and 3D-printed/CNC enclosures in V1 avoids €50k+ custom tooling and certification delays...',
+    defaultFlowStages: [
+      {
+        id: 'flow-hw-1',
+        stageNumber: 1,
+        stageTitle: 'Stage 1: Physical Sensor / Hardware Capture',
+        stageSubtitle: 'Custom PCB + pre-certified compute/wireless module captures physical environment data',
+        keyToolsOrMaterials: 'Custom Sensor Board + Pre-Certified Wireless Module',
+        outputOrHandoff: 'Calibrated raw sensor signal',
+      },
+      {
+        id: 'flow-hw-2',
+        stageNumber: 2,
+        stageTitle: 'Stage 2: Embedded Edge Firmware & Filtering',
+        stageSubtitle: 'Proprietary on-device firmware filters noise, compresses payload, and handles offline buffering',
+        keyToolsOrMaterials: 'In-House Embedded C/Rust Firmware + Edge Algorithm',
+        outputOrHandoff: 'Encrypted, low-bandwidth telemetry packet',
+      },
+      {
+        id: 'flow-hw-3',
+        stageNumber: 3,
+        stageTitle: 'Stage 3: Cloud Telemetry & Anomaly Engine',
+        stageSubtitle: 'Cloud ingestion pipeline stores time-series data and runs predictive alerting rules',
+        keyToolsOrMaterials: 'Managed IoT Cloud Broker + Time-Series DB',
+        outputOrHandoff: 'Real-time equipment/site health state',
+      },
+      {
+        id: 'flow-hw-4',
+        stageNumber: 4,
+        stageTitle: 'Stage 4: Customer Dashboard & Automated Action',
+        stageSubtitle: 'Web/mobile operator dashboard triggers instant maintenance or ROI alerts',
+        keyToolsOrMaterials: 'Responsive Web Dashboard + SMS/Email Webhook Alerts',
+        outputOrHandoff: 'Prevented downtime & verified customer ROI',
+      },
+    ],
+  },
+  OTHER: {
+    stepTitle:
+      'Step 5: Version 1 Work Packages (WP1–WP4) & 4-Stage Delivery Flow Diagram',
+    stepSubtitle:
+      'Organize your Version 1 launch into 4 sequential Work Packages (WP1–WP4) with smart costs, milestone verification gates, and a 4-Stage End-to-End Delivery Flow Diagram.',
+    whyThisMattersText:
+      'Breaking your launch into 4 sequential Work Packages and a visual 4-Stage Delivery Flow turns your product strategy into an actionable roadmap ready for co-founders, investors, and grant assessors.',
+    wpBoardTitle: '1. Version 1 Work Packages & Milestones (WP1–WP4)',
+    wpBoardSubtitle:
+      'Start empty, click "Build Work Packages from My Steps 3 & 4", or click "Populate with AI".',
+    flowDiagramTitle: '2. 4-Stage End-to-End Product & Delivery Flow Diagram',
+    flowDiagramSubtitle:
+      'Map how your product or service moves from Customer Onboarding/Input (Stage 1) -> Core Value Creation (Stage 2) -> Quality & Operations (Stage 3) -> Final Customer Outcome (Stage 4).',
+    cadenceRules: [
+      {
+        value: 'TWO_WEEK_AGILE_SPRINTS_USER_DEMO',
+        label: '2-Week Iterative Build Sprints + Customer Feedback Gate',
+        subtitle: 'Deliver and test each Work Package in 2-week milestones with real customer feedback.',
+        badge: 'Iterative Sprint Cadence',
+      },
+      {
+        value: 'BATCH_PROTOTYPE_JIG_AND_PILOT_RUN',
+        label: 'Pilot Batch / Founding Cohort Validation Gate',
+        subtitle: 'Validate with an initial pilot batch or founding customer cohort before scaling spend.',
+        badge: 'Pilot-First Cadence',
+      },
+      {
+        value: 'MILESTONE_GATED_TECHNICAL_SPRINT',
+        label: 'Milestone-Gated Quality & Procurement Verification',
+        subtitle: 'Verify costs, quality, and compliance at the end of each Work Package.',
+        badge: 'Milestone Gate',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Execution Cadence Rule',
+        subtitle: 'Define your own custom execution cadence.',
+        badge: 'Custom Rule',
+      },
+    ],
+    technicalMeritLabel: '1. Core Product Innovation, Execution Merit & Quality Advantage:',
+    technicalMeritPlaceholder:
+      'Explain how your Version 1 Work Packages and delivery flow create a defensible, high-quality customer outcome...',
+    deRiskingLabel: '2. Key Bottleneck & Milestone De-Risking Plan:',
+    deRiskingPlaceholder:
+      'Explain the #1 operational or technical bottleneck in your rollout and how your Work Package milestones de-risk it...',
+    defaultFlowStages: [
+      {
+        id: 'flow-oth-1',
+        stageNumber: 1,
+        stageTitle: 'Stage 1: Customer Discovery & Order/Onboarding',
+        stageSubtitle: 'Customer enters through primary sales channel and completes initial setup/order',
+        keyToolsOrMaterials: 'Primary Checkout + Onboarding Flow',
+        outputOrHandoff: 'Confirmed customer order / onboarding brief',
+      },
+      {
+        id: 'flow-oth-2',
+        stageNumber: 2,
+        stageTitle: 'Stage 2: Core In-House Value Creation',
+        stageSubtitle: 'Proprietary product, content, or craft workflow produces core deliverable',
+        keyToolsOrMaterials: 'In-House Secret Sauce IP & Core Tools',
+        outputOrHandoff: 'Completed V1 product or service unit',
+      },
+      {
+        id: 'flow-oth-3',
+        stageNumber: 3,
+        stageTitle: 'Stage 3: Quality Assurance & Packaging/Hosting',
+        stageSubtitle: 'Verification check and preparation for customer delivery',
+        keyToolsOrMaterials: 'QA Checklist + Delivery Infrastructure',
+        outputOrHandoff: 'Verified, customer-ready deliverable',
+      },
+      {
+        id: 'flow-oth-4',
+        stageNumber: 4,
+        stageTitle: 'Stage 4: Customer Aha! Moment & Repeat Loop',
+        stageSubtitle: 'Customer experiences core value and enters retention/referral loop',
+        keyToolsOrMaterials: 'Fulfillment Channel + Follow-Up Bridge',
+        outputOrHandoff: 'Retained customer, reviews & repeat revenue',
+      },
+    ],
+  },
+};
+
+export const BLIND_SPOT_CATEGORY_OPTIONS: Array<{
+  value: ProductBlindSpotCategoryType;
+  label: string;
+  badgeClass: string;
+}> = [
+  {
+    value: 'SCOPE_CREEP_TIMELINE',
+    label: 'V1 Scope & Timeline Discipline',
+    badgeClass: 'border-amber-200 bg-amber-50 text-amber-800',
+  },
+  {
+    value: 'UNIT_MARGIN_CHANNEL_FEE',
+    label: 'Channel Fee & Unit Margin Buffer',
+    badgeClass: 'border-violet-200 bg-violet-50 text-violet-800',
+  },
+  {
+    value: 'TECHNICAL_BOTTLENECK',
+    label: 'Technical / Production Bottleneck',
+    badgeClass: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+  },
+  {
+    value: 'SUPPLIER_DEPENDENCY',
+    label: 'Supplier / Platform Dependency',
+    badgeClass: 'border-sky-200 bg-sky-50 text-sky-800',
+  },
+  {
+    value: 'GRANT_COMPLIANCE_IP',
+    label: 'Grant Procurement & IP Ownership',
+    badgeClass: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other / Custom Risk Category',
+    badgeClass: 'border-slate-200 bg-slate-100 text-slate-800',
+  },
+];
+
+export const BLIND_SPOT_SEVERITY_OPTIONS: Array<{
+  value: ProductBlindSpotSeverityType;
+  label: string;
+  badgeClass: string;
+}> = [
+  {
+    value: 'WATCH',
+    label: 'Watch / Monitor',
+    badgeClass: 'border-slate-200 bg-slate-100 text-slate-700',
+  },
+  {
+    value: 'IMPORTANT',
+    label: 'Important Action',
+    badgeClass: 'border-amber-300 bg-amber-100 text-amber-900',
+  },
+  {
+    value: 'CRITICAL',
+    label: 'Critical De-Risking Gate',
+    badgeClass: 'border-rose-300 bg-rose-100 text-rose-900',
+  },
+];
+
+export const READINESS_CONFIDENCE_OPTIONS: Array<{
+  value: ProductReadinessConfidenceType;
+  label: string;
+  subtitle: string;
+  badgeText: string;
+}> = [
+  {
+    value: 'READY_TO_BUILD_V1',
+    label: 'Ready to Execute Version 1 Work Packages (WP1–WP4)',
+    subtitle:
+      'Scope is ruthlessly trimmed, smart costs are mapped, and WP1 can begin immediately.',
+    badgeText: 'Green Light • Ready to Build',
+  },
+  {
+    value: 'NEEDS_MINOR_DE_RISKING',
+    label: 'Ready with Minor Pre-Build Checks (Supplier / API / Quote Check)',
+    subtitle:
+      'Core V1 plan is solid, with 1–2 open questions or supplier checks to resolve during WP1.',
+    badgeText: 'Amber • Minor De-Risking',
+  },
+  {
+    value: 'NEEDS_PROTOTYPE_SPIKE_FIRST',
+    label: 'Run a 2-Week Feasibility / Prototype Spike Before Full V1 Build',
+    subtitle:
+      'De-risk the hardest technical, physical batch, or regulatory assumption first before committing CapEx.',
+    badgeText: 'Feasibility Spike First',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other / Custom Product Readiness Status',
+    subtitle: 'Specify your own custom sign-off status or staged gate.',
+    badgeText: 'Custom Status',
+  },
+];
+
 export function ModuleDWorkspace({
   plan,
   selectedCountry,
@@ -3454,18 +4333,25 @@ export function ModuleDWorkspace({
   onSaveStep2ChannelMatrix,
   onSaveStep3ScopeFilter,
   onSaveStep4BuildVsBuy,
+  onSaveStep5WorkPackages,
+  onSaveStep6BlindSpotAudit,
   onParkOpenQuestion,
   onGenerateAiProductVehicle,
   onGenerateAiChannelMatrix,
   onGenerateAiScopeFilter,
   onGenerateAiBuildVsBuy,
+  onGenerateAiWorkPackages,
+  onGenerateAiBlindSpotAudit,
   onBackToModuleC,
+  whiteLabelEnabled,
 }: ModuleDWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
 
   const [activeTab, setActiveTab] = useState<
     'STEP_1' | 'STEP_2' | 'STEP_3' | 'STEP_4' | 'STEP_5' | 'STEP_6'
   >(() => {
+    if (plan.currentModuleStep === 'MOD_D_STEP_6') return 'STEP_6';
+    if (plan.currentModuleStep === 'MOD_D_STEP_5') return 'STEP_5';
     if (plan.currentModuleStep === 'MOD_D_STEP_4') return 'STEP_4';
     if (plan.currentModuleStep === 'MOD_D_STEP_3') return 'STEP_3';
     if (plan.currentModuleStep === 'MOD_D_STEP_2') return 'STEP_2';
@@ -3478,10 +4364,15 @@ export function ModuleDWorkspace({
   const [isSavingStep2, setIsSavingStep2] = useState(false);
   const [isSavingStep3, setIsSavingStep3] = useState(false);
   const [isSavingStep4, setIsSavingStep4] = useState(false);
+  const [isSavingStep5, setIsSavingStep5] = useState(false);
+  const [isSavingStep6, setIsSavingStep6] = useState(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [isGeneratingStep2Ai, setIsGeneratingStep2Ai] = useState(false);
   const [isGeneratingStep3Ai, setIsGeneratingStep3Ai] = useState(false);
   const [isGeneratingStep4Ai, setIsGeneratingStep4Ai] = useState(false);
+  const [isGeneratingStep5Ai, setIsGeneratingStep5Ai] = useState(false);
+  const [isGeneratingStep6Ai, setIsGeneratingStep6Ai] = useState(false);
+  const [briefCopied, setBriefCopied] = useState(false);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
   const [parkQuestionInput, setParkQuestionInput] = useState('');
   const [showParkInput, setShowParkInput] = useState(false);
@@ -3517,6 +4408,48 @@ export function ModuleDWorkspace({
     useState(false);
   const [newBvbNote, setNewBvbNote] = useState('');
   const [showClearStep4BoardConfirm, setShowClearStep4BoardConfirm] =
+    useState(false);
+
+  // Custom item form state for Step 5 Work Packages (WP1-WP4) & 4-Stage Flow Creator
+  const [newWpCode, setNewWpCode] = useState('WP1');
+  const [newWpTitle, setNewWpTitle] = useState('');
+  const [newWpTimeline, setNewWpTimeline] =
+    useState<WorkPackageTimelineWindowType>('WEEKS_1_TO_2');
+  const [newWpOtherTimeline, setNewWpOtherTimeline] = useState('');
+  const [newWpExecutionMode, setNewWpExecutionMode] =
+    useState<WorkPackageExecutionModeType>('IN_HOUSE');
+  const [newWpOtherExecutionMode, setNewWpOtherExecutionMode] = useState('');
+  const [newWpDeliverable, setNewWpDeliverable] = useState('');
+  const [newWpVerification, setNewWpVerification] = useState('');
+  const [newWpCostModel, setNewWpCostModel] =
+    useState<BuildVsBuyCostModelType>('SWEAT_EQUITY_ZERO');
+  const [newWpOtherCostModelText, setNewWpOtherCostModelText] = useState('');
+  const [newWpCostAmount, setNewWpCostAmount] = useState<string>('0');
+  const [newWpSmartCostHint, setNewWpSmartCostHint] = useState<string>(
+    'Smart Cost Detector: Type a Work Package title or tool (e.g., "Google Cloud Setup" -> Monthly /mo, or "Kiln-Dried Walnut Batch" -> Once-Off Purchase)'
+  );
+  const [newWpCostManuallyOverridden, setNewWpCostManuallyOverridden] =
+    useState(false);
+  const [newWpIsGrantEligible, setNewWpIsGrantEligible] = useState(true);
+  const [showClearStep5BoardConfirm, setShowClearStep5BoardConfirm] =
+    useState(false);
+
+  // Custom Flow Stage creator state for Step 5
+  const [newFlowTitle, setNewFlowTitle] = useState('');
+  const [newFlowSubtitle, setNewFlowSubtitle] = useState('');
+  const [newFlowToolsOrMaterials, setNewFlowToolsOrMaterials] = useState('');
+  const [newFlowOutput, setNewFlowOutput] = useState('');
+
+  // Custom Blind-Spot creator state for Step 6
+  const [newBsTitle, setNewBsTitle] = useState('');
+  const [newBsCategory, setNewBsCategory] =
+    useState<ProductBlindSpotCategoryType>('SCOPE_CREEP_TIMELINE');
+  const [newBsOtherCategory, setNewBsOtherCategory] = useState('');
+  const [newBsSeverity, setNewBsSeverity] =
+    useState<ProductBlindSpotSeverityType>('WATCH');
+  const [newBsWhyItMatters, setNewBsWhyItMatters] = useState('');
+  const [newBsRecommendedAction, setNewBsRecommendedAction] = useState('');
+  const [showClearStep6BoardConfirm, setShowClearStep6BoardConfirm] =
     useState(false);
 
   // Initialize Step 1 state from saved plan.moduleDData or smart auto-detection from Modules A/B
@@ -3603,9 +4536,42 @@ export function ModuleDWorkspace({
     };
   });
 
+  // Initialize Step 5 state from saved plan.moduleDData.workPackagesAndFlow or completely empty board (user preference: start completely empty)
+  const [step5Data, setStep5Data] = useState<WorkPackagesStep5Data>(() => {
+    if (plan.moduleDData?.workPackagesAndFlow) {
+      return plan.moduleDData.workPackagesAndFlow;
+    }
+    return {
+      workPackages: [],
+      flowStages: [],
+      executionCadenceRule: '',
+      otherExecutionCadenceRuleText: '',
+      technicalMeritAndInnovationNarrative: '',
+      bottleneckAndDeRiskingNarrative: '',
+    };
+  });
+
+  // Initialize Step 6 state from saved plan.moduleDData.blindSpotAudit or completely empty board (user preference: start completely empty)
+  const [step6Data, setStep6Data] = useState<BlindSpotAuditStep6Data>(() => {
+    if (plan.moduleDData?.blindSpotAudit) {
+      return plan.moduleDData.blindSpotAudit;
+    }
+    return {
+      blindSpots: [],
+      readinessConfidence: '',
+      otherReadinessConfidenceText: '',
+      executiveProductBriefSummary: '',
+      keyDeRiskingSignOffNarrative: '',
+    };
+  });
+
   // Sync if active plan switches or when saved moduleDData hydrates from localStorage / Cloud SQL
   useEffect(() => {
-    if (plan.currentModuleStep === 'MOD_D_STEP_4') {
+    if (plan.currentModuleStep === 'MOD_D_STEP_6') {
+      setActiveTab('STEP_6');
+    } else if (plan.currentModuleStep === 'MOD_D_STEP_5') {
+      setActiveTab('STEP_5');
+    } else if (plan.currentModuleStep === 'MOD_D_STEP_4') {
       setActiveTab('STEP_4');
     } else if (plan.currentModuleStep === 'MOD_D_STEP_3') {
       setActiveTab('STEP_3');
@@ -3687,12 +4653,39 @@ export function ModuleDWorkspace({
         whyBuyAndPartnerSavesTimeNarrative: '',
       });
     }
+
+    if (plan.moduleDData?.workPackagesAndFlow) {
+      setStep5Data(plan.moduleDData.workPackagesAndFlow);
+    } else {
+      setStep5Data({
+        workPackages: [],
+        flowStages: [],
+        executionCadenceRule: '',
+        otherExecutionCadenceRuleText: '',
+        technicalMeritAndInnovationNarrative: '',
+        bottleneckAndDeRiskingNarrative: '',
+      });
+    }
+
+    if (plan.moduleDData?.blindSpotAudit) {
+      setStep6Data(plan.moduleDData.blindSpotAudit);
+    } else {
+      setStep6Data({
+        blindSpots: [],
+        readinessConfidence: '',
+        otherReadinessConfidenceText: '',
+        executiveProductBriefSummary: '',
+        keyDeRiskingSignOffNarrative: '',
+      });
+    }
   }, [
     plan.id,
     plan.moduleDData?.productVehicle?.lastSavedAt,
     plan.moduleDData?.channelMatrix?.lastSavedAt,
     plan.moduleDData?.scopeFilter?.lastSavedAt,
     plan.moduleDData?.buildVsBuy?.lastSavedAt,
+    plan.moduleDData?.workPackagesAndFlow?.lastSavedAt,
+    plan.moduleDData?.blindSpotAudit?.lastSavedAt,
   ]);
 
   const activeTrackConfig =
@@ -3710,6 +4703,10 @@ export function ModuleDWorkspace({
   const activeStep4TrackConfig =
     ADAPTIVE_STEP4_CONFIG_BY_TRACK[step1Data.productTrack] ||
     ADAPTIVE_STEP4_CONFIG_BY_TRACK.SAAS_SOFTWARE_AI;
+
+  const activeStep5TrackConfig =
+    ADAPTIVE_STEP5_CONFIG_BY_TRACK[step1Data.productTrack] ||
+    ADAPTIVE_STEP5_CONFIG_BY_TRACK.SAAS_SOFTWARE_AI;
 
   // Extract Upstream Proof from Modules A, B, and C
   const activeSurvey =
@@ -4781,7 +5778,7 @@ export function ModuleDWorkspace({
     }
   };
 
-  const handleSaveStep4 = async () => {
+  const handleSaveStep4 = async (advanceToStep5?: boolean) => {
     if (isVaultReadonly || isSavingStep4) return;
     setIsSavingStep4(true);
     setSaveBanner(null);
@@ -4797,13 +5794,526 @@ export function ModuleDWorkspace({
         },
         progress
       );
+      if (advanceToStep5) {
+        setActiveTab('STEP_5');
+      }
       setSaveBanner(
-        `Step 4 (3-Tier Build-vs-Buy & Secret Sauce Matrix: ${step4Data.items.length} items) saved!`
+        `Step 4 (3-Tier Build-vs-Buy & Secret Sauce Matrix: ${step4Data.items.length} items) saved!${
+          advanceToStep5
+            ? ' Moved to Step 5 (Work Packages WP1–WP4 & System Flow).'
+            : ''
+        }`
       );
     } finally {
       setIsSavingStep4(false);
     }
   };
+
+  // =========================================================================
+  // STEP 5 HANDLERS: WORK PACKAGES (WP1-WP4) & 4-STAGE SYSTEM FLOW DIAGRAM
+  // =========================================================================
+
+  const persistStep5WorkPackages = (nextData: WorkPackagesStep5Data) => {
+    if (isVaultReadonly) return;
+    const stamped: WorkPackagesStep5Data = {
+      ...nextData,
+      lastSavedAt: new Date().toISOString(),
+    };
+    const hasNarratives =
+      stamped.technicalMeritAndInnovationNarrative.trim().length > 10 &&
+      stamped.bottleneckAndDeRiskingNarrative.trim().length > 10;
+    const progress =
+      stamped.workPackages.length > 0 && hasNarratives ? 95 : 88;
+    void onSaveStep5WorkPackages(stamped, progress);
+  };
+
+  const handleWpTitleChange = (
+    nextTitle: string,
+    activeMode: WorkPackageExecutionModeType
+  ) => {
+    if (!newWpCostManuallyOverridden) {
+      const mappedTier: BuildVsBuyTierType =
+        activeMode === 'IN_HOUSE'
+          ? 'BUILD_IN_HOUSE'
+          : activeMode === 'SUPPLIER_OFF_SHELF'
+            ? 'BUY_RENT_OFF_SHELF'
+            : 'OUTSOURCE_PARTNER';
+      if (nextTitle.trim().length >= 2) {
+        const inferred = inferSmartCostModelFromTitle(nextTitle, mappedTier);
+        setNewWpCostModel(inferred.costModel);
+        setNewWpCostAmount(String(inferred.suggestedAmount));
+        setNewWpSmartCostHint(`✨ ${inferred.reasonHint}`);
+      } else {
+        setNewWpSmartCostHint(
+          'Smart Cost Detector: Type a Work Package title or tool (e.g., "Google Cloud Setup" -> Monthly /mo, or "Kiln-Dried Walnut Batch" -> Once-Off Purchase)'
+        );
+      }
+    }
+  };
+
+  const handleAddCustomWpItem = () => {
+    if (isVaultReadonly) return;
+    const cleanTitle = newWpTitle.trim();
+    if (!cleanTitle) return;
+
+    const nextWpIndex = step5Data.workPackages.length + 1;
+    const wpCodeToUse =
+      newWpCode.trim().toUpperCase() || `WP${nextWpIndex}`;
+    const parsedCost = Math.max(0, Number(newWpCostAmount) || 0);
+
+    const newItem: ProductWorkPackageItem = {
+      id: `wp-${Date.now().toString(36)}-${Math.random()
+        .toString(36)
+        .slice(2, 6)}`,
+      wpCode: wpCodeToUse,
+      title: cleanTitle,
+      timelineWindow: newWpTimeline,
+      otherTimelineWindowText:
+        newWpTimeline === 'OTHER' ? newWpOtherTimeline.trim() : undefined,
+      executionMode: newWpExecutionMode,
+      otherExecutionModeText:
+        newWpExecutionMode === 'OTHER'
+          ? newWpOtherExecutionMode.trim()
+          : undefined,
+      deliverableMilestone:
+        newWpDeliverable.trim() ||
+        `Completed & verified ${cleanTitle} deliverable ready for next milestone.`,
+      verificationGateOrDeRisking:
+        newWpVerification.trim() ||
+        'Verified against V1 scope acceptance criteria and budget guardrails.',
+      costModel: newWpCostModel,
+      otherCostModelText:
+        newWpCostModel === 'OTHER'
+          ? newWpOtherCostModelText.trim()
+          : undefined,
+      estimatedCostAmount:
+        newWpCostModel === 'SWEAT_EQUITY_ZERO' ? 0 : parsedCost,
+      isGrantEligibleRAndDOrPrototype: newWpIsGrantEligible,
+      isCustom: true,
+    };
+
+    const nextWps = [...step5Data.workPackages, newItem];
+    const autoCadenceRule =
+      step5Data.executionCadenceRule ||
+      activeStep5TrackConfig.cadenceRules[0]?.value ||
+      'TWO_WEEK_AGILE_SPRINTS_USER_DEMO';
+
+    const nextStep5: WorkPackagesStep5Data = {
+      ...step5Data,
+      workPackages: nextWps,
+      executionCadenceRule: autoCadenceRule,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep5Data(nextStep5);
+    persistStep5WorkPackages(nextStep5);
+
+    // Advance default WP code for the next entry
+    setNewWpCode(`WP${nextWps.length + 1}`);
+    setNewWpTitle('');
+    setNewWpDeliverable('');
+    setNewWpVerification('');
+    setNewWpCostManuallyOverridden(false);
+    setSaveBanner(`Added ${wpCodeToUse}: "${cleanTitle}" to your Work Packages board!`);
+  };
+
+  const handleUpdateWpItem = (
+    wpId: string,
+    updates: Partial<ProductWorkPackageItem>
+  ) => {
+    if (isVaultReadonly) return;
+    const nextWps = step5Data.workPackages.map((wp) => {
+      if (wp.id !== wpId) return wp;
+      const updatedModel = updates.costModel ?? wp.costModel;
+      const updatedAmount =
+        updatedModel === 'SWEAT_EQUITY_ZERO'
+          ? 0
+          : updates.estimatedCostAmount !== undefined
+            ? Math.max(0, Number(updates.estimatedCostAmount) || 0)
+            : wp.estimatedCostAmount;
+      return {
+        ...wp,
+        ...updates,
+        costModel: updatedModel,
+        estimatedCostAmount: updatedAmount,
+      };
+    });
+    const nextStep5: WorkPackagesStep5Data = {
+      ...step5Data,
+      workPackages: nextWps,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep5Data(nextStep5);
+    persistStep5WorkPackages(nextStep5);
+  };
+
+  const handleRemoveWpItem = (wpId: string) => {
+    if (isVaultReadonly) return;
+    const nextWps = step5Data.workPackages.filter((wp) => wp.id !== wpId);
+    const nextStep5: WorkPackagesStep5Data = {
+      ...step5Data,
+      workPackages: nextWps,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep5Data(nextStep5);
+    persistStep5WorkPackages(nextStep5);
+  };
+
+  const handleBuildWorkPackagesFromSteps3And4 = () => {
+    if (isVaultReadonly) return;
+    const mustHaveV1 = step3Data.items.filter(
+      (i) => i.bucket === 'MUST_HAVE_V1'
+    );
+    const bvbItems = step4Data.items;
+
+    if (mustHaveV1.length === 0 && bvbItems.length === 0) {
+      setSaveBanner(
+        'No saved items found in Step 3 (MUST-HAVE FOR V1) or Step 4 (Build-vs-Buy) yet. Add items in Steps 3/4 or click "Populate Work Packages & Flow with AI"!'
+      );
+      return;
+    }
+
+    const timelineSequence: WorkPackageTimelineWindowType[] = [
+      'WEEKS_1_TO_2',
+      'WEEKS_3_TO_4',
+      'MONTH_2',
+      'MONTH_3',
+    ];
+
+    const builtWps: ProductWorkPackageItem[] = [];
+
+    if (bvbItems.length > 0) {
+      // Group or convert the founder's Step 4 items into sequential Work Packages carrying over their smart costs
+      const sliceSource = bvbItems.slice(0, 6);
+      sliceSource.forEach((bvb, idx) => {
+        const execMode: WorkPackageExecutionModeType =
+          bvb.tier === 'BUILD_IN_HOUSE'
+            ? 'IN_HOUSE'
+            : bvb.tier === 'BUY_RENT_OFF_SHELF'
+              ? 'SUPPLIER_OFF_SHELF'
+              : 'EXTERNAL_PARTNER';
+        builtWps.push({
+          id: `wp-from-s4-${Date.now().toString(36)}-${idx}`,
+          wpCode: `WP${idx + 1}`,
+          title: bvb.title,
+          timelineWindow: timelineSequence[Math.min(idx, 3)],
+          executionMode: execMode,
+          deliverableMilestone:
+            bvb.rationaleOrNote ||
+            `Complete and verify ${bvb.title}${
+              bvb.vendorOrToolName ? ` (${bvb.vendorOrToolName})` : ''
+            } for Version 1 launch.`,
+          verificationGateOrDeRisking:
+            bvb.tier === 'BUILD_IN_HOUSE'
+              ? '100% in-house IP ownership verified & end-to-end user test passed.'
+              : bvb.tier === 'BUY_RENT_OFF_SHELF'
+                ? 'Off-the-shelf tool/material configured & unit cost verified against budget.'
+                : 'External partner SLA, quote & handover quality verified.',
+          costModel: bvb.costModel,
+          otherCostModelText: bvb.otherCostModelText,
+          estimatedCostAmount: bvb.estimatedCostAmount,
+          isGrantEligibleRAndDOrPrototype:
+            bvb.tier === 'BUILD_IN_HOUSE' ||
+            bvb.costModel === 'ONE_OFF_PURCHASE',
+          isCustom: true,
+        });
+      });
+    } else {
+      // Build from Step 3 MUST_HAVE_V1 items
+      mustHaveV1.slice(0, 6).forEach((s3, idx) => {
+        const inferred = inferSmartCostModelFromTitle(
+          s3.title,
+          'BUILD_IN_HOUSE'
+        );
+        builtWps.push({
+          id: `wp-from-s3-${Date.now().toString(36)}-${idx}`,
+          wpCode: `WP${idx + 1}`,
+          title: s3.title,
+          timelineWindow: timelineSequence[Math.min(idx, 3)],
+          executionMode: 'IN_HOUSE',
+          deliverableMilestone:
+            s3.rationaleOrNote ||
+            `Deliver ${s3.title} as part of Day-1 Version 1 core scope.`,
+          verificationGateOrDeRisking:
+            'Tested with initial pilot customers before unlocking next milestone.',
+          costModel: inferred.costModel,
+          estimatedCostAmount: inferred.suggestedAmount,
+          isGrantEligibleRAndDOrPrototype: true,
+          isCustom: true,
+        });
+      });
+    }
+
+    const nextFlows =
+      step5Data.flowStages.length > 0
+        ? step5Data.flowStages
+        : activeStep5TrackConfig.defaultFlowStages;
+
+    const nextStep5: WorkPackagesStep5Data = {
+      ...step5Data,
+      workPackages: builtWps,
+      flowStages: nextFlows,
+      executionCadenceRule:
+        step5Data.executionCadenceRule ||
+        activeStep5TrackConfig.cadenceRules[0]?.value ||
+        'TWO_WEEK_AGILE_SPRINTS_USER_DEMO',
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep5Data(nextStep5);
+    setNewWpCode(`WP${builtWps.length + 1}`);
+    persistStep5WorkPackages(nextStep5);
+    setSaveBanner(
+      `Built ${builtWps.length} sequential Work Packages (WP1–WP${builtWps.length}) from your saved Steps 3 & 4 items (preserving your smart costs) + 4-Stage Flow Diagram!`
+    );
+  };
+
+  const handleAddDefault4StageFlow = () => {
+    if (isVaultReadonly) return;
+    const nextStep5: WorkPackagesStep5Data = {
+      ...step5Data,
+      flowStages: activeStep5TrackConfig.defaultFlowStages,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep5Data(nextStep5);
+    persistStep5WorkPackages(nextStep5);
+    setSaveBanner(
+      `Loaded 4-Stage Flow Diagram tailored to ${selectedTrackMeta.badgeText}! Click any stage card to customize.`
+    );
+  };
+
+  const handleAddCustomFlowStage = () => {
+    if (isVaultReadonly) return;
+    const cleanTitle = newFlowTitle.trim();
+    if (!cleanTitle) return;
+    const nextStageNum = step5Data.flowStages.length + 1;
+    const newStage: ProductFlowStageItem = {
+      id: `flow-custom-${Date.now().toString(36)}`,
+      stageNumber: nextStageNum,
+      stageTitle: cleanTitle.startsWith('Stage')
+        ? cleanTitle
+        : `Stage ${nextStageNum}: ${cleanTitle}`,
+      stageSubtitle:
+        newFlowSubtitle.trim() ||
+        'Key processing or fulfillment step in our Version 1 flow.',
+      keyToolsOrMaterials:
+        newFlowToolsOrMaterials.trim() || 'Core V1 Stack / Workshop Jigs',
+      outputOrHandoff:
+        newFlowOutput.trim() || 'Verified output handed to next stage',
+    };
+    const nextStages = [...step5Data.flowStages, newStage];
+    const nextStep5: WorkPackagesStep5Data = {
+      ...step5Data,
+      flowStages: nextStages,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep5Data(nextStep5);
+    persistStep5WorkPackages(nextStep5);
+    setNewFlowTitle('');
+    setNewFlowSubtitle('');
+    setNewFlowToolsOrMaterials('');
+    setNewFlowOutput('');
+    setSaveBanner(`Added "${newStage.stageTitle}" to your 4-Stage Flow Diagram!`);
+  };
+
+  const handleUpdateFlowStage = (
+    stageId: string,
+    updates: Partial<ProductFlowStageItem>
+  ) => {
+    if (isVaultReadonly) return;
+    const nextStages = step5Data.flowStages.map((st) =>
+      st.id === stageId ? { ...st, ...updates } : st
+    );
+    const nextStep5: WorkPackagesStep5Data = {
+      ...step5Data,
+      flowStages: nextStages,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep5Data(nextStep5);
+    persistStep5WorkPackages(nextStep5);
+  };
+
+  const handleRemoveFlowStage = (stageId: string) => {
+    if (isVaultReadonly) return;
+    const nextStages = step5Data.flowStages
+      .filter((st) => st.id !== stageId)
+      .map((st, idx) => ({ ...st, stageNumber: idx + 1 }));
+    const nextStep5: WorkPackagesStep5Data = {
+      ...step5Data,
+      flowStages: nextStages,
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep5Data(nextStep5);
+    persistStep5WorkPackages(nextStep5);
+  };
+
+  const handleClearStep5Board = () => {
+    if (isVaultReadonly) return;
+    const cleared: WorkPackagesStep5Data = {
+      workPackages: [],
+      flowStages: [],
+      executionCadenceRule: '',
+      otherExecutionCadenceRuleText: '',
+      technicalMeritAndInnovationNarrative: '',
+      bottleneckAndDeRiskingNarrative: '',
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep5Data(cleared);
+    setShowClearStep5BoardConfirm(false);
+    setNewWpCode('WP1');
+    persistStep5WorkPackages(cleared);
+    setSaveBanner(
+      'Cleared all Work Packages, 4-Stage Flow Diagram, and Technical Merit Charter.'
+    );
+  };
+
+  const handleAiPopulateStep5Board = async () => {
+    if (isVaultReadonly || isGeneratingStep5Ai) return;
+    setIsGeneratingStep5Ai(true);
+    setSaveBanner(null);
+    try {
+      const mustHaveTitles = step3Data.items
+        .filter((i) => i.bucket === 'MUST_HAVE_V1')
+        .map((i) => i.title);
+      const res = await onGenerateAiWorkPackages({
+        selectedTrack: step1Data.productTrack,
+        otherProductTrackText: step1Data.otherProductTrackText,
+        formFactor: step1Data.formFactor,
+        primaryChannel: step2Data.primaryChannel,
+        validatedPainSummary: validatedPainPoint,
+        v1MustHaveTitles: mustHaveTitles,
+        buildVsBuyItems: step4Data.items,
+        currentWorkPackages: step5Data.workPackages,
+        currentFlowStages: step5Data.flowStages,
+        mode: 'POPULATE_WPS_AND_FLOW',
+      });
+      const nextStep5: WorkPackagesStep5Data = {
+        workPackages:
+          res.workPackages.length > 0
+            ? res.workPackages
+            : step5Data.workPackages,
+        flowStages:
+          res.flowStages.length > 0 ? res.flowStages : step5Data.flowStages,
+        executionCadenceRule:
+          res.executionCadenceRule ||
+          step5Data.executionCadenceRule ||
+          activeStep5TrackConfig.cadenceRules[0]?.value ||
+          'TWO_WEEK_AGILE_SPRINTS_USER_DEMO',
+        otherExecutionCadenceRuleText: step5Data.otherExecutionCadenceRuleText,
+        technicalMeritAndInnovationNarrative:
+          res.technicalMeritAndInnovationNarrative ||
+          step5Data.technicalMeritAndInnovationNarrative,
+        bottleneckAndDeRiskingNarrative:
+          res.bottleneckAndDeRiskingNarrative ||
+          step5Data.bottleneckAndDeRiskingNarrative,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+      setStep5Data(nextStep5);
+      setNewWpCode(`WP${nextStep5.workPackages.length + 1}`);
+      persistStep5WorkPackages(nextStep5);
+      setSaveBanner(
+        `Populated ${nextStep5.workPackages.length} Grant-Ready Work Packages, 4-Stage Flow Diagram & Technical Merit Charter (${
+          res.engineMode === 'gemini-2.5-flash'
+            ? 'Gemini 2.5 Flash'
+            : 'Smart Synthesizer'
+        })!`
+      );
+    } finally {
+      setIsGeneratingStep5Ai(false);
+    }
+  };
+
+  const handleAiDraftStep5CharterOnly = async () => {
+    if (isVaultReadonly || isGeneratingStep5Ai) return;
+    setIsGeneratingStep5Ai(true);
+    setSaveBanner(null);
+    try {
+      const mustHaveTitles = step3Data.items
+        .filter((i) => i.bucket === 'MUST_HAVE_V1')
+        .map((i) => i.title);
+      const res = await onGenerateAiWorkPackages({
+        selectedTrack: step1Data.productTrack,
+        otherProductTrackText: step1Data.otherProductTrackText,
+        formFactor: step1Data.formFactor,
+        primaryChannel: step2Data.primaryChannel,
+        validatedPainSummary: validatedPainPoint,
+        v1MustHaveTitles: mustHaveTitles,
+        buildVsBuyItems: step4Data.items,
+        currentWorkPackages: step5Data.workPackages,
+        currentFlowStages: step5Data.flowStages,
+        mode: 'CHARTER_ONLY',
+      });
+      // Preserve founder's workPackages & flowStages untouched — only draft the 2 narratives
+      const nextStep5: WorkPackagesStep5Data = {
+        ...step5Data,
+        workPackages: step5Data.workPackages,
+        flowStages: step5Data.flowStages,
+        technicalMeritAndInnovationNarrative:
+          res.technicalMeritAndInnovationNarrative ||
+          step5Data.technicalMeritAndInnovationNarrative,
+        bottleneckAndDeRiskingNarrative:
+          res.bottleneckAndDeRiskingNarrative ||
+          step5Data.bottleneckAndDeRiskingNarrative,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+      setStep5Data(nextStep5);
+      persistStep5WorkPackages(nextStep5);
+      setSaveBanner(
+        `Drafted & saved Technical Merit & De-Risking Charter (${
+          res.engineMode === 'gemini-2.5-flash'
+            ? 'Gemini 2.5 Flash'
+            : 'Smart Synthesizer'
+        }) based on your Work Packages without altering your board!`
+      );
+    } finally {
+      setIsGeneratingStep5Ai(false);
+    }
+  };
+
+  const handleSaveStep5 = async (advanceToStep6?: boolean) => {
+    if (isVaultReadonly || isSavingStep5) return;
+    setIsSavingStep5(true);
+    setSaveBanner(null);
+    try {
+      const hasNarratives =
+        step5Data.technicalMeritAndInnovationNarrative.trim().length > 10 &&
+        step5Data.bottleneckAndDeRiskingNarrative.trim().length > 10;
+      const progress =
+        step5Data.workPackages.length > 0 && hasNarratives ? 95 : 88;
+      await onSaveStep5WorkPackages(
+        {
+          ...step5Data,
+          lastSavedAt: new Date().toISOString(),
+        },
+        progress
+      );
+      setSaveBanner(
+        `Step 5 (${step5Data.workPackages.length} Work Packages & ${step5Data.flowStages.length}-Stage Flow Diagram) saved!`
+      );
+      if (advanceToStep6) {
+        setActiveTab('STEP_6');
+      }
+    } finally {
+      setIsSavingStep5(false);
+    }
+  };
+
+  // Compute Live Cost & Grant R&D Totals for Step 5
+  const step5MonthlyTotal = step5Data.workPackages
+    .filter((wp) => wp.costModel === 'MONTHLY_SUBSCRIPTION')
+    .reduce((sum, wp) => sum + (Number(wp.estimatedCostAmount) || 0), 0);
+  const step5OneOffTotal = step5Data.workPackages
+    .filter((wp) => wp.costModel === 'ONE_OFF_PURCHASE')
+    .reduce((sum, wp) => sum + (Number(wp.estimatedCostAmount) || 0), 0);
+  const step5PerUnitTotal = step5Data.workPackages
+    .filter((wp) => wp.costModel === 'PER_UNIT_COGS')
+    .reduce((sum, wp) => sum + (Number(wp.estimatedCostAmount) || 0), 0);
+  const step5GrantEligibleCount = step5Data.workPackages.filter(
+    (wp) => wp.isGrantEligibleRAndDOrPrototype
+  ).length;
+  const step5InHouseWpCount = step5Data.workPackages.filter(
+    (wp) => wp.executionMode === 'IN_HOUSE'
+  ).length;
 
   // Compute Live Cost & IP Summary Totals for Step 4
   const step4MonthlyTotal = step4Data.items
@@ -4823,6 +6333,1105 @@ export function ModuleDWorkspace({
     PRODUCT_TRACK_OPTIONS.find((t) => t.value === step1Data.productTrack) ||
     PRODUCT_TRACK_OPTIONS[0];
   const SelectedTrackIcon = selectedTrackMeta.icon;
+
+  // =========================================================================
+  // STEP 6 HANDLERS: CONSTRUCTIVE BLIND-SPOT AUDIT & 1-PAGE PRODUCT BRIEF
+  // =========================================================================
+
+  const persistStep6BlindSpotAudit = (
+    nextStep6: BlindSpotAuditStep6Data,
+    customProgress?: number
+  ) => {
+    if (isVaultReadonly) return;
+    const hasNarratives =
+      nextStep6.executiveProductBriefSummary.trim().length > 10 &&
+      nextStep6.keyDeRiskingSignOffNarrative.trim().length > 10;
+    const progress =
+      customProgress ??
+      (nextStep6.blindSpots.length > 0 && hasNarratives ? 100 : 96);
+    void onSaveStep6BlindSpotAudit(
+      {
+        ...nextStep6,
+        lastSavedAt: new Date().toISOString(),
+      },
+      progress
+    );
+  };
+
+  // Instant Rule-Based Cross-Step Check (Steps 1–5)
+  const handleRunRuleBasedBlindSpotCheck = () => {
+    if (isVaultReadonly) return;
+    setShowClearStep6BoardConfirm(false);
+
+    const day1Count = step3Data.items.filter(
+      (i) => i.bucket === 'MUST_HAVE_V1'
+    ).length;
+    const deferredCount = step3Data.items.filter(
+      (i) => i.bucket !== 'MUST_HAVE_V1'
+    ).length;
+    const blendedFee = step2Data.estimatedBlendedFeePercent || 0;
+    const combinedPerUnitCogs = step4PerUnitTotal + step5PerUnitTotal;
+    const combinedMonthlyStack = step4MonthlyTotal + step5MonthlyTotal;
+    const combinedOneOffCapex = step4OneOffTotal + step5OneOffTotal;
+    const isIe = plan.hqCountryCode === 'IE';
+    const isUk = plan.hqCountryCode === 'GB';
+
+    const generatedSpots: ProductBlindSpotItem[] = [
+      {
+        id: 'bs-rule-1',
+        title:
+          day1Count > 4
+            ? `V1 Scope Load (${day1Count} Day-1 Items) vs. ${step1Data.launchTimeline.replace(/_/g, ' ')} Target`
+            : `Protecting Lean V1 Scope (${day1Count || 3} Core Items) Through First 10 Customer Orders`,
+        category: 'SCOPE_CREEP_TIMELINE',
+        severity: day1Count > 4 ? 'IMPORTANT' : 'WATCH',
+        whyItMatters:
+          day1Count > 4
+            ? `Committing ${day1Count} core items into Day-1 V1 creates integration & QA overhead that often slips ${step1Data.launchTimeline.replace(/_/g, ' ')} launch targets before real customer revenue arrives.`
+            : `Even with ${deferredCount} non-core features deferred to V1.5/V2.0, early pilot users often request custom edge-case tweaks during WP1–WP2.`,
+        recommendedActionOrFix:
+          'Enforce a strict weekly scope gate during WP2 and WP3: require any new feature or SKU variation request to wait until 10 paying customers complete the core workflow.',
+        founderMitigationNote: '',
+        isResolved: false,
+      },
+      {
+        id: 'bs-rule-2',
+        title: `Channel Fee (${blendedFee}%) + Unit Delivery COGS (${formatPlanCurrency(combinedPerUnitCogs, plan.baseCurrency)}/unit) Pocket Margin Check`,
+        category: 'UNIT_MARGIN_CHANNEL_FEE',
+        severity:
+          blendedFee >= 15 || combinedPerUnitCogs > 15 ? 'IMPORTANT' : 'WATCH',
+        whyItMatters: `Selling via ${step2Data.primaryChannel.replace(/_/g, ' ')} carries an estimated ${blendedFee}% blended platform/payment take-rate plus ${formatPlanCurrency(combinedPerUnitCogs, plan.baseCurrency)}/unit direct COGS and ${formatPlanCurrency(combinedMonthlyStack, plan.baseCurrency)}/mo fixed tools.`,
+        recommendedActionOrFix:
+          'Verify in Module G (Revenue & Unit Economics) that your entry price leaves >=60% gross margin after platform fees, packaging/API costs, and customer acquisition.',
+        founderMitigationNote: '',
+        isResolved: false,
+      },
+      {
+        id: 'bs-rule-3',
+        title:
+          step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM'
+            ? 'Contract Manufacturer Lead-Time, MOQ & Packaging Proof Gate'
+            : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT'
+              ? 'Cohort Completion Rate & Instructor Delivery Bandwidth'
+              : 'Third-Party API Rate Limits, Platform Dependency & Vendor Lock-In',
+        category: 'SUPPLIER_DEPENDENCY',
+        severity: 'WATCH',
+        whyItMatters:
+          step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM'
+            ? 'Single-source supplier tooling delays or minimum order quantity (MOQ) spikes can stall WP2 pilot inventory and tie up working capital.'
+            : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT'
+              ? 'Live founder-led delivery creates high early impact, but unrecorded sessions can bottleneck repeat cohort capacity.'
+              : 'Relying on external APIs, app stores, or rented marketplaces creates platform dependency if pricing or algorithms shift.',
+        recommendedActionOrFix:
+          step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM'
+            ? 'Request golden pre-production samples from 2 backup suppliers and negotiate a low-MOQ pilot batch (<250 units) before committing full tooling.'
+            : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT'
+              ? 'Template core worksheets and record modular asynchronous playbooks during Cohort 1 so Cohort 2 scales cleanly.'
+              : 'Keep your core proprietary logic/data portable in-house and capture direct customer emails from Day 1 via your Rent-to-Own bridge.',
+        founderMitigationNote: '',
+        isResolved: false,
+      },
+      {
+        id: 'bs-rule-4',
+        title: isIe
+          ? 'Ireland LEO / Enterprise Ireland 3-Quote Procurement & IP Ownership Audit Trail'
+          : isUk
+            ? 'UK Innovate UK / SEIS Subcontractor Justification & UK IP Vesting'
+            : 'External Contractor IP Assignment & Cost Documentation Trail',
+        category: 'GRANT_COMPLIANCE_IP',
+        severity: combinedOneOffCapex >= 3000 ? 'CRITICAL' : 'IMPORTANT',
+        whyItMatters: isIe
+          ? `Irish LEO Feasibility/Priming and Enterprise Ireland evaluators require 3 independent written quotes for external consultancy/tooling items (${formatPlanCurrency(combinedOneOffCapex, plan.baseCurrency)} estimated once-off budget) and strict IP assignment to the Irish LTD.`
+          : isUk
+            ? 'Innovate UK Smart Grant and HMRC SEIS/EIS assessors scrutinize subcontractor spend and require clear proof that foreground IP vests in the UK company.'
+            : 'Investors and grant bodies require clean IP assignment agreements from every freelance developer, designer, or formulator before funding.',
+        recommendedActionOrFix: isIe
+          ? 'Collect 3 comparable supplier quotes on company letterhead before commissioning external WP2/WP3 work and include an explicit IP assignment clause.'
+          : 'Execute written IP assignment agreements with all external contractors before WP2 commences and keep itemised milestone invoices.',
+        founderMitigationNote: '',
+        isResolved: false,
+      },
+    ];
+
+    const autoConfidence: ProductReadinessConfidenceType =
+      day1Count > 0 &&
+      step4Data.items.length > 0 &&
+      step5Data.workPackages.length > 0
+        ? 'READY_TO_BUILD_V1'
+        : 'NEEDS_MINOR_DE_RISKING';
+
+    const nextStep6: BlindSpotAuditStep6Data = {
+      ...step6Data,
+      blindSpots: generatedSpots,
+      readinessConfidence: step6Data.readinessConfidence || autoConfidence,
+      executiveProductBriefSummary:
+        step6Data.executiveProductBriefSummary ||
+        `${plan.title} is launching a focused Version 1 (${selectedTrackMeta.label}) designed around a clear customer Aha! moment, pairing ${step2Data.primaryChannel.replace(/_/g, ' ')} distribution (${blendedFee}% blended fee) with a disciplined ${day1Count || 3}-item Day-1 scope and a ${step5Data.workPackages.length || 4}-milestone Work Package roadmap (${formatPlanCurrency(combinedOneOffCapex, plan.baseCurrency)} once-off + ${formatPlanCurrency(combinedMonthlyStack, plan.baseCurrency)}/mo + ${formatPlanCurrency(combinedPerUnitCogs, plan.baseCurrency)}/unit).`,
+      keyDeRiskingSignOffNarrative:
+        step6Data.keyDeRiskingSignOffNarrative ||
+        `We protect launch velocity and capital efficiency by deferring ${deferredCount} non-core features to post-revenue releases, validating every Work Package through a measurable customer proof gate before unlocking downstream spend, and maintaining full ${countryPack.countryName} IP and grant procurement compliance.`,
+      lastSavedAt: new Date().toISOString(),
+    };
+
+    setStep6Data(nextStep6);
+    persistStep6BlindSpotAudit(nextStep6, 100);
+    setSaveBanner(
+      `Ran Cross-Step Blind-Spot Check across Steps 1–5 (${generatedSpots.length} constructive considerations & 1-Page Executive Brief populated)!`
+    );
+  };
+
+  // AI Button #1: Full Audit (Blind Spots + Readiness Confidence + Executive Brief Narratives)
+  const handleAiRunFullStep6Audit = async () => {
+    if (isVaultReadonly || isGeneratingStep6Ai) return;
+    setIsGeneratingStep6Ai(true);
+    setSaveBanner(null);
+    setShowClearStep6BoardConfirm(false);
+    try {
+      const v1MustHaveCount = step3Data.items.filter(
+        (i) => i.bucket === 'MUST_HAVE_V1'
+      ).length;
+      const v1HighEffortCount = step3Data.items.filter(
+        (i) => i.bucket === 'MUST_HAVE_V1' && i.effortImpact === 'HIGH'
+      ).length;
+      const res = await onGenerateAiBlindSpotAudit({
+        selectedTrack: step1Data.productTrack,
+        otherProductTrackText: step1Data.otherProductTrackText,
+        formFactor: step1Data.formFactor,
+        v1LaunchTimeline: step1Data.launchTimeline,
+        primaryChannel: step2Data.primaryChannel,
+        estimatedBlendedFeePercent: step2Data.estimatedBlendedFeePercent,
+        v1MustHaveCount,
+        v1HighEffortCount,
+        monthlyBurnTotal: step4MonthlyTotal + step5MonthlyTotal,
+        onceOffCapExTotal: step4OneOffTotal + step5OneOffTotal,
+        perUnitCogsTotal: step4PerUnitTotal + step5PerUnitTotal,
+        workPackageCount: step5Data.workPackages.length,
+        grantEligibleWpCount: step5GrantEligibleCount,
+        currentBlindSpots: step6Data.blindSpots,
+        mode: 'FULL_AUDIT',
+      });
+      const nextStep6: BlindSpotAuditStep6Data = {
+        ...step6Data,
+        blindSpots:
+          res.blindSpots && res.blindSpots.length > 0
+            ? res.blindSpots
+            : step6Data.blindSpots,
+        readinessConfidence:
+          res.readinessConfidence ||
+          step6Data.readinessConfidence ||
+          'READY_TO_BUILD_V1',
+        executiveProductBriefSummary:
+          res.executiveProductBriefSummary ||
+          step6Data.executiveProductBriefSummary,
+        keyDeRiskingSignOffNarrative:
+          res.keyDeRiskingSignOffNarrative ||
+          step6Data.keyDeRiskingSignOffNarrative,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+      setStep6Data(nextStep6);
+      persistStep6BlindSpotAudit(nextStep6, 100);
+      setSaveBanner(
+        `AI Blind-Spot Audit & 1-Page Product Brief generated and saved (${
+          res.engineMode === 'gemini-2.5-flash'
+            ? 'Gemini 2.5 Flash'
+            : 'Smart Synthesizer'
+        })!`
+      );
+    } finally {
+      setIsGeneratingStep6Ai(false);
+    }
+  };
+
+  // AI Button #2: Draft Executive Summary Only (Preserves Founder's Blind-Spot Cards Untouched)
+  const handleAiDraftStep6SummaryOnly = async () => {
+    if (isVaultReadonly || isGeneratingStep6Ai) return;
+    setIsGeneratingStep6Ai(true);
+    setSaveBanner(null);
+    setShowClearStep6BoardConfirm(false);
+    try {
+      const v1MustHaveCount = step3Data.items.filter(
+        (i) => i.bucket === 'MUST_HAVE_V1'
+      ).length;
+      const v1HighEffortCount = step3Data.items.filter(
+        (i) => i.bucket === 'MUST_HAVE_V1' && i.effortImpact === 'HIGH'
+      ).length;
+      const res = await onGenerateAiBlindSpotAudit({
+        selectedTrack: step1Data.productTrack,
+        otherProductTrackText: step1Data.otherProductTrackText,
+        formFactor: step1Data.formFactor,
+        v1LaunchTimeline: step1Data.launchTimeline,
+        primaryChannel: step2Data.primaryChannel,
+        estimatedBlendedFeePercent: step2Data.estimatedBlendedFeePercent,
+        v1MustHaveCount,
+        v1HighEffortCount,
+        monthlyBurnTotal: step4MonthlyTotal + step5MonthlyTotal,
+        onceOffCapExTotal: step4OneOffTotal + step5OneOffTotal,
+        perUnitCogsTotal: step4PerUnitTotal + step5PerUnitTotal,
+        workPackageCount: step5Data.workPackages.length,
+        grantEligibleWpCount: step5GrantEligibleCount,
+        currentBlindSpots: step6Data.blindSpots,
+        mode: 'SUMMARY_ONLY',
+      });
+      const nextStep6: BlindSpotAuditStep6Data = {
+        ...step6Data,
+        blindSpots: step6Data.blindSpots,
+        executiveProductBriefSummary:
+          res.executiveProductBriefSummary ||
+          step6Data.executiveProductBriefSummary,
+        keyDeRiskingSignOffNarrative:
+          res.keyDeRiskingSignOffNarrative ||
+          step6Data.keyDeRiskingSignOffNarrative,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+      setStep6Data(nextStep6);
+      persistStep6BlindSpotAudit(nextStep6);
+      setSaveBanner(
+        `Drafted & saved Executive Product Brief Summary (${
+          res.engineMode === 'gemini-2.5-flash'
+            ? 'Gemini 2.5 Flash'
+            : 'Smart Synthesizer'
+        }) without altering your blind-spot cards!`
+      );
+    } finally {
+      setIsGeneratingStep6Ai(false);
+    }
+  };
+
+  // Add Custom Blind-Spot Consideration Card
+  const handleAddCustomBlindSpot = () => {
+    if (isVaultReadonly || !newBsTitle.trim()) return;
+    const newItem: ProductBlindSpotItem = {
+      id: `bs-custom-${Date.now()}`,
+      title: newBsTitle.trim(),
+      category: newBsCategory,
+      otherCategoryText:
+        newBsCategory === 'OTHER' ? newBsOtherCategory.trim() : undefined,
+      severity: newBsSeverity,
+      whyItMatters:
+        newBsWhyItMatters.trim() ||
+        'Flagged by founder during Module D Step 6 review.',
+      recommendedActionOrFix:
+        newBsRecommendedAction.trim() ||
+        'Define concrete mitigation owner and milestone check before launch.',
+      founderMitigationNote: '',
+      isResolved: false,
+      isCustom: true,
+    };
+    const nextStep6: BlindSpotAuditStep6Data = {
+      ...step6Data,
+      blindSpots: [...step6Data.blindSpots, newItem],
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep6Data(nextStep6);
+    persistStep6BlindSpotAudit(nextStep6);
+    setNewBsTitle('');
+    setNewBsWhyItMatters('');
+    setNewBsRecommendedAction('');
+    setNewBsOtherCategory('');
+    setSaveBanner(`Added "${newItem.title}" to Things to Consider!`);
+  };
+
+  const handleUpdateBlindSpotNote = (id: string, note: string) => {
+    if (isVaultReadonly) return;
+    setStep6Data((prev) => ({
+      ...prev,
+      blindSpots: prev.blindSpots.map((item) =>
+        item.id === id ? { ...item, founderMitigationNote: note } : item
+      ),
+    }));
+  };
+
+  const handleToggleBlindSpotResolved = (id: string) => {
+    if (isVaultReadonly) return;
+    const nextStep6: BlindSpotAuditStep6Data = {
+      ...step6Data,
+      blindSpots: step6Data.blindSpots.map((item) =>
+        item.id === id ? { ...item, isResolved: !item.isResolved } : item
+      ),
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep6Data(nextStep6);
+    persistStep6BlindSpotAudit(nextStep6);
+  };
+
+  const handleRemoveBlindSpot = (id: string) => {
+    if (isVaultReadonly) return;
+    const nextStep6: BlindSpotAuditStep6Data = {
+      ...step6Data,
+      blindSpots: step6Data.blindSpots.filter((item) => item.id !== id),
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep6Data(nextStep6);
+    persistStep6BlindSpotAudit(nextStep6);
+  };
+
+  const handleClearStep6Board = () => {
+    if (isVaultReadonly) return;
+    const cleared: BlindSpotAuditStep6Data = {
+      blindSpots: [],
+      readinessConfidence: '',
+      otherReadinessConfidenceText: '',
+      executiveProductBriefSummary: '',
+      keyDeRiskingSignOffNarrative: '',
+      lastSavedAt: new Date().toISOString(),
+    };
+    setStep6Data(cleared);
+    setShowClearStep6BoardConfirm(false);
+    persistStep6BlindSpotAudit(cleared, 85);
+    setSaveBanner('Cleared Step 6 Blind-Spot Audit & Executive Brief.');
+  };
+
+  const handleSaveStep6 = async () => {
+    if (isVaultReadonly || isSavingStep6) return;
+    setIsSavingStep6(true);
+    setSaveBanner(null);
+    try {
+      await onSaveStep6BlindSpotAudit(
+        {
+          ...step6Data,
+          lastSavedAt: new Date().toISOString(),
+        },
+        100
+      );
+      setSaveBanner(
+        'Module D Complete! Step 6 Blind-Spot Audit & 1-Page Product Brief saved (100%).'
+      );
+    } finally {
+      setIsSavingStep6(false);
+    }
+  };
+
+  // =========================================================================
+  // 1-PAGE PRODUCT, TECHNICAL & WORK PACKAGE BRIEF EXPORT (MD / HTML / PDF)
+  // =========================================================================
+
+  const buildModuleDMarkdownBrief = (): string => {
+    const day1Items = step3Data.items.filter(
+      (i) => i.bucket === 'MUST_HAVE_V1'
+    );
+    const v15Items = step3Data.items.filter(
+      (i) => i.bucket === 'FAST_FOLLOW_V1_5'
+    );
+    const v2Items = step3Data.items.filter(
+      (i) => i.bucket === 'PARKING_LOT_V2'
+    );
+    const inHouseStack = step4Data.items.filter(
+      (i) => i.tier === 'BUILD_IN_HOUSE'
+    );
+    const buyRentStack = step4Data.items.filter(
+      (i) => i.tier === 'BUY_RENT_OFF_SHELF'
+    );
+    const partnerStack = step4Data.items.filter(
+      (i) => i.tier === 'OUTSOURCE_PARTNER'
+    );
+
+    const formFactorLabel =
+      step1Data.formFactor === 'OTHER'
+        ? step1Data.otherFormFactorText || 'Custom Form Factor'
+        : activeTrackConfig.formFactorOptions.find(
+            (f) => f.value === step1Data.formFactor
+          )?.label || step1Data.formFactor;
+
+    const v1ApproachLabel =
+      step1Data.v1PrototypeApproach === 'OTHER'
+        ? step1Data.otherV1PrototypeApproachText || 'Custom V1 Approach'
+        : activeTrackConfig.v1ApproachOptions.find(
+            (a) => a.value === step1Data.v1PrototypeApproach
+          )?.label || step1Data.v1PrototypeApproach;
+
+    const primaryChannelLabel =
+      step2Data.primaryChannel === 'OTHER'
+        ? step2Data.otherPrimaryChannelText || 'Custom Primary Channel'
+        : activeStep2TrackConfig.channelOptions.find(
+            (c) => c.value === step2Data.primaryChannel
+          )?.label || step2Data.primaryChannel;
+
+    const secondaryChannelLabels = step2Data.secondaryChannels.map((sc) =>
+      sc === 'OTHER'
+        ? step2Data.otherSecondaryChannelText || 'Custom Secondary Channel'
+        : activeStep2TrackConfig.channelOptions.find((c) => c.value === sc)
+            ?.label || sc
+    );
+
+    const deliveryModelLabel =
+      step2Data.deliveryFulfillmentModel === 'OTHER'
+        ? step2Data.otherDeliveryFulfillmentText || 'Custom Delivery Model'
+        : activeStep2TrackConfig.deliveryOptions.find(
+            (d) => d.value === step2Data.deliveryFulfillmentModel
+          )?.label || step2Data.deliveryFulfillmentModel;
+
+    const combinedMonthly = step4MonthlyTotal + step5MonthlyTotal;
+    const combinedOneOff = step4OneOffTotal + step5OneOffTotal;
+    const combinedUnitCogs = step4PerUnitTotal + step5PerUnitTotal;
+    const netRevenueKeptPercent = Number(
+      (100 - step2Data.estimatedBlendedFeePercent).toFixed(1)
+    );
+
+    const lines: string[] = [
+      `# ${plan.title} — 1-Page Product, Scope & Work Package Brief (Module D)`,
+      `**Country / Currency:** ${countryPack.countryName} (${plan.baseCurrency}) | **Product Track:** ${selectedTrackMeta.label}`,
+      `**Platform / Form Factor:** ${formFactorLabel} | **V1 Build Approach:** ${v1ApproachLabel} | **Target Launch Window:** ${step1Data.launchTimeline.replace(/_/g, ' ')}`,
+      `**Upstream Customer Proof (Modules A–C):** Target Customer: ${
+        plan.moduleBData?.beachhead?.beachheadSegment ||
+        plan.conceptCanvas?.targetCustomer ||
+        'Early adopters'
+      } | Survey Responses: ${surveyResponseCount} | Waitlist Leads: ${waitlistCount} | 1-on-1 Interviews: ${interviewCount}`,
+      `**#1 Validated Pain Point:** "${
+        validatedPainPoint || 'Deliver a fast, reliable V1 solution.'
+      }"`,
+      '',
+      `## 1. Executive Product Summary & De-Risking Charter`,
+      step6Data.executiveProductBriefSummary ||
+        step1Data.ahaMomentNarrative ||
+        '_No executive summary recorded yet._',
+      '',
+      `**De-Risking & Grant Sign-Off:** ${
+        step6Data.keyDeRiskingSignOffNarrative ||
+        step5Data.bottleneckAndDeRiskingNarrative ||
+        '_Not recorded yet._'
+      }`,
+      '',
+      `## 2. Product Vehicle, Channel Strategy & Unit Cost Roll-Up (Steps 1–2 & 4–5)`,
+      `- **Product Track & Format:** ${selectedTrackMeta.label} — ${formFactorLabel}`,
+      `- **V1 Build / Prototype Approach:** ${v1ApproachLabel}`,
+      `- **60-Second Customer "Aha! Moment":** ${step1Data.ahaMomentNarrative || '—'}`,
+      `- **Primary Distribution Channel (${step2Data.primaryChannelSharePercent}% share):** ${primaryChannelLabel}`,
+      `- **Secondary Distribution Channels (${Math.max(0, 100 - step2Data.primaryChannelSharePercent)}% share):** ${
+        secondaryChannelLabels.join(', ') || 'None (100% Primary)'
+      }`,
+      `- **Blended Platform/Payment Fee:** ${step2Data.estimatedBlendedFeePercent}% (You keep ${netRevenueKeptPercent}% Net Revenue before COGS)`,
+      `- **V1 Delivery & Fulfillment Model:** ${deliveryModelLabel}`,
+      `- **Rent-to-Own Customer Bridge Strategy:** ${step2Data.rentToOwnBridgeStrategy || '—'}`,
+      `- **Estimated Cost Structure (Synced to Module G):** ${formatPlanCurrency(
+        combinedOneOff,
+        plan.baseCurrency
+      )} once-off | ${formatPlanCurrency(
+        combinedMonthly,
+        plan.baseCurrency
+      )}/mo recurring | ${formatPlanCurrency(
+        combinedUnitCogs,
+        plan.baseCurrency
+      )}/unit direct variable COGS`,
+      '',
+      `## 3. Ruthless V1 Scope Filter (Step 3)`,
+      `- **🟢 Day-1 V1 Core — Launch Now (${day1Items.length}):** ${
+        day1Items.map((i) => i.title).join(', ') || 'None added'
+      }`,
+      `- **🟡 Version 1.5 — Fast-Follow (${v15Items.length}):** ${
+        v15Items.map((i) => i.title).join(', ') || 'None'
+      }`,
+      `- **🔴 Phase 2 / V2 Backlog — Do Not Build Yet (${v2Items.length}):** ${
+        v2Items.map((i) => i.title).join(', ') || 'None'
+      }`,
+      `- **What We Explicitly Refuse to Build in V1:** ${
+        step3Data.whatWeRefuseToBuildInV1Narrative || '—'
+      }`,
+      '',
+      `## 4. 3-Tier "Build vs. Buy" & Core IP ("Secret Sauce") Matrix (Step 4)`,
+      `- **Tier 1 — Custom Build / Core IP ("Your Secret Sauce": ${inHouseStack.length}):** ${
+        inHouseStack
+          .map((i) => `${i.title} (${i.vendorOrToolName || 'In-house'})`)
+          .join('; ') || 'None'
+      }`,
+      `- **Tier 2 — Buy / Rent Off-the-Shelf (Commodity: ${buyRentStack.length}):** ${
+        buyRentStack
+          .map((i) => `${i.title} (${i.vendorOrToolName || 'SaaS/Tool'})`)
+          .join('; ') || 'None'
+      }`,
+      `- **Tier 3 — Configure / Specialist Partner (${partnerStack.length}):** ${
+        partnerStack
+          .map((i) => `${i.title} (${i.vendorOrToolName || 'Partner'})`)
+          .join('; ') || 'None'
+      }`,
+      `- **Core IP & Secret Sauce Narrative:** ${
+        step4Data.secretSauceInHouseNarrative ||
+        step5Data.technicalMeritAndInnovationNarrative ||
+        '—'
+      }`,
+      '',
+      `## 5. System Architecture Flow & Work Packages WP1–WPn (Step 5)`,
+      ...(step5Data.flowStages.length > 0
+        ? [
+            `**4-Stage System Architecture / Production Flow:**`,
+            ...step5Data.flowStages.map(
+              (st, idx) =>
+                `- **Stage ${idx + 1} (${st.stageTitle}):** Stack: ${
+                  st.keyToolsOrMaterials || st.whatHappensHere || '—'
+                } -> Output: ${st.outputOrHandoff || st.outputOrHandOff || '—'}`
+            ),
+            '',
+          ]
+        : []),
+      ...step5Data.workPackages.map(
+        (wp) =>
+          `- **${wp.wpCode}: ${wp.title}** (${wp.timelineWindow.replace(/_/g, ' ')}) — Mode: ${
+            wp.executionMode
+          } | Cost: ${
+            wp.costModel === 'SWEAT_EQUITY_ZERO'
+              ? 'Sweat Equity'
+              : formatPlanCurrency(wp.estimatedCostAmount, plan.baseCurrency)
+          } | Deliverable: ${
+            wp.deliverableMilestone || wp.deliverableMilestoneProof || '—'
+          } | Gate: ${
+            wp.verificationGateOrDeRisking || wp.linkedTaskSummary || '—'
+          }`
+      ),
+      '',
+      `## 6. Constructive "Things to Consider" & Mitigations (Step 6)`,
+      ...step6Data.blindSpots.map(
+        (bs) =>
+          `- **[${bs.isResolved ? 'ADDRESSED' : bs.severity}] ${bs.title}:** ${
+            bs.whyItMatters
+          } -> *Action:* ${bs.recommendedActionOrFix}${
+            bs.founderMitigationNote
+              ? ` | *Founder Plan:* ${bs.founderMitigationNote}`
+              : ''
+          }`
+      ),
+      '',
+      whiteLabelEnabled
+        ? `_Generated for ${plan.title}_`
+        : `_Generated with Build My Unicorn (BMU 2.0) — Module D Product & Technical Blueprint_`,
+    ];
+
+    return lines.join('\n');
+  };
+
+  const buildModuleDStandaloneHtmlBrief = (): string => {
+    const esc = (str: string) =>
+      String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const day1Items = step3Data.items.filter(
+      (i) => i.bucket === 'MUST_HAVE_V1'
+    );
+    const v15Items = step3Data.items.filter(
+      (i) => i.bucket === 'FAST_FOLLOW_V1_5'
+    );
+    const v2Items = step3Data.items.filter(
+      (i) => i.bucket === 'PARKING_LOT_V2'
+    );
+    const deferredItems = step3Data.items.filter(
+      (i) => i.bucket !== 'MUST_HAVE_V1'
+    );
+
+    const inHouseStack = step4Data.items.filter(
+      (i) => i.tier === 'BUILD_IN_HOUSE'
+    );
+    const buyRentStack = step4Data.items.filter(
+      (i) => i.tier === 'BUY_RENT_OFF_SHELF'
+    );
+    const partnerStack = step4Data.items.filter(
+      (i) => i.tier === 'OUTSOURCE_PARTNER'
+    );
+
+    const formFactorLabel =
+      step1Data.formFactor === 'OTHER'
+        ? step1Data.otherFormFactorText || 'Custom Form Factor'
+        : activeTrackConfig.formFactorOptions.find(
+            (f) => f.value === step1Data.formFactor
+          )?.label || step1Data.formFactor;
+
+    const v1ApproachLabel =
+      step1Data.v1PrototypeApproach === 'OTHER'
+        ? step1Data.otherV1PrototypeApproachText || 'Custom V1 Approach'
+        : activeTrackConfig.v1ApproachOptions.find(
+            (a) => a.value === step1Data.v1PrototypeApproach
+          )?.label || step1Data.v1PrototypeApproach;
+
+    const primaryChannelLabel =
+      step2Data.primaryChannel === 'OTHER'
+        ? step2Data.otherPrimaryChannelText || 'Custom Primary Channel'
+        : activeStep2TrackConfig.channelOptions.find(
+            (c) => c.value === step2Data.primaryChannel
+          )?.label || step2Data.primaryChannel;
+
+    const secondaryChannelLabels = step2Data.secondaryChannels.map((sc) =>
+      sc === 'OTHER'
+        ? step2Data.otherSecondaryChannelText || 'Custom Secondary Channel'
+        : activeStep2TrackConfig.channelOptions.find((c) => c.value === sc)
+            ?.label || sc
+    );
+
+    const combinedMonthly = step4MonthlyTotal + step5MonthlyTotal;
+    const combinedOneOff = step4OneOffTotal + step5OneOffTotal;
+    const combinedUnitCogs = step4PerUnitTotal + step5PerUnitTotal;
+    const netRevenueKeptPercent = Number(
+      (100 - step2Data.estimatedBlendedFeePercent).toFixed(1)
+    );
+
+    const readinessLabel =
+      step6Data.readinessConfidence === 'OTHER'
+        ? step6Data.otherReadinessConfidenceText || 'Custom Readiness Status'
+        : READINESS_CONFIDENCE_OPTIONS.find(
+            (r) => r.value === step6Data.readinessConfidence
+          )?.label || 'Ready for Pilot Build';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${esc(plan.title)} — Product, Scope & Work Package Brief</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+      margin: 0;
+      padding: 28px;
+      line-height: 1.5;
+    }
+    .sheet {
+      max-width: 980px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+    }
+    .header {
+      border-bottom: 2px solid #e0e7ff;
+      padding-bottom: 18px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #4338ca;
+      margin-bottom: 4px;
+    }
+    h1 {
+      font-size: 22px;
+      margin: 0 0 6px 0;
+      color: #0f172a;
+    }
+    .meta {
+      font-size: 12px;
+      color: #475569;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #eef2ff;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
+    }
+    h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #312e81;
+      margin: 22px 0 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+    .card-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f1f5f9;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #334155;
+    }
+    .flow-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .flow-box {
+      flex: 1;
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+    .footer {
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 11px;
+      color: #64748b;
+      display: flex;
+      justify-content: space-between;
+    }
+    @media print {
+      body { background: #ffffff; padding: 0; }
+      .sheet { border: none; box-shadow: none; padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="header">
+      <div>
+        <div class="eyebrow">Module D • 1-Page Product, Scope &amp; Work Package Brief (Steps 1–6)</div>
+        <h1>${esc(plan.title)}</h1>
+        <div class="meta">
+          <strong>Track:</strong> ${esc(selectedTrackMeta.label)} &bull;
+          <strong>Format:</strong> ${esc(formFactorLabel)} &bull;
+          <strong>V1 Approach:</strong> ${esc(v1ApproachLabel)} &bull;
+          <strong>Launch Window:</strong> ${esc(step1Data.launchTimeline.replace(/_/g, ' '))} &bull;
+          <strong>Jurisdiction:</strong> ${esc(countryPack.countryName)} (${esc(plan.baseCurrency)})
+        </div>
+      </div>
+      <div class="badge">${esc(readinessLabel)}</div>
+    </div>
+
+    <div class="card" style="background:#f0fdf4;border-color:#bbf7d0;margin-bottom:12px;">
+      <div class="card-title" style="color:#166534;">Upstream Customer &amp; Survey Proof Anchor (Modules A–C)</div>
+      <div style="font-size:12px;color:#14532d;">
+        <strong>Beachhead Customer:</strong> ${esc(
+          plan.moduleBData?.beachhead?.beachheadSegment ||
+            plan.conceptCanvas?.targetCustomer ||
+            'Early adopters'
+        )} &bull;
+        <strong>Validation Proof:</strong> ${surveyResponseCount} Survey Responses, ${waitlistCount} Waitlist Leads, ${interviewCount} 1-on-1 Interviews<br/>
+        <strong>#1 Problem Solved in V1:</strong> &ldquo;${esc(
+          validatedPainPoint || 'Deliver a fast, reliable V1 solution.'
+        )}&rdquo;
+      </div>
+    </div>
+
+    <div class="card" style="background:#eef2ff;border-color:#c7d2fe;margin-bottom:14px;">
+      <div class="card-title" style="color:#3730a3;">Executive Product Brief &amp; Value Delivery Summary</div>
+      <div style="font-size:13px;color:#1e1b4b;">
+        ${esc(
+          step6Data.executiveProductBriefSummary ||
+            step1Data.ahaMomentNarrative ||
+            'Focused V1 product blueprint.'
+        )}
+      </div>
+      ${
+        step1Data.ahaMomentNarrative
+          ? `<div style="margin-top:6px;font-size:12px;color:#312e81;"><strong>60-Second Customer Aha! Moment:</strong> ${esc(
+              step1Data.ahaMomentNarrative
+            )}</div>`
+          : ''
+      }
+      ${
+        step6Data.keyDeRiskingSignOffNarrative
+          ? `<div style="margin-top:6px;font-size:12px;color:#312e81;"><strong>De-Risking &amp; Grant Sign-Off:</strong> ${esc(
+              step6Data.keyDeRiskingSignOffNarrative
+            )}</div>`
+          : ''
+      }
+    </div>
+
+    <h2>1. Product Format, Own vs. Rent Channels &amp; Cost Structure (Steps 1–2 &amp; 4–5)</h2>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title">Step 1 • Vehicle &amp; V1 Approach</div>
+        <div class="card-val">${esc(formFactorLabel)}</div>
+        <div class="meta">${esc(v1ApproachLabel)}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Step 2 • Own vs. Rent Channels</div>
+        <div class="card-val">${esc(primaryChannelLabel)} (${step2Data.primaryChannelSharePercent}%)</div>
+        <div class="meta">Secondary: ${esc(secondaryChannelLabels.join(', ') || 'None')} &bull; <strong>${step2Data.estimatedBlendedFeePercent}% Fee</strong> (Keep ${netRevenueKeptPercent}%)</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Steps 4–5 • V1 Build &amp; Unit Cost</div>
+        <div class="card-val">${esc(formatPlanCurrency(combinedOneOff, plan.baseCurrency))} once-off</div>
+        <div class="meta">${esc(formatPlanCurrency(combinedMonthly, plan.baseCurrency))}/mo &bull; <strong>${esc(formatPlanCurrency(combinedUnitCogs, plan.baseCurrency))}/unit COGS</strong></div>
+      </div>
+    </div>
+    ${
+      step2Data.rentToOwnBridgeStrategy
+        ? `<div class="card" style="margin-top:10px;"><div class="card-title">Rent-to-Own Customer Bridge Strategy</div><div>${esc(
+            step2Data.rentToOwnBridgeStrategy
+          )}</div></div>`
+        : ''
+    }
+
+    <h2>2. Ruthless 3-Bucket V1 Scope Filter (Step 3)</h2>
+    <div class="grid-3">
+      <div class="card" style="border-color:#a7f3d0;background:#ecfdf5;">
+        <div class="card-title" style="color:#047857;">🟢 Day-1 V1 Core — Launch Now (${day1Items.length})</div>
+        <ul style="margin:6px 0 0 16px;padding:0;">
+          ${
+            day1Items.length > 0
+              ? day1Items
+                .map(
+                  (it) =>
+                    `<li><strong>${esc(it.title)}</strong>${
+                      it.rationaleOrNote ? `: ${esc(it.rationaleOrNote)}` : ''
+                    }</li>`
+                )
+                .join('')
+              : '<li>No Day-1 items listed yet.</li>'
+          }
+        </ul>
+      </div>
+      <div class="card" style="border-color:#c7d2fe;background:#eef2ff;">
+        <div class="card-title" style="color:#3730a3;">🟡 Version 1.5 — Fast-Follow (${v15Items.length})</div>
+        <ul style="margin:6px 0 0 16px;padding:0;">
+          ${
+            v15Items.length > 0
+              ? v15Items
+                .map((it) => `<li><strong>${esc(it.title)}</strong></li>`)
+                .join('')
+              : '<li>None deferred to V1.5 yet.</li>'
+          }
+        </ul>
+      </div>
+      <div class="card" style="border-color:#fecdd3;background:#fff1f2;">
+        <div class="card-title" style="color:#be123c;">🔴 Phase 2 / V2 Backlog — Do Not Build Yet (${v2Items.length})</div>
+        <ul style="margin:6px 0 0 16px;padding:0;">
+          ${
+            v2Items.length > 0
+              ? v2Items
+                .map((it) => `<li><del>${esc(it.title)}</del></li>`)
+                .join('')
+              : `<li>${deferredItems.length === 0 ? 'None in V2 backlog yet.' : ''}</li>`
+          }
+        </ul>
+      </div>
+    </div>
+
+    <h2>3. 3-Tier &ldquo;Build vs. Buy&rdquo; &amp; Core IP (&ldquo;Secret Sauce&rdquo;) Matrix (Step 4)</h2>
+    <div class="grid-3">
+      <div class="card" style="border-color:#a7f3d0;background:#f0fdf4;">
+        <div class="card-title" style="color:#047857;">Tier 1 • Custom Build / Core IP (${inHouseStack.length})</div>
+        <ul style="margin:6px 0 0 16px;padding:0;">
+          ${
+            inHouseStack.length > 0
+              ? inHouseStack
+                .map(
+                  (it) =>
+                    `<li><strong>${esc(it.title)}</strong> (${esc(
+                      it.vendorOrToolName || 'In-House IP'
+                    )})</li>`
+                )
+                .join('')
+              : '<li>No Tier 1 items listed yet.</li>'
+          }
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Tier 2 • Buy / Rent Off-the-Shelf (${buyRentStack.length})</div>
+        <ul style="margin:6px 0 0 16px;padding:0;">
+          ${
+            buyRentStack.length > 0
+              ? buyRentStack
+                .map(
+                  (it) =>
+                    `<li><strong>${esc(it.title)}</strong> (${esc(
+                      it.vendorOrToolName || 'Off-the-Shelf'
+                    )})</li>`
+                )
+                .join('')
+              : '<li>No Tier 2 items listed yet.</li>'
+          }
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Tier 3 • Configure / Partner (${partnerStack.length})</div>
+        <ul style="margin:6px 0 0 16px;padding:0;">
+          ${
+            partnerStack.length > 0
+              ? partnerStack
+                .map(
+                  (it) =>
+                    `<li><strong>${esc(it.title)}</strong> (${esc(
+                      it.vendorOrToolName || 'Specialist Partner'
+                    )})</li>`
+                )
+                .join('')
+              : '<li>No Tier 3 items listed yet.</li>'
+          }
+        </ul>
+      </div>
+    </div>
+
+    ${
+      step5Data.flowStages.length > 0
+        ? `<h2>4. System Architecture &amp; Delivery Flow (${step5Data.flowStages.length} Stages)</h2>
+    <div class="flow-row">
+      ${step5Data.flowStages
+        .map(
+          (st, idx) => `<div class="flow-box">
+        <div style="font-weight:700;color:#312e81;">${idx + 1}. ${esc(st.stageTitle)}</div>
+        <div style="color:#475569;margin-top:2px;">${esc(st.stageSubtitle || '')}</div>
+        <div style="margin-top:4px;font-weight:600;color:#1e293b;">Stack: ${esc(st.keyToolsOrMaterials || st.whatHappensHere || '')}</div>
+        <div style="margin-top:2px;color:#047857;">&rarr; ${esc(st.outputOrHandoff || st.outputOrHandOff || '')}</div>
+      </div>`
+        )
+        .join('')}
+    </div>`
+        : ''
+    }
+
+    <h2>5. Work Package Milestone Schedule (WP1–WP${step5Data.workPackages.length || 4})</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>WP</th>
+          <th>Work Package &amp; Mode</th>
+          <th>Window</th>
+          <th>Deliverable &amp; De-Risking Proof Gate</th>
+          <th>Budget</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${
+          step5Data.workPackages.length > 0
+            ? step5Data.workPackages
+                .map(
+                  (wp) => `<tr>
+          <td><strong>${esc(wp.wpCode)}</strong></td>
+          <td><strong>${esc(wp.title)}</strong><br/><span style="color:#64748b;font-size:11px;">${esc(wp.executionMode.replace(/_/g, ' '))}</span></td>
+          <td>${esc(wp.timelineWindow.replace(/_/g, ' '))}</td>
+          <td>${esc(wp.deliverableMilestone || wp.deliverableMilestoneProof || '')}<br/><span style="color:#047857;font-size:11px;"><strong>Gate:</strong> ${esc(wp.verificationGateOrDeRisking || wp.linkedTaskSummary || '')}</span></td>
+          <td><strong>${
+            wp.costModel === 'SWEAT_EQUITY_ZERO'
+              ? 'Sweat Equity'
+              : esc(formatPlanCurrency(wp.estimatedCostAmount, plan.baseCurrency))
+          }</strong></td>
+        </tr>`
+                )
+                .join('')
+            : `<tr><td colspan="5" style="color:#64748b;">No Work Packages added in Step 5 yet.</td></tr>`
+        }
+      </tbody>
+    </table>
+
+    <h2>6. Constructive &ldquo;Things to Consider&rdquo; &amp; Founder Mitigations (${step6Data.blindSpots.length})</h2>
+    <div class="card">
+      <ul style="margin:4px 0 0 16px;padding:0;">
+        ${
+          step6Data.blindSpots.length > 0
+            ? step6Data.blindSpots
+                .map(
+                  (bs) =>
+                    `<li><strong>${esc(bs.title)}</strong> (${
+                      bs.isResolved ? '✓ Addressed' : esc(bs.severity)
+                    }): ${esc(
+                      bs.founderMitigationNote || bs.recommendedActionOrFix
+                    )}</li>`
+                )
+                .join('')
+            : '<li>No blind-spot items recorded yet.</li>'
+        }
+      </ul>
+    </div>
+
+    <div class="footer">
+      <span>${
+        whiteLabelEnabled
+          ? esc(plan.title)
+          : 'Build My Unicorn (BMU 2.0) • Module D Product & Technical Brief'
+      }</span>
+      <span>Generated ${new Date().toISOString().slice(0, 10)}</span>
+    </div>
+  </div>
+</body>
+</html>`;
+  };
+
+  const handleCopyModuleDBriefMarkdown = async () => {
+    const md = buildModuleDMarkdownBrief();
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(md);
+      setBriefCopied(true);
+      setSaveBanner('Copied 1-Page Product & Work Package Brief (Markdown)!');
+      setTimeout(() => setBriefCopied(false), 2500);
+    }
+  };
+
+  const handleDownloadModuleDBriefHtml = () => {
+    if (typeof window === 'undefined') return;
+    const html = buildModuleDStandaloneHtmlBrief();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeSlug =
+      plan.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'startup';
+    a.href = url;
+    a.download = `${safeSlug}-module-d-product-brief.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setSaveBanner('Downloaded standalone 1-Page Product Brief (.html)!');
+  };
+
+  const handlePrintModuleDBriefPdf = () => {
+    if (typeof window === 'undefined') return;
+    const html = buildModuleDStandaloneHtmlBrief();
+    const printWin = window.open('', '_blank', 'width=1024,height=800');
+    if (!printWin) {
+      setSaveBanner(
+        'Pop-up blocked by browser — please use Download HTML Brief instead.'
+      );
+      return;
+    }
+    printWin.document.open();
+    printWin.document.write(html);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => {
+      printWin.print();
+    }, 350);
+  };
 
   return (
     <div className="space-y-6">
@@ -4925,7 +7534,7 @@ export function ModuleDWorkspace({
                 title: 'Work Packages (WP1–4)',
                 subtitle: 'Milestones & System Flow',
                 icon: Workflow,
-                ready: false,
+                ready: true,
               },
               {
                 id: 'STEP_6' as const,
@@ -4933,7 +7542,7 @@ export function ModuleDWorkspace({
                 title: 'Blind-Spot Audit & Brief',
                 subtitle: 'Review & PDF/HTML Export',
                 icon: FileText,
-                ready: false,
+                ready: true,
               },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -4977,6 +7586,14 @@ export function ModuleDWorkspace({
                       {tab.id === 'STEP_4' && step4Data.items.length > 0 && (
                         <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
                       )}
+                      {tab.id === 'STEP_5' &&
+                        step5Data.workPackages.length > 0 && (
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                        )}
+                      {tab.id === 'STEP_6' &&
+                        step6Data.blindSpots.length > 0 && (
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                        )}
                     </div>
                     <div className="truncate text-xs font-semibold">
                       {tab.title}
@@ -9086,8 +11703,28 @@ export function ModuleDWorkspace({
                   <Button
                     type="button"
                     size="sm"
+                    variant="outline"
                     disabled={isVaultReadonly || isSavingStep4}
-                    onClick={handleSaveStep4}
+                    onClick={() => handleSaveStep4(false)}
+                    className="border-indigo-300 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                  >
+                    {isSavingStep4 ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Saving Step 4...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-1.5 h-3.5 w-3.5" />
+                        Save Step 4
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isSavingStep4}
+                    onClick={() => handleSaveStep4(true)}
                     className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
                   >
                     {isSavingStep4 ? (
@@ -9098,7 +11735,8 @@ export function ModuleDWorkspace({
                     ) : (
                       <>
                         <Save className="mr-1.5 h-3.5 w-3.5" />
-                        Save Step 4 (Build-vs-Buy &amp; Smart Costs)
+                        Save &amp; Continue to Step 5
+                        <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                       </>
                     )}
                   </Button>
@@ -9263,66 +11901,2696 @@ export function ModuleDWorkspace({
             </CardContent>
           </Card>
         </div>
+      ) : activeTab === 'STEP_5' ? (
+        <div className="space-y-4">
+          {/* STEP 5 MICRO-COACHING & TRACK BANNER */}
+          <Card className="border-indigo-200 bg-indigo-50/40 shadow-xs">
+            <CardContent className="p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-indigo-600 text-[10px] text-white">
+                      Step 5 of 6 • Grant-Ready Work Packages (WP1–WP4) &amp;
+                      System Flow
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-indigo-300 bg-white text-[10px] text-indigo-800"
+                    >
+                      Tailored for: {selectedTrackMeta.label}
+                    </Badge>
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {activeStep5TrackConfig.stepTitle}
+                  </h3>
+                  <p className="text-xs leading-relaxed text-slate-700">
+                    {activeStep5TrackConfig.whyThisMattersText}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowExamples(!showExamples)}
+                    className="border-indigo-200 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
+                    {showExamples
+                      ? 'Hide Example'
+                      : 'Show Me an Example'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAiPopulateStep5Board()}
+                    disabled={isVaultReadonly || isGeneratingStep5Ai}
+                    className="border-indigo-200 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    I&apos;m Stuck — Draft WPs &amp; Flow with AI
+                  </Button>
+                </div>
+              </div>
+
+              {showExamples && (
+                <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3 text-xs text-slate-700">
+                  <div className="font-semibold text-indigo-900">
+                    💡 {activeStep5TrackConfig.stepSubtitle}
+                  </div>
+                  <p className="mt-1 leading-relaxed text-slate-600">
+                    {activeStep5TrackConfig.flowDiagramSubtitle}
+                  </p>
+                </div>
+              )}
+
+              {/* CO-FOUNDER / TEAM LINKING EXPLAINER BANNER */}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200/80 bg-white/90 px-3 py-2 text-[11px] text-slate-700">
+                <div>
+                  <span className="font-bold text-indigo-900">
+                    👥 Co-Founders &amp; Team Assignment Note:
+                  </span>{' '}
+                  Assign a realistic <strong>Execution Mode</strong> here (
+                  <em>Founder / In-House</em>, <em>Off-the-Shelf Supplier</em>,
+                  or <em>External Partner</em>). When you complete{' '}
+                  <strong>Module F (Co-Founder &amp; Team)</strong> later, your
+                  named co-founders and hires will automatically link to these
+                  Work Packages for your Module K Grant Pack.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* STEP 5 PART 1: GRANT-READY WORK PACKAGES (WP1-WP4) BOARD */}
+          <Card className="border-slate-200 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    {activeStep5TrackConfig.wpBoardTitle}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    {activeStep5TrackConfig.wpBoardSubtitle}
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly || isSavingStep5}
+                    onClick={handleBuildWorkPackagesFromSteps3And4}
+                    className="border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                  >
+                    <Layers className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                    Build Work Packages from My Steps 3 &amp; 4
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isGeneratingStep5Ai}
+                    onClick={handleAiPopulateStep5Board}
+                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  >
+                    {isGeneratingStep5Ai ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Drafting WP1–WP4 &amp; Flow...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                        Populate Work Packages &amp; Flow with AI
+                      </>
+                    )}
+                  </Button>
+                  {!showClearStep5BoardConfirm ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        isVaultReadonly ||
+                        (step5Data.workPackages.length === 0 &&
+                          step5Data.flowStages.length === 0 &&
+                          !step5Data.technicalMeritAndInnovationNarrative &&
+                          !step5Data.bottleneckAndDeRiskingNarrative)
+                      }
+                      onClick={() => setShowClearStep5BoardConfirm(true)}
+                      className="border-rose-200 text-xs text-rose-700 hover:bg-rose-50"
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      Clear Step 5 Board
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1">
+                      <span className="text-[11px] font-semibold text-rose-900">
+                        Clear all Step 5 Work Packages &amp; Flow?
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isVaultReadonly || isSavingStep5}
+                        onClick={handleClearStep5Board}
+                        className="h-6 bg-rose-600 px-2 text-[11px] text-white hover:bg-rose-700"
+                      >
+                        Yes, Clear All
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowClearStep5BoardConfirm(false)}
+                        className="h-6 border-slate-300 bg-white px-2 text-[11px] text-slate-700"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {/* LIVE SMART COST & GRANT ELIGIBILITY ROLL-UP BAR */}
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">
+                    Monthly Recurring Run-Rate
+                  </div>
+                  <div className="mt-1 text-lg font-bold text-indigo-950">
+                    {formatPlanCurrency(step5MonthlyTotal, plan.baseCurrency)}
+                    <span className="text-xs font-normal text-indigo-700">
+                      /mo
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-indigo-900/80">
+                    Cloud/SaaS/retainers across WP1–WP4.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-amber-900">
+                    Once-Off Prototype / Build CapEx
+                  </div>
+                  <div className="mt-1 text-lg font-bold text-amber-950">
+                    {formatPlanCurrency(step5OneOffTotal, plan.baseCurrency)}
+                    <span className="text-xs font-normal text-amber-800">
+                      {' '}
+                      once-off
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-amber-900/80">
+                    Tooling, raw materials, certifications &amp; setup.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                    Per-Unit / Per-Order Direct Cost
+                  </div>
+                  <div className="mt-1 text-lg font-bold text-emerald-950">
+                    {formatPlanCurrency(step5PerUnitTotal, plan.baseCurrency)}
+                    <span className="text-xs font-normal text-emerald-700">
+                      /unit
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-emerald-900/80">
+                    Direct COGS / packaging / API cost per order.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                    Grant R&amp;D / Feasibility Eligibility
+                  </div>
+                  <div className="mt-1 text-lg font-bold text-slate-900">
+                    {step5GrantEligibleCount} of {step5Data.workPackages.length}{' '}
+                    <span className="text-xs font-normal text-slate-600">
+                      WPs eligible
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-600">
+                    {step5InHouseWpCount} WP(s) led In-House (core IP rule).
+                  </p>
+                </div>
+              </div>
+
+              {/* ADD WORK PACKAGE INPUT BAR */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-slate-800">
+                    ➕ Add a Work Package (Smart Cost Auto-Detects Monthly vs.
+                    Once-Off vs. Per-Unit)
+                  </span>
+                  <span className="text-[11px] text-indigo-700">
+                    {newWpSmartCostHint}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                  <div className="sm:col-span-4">
+                    <label className="mb-1 block text-[10px] font-semibold uppercase text-slate-600">
+                      Work Package Title
+                    </label>
+                    <input
+                      type="text"
+                      value={newWpTitle}
+                      onChange={(e) =>
+                        handleWpTitleChange(e.target.value, newWpExecutionMode)
+                      }
+                      placeholder="e.g., Core Prototype Build, Kiln-Dried Timber Jig, Pilot Trials..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[10px] font-semibold uppercase text-slate-600">
+                      Timeline Window
+                    </label>
+                    <select
+                      value={newWpTimeline}
+                      onChange={(e) =>
+                        setNewWpTimeline(
+                          e.target.value as WorkPackageTimelineWindowType
+                        )
+                      }
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    >
+                      {WP_TIMELINE_WINDOW_OPTIONS.filter(
+                        (opt, i, arr) =>
+                          arr.findIndex((o) => o.label === opt.label) === i
+                      ).map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[10px] font-semibold uppercase text-slate-600">
+                      Execution Mode
+                    </label>
+                    <select
+                      value={newWpExecutionMode}
+                      onChange={(e) =>
+                        setNewWpExecutionMode(
+                          e.target.value as WorkPackageExecutionModeType
+                        )
+                      }
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    >
+                      {WP_EXECUTION_MODE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[10px] font-semibold uppercase text-slate-600">
+                      Smart Cost Type (Auto)
+                    </label>
+                    <select
+                      value={newWpCostModel}
+                      onChange={(e) => {
+                        const nextModel = e.target
+                          .value as BuildVsBuyCostModelType;
+                        setNewWpCostModel(nextModel);
+                        setNewWpCostManuallyOverridden(true);
+                        if (nextModel === 'SWEAT_EQUITY_ZERO') {
+                          setNewWpCostAmount('0');
+                        }
+                      }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    >
+                      {COST_MODEL_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.shortLabel} — {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[10px] font-semibold uppercase text-slate-600">
+                      Est. Cost ({plan.baseCurrency})
+                    </label>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        disabled={newWpCostModel === 'SWEAT_EQUITY_ZERO'}
+                        value={
+                          newWpCostModel === 'SWEAT_EQUITY_ZERO'
+                            ? '0'
+                            : newWpCostAmount
+                        }
+                        onChange={(e) => setNewWpCostAmount(e.target.value)}
+                        placeholder="0"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden disabled:bg-slate-100 sm:text-xs"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isVaultReadonly || !newWpTitle.trim()}
+                        onClick={handleAddCustomWpItem}
+                        className="shrink-0 bg-indigo-600 px-3 text-xs text-white hover:bg-indigo-700"
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Add WP
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECOND ROW OF QUICK-ADD: DELIVERABLE, VALIDATION GATE, AND OPTIONAL OTHER INPUTS */}
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-12">
+                  <div className="sm:col-span-5">
+                    <input
+                      type="text"
+                      value={newWpDeliverable}
+                      onChange={(e) => setNewWpDeliverable(e.target.value)}
+                      placeholder="Concrete Deliverable (e.g., Working V1 prototype tested on 10 real orders)..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                  <div className="sm:col-span-5">
+                    <input
+                      type="text"
+                      value={newWpVerification}
+                      onChange={(e) => setNewWpVerification(e.target.value)}
+                      placeholder="Validation Gate / Proof of Completion (e.g., 5 paid pilot customers signed off)..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                  <div className="flex items-center sm:col-span-2">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={newWpIsGrantEligible}
+                        onChange={(e) =>
+                          setNewWpIsGrantEligible(e.target.checked)
+                        }
+                        className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600"
+                      />
+                      Grant-Eligible R&amp;D
+                    </label>
+                  </div>
+                </div>
+
+                {/* CONDITIONAL OTHER INPUTS ON QUICK ADD BAR (GEMINI.MD RULE 1.5) */}
+                {(newWpTimeline === 'OTHER' ||
+                  newWpExecutionMode === 'OTHER' ||
+                  newWpCostModel === 'OTHER') && (
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {newWpTimeline === 'OTHER' && (
+                      <input
+                        type="text"
+                        value={newWpOtherTimeline}
+                        onChange={(e) =>
+                          setNewWpOtherTimeline(e.target.value)
+                        }
+                        placeholder="Specify custom timeline window (e.g., Weeks 1–6 Sprint)..."
+                        className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
+                      />
+                    )}
+                    {newWpExecutionMode === 'OTHER' && (
+                      <input
+                        type="text"
+                        value={newWpOtherExecutionMode}
+                        onChange={(e) =>
+                          setNewWpOtherExecutionMode(e.target.value)
+                        }
+                        placeholder="Specify custom execution mode (e.g., University R&D Voucher Lab)..."
+                        className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
+                      />
+                    )}
+                    {newWpCostModel === 'OTHER' && (
+                      <input
+                        type="text"
+                        value={newWpOtherCostModelText}
+                        onChange={(e) =>
+                          setNewWpOtherCostModelText(e.target.value)
+                        }
+                        placeholder="Specify custom cost model (e.g., 50% Deposit + 50% on Sign-Off)..."
+                        className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* EMPTY STATE WHEN NO WORK PACKAGES EXIST YET */}
+              {step5Data.workPackages.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-6 text-center">
+                  <Workflow className="mx-auto h-7 w-7 text-indigo-500" />
+                  <h4 className="mt-2 text-sm font-bold text-slate-900">
+                    Your Step 5 Work Packages Board is Empty
+                  </h4>
+                  <p className="mx-auto mt-1 max-w-xl text-xs text-slate-600">
+                    Click{' '}
+                    <strong>
+                      &ldquo;Build Work Packages from My Steps 3 &amp; 4&rdquo;
+                    </strong>{' '}
+                    to automatically group your saved V1 scope and Build-vs-Buy
+                    items (carrying over their smart costs), click{' '}
+                    <strong>
+                      &ldquo;Populate Work Packages &amp; Flow with AI&rdquo;
+                    </strong>{' '}
+                    for a tailored 4-Work-Package plan, or add your own Work
+                    Packages above.
+                  </p>
+                  <div className="mt-3 flex flex-wrap justify-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isVaultReadonly || isSavingStep5}
+                      onClick={handleBuildWorkPackagesFromSteps3And4}
+                      className="border-emerald-300 bg-white text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                    >
+                      <Layers className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                      Build Work Packages from My Steps 3 &amp; 4
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isVaultReadonly || isGeneratingStep5Ai}
+                      onClick={handleAiPopulateStep5Board}
+                      className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                    >
+                      <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                      Populate Work Packages &amp; Flow with AI
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {step5Data.workPackages.map((wp, idx) => (
+                    <div
+                      key={wp.id}
+                      className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300"
+                    >
+                      <div className="space-y-2.5">
+                        {/* HEADER: WP CODE + TITLE + DELETE */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-1 items-center gap-2">
+                            <span className="inline-flex shrink-0 items-center rounded-md bg-indigo-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                              {wp.wpCode || `WP${idx + 1}`}
+                            </span>
+                            <input
+                              type="text"
+                              value={wp.title}
+                              disabled={isVaultReadonly}
+                              onChange={(e) =>
+                                handleUpdateWpItem(wp.id, {
+                                  title: e.target.value,
+                                })
+                              }
+                              className="w-full rounded border border-transparent bg-transparent px-1.5 py-0.5 text-base font-bold text-slate-900 hover:border-slate-200 focus:border-indigo-400 focus:bg-white focus:outline-hidden sm:text-xs"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            disabled={isVaultReadonly}
+                            onClick={() => handleRemoveWpItem(wp.id)}
+                            className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                            title="Remove Work Package"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+
+                        {/* TIMELINE WINDOW + EXECUTION MODE SELECTORS */}
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+                              Timeline Window
+                            </label>
+                            <select
+                              value={wp.timelineWindow}
+                              disabled={isVaultReadonly}
+                              onChange={(e) =>
+                                handleUpdateWpItem(wp.id, {
+                                  timelineWindow: e.target
+                                    .value as WorkPackageTimelineWindowType,
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-base text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-hidden sm:text-xs"
+                            >
+                              {WP_TIMELINE_WINDOW_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            {wp.timelineWindow === 'OTHER' && (
+                              <input
+                                type="text"
+                                value={wp.otherTimelineWindowText || ''}
+                                disabled={isVaultReadonly}
+                                onChange={(e) =>
+                                  handleUpdateWpItem(wp.id, {
+                                    otherTimelineWindowText: e.target.value,
+                                  })
+                                }
+                                placeholder="Specify custom timeline..."
+                                className="mt-1 w-full rounded border border-indigo-300 bg-white px-2 py-1 text-base text-slate-900 sm:text-xs"
+                              />
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+                              Execution Lead Mode
+                            </label>
+                            <select
+                              value={wp.executionMode}
+                              disabled={isVaultReadonly}
+                              onChange={(e) =>
+                                handleUpdateWpItem(wp.id, {
+                                  executionMode: e.target
+                                    .value as WorkPackageExecutionModeType,
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-base text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-hidden sm:text-xs"
+                            >
+                              {WP_EXECUTION_MODE_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            {wp.executionMode === 'OTHER' && (
+                              <input
+                                type="text"
+                                value={wp.otherExecutionModeText || ''}
+                                disabled={isVaultReadonly}
+                                onChange={(e) =>
+                                  handleUpdateWpItem(wp.id, {
+                                    otherExecutionModeText: e.target.value,
+                                  })
+                                }
+                                placeholder="Specify custom execution mode..."
+                                className="mt-1 w-full rounded border border-indigo-300 bg-white px-2 py-1 text-base text-slate-900 sm:text-xs"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* CONCRETE DELIVERABLE & VALIDATION GATE */}
+                        <div className="space-y-2">
+                          <div>
+                            <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+                              Concrete Deliverable (What tangible artifact is
+                              produced?)
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={
+                                wp.deliverableMilestone ??
+                                wp.deliverableMilestoneProof ??
+                                ''
+                              }
+                              disabled={isVaultReadonly}
+                              onChange={(e) =>
+                                handleUpdateWpItem(wp.id, {
+                                  deliverableMilestone: e.target.value,
+                                  deliverableMilestoneProof: e.target.value,
+                                })
+                              }
+                              placeholder="e.g., Functional V1 core workflow or physical batch tested..."
+                              className="w-full rounded-lg border border-slate-200 bg-slate-50/70 p-2 text-base text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-hidden sm:text-xs"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-0.5 block text-[10px] font-semibold uppercase text-emerald-700">
+                              Validation Gate / Milestone Proof (How do you
+                              prove it works?)
+                            </label>
+                            <input
+                              type="text"
+                              value={
+                                wp.verificationGateOrDeRisking ??
+                                wp.linkedTaskSummary ??
+                                ''
+                              }
+                              disabled={isVaultReadonly}
+                              onChange={(e) =>
+                                handleUpdateWpItem(wp.id, {
+                                  verificationGateOrDeRisking: e.target.value,
+                                  linkedTaskSummary: e.target.value,
+                                })
+                              }
+                              placeholder="e.g., 10 real customer orders fulfilled with zero defects..."
+                              className="w-full rounded-lg border border-emerald-200 bg-emerald-50/40 px-2.5 py-1.5 text-base text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-hidden sm:text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* SMART COST BAR & GRANT ELIGIBILITY TOGGLE AT BOTTOM OF WP CARD */}
+                      <div className="mt-3 border-t border-slate-100 pt-2.5">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-12 sm:items-center">
+                          <div className="sm:col-span-5">
+                            <select
+                              value={wp.costModel}
+                              disabled={isVaultReadonly}
+                              onChange={(e) => {
+                                const nextModel = e.target
+                                  .value as BuildVsBuyCostModelType;
+                                handleUpdateWpItem(wp.id, {
+                                  costModel: nextModel,
+                                  estimatedCostAmount:
+                                    nextModel === 'SWEAT_EQUITY_ZERO'
+                                      ? 0
+                                      : wp.estimatedCostAmount,
+                                });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-base font-medium text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-hidden sm:text-[11px]"
+                            >
+                              {COST_MODEL_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.shortLabel} — {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="sm:col-span-3">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-semibold text-slate-500">
+                                {plan.baseCurrency}
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                disabled={
+                                  isVaultReadonly ||
+                                  wp.costModel === 'SWEAT_EQUITY_ZERO'
+                                }
+                                value={
+                                  wp.costModel === 'SWEAT_EQUITY_ZERO'
+                                    ? 0
+                                    : wp.estimatedCostAmount
+                                }
+                                onChange={(e) =>
+                                  handleUpdateWpItem(wp.id, {
+                                    estimatedCostAmount: Math.max(
+                                      0,
+                                      Number(e.target.value) || 0
+                                    ),
+                                  })
+                                }
+                                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-base font-bold text-slate-900 focus:border-indigo-500 focus:outline-hidden disabled:bg-slate-100 sm:text-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end sm:col-span-4">
+                            <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-indigo-100 bg-indigo-50/60 px-2 py-1 text-[10px] font-semibold text-indigo-900">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(
+                                  wp.isGrantEligibleRAndDOrPrototype
+                                )}
+                                disabled={isVaultReadonly}
+                                onChange={(e) =>
+                                  handleUpdateWpItem(wp.id, {
+                                    isGrantEligibleRAndDOrPrototype:
+                                      e.target.checked,
+                                  })
+                                }
+                                className="h-3 w-3 rounded border-indigo-300 text-indigo-600"
+                              />
+                              Grant R&amp;D Eligible
+                            </label>
+                          </div>
+                        </div>
+
+                        {wp.costModel === 'OTHER' && (
+                          <input
+                            type="text"
+                            value={wp.otherCostModelText || ''}
+                            disabled={isVaultReadonly}
+                            onChange={(e) =>
+                              handleUpdateWpItem(wp.id, {
+                                otherCostModelText: e.target.value,
+                              })
+                            }
+                            placeholder="Specify custom cost cadence (e.g., 50% upfront + 50% on delivery)..."
+                            className="mt-1.5 w-full rounded border border-indigo-300 bg-white px-2 py-1 text-base text-slate-900 sm:text-xs"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* STEP 5 PART 2: 4-STAGE VISUAL SYSTEM / PRODUCTION FLOW DIAGRAM */}
+          <Card className="border-slate-200 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    {activeStep5TrackConfig.flowDiagramTitle}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    {activeStep5TrackConfig.flowDiagramSubtitle}
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly}
+                    onClick={handleAddDefault4StageFlow}
+                    className="border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+                  >
+                    <Workflow className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    Load 4-Stage Track Template
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {/* QUICK ADD STAGE BAR */}
+              <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:grid-cols-12">
+                <div className="sm:col-span-4">
+                  <input
+                    type="text"
+                    value={newFlowTitle}
+                    onChange={(e) => setNewFlowTitle(e.target.value)}
+                    placeholder="Stage Title (e.g., Stage 1: Order Intake / Raw Material Prep)..."
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                  />
+                </div>
+                <div className="sm:col-span-4">
+                  <input
+                    type="text"
+                    value={newFlowSubtitle}
+                    onChange={(e) => setNewFlowSubtitle(e.target.value)}
+                    placeholder="What happens in this stage?"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                  />
+                </div>
+                <div className="sm:col-span-4">
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={newFlowOutput}
+                      onChange={(e) => setNewFlowOutput(e.target.value)}
+                      placeholder="Output / Quality Check..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isVaultReadonly || !newFlowTitle.trim()}
+                      onClick={handleAddCustomFlowStage}
+                      className="shrink-0 bg-indigo-600 px-3 text-xs text-white hover:bg-indigo-700"
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Add Stage
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {step5Data.flowStages.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-5 text-center">
+                  <p className="text-xs text-slate-600">
+                    No flow diagram stages added yet. Click{' '}
+                    <strong>&ldquo;Load 4-Stage Track Template&rdquo;</strong>{' '}
+                    or{' '}
+                    <strong>
+                      &ldquo;Populate Work Packages &amp; Flow with AI&rdquo;
+                    </strong>{' '}
+                    to generate a 4-stage visual workflow for your{' '}
+                    <span className="font-semibold text-indigo-700">
+                      {selectedTrackMeta.label}
+                    </span>{' '}
+                    product.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {step5Data.flowStages.map((stage, sIdx) => (
+                    <div
+                      key={stage.id}
+                      className="relative flex flex-col justify-between rounded-xl border border-indigo-200 bg-gradient-to-b from-white to-indigo-50/30 p-3 shadow-2xs"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">
+                            Stage {stage.stageNumber || sIdx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isVaultReadonly}
+                            onClick={() => handleRemoveFlowStage(stage.id)}
+                            className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                            title="Remove Stage"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={stage.stageTitle}
+                          disabled={isVaultReadonly}
+                          onChange={(e) =>
+                            handleUpdateFlowStage(stage.id, {
+                              stageTitle: e.target.value,
+                            })
+                          }
+                          className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-base font-bold text-slate-900 hover:border-slate-200 focus:border-indigo-400 focus:bg-white focus:outline-hidden sm:text-xs"
+                        />
+
+                        <div>
+                          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+                            Process Step
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={
+                              stage.stageSubtitle ?? stage.whatHappensHere ?? ''
+                            }
+                            disabled={isVaultReadonly}
+                            onChange={(e) =>
+                              handleUpdateFlowStage(stage.id, {
+                                stageSubtitle: e.target.value,
+                                whatHappensHere: e.target.value,
+                              })
+                            }
+                            className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-base text-slate-700 focus:border-indigo-500 focus:outline-hidden sm:text-[11px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-2 border-t border-indigo-100 pt-2">
+                        <label className="mb-0.5 block text-[10px] font-semibold uppercase text-emerald-700">
+                          Output / Quality Check
+                        </label>
+                        <input
+                          type="text"
+                          value={
+                            stage.outputOrHandoff ?? stage.outputOrHandOff ?? ''
+                          }
+                          disabled={isVaultReadonly}
+                          onChange={(e) =>
+                            handleUpdateFlowStage(stage.id, {
+                              outputOrHandoff: e.target.value,
+                              outputOrHandOff: e.target.value,
+                            })
+                          }
+                          className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1 text-base text-emerald-950 focus:border-emerald-500 focus:bg-white focus:outline-hidden sm:text-[11px]"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* STEP 5 PART 3: EXECUTION CADENCE RULE & TECHNICAL MERIT / DE-RISKING CHARTER */}
+          <Card className="border-slate-200 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    3. Execution Cadence Rule &amp; Grant Technical Merit Charter
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    Select how you run build sprints or production batches (with
+                    an Other option for custom cadences) and draft the
+                    Technical Merit narrative for Module K.
+                  </CardDescription>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isVaultReadonly || isGeneratingStep5Ai}
+                  onClick={handleAiDraftStep5CharterOnly}
+                  className="border-indigo-300 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+                >
+                  {isGeneratingStep5Ai ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Drafting Charter Only...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                      Draft Technical Merit &amp; De-Risking Charter with AI
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {/* EXECUTION CADENCE PILL SELECTOR WITH OTHER OPTION (GEMINI.MD RULE 1.5) */}
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-slate-800">
+                  Select Your Execution &amp; Milestone Cadence Rule
+                </label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {activeStep5TrackConfig.cadenceRules.map((opt) => {
+                    const isSelected =
+                      step5Data.executionCadenceRule === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() =>
+                          setStep5Data((prev) => ({
+                            ...prev,
+                            executionCadenceRule: opt.value,
+                          }))
+                        }
+                        className={`flex flex-col items-start rounded-xl border p-3 text-left transition ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
+                            : 'border-slate-200 bg-white hover:border-indigo-200'
+                        }`}
+                      >
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            {opt.label}
+                          </span>
+                          {isSelected && (
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-600" />
+                          )}
+                        </div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          {opt.subtitle}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {step5Data.executionCadenceRule === 'OTHER' && (
+                  <div className="mt-2">
+                    <label className="mb-1 block text-[11px] font-semibold text-indigo-900">
+                      Describe Your Custom Execution &amp; Milestone Cadence Rule
+                    </label>
+                    <input
+                      type="text"
+                      value={step5Data.otherExecutionCadenceRuleText || ''}
+                      disabled={isVaultReadonly}
+                      onChange={(e) =>
+                        setStep5Data((prev) => ({
+                          ...prev,
+                          otherExecutionCadenceRuleText: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Seasonal harvest batch production followed by 30-day direct wholesale distribution..."
+                      className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* TWO GRANT NARRATIVE TEXTAREAS */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-800">
+                    {activeStep5TrackConfig.technicalMeritLabel}
+                  </label>
+                  <p className="mb-1.5 text-[11px] text-slate-500">
+                    Why does your WP1–WP4 build plan create genuine technical,
+                    craft, or operational differentiation?
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={step5Data.technicalMeritAndInnovationNarrative}
+                    disabled={isVaultReadonly}
+                    onChange={(e) =>
+                      setStep5Data((prev) => ({
+                        ...prev,
+                        technicalMeritAndInnovationNarrative: e.target.value,
+                      }))
+                    }
+                    placeholder={
+                      activeStep5TrackConfig.technicalMeritPlaceholder
+                    }
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-800">
+                    {activeStep5TrackConfig.deRiskingLabel}
+                  </label>
+                  <p className="mb-1.5 text-[11px] text-slate-500">
+                    How do your validation gates prevent costly rework, supply
+                    delays, or compliance bottlenecks?
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={step5Data.bottleneckAndDeRiskingNarrative}
+                    disabled={isVaultReadonly}
+                    onChange={(e) =>
+                      setStep5Data((prev) => ({
+                        ...prev,
+                        bottleneckAndDeRiskingNarrative: e.target.value,
+                      }))
+                    }
+                    placeholder={activeStep5TrackConfig.deRiskingPlaceholder}
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* STEP 5 FOOTER ACTIONS */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab('STEP_4')}
+                    className="text-xs"
+                  >
+                    &larr; Back to Step 4
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowParkInput(!showParkInput)}
+                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
+                  >
+                    Park Open Question
+                  </Button>
+                  {step5Data.lastSavedAt && (
+                    <span className="text-[11px] text-emerald-700">
+                      ✓ Saved{' '}
+                      {new Date(step5Data.lastSavedAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly || isSavingStep5}
+                    onClick={() => handleSaveStep5(false)}
+                    className="border-indigo-300 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                  >
+                    {isSavingStep5 ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Saving Step 5...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-1.5 h-3.5 w-3.5" />
+                        Save Step 5 (Work Packages &amp; Flow)
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isSavingStep5}
+                    onClick={() => handleSaveStep5(true)}
+                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  >
+                    {isSavingStep5 ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Saving Step 5...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-1.5 h-3.5 w-3.5" />
+                        Save &amp; Continue to Step 6
+                        <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {showParkInput && (
+                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    value={parkQuestionInput}
+                    onChange={(e) => setParkQuestionInput(e.target.value)}
+                    placeholder="e.g., Confirm lead time for WP2 prototype batch or check Enterprise Ireland Innovation Voucher eligibility..."
+                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      const clean = parkQuestionInput.trim();
+                      if (!clean) return;
+                      await onParkOpenQuestion(clean);
+                      setParkQuestionInput('');
+                      setShowParkInput(false);
+                      setSaveBanner(
+                        'Parked Work Package / milestone question in your Open Questions Parking Lot!'
+                      );
+                    }}
+                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
+                  >
+                    Save to Parking Lot
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* LIVE STEP 5 OUTPUT PREVIEW CARD */}
+          <Card className="border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 shadow-xs">
+            <CardHeader className="pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-sm font-bold text-slate-900">
+                  📋 Live Step 5 Output Preview (Grant Work Packages WP1–WP4
+                  &amp; 4-Stage Flow)
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
+                >
+                  Feeds Module E Operations, Module F Team Roles &amp; Module K
+                  Grant Technical Appendix
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs text-slate-700">
+              {step5Data.workPackages.length === 0 ? (
+                <p className="text-slate-500">
+                  Add or generate your Work Packages (`WP1–WP4`) above to preview
+                  your chronological milestone table.
+                </p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                  <table className="w-full min-w-[640px] text-left text-[11px]">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2">WP</th>
+                        <th className="px-3 py-2">Work Package &amp; Mode</th>
+                        <th className="px-3 py-2">Timeline</th>
+                        <th className="px-3 py-2">Deliverable &amp; Gate</th>
+                        <th className="px-3 py-2 text-right">Smart Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {step5Data.workPackages.map((wp) => (
+                        <tr key={wp.id}>
+                          <td className="px-3 py-2 font-bold text-indigo-700">
+                            {wp.wpCode}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="font-semibold text-slate-900">
+                              {wp.title}
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              {wp.executionMode === 'OTHER'
+                                ? wp.otherExecutionModeText || 'Custom Mode'
+                                : WP_EXECUTION_MODE_OPTIONS.find(
+                                    (o) => o.value === wp.executionMode
+                                  )?.label}
+                              {wp.isGrantEligibleRAndDOrPrototype
+                                ? ' • Grant R&D Eligible'
+                                : ''}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-slate-700">
+                            {wp.timelineWindow === 'OTHER'
+                              ? wp.otherTimelineWindowText || 'Custom Window'
+                              : WP_TIMELINE_WINDOW_OPTIONS.find(
+                                  (o) => o.value === wp.timelineWindow
+                                )?.label}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="text-slate-800">
+                              {wp.deliverableMilestone ||
+                                wp.deliverableMilestoneProof ||
+                                '—'}
+                            </div>
+                            <div className="text-[10px] font-medium text-emerald-700">
+                              Gate:{' '}
+                              {wp.verificationGateOrDeRisking ||
+                                wp.linkedTaskSummary ||
+                                '—'}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-slate-900">
+                            {wp.costModel === 'SWEAT_EQUITY_ZERO'
+                              ? 'Sweat Equity'
+                              : `${formatPlanCurrency(
+                                  wp.estimatedCostAmount,
+                                  plan.baseCurrency
+                                )}${
+                                  wp.costModel === 'MONTHLY_SUBSCRIPTION'
+                                    ? '/mo'
+                                    : wp.costModel === 'PER_UNIT_COGS'
+                                      ? '/unit'
+                                      : ' once-off'
+                                }`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       ) : (
-        <Card className="border-slate-200 shadow-xs">
-          <CardContent className="p-6 text-center">
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
-              <Wrench className="h-5 w-5" />
-            </div>
-            <h3 className="mt-3 text-sm font-bold text-slate-900">
-              Step-by-Step Build Mode: {activeTab.replace('_', ' ')} Ready Next
-            </h3>
-            <p className="mx-auto mt-1 max-w-lg text-xs text-slate-600">
-              <strong>Steps 1, 2, 3 &amp; 4</strong> are live! Next up is{' '}
-              <strong>
-                Step 5 (Grant-Ready Work Packages WP1–WP4 &amp; Technical Merit
-                Flow)
-              </strong>{' '}
-              tailored to your active{' '}
-              <span className="font-semibold text-indigo-700">
-                {selectedTrackMeta.label}
-              </span>{' '}
-              track.
-            </p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab('STEP_1')}
-                className="text-xs"
-              >
-                Go to Step 1
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab('STEP_2')}
-                className="text-xs"
-              >
-                Go to Step 2
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab('STEP_3')}
-                className="text-xs"
-              >
-                Go to Step 3
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setActiveTab('STEP_4')}
-                className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
-              >
-                Go to Step 4 (Build-vs-Buy Matrix)
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        /* ================================================================= */
+        /* STEP 6: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT AUDIT &      */
+        /* EXPORTABLE 1-PAGE PRODUCT, SCOPE & WORK PACKAGE BRIEF             */
+        /* ================================================================= */
+        <div className="space-y-6">
+          <Card className="border-slate-200 shadow-xs">
+            <CardHeader className="border-b border-slate-100 bg-slate-50/60 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-indigo-600 text-white">
+                      Step 6 of 6 • Constructive Blind-Spot Audit &amp; Product
+                      Brief
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-indigo-200 bg-indigo-50 text-indigo-800"
+                    >
+                      <SelectedTrackIcon className="mr-1 h-3 w-3" />
+                      {selectedTrackMeta.label}
+                    </Badge>
+                    {step6Data.aiEngineUsed && (
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
+                      >
+                        <Sparkles className="mr-1 h-3 w-3" />
+                        {step6Data.aiEngineUsed === 'gemini-2.5-flash'
+                          ? 'Gemini 2.5 Flash'
+                          : 'Smart Synthesizer'}
+                      </Badge>
+                    )}
+                  </div>
+                  <CardTitle className="text-base font-bold text-slate-900 sm:text-lg">
+                    Constructive &ldquo;Things to Consider&rdquo; Review &amp;
+                    1-Page Product Blueprint Brief
+                  </CardTitle>
+                  <p className="text-xs text-slate-600">
+                    Following our{' '}
+                    <strong>&ldquo;Capture First, Expand Second&rdquo;</strong>{' '}
+                    co-founder philosophy, this final step cross-checks your
+                    Steps 1–5 decisions for hidden scope, margin, supplier, or{' '}
+                    {countryPack.countryName} grant/IP blind spots—and compiles
+                    your clean{' '}
+                    <strong>1-Page Product, Scope &amp; Work Package Brief</strong>{' '}
+                    ready for co-founders, developers, suppliers, or grant
+                    assessors.
+                  </p>
+                </div>
+
+                {/* 4-Layer Built-In Support Toggles */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowWhyCard(!showWhyCard)}
+                    className="h-8 border-indigo-200 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                    Why Are We Asking This?
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowExamples(!showExamples)}
+                    className="h-8 border-emerald-200 bg-white text-xs text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <Lightbulb className="mr-1 h-3.5 w-3.5" />
+                    Show Me an Example
+                  </Button>
+                </div>
+              </div>
+
+              {showWhyCard && (
+                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+                  <div className="font-bold text-indigo-900">
+                    💡 Why Step 6 Matters (Supportive Co-Founder Blind-Spot
+                    Engine + Grant Appendix Readiness)
+                  </div>
+                  <p className="mt-1 leading-relaxed text-indigo-900/90">
+                    Grant evaluators ({countryPack.countryName} LEO/Enterprise
+                    Ireland &amp; UK Innovate UK/Start Up Loans) and technical
+                    partners don&apos;t expect a zero-risk startup—they look for
+                    founders who{' '}
+                    <strong>
+                      know their top 3–4 execution blind spots and have a
+                      sensible mitigation gate for each
+                    </strong>
+                    . Even better, your 1-Page Product &amp; Work Package Brief
+                    gives you a single shareable document summarizing what you
+                    are building, what you refuse to build in V1, and how WP1–WP4
+                    hang together.
+                  </p>
+                </div>
+              )}
+
+              {showExamples && (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                  <div className="font-bold text-emerald-900">
+                    ✨ Example Constructive Blind-Spot &amp; Mitigation ({selectedTrackMeta.label})
+                  </div>
+                  <p className="mt-1 leading-relaxed text-emerald-900/90">
+                    <strong>Heads-Up:</strong> &ldquo;Blended Channel Fee (
+                    {step2Data.estimatedBlendedFeePercent}%) + Unit Delivery
+                    COGS ({formatPlanCurrency(step4PerUnitTotal + step5PerUnitTotal, plan.baseCurrency)}
+                    /unit) Margin Check.&rdquo; <br />
+                    <strong>Founder Mitigation Note:</strong> &ldquo;We will
+                    price our entry tier in Module G to maintain &gt;68% gross
+                    margin after platform take-rates and include a QR insert in
+                    every order to migrate repeat buyers to our 0%-commission
+                    direct store.&rdquo;
+                  </p>
+                </div>
+              )}
+            </CardHeader>
+
+            <CardContent className="space-y-6 p-4 sm:p-6">
+              {/* ============================================================= */}
+              {/* SMART ACTION TOOLBAR (STARTS COMPLETELY EMPTY BY DEFAULT)      */}
+              {/* ============================================================= */}
+              <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-white to-emerald-50/60 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">
+                      🧭 Step 6 Co-Founder Blind-Spot &amp; Executive Brief
+                      Actions
+                    </div>
+                    <p className="text-[11px] text-slate-600">
+                      Your Step 6 board starts clean. Run an instant cross-step
+                      check across Steps 1–5, ask AI to audit your full
+                      blueprint, or draft only your executive brief narratives.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isVaultReadonly || isGeneratingStep6Ai}
+                      onClick={handleRunRuleBasedBlindSpotCheck}
+                      className="border-indigo-300 bg-white text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+                    >
+                      <ShieldCheck className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                      Run Cross-Step Blind-Spot Check (Steps 1–5)
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isVaultReadonly || isGeneratingStep6Ai}
+                      onClick={handleAiRunFullStep6Audit}
+                      className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                    >
+                      {isGeneratingStep6Ai ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          Auditing Blueprint...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                          Audit Steps 1–5 &amp; Draft Brief with AI
+                        </>
+                      )}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isVaultReadonly || isGeneratingStep6Ai}
+                      onClick={handleAiDraftStep6SummaryOnly}
+                      className="border-emerald-300 bg-emerald-50/80 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                    >
+                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                      Draft Executive Summary Only with AI
+                    </Button>
+
+                    {(step6Data.blindSpots.length > 0 ||
+                      step6Data.executiveProductBriefSummary.trim().length >
+                        0) &&
+                      !showClearStep6BoardConfirm && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={isVaultReadonly}
+                          onClick={() => setShowClearStep6BoardConfirm(true)}
+                          className="border-rose-200 bg-white text-xs text-rose-700 hover:bg-rose-50"
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" />
+                          Clear Step 6
+                        </Button>
+                      )}
+
+                    {showClearStep6BoardConfirm && (
+                      <div className="flex items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1">
+                        <span className="text-[11px] font-semibold text-rose-900">
+                          Reset Step 6 to empty?
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleClearStep6Board}
+                          className="h-6 bg-rose-600 px-2 text-[11px] text-white hover:bg-rose-700"
+                        >
+                          Yes, Clear
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowClearStep6BoardConfirm(false)}
+                          className="h-6 px-2 text-[11px]"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* CROSS-STEP HEALTH SNAPSHOT BAR (STEPS 1–5 AT A GLANCE)        */}
+              {/* ============================================================= */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Step 1–2 • Vehicle &amp; Channel Fee
+                  </div>
+                  <div className="mt-1 text-xs font-bold text-slate-900">
+                    {selectedTrackMeta.badgeText}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-600">
+                    {step2Data.primaryChannel.replace(/_/g, ' ')} •{' '}
+                    <strong className="text-indigo-700">
+                      {step2Data.estimatedBlendedFeePercent}% blended fee
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Step 3 • V1 Scope Discipline
+                  </div>
+                  <div className="mt-1 text-xs font-bold text-slate-900">
+                    {
+                      step3Data.items.filter(
+                        (i) => i.bucket === 'MUST_HAVE_V1'
+                      ).length
+                    }{' '}
+                    Day-1 Core Items
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-600">
+                    {
+                      step3Data.items.filter(
+                        (i) => i.bucket !== 'MUST_HAVE_V1'
+                      ).length
+                    }{' '}
+                    deferred to V1.5 / V2.0
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Step 4–5 • Build &amp; Unit Cost Roll-Up
+                  </div>
+                  <div className="mt-1 text-xs font-bold text-slate-900">
+                    {formatPlanCurrency(
+                      step4OneOffTotal + step5OneOffTotal,
+                      plan.baseCurrency
+                    )}{' '}
+                    once-off •{' '}
+                    {formatPlanCurrency(
+                      step4MonthlyTotal + step5MonthlyTotal,
+                      plan.baseCurrency
+                    )}
+                    /mo
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-emerald-700">
+                    Direct Unit COGS:{' '}
+                    <strong>
+                      {formatPlanCurrency(
+                        step4PerUnitTotal + step5PerUnitTotal,
+                        plan.baseCurrency
+                      )}
+                      /unit
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Step 5 • Work Packages &amp; Grant R&amp;D
+                  </div>
+                  <div className="mt-1 text-xs font-bold text-slate-900">
+                    {step5Data.workPackages.length} Work Packages •{' '}
+                    {step5Data.flowStages.length} Flow Stages
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-indigo-700">
+                    {step5GrantEligibleCount} Grant R&amp;D / Prototype eligible
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* 1. CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARDS         */}
+              {/* ============================================================= */}
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      1. Constructive &ldquo;Things to Consider&rdquo;
+                      Blind-Spot Cards ({step6Data.blindSpots.length})
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Review each constructive consideration, add your mitigation
+                      note, mark it addressed, or park it in your Open Questions
+                      Parking Lot in 1 click.
+                    </p>
+                  </div>
+                  {step6Data.blindSpots.length > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-xs text-emerald-800"
+                    >
+                      {
+                        step6Data.blindSpots.filter((bs) => bs.isResolved)
+                          .length
+                      }{' '}
+                      of {step6Data.blindSpots.length} Addressed
+                    </Badge>
+                  )}
+                </div>
+
+                {step6Data.blindSpots.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-6 text-center">
+                    <ShieldCheck className="mx-auto h-7 w-7 text-indigo-500" />
+                    <div className="mt-2 text-xs font-bold text-slate-800">
+                      Your Step 6 Blind-Spot Audit Board Is Currently Empty
+                    </div>
+                    <p className="mx-auto mt-1 max-w-xl text-[11px] text-slate-600">
+                      Click{' '}
+                      <strong>
+                        &ldquo;Run Cross-Step Blind-Spot Check (Steps
+                        1–5)&rdquo;
+                      </strong>{' '}
+                      or{' '}
+                      <strong>
+                        &ldquo;Audit Steps 1–5 &amp; Draft Brief with AI&rdquo;
+                      </strong>{' '}
+                      above to inspect your V1 scope, channel fees, supplier
+                      dependencies, and {countryPack.countryName} grant/IP
+                      readiness—or add your own custom consideration below.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    {step6Data.blindSpots.map((bs) => {
+                      const catMeta =
+                        BLIND_SPOT_CATEGORY_OPTIONS.find(
+                          (c) => c.value === bs.category
+                        ) || BLIND_SPOT_CATEGORY_OPTIONS[0];
+                      const sevMeta =
+                        BLIND_SPOT_SEVERITY_OPTIONS.find(
+                          (s) => s.value === bs.severity
+                        ) || BLIND_SPOT_SEVERITY_OPTIONS[0];
+
+                      return (
+                        <div
+                          key={bs.id}
+                          className={`rounded-xl border p-4 transition ${
+                            bs.isResolved
+                              ? 'border-emerald-300 bg-emerald-50/40'
+                              : 'border-slate-200 bg-white shadow-2xs'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold ${sevMeta.badgeClass}`}
+                              >
+                                {bs.isResolved
+                                  ? '✓ Addressed'
+                                  : sevMeta.label}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="border-slate-300 bg-slate-50 text-[10px] text-slate-700"
+                              >
+                                {bs.category === 'OTHER'
+                                  ? bs.otherCategoryText || 'Custom Category'
+                                  : catMeta.label}
+                              </Badge>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={isVaultReadonly}
+                                onClick={() =>
+                                  handleToggleBlindSpotResolved(bs.id)
+                                }
+                                className={`h-7 px-2 text-[11px] ${
+                                  bs.isResolved
+                                    ? 'border-emerald-300 bg-emerald-100 text-emerald-900'
+                                    : 'border-slate-300 text-slate-700'
+                                }`}
+                              >
+                                <CheckCircle2 className="mr-1 h-3 w-3" />
+                                {bs.isResolved ? 'Addressed' : 'Mark Addressed'}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={isVaultReadonly}
+                                onClick={async () => {
+                                  await onParkOpenQuestion(
+                                    `[Module D Blind Spot] ${bs.title} — Action: ${bs.recommendedActionOrFix}`
+                                  );
+                                  setSaveBanner(
+                                    `Parked "${bs.title}" in your Open Questions Parking Lot!`
+                                  );
+                                }}
+                                className="h-7 border-amber-300 bg-amber-50/80 px-2 text-[11px] text-amber-900 hover:bg-amber-100"
+                              >
+                                Park Question
+                              </Button>
+                              <button
+                                type="button"
+                                disabled={isVaultReadonly}
+                                onClick={() => handleRemoveBlindSpot(bs.id)}
+                                className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                title="Remove consideration"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="mt-2 text-xs font-bold text-slate-900">
+                            {bs.title}
+                          </div>
+
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            <strong className="text-slate-800">
+                              Why It Matters:
+                            </strong>{' '}
+                            {bs.whyItMatters}
+                          </p>
+
+                          <div className="mt-2 rounded-lg border border-indigo-100 bg-indigo-50/60 p-2 text-[11px] text-indigo-950">
+                            <strong className="text-indigo-900">
+                              Recommended De-Risking Action:
+                            </strong>{' '}
+                            {bs.recommendedActionOrFix}
+                          </div>
+
+                          <div className="mt-2.5">
+                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                              Your Founder Mitigation Note (Included in Brief &amp;
+                              Module K)
+                            </label>
+                            <input
+                              type="text"
+                              value={bs.founderMitigationNote || ''}
+                              disabled={isVaultReadonly}
+                              onChange={(e) =>
+                                handleUpdateBlindSpotNote(bs.id, e.target.value)
+                              }
+                              onBlur={() =>
+                                persistStep6BlindSpotAudit(step6Data)
+                              }
+                              placeholder="e.g., We will cap V1 at 3 features and collect 3 written quotes before WP2..."
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ADD CUSTOM BLIND-SPOT CONSIDERATION */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                  <div className="mb-2 text-xs font-bold text-slate-800">
+                    + Add a Custom &ldquo;Thing to Consider&rdquo; or Technical
+                    Risk Note
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12">
+                    <div className="sm:col-span-5">
+                      <label className="mb-1 block text-[10px] font-semibold text-slate-600">
+                        Consideration Title
+                      </label>
+                      <input
+                        type="text"
+                        value={newBsTitle}
+                        disabled={isVaultReadonly}
+                        onChange={(e) => setNewBsTitle(e.target.value)}
+                        placeholder="e.g., Cold-chain packaging test or GDPR health data hosting..."
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                      />
+                    </div>
+                    <div className="sm:col-span-4">
+                      <label className="mb-1 block text-[10px] font-semibold text-slate-600">
+                        Category
+                      </label>
+                      <select
+                        value={newBsCategory}
+                        disabled={isVaultReadonly}
+                        onChange={(e) =>
+                          setNewBsCategory(
+                            e.target.value as ProductBlindSpotCategoryType
+                          )
+                        }
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                      >
+                        {BLIND_SPOT_CATEGORY_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="mb-1 block text-[10px] font-semibold text-slate-600">
+                        Priority Level
+                      </label>
+                      <select
+                        value={newBsSeverity}
+                        disabled={isVaultReadonly}
+                        onChange={(e) =>
+                          setNewBsSeverity(
+                            e.target.value as ProductBlindSpotSeverityType
+                          )
+                        }
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                      >
+                        {BLIND_SPOT_SEVERITY_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {newBsCategory === 'OTHER' && (
+                    <div className="mt-2">
+                      <label className="mb-1 block text-[10px] font-semibold text-slate-600">
+                        Specify Custom Blind-Spot Category
+                      </label>
+                      <input
+                        type="text"
+                        value={newBsOtherCategory}
+                        disabled={isVaultReadonly}
+                        onChange={(e) => setNewBsOtherCategory(e.target.value)}
+                        placeholder="e.g., Clinical Trial Ethics / CE Marking / App Store Review..."
+                        className="w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                      />
+                    </div>
+                  )}
+
+                  <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-12">
+                    <div className="sm:col-span-5">
+                      <input
+                        type="text"
+                        value={newBsWhyItMatters}
+                        disabled={isVaultReadonly}
+                        onChange={(e) => setNewBsWhyItMatters(e.target.value)}
+                        placeholder="Why it matters (impact on timeline, margin, or compliance)..."
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                      />
+                    </div>
+                    <div className="sm:col-span-5">
+                      <input
+                        type="text"
+                        value={newBsRecommendedAction}
+                        disabled={isVaultReadonly}
+                        onChange={(e) =>
+                          setNewBsRecommendedAction(e.target.value)
+                        }
+                        placeholder="Recommended mitigation action or proof gate..."
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isVaultReadonly || !newBsTitle.trim()}
+                        onClick={handleAddCustomBlindSpot}
+                        className="w-full bg-slate-900 text-xs text-white hover:bg-slate-800"
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Add Card
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* 2. OVERALL V1 PRODUCT & BUILD READINESS CONFIDENCE SELECTOR   */}
+              {/* ============================================================= */}
+              <div className="space-y-2.5 border-t border-slate-200 pt-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                    2. Overall V1 Product &amp; Build Readiness Assessment
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Where does your Version 1 product blueprint stand right now
+                    before moving into Module E (Operations)?
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {READINESS_CONFIDENCE_OPTIONS.map((opt) => {
+                    const isSelected =
+                      step6Data.readinessConfidence === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() => {
+                          const next: BlindSpotAuditStep6Data = {
+                            ...step6Data,
+                            readinessConfidence: opt.value,
+                            lastSavedAt: new Date().toISOString(),
+                          };
+                          setStep6Data(next);
+                          persistStep6BlindSpotAudit(next);
+                        }}
+                        className={`rounded-xl border p-3 text-left transition ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            {opt.label}
+                          </span>
+                          {isSelected && (
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-600" />
+                          )}
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-600">
+                          {opt.subtitle}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {step6Data.readinessConfidence === 'OTHER' && (
+                  <div className="mt-2">
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">
+                      Describe Your Custom Product Readiness Status
+                    </label>
+                    <input
+                      type="text"
+                      value={step6Data.otherReadinessConfidenceText || ''}
+                      disabled={isVaultReadonly}
+                      onChange={(e) =>
+                        setStep6Data((prev) => ({
+                          ...prev,
+                          otherReadinessConfidenceText: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Prototype live with 3 beta testers; awaiting packaging artwork sign-off..."
+                      className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ============================================================= */}
+              {/* 3. EXECUTIVE PRODUCT BRIEF SUMMARY & DE-RISKING SIGN-OFF      */}
+              {/* ============================================================= */}
+              <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 lg:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-800">
+                    Executive Product &amp; Technical Brief Summary (Feeds
+                    Module K &amp; 1-Page Export)
+                  </label>
+                  <p className="mb-1.5 text-[11px] text-slate-500">
+                    A crisp 2–3 sentence synthesis of what you are building in
+                    V1, how customers access it, and your core cost/milestone
+                    structure.
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={step6Data.executiveProductBriefSummary}
+                    disabled={isVaultReadonly}
+                    onChange={(e) =>
+                      setStep6Data((prev) => ({
+                        ...prev,
+                        executiveProductBriefSummary: e.target.value,
+                      }))
+                    }
+                    placeholder="Click 'Audit Steps 1–5 & Draft Brief with AI' or 'Draft Executive Summary Only with AI' above, or write your executive product summary..."
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-800">
+                    Key De-Risking &amp; Grant Compliance Sign-Off Statement
+                  </label>
+                  <p className="mb-1.5 text-[11px] text-slate-500">
+                    How your V1 scope gates, channel margin buffer, and{' '}
+                    {countryPack.countryName} IP/procurement rules protect time
+                    and capital.
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={step6Data.keyDeRiskingSignOffNarrative}
+                    disabled={isVaultReadonly}
+                    onChange={(e) =>
+                      setStep6Data((prev) => ({
+                        ...prev,
+                        keyDeRiskingSignOffNarrative: e.target.value,
+                      }))
+                    }
+                    placeholder="Summarize how your team mitigates scope creep, channel fees, supplier lead times, and IP ownership..."
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* STEP 6 FOOTER ACTIONS                                         */}
+              {/* ============================================================= */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab('STEP_5')}
+                    className="text-xs"
+                  >
+                    &larr; Back to Step 5
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowParkInput(!showParkInput)}
+                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
+                  >
+                    Park Open Question
+                  </Button>
+                  {step6Data.lastSavedAt && (
+                    <span className="text-[11px] text-emerald-700">
+                      ✓ Saved{' '}
+                      {new Date(step6Data.lastSavedAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isSavingStep6}
+                    onClick={() => handleSaveStep6()}
+                    className="bg-emerald-600 text-xs text-white hover:bg-emerald-700"
+                  >
+                    {isSavingStep6 ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Saving Step 6...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-1.5 h-3.5 w-3.5" />
+                        Save Step 6 (Complete Module D)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {showParkInput && (
+                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    value={parkQuestionInput}
+                    onChange={(e) => setParkQuestionInput(e.target.value)}
+                    placeholder="e.g., Double-check supplier MOQ or confirm IP assignment wording with solicitor..."
+                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      const clean = parkQuestionInput.trim();
+                      if (!clean) return;
+                      await onParkOpenQuestion(clean);
+                      setParkQuestionInput('');
+                      setShowParkInput(false);
+                      setSaveBanner(
+                        'Parked question in your Open Questions Parking Lot!'
+                      );
+                    }}
+                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
+                  >
+                    Save to Parking Lot
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ================================================================= */}
+          {/* EXPORTABLE 1-PAGE PRODUCT, SCOPE & WORK PACKAGE BRIEF             */}
+          {/* ================================================================= */}
+          <Card className="border-indigo-200 bg-gradient-to-br from-white via-white to-indigo-50/40 shadow-sm">
+            <CardHeader className="border-b border-indigo-100 pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-indigo-900 text-white">
+                      1-Page Shareable Artifact
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-emerald-800"
+                    >
+                      Feeds Module E, Module G &amp; Module K Grant Compiler
+                    </Badge>
+                  </div>
+                  <CardTitle className="mt-1.5 text-sm font-bold text-slate-900 sm:text-base">
+                    📄 {plan.title} — 1-Page Product, Scope &amp; Work Package
+                    Brief (Steps 1–6)
+                  </CardTitle>
+                </div>
+
+                {/* Export Buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyModuleDBriefMarkdown}
+                    className="border-slate-300 bg-white text-xs text-slate-800 hover:bg-slate-50"
+                  >
+                    <Copy className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    {briefCopied ? 'Copied Markdown!' : 'Copy Markdown Brief'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDownloadModuleDBriefHtml}
+                    className="border-indigo-300 bg-white text-xs text-indigo-800 hover:bg-indigo-50"
+                  >
+                    <Download className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    Download HTML Brief
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handlePrintModuleDBriefPdf}
+                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  >
+                    <Printer className="mr-1.5 h-3.5 w-3.5" />
+                    Print / Save as PDF
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-5 p-4 sm:p-6">
+              {/* 0. Upstream Customer & Survey Proof Anchor (Modules A–C) */}
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                    Upstream Customer &amp; Survey Proof Anchor (Modules A–C)
+                  </span>
+                  <span className="text-[11px] font-semibold text-emerald-900">
+                    {surveyResponseCount} Survey Responses • {waitlistCount}{' '}
+                    Waitlist Leads • {interviewCount} 1-on-1 Interviews
+                  </span>
+                </div>
+                <div className="mt-1 text-slate-800">
+                  <strong>Target Customer:</strong>{' '}
+                  {plan.moduleBData?.beachhead?.beachheadSegment ||
+                    plan.conceptCanvas?.targetCustomer ||
+                    'Early adopters in beachhead market'}{' '}
+                  • <strong>#1 Validated Pain Point:</strong>{' '}
+                  <span className="italic">
+                    &ldquo;
+                    {validatedPainPoint ||
+                      'Deliver a fast, reliable V1 solution without Day-1 bloat.'}
+                    &rdquo;
+                  </span>
+                </div>
+              </div>
+
+              {/* 1. Executive Summary Banner */}
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">
+                    Executive Product Blueprint Summary
+                  </div>
+                  {step6Data.readinessConfidence && (
+                    <Badge
+                      variant="outline"
+                      className="border-indigo-300 bg-white text-[10px] font-bold text-indigo-800"
+                    >
+                      {step6Data.readinessConfidence === 'OTHER'
+                        ? step6Data.otherReadinessConfidenceText ||
+                          'Custom Readiness'
+                        : READINESS_CONFIDENCE_OPTIONS.find(
+                            (r) => r.value === step6Data.readinessConfidence
+                          )?.label || step6Data.readinessConfidence}
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-900">
+                  {step6Data.executiveProductBriefSummary ||
+                    step1Data.ahaMomentNarrative ||
+                    'Run the Cross-Step Check or AI Audit above to synthesize your 1-Page Executive Product Brief.'}
+                </p>
+                {step1Data.ahaMomentNarrative && (
+                  <p className="mt-2 border-t border-indigo-200/70 pt-2 text-[11px] text-slate-800">
+                    <strong className="text-indigo-900">
+                      60-Second Customer &ldquo;Aha! Moment&rdquo; (Step 1):
+                    </strong>{' '}
+                    {step1Data.ahaMomentNarrative}
+                  </p>
+                )}
+                {step6Data.keyDeRiskingSignOffNarrative && (
+                  <p className="mt-2 border-t border-indigo-200/70 pt-2 text-[11px] text-indigo-950">
+                    <strong>De-Risking &amp; Grant Sign-Off:</strong>{' '}
+                    {step6Data.keyDeRiskingSignOffNarrative}
+                  </p>
+                )}
+              </div>
+
+              {/* 2. Steps 1, 2 & Cost Structure Snapshot Grid */}
+              <div>
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  1. Product Vehicle, Own vs. Rent Distribution &amp; Unit
+                  Economics (Steps 1–2 &amp; 4–5)
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Step 1 • Track, Format &amp; V1 Approach
+                    </div>
+                    <div className="mt-1 text-xs font-bold text-slate-900">
+                      {selectedTrackMeta.label}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-700">
+                      <strong>Format:</strong>{' '}
+                      {step1Data.formFactor === 'OTHER'
+                        ? step1Data.otherFormFactorText || 'Custom Format'
+                        : activeTrackConfig.formFactorOptions.find(
+                            (f) => f.value === step1Data.formFactor
+                          )?.label || step1Data.formFactor}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-indigo-700">
+                      <strong>V1 Build:</strong>{' '}
+                      {step1Data.v1PrototypeApproach === 'OTHER'
+                        ? step1Data.otherV1PrototypeApproachText ||
+                          'Custom V1 Approach'
+                        : activeTrackConfig.v1ApproachOptions.find(
+                            (a) => a.value === step1Data.v1PrototypeApproach
+                          )?.label || step1Data.v1PrototypeApproach}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Step 2 • Own vs. Rent Channel Mix
+                    </div>
+                    <div className="mt-1 text-xs font-bold text-slate-900">
+                      Primary ({step2Data.primaryChannelSharePercent}%):{' '}
+                      {step2Data.primaryChannel === 'OTHER'
+                        ? step2Data.otherPrimaryChannelText || 'Custom Channel'
+                        : activeStep2TrackConfig.channelOptions.find(
+                            (c) => c.value === step2Data.primaryChannel
+                          )?.label || step2Data.primaryChannel}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-600">
+                      Secondary (
+                      {Math.max(0, 100 - step2Data.primaryChannelSharePercent)}
+                      %):{' '}
+                      {step2Data.secondaryChannels.length > 0
+                        ? step2Data.secondaryChannels
+                            .map((sc) =>
+                              sc === 'OTHER'
+                                ? step2Data.otherSecondaryChannelText ||
+                                  'Custom'
+                                : activeStep2TrackConfig.channelOptions.find(
+                                    (c) => c.value === sc
+                                  )?.label || sc
+                            )
+                            .join(', ')
+                        : 'None (100% Primary)'}
+                    </div>
+                    <div className="mt-0.5 text-[11px] font-semibold text-emerald-700">
+                      Blended Fee: {step2Data.estimatedBlendedFeePercent}% (Keep{' '}
+                      {Number(
+                        (100 - step2Data.estimatedBlendedFeePercent).toFixed(1)
+                      )}
+                      % Net Revenue)
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Steps 4–5 • Build &amp; Unit Cost Roll-Up
+                    </div>
+                    <div className="mt-1 text-xs font-bold text-slate-900">
+                      {formatPlanCurrency(
+                        step4OneOffTotal + step5OneOffTotal,
+                        plan.baseCurrency
+                      )}{' '}
+                      once-off •{' '}
+                      {formatPlanCurrency(
+                        step4MonthlyTotal + step5MonthlyTotal,
+                        plan.baseCurrency
+                      )}
+                      /mo
+                    </div>
+                    <div className="mt-0.5 text-[11px] font-semibold text-emerald-700">
+                      Direct Variable Unit COGS:{' '}
+                      {formatPlanCurrency(
+                        step4PerUnitTotal + step5PerUnitTotal,
+                        plan.baseCurrency
+                      )}
+                      /unit
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-slate-500">
+                      Synced directly to Module G (Pricing &amp; Pocket Profit)
+                    </div>
+                  </div>
+                </div>
+
+                {step2Data.rentToOwnBridgeStrategy && (
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 text-[11px] text-slate-700">
+                    <strong className="text-indigo-900">
+                      &ldquo;Rent-to-Own&rdquo; Customer Bridge (Step 2):
+                    </strong>{' '}
+                    {step2Data.rentToOwnBridgeStrategy}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Step 3: Ruthless 3-Bucket V1 Scope Filter */}
+              <div>
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  2. Ruthless 3-Bucket V1 Scope Filter (Step 3)
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
+                    <div className="text-[10px] font-bold uppercase text-emerald-800">
+                      🟢 Day-1 V1 Core — Launch Now (
+                      {
+                        step3Data.items.filter(
+                          (i) => i.bucket === 'MUST_HAVE_V1'
+                        ).length
+                      }
+                      )
+                    </div>
+                    <ul className="mt-1.5 space-y-1 text-[11px] font-medium text-slate-800">
+                      {step3Data.items.filter(
+                        (i) => i.bucket === 'MUST_HAVE_V1'
+                      ).length > 0 ? (
+                        step3Data.items
+                          .filter((i) => i.bucket === 'MUST_HAVE_V1')
+                          .map((i) => <li key={i.id}>• {i.title}</li>)
+                      ) : (
+                        <li className="text-slate-400 italic">
+                          No Day-1 items added yet.
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+
+                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <div className="text-[10px] font-bold uppercase text-indigo-800">
+                      🟡 Version 1.5 — Fast-Follow (
+                      {
+                        step3Data.items.filter(
+                          (i) => i.bucket === 'FAST_FOLLOW_V1_5'
+                        ).length
+                      }
+                      )
+                    </div>
+                    <ul className="mt-1.5 space-y-1 text-[11px] text-slate-700">
+                      {step3Data.items.filter(
+                        (i) => i.bucket === 'FAST_FOLLOW_V1_5'
+                      ).length > 0 ? (
+                        step3Data.items
+                          .filter((i) => i.bucket === 'FAST_FOLLOW_V1_5')
+                          .map((i) => <li key={i.id}>• {i.title}</li>)
+                      ) : (
+                        <li className="text-slate-400 italic">
+                          None deferred to V1.5 yet.
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+
+                  <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-3">
+                    <div className="text-[10px] font-bold uppercase text-rose-800">
+                      🔴 Phase 2 / V2 Backlog — Do Not Build Yet (
+                      {
+                        step3Data.items.filter(
+                          (i) => i.bucket === 'PARKING_LOT_V2'
+                        ).length
+                      }
+                      )
+                    </div>
+                    <ul className="mt-1.5 space-y-1 text-[11px] text-slate-500">
+                      {step3Data.items.filter(
+                        (i) => i.bucket === 'PARKING_LOT_V2'
+                      ).length > 0 ? (
+                        step3Data.items
+                          .filter((i) => i.bucket === 'PARKING_LOT_V2')
+                          .map((i) => (
+                            <li key={i.id} className="line-through">
+                              • {i.title}
+                            </li>
+                          ))
+                      ) : (
+                        <li className="text-slate-400 italic">
+                          None in V2 backlog yet.
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Step 4: 3-Tier Build-vs-Buy & Secret Sauce IP Matrix */}
+              <div>
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  3. 3-Tier &ldquo;Build vs. Buy&rdquo; &amp; Core IP
+                  (&ldquo;Secret Sauce&rdquo;) Matrix (Step 4)
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-emerald-200 bg-white p-3">
+                    <div className="text-[10px] font-bold uppercase text-emerald-800">
+                      Tier 1 • Custom Build / Core IP (
+                      {
+                        step4Data.items.filter(
+                          (i) => i.tier === 'BUILD_IN_HOUSE'
+                        ).length
+                      }
+                      )
+                    </div>
+                    <ul className="mt-1.5 space-y-1 text-[11px] text-slate-800">
+                      {step4Data.items.filter(
+                        (i) => i.tier === 'BUILD_IN_HOUSE'
+                      ).length > 0 ? (
+                        step4Data.items
+                          .filter((i) => i.tier === 'BUILD_IN_HOUSE')
+                          .map((i) => (
+                            <li key={i.id}>
+                              • <strong>{i.title}</strong>
+                              {i.vendorOrToolName
+                                ? ` (${i.vendorOrToolName})`
+                                : ''}
+                            </li>
+                          ))
+                      ) : (
+                        <li className="text-slate-400 italic">
+                          No Tier 1 Secret Sauce items added yet.
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-[10px] font-bold uppercase text-slate-700">
+                      Tier 2 • Buy / Rent Off-the-Shelf (
+                      {
+                        step4Data.items.filter(
+                          (i) => i.tier === 'BUY_RENT_OFF_SHELF'
+                        ).length
+                      }
+                      )
+                    </div>
+                    <ul className="mt-1.5 space-y-1 text-[11px] text-slate-700">
+                      {step4Data.items.filter(
+                        (i) => i.tier === 'BUY_RENT_OFF_SHELF'
+                      ).length > 0 ? (
+                        step4Data.items
+                          .filter((i) => i.tier === 'BUY_RENT_OFF_SHELF')
+                          .map((i) => (
+                            <li key={i.id}>
+                              • <strong>{i.title}</strong>
+                              {i.vendorOrToolName
+                                ? ` (${i.vendorOrToolName})`
+                                : ''}
+                            </li>
+                          ))
+                      ) : (
+                        <li className="text-slate-400 italic">
+                          No Tier 2 Off-the-Shelf items added yet.
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-[10px] font-bold uppercase text-indigo-800">
+                      Tier 3 • Configure / Specialist Partner (
+                      {
+                        step4Data.items.filter(
+                          (i) => i.tier === 'OUTSOURCE_PARTNER'
+                        ).length
+                      }
+                      )
+                    </div>
+                    <ul className="mt-1.5 space-y-1 text-[11px] text-slate-700">
+                      {step4Data.items.filter(
+                        (i) => i.tier === 'OUTSOURCE_PARTNER'
+                      ).length > 0 ? (
+                        step4Data.items
+                          .filter((i) => i.tier === 'OUTSOURCE_PARTNER')
+                          .map((i) => (
+                            <li key={i.id}>
+                              • <strong>{i.title}</strong>
+                              {i.vendorOrToolName
+                                ? ` (${i.vendorOrToolName})`
+                                : ''}
+                            </li>
+                          ))
+                      ) : (
+                        <li className="text-slate-400 italic">
+                          No Tier 3 Partner items added yet.
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. 4-Stage Visual Flow Diagram Preview (Step 5) */}
+              {step5Data.flowStages.length > 0 && (
+                <div>
+                  <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    4. System Architecture &amp; Delivery Flow (
+                    {step5Data.flowStages.length} Stages • Step 5)
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {step5Data.flowStages.map((stage, idx) => (
+                      <div
+                        key={stage.id}
+                        className="rounded-xl border border-indigo-200 bg-white p-2.5 shadow-2xs"
+                      >
+                        <div className="text-[10px] font-bold uppercase text-indigo-700">
+                          Stage {idx + 1} • {stage.stageSubtitle}
+                        </div>
+                        <div className="mt-0.5 text-xs font-bold text-slate-900">
+                          {stage.stageTitle}
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-600">
+                          <strong>Stack:</strong>{' '}
+                          {stage.keyToolsOrMaterials ||
+                            stage.whatHappensHere ||
+                            '—'}
+                        </div>
+                        <div className="mt-1 text-[10px] font-semibold text-emerald-700">
+                          &rarr;{' '}
+                          {stage.outputOrHandoff ||
+                            stage.outputOrHandOff ||
+                            '—'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 6. Work Packages Summary Table (Step 5) */}
+              {step5Data.workPackages.length > 0 && (
+                <div>
+                  <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    5. Grant-Ready Work Package Schedule (WP1–WP
+                    {step5Data.workPackages.length} • Step 5)
+                  </div>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                    <table className="w-full min-w-[640px] border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-100/80 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                          <th className="px-3 py-2">WP</th>
+                          <th className="px-3 py-2">
+                            Work Package &amp; Owner
+                          </th>
+                          <th className="px-3 py-2">Window</th>
+                          <th className="px-3 py-2">
+                            Deliverable &amp; Proof Gate
+                          </th>
+                          <th className="px-3 py-2 text-right">Budget</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {step5Data.workPackages.map((wp) => (
+                          <tr key={wp.id}>
+                            <td className="px-3 py-2 font-bold text-indigo-700">
+                              {wp.wpCode}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="font-bold text-slate-900">
+                                {wp.title}
+                              </div>
+                              <div className="text-[10px] text-slate-500">
+                                {wp.executionMode.replace(/_/g, ' ')}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-slate-700">
+                              {wp.timelineWindow.replace(/_/g, ' ')}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="text-slate-800">
+                                {wp.deliverableMilestone ||
+                                  wp.deliverableMilestoneProof ||
+                                  '—'}
+                              </div>
+                              <div className="text-[10px] text-emerald-700">
+                                Gate:{' '}
+                                {wp.verificationGateOrDeRisking ||
+                                  wp.linkedTaskSummary ||
+                                  '—'}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-right font-semibold text-slate-900">
+                              {wp.costModel === 'SWEAT_EQUITY_ZERO'
+                                ? 'Sweat Equity'
+                                : formatPlanCurrency(
+                                    wp.estimatedCostAmount,
+                                    plan.baseCurrency
+                                  )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 7. Constructive Blind-Spot Mitigations Summary (Step 6) */}
+              {step6Data.blindSpots.length > 0 && (
+                <div>
+                  <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    6. Constructive &ldquo;Things to Consider&rdquo; &amp;
+                    Founder Mitigations ({step6Data.blindSpots.length} • Step 6)
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {step6Data.blindSpots.map((bs) => (
+                      <div
+                        key={bs.id}
+                        className="rounded-xl border border-slate-200 bg-white p-2.5 text-[11px]"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-slate-900">
+                            {bs.title}
+                          </span>
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              bs.isResolved
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-900'
+                            }`}
+                          >
+                            {bs.isResolved ? '✓ Addressed' : bs.severity}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-slate-600">
+                          <strong>Mitigation:</strong>{' '}
+                          {bs.founderMitigationNote ||
+                            bs.recommendedActionOrFix}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

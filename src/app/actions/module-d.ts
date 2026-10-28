@@ -14,8 +14,14 @@ import type {
   ScopeFilterStep3Data,
   BuildVsBuyItem,
   BuildVsBuyStep4Data,
+  ProductWorkPackageItem,
+  ProductFlowStageItem,
+  WorkPackagesStep5Data,
+  ProductBlindSpotItem,
+  BlindSpotAuditStep6Data,
   ProductTrackType,
   ProductFormFactorType,
+  V1LaunchTimelineType,
   SalesChannelOptionType,
   SavedModuleDData,
 } from '@/lib/auth/session-store';
@@ -26,10 +32,14 @@ import {
   generateModuleDChannelMatrixViaRouter,
   generateModuleDScopeFilterViaRouter,
   generateModuleDBuildVsBuyViaRouter,
+  generateModuleDWorkPackagesViaRouter,
+  generateModuleDBlindSpotAuditViaRouter,
   type ModuleDProductVehicleEstimateResult,
   type ModuleDChannelMatrixGenerationResult,
   type ModuleDScopeFilterGenerationResult,
   type ModuleDBuildVsBuyGenerationResult,
+  type ModuleDWorkPackagesGenerationResult,
+  type ModuleDBlindSpotAuditGenerationResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -519,6 +529,238 @@ export async function generateModuleDBuildVsBuyWithAiAction(input: {
 }): Promise<ModuleDBuildVsBuyGenerationResult> {
   return generateModuleDBuildVsBuyViaRouter(input);
 }
+
+/**
+ * Persists Module D Step 5 (Work Packages WP1..n, Milestones & 4-Stage Technical / Production Flow Diagram)
+ * to `plan_modules_data` (`MOD_D_PRODUCT_BUILD`).
+ */
+export async function saveModuleDStep5WorkPackagesAction(input: {
+  planId: string;
+  workPackagesAndFlow: WorkPackagesStep5Data;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
+  try {
+    await ensureModuleDEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_D_PRODUCT_BUILD')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleDData;
+
+    const nowIso = new Date().toISOString();
+    const updatedPayload: SavedModuleDData = {
+      ...existingPayload,
+      workPackagesAndFlow: {
+        ...input.workPackagesAndFlow,
+        lastSavedAt: nowIso,
+      },
+      lastSavedAt: nowIso,
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage ?? 0,
+      input.completionPercentage ?? 90
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_D_PRODUCT_BUILD',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_D_STEP_5',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module D] Could not persist Step 5 Work Packages & Flow to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Calls the central AI router (`generateModuleDWorkPackagesViaRouter`) to either populate
+ * the Work Packages (WP1-WP4) + 4-Stage Flow Diagram + Charter or draft only the Technical Merit & De-Risking Charter.
+ */
+export async function generateModuleDWorkPackagesWithAiAction(input: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  formFactor?: ProductFormFactorType;
+  primaryChannel?: SalesChannelOptionType;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  beachheadSegment?: string;
+  validatedPainSummary?: string;
+  v1MustHaveTitles?: string[];
+  buildVsBuyItems?: BuildVsBuyItem[];
+  currentWorkPackages?: ProductWorkPackageItem[];
+  currentFlowStages?: ProductFlowStageItem[];
+  mode?: 'POPULATE_WPS_AND_FLOW' | 'CHARTER_ONLY';
+}): Promise<ModuleDWorkPackagesGenerationResult> {
+  return generateModuleDWorkPackagesViaRouter(input);
+}
+
+/**
+ * Persists Module D Step 6 (Constructive "Things to Consider" Blind-Spot Audit & Exportable Product Brief)
+ * to `plan_modules_data` (`MOD_D_PRODUCT_BUILD`).
+ */
+export async function saveModuleDStep6BlindSpotAuditAction(input: {
+  planId: string;
+  blindSpotAudit: BlindSpotAuditStep6Data;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
+  try {
+    await ensureModuleDEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_D_PRODUCT_BUILD')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleDData;
+
+    const nowIso = new Date().toISOString();
+    const updatedPayload: SavedModuleDData = {
+      ...existingPayload,
+      blindSpotAudit: {
+        ...input.blindSpotAudit,
+        lastSavedAt: nowIso,
+      },
+      lastSavedAt: nowIso,
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage ?? 0,
+      input.completionPercentage ?? 100
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_D_PRODUCT_BUILD',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_D_STEP_6',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module D] Could not persist Step 6 Blind-Spot Audit to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Calls the central AI router (`generateModuleDBlindSpotAuditViaRouter`) to either run
+ * the full constructive Blind-Spot Audit across Steps 1-5 or draft only the Executive Brief Summary.
+ */
+export async function generateModuleDBlindSpotAuditWithAiAction(input: {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  formFactor?: ProductFormFactorType;
+  v1LaunchTimeline?: V1LaunchTimelineType;
+  primaryChannel?: SalesChannelOptionType;
+  estimatedBlendedFeePercent?: number;
+  v1MustHaveCount?: number;
+  v1HighEffortCount?: number;
+  monthlyBurnTotal?: number;
+  onceOffCapExTotal?: number;
+  perUnitCogsTotal?: number;
+  workPackageCount?: number;
+  grantEligibleWpCount?: number;
+  currentBlindSpots?: ProductBlindSpotItem[];
+  mode?: 'FULL_AUDIT' | 'SUMMARY_ONLY';
+}): Promise<ModuleDBlindSpotAuditGenerationResult> {
+  return generateModuleDBlindSpotAuditViaRouter(input);
+}
+
+
 
 
 
