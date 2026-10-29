@@ -137,6 +137,9 @@ import {
   type InsuranceCoverageBundleType,
   type ComplianceChecklistItem,
   type PermitsComplianceAndInsuranceStep5Data,
+  type OperationsReadinessConfidenceType,
+  type OperationsBlindSpotItem,
+  type OperationsBlindSpotAuditStep6Data,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -190,12 +193,14 @@ import {
   saveModuleEStep3RiskRegisterAction,
   saveModuleEStep4SupportReturnsAndQcAction,
   saveModuleEStep5PermitsAndInsuranceAction,
+  saveModuleEStep6BlindSpotAuditAction,
   parkModuleEOpenQuestionAction,
   generateModuleEOperationsBlueprintWithAiAction,
   generateModuleEPremisesEquipmentWithAiAction,
   generateModuleERiskRegisterWithAiAction,
   generateModuleESupportReturnsAndQcWithAiAction,
   generateModuleEPermitsAndInsuranceWithAiAction,
+  generateModuleEBlindSpotAuditWithAiAction,
 } from '@/app/actions/module-e';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
@@ -2840,6 +2845,126 @@ export default function WorkspacePage() {
     };
   }
 
+  async function handleSaveModuleEStep6BlindSpotAudit(
+    blindSpotAudit: OperationsBlindSpotAuditStep6Data,
+    progress = 100
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_E_STEP_6',
+          moduleEData: {
+            ...(p.moduleEData || {}),
+            blindSpotAudit,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleEStep6BlindSpotAuditAction({
+      planId: currentPlan.id,
+      blindSpotAudit,
+      completionPercentage: progress,
+    });
+  }
+
+  async function handleGenerateModuleEBlindSpotAuditWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    fulfillmentMode?: OperationsFulfillmentModeType | '';
+    activeMinutesPerOrder?: number;
+    directVariableCostPerOrder?: number;
+    maxOrdersPerWeekCeiling?: number;
+    premisesSetupMode?: PremisesSetupModeType | '';
+    monthlyPremisesOverheadCost?: number;
+    totalEquipmentCapexExVat?: number;
+    supplierRedundancyPosture?: SupplierRedundancyPostureType | '';
+    estimatedReturnRatePercent?: number;
+    expectedReturnBufferPerOrder?: number;
+    estimatedAnnualInsurancePremium?: number;
+    selectedInsuranceProviderName?: string;
+    currentReadinessConfidence?: OperationsReadinessConfidenceType | '';
+    currentBlindSpots?: OperationsBlindSpotItem[];
+    mode?: 'POPULATE_BLIND_SPOTS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Operations Blind-Spot Audit & Executive Brief (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        readinessConfidence:
+          (params.currentReadinessConfidence as OperationsReadinessConfidenceType) ||
+          'READY_FOR_V1_FULFILLMENT',
+        blindSpots: params.currentBlindSpots || [],
+        executiveOperationsSummaryNarrative: '',
+        operationsToFinanceAndTeamHandshakeNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleEBlindSpotAuditWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      baseCurrency: currentPlan.baseCurrency,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      fulfillmentMode: params.fulfillmentMode,
+      activeMinutesPerOrder: params.activeMinutesPerOrder,
+      directVariableCostPerOrder: params.directVariableCostPerOrder,
+      maxOrdersPerWeekCeiling: params.maxOrdersPerWeekCeiling,
+      premisesSetupMode: params.premisesSetupMode,
+      monthlyPremisesOverheadCost: params.monthlyPremisesOverheadCost,
+      totalEquipmentCapexExVat: params.totalEquipmentCapexExVat,
+      supplierRedundancyPosture: params.supplierRedundancyPosture,
+      estimatedReturnRatePercent: params.estimatedReturnRatePercent,
+      expectedReturnBufferPerOrder: params.expectedReturnBufferPerOrder,
+      estimatedAnnualInsurancePremium: params.estimatedAnnualInsurancePremium,
+      selectedInsuranceProviderName: params.selectedInsuranceProviderName,
+      currentReadinessConfidence: params.currentReadinessConfidence,
+      currentBlindSpots: params.currentBlindSpots,
+      mode: params.mode,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      readinessConfidence: res.readinessConfidence,
+      blindSpots: res.blindSpots,
+      executiveOperationsSummaryNarrative:
+        res.executiveOperationsSummaryNarrative,
+      operationsToFinanceAndTeamHandshakeNarrative:
+        res.operationsToFinanceAndTeamHandshakeNarrative,
+      aiCoachTip: res.aiCoachTip,
+      engineMode: res.engineMode,
+    };
+  }
+
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
     coreProblem: '',
     targetCustomer: '',
@@ -3811,9 +3936,31 @@ export default function WorkspacePage() {
               onGenerateAiPermitsAndInsurance={
                 handleGenerateModuleEPermitsAndInsuranceWithAi
               }
+              onSaveStep6BlindSpotAudit={handleSaveModuleEStep6BlindSpotAudit}
+              onGenerateAiBlindSpotAudit={
+                handleGenerateModuleEBlindSpotAuditWithAi
+              }
               userId={session.user.id}
               onParkOpenQuestion={handleParkModuleEQuestion}
               onBackToModuleD={() => setActiveModule('MOD_D_PRODUCT_BUILD')}
+              onContinueToModuleF={() => {
+                const access = canAccessModule(
+                  activeEntitlement,
+                  'MOD_F_COFOUNDER_TEAM'
+                );
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock('MOD_F_COFOUNDER_TEAM');
+                  setPaywallModalFeature(
+                    `Module F: Co-Founder, Team & Roles — ${access.reason}`
+                  );
+                  return;
+                }
+                setActiveModule('MOD_F_COFOUNDER_TEAM');
+                setSynthesisBanner(
+                  '✅ Module E Operations & Logistics Complete! Welcome to Module F (Co-Founder, Team & Roles).'
+                );
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
           ) : activeModule === 'MOD_D_PRODUCT_BUILD' ? (
             <ModuleDWorkspace

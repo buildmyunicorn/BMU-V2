@@ -1290,12 +1290,57 @@ export interface PermitsComplianceAndInsuranceStep5Data {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type OperationsBlindSpotCategoryType =
+  | 'CAPACITY_AND_FULFILLMENT_BOTTLENECK'
+  | 'UNIT_COGS_AND_RETURN_MARGIN_LEAKAGE'
+  | 'GRANT_PROCUREMENT_AND_CAPEX_ELIGIBILITY'
+  | 'SINGLE_SUPPLIER_AND_CONTINUITY_EXPOSURE'
+  | 'REGULATORY_TAX_AND_INSURANCE_GAP'
+  | 'OTHER';
+
+export type OperationsBlindSpotSeverityType =
+  | 'WATCH'
+  | 'IMPORTANT'
+  | 'CRITICAL';
+
+export type OperationsReadinessConfidenceType =
+  | 'READY_FOR_V1_FULFILLMENT'
+  | 'NEEDS_SUPPLIER_OR_3_QUOTE_VERIFICATION'
+  | 'NEEDS_PILOT_BATCH_OR_SLA_STRESS_TEST'
+  | 'NEEDS_REGULATORY_OR_INSURANCE_SIGN_OFF'
+  | 'OTHER';
+
+export interface OperationsBlindSpotItem {
+  id: string;
+  title: string;
+  category: OperationsBlindSpotCategoryType;
+  otherCategoryText?: string;
+  severity: OperationsBlindSpotSeverityType;
+  whyItMatters: string;
+  recommendedActionOrFix: string;
+  founderMitigationNote?: string;
+  isResolved?: boolean;
+  isCustom?: boolean;
+}
+
+export interface OperationsBlindSpotAuditStep6Data {
+  blindSpots: OperationsBlindSpotItem[];
+  readinessConfidence: OperationsReadinessConfidenceType | '';
+  otherReadinessConfidenceText?: string;
+  executiveOperationsSummaryNarrative: string;
+  operationsToFinanceAndTeamHandshakeNarrative: string;
+  aiCoachTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface SavedModuleEData {
   operationsBlueprint?: OperationsBlueprintStep1Data;
   premisesAndEquipment?: PremisesAndEquipmentStep2Data;
   riskRegister?: RiskRegisterStep3Data;
   supportReturnsAndQc?: SupportReturnsAndQcStep4Data;
   permitsAndInsurance?: PermitsComplianceAndInsuranceStep5Data;
+  blindSpotAudit?: OperationsBlindSpotAuditStep6Data;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;
 }

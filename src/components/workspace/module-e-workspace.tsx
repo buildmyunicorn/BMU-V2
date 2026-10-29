@@ -87,6 +87,11 @@ import type {
   ComplianceItemStatusType,
   ComplianceChecklistItem,
   PermitsComplianceAndInsuranceStep5Data,
+  OperationsBlindSpotCategoryType,
+  OperationsBlindSpotSeverityType,
+  OperationsReadinessConfidenceType,
+  OperationsBlindSpotItem,
+  OperationsBlindSpotAuditStep6Data,
 } from '@/lib/auth/session-store';
 
 export interface ModuleEWorkspaceProps {
@@ -228,9 +233,43 @@ export interface ModuleEWorkspaceProps {
     insuranceAndLiabilityGovernanceNarrative: string;
     engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
   }>;
+  onSaveStep6BlindSpotAudit: (
+    data: OperationsBlindSpotAuditStep6Data,
+    progress: number
+  ) => Promise<void>;
+  onGenerateAiBlindSpotAudit: (params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    fulfillmentMode?: OperationsFulfillmentModeType | '';
+    activeMinutesPerOrder?: number;
+    directVariableCostPerOrder?: number;
+    maxOrdersPerWeekCeiling?: number;
+    premisesSetupMode?: PremisesSetupModeType | '';
+    monthlyPremisesOverheadCost?: number;
+    totalEquipmentCapexExVat?: number;
+    supplierRedundancyPosture?: SupplierRedundancyPostureType | '';
+    estimatedReturnRatePercent?: number;
+    expectedReturnBufferPerOrder?: number;
+    estimatedAnnualInsurancePremium?: number;
+    selectedInsuranceProviderName?: string;
+    currentReadinessConfidence?: OperationsReadinessConfidenceType | '';
+    currentBlindSpots?: OperationsBlindSpotItem[];
+    mode?: 'POPULATE_BLIND_SPOTS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) => Promise<{
+    allowed: boolean;
+    reason?: string;
+    readinessConfidence: OperationsReadinessConfidenceType;
+    otherReadinessConfidenceText?: string;
+    blindSpots: OperationsBlindSpotItem[];
+    executiveOperationsSummaryNarrative: string;
+    operationsToFinanceAndTeamHandshakeNarrative: string;
+    aiCoachTip?: string;
+    engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  }>;
   userId?: string;
   onParkOpenQuestion: (questionText: string) => Promise<void>;
   onBackToModuleD: () => void;
+  onContinueToModuleF?: () => void;
   whiteLabelEnabled?: boolean;
 }
 
@@ -1994,6 +2033,225 @@ function buildDefaultStep5DataForPlan(
   };
 }
 
+const OPERATIONS_READINESS_CONFIDENCE_OPTIONS: Array<{
+  value: OperationsReadinessConfidenceType;
+  label: string;
+  subtitle: string;
+  badge: string;
+}> = [
+  {
+    value: 'READY_FOR_V1_FULFILLMENT',
+    label: 'Ready for V1 Commercial Fulfillment & Official Grant Audit',
+    subtitle:
+      'End-to-end fulfillment SOP, supplier redundancy, 3-gate QC, statutory compliance, and insurance governance are verified.',
+    badge: 'Assessor-Ready',
+  },
+  {
+    value: 'NEEDS_PILOT_BATCH_OR_SLA_STRESS_TEST',
+    label: 'Ready for V1 Pilot Batch (With SOP Capacity Guardrails)',
+    subtitle:
+      'Core delivery pipeline and compliance are ready for initial pilot orders while capacity/SLA stress-testing completes.',
+    badge: 'Recommended V1',
+  },
+  {
+    value: 'NEEDS_SUPPLIER_OR_3_QUOTE_VERIFICATION',
+    label: 'Pending Final Supplier Backup or 3-Quote Equipment Pack',
+    subtitle:
+      'Operations blueprint is mapped, awaiting final written supplier quotes or secondary backup vendor confirmation.',
+    badge: 'Procurement Gate',
+  },
+  {
+    value: 'NEEDS_REGULATORY_OR_INSURANCE_SIGN_OFF',
+    label: 'Pending Final Statutory Registration or Insurance Policy Bind',
+    subtitle:
+      'Awaiting final tax clearance, safety statement sign-off, or formal insurer underwriting quote prior to launch.',
+    badge: 'Compliance Gate',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Operational Readiness Posture)',
+    subtitle:
+      'Specify a phased, seasonal, B2B pilot, or hybrid operational readiness milestone.',
+    badge: 'Custom',
+  },
+];
+
+const OPERATIONS_BLIND_SPOT_CATEGORY_OPTIONS: Array<{
+  value: OperationsBlindSpotCategoryType;
+  label: string;
+}> = [
+  {
+    value: 'CAPACITY_AND_FULFILLMENT_BOTTLENECK',
+    label: '⏱️ Capacity Ceiling & Fulfillment Bottleneck',
+  },
+  {
+    value: 'GRANT_PROCUREMENT_AND_CAPEX_ELIGIBILITY',
+    label: '🧾 Equipment CapEx & Grant Procurement Rules',
+  },
+  {
+    value: 'SINGLE_SUPPLIER_AND_CONTINUITY_EXPOSURE',
+    label: '🔗 Supplier Redundancy & Single-Point Dependency',
+  },
+  {
+    value: 'UNIT_COGS_AND_RETURN_MARGIN_LEAKAGE',
+    label: '🛡️ Returns, QC Gate & Unit Margin Protection',
+  },
+  {
+    value: 'REGULATORY_TAX_AND_INSURANCE_GAP',
+    label: '⚖️ Regulatory, Insurance Estimate & Cashflow Bridge',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Operational Consideration)',
+  },
+];
+
+function buildDefaultStep6DataForPlan(
+  plan: ActiveStartupPlan,
+  selectedCountry: SupportedCountryCode
+): OperationsBlindSpotAuditStep6Data {
+  const saved = plan.moduleEData?.blindSpotAudit;
+  if (saved && saved.blindSpots && saved.blindSpots.length > 0) {
+    return {
+      readinessConfidence:
+        saved.readinessConfidence || 'READY_FOR_V1_FULFILLMENT',
+      otherReadinessConfidenceText: saved.otherReadinessConfidenceText || '',
+      blindSpots: saved.blindSpots,
+      executiveOperationsSummaryNarrative:
+        saved.executiveOperationsSummaryNarrative || '',
+      operationsToFinanceAndTeamHandshakeNarrative:
+        saved.operationsToFinanceAndTeamHandshakeNarrative || '',
+      aiCoachTip: saved.aiCoachTip,
+      lastSavedAt: saved.lastSavedAt,
+      aiEngineUsed: saved.aiEngineUsed,
+    };
+  }
+
+  const track =
+    plan.moduleDData?.productVehicle?.productTrack ||
+    detectRecommendedProductTrack(plan);
+  const isPhysical =
+    track === 'PHYSICAL_PRODUCT_ECOM' || track === 'HYBRID_HARDWARE_SOFTWARE';
+  const isSoftware =
+    track === 'SAAS_SOFTWARE_AI' ||
+    track === 'HYBRID_HARDWARE_SOFTWARE' ||
+    track === 'MARKETPLACE_PLATFORM';
+
+  const isIE = selectedCountry === 'IE';
+  const isGB = selectedCountry === 'GB';
+  const currencySym = plan.baseCurrency === 'GBP' || isGB ? '£' : '€';
+
+  const step1 = plan.moduleEData?.operationsBlueprint;
+  const step2 = plan.moduleEData?.premisesAndEquipment;
+  const step4 = plan.moduleEData?.supportReturnsAndQc;
+  const step5 = plan.moduleEData?.permitsAndInsurance;
+
+  const activeMins =
+    step1?.orderLifecycleStages?.reduce(
+      (s, st) => s + (Number(st.activeMinutesPerOrder) || 0),
+      0
+    ) ?? (isPhysical ? 50 : 12);
+  const directCogs =
+    step1?.orderLifecycleStages?.reduce(
+      (s, st) => s + (Number(st.directVariableCostPerOrder) || 0),
+      0
+    ) ?? (isPhysical ? 22 : 2.5);
+  const weeklyHrs = Math.max(1, step1?.weeklyOpsHoursAllocated || 25);
+  const weeklyCap =
+    activeMins > 0 ? Math.floor((weeklyHrs * 60) / activeMins) : 1000;
+
+  const annualInsEst =
+    step5?.estimatedAnnualInsurancePremium ??
+    (isSoftware ? (isGB ? 850 : 950) : isPhysical ? (isGB ? 1100 : 1250) : 650);
+  const monthlyInsEst = Math.round(annualInsEst / 12);
+  const returnRate = step4?.estimatedReturnOrRefundRatePercent ?? 2.0;
+  const returnCost = step4?.costPerReturnOrRemakeIncident ?? 20;
+  const returnBuffer =
+    Math.round(((returnRate / 100) * returnCost + Number.EPSILON) * 100) / 100;
+
+  return {
+    readinessConfidence: 'READY_FOR_V1_FULFILLMENT',
+    otherReadinessConfidenceText: '',
+    blindSpots: [
+      {
+        id: 'ops-bs-1',
+        category: 'CAPACITY_AND_FULFILLMENT_BOTTLENECK',
+        severity: activeMins >= 30 ? 'CRITICAL' : 'IMPORTANT',
+        title:
+          activeMins > 0
+            ? `Weekly Capacity Ceiling (${weeklyCap} orders/wk at ${activeMins} mins/order) vs. Peak Demand`
+            : 'Automated Cloud Provisioning & Support Escalation Guardrails',
+        whyItMatters:
+          activeMins > 0
+            ? `At ${activeMins} hands-on minutes per order across ${weeklyHrs} hrs/week, manual fulfillment caps out at ~${weeklyCap} orders/week. A sudden B2B batch order or seasonal surge can breach customer turnaround SLAs if not batched.`
+            : 'Even with automated cloud onboarding, high-touch onboarding requests or API spikes can create unexpected support backlogs if not rate-limited.',
+        recommendedActionOrFix:
+          activeMins > 0
+            ? 'Standardize batch pre-prep for Stages 1–2 and define the exact weekly order volume trigger in Module F where part-time fulfillment assistance or 3PL support is unlocked.'
+            : 'Enforce hard daily API circuit breakers and self-serve onboarding tooltips so 95%+ of orders provision without manual intervention.',
+        isResolved: false,
+      },
+      {
+        id: 'ops-bs-2',
+        category: 'GRANT_PROCUREMENT_AND_CAPEX_ELIGIBILITY',
+        severity: 'CRITICAL',
+        title: isIE
+          ? 'Local Enterprise Office (LEO) Retrospective Spend Ban, 3-Quote Rule (≥€1,000) & Laptop Exclusion'
+          : isGB
+            ? 'Innovate UK Eligible Capital Usage Depreciation vs. British Business Bank Start Up Loan CapEx'
+            : 'Formal 3-Quote Capital Equipment Procurement & Cashflow Timing',
+        whyItMatters: isIE
+          ? 'Under Irish LEO Priming and Feasibility rules, any equipment ordered or paid for prior to formal Letter of Offer acceptance is 100% ineligible, items ≥€1,000 ex-VAT require 3 written supplier quotes, and standard laptops/phones are excluded from 50% capital grants.'
+          : isGB
+            ? 'Innovate UK Smart grants only reimburse proportional capital depreciation over the R&D project duration rather than 100% upfront asset purchase price, while Start Up Loans require itemised supplier quotes and working capital buffers.'
+            : 'Ordering capital equipment without formal written quotes or clear working-capital timing creates cashflow strain and grant audit rejections.',
+        recommendedActionOrFix: isIE
+          ? 'Keep 3 dated written quotes on file for every Step 2 asset ≥€1,000 ex-VAT, ring-fence laptops/phones as 100% Founder/BYOD funded, and model the ~60-day LEO reimbursement bridge in Module I.'
+          : isGB
+            ? 'Separate R&D project depreciation (for Innovate UK) from upfront working capital asset finance (British Business Bank Start Up Loans) in Module I & Module J.'
+            : 'Maintain dated supplier quotes and align asset purchase timing with Module I cashflow.',
+        isResolved: false,
+      },
+      {
+        id: 'ops-bs-3',
+        category: 'UNIT_COGS_AND_RETURN_MARGIN_LEAKAGE',
+        severity: 'IMPORTANT',
+        title: `Unit Margin Protection: ${currencySym}${directCogs.toFixed(2)} Direct COGS + ${currencySym}${returnBuffer.toFixed(2)} Return/Remake Buffer (${returnRate}%)`,
+        whyItMatters: isIE
+          ? `Under the Ireland Consumer Rights Act 2022 (CRAA), unbuffered returns, remakes, or courier damage silently erode gross margin if not built directly into Module G pricing.`
+          : isGB
+            ? `Under the UK Consumer Rights Act 2015, unbuffered refunds, faulty-item replacements, or courier damage silently erode gross margin if not built directly into Module G pricing.`
+            : 'Unbuffered returns, remakes, or SLA credits silently erode unit gross margin if omitted from unit economics.',
+        recommendedActionOrFix: `Lock the combined ${currencySym}${(directCogs + returnBuffer).toFixed(2)}/order effective operational COGS into Module G (Pricing & Pocket Profit) and enforce the Step 4 3-gate QC checklist prior to dispatch.`,
+        isResolved: false,
+      },
+      {
+        id: 'ops-bs-4',
+        category: 'REGULATORY_TAX_AND_INSURANCE_GAP',
+        severity: 'WATCH',
+        title: isIE
+          ? `Indicative Insurance Estimate (~${currencySym}${annualInsEst.toLocaleString()}/yr — Estimate Only, Actual Coverage May Vary) & Revenue TC2 Clearance`
+          : isGB
+            ? `Indicative Insurance Estimate (~${currencySym}${annualInsEst.toLocaleString()}/yr — Estimate Only, Actual Coverage May Vary), UK Employers' Liability & ICO Fee`
+            : `Indicative Insurance Estimate (~${currencySym}${annualInsEst.toLocaleString()}/yr — Estimate Only, Actual Coverage May Vary) & Statutory Filings`,
+        whyItMatters: isIE
+          ? `While ~${currencySym}${annualInsEst.toLocaleString()}/yr (~${currencySym}${monthlyInsEst.toLocaleString()}/mo) is synced to Module I Overheads as an indicative planning estimate, actual insurance coverage, policy exclusions, and premiums may vary upon insurer underwriting. Additionally, active Revenue eTax Clearance (TC2 via ROS) and a Section 20 HSA Written Safety Statement (BeSMART.ie) are mandatory before grant drawdown.`
+          : isGB
+            ? `While ~${currencySym}${annualInsEst.toLocaleString()}/yr (~${currencySym}${monthlyInsEst.toLocaleString()}/mo) is synced to Module I Overheads as an indicative planning estimate, actual insurance coverage, policy exclusions, and premiums may vary upon insurer underwriting. UK law also mandates ≥£5m Employers' Liability insurance as soon as staff are hired plus annual ICO registration.`
+            : 'Indicative insurance figures are planning estimates only and actual coverage/premiums may vary upon formal broker underwriting.',
+        recommendedActionOrFix: isIE
+          ? 'Obtain a formal written insurance quotation from an Irish broker/insurer prior to launch, verify Revenue TC2 eTax Clearance on ROS.ie, and export your HSA BeSMART.ie Safety Statement.'
+          : isGB
+            ? 'Obtain a formal written insurance quotation from an FCA-regulated UK broker/insurer prior to launch, complete ICO registration (ico.org.uk), and document your UK HSE risk assessment.'
+            : 'Obtain a formal written insurance quote prior to commercial launch to confirm final underwriting terms and premium.',
+        isResolved: false,
+      },
+    ],
+    executiveOperationsSummaryNarrative: '',
+    operationsToFinanceAndTeamHandshakeNarrative: '',
+  };
+}
+
 export function ModuleEWorkspace({
   plan,
   selectedCountry,
@@ -2008,9 +2266,12 @@ export function ModuleEWorkspace({
   onGenerateAiSupportReturnsAndQc,
   onSaveStep5PermitsAndInsurance,
   onGenerateAiPermitsAndInsurance,
+  onSaveStep6BlindSpotAudit,
+  onGenerateAiBlindSpotAudit,
   userId,
   onParkOpenQuestion,
   onBackToModuleD,
+  onContinueToModuleF,
 }: ModuleEWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
   const inheritedTrack: ProductTrackType =
@@ -2046,6 +2307,11 @@ export function ModuleEWorkspace({
   const [step5Data, setStep5Data] =
     useState<PermitsComplianceAndInsuranceStep5Data>(() =>
       buildDefaultStep5DataForPlan(plan, selectedCountry)
+    );
+
+  const [step6Data, setStep6Data] =
+    useState<OperationsBlindSpotAuditStep6Data>(() =>
+      buildDefaultStep6DataForPlan(plan, selectedCountry)
     );
 
   const [showWhyAsking, setShowWhyAsking] = useState(false);
@@ -2085,6 +2351,13 @@ export function ModuleEWorkspace({
   const [parkQuestionInputStep5, setParkQuestionInputStep5] = useState('');
   const [isSavingStep5, setIsSavingStep5] = useState(false);
   const [isGeneratingAiStep5, setIsGeneratingAiStep5] = useState(false);
+
+  const [showWhyAskingStep6, setShowWhyAskingStep6] = useState(false);
+  const [showExampleDrawerStep6, setShowExampleDrawerStep6] = useState(false);
+  const [showParkInputStep6, setShowParkInputStep6] = useState(false);
+  const [parkQuestionInputStep6, setParkQuestionInputStep6] = useState('');
+  const [isSavingStep6, setIsSavingStep6] = useState(false);
+  const [isGeneratingAiStep6, setIsGeneratingAiStep6] = useState(false);
 
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
 
@@ -3515,6 +3788,229 @@ export function ModuleEWorkspace({
     }
   }
 
+  // =========================================================================
+  // STEP 6 COMPUTED METRICS & HANDLERS (BLIND-SPOT ENGINE & EXECUTIVE BRIEF)
+  // =========================================================================
+
+  const expectedReturnBufferPerOrder =
+    Math.round(
+      (((Number(step4Data.estimatedReturnOrRefundRatePercent) || 0) / 100) *
+        (Number(step4Data.costPerReturnOrRemakeIncident) || 0) +
+        Number.EPSILON) *
+        100
+    ) / 100;
+
+  const totalEffectiveUnitDeliveryCogs =
+    Math.round(
+      (totalDirectVariableCostPerOrder +
+        expectedReturnBufferPerOrder +
+        Number.EPSILON) *
+        100
+    ) / 100;
+
+  const monthlyStatutoryComplianceOverhead = Math.round(
+    totalAnnualComplianceItemsCost / 12
+  );
+
+  const totalMonthlyFixedOpsOverhead =
+    (Number(step2Data.monthlyPremisesAndUtilitiesCost) || 0) +
+    estimatedMonthlyInsuranceOverhead +
+    monthlyStatutoryComplianceOverhead;
+
+  const resolvedBlindSpotsCount = step6Data.blindSpots.filter(
+    (b) => b.isResolved
+  ).length;
+
+  function handleUpdateBlindSpotItem(
+    itemId: string,
+    updates: Partial<OperationsBlindSpotItem>
+  ) {
+    if (isVaultReadonly) return;
+    setStep6Data((prev) => ({
+      ...prev,
+      blindSpots: prev.blindSpots.map((b) =>
+        b.id === itemId ? { ...b, ...updates } : b
+      ),
+    }));
+  }
+
+  function handleToggleBlindSpotResolved(itemId: string) {
+    if (isVaultReadonly) return;
+    setStep6Data((prev) => ({
+      ...prev,
+      blindSpots: prev.blindSpots.map((b) =>
+        b.id === itemId ? { ...b, isResolved: !b.isResolved } : b
+      ),
+    }));
+  }
+
+  function handleAddBlindSpotItem() {
+    if (isVaultReadonly) return;
+    const newItem: OperationsBlindSpotItem = {
+      id: `ops-bs-custom-${Date.now()}`,
+      category: 'CAPACITY_AND_FULFILLMENT_BOTTLENECK',
+      severity: 'IMPORTANT',
+      title: 'Custom Operational Consideration / Fulfillment Guardrail',
+      whyItMatters:
+        'Explain why this operational bottleneck, supplier dependency, or compliance item matters before scaling order volume.',
+      recommendedActionOrFix:
+        'Define the concrete SOP action, buffer, or milestone that resolves this operational risk.',
+      isResolved: false,
+      isCustom: true,
+    };
+    setStep6Data((prev) => ({
+      ...prev,
+      blindSpots: [...prev.blindSpots, newItem],
+    }));
+  }
+
+  function handleRemoveBlindSpotItem(itemId: string) {
+    if (isVaultReadonly) return;
+    setStep6Data((prev) => ({
+      ...prev,
+      blindSpots:
+        prev.blindSpots.length > 1
+          ? prev.blindSpots.filter((b) => b.id !== itemId)
+          : prev.blindSpots,
+    }));
+  }
+
+  function handleApplyStep6IndustryBenchmark() {
+    if (isVaultReadonly) return;
+    const benchmarkDefaults = buildDefaultStep6DataForPlan(
+      {
+        ...plan,
+        moduleEData: {
+          ...(plan.moduleEData || {}),
+          operationsBlueprint: step1Data,
+          premisesAndEquipment: step2Data,
+          riskRegister: step3Data,
+          supportReturnsAndQc: step4Data,
+          permitsAndInsurance: step5Data,
+          blindSpotAudit: undefined,
+        },
+      },
+      selectedCountry
+    );
+    const isIE = selectedCountry === 'IE';
+    const isGB = selectedCountry === 'GB';
+    const currencySym = plan.baseCurrency === 'GBP' || isGB ? '£' : '€';
+    const annualIns = Number(step5Data.estimatedAnnualInsurancePremium) || 850;
+    const monthlyPremises =
+      Number(step2Data.monthlyPremisesAndUtilitiesCost) || 95;
+
+    setStep6Data((prev) => ({
+      ...prev,
+      readinessConfidence:
+        prev.readinessConfidence || benchmarkDefaults.readinessConfidence,
+      blindSpots: benchmarkDefaults.blindSpots,
+      executiveOperationsSummaryNarrative:
+        prev.executiveOperationsSummaryNarrative.trim() ||
+        (isIE
+          ? `${plan.title || 'Our business'} operates a standardized 5-stage fulfillment pipeline requiring ${totalActiveMinutesPerOrder} active minutes and ${currencySym}${totalDirectVariableCostPerOrder.toFixed(2)} in direct COGS per order (plus a ${currencySym}${expectedReturnBufferPerOrder.toFixed(2)} returns/remake reserve at ${step4Data.estimatedReturnOrRefundRatePercent}% under the Ireland Consumer Rights Act 2022). Production and delivery are supported by a ${currencySym}${newOutlayCapexExVat.toLocaleString()} ex-VAT equipment schedule structured for Local Enterprise Office (LEO) 3-quote procurement compliance (≥€1,000 ex-VAT) and laptop/phone ring-fencing, a 4-category risk register, and full Irish regulatory readiness (CRO, Revenue eTax Clearance TC2 via ROS, HSA Section 20 Written Safety Statement via BeSMART.ie, and EU GDPR/DPC governance).`
+          : isGB
+            ? `${plan.title || 'Our business'} operates a standardized 5-stage fulfillment pipeline requiring ${totalActiveMinutesPerOrder} active minutes and ${currencySym}${totalDirectVariableCostPerOrder.toFixed(2)} in direct COGS per order (plus a ${currencySym}${expectedReturnBufferPerOrder.toFixed(2)} returns/remake reserve at ${step4Data.estimatedReturnOrRefundRatePercent}% under the UK Consumer Rights Act 2015). Operations are backed by a ${currencySym}${newOutlayCapexExVat.toLocaleString()} ex-VAT capital equipment schedule (with ${currencySym}${ukInnovateAnnualEligibleDepreciation.toLocaleString()}/yr eligible Innovate UK project usage depreciation), a 4-category risk register, and full UK statutory readiness (Companies House, HMRC UTR, UK HSE risk assessment under HSWA 1974, and ICO Data Protection Fee registration).`
+            : `${plan.title || 'Our business'} operates a standardized 5-stage fulfillment pipeline requiring ${totalActiveMinutesPerOrder} active minutes and ${currencySym}${totalDirectVariableCostPerOrder.toFixed(2)} in direct COGS per order, backed by a formal 4-category risk register, 3-gate quality control SOP, and pre-launch regulatory compliance.`),
+      operationsToFinanceAndTeamHandshakeNarrative:
+        prev.operationsToFinanceAndTeamHandshakeNarrative.trim() ||
+        `Module E hands off four verified operational metrics to the rest of the business plan: (1) ${currencySym}${totalEffectiveUnitDeliveryCogs.toFixed(2)}/order effective operational COGS (${currencySym}${totalDirectVariableCostPerOrder.toFixed(2)} direct delivery cost + ${currencySym}${expectedReturnBufferPerOrder.toFixed(2)} returns/QC reserve) feeds directly into Module G (Pricing & Pocket Profit Unit Economics); (2) ${currencySym}${monthlyPremises.toLocaleString()}/month premises & utilities plus an indicative estimated insurance overhead of ~${currencySym}${estimatedMonthlyInsuranceOverhead.toLocaleString()}/month (derived from the indicative ~${currencySym}${annualIns.toLocaleString()}/year insurance estimate — planning estimate only, actual coverage, policy terms, and premiums may vary upon insurer underwriting) sync into Module I Fixed Overheads; (3) ${currencySym}${newOutlayCapexExVat.toLocaleString()} ex-VAT new capital equipment outlay feeds into Module I Cashflow & Module J Grant Matching; and (4) the ${maxOrdersPerWeekByManualTime} orders/week manual capacity ceiling triggers our first operations/fulfillment hire in Module F.`,
+    }));
+
+    setSaveBanner(
+      `📐 Applied ${countryPack.countryName} Operations "Things to Consider" Blind-Spot Checklist & Executive Operations Brief benchmark!`
+    );
+  }
+
+  async function handleRunAiStep6(
+    mode:
+      | 'POPULATE_BLIND_SPOTS_AND_NARRATIVES'
+      | 'NARRATIVES_ONLY' = 'POPULATE_BLIND_SPOTS_AND_NARRATIVES'
+  ) {
+    if (isVaultReadonly) return;
+    setIsGeneratingAiStep6(true);
+    setSaveBanner(null);
+    try {
+      const res = await onGenerateAiBlindSpotAudit({
+        selectedTrack: inheritedTrack,
+        otherProductTrackText: inheritedOtherTrackText,
+        fulfillmentMode: step1Data.fulfillmentMode,
+        activeMinutesPerOrder: totalActiveMinutesPerOrder,
+        directVariableCostPerOrder: totalDirectVariableCostPerOrder,
+        maxOrdersPerWeekCeiling: maxOrdersPerWeekByManualTime,
+        premisesSetupMode: step2Data.premisesSetupMode,
+        monthlyPremisesOverheadCost: step2Data.monthlyPremisesAndUtilitiesCost,
+        totalEquipmentCapexExVat: newOutlayCapexExVat,
+        supplierRedundancyPosture: step3Data.supplierRedundancyPosture,
+        estimatedReturnRatePercent:
+          step4Data.estimatedReturnOrRefundRatePercent,
+        expectedReturnBufferPerOrder,
+        estimatedAnnualInsurancePremium:
+          step5Data.estimatedAnnualInsurancePremium,
+        selectedInsuranceProviderName: step5Data.selectedInsuranceProviderName,
+        currentReadinessConfidence: step6Data.readinessConfidence,
+        currentBlindSpots: step6Data.blindSpots,
+        mode,
+      });
+
+      if (!res.allowed) return;
+
+      const nextData: OperationsBlindSpotAuditStep6Data = {
+        ...step6Data,
+        readinessConfidence:
+          step6Data.readinessConfidence || res.readinessConfidence,
+        otherReadinessConfidenceText:
+          step6Data.otherReadinessConfidenceText ||
+          res.otherReadinessConfidenceText ||
+          '',
+        blindSpots:
+          mode === 'NARRATIVES_ONLY' && step6Data.blindSpots.length > 0
+            ? step6Data.blindSpots
+            : res.blindSpots,
+        executiveOperationsSummaryNarrative:
+          res.executiveOperationsSummaryNarrative,
+        operationsToFinanceAndTeamHandshakeNarrative:
+          res.operationsToFinanceAndTeamHandshakeNarrative,
+        aiCoachTip: res.aiCoachTip,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+
+      setStep6Data(nextData);
+      await onSaveStep6BlindSpotAudit(nextData, 100);
+      setSaveBanner(
+        mode === 'NARRATIVES_ONLY'
+          ? '✨ Synthesized your Executive Operations Brief & Finance/Team Handshake Narratives and saved Step 6 (100% Module E Complete)!'
+          : '✨ Generated your Operations "Things to Consider" Blind-Spot Audit & Executive Brief and saved Step 6 (100% Module E Complete)!'
+      );
+    } finally {
+      setIsGeneratingAiStep6(false);
+    }
+  }
+
+  async function handleSaveStep6() {
+    if (isVaultReadonly) return;
+    setIsSavingStep6(true);
+    setSaveBanner(null);
+    try {
+      const nowIso = new Date().toISOString();
+      const nextData: OperationsBlindSpotAuditStep6Data = {
+        ...step6Data,
+        lastSavedAt: nowIso,
+      };
+      setStep6Data(nextData);
+      const isComplete =
+        Boolean(nextData.readinessConfidence) &&
+        nextData.blindSpots.length >= 2 &&
+        nextData.executiveOperationsSummaryNarrative.trim().length > 10;
+      await onSaveStep6BlindSpotAudit(nextData, isComplete ? 100 : 95);
+      setSaveBanner(
+        '✅ Saved Module E Step 6 (Operations "Things to Consider" Blind-Spot Engine & Executive Brief — Module E 100% Complete)!'
+      );
+    } finally {
+      setIsSavingStep6(false);
+    }
+  }
+
   const STEP_TABS: Array<{
     id: 'STEP_1' | 'STEP_2' | 'STEP_3' | 'STEP_4' | 'STEP_5' | 'STEP_6';
     short: string;
@@ -3576,7 +4072,10 @@ export function ModuleEWorkspace({
       id: 'STEP_6',
       short: 'Step 6',
       title: 'Ops Things to Consider',
-      isComplete: false,
+      isComplete:
+        Boolean(step6Data.readinessConfidence) &&
+        step6Data.blindSpots.length >= 2 &&
+        step6Data.executiveOperationsSummaryNarrative.trim().length > 10,
     },
   ];
 
@@ -10477,72 +10976,1061 @@ export function ModuleEWorkspace({
       )}
 
       {/* ===================================================================== */}
-      {/* UPCOMING STEP 6 PREVIEW CARD (READY FOR NEXT ITERATION)               */}
+      {/* STEP 6: OPERATIONS "THINGS TO CONSIDER" BLIND-SPOT ENGINE & BRIEF     */}
       {/* ===================================================================== */}
-      {activeTab !== 'STEP_1' &&
-        activeTab !== 'STEP_2' &&
-        activeTab !== 'STEP_3' &&
-        activeTab !== 'STEP_4' &&
-        activeTab !== 'STEP_5' && (
-          <Card className="border-slate-200 bg-white shadow-xs">
-            <CardHeader>
-              <CardTitle className="text-base font-bold text-slate-900">
-                {STEP_TABS.find((t) => t.id === activeTab)?.short}:{' '}
-                {STEP_TABS.find((t) => t.id === activeTab)?.title}
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-600">
-                Complete Steps 1–5 first—we are building Step 6 next!
-              </CardDescription>
+      {activeTab === 'STEP_6' && (
+        <div className="space-y-4">
+          <Card className="border-indigo-200 bg-white shadow-xs">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-indigo-600 text-[10px] font-bold text-white">
+                      Step 6 of 6 • Final Module E Sign-Off
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-[10px] font-semibold text-emerald-800"
+                    >
+                      {selectedCountry === 'IE'
+                        ? '🇮🇪 IE LEO Section 6 & Appendix C Ready'
+                        : selectedCountry === 'GB'
+                          ? '🇬🇧 UK Innovate UK Q6–Q8 & Start Up Loans Ready'
+                          : `🌍 ${countryPack.countryName} Operations Brief`}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-base font-bold text-slate-900 sm:text-lg">
+                    Step 6: Operations &ldquo;Things to Consider&rdquo;
+                    Blind-Spot Engine &amp; Executive Operations Brief
+                  </CardTitle>
+                  <CardDescription className="text-xs leading-relaxed text-slate-600">
+                    Review your constructive operational blind spots across
+                    Steps 1–5, verify the unit-economics and monthly overhead
+                    numbers syncing into Module G &amp; Module I, and sign off
+                    on your Executive Operations Brief for Module K.
+                  </CardDescription>
+                </div>
+
+                {/* Built-in Support Toolbar */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowWhyAskingStep6((v) => !v)}
+                    className="h-8 border-indigo-200 bg-indigo-50/70 px-2.5 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100"
+                  >
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                    Why Are We Asking?
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowExampleDrawerStep6((v) => !v)}
+                    className="h-8 border-amber-200 bg-amber-50/70 px-2.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100"
+                  >
+                    <Lightbulb className="mr-1 h-3.5 w-3.5 text-amber-600" />
+                    Show Example
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly}
+                    onClick={handleApplyStep6IndustryBenchmark}
+                    className="h-8 border-emerald-200 bg-emerald-50/70 px-2.5 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-100"
+                  >
+                    <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                    Use Industry Benchmark
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowParkInputStep6((v) => !v)}
+                    className="h-8 border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-600" />
+                    Park Question
+                  </Button>
+                </div>
+              </div>
+
+              {/* Why Are We Asking Drawer */}
+              {showWhyAskingStep6 && (
+                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+                  <p className="font-bold">
+                    🎯 Why Grant Assessors &amp; Lenders Audit Your Operations
+                    Cohesion:
+                  </p>
+                  <ul className="mt-1.5 list-disc space-y-1 pl-4 text-indigo-900">
+                    <li>
+                      <strong>No Contradictions Between Ops &amp; Finance:</strong>{' '}
+                      Assessors cross-check your Section 6 Operations narrative
+                      against your financial cashflow. Step 6 automatically
+                      rolls up your Step 1 Direct COGS (
+                      {formatPlanCurrency(
+                        totalDirectVariableCostPerOrder,
+                        plan.baseCurrency
+                      )}
+                      /order), Step 4 Returns Buffer (
+                      {formatPlanCurrency(
+                        expectedReturnBufferPerOrder,
+                        plan.baseCurrency
+                      )}
+                      /order), Step 2 Premises &amp; CapEx, and Step 5
+                      Indicative Insurance Estimate (~
+                      {formatPlanCurrency(
+                        step5Data.estimatedAnnualInsurancePremium,
+                        plan.baseCurrency
+                      )}
+                      /yr — planning estimate only, actual coverage may vary) so
+                      Modules G and I never contradict Module E.
+                    </li>
+                    <li>
+                      <strong>
+                        {selectedCountry === 'IE'
+                          ? '🇮🇪 Local Enterprise Office (LEO) & Enterprise Ireland Pre-Flight:'
+                          : selectedCountry === 'GB'
+                            ? '🇬🇧 Innovate UK & British Business Bank Start Up Loans Pre-Flight:'
+                            : '🌍 Official Grant & Loan Pre-Flight:'}
+                      </strong>{' '}
+                      {selectedCountry === 'IE'
+                        ? 'Flags LEO retrospective spend rules, 3-quote compliance for assets ≥€1,000 ex-VAT, laptop/phone capital exclusions, and Revenue eTax Clearance (TC2 via ROS) before you submit.'
+                        : selectedCountry === 'GB'
+                          ? 'Flags Innovate UK eligible capital usage depreciation vs. upfront Start Up Loan CapEx, statutory £5m UK Employers Liability rules, and ICO Data Protection Fee compliance before you submit.'
+                          : 'Flags capacity ceilings, single-source supplier risks, and statutory compliance items before you export your business plan.'}
+                    </li>
+                  </ul>
+                </div>
+              )}
+
+              {/* Industry Example Drawer */}
+              {showExampleDrawerStep6 && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs text-amber-950">
+                  <p className="font-bold">
+                    💡 Tailored Example for {plan.title || 'Your Plan'} (
+                    {inheritedTrack.replace(/_/g, ' ')} •{' '}
+                    {selectedCountry === 'IE'
+                      ? '🇮🇪 Ireland'
+                      : selectedCountry === 'GB'
+                        ? '🇬🇧 United Kingdom'
+                        : countryPack.countryName}
+                    ):
+                  </p>
+                  <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <div className="rounded-lg border border-amber-200/80 bg-white p-2.5">
+                      <p className="font-bold text-slate-900">
+                        Constructive Blind Spot Resolved:
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        {selectedCountry === 'IE'
+                          ? '“All Step 2 capital items ≥€1,000 ex-VAT have 3 dated supplier quotes attached for LEO Appendix C, laptops are ring-fenced as 100% Founder/BYOD funded, and our ~60-day LEO grant reimbursement bridge is modeled in Module I.”'
+                          : '“R&D machinery depreciation is separated for Innovate UK while working-capital asset finance is structured for British Business Bank Start Up Loans, with backup UK suppliers verified in Step 3.”'}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-amber-200/80 bg-white p-2.5">
+                      <p className="font-bold text-slate-900">
+                        Operations-to-Finance Handshake:
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        “Combined unit delivery COGS (
+                        {formatPlanCurrency(
+                          totalEffectiveUnitDeliveryCogs,
+                          plan.baseCurrency
+                        )}
+                        /order including {step4Data.estimatedReturnOrRefundRatePercent}
+                        % return reserve) feeds Module G pricing, while premises
+                        and our indicative insurance estimate (~
+                        {formatPlanCurrency(
+                          estimatedMonthlyInsuranceOverhead,
+                          plan.baseCurrency
+                        )}
+                        /mo; estimate only — actual coverage may vary) sync to
+                        Module I Overheads.”
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Park Open Question Drawer */}
+              {showParkInputStep6 && (
+                <div className="mt-3 flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    value={parkQuestionInputStep6}
+                    onChange={(e) => setParkQuestionInputStep6(e.target.value)}
+                    placeholder="e.g., Confirm working capital bridge for 60-day grant reimbursement lag..."
+                    className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      if (!parkQuestionInputStep6.trim()) return;
+                      await onParkOpenQuestion(
+                        `[Step 6 - Ops Blind-Spot Audit] ${parkQuestionInputStep6.trim()}`
+                      );
+                      setParkQuestionInputStep6('');
+                      setShowParkInputStep6(false);
+                      setSaveBanner(
+                        '📌 Parked question in your Open Questions Parking Lot!'
+                      );
+                    }}
+                    className="bg-slate-900 text-xs text-white hover:bg-slate-800"
+                  >
+                    Save to Parking Lot
+                  </Button>
+                </div>
+              )}
             </CardHeader>
-            <CardContent className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setActiveTab('STEP_1')}
-                className="text-xs"
-              >
-                &larr; Return to Step 1 (Day in the Life of an Order)
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setActiveTab('STEP_2')}
-                className="text-xs"
-              >
-                &larr; Return to Step 2 (Premises, Equipment &amp; 3 Quotes)
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setActiveTab('STEP_3')}
-                className="text-xs"
-              >
-                &larr; Return to Step 3 (4-Category Risk Register)
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setActiveTab('STEP_4')}
-                className="text-xs"
-              >
-                &larr; Return to Step 4 (Support, Returns &amp; QC SOP)
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setActiveTab('STEP_5')}
-                className="text-xs"
-              >
-                &larr; Return to Step 5 (Permits, Compliance &amp; Insurance)
-              </Button>
+
+            <CardContent className="space-y-6 pt-5">
+              {/* ============================================================= */}
+              {/* 1. LIVE 4-CARD OPERATIONS-TO-FINANCE HANDSHAKE ROLLUP STRIP   */}
+              {/* ============================================================= */}
+              <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-slate-50 to-emerald-50/70 p-4">
+                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                      🔗 Live Operations-to-Finance &amp; Team Handshake Rollup
+                      (Steps 1–5)
+                    </p>
+                    <p className="text-[11px] text-slate-600">
+                      These four live operational metrics feed directly into
+                      Module F (Hiring Triggers), Module G (Unit Economics),
+                      Module I (36-Month Cashflow), and Module K (Grant Plan).
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="w-fit border-indigo-300 bg-white text-[10px] font-bold text-indigo-900"
+                  >
+                    Resolved Considerations: {resolvedBlindSpotsCount} /{' '}
+                    {step6Data.blindSpots.length}
+                  </Badge>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {/* Card 1: Unit Delivery Cost + Return Buffer -> Module G */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase text-slate-500">
+                        1. Unit Ops COGS &rarr; Mod G
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-200 bg-emerald-50 text-[10px] text-emerald-800"
+                      >
+                        Unit Economics
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-base font-extrabold text-slate-900 sm:text-lg">
+                      {formatPlanCurrency(
+                        totalEffectiveUnitDeliveryCogs,
+                        plan.baseCurrency
+                      )}{' '}
+                      <span className="text-xs font-normal text-slate-500">
+                        / order
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-600">
+                      {formatPlanCurrency(
+                        totalDirectVariableCostPerOrder,
+                        plan.baseCurrency
+                      )}{' '}
+                      Step 1 Direct COGS +{' '}
+                      {formatPlanCurrency(
+                        expectedReturnBufferPerOrder,
+                        plan.baseCurrency
+                      )}{' '}
+                      Step 4 Return Reserve (
+                      {step4Data.estimatedReturnOrRefundRatePercent}%)
+                    </p>
+                  </div>
+
+                  {/* Card 2: Weekly Capacity Ceiling -> Module F */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase text-slate-500">
+                        2. Weekly Ceiling &rarr; Mod F
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-800"
+                      >
+                        Hiring Trigger
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-base font-extrabold text-indigo-900 sm:text-lg">
+                      {totalActiveMinutesPerOrder === 0
+                        ? 'Automated Cloud'
+                        : `${maxOrdersPerWeekByManualTime} orders / wk`}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-600">
+                      {totalActiveMinutesPerOrder} active mins/order across{' '}
+                      {weeklyOpsHours} hrs/wk (~
+                      {maxOrdersPerMonthByManualTime} orders/mo ceiling)
+                    </p>
+                  </div>
+
+                  {/* Card 3: Monthly Fixed Ops Overheads (with explicit Insurance Estimate Disclaimer) -> Module I */}
+                  <div className="rounded-xl border border-amber-200 bg-white p-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase text-slate-500">
+                        3. Monthly Ops Overhead &rarr; Mod I
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="border-amber-300 bg-amber-50 text-[10px] text-amber-900"
+                      >
+                        Est. Overheads
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-base font-extrabold text-slate-900 sm:text-lg">
+                      ~
+                      {formatPlanCurrency(
+                        totalMonthlyFixedOpsOverhead,
+                        plan.baseCurrency
+                      )}{' '}
+                      <span className="text-xs font-normal text-slate-500">
+                        / mo (Est.)
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-600">
+                      Premises:{' '}
+                      {formatPlanCurrency(
+                        step2Data.monthlyPremisesAndUtilitiesCost,
+                        plan.baseCurrency
+                      )}
+                      /mo +{' '}
+                      <strong>
+                        Est. Insurance: ~
+                        {formatPlanCurrency(
+                          estimatedMonthlyInsuranceOverhead,
+                          plan.baseCurrency
+                        )}
+                        /mo (~
+                        {formatPlanCurrency(
+                          step5Data.estimatedAnnualInsurancePremium,
+                          plan.baseCurrency
+                        )}
+                        /yr indicative estimate — actual coverage &amp; premium
+                        may vary)
+                      </strong>
+                    </p>
+                  </div>
+
+                  {/* Card 4: Net CapEx & Grant Compliance -> Module I & J */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase text-slate-500">
+                        4. Equipment CapEx &rarr; Mod I &amp; J
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-200 bg-emerald-50 text-[10px] text-emerald-800"
+                      >
+                        {selectedCountry === 'IE'
+                          ? 'IE LEO CapEx'
+                          : selectedCountry === 'GB'
+                            ? 'UK CapEx / Depr.'
+                            : 'CapEx Schedule'}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-base font-extrabold text-emerald-900 sm:text-lg">
+                      {formatPlanCurrency(
+                        newOutlayCapexExVat,
+                        plan.baseCurrency
+                      )}{' '}
+                      <span className="text-xs font-normal text-slate-500">
+                        ex-VAT
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-600">
+                      {selectedCountry === 'IE'
+                        ? `Est. 50% LEO Grant: ${formatPlanCurrency(estimatedLeo50GrantRebate, plan.baseCurrency)} • Net Founder Outlay: ${formatPlanCurrency(netFounderCashOutlayAfterLeoGrant, plan.baseCurrency)}`
+                        : selectedCountry === 'GB'
+                          ? `Innovate UK Eligible Annual Depr.: ${formatPlanCurrency(ukInnovateAnnualEligibleDepreciation, plan.baseCurrency)}/yr`
+                          : `${step2Data.equipmentItems.length} equipment items scheduled`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Explicit Insurance Estimate Callout Banner */}
+                <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2 text-[11px] text-amber-950">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" />
+                  <p>
+                    <strong>
+                      Indicative Insurance Premium Disclaimer (~
+                      {formatPlanCurrency(
+                        step5Data.estimatedAnnualInsurancePremium,
+                        plan.baseCurrency
+                      )}
+                      /yr • ~
+                      {formatPlanCurrency(
+                        estimatedMonthlyInsuranceOverhead,
+                        plan.baseCurrency
+                      )}
+                      /mo):
+                    </strong>{' '}
+                    The Estimated Annual Insurance Premium synced from Step 5 to
+                    Module I Overheads is an{' '}
+                    <strong>indicative planning estimate only</strong>. Actual
+                    coverage, policy limits, exclusions, and final premiums may
+                    vary based on formal insurer underwriting, claims history,
+                    turnover, and contractual requirements.
+                  </p>
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* PART A: OPERATIONAL LAUNCH READINESS POSTURE (+ OTHER)        */}
+              {/* ============================================================= */}
+              <div className="space-y-3">
+                <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Part A: Operational Launch &amp; Grant Audit Readiness
+                    Posture
+                  </label>
+                  <span className="text-[11px] text-slate-500">
+                    Includes &ldquo;Other&rdquo; custom readiness posture option
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {OPERATIONS_READINESS_CONFIDENCE_OPTIONS.map((opt) => {
+                    const isSelected =
+                      step6Data.readinessConfidence === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() =>
+                          setStep6Data((prev) => ({
+                            ...prev,
+                            readinessConfidence: opt.value,
+                          }))
+                        }
+                        className={`flex flex-col justify-between rounded-xl border p-3 text-left transition ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20'
+                            : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/60'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-slate-900">
+                              {opt.label}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={
+                                isSelected
+                                  ? 'border-indigo-300 bg-indigo-100 text-[10px] text-indigo-900'
+                                  : 'border-slate-200 bg-slate-50 text-[10px] text-slate-600'
+                              }
+                            >
+                              {opt.badge}
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-slate-600">
+                            {opt.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {step6Data.readinessConfidence === 'OTHER' && (
+                  <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-xs font-semibold text-indigo-950">
+                      Describe Your Custom Operational Readiness Posture:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={isVaultReadonly}
+                      value={step6Data.otherReadinessConfidenceText || ''}
+                      onChange={(e) =>
+                        setStep6Data((prev) => ({
+                          ...prev,
+                          otherReadinessConfidenceText: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Seasonal pop-up workshop ready for Q4 batch run while commercial lease completes..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ============================================================= */}
+              {/* PART B: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT ENGINE   */}
+              {/* ============================================================= */}
+              <div className="space-y-3 border-t border-slate-200 pt-5">
+                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 sm:text-sm">
+                      Part B: Constructive Operations &ldquo;Things to
+                      Consider&rdquo; Blind-Spot Review
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Review each operational blind spot below, edit the action
+                      plan, mark items resolved as you address them, or park
+                      open items for later.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isVaultReadonly || isGeneratingAiStep6}
+                      onClick={() =>
+                        handleRunAiStep6('POPULATE_BLIND_SPOTS_AND_NARRATIVES')
+                      }
+                      className="border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                    >
+                      {isGeneratingAiStep6 ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          Auditing Operations...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                          AI Run Blind-Spot Audit &amp; Brief
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isVaultReadonly}
+                      onClick={handleAddBlindSpotItem}
+                      className="text-xs"
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Add Consideration
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {step6Data.blindSpots.map((item, idx) => {
+                    const isCritical = item.severity === 'CRITICAL';
+                    const isWatch = item.severity === 'WATCH';
+                    return (
+                      <div
+                        key={item.id}
+                        className={`rounded-xl border p-3.5 transition ${
+                          item.isResolved
+                            ? 'border-emerald-300 bg-emerald-50/40'
+                            : isCritical
+                              ? 'border-rose-200 bg-rose-50/30'
+                              : isWatch
+                                ? 'border-indigo-200 bg-indigo-50/30'
+                                : 'border-amber-200 bg-amber-50/30'
+                        }`}
+                      >
+                        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-md bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">
+                              Consideration #{idx + 1}
+                            </span>
+
+                            <select
+                              disabled={isVaultReadonly}
+                              value={item.category}
+                              onChange={(e) =>
+                                handleUpdateBlindSpotItem(item.id, {
+                                  category: e.target
+                                    .value as OperationsBlindSpotCategoryType,
+                                })
+                              }
+                              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-base font-semibold text-slate-800 sm:text-xs"
+                            >
+                              {OPERATIONS_BLIND_SPOT_CATEGORY_OPTIONS.map(
+                                (cat) => (
+                                  <option key={cat.value} value={cat.value}>
+                                    {cat.label}
+                                  </option>
+                                )
+                              )}
+                            </select>
+
+                            <select
+                              disabled={isVaultReadonly}
+                              value={item.severity}
+                              onChange={(e) =>
+                                handleUpdateBlindSpotItem(item.id, {
+                                  severity: e.target
+                                    .value as OperationsBlindSpotSeverityType,
+                                })
+                              }
+                              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-base font-bold text-slate-800 sm:text-xs"
+                            >
+                              <option value="CRITICAL">
+                                🚨 Critical Pre-Launch Action
+                              </option>
+                              <option value="IMPORTANT">
+                                ⚠️ Operational Watch-Out
+                              </option>
+                              <option value="WATCH">
+                                ✨ Strategic &amp; Grant Advisory
+                              </option>
+                            </select>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={item.isResolved ? 'default' : 'outline'}
+                              disabled={isVaultReadonly}
+                              onClick={() =>
+                                handleToggleBlindSpotResolved(item.id)
+                              }
+                              className={
+                                item.isResolved
+                                  ? 'h-7 bg-emerald-600 px-2.5 text-[11px] text-white hover:bg-emerald-700'
+                                  : 'h-7 border-emerald-300 bg-white px-2.5 text-[11px] text-emerald-800 hover:bg-emerald-50'
+                              }
+                            >
+                              <Check className="mr-1 h-3 w-3" />
+                              {item.isResolved
+                                ? 'Resolved / Addressed'
+                                : 'Mark Addressed'}
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                await onParkOpenQuestion(
+                                  `[Ops Blind Spot] ${item.title}: ${item.recommendedActionOrFix}`
+                                );
+                                setSaveBanner(
+                                  `📌 Parked "${item.title}" in Open Questions!`
+                                );
+                              }}
+                              className="h-7 border-slate-300 bg-white px-2 text-[11px] text-slate-700 hover:bg-slate-100"
+                            >
+                              <BookmarkPlus className="mr-1 h-3 w-3" />
+                              Park
+                            </Button>
+
+                            {step6Data.blindSpots.length > 1 && (
+                              <button
+                                type="button"
+                                disabled={isVaultReadonly}
+                                onClick={() =>
+                                  handleRemoveBlindSpotItem(item.id)
+                                }
+                                className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                title="Remove consideration"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {item.category === 'OTHER' && (
+                          <div className="mt-2">
+                            <input
+                              type="text"
+                              disabled={isVaultReadonly}
+                              value={item.otherCategoryText || ''}
+                              onChange={(e) =>
+                                handleUpdateBlindSpotItem(item.id, {
+                                  otherCategoryText: e.target.value,
+                                })
+                              }
+                              placeholder="Specify custom operational blind-spot category..."
+                              className="w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
+                            />
+                          </div>
+                        )}
+
+                        <div className="mt-2.5 grid grid-cols-1 gap-2.5 lg:grid-cols-12">
+                          <div className="lg:col-span-4">
+                            <label className="block text-[10px] font-bold uppercase text-slate-500">
+                              Consideration Headline
+                            </label>
+                            <input
+                              type="text"
+                              disabled={isVaultReadonly}
+                              value={item.title}
+                              onChange={(e) =>
+                                handleUpdateBlindSpotItem(item.id, {
+                                  title: e.target.value,
+                                })
+                              }
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base font-semibold text-slate-900 sm:text-xs"
+                            />
+                          </div>
+
+                          <div className="lg:col-span-4">
+                            <label className="block text-[10px] font-bold uppercase text-slate-500">
+                              Why It Matters (Grant &amp; Margin Impact)
+                            </label>
+                            <textarea
+                              rows={2}
+                              disabled={isVaultReadonly}
+                              value={item.whyItMatters}
+                              onChange={(e) =>
+                                handleUpdateBlindSpotItem(item.id, {
+                                  whyItMatters: e.target.value,
+                                })
+                              }
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-800 sm:text-xs"
+                            />
+                          </div>
+
+                          <div className="lg:col-span-4">
+                            <label className="block text-[10px] font-bold uppercase text-emerald-800">
+                              Constructive De-Risking Action
+                            </label>
+                            <textarea
+                              rows={2}
+                              disabled={isVaultReadonly}
+                              value={item.recommendedActionOrFix}
+                              onChange={(e) =>
+                                handleUpdateBlindSpotItem(item.id, {
+                                  recommendedActionOrFix: e.target.value,
+                                })
+                              }
+                              className="mt-1 w-full rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-base text-slate-800 sm:text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* PART C: EXECUTIVE OPERATIONS BRIEF & HANDSHAKE NARRATIVES     */}
+              {/* ============================================================= */}
+              <div className="space-y-4 border-t border-slate-200 pt-5">
+                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 sm:text-sm">
+                      Part C: Executive Operations Brief &amp; Finance/Team
+                      Handshake Narratives
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Compiles directly into Module K (Business Plan Section 6
+                      &amp; Official{' '}
+                      {selectedCountry === 'IE'
+                        ? 'IE LEO / Enterprise Ireland'
+                        : selectedCountry === 'GB'
+                          ? 'UK Innovate UK / Start Up Loans'
+                          : countryPack.countryName}{' '}
+                      Grant Pack).
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly || isGeneratingAiStep6}
+                    onClick={() => handleRunAiStep6('NARRATIVES_ONLY')}
+                    className="border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                  >
+                    {isGeneratingAiStep6 ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Synthesizing Brief...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        AI Draft Executive Narratives Only
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-800">
+                      1. Executive Operations &amp; Fulfillment Summary (Module
+                      K Section 6)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Synthesizes your 5-stage fulfillment workflow, premises &amp;
+                      equipment schedule, 4-category risk register, 3-gate QC
+                      SOP, and statutory compliance.
+                    </p>
+                    <textarea
+                      rows={5}
+                      disabled={isVaultReadonly}
+                      value={step6Data.executiveOperationsSummaryNarrative}
+                      onChange={(e) =>
+                        setStep6Data((prev) => ({
+                          ...prev,
+                          executiveOperationsSummaryNarrative: e.target.value,
+                        }))
+                      }
+                      placeholder="Click 'AI Run Blind-Spot Audit & Brief' or 'Use Industry Benchmark' above to synthesize your Executive Operations Brief..."
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 sm:text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-800">
+                      2. Operations-to-Finance &amp; Team Handshake Narrative
+                      (Modules F, G &amp; I)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Documents how unit COGS, return buffers, premises costs,
+                      and your indicative insurance estimate (actual coverage
+                      may vary) flow into your financial model.
+                    </p>
+                    <textarea
+                      rows={5}
+                      disabled={isVaultReadonly}
+                      value={
+                        step6Data.operationsToFinanceAndTeamHandshakeNarrative
+                      }
+                      onChange={(e) =>
+                        setStep6Data((prev) => ({
+                          ...prev,
+                          operationsToFinanceAndTeamHandshakeNarrative:
+                            e.target.value,
+                        }))
+                      }
+                      placeholder="Click 'AI Run Blind-Spot Audit & Brief' or 'Use Industry Benchmark' above to generate your Operations-to-Finance Handshake Narrative..."
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 sm:text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* LIVE MODULE E MASTER SUMMARY TABLE (STEPS 1-6 ROLLUP)         */}
+              {/* ============================================================= */}
+              <div className="space-y-2 border-t border-slate-200 pt-5">
+                <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
+                  <p className="text-xs font-bold text-slate-800">
+                    📋 Live Module K Preview — Master Operations &amp;
+                    Financial Handshake Schedule (Steps 1–6)
+                  </p>
+                  <span className="text-[11px] text-slate-500">
+                    Est. Annual Insurance (~
+                    {formatPlanCurrency(
+                      step5Data.estimatedAnnualInsurancePremium,
+                      plan.baseCurrency
+                    )}
+                    /yr) is an indicative estimate — actual coverage &amp;
+                    premium may vary
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="min-w-[660px] w-full border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-700">
+                        <th className="px-3 py-2">Module E Pillar</th>
+                        <th className="px-3 py-2">Operational Posture</th>
+                        <th className="px-3 py-2">Key Quantified Metric</th>
+                        <th className="px-3 py-2">Downstream Module Sync</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      <tr>
+                        <td className="px-3 py-2 font-semibold text-slate-900">
+                          Step 1 • Day in the Life of an Order
+                        </td>
+                        <td className="px-3 py-2 text-slate-700">
+                          {step1Data.fulfillmentMode === 'OTHER' &&
+                          step1Data.otherFulfillmentModeText
+                            ? step1Data.otherFulfillmentModeText
+                            : step1Data.fulfillmentMode.replace(/_/g, ' ')}
+                        </td>
+                        <td className="px-3 py-2 font-semibold text-slate-900">
+                          {totalActiveMinutesPerOrder} mins/order •{' '}
+                          {formatPlanCurrency(
+                            totalDirectVariableCostPerOrder,
+                            plan.baseCurrency
+                          )}{' '}
+                          Direct COGS • Max {maxOrdersPerWeekByManualTime}{' '}
+                          orders/wk
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">
+                          Module G (Unit COGS) &amp; Module F (Ops Hiring Trigger)
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 font-semibold text-slate-900">
+                          Step 2 • Premises &amp; Equipment Schedule
+                        </td>
+                        <td className="px-3 py-2 text-slate-700">
+                          {step2Data.premisesSetupMode === 'OTHER' &&
+                          step2Data.otherPremisesSetupModeText
+                            ? step2Data.otherPremisesSetupModeText
+                            : step2Data.premisesSetupMode.replace(/_/g, ' ')}
+                        </td>
+                        <td className="px-3 py-2 font-semibold text-slate-900">
+                          Premises:{' '}
+                          {formatPlanCurrency(
+                            step2Data.monthlyPremisesAndUtilitiesCost,
+                            plan.baseCurrency
+                          )}
+                          /mo • New CapEx:{' '}
+                          {formatPlanCurrency(
+                            newOutlayCapexExVat,
+                            plan.baseCurrency
+                          )}{' '}
+                          ex-VAT
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">
+                          Module I (Overheads &amp; CapEx) &amp; Module J (Grants)
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 font-semibold text-slate-900">
+                          Step 3 • 4-Category Risk Register
+                        </td>
+                        <td className="px-3 py-2 text-slate-700">
+                          {step3Data.supplierRedundancyPosture === 'OTHER' &&
+                          step3Data.otherSupplierRedundancyPostureText
+                            ? step3Data.otherSupplierRedundancyPostureText
+                            : step3Data.supplierRedundancyPosture.replace(
+                                /_/g,
+                                ' '
+                              )}
+                        </td>
+                        <td className="px-3 py-2 font-semibold text-slate-900">
+                          {step3Data.riskItems.length} Formal Risks •{' '}
+                          {step3Data.leadTimeBufferDays}d Lead-Time Buffer
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">
+                          Module K (Risk Register Appendix)
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 font-semibold text-slate-900">
+                          Step 4 • Support, Returns &amp; 3-Gate QC
+                        </td>
+                        <td className="px-3 py-2 text-slate-700">
+                          {step4Data.returnsAndWarrantyPolicy === 'OTHER' &&
+                          step4Data.otherReturnsAndWarrantyPolicyText
+                            ? step4Data.otherReturnsAndWarrantyPolicyText
+                            : step4Data.returnsAndWarrantyPolicy.replace(
+                                /_/g,
+                                ' '
+                              )}
+                        </td>
+                        <td className="px-3 py-2 font-semibold text-slate-900">
+                          {step4Data.estimatedReturnOrRefundRatePercent}% Return
+                          Rate •{' '}
+                          {formatPlanCurrency(
+                            expectedReturnBufferPerOrder,
+                            plan.baseCurrency
+                          )}
+                          /order Return Buffer
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">
+                          Module G (Pocket Profit Margin Protection)
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 font-semibold text-slate-900">
+                          Step 5 • Permits, GDPR &amp; Startup Insurance
+                        </td>
+                        <td className="px-3 py-2 text-slate-700">
+                          {step5Data.selectedInsuranceProviderName ||
+                            step5Data.insuranceCoverageBundle.replace(
+                              /_/g,
+                              ' '
+                            )}
+                        </td>
+                        <td className="px-3 py-2 font-semibold text-amber-900">
+                          Est. ~
+                          {formatPlanCurrency(
+                            step5Data.estimatedAnnualInsurancePremium,
+                            plan.baseCurrency
+                          )}
+                          /yr (~
+                          {formatPlanCurrency(
+                            estimatedMonthlyInsuranceOverhead,
+                            plan.baseCurrency
+                          )}
+                          /mo){' '}
+                          <span className="font-normal text-slate-600">
+                            (Indicative Estimate — Actual Coverage May Vary)
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">
+                          Module I (Monthly Overheads) &amp; Module K (Compliance)
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ============================================================= */}
+              {/* SAVE & CONTINUE TO MODULE F FOOTER                            */}
+              {/* ============================================================= */}
+              <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveTab('STEP_5')}
+                  className="w-full text-xs sm:w-auto"
+                >
+                  &larr; Back to Step 5 (Permits, Compliance &amp; Insurance)
+                </Button>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isSavingStep6}
+                    onClick={handleSaveStep6}
+                    className="w-full bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 sm:w-auto"
+                  >
+                    <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                    {isSavingStep6
+                      ? 'Saving Step 6...'
+                      : 'Save Step 6 (Complete Module E)'}
+                  </Button>
+
+                  {onContinueToModuleF && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isVaultReadonly || isSavingStep6}
+                      onClick={async () => {
+                        await handleSaveStep6();
+                        onContinueToModuleF();
+                      }}
+                      className="w-full bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700 sm:w-auto"
+                    >
+                      Save &amp; Continue to Module F (Co-Founder &amp; Team)
+                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
-        )}
+        </div>
+      )}
     </div>
   );
 }

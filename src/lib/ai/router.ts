@@ -92,6 +92,10 @@ import type {
   ComplianceItemCategoryType,
   ComplianceItemStatusType,
   ComplianceChecklistItem,
+  OperationsBlindSpotCategoryType,
+  OperationsBlindSpotSeverityType,
+  OperationsReadinessConfidenceType,
+  OperationsBlindSpotItem,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -8533,6 +8537,375 @@ Return ONLY valid JSON matching this exact structure:
             parsed.regulatoryAndComplianceNarrative.trim(),
           insuranceAndLiabilityGovernanceNarrative:
             parsed.insuranceAndLiabilityGovernanceNarrative.trim(),
+          creditsUsedAfter,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    }
+  } catch {
+    // Fallback to deterministic synthesizer below
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export interface ModuleEBlindSpotAuditGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  readinessConfidence: OperationsReadinessConfidenceType;
+  blindSpots: OperationsBlindSpotItem[];
+  executiveOperationsSummaryNarrative: string;
+  operationsToFinanceAndTeamHandshakeNarrative: string;
+  aiCoachTip?: string;
+  creditsUsedAfter: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleEBlindSpotAuditViaRouter(input: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  fulfillmentMode?: OperationsFulfillmentModeType | '';
+  activeMinutesPerOrder?: number;
+  directVariableCostPerOrder?: number;
+  maxOrdersPerWeekCeiling?: number;
+  premisesSetupMode?: PremisesSetupModeType | '';
+  monthlyPremisesOverheadCost?: number;
+  totalEquipmentCapexExVat?: number;
+  supplierRedundancyPosture?: SupplierRedundancyPostureType | '';
+  estimatedReturnRatePercent?: number;
+  expectedReturnBufferPerOrder?: number;
+  estimatedAnnualInsurancePremium?: number;
+  selectedInsuranceProviderName?: string;
+  currentReadinessConfidence?: OperationsReadinessConfidenceType | '';
+  currentBlindSpots?: OperationsBlindSpotItem[];
+  mode?: 'POPULATE_BLIND_SPOTS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleEBlindSpotAuditGenerationResult> {
+  const countryPack = getCountryRulePack(input.hqCountryCode);
+  const isIE = input.hqCountryCode === 'IE';
+  const isGB = input.hqCountryCode === 'GB';
+  const currencySym =
+    input.baseCurrency === 'GBP' || isGB
+      ? '£'
+      : input.baseCurrency === 'USD'
+        ? '$'
+        : '€';
+
+  const activeMins = Math.max(1, Math.round(input.activeMinutesPerOrder ?? 20));
+  const directOrderCost = Math.max(
+    0,
+    Number((input.directVariableCostPerOrder ?? 4).toFixed(2))
+  );
+  const returnBuffer = Math.max(
+    0,
+    Number((input.expectedReturnBufferPerOrder ?? 0.5).toFixed(2))
+  );
+  const totalUnitOpsCost = Number((directOrderCost + returnBuffer).toFixed(2));
+  const maxWeeklyOrders = Math.max(
+    1,
+    Math.round(input.maxOrdersPerWeekCeiling ?? 35)
+  );
+  const monthlyPremises = Math.max(
+    0,
+    Math.round(input.monthlyPremisesOverheadCost ?? 0)
+  );
+  const totalCapex = Math.max(
+    0,
+    Math.round(input.totalEquipmentCapexExVat ?? 0)
+  );
+  const annualInsEst = Math.max(
+    0,
+    Math.round(input.estimatedAnnualInsurancePremium ?? (isGB ? 720 : 850))
+  );
+  const monthlyInsEst = Math.round(annualInsEst / 12);
+  const totalMonthlyOpsFixed = monthlyPremises + monthlyInsEst;
+
+  const isPhysical =
+    input.selectedTrack === 'PHYSICAL_PRODUCT_ECOM' ||
+    input.selectedTrack === 'HYBRID_HARDWARE_SOFTWARE';
+
+  const buildSmartFallback = (): Omit<
+    ModuleEBlindSpotAuditGenerationResult,
+    'allowed' | 'creditsUsedAfter' | 'engineMode' | 'reason'
+  > => {
+    const defaultReadiness: OperationsReadinessConfidenceType =
+      input.currentReadinessConfidence ||
+      (totalCapex >= 1000
+        ? 'NEEDS_SUPPLIER_OR_3_QUOTE_VERIFICATION'
+        : 'READY_FOR_V1_FULFILLMENT');
+
+    const defaultBlindSpots: OperationsBlindSpotItem[] = [
+      {
+        id: 'ops-bs-1',
+        title: isPhysical
+          ? `Founder Active Fulfillment Ceiling (${activeMins} Mins/Order = Max ~${maxWeeklyOrders} Orders/Week)`
+          : `Founder Manual Onboarding & Support Ceiling (${activeMins} Mins/Account = Max ~${maxWeeklyOrders}/Week)`,
+        category: 'CAPACITY_AND_FULFILLMENT_BOTTLENECK',
+        severity: activeMins >= 30 ? 'IMPORTANT' : 'WATCH',
+        whyItMatters: isPhysical
+          ? `At ${activeMins} active minutes per order, a spike in seasonal or B2B wholesale demand will quickly saturate founder workshop hours unless batch fixtures or part-time assembly help are pre-staged.`
+          : `At ${activeMins} active minutes per customer onboarding/ticket, rapid user growth can pull founders away from product development and sales unless self-serve onboarding templates are automated.`,
+        recommendedActionOrFix: isPhysical
+          ? 'Pre-stage batch jigs/packaging stations to cut active minutes per unit by 25%, and define the exact weekly order volume trigger that funds a part-time fulfillment assistant in Module F.'
+          : 'Automate webhook provisioning and top-5 FAQ self-serve macros so 80%+ of routine onboarding requires zero manual founder minutes.',
+        founderMitigationNote:
+          'Tracked in Step 1 Order Lifecycle & linked to Year 1 operational hiring milestone in Module F.',
+        isResolved: false,
+      },
+      {
+        id: 'ops-bs-2',
+        title: `Combined Direct Fulfillment & Return Buffer (${currencySym}${totalUnitOpsCost.toFixed(2)}/Order) vs. Module G Pocket Profit`,
+        category: 'UNIT_COGS_AND_RETURN_MARGIN_LEAKAGE',
+        severity: totalUnitOpsCost > 15 ? 'IMPORTANT' : 'WATCH',
+        whyItMatters: `Your Step 1 direct variable cost (${currencySym}${directOrderCost.toFixed(2)}) plus Step 4 expected return/remake buffer (${currencySym}${returnBuffer.toFixed(2)}) equals ${currencySym}${totalUnitOpsCost.toFixed(2)} per order before payment processor or marketplace fees.`,
+        recommendedActionOrFix:
+          'Carry this exact combined unit operations cost into Module G (Pricing & Pocket Profit) so your retail/B2B price preserves a healthy gross margin after packaging, shipping, and returns.',
+        founderMitigationNote:
+          'Synced directly to Module G Unit Economics COGS baseline.',
+        isResolved: false,
+      },
+      {
+        id: 'ops-bs-3',
+        title: isIE
+          ? '🇮🇪 IE LEO 3-Quote Procurement Rule (>= €1,000), Mobile Asset Ban & Post-Approval Spend Timing'
+          : isGB
+            ? '🇬🇧 UK Innovate UK Capital Usage Depreciation Rule & Arms-Length Supplier Quotes'
+            : 'Capital Equipment Procurement Quotes & Grant Drawdown Timing Rule',
+        category: 'GRANT_PROCUREMENT_AND_CAPEX_ELIGIBILITY',
+        severity: totalCapex >= 1000 ? 'CRITICAL' : 'IMPORTANT',
+        whyItMatters: isIE
+          ? 'Local Enterprise Office (LEO) Priming and Feasibility grants strictly disallow any equipment purchased prior to formal Letter of Offer acceptance, disallow mobile phones/standard laptops, and require 3 independent written supplier quotes for any item >= €1,000 ex-VAT.'
+          : isGB
+            ? 'Innovate UK Smart and R&D grants only reimburse the pro-rata depreciation of capital equipment used on the project during the grant period, and Start Up Loans require verifiable commercial supplier quotes.'
+            : 'Public grant bodies disallow retrospective capital expenditure incurred prior to formal grant approval.',
+        recommendedActionOrFix: isIE
+          ? 'Keep all >= €1,000 equipment quotes dated and filed for Module K Appendix C, ring-fence laptops under 100% Own Funds/BYOD, and do not pay supplier deposits on grant-funded items before your LEO Letter of Offer.'
+          : isGB
+            ? 'Ensure Step 2 useful life (months) and project usage (%) accurately reflect R&D project usage for Innovate UK Q9 financial tables, and retain written supplier quotes.'
+            : 'Retain 3 written supplier quotes and wait for formal grant sign-off before placing capital equipment deposits.',
+        founderMitigationNote: isIE
+          ? 'Enforced in Step 2 Equipment Schedule (LEO 3-quote & laptop ban flags active).'
+          : isGB
+            ? 'Enforced in Step 2 Equipment Schedule (Innovate UK capital usage depreciation formula active).'
+            : 'Enforced in Step 2 Equipment Schedule.',
+        isResolved: false,
+      },
+      {
+        id: 'ops-bs-4',
+        title: isIE
+          ? '🇮🇪 Statutory Gatekeepers (Revenue TC2 eTax Clearance, HSA Sec 20 & DPC GDPR) + Confirming Indicative Insurance Estimate'
+          : isGB
+            ? '🇬🇧 Statutory Gatekeepers (Companies House/UTR, UK HSE, ICO Fee & £5m EL) + Confirming Indicative Insurance Estimate'
+            : 'Statutory Tax Clearance, H&S & Confirming Indicative Insurance Estimate',
+        category: 'REGULATORY_TAX_AND_INSURANCE_GAP',
+        severity: 'IMPORTANT',
+        whyItMatters: isIE
+          ? `LEO/Enterprise Ireland grants cannot be drawn down without an active Revenue eTax Clearance (TC2 via ROS) and HSA Section 20 Written Safety Statement (BeSMART.ie). Additionally, your Step 5 annual insurance figure (~${currencySym}${annualInsEst.toLocaleString()}/yr or ~${currencySym}${monthlyInsEst.toLocaleString()}/mo) is an indicative planning estimate—actual coverage, policy terms, and premiums may vary upon underwriting.`
+          : isGB
+            ? `Innovate UK, Start Up Loans, and SEIS/EIS investors verify Companies House/HMRC UTR good standing, ICO Data Protection Fee registration, and statutory £5m Employers' Liability cover when hiring. Additionally, your Step 5 annual insurance figure (~${currencySym}${annualInsEst.toLocaleString()}/yr or ~${currencySym}${monthlyInsEst.toLocaleString()}/mo) is an indicative planning estimate—actual coverage, policy terms, and premiums may vary upon underwriting.`
+            : `Your Step 5 annual insurance figure (~${currencySym}${annualInsEst.toLocaleString()}/yr) is an indicative planning estimate—actual coverage, policy terms, and premiums may vary upon formal insurer underwriting.`,
+        recommendedActionOrFix: isIE
+          ? 'Verify TC2 eTax Clearance on ROS and generate your free HSA BeSMART.ie Safety Statement before first grant claim, and request a formal written quote from an Irish broker (e.g., Hiscox Ireland, Arachas, Allianz Ireland, or FBD) to confirm exact policy limits and premium.'
+          : isGB
+            ? 'Confirm HMRC UTR & ICO Fee registration before launch, and request a formal written quote from a UK broker (e.g., Superscript, Simply Business, Hiscox UK, or Aviva UK) to confirm exact policy limits and premium.'
+            : 'Request a formal written quote from a regulated commercial insurance broker prior to launch to lock in binding coverage and premium.',
+        founderMitigationNote:
+          'Tracked in Step 5 Compliance Checklist & Insurance Matcher.',
+        isResolved: false,
+      },
+    ];
+
+    const blindSpotsToReturn =
+      input.mode === 'NARRATIVES_ONLY' &&
+      input.currentBlindSpots &&
+      input.currentBlindSpots.length > 0
+        ? input.currentBlindSpots
+        : defaultBlindSpots;
+
+    return {
+      readinessConfidence: defaultReadiness,
+      blindSpots: blindSpotsToReturn,
+      executiveOperationsSummaryNarrative: isIE
+        ? `${input.planTitle || 'Our business'} operates a structured, grant-audit-ready fulfillment and operations architecture in Ireland. In Step 1, our order lifecycle averages ${activeMins} active minutes per order (supporting up to ~${maxWeeklyOrders} orders/week within current founder operational hours). In Step 2, our premises (${currencySym}${monthlyPremises.toLocaleString()}/month overhead) and ${currencySym}${totalCapex.toLocaleString()} capital equipment schedule strictly adhere to Local Enterprise Office (LEO) and Enterprise Ireland procurement rules (3 written quotes for items >= €1,000 ex-VAT and laptops ring-fenced under 100% Own Funds/BYOD). Step 3 and Step 4 establish a 4-category Project Risk Register, 3-gate Quality Control SOP, and Ireland Consumer Rights Act 2022 (CRAA) returns workflow, while Step 5 secures CRO, Revenue eTax Clearance (TC2 via ROS), HSA Section 20 Written Safety Statement (BeSMART.ie), and EU GDPR / DPC compliance.`
+        : isGB
+          ? `${input.planTitle || 'Our business'} operates a structured, grant-audit-ready fulfillment and operations architecture in the United Kingdom. In Step 1, our order lifecycle averages ${activeMins} active minutes per order (supporting up to ~${maxWeeklyOrders} orders/week within current founder operational hours). In Step 2, our premises (${currencySym}${monthlyPremises.toLocaleString()}/month overhead) and ${currencySym}${totalCapex.toLocaleString()} capital equipment schedule align with Innovate UK eligible capital usage depreciation and British Business Bank Start Up Loans verification standards. Step 3 and Step 4 establish a 4-category Project Risk Register, 3-gate Quality Control SOP, and UK Consumer Rights Act 2015 returns workflow, while Step 5 secures Companies House, HMRC UTR, UK HSE workplace safety (HSWA 1974), and statutory ICO Data Protection Fee compliance.`
+          : `${input.planTitle || 'Our business'} operates a structured end-to-end fulfillment, capital equipment, 4-category risk management, 3-gate quality control, and regulatory compliance architecture averaging ${activeMins} active minutes per order (up to ~${maxWeeklyOrders} orders/week).`,
+      operationsToFinanceAndTeamHandshakeNarrative: `Downstream Financial & Team Handshake: (1) Module G Unit Economics COGS Baseline — ${currencySym}${directOrderCost.toFixed(2)} direct fulfillment cost + ${currencySym}${returnBuffer.toFixed(2)} return/remake buffer = ${currencySym}${totalUnitOpsCost.toFixed(2)} total operational cost per order; (2) Module I Monthly Fixed Operations Overhead — ${currencySym}${monthlyPremises.toLocaleString()}/month premises overhead + ~${currencySym}${monthlyInsEst.toLocaleString()}/month indicative commercial insurance estimate (derived from an estimated annual premium of ~${currencySym}${annualInsEst.toLocaleString()}/year via ${input.selectedInsuranceProviderName || (isIE ? 'Irish commercial broker' : isGB ? 'UK commercial broker' : 'commercial broker')}; note that this insurance figure is an indicative planning estimate only and actual coverage, policy limits, and premiums may vary subject to formal insurer underwriting) = ~${currencySym}${totalMonthlyOpsFixed.toLocaleString()}/month; (3) Module F Team Hiring Trigger — operational capacity beyond ~${maxWeeklyOrders} orders/week triggers our first part-time fulfillment/operations support hire.`,
+      aiCoachTip: isIE
+        ? 'Irish Grant Assessor Tip: Before submitting your Module K LEO or Enterprise Ireland business plan, double-check that your Step 2 Capital Equipment total matches your Module J Grant Application figure and that your Step 1+4 unit cost is reflected in Module G Pocket Profit.'
+        : isGB
+          ? 'UK Grant & Loan Assessor Tip: Before compiling your Module K Innovate UK or Start Up Loans pack, verify that your Step 2 eligible capital usage depreciation and Step 5 indicative monthly insurance overhead match your Module I 36-month cashflow.'
+          : 'Ensure your Step 1+4 unit operational cost flows into Module G Pricing and your Step 2+5 monthly fixed overheads flow into Module I Finance.',
+    };
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_E_STEP6_BLIND_SPOT_AUDIT'
+  );
+
+  if (!authCtx.canCallLiveGemini || !authCtx.activeApiKey) {
+    return {
+      allowed: true,
+      ...buildSmartFallback(),
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const fallback = buildSmartFallback();
+    const promptText = `You are the Supportive Co-Founder & Operations Blind-Spot Auditor for Build My Unicorn (BMU 2.0).
+Analyze the founder's Module E (Operations, Premises, Equipment, Risk Register, QC & Statutory Compliance) data and return JSON ONLY:
+- Startup Title: ${sanitizePromptInput(input.planTitle, 120)}
+- Industry: ${sanitizePromptInput(input.industryCategory, 100)}
+- HQ Country: ${countryPack.countryName} (${input.hqCountryCode}) — STRICT COUNTRY ISOLATION: ${
+      isIE
+        ? 'Use ONLY Ireland (IE) regulators/grants: LEO 3-quote rule (>= €1,000), LEO mobile/laptop ban, Revenue eTax Clearance (TC2 via ROS), CRO, HSA Section 20 Written Safety Statement (BeSMART.ie), DPC GDPR, Ireland Consumer Rights Act 2022 (CRAA), and Irish insurers (Hiscox Ireland, Arachas, Allianz Ireland, FBD). NEVER mention UK bodies.'
+        : isGB
+          ? 'Use ONLY UK (GB) regulators/grants: Innovate UK capital usage depreciation, British Business Bank Start Up Loans, Companies House, HMRC UTR, UK HSE (HSWA 1974), ICO Data Protection Fee, UK Consumer Rights Act 2015, statutory £5m Employers Liability, and UK insurers (Superscript, Simply Business, Hiscox UK, Aviva UK). NEVER mention Irish bodies.'
+          : `Use ${countryPack.countryName} regulatory standards.`
+    }
+- Product Track: ${input.selectedTrack}
+- Active Minutes/Order: ${activeMins} mins (Max ~${maxWeeklyOrders} orders/week)
+- Unit Ops Cost: ${currencySym}${directOrderCost.toFixed(2)} direct + ${currencySym}${returnBuffer.toFixed(2)} return buffer = ${currencySym}${totalUnitOpsCost.toFixed(2)}/order
+- Monthly Premises Overhead: ${currencySym}${monthlyPremises}/mo | Total CapEx: ${currencySym}${totalCapex}
+- Indicative Annual Insurance Premium Estimate: ~${currencySym}${annualInsEst}/yr (~${currencySym}${monthlyInsEst}/mo) — MUST explicitly state that the insurance premium is an indicative estimate only and actual coverage, policy terms, and premiums may vary upon underwriting.
+
+Return valid JSON matching:
+{
+  "readinessConfidence": "READY_FOR_V1_FULFILLMENT" | "NEEDS_SUPPLIER_OR_3_QUOTE_VERIFICATION" | "NEEDS_PILOT_BATCH_OR_SLA_STRESS_TEST" | "NEEDS_REGULATORY_OR_INSURANCE_SIGN_OFF",
+  "blindSpots": [
+    {
+      "id": "ops-bs-1",
+      "title": "string",
+      "category": "CAPACITY_AND_FULFILLMENT_BOTTLENECK" | "UNIT_COGS_AND_RETURN_MARGIN_LEAKAGE" | "GRANT_PROCUREMENT_AND_CAPEX_ELIGIBILITY" | "SINGLE_SUPPLIER_AND_CONTINUITY_EXPOSURE" | "REGULATORY_TAX_AND_INSURANCE_GAP",
+      "severity": "WATCH" | "IMPORTANT" | "CRITICAL",
+      "whyItMatters": "string",
+      "recommendedActionOrFix": "string",
+      "founderMitigationNote": "string"
+    }
+  ],
+  "executiveOperationsSummaryNarrative": "3-4 sentence grant-ready executive operations summary covering Steps 1-5",
+  "operationsToFinanceAndTeamHandshakeNarrative": "2-3 sentence quantitative handshake to Module G (unit COGS), Module I (monthly premises + indicative insurance estimate noting actual coverage & premium may vary), and Module F (team hiring trigger)",
+  "aiCoachTip": "1-2 sentence practical tip"
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: promptText,
+      config: {
+        responseMimeType: 'application/json',
+        maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        temperature: 0.35,
+      },
+    });
+
+    const rawText = response.text?.trim() || '';
+    const usage = response.usageMetadata;
+    creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+      verifiedUserId: authCtx.verifiedUserId,
+      planId: input.planId,
+      promptKey: 'MOD_E_STEP6_BLIND_SPOT_AUDIT',
+      modelUsed: 'gemini-2.5-flash',
+      inputTokens: usage?.promptTokenCount ?? 700,
+      outputTokens: usage?.candidatesTokenCount ?? 850,
+      usedByokKey: authCtx.usedByokKey,
+      fallbackCreditsUsed: authCtx.currentCreditsUsed,
+    });
+
+    if (rawText) {
+      const parsed = JSON.parse(rawText);
+      if (
+        parsed &&
+        typeof parsed.executiveOperationsSummaryNarrative === 'string' &&
+        typeof parsed.operationsToFinanceAndTeamHandshakeNarrative === 'string'
+      ) {
+        const validCategories: OperationsBlindSpotCategoryType[] = [
+          'CAPACITY_AND_FULFILLMENT_BOTTLENECK',
+          'UNIT_COGS_AND_RETURN_MARGIN_LEAKAGE',
+          'GRANT_PROCUREMENT_AND_CAPEX_ELIGIBILITY',
+          'SINGLE_SUPPLIER_AND_CONTINUITY_EXPOSURE',
+          'REGULATORY_TAX_AND_INSURANCE_GAP',
+          'OTHER',
+        ];
+        const validSeverities: OperationsBlindSpotSeverityType[] = [
+          'WATCH',
+          'IMPORTANT',
+          'CRITICAL',
+        ];
+
+        const parsedSpots: OperationsBlindSpotItem[] =
+          input.mode === 'NARRATIVES_ONLY' &&
+          input.currentBlindSpots &&
+          input.currentBlindSpots.length > 0
+            ? input.currentBlindSpots
+            : Array.isArray(parsed.blindSpots) && parsed.blindSpots.length >= 3
+              ? parsed.blindSpots
+                  .slice(0, 6)
+                  .map((spot: Record<string, unknown>, idx: number) => ({
+                    id: String(spot.id || `ops-bs-${idx + 1}`),
+                    title: String(
+                      spot.title ||
+                        fallback.blindSpots[idx]?.title ||
+                        'Operational Blind Spot'
+                    ),
+                    category: validCategories.includes(
+                      spot.category as OperationsBlindSpotCategoryType
+                    )
+                      ? (spot.category as OperationsBlindSpotCategoryType)
+                      : fallback.blindSpots[idx]?.category ||
+                        'CAPACITY_AND_FULFILLMENT_BOTTLENECK',
+                    severity: validSeverities.includes(
+                      spot.severity as OperationsBlindSpotSeverityType
+                    )
+                      ? (spot.severity as OperationsBlindSpotSeverityType)
+                      : 'IMPORTANT',
+                    whyItMatters: String(
+                      spot.whyItMatters ||
+                        fallback.blindSpots[idx]?.whyItMatters ||
+                        ''
+                    ),
+                    recommendedActionOrFix: String(
+                      spot.recommendedActionOrFix ||
+                        fallback.blindSpots[idx]?.recommendedActionOrFix ||
+                        ''
+                    ),
+                    founderMitigationNote: String(
+                      spot.founderMitigationNote ||
+                        fallback.blindSpots[idx]?.founderMitigationNote ||
+                        ''
+                    ),
+                    isResolved: false,
+                  }))
+              : fallback.blindSpots;
+
+        return {
+          allowed: true,
+          readinessConfidence:
+            input.currentReadinessConfidence ||
+            parsed.readinessConfidence ||
+            fallback.readinessConfidence,
+          blindSpots: parsedSpots,
+          executiveOperationsSummaryNarrative:
+            parsed.executiveOperationsSummaryNarrative.trim(),
+          operationsToFinanceAndTeamHandshakeNarrative:
+            parsed.operationsToFinanceAndTeamHandshakeNarrative.trim(),
+          aiCoachTip:
+            typeof parsed.aiCoachTip === 'string' && parsed.aiCoachTip.trim()
+              ? parsed.aiCoachTip.trim()
+              : fallback.aiCoachTip,
           creditsUsedAfter,
           engineMode: 'gemini-2.5-flash',
         };

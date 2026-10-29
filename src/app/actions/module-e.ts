@@ -30,6 +30,9 @@ import type {
   DataPrivacyPostureType,
   InsuranceCoverageBundleType,
   ComplianceChecklistItem,
+  OperationsBlindSpotAuditStep6Data,
+  OperationsReadinessConfidenceType,
+  OperationsBlindSpotItem,
   ProductTrackType,
   SalesChannelOptionType,
   DeliveryFulfillmentModelType,
@@ -48,6 +51,8 @@ import {
   type ModuleESupportReturnsAndQcGenerationResult,
   generateModuleEPermitsAndInsuranceViaRouter,
   type ModuleEPermitsAndInsuranceGenerationResult,
+  generateModuleEBlindSpotAuditViaRouter,
+  type ModuleEBlindSpotAuditGenerationResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -665,5 +670,123 @@ export async function generateModuleEPermitsAndInsuranceWithAiAction(input: {
   mode?: 'POPULATE_COMPLIANCE_AND_NARRATIVES' | 'NARRATIVES_ONLY';
 }): Promise<ModuleEPermitsAndInsuranceGenerationResult> {
   return generateModuleEPermitsAndInsuranceViaRouter(input);
+}
+
+/**
+ * Persists Module E Step 6 (Operations "Things to Consider" Blind-Spot Engine & Executive Brief)
+ * to `plan_modules_data` (`MOD_E_OPERATIONS`).
+ */
+export async function saveModuleEStep6BlindSpotAuditAction(input: {
+  planId: string;
+  blindSpotAudit: OperationsBlindSpotAuditStep6Data;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
+  try {
+    await ensureModuleEEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_E_OPERATIONS')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleEData;
+
+    const nowIso = new Date().toISOString();
+    const updatedPayload: SavedModuleEData = {
+      ...existingPayload,
+      blindSpotAudit: {
+        ...input.blindSpotAudit,
+        lastSavedAt: nowIso,
+      },
+      lastSavedAt: nowIso,
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage ?? 0,
+      input.completionPercentage ?? 100
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_E_OPERATIONS',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_E_STEP_6',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module E] Could not persist Step 6 Operations Blind-Spot Audit to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Calls the central AI router (`generateModuleEBlindSpotAuditViaRouter`) to run
+ * the Module E Step 6 Operations Blind-Spot Audit & Executive Operations Brief synthesis.
+ */
+export async function generateModuleEBlindSpotAuditWithAiAction(input: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  fulfillmentMode?: OperationsFulfillmentModeType | '';
+  activeMinutesPerOrder?: number;
+  directVariableCostPerOrder?: number;
+  maxOrdersPerWeekCeiling?: number;
+  premisesSetupMode?: PremisesSetupModeType | '';
+  monthlyPremisesOverheadCost?: number;
+  totalEquipmentCapexExVat?: number;
+  supplierRedundancyPosture?: SupplierRedundancyPostureType | '';
+  estimatedReturnRatePercent?: number;
+  expectedReturnBufferPerOrder?: number;
+  estimatedAnnualInsurancePremium?: number;
+  selectedInsuranceProviderName?: string;
+  currentReadinessConfidence?: OperationsReadinessConfidenceType | '';
+  currentBlindSpots?: OperationsBlindSpotItem[];
+  mode?: 'POPULATE_BLIND_SPOTS_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleEBlindSpotAuditGenerationResult> {
+  return generateModuleEBlindSpotAuditViaRouter(input);
 }
 
