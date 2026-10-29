@@ -443,7 +443,7 @@ export async function saveValidationSurveyAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module C] Could not persist survey to Cloud SQL:',
+      '[SPF Module C] Could not persist survey to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -543,7 +543,7 @@ export async function deleteValidationSurveyAction(input: {
 }
 
 /**
- * Fetches a public survey by its slug (`buildmyunicorn.com/v/[slug]`) with zero login required.
+ * Fetches a public survey by its slug (`startuppreflight.com/v/[slug]`) with zero login required.
  * SECURITY PRIVACY INVARIANT: Never return respondent emails, answers, or internal AI insights
  * to anonymous public visitors. Use `getFounderSurveyResponsesBySlugAction` inside the authenticated workspace.
  */
@@ -1099,7 +1099,7 @@ export async function saveCustomerInterviewLogsAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module C] Could not persist 1-on-1 interview logs to Cloud SQL:',
+      '[SPF Module C] Could not persist 1-on-1 interview logs to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };

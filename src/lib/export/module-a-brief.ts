@@ -331,7 +331,7 @@ export function buildModuleAStandaloneHtmlDocument(
 
   const brandHeader = data.whiteLabelEnabled
     ? 'CONFIDENTIAL STARTUP CONCEPT & READINESS BRIEF'
-    : 'BUILD MY UNICORN 2.0 • MODULE A CONCEPT & READINESS BRIEF';
+    : 'STARTUP PREFLIGHT • MODULE A CONCEPT & READINESS BRIEF';
 
   const sectionsHtml = `
     <!-- 1. RAW IDEA -->
@@ -487,7 +487,7 @@ export function buildModuleAStandaloneHtmlDocument(
     </div>`;
 
   const footerCtaHtml = `<strong>Ready for Module B (Market &amp; Competitor Intelligence)?</strong>
-      Your Module A Concept &amp; Readiness Brief is complete. Continue to Module B inside Build My Unicorn to map your Target Customers, Competitors, ${escapeHtml(countryPack.countryName)} Market Sizing, and Competitive Edge.`;
+      Your Module A Concept &amp; Readiness Brief is complete. Continue to Module B inside Startup Preflight to map your Target Customers, Competitors, ${escapeHtml(countryPack.countryName)} Market Sizing, and Competitive Edge.`;
 
   return renderBmuStandaloneHtmlDocument({
     documentTitle: `${data.planTitle} — Startup Concept & Readiness Brief`,

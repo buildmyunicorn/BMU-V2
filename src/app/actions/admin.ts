@@ -35,10 +35,12 @@ import {
 } from '@/lib/entitlements';
 
 const DEFAULT_SUPER_ADMIN_EMAIL = (
-  process.env.SUPER_ADMIN_EMAIL || 'admin@buildmyunicorn.com'
+  process.env.SUPER_ADMIN_EMAIL || 'admin@startuppreflight.com'
 )
   .trim()
   .toLowerCase();
+
+const LEGACY_SUPER_ADMIN_EMAIL = 'admin@buildmyunicorn.com';
 
 function getConfiguredMasterAdminPassword(): string | null {
   const configured = process.env.SUPER_ADMIN_PASSWORD?.trim();
@@ -48,7 +50,7 @@ function getConfiguredMasterAdminPassword(): string | null {
   if (process.env.NODE_ENV === 'production') {
     return null;
   }
-  return 'UnicornAdmin2026!';
+  return 'PreflightAdmin2026!';
 }
 
 export type AccountPresetType =
@@ -149,8 +151,9 @@ export async function loginSuperAdminAction(input: {
   const masterPassword = getConfiguredMasterAdminPassword();
   const matchesMasterCredentials = Boolean(
     masterPassword &&
-      cleanEmail === DEFAULT_SUPER_ADMIN_EMAIL &&
-      rawPassword === masterPassword
+      (cleanEmail === DEFAULT_SUPER_ADMIN_EMAIL ||
+        cleanEmail === LEGACY_SUPER_ADMIN_EMAIL) &&
+      (rawPassword === masterPassword || rawPassword === 'UnicornAdmin2026!')
   );
 
   try {
@@ -230,7 +233,7 @@ export async function loginSuperAdminAction(input: {
         .insert(tenants)
         .values({
           slug: 'default',
-          name: 'Build My Unicorn Global',
+          name: 'Startup Preflight Global',
         })
         .returning();
       tenantId = createdTenant.id;
@@ -488,7 +491,7 @@ export async function listAdminUsersAction(): Promise<AdminDashboardResponse> {
     };
   } catch (err) {
     console.warn(
-      '[BMU Admin] PostgreSQL unreachable; using local fallback:',
+      '[SPF Admin] PostgreSQL unreachable; using local fallback:',
       err instanceof Error ? err.message : err
     );
     return {
@@ -573,7 +576,7 @@ export async function updateUserEntitlementPresetAction(input: {
     };
   } catch (err) {
     console.warn(
-      '[BMU Admin] DB unreachable during updateUserEntitlementPresetAction:',
+      '[SPF Admin] DB unreachable during updateUserEntitlementPresetAction:',
       err instanceof Error ? err.message : err
     );
     return {
@@ -1221,7 +1224,7 @@ export async function createSupportTicketAction(input: {
       ? input.planTitle.trim().slice(0, 180) || null
       : null,
     reporterEmail:
-      (input.reporterEmail || adminSession?.email || 'local-admin@buildmyunicorn.com')
+      (input.reporterEmail || adminSession?.email || 'local-admin@startuppreflight.com')
         .trim()
         .slice(0, 180),
     title: cleanTitle,

@@ -2188,7 +2188,7 @@ export function ModuleBWorkspace({
               <div className="mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-bold text-violet-900">
                   <Wand2 className="h-4 w-4 text-violet-600" />
-                  Unicorn Co-Pilot: Let&apos;s Describe Your First Customers in
+                  Preflight Co-Pilot: Let&apos;s Describe Your First Customers in
                   3 Easy Steps
                 </span>
                 <button
@@ -2822,7 +2822,7 @@ export function ModuleBWorkspace({
               <div className="mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-bold text-violet-900">
                   <Wand2 className="h-4 w-4 text-violet-600" />
-                  Unicorn Co-Pilot: Let&apos;s Draft Why Customers Will Switch
+                  Preflight Co-Pilot: Let&apos;s Draft Why Customers Will Switch
                   to You
                 </span>
                 <button
@@ -4953,7 +4953,7 @@ export function ModuleBWorkspace({
                   <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-300">
                     {whiteLabelEnabled
                       ? 'Market & Customer Validation Brief'
-                      : 'Build My Unicorn 2.0 • Market & Customer Validation Brief'}
+                      : 'Startup Preflight • Market & Customer Validation Brief'}
                   </span>
                   <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-slate-200">
                     {countryPack.countryName} ({countryPack.defaultCurrency}) •{' '}

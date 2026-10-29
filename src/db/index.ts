@@ -74,7 +74,7 @@ export function ensureDatabaseSchemaSynced(): Promise<void> {
       } catch (err) {
         // Reset promise so a transient connection issue can retry on next request
         globalForDb.schemaSyncedPromise = undefined;
-        console.warn('[BMU DB] Non-fatal schema sync warning:', err);
+        console.warn('[Startup Preflight DB] Non-fatal schema sync warning:', err);
       }
     })();
   }

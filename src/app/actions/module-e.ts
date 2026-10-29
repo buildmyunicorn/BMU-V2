@@ -152,7 +152,7 @@ export async function saveModuleEStep1OperationsBlueprintAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module E] Could not persist Step 1 Operations Blueprint to Cloud SQL:',
+      '[SPF Module E] Could not persist Step 1 Operations Blueprint to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -297,7 +297,7 @@ export async function saveModuleEStep2PremisesEquipmentAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module E] Could not persist Step 2 Premises & Equipment Schedule to Cloud SQL:',
+      '[SPF Module E] Could not persist Step 2 Premises & Equipment Schedule to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -410,7 +410,7 @@ export async function saveModuleEStep3RiskRegisterAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module E] Could not persist Step 3 Risk Register to Cloud SQL:',
+      '[SPF Module E] Could not persist Step 3 Risk Register to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -523,7 +523,7 @@ export async function saveModuleEStep4SupportReturnsAndQcAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module E] Could not persist Step 4 Support, Returns & QC to Cloud SQL:',
+      '[SPF Module E] Could not persist Step 4 Support, Returns & QC to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -638,7 +638,7 @@ export async function saveModuleEStep5PermitsAndInsuranceAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module E] Could not persist Step 5 Permits, Compliance & Insurance to Cloud SQL:',
+      '[SPF Module E] Could not persist Step 5 Permits, Compliance & Insurance to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -752,7 +752,7 @@ export async function saveModuleEStep6BlindSpotAuditAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module E] Could not persist Step 6 Operations Blind-Spot Audit to Cloud SQL:',
+      '[SPF Module E] Could not persist Step 6 Operations Blind-Spot Audit to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };

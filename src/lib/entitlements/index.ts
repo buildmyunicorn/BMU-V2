@@ -164,7 +164,7 @@ export function isEntitlementInVaultMode(
 }
 
 /**
- * Checks if a user can access a specific BMU 2.0 Module (MOD_A through MOD_I).
+ * Checks if a user can access a specific Startup Preflight Module (MOD_A through MOD_I).
  * FREE_HOOK has full access to Module A (Steps 1-8), and triggers the paywall on Modules B-I.
  */
 export function canAccessModule(
@@ -295,7 +295,7 @@ export function canConsumeAiCredits(
       useByok: false,
       remainingCredits: 0,
       reason:
-        'Your pass has expired and your workspace is in Read-Only Vault Mode. Renew your pass to re-enable Ask Unicorn AI and editing.',
+        'Your pass has expired and your workspace is in Read-Only Vault Mode. Renew your pass to re-enable Ask Preflight AI and editing.',
       upgradeRequired: 'RENEW_VAULT',
     };
   }
@@ -325,7 +325,7 @@ export function canConsumeAiCredits(
       useByok: false,
       remainingCredits: Math.max(0, remaining),
       reason:
-        'You have used all of your monthly Unicorn AI Credits. Stack an additional AppSumo code, add a $10 Credit Top-Up, or connect your own Gemini API key (BYOK on Tier 3).',
+        'You have used all of your monthly Preflight AI Credits. Stack an additional AppSumo code, add a $10 Credit Top-Up, or connect your own Gemini API key (BYOK on Tier 3).',
       upgradeRequired:
         entitlement.planType === 'APPSUMO_LTD'
           ? 'APPSUMO_STACK'
@@ -395,7 +395,7 @@ export function checkFeatureEntitlement(
         return {
           allowed: false,
           reason:
-            'Removing the "Powered by Build My Unicorn" watermark requires AppSumo Tier 3 (3+ Stacked Codes).',
+            'Removing the "Powered by Startup Preflight" watermark requires AppSumo Tier 3 (3+ Stacked Codes).',
           upgradeRequired: 'APPSUMO_STACK',
         };
       }

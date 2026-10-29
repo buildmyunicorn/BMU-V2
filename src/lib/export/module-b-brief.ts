@@ -163,7 +163,7 @@ export function buildModuleBMarkdownBrief(data: ModuleBBriefData): string {
   if (!data.whiteLabelEnabled) {
     lines.push(
       '---',
-      '*Generated with Build My Unicorn (BMU) 2.0 — Supportive Co-Founder & Blind-Spot Engine*'
+      '*Generated with Startup Preflight — Supportive Co-Founder & Blind-Spot Engine*'
     );
   }
 
@@ -191,7 +191,7 @@ export function buildModuleBStandaloneHtmlDocument(
 
   const brandHeader = data.whiteLabelEnabled
     ? 'CONFIDENTIAL MARKET & CUSTOMER VALIDATION BRIEF'
-    : 'BUILD MY UNICORN 2.0 • MODULE B MARKET & CUSTOMER BRIEF';
+    : 'STARTUP PREFLIGHT • MODULE B MARKET & CUSTOMER BRIEF';
 
   const buyerModelsText =
     data.beachhead.buyerTypes && data.beachhead.buyerTypes.length > 0
@@ -402,7 +402,7 @@ export function buildModuleBStandaloneHtmlDocument(
     </div>`;
 
   const footerCtaHtml = `<strong>Ready for Module C (Customer Surveys, Feedback &amp; Early Waitlist)?</strong>
-      Your Module B Market &amp; Customer Brief is complete. Continue to Module C inside Build My Unicorn to launch your unbiased Customer Validation Survey (<code>/v/my-startup</code>), collect real buyer feedback, and build your early waitlist in ${escapeHtml(markets)}.`;
+      Your Module B Market &amp; Customer Brief is complete. Continue to Module C inside Startup Preflight to launch your unbiased Customer Validation Survey (<code>/v/my-startup</code>), collect real buyer feedback, and build your early waitlist in ${escapeHtml(markets)}.`;
 
   return renderBmuStandaloneHtmlDocument({
     documentTitle: `${data.planTitle} — Market & Customer Validation Brief`,

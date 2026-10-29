@@ -143,7 +143,7 @@ export async function generateModuleAConceptCanvasAction(input: {
       persistedToCloudSql = true;
     } catch (err) {
       console.warn(
-        '[BMU Module A] Could not persist Concept Canvas to Cloud SQL:',
+        '[SPF Module A] Could not persist Concept Canvas to Cloud SQL:',
         err instanceof Error ? err.message : err
       );
     }

@@ -182,7 +182,7 @@ export default function OnboardingPage() {
                 Part 1: About You as a Founder
               </CardTitle>
               <CardDescription>
-                Helps Ask Unicorn tailor its guidance and pre-fills your Day-1 Startup Hats in Module C.
+                Helps Ask Preflight AI tailor its guidance and pre-fills your Day-1 Startup Hats in Module C.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">

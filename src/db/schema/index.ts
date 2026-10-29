@@ -459,7 +459,7 @@ export const validationSurveys = pgTable('validation_surveys', {
   planId: uuid('plan_id')
     .references(() => startupPlans.id, { onDelete: 'cascade' })
     .notNull(),
-  publicSlug: text('public_slug').notNull().unique(), // buildmyunicorn.com/v/[publicSlug]
+  publicSlug: text('public_slug').notNull().unique(), // startuppreflight.com/v/[publicSlug]
   title: text('title').notNull(),
   introDescription: text('intro_description'),
   isActive: boolean('is_active').default(true).notNull(), // Auto-disabled if user is suspended
@@ -567,7 +567,7 @@ export const countryRules = pgTable('country_rules', {
 
 export const grantsDirectory = pgTable('grants_directory', {
   id: uuid('id').defaultRandom().primaryKey(),
-  slug: text('slug').notNull().unique(), // For public SEO pages: buildmyunicorn.com/grants/[slug]
+  slug: text('slug').notNull().unique(), // For public SEO pages: startuppreflight.com/grants/[slug]
   countryCode: text('country_code').notNull(), // 'IE', 'GB', 'US', 'AU', 'CA', 'EU'
   grantName: text('grant_name').notNull(), // e.g., 'LEO Feasibility Study Grant'
   providerAgency: text('provider_agency').notNull(), // e.g., 'Local Enterprise Office (Ireland)'

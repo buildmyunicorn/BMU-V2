@@ -245,7 +245,7 @@ function getDemoFallbackAdminUsers(): AdminUserRecord[] {
         'FinFlow B2B Marketplace Pivot',
         'PayrollBridge EU',
       ],
-      redeemedCodes: ['SUMO-BMU-9910-VIP'],
+      redeemedCodes: ['SUMO-SPF-9910-VIP'],
       entitlement: {
         planType: 'APPSUMO_LTD',
         stackedCodesCount: 5,
@@ -271,7 +271,7 @@ function getDemoFallbackAdminUsers(): AdminUserRecord[] {
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
       plansCount: 1,
       planTitles: ['QuickLead Scraper'],
-      redeemedCodes: ['SUMO-BMU-1102-REF'],
+      redeemedCodes: ['SUMO-SPF-1102-REF'],
       entitlement: {
         planType: 'FREE_HOOK',
         stackedCodesCount: 0,
@@ -348,7 +348,7 @@ export default function AdminDashboardPage() {
         return;
       }
       setAdminAuthenticated(true);
-      setAdminEmail(res.adminEmail || 'admin@buildmyunicorn.com');
+      setAdminEmail(res.adminEmail || 'admin@startuppreflight.com');
       setDbConnected(res.dbConnected);
       if (res.dbConnected && res.users.length > 0) {
         setUsersList(res.users);
@@ -408,7 +408,7 @@ export default function AdminDashboardPage() {
     const res = await createSupportTicketAction({
       ...input,
       source: 'ADMIN_TRACKER',
-      reporterEmail: adminEmail || 'admin@buildmyunicorn.com',
+      reporterEmail: adminEmail || 'admin@startuppreflight.com',
     });
     if (res.ok && res.ticket) {
       const updated = upsertLocalSupportTicket(res.ticket);
@@ -948,7 +948,7 @@ export default function AdminDashboardPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base font-bold tracking-tight">
-                  Build My Unicorn 2.0
+                  Startup Preflight
                 </span>
                 <Badge className="bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-400/40">
                   Super Admin

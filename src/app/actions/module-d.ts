@@ -139,7 +139,7 @@ export async function saveModuleDStep1ProductVehicleAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module D] Could not persist Step 1 Product Vehicle to Cloud SQL:',
+      '[SPF Module D] Could not persist Step 1 Product Vehicle to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -278,7 +278,7 @@ export async function saveModuleDStep2ChannelMatrixAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module D] Could not persist Step 2 Channel Matrix to Cloud SQL:',
+      '[SPF Module D] Could not persist Step 2 Channel Matrix to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -386,7 +386,7 @@ export async function saveModuleDStep3ScopeFilterAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module D] Could not persist Step 3 Scope Filter to Cloud SQL:',
+      '[SPF Module D] Could not persist Step 3 Scope Filter to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -497,7 +497,7 @@ export async function saveModuleDStep4BuildVsBuyAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module D] Could not persist Step 4 Build-vs-Buy to Cloud SQL:',
+      '[SPF Module D] Could not persist Step 4 Build-vs-Buy to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -610,7 +610,7 @@ export async function saveModuleDStep5WorkPackagesAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module D] Could not persist Step 5 Work Packages & Flow to Cloud SQL:',
+      '[SPF Module D] Could not persist Step 5 Work Packages & Flow to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -725,7 +725,7 @@ export async function saveModuleDStep6BlindSpotAuditAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module D] Could not persist Step 6 Blind-Spot Audit to Cloud SQL:',
+      '[SPF Module D] Could not persist Step 6 Blind-Spot Audit to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };

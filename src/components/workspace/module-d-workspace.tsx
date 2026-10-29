@@ -4877,7 +4877,7 @@ export function ModuleDWorkspace({
         deliveryFulfillmentModel: 'HYBRID_SELF_SERVE_PLUS_COHORT_CODE',
         otherDeliveryFulfillmentText: '',
         rentToOwnBridgeStrategy:
-          'Founders enter via our free Module A hook or redeem an AppSumo LTD / University Cohort voucher code directly on buildmyunicorn.com—so we own 100% of user emails, workspace data, and upgrade paths with zero mobile app store tax.',
+          'Founders enter via our free Module A hook or redeem an AppSumo LTD / University Cohort voucher code directly on startuppreflight.com—so we own 100% of user emails, workspace data, and upgrade paths with zero mobile app store tax.',
         channelWhyItFitsNotes:
           'Direct Web Checkout via Stripe (~2.9% fee) preserves 97% gross margin on 6-Month Passes, while AppSumo LTD and Irish LEO / UK University cohort licences give us rapid initial user volume and reviews without burning cash on cold ads.',
         lastSavedAt: nowIso,
@@ -4899,7 +4899,7 @@ export function ModuleDWorkspace({
       void onSaveStep2ChannelMatrix(nextS2, 50);
       persistStep3ScopeFilter(nextS3);
       setSaveBanner(
-        'Loaded & saved Example #1: SaaS Platform (Build My Unicorn) across Steps 1, 2 & 3 — Check Step 3 to see the Ruthless V1 SaaS Feature Scope Board!'
+        'Loaded & saved Example #1: SaaS Platform (Startup Preflight) across Steps 1, 2 & 3 — Check Step 3 to see the Ruthless V1 SaaS Feature Scope Board!'
       );
     } else if (preset === 'WOODWORKER_AMAZON_ETSY') {
       const nextS1: ProductVehicleStep1Data = {
@@ -6895,7 +6895,7 @@ export function ModuleDWorkspace({
       '',
       whiteLabelEnabled
         ? `_Generated for ${plan.title}_`
-        : `_Generated with Build My Unicorn (BMU 2.0) — Module D Product & Technical Blueprint_`,
+        : `_Generated with Startup Preflight — Module D Product & Technical Blueprint_`,
     ];
 
     return lines.join('\n');
@@ -7377,7 +7377,7 @@ export function ModuleDWorkspace({
       <span>${
         whiteLabelEnabled
           ? esc(plan.title)
-          : 'Build My Unicorn (BMU 2.0) • Module D Product & Technical Brief'
+          : 'Startup Preflight • Module D Product & Technical Brief'
       }</span>
       <span>Generated ${new Date().toISOString().slice(0, 10)}</span>
     </div>
@@ -7701,7 +7701,7 @@ export function ModuleDWorkspace({
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-              {/* Example 1: BMU SaaS */}
+              {/* Example 1: Startup Preflight SaaS */}
               <div className="flex flex-col justify-between rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5">
                 <div>
                   <div className="flex items-center justify-between gap-2">
@@ -7710,7 +7710,7 @@ export function ModuleDWorkspace({
                       Track 1: SaaS / AI
                     </Badge>
                     <span className="text-[10px] font-semibold text-indigo-700">
-                      Build My Unicorn
+                      Startup Preflight
                     </span>
                   </div>
                   <div className="mt-2 text-xs font-bold text-slate-900">
@@ -9616,7 +9616,7 @@ export function ModuleDWorkspace({
                         onClick={() => handleLoadScenarioPreset('BMU_SAAS')}
                         className="h-7 border-indigo-300 bg-white text-[11px] font-semibold text-indigo-800 hover:bg-indigo-50"
                       >
-                        1. Load SaaS (Build My Unicorn)
+                        1. Load SaaS (Startup Preflight)
                       </Button>
                       <Button
                         type="button"

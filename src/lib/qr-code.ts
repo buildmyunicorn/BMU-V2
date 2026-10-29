@@ -204,7 +204,7 @@ function applyMask(mask: number, r: number, c: number): boolean {
  */
 export function generateQrCodeMatrix(text: string): boolean[][] {
   const encoder = new TextEncoder();
-  const bytes = encoder.encode(text || 'https://buildmyunicorn.com');
+  const bytes = encoder.encode(text || 'https://startuppreflight.com');
   const spec = selectVersion(bytes.length);
   const size = spec.version * 4 + 17;
 

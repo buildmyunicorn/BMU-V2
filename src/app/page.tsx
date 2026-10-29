@@ -313,7 +313,7 @@ export default function LandingPage() {
             COMING SOON • UNDER ACTIVE DEVELOPMENT
           </span>
           <span className="font-medium text-slate-700">
-            Build My Unicorn 2.0 is currently in active development &amp;
+            Startup Preflight is currently in active development &amp;
             private testing. Join the early-access list below or use your
             sandbox credentials.
           </span>
@@ -330,7 +330,7 @@ export default function LandingPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base font-bold tracking-tight text-slate-900">
-                  Build My Unicorn
+                  Startup Preflight
                 </span>
                 <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber-800 uppercase">
                   Coming Soon
@@ -451,7 +451,7 @@ export default function LandingPage() {
 
             <p className="mx-auto mt-5 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-lg">
               Most founders stall on blank spreadsheets, biased customer chats,
-              or generic AI wrappers. Build My Unicorn guides you through{' '}
+              or generic AI wrappers. Startup Preflight guides you through{' '}
               <strong className="font-semibold text-slate-800">
                 11 structured founder modules (A–K)
               </strong>
@@ -484,7 +484,7 @@ export default function LandingPage() {
                     <Check className="h-5 w-5" />
                   </div>
                   <h3 className="mt-2 text-sm font-bold text-emerald-950">
-                    You&apos;re on the Build My Unicorn 2.0 Early-Access List!
+                    You&apos;re on the Startup Preflight Early-Access List!
                   </h3>
                   <p className="mt-1 text-xs text-emerald-800">
                     We&apos;ve registered{' '}
@@ -648,7 +648,7 @@ export default function LandingPage() {
                 <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
                   Every step includes <em>&ldquo;Why We Ask This&rdquo;</em>{' '}
                   micro-coaching, industry examples, the context-aware{' '}
-                  <strong>Ask Unicorn AI</strong> sidekick, and an{' '}
+                  <strong>Ask Preflight AI</strong> sidekick, and an{' '}
                   <strong>Open Questions Parking Lot</strong>.
                 </p>
               </div>
@@ -663,12 +663,12 @@ export default function LandingPage() {
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="text-center">
-              <Badge variant="default">3 Flagship Engines Inside BMU 2.0</Badge>
+              <Badge variant="default">3 Flagship Engines Inside Startup Preflight</Badge>
               <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 Built to solve the 3 biggest reasons early startups fail
               </h2>
               <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-600">
-                Beyond standard business planning, Build My Unicorn includes
+                Beyond standard business planning, Startup Preflight includes
                 three deep standalone engines currently in final development.
               </p>
             </div>
@@ -948,7 +948,7 @@ export default function LandingPage() {
                   <Sparkles className="h-4 w-4" />
                 </div>
                 <span className="text-sm font-bold text-white">
-                  Build My Unicorn 2.0
+                  Startup Preflight
                 </span>
                 <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-400/30">
                   Coming Soon • Under Active Development
@@ -975,7 +975,7 @@ export default function LandingPage() {
                 Redeem Voucher
               </Link>
               <span className="text-slate-600">
-                © {new Date().getFullYear()} Build My Unicorn
+                © {new Date().getFullYear()} Startup Preflight
               </span>
             </div>
           </div>

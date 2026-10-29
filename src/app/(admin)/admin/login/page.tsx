@@ -54,7 +54,7 @@ export default function SuperAdminLoginPage() {
             <ShieldCheck className="h-6 w-6" />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-white">
-            Build My Unicorn • Super Admin Portal
+            Startup Preflight • Super Admin Portal
           </h1>
           <p className="text-xs text-slate-400">
             Restricted access. Only authorized Super Administrators can sign in.
@@ -81,7 +81,7 @@ export default function SuperAdminLoginPage() {
                 <Input
                   id="admin-email"
                   type="email"
-                  placeholder="admin@buildmyunicorn.com"
+                  placeholder="admin@startuppreflight.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="border-slate-700 bg-slate-950 text-white placeholder:text-slate-500"

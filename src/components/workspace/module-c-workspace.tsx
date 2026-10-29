@@ -1650,7 +1650,7 @@ export function ModuleCWorkspace({
     const origin =
       typeof window !== 'undefined'
         ? window.location.origin
-        : 'https://buildmyunicorn.com';
+        : 'https://startuppreflight.com';
     return `${origin}/v/${slug || activeSurvey?.publicSlug || 'survey'}`;
   };
 

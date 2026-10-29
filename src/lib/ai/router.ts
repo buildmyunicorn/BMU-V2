@@ -118,7 +118,7 @@ export interface ModuleASynthesisResult {
   engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
-const DEFAULT_SYSTEM_PROMPT = `You are the Build My Unicorn (BMU) 2.0 Supportive Co-Founder & Blind-Spot Engine.
+const DEFAULT_SYSTEM_PROMPT = `You are the Startup Preflight Supportive Co-Founder & Blind-Spot Engine.
 Always follow the "Capture First, Expand Second" philosophy:
 1. Never criticize the founder's raw idea upfront. When tidying up the founder's Step 2 Concept Canvas notes, preserve their exact core ideas and voice while making their notes clear, well-structured, and easy to read. Remember there are no right or wrong answers.
 2. Second, generate 3 constructive, encouraging "Things to Consider" blind spots (operational realities, industry traps, or validation questions) framed as supportive coaching prompts.`;
@@ -300,7 +300,7 @@ async function authorizeAndPrepareGeminiCall(
     const hourLimit = checkRateLimit(`ai:hr:${verifiedUserId}`, 60, 3_600_000);
     if (!minuteLimit.allowed || !hourLimit.allowed) {
       console.warn(
-        `[BMU AI Billing Firewall] Per-user burst rate limit reached for user ${verifiedUserId} on ${promptKey}. Using smart-synthesizer.`
+        `[SPF AI Billing Firewall] Per-user burst rate limit reached for user ${verifiedUserId} on ${promptKey}. Using smart-synthesizer.`
       );
       return {
         canCallLiveGemini: false,
@@ -347,7 +347,7 @@ async function authorizeAndPrepareGeminiCall(
 
       if (cachedDailyPlatformCallCount >= maxDailyCalls) {
         console.warn(
-          `[BMU AI Billing Firewall] Global daily platform ceiling (${cachedDailyPlatformCallCount}/${maxDailyCalls} calls in 24h) reached. Failing closed to smart-synthesizer.`
+          `[SPF AI Billing Firewall] Global daily platform ceiling (${cachedDailyPlatformCallCount}/${maxDailyCalls} calls in 24h) reached. Failing closed to smart-synthesizer.`
         );
         return {
           canCallLiveGemini: false,
@@ -716,7 +716,7 @@ Return STRICT JSON matching this exact shape (no markdown fences):
       }
     } catch (err) {
       console.warn(
-        '[BMU AI Router] Gemini API call failed, using smart synthesizer fallback:',
+        '[SPF AI Router] Gemini API call failed, using smart synthesizer fallback:',
         err instanceof Error ? err.message : err
       );
     }
@@ -986,7 +986,7 @@ export async function scoutModuleBCompetitorsViaRouter(params: {
           : countryPack.countryName;
 
       const userPrompt = `
-You are the "Supportive Co-Founder & Market Scout" inside Build My Unicorn 2.0.
+You are the "Supportive Co-Founder & Market Scout" inside Startup Preflight.
 Identify 3 realistic competitors or alternatives that target customers in [${marketsText}] currently use instead of this founder's startup.
 Use plain, everyday English (zero corporate jargon). Format all prices in ${countryPack.defaultCurrency}.
 
@@ -1069,7 +1069,7 @@ Return STRICT JSON matching this exact structure (no markdown fences):
       }
     } catch (err) {
       console.warn(
-        '[BMU AI Router] Module B Market Scout Gemini call failed, using smart synthesizer fallback:',
+        '[SPF AI Router] Module B Market Scout Gemini call failed, using smart synthesizer fallback:',
         err instanceof Error ? err.message : err
       );
     }
@@ -1274,7 +1274,7 @@ export async function estimateModuleBMarketSizingViaRouter(params: {
       const shouldUseTwoGroups = (params.buyerTypes?.length || 0) > 1;
 
       const userPrompt = `
-You are the "Supportive Co-Founder & Plain-English Market Sizing Coach" inside Build My Unicorn 2.0.
+You are the "Supportive Co-Founder & Plain-English Market Sizing Coach" inside Startup Preflight.
 Estimate realistic bottom-up customer counts and annual/monthly pricing in ${countryPack.defaultCurrency} for this startup in [${marketsText}].
 ${shouldUseTwoGroups ? 'Because the founder selected multiple customer models, return 2 distinct customer groups (for example: Group 1 for individual users/customers, and Group 2 for business/institutional/accelerator customers).' : 'Return 1 or 2 clear customer groups.'}
 
@@ -1356,7 +1356,7 @@ Return STRICT JSON matching this exact structure (numbers as plain digit strings
       }
     } catch (err) {
       console.warn(
-        '[BMU AI Router] Module B Market Sizing Gemini call failed, using smart synthesizer fallback:',
+        '[SPF AI Router] Module B Market Sizing Gemini call failed, using smart synthesizer fallback:',
         err instanceof Error ? err.message : err
       );
     }
@@ -1527,7 +1527,7 @@ export async function generateModuleBCompetitiveEdgeViaRouter(params: {
           : countryPack.countryName;
 
       const systemInstruction =
-        'You are the Build My Unicorn (BMU) 2.0 Competitive Strategy Co-Founder. Generate a realistic, plain-English competitive comparison matrix, switching friction plan, and 2-sentence competitive edge summary. Never use startup jargon like Beachhead or TAM/SAM/SOM. Always return valid JSON.';
+        'You are the Startup Preflight Competitive Strategy Co-Founder. Generate a realistic, plain-English competitive comparison matrix, switching friction plan, and 2-sentence competitive edge summary. Never use startup jargon like Beachhead or TAM/SAM/SOM. Always return valid JSON.';
 
       const userPrompt = `
 Startup Title: ${sanitizePromptInput(params.planTitle, 200)}
@@ -1627,7 +1627,7 @@ Include 3 to 4 rows in comparisonRows: Row 1 MUST be the founder's startup ("isY
       }
     } catch (err) {
       console.warn(
-        '[BMU AI Router] Module B Competitive Edge Gemini call failed, using smart synthesizer fallback:',
+        '[SPF AI Router] Module B Competitive Edge Gemini call failed, using smart synthesizer fallback:',
         err instanceof Error ? err.message : err
       );
     }
@@ -2737,7 +2737,7 @@ Return strictly valid JSON matching this schema:
       }
     } catch (err) {
       console.warn(
-        '[BMU AI Router] Module C Survey Generation failed, using smart synthesizer fallback:',
+        '[SPF AI Router] Module C Survey Generation failed, using smart synthesizer fallback:',
         err instanceof Error ? err.message : err
       );
     }
@@ -4629,7 +4629,7 @@ export async function generateModuleDBuildVsBuyViaRouter(params: {
       };
     }
 
-    // Default: SAAS_SOFTWARE_AI (e.g. Build My Unicorn) & other tracks
+    // Default: SAAS_SOFTWARE_AI (e.g. Startup Preflight) & other tracks
     return {
       coreIpOwnershipRule: 'OWN_PROPRIETARY_WORKFLOW_RENT_PLUMBING',
       items:
@@ -6229,7 +6229,7 @@ export async function generateModuleEOperationsBlueprintViaRouter(params: {
       };
     }
 
-    // Default: Cloud SaaS / AI / Marketplace / Service (e.g. Build My Unicorn)
+    // Default: Cloud SaaS / AI / Marketplace / Service (e.g. Startup Preflight)
     const stages: OrderLifecycleStageItem[] =
       isNarrativesOnly &&
       params.currentStages &&
@@ -6284,7 +6284,7 @@ export async function generateModuleEOperationsBlueprintViaRouter(params: {
               whatHappensStepByStep:
                 'When a founder requests 3 LEO-compliant dev/equipment quotes or banking/insurance perks, standardized RFP specs route to vetted IE/UK partners within 48h.',
               toolsEquipmentOrSupplier:
-                'BMU 3-Quote Concierge Engine + Vetted IE/UK Partner Network',
+                'Startup Preflight 3-Quote Concierge Engine + Vetted IE/UK Partner Network',
               activeMinutesPerOrder: 5,
               directVariableCostPerOrder: 0.0,
             },
@@ -6324,7 +6324,7 @@ export async function generateModuleEOperationsBlueprintViaRouter(params: {
         'CLOUD_API_RATE_OR_INFRA_GUARDRAIL',
       orderLifecycleStages: stages,
       endToEndFulfillmentNarrative: `${cleanTitle} operates a high-margin cloud fulfillment pipeline where core account provisioning, geo-localization, and AI-guided module synthesis execute in under 60 seconds with ${formatPlanCurrency(totalCogs, currency)} in direct variable payment and AI token costs (COGS) per customer. Human touchpoints are reserved strictly for high-value exception triage and routing standardized 3-Quote Concierge RFPs to vetted Irish and UK partner suppliers (${totalMins} mins average ops time per customer).`,
-      scalingAndBottleneckDeRiskingNarrative: `We protect unit economics and operational uptime at scale through three guardrails: (1) a hard 500-call/day platform AI circuit breaker and 2,048 max-output-token cap in router.ts with deterministic smart-synthesizer fallback, (2) self-serve 4-layer in-app micro-coaching ('Why Are We Asking This?', industry examples, and 'Ask Unicorn') to keep support ticket volume below 5%, and (3) pre-vetted IE/UK supplier SLAs for 48-hour quote turnaround.`,
+      scalingAndBottleneckDeRiskingNarrative: `We protect unit economics and operational uptime at scale through three guardrails: (1) a hard 500-call/day platform AI circuit breaker and 2,048 max-output-token cap in router.ts with deterministic smart-synthesizer fallback, (2) self-serve 4-layer in-app micro-coaching ('Why Are We Asking This?', industry examples, and 'Ask Preflight AI') to keep support ticket volume below 5%, and (3) pre-vetted IE/UK supplier SLAs for 48-hour quote turnaround.`,
     };
   };
 
@@ -6811,7 +6811,7 @@ export async function generateModuleEPremisesEquipmentViaRouter(params: {
       };
     }
 
-    // Default: Cloud SaaS / AI / Education / Service (e.g. Build My Unicorn)
+    // Default: Cloud SaaS / AI / Education / Service (e.g. Startup Preflight)
     const items: EquipmentAssetItem[] =
       isNarrativesOnly &&
       params.currentEquipmentItems &&
@@ -8766,7 +8766,7 @@ export async function generateModuleEBlindSpotAuditViaRouter(input: {
   try {
     const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
     const fallback = buildSmartFallback();
-    const promptText = `You are the Supportive Co-Founder & Operations Blind-Spot Auditor for Build My Unicorn (BMU 2.0).
+    const promptText = `You are the Supportive Co-Founder & Operations Blind-Spot Auditor for Startup Preflight.
 Analyze the founder's Module E (Operations, Premises, Equipment, Risk Register, QC & Statutory Compliance) data and return JSON ONLY:
 - Startup Title: ${sanitizePromptInput(input.planTitle, 120)}
 - Industry: ${sanitizePromptInput(input.industryCategory, 100)}

@@ -680,7 +680,7 @@ export default function PublicValidationSurveyPage() {
             <div className="text-center text-xs text-slate-500 sm:text-left">
               Powered by{' '}
               <span className="font-semibold text-slate-800">
-                Build My Unicorn
+                Startup Preflight
               </span>{' '}
               • No login required
             </div>

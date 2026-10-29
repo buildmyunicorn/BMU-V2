@@ -103,7 +103,7 @@ export function LocalBugCaptureWidget({
         pageUrl,
         planId,
         planTitle,
-        reporterEmail: userEmail || 'local-admin@buildmyunicorn.com',
+        reporterEmail: userEmail || 'local-admin@startuppreflight.com',
         title: title.trim(),
         description: description.trim(),
         expectedBehavior: expectedBehavior.trim() || null,

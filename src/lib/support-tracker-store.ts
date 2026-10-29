@@ -75,7 +75,7 @@ export const SUPPORT_TICKET_TYPE_OPTIONS: Array<{
     value: 'AI_PROMPT_TUNING',
     label: '🤖 AI Output / Prompt Tuning',
     shortLabel: 'AI Tuning',
-    description: 'Blind-spot review, Concept Canvas, or Ask Unicorn output adjustment',
+    description: 'Blind-spot review, Concept Canvas, or Ask Preflight AI output adjustment',
   },
   {
     value: 'USER_SUPPORT',
@@ -133,7 +133,8 @@ export const SUPPORT_MODULE_SCOPE_OPTIONS: Array<{
   { value: 'OTHER', label: 'Other Area', shortBadge: 'Other' },
 ];
 
-const LOCAL_STORAGE_SUPPORT_TICKETS_KEY = 'bmu_v2_support_tickets_v1';
+const LOCAL_STORAGE_SUPPORT_TICKETS_KEY = 'spf_v2_support_tickets_v1';
+const LEGACY_LOCAL_STORAGE_SUPPORT_TICKETS_KEY = 'bmu_v2_support_tickets_v1';
 
 /**
  * Checks whether the current browser environment is running locally.
@@ -155,7 +156,9 @@ export function isLocalTestingEnvironment(): boolean {
 export function loadLocalSupportTickets(): SupportTicketRecord[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = window.localStorage.getItem(LOCAL_STORAGE_SUPPORT_TICKETS_KEY);
+    const raw =
+      window.localStorage.getItem(LOCAL_STORAGE_SUPPORT_TICKETS_KEY) ||
+      window.localStorage.getItem(LEGACY_LOCAL_STORAGE_SUPPORT_TICKETS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -242,7 +245,7 @@ export function formatSupportTicketAsAiPrompt(
       ?.label || ticket.moduleScope;
 
   const lines = [
-    `Please resolve the following ${typeLabel.toUpperCase()} logged in Build My Unicorn 2.0:`,
+    `Please resolve the following ${typeLabel.toUpperCase()} logged in Startup Preflight:`,
     ``,
     `- **Title:** ${ticket.title}`,
     `- **Type:** ${typeLabel} | **Priority:** ${ticket.priority}`,
@@ -283,7 +286,7 @@ export function formatBatchSupportTicketsAsAiPrompt(
   if (tickets.length === 0) return '';
   if (tickets.length === 1) return formatSupportTicketAsAiPrompt(tickets[0]);
 
-  const header = `Please resolve the following ${tickets.length} logged bugs/improvements in Build My Unicorn 2.0:\n`;
+  const header = `Please resolve the following ${tickets.length} logged bugs/improvements in Startup Preflight:\n`;
   const blocks = tickets.map((t, index) => {
     const typeLabel = getTicketTypeBadgeLabel(t);
     const moduleLabel = getModuleScopeLabel(t.moduleScope);

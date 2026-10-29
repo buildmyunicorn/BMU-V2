@@ -311,7 +311,7 @@ const FULFILLMENT_MODE_OPTIONS: Array<{
     value: 'HYBRID_AUTOMATED_PLUS_HUMAN',
     label: 'Hybrid: Automated Core + Human / Partner Concierge Step',
     subtitle:
-      'Core product is automated (e.g., BMU SaaS or digital portal), paired with a human/partner step like 3-Quote Concierge or group Q&A.',
+      'Core product is automated (e.g., Startup Preflight SaaS or digital portal), paired with a human/partner step like 3-Quote Concierge or group Q&A.',
     badge: 'Hybrid Leverage',
   },
   {
@@ -542,7 +542,7 @@ function buildDefaultStep1DataForPlan(
     };
   }
 
-  // Default SaaS / Digital / Hybrid (Build My Unicorn style)
+  // Default SaaS / Digital / Hybrid (Startup Preflight style)
   return {
     fulfillmentMode: 'HYBRID_AUTOMATED_PLUS_HUMAN',
     otherFulfillmentModeText: '',
@@ -596,7 +596,7 @@ function buildDefaultStep1DataForPlan(
         whatHappensStepByStep:
           'When founder clicks "Request 3 LEO-Compliant Quotes", standardized RFP routes to vetted IE/UK partner agencies/suppliers within 48h SLA.',
         toolsEquipmentOrSupplier:
-          'BMU 3-Quote Concierge Engine + Vetted IE/UK Partner Network',
+          'Startup Preflight 3-Quote Concierge Engine + Vetted IE/UK Partner Network',
         activeMinutesPerOrder: 5,
         directVariableCostPerOrder: 0.0,
       },
@@ -821,10 +821,10 @@ function getEquipmentQuoteComplianceOptions(
     {
       value: 'NEEDS_3_QUOTES_CONCIERGE',
       label: isIE
-        ? '📨 Requesting 3 Vetted Irish Supplier Quotes (BMU Concierge)'
+        ? '📨 Requesting 3 Vetted Irish Supplier Quotes (3-Quote Concierge)'
         : isUK
-          ? '📨 Requesting 3 Vetted UK Supplier Quotes (BMU Concierge)'
-          : '📨 Requesting 3 Vetted Supplier Quotes (BMU Concierge)',
+          ? '📨 Requesting 3 Vetted UK Supplier Quotes (3-Quote Concierge)'
+          : '📨 Requesting 3 Vetted Supplier Quotes (3-Quote Concierge)',
     },
     {
       value: 'HAVE_3_WRITTEN_QUOTES',
@@ -2577,7 +2577,7 @@ export function ModuleEWorkspace({
           whatHappensStepByStep:
             'Founder clicks "Request 3 LEO-Compliant Quotes"; standardized RFP specs route to vetted IE/UK partner agencies & equipment suppliers within 48h.',
           toolsEquipmentOrSupplier:
-            'BMU 3-Quote Concierge Engine + Vetted IE/UK Partner Network',
+            'Startup Preflight 3-Quote Concierge Engine + Vetted IE/UK Partner Network',
           activeMinutesPerOrder: 5,
           directVariableCostPerOrder: 0.0,
         },
@@ -2594,12 +2594,12 @@ export function ModuleEWorkspace({
           directVariableCostPerOrder: 0.05,
         },
       ],
-      endToEndFulfillmentNarrative: `Build My Unicorn operates an instant (<60 second) cloud fulfillment pipeline requiring only ${currencySymbol}3.00 in direct variable payment processing and AI token costs (COGS) per pass sold (~97.7% gross margin). Core onboarding, geo-localized grant matching, and 11-module synthesis are 100% automated on Google Cloud Run and PostgreSQL, reserving human operations strictly for 3-Quote Concierge RFP partner matching (7 mins average ops time per founder).`,
-      scalingAndBottleneckDeRiskingNarrative: `We scale from 100 to 5,000+ active founders without operational bottlenecks via three mechanisms: (1) a hard 500-call/day platform AI circuit breaker and deterministic smart-synthesizer fallback in router.ts, (2) 4-layer built-in self-serve coaching ('Why Are We Asking This?', industry examples, and 'Ask Unicorn') keeping human support tickets below 5%, and (3) pre-contracted 48-hour quote turnaround SLAs across our vetted IE/UK supplier marketplace.`,
+      endToEndFulfillmentNarrative: `Startup Preflight operates an instant (<60 second) cloud fulfillment pipeline requiring only ${currencySymbol}3.00 in direct variable payment processing and AI token costs (COGS) per pass sold (~97.7% gross margin). Core onboarding, geo-localized grant matching, and 11-module synthesis are 100% automated on Google Cloud Run and PostgreSQL, reserving human operations strictly for 3-Quote Concierge RFP partner matching (7 mins average ops time per founder).`,
+      scalingAndBottleneckDeRiskingNarrative: `We scale from 100 to 5,000+ active founders without operational bottlenecks via three mechanisms: (1) a hard 500-call/day platform AI circuit breaker and deterministic smart-synthesizer fallback in router.ts, (2) 4-layer built-in self-serve coaching ('Why Are We Asking This?', industry examples, and 'Ask Preflight AI') keeping human support tickets below 5%, and (3) pre-contracted 48-hour quote turnaround SLAs across our vetted IE/UK supplier marketplace.`,
       aiEngineUsed: 'smart-synthesizer',
     });
     setSaveBanner(
-      '🦄 Loaded Build My Unicorn (Cloud AI SaaS) 5-stage operations blueprint! Click Save Step 1 below to persist.'
+      '🚀 Loaded Startup Preflight (Cloud AI SaaS) 5-stage operations blueprint! Click Save Step 1 below to persist.'
     );
   }
 
@@ -2929,10 +2929,10 @@ export function ModuleEWorkspace({
         },
       ],
       premisesAndLocationJustificationNarrative: isIE
-        ? `Build My Unicorn operates a 100% cloud-native, remote-first architecture from Dublin with ${currencySymbol}95/month in utility and cloud-staging overhead. By avoiding fixed commercial office leases during Year 1, 100% of working capital is directed into product engineering, vetted Irish partner onboarding, and founder customer acquisition.`
+        ? `Startup Preflight operates a 100% cloud-native, remote-first architecture from Dublin with ${currencySymbol}95/month in utility and cloud-staging overhead. By avoiding fixed commercial office leases during Year 1, 100% of working capital is directed into product engineering, vetted Irish partner onboarding, and founder customer acquisition.`
         : isUK
-          ? `Build My Unicorn operates a 100% cloud-native, remote-first architecture from London with ${currencySymbol}95/month in utility and cloud-staging overhead. By avoiding fixed commercial office leases during Year 1, 100% of working capital is directed into product engineering, vetted UK partner onboarding, and founder customer acquisition.`
-          : `Build My Unicorn operates a 100% cloud-native, remote-first architecture with ${currencySymbol}95/month in utility and cloud-staging overhead, avoiding fixed commercial office lease liabilities during Year 1.`,
+          ? `Startup Preflight operates a 100% cloud-native, remote-first architecture from London with ${currencySymbol}95/month in utility and cloud-staging overhead. By avoiding fixed commercial office leases during Year 1, 100% of working capital is directed into product engineering, vetted UK partner onboarding, and founder customer acquisition.`
+          : `Startup Preflight operates a 100% cloud-native, remote-first architecture with ${currencySymbol}95/month in utility and cloud-staging overhead, avoiding fixed commercial office lease liabilities during Year 1.`,
       equipmentRoiAndGrantComplianceNarrative: isIE
         ? `Our ${currencySymbol}4,860 equipment schedule (${currencySymbol}1,260 in new cash outlay) is 100% self-funded and compliant with IE LEO capital rules. Both founder MacBook Pro development workstations (${currencySymbol}3,600 BYOD) are explicitly ring-fenced under 100% Own Funds so zero general-purpose laptops are claimed against IE LEO capital grants, while our ${currencySymbol}920 cross-device mobile QA rig and ${currencySymbol}340 FIDO2 hardware security keys fall below the ${currencySymbol}1,000 3-quote threshold.`
         : isUK
@@ -2941,7 +2941,7 @@ export function ModuleEWorkspace({
       aiEngineUsed: 'smart-synthesizer',
     });
     setSaveBanner(
-      '🦄 Loaded Build My Unicorn (Cloud AI SaaS) Premises & Ring-Fenced Equipment Schedule! Click Save Step 2 below to persist.'
+      '🚀 Loaded Startup Preflight (Cloud AI SaaS) Premises & Ring-Fenced Equipment Schedule! Click Save Step 2 below to persist.'
     );
   }
 
@@ -4323,7 +4323,7 @@ export function ModuleEWorkspace({
                             : 'bg-white text-indigo-900 border border-indigo-300'
                         }`}
                       >
-                        🦄 Build My Unicorn (Cloud AI SaaS)
+                        🚀 Startup Preflight (Cloud AI SaaS)
                       </button>
                     </div>
                   </div>
@@ -4355,7 +4355,7 @@ export function ModuleEWorkspace({
                   ) : (
                     <div className="mt-3 space-y-2 rounded-lg border border-indigo-200 bg-white p-3 text-slate-700">
                       <div className="font-bold text-slate-900">
-                        Build My Unicorn (BMU 2.0) — Cloud AI Co-Founder &amp;
+                        Startup Preflight — Cloud AI Co-Founder &amp;
                         Grant Platform
                       </div>
                       <p>
@@ -5462,7 +5462,7 @@ export function ModuleEWorkspace({
                     <div className="flex items-center gap-2 font-bold text-emerald-950">
                       <Lightbulb className="h-4 w-4 text-emerald-700" />
                       Side-by-Side Example: Artisan Woodworker Workshop vs.
-                      Build My Unicorn Cloud SaaS
+                      Startup Preflight Cloud SaaS
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
@@ -5485,7 +5485,7 @@ export function ModuleEWorkspace({
                             : 'bg-white text-slate-700 ring-1 ring-slate-200'
                         }`}
                       >
-                        🦄 Build My Unicorn (SaaS)
+                        🚀 Startup Preflight (SaaS)
                       </button>
                     </div>
                   </div>
@@ -5562,7 +5562,7 @@ export function ModuleEWorkspace({
                     <div className="space-y-2 rounded-lg border border-indigo-200 bg-white p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-bold text-indigo-950">
-                          🦄 Build My Unicorn — 100% Cloud-Native Remote Setup +
+                          🚀 Startup Preflight — 100% Cloud-Native Remote Setup +
                           Ring-Fenced QA Hardware
                         </span>
                         <Button
@@ -5572,7 +5572,7 @@ export function ModuleEWorkspace({
                           onClick={() => handleLoadStep2PresetPersona('BMU_SAAS')}
                           className="h-7 bg-indigo-600 px-2.5 text-[11px] text-white hover:bg-indigo-700"
                         >
-                          Load This BMU SaaS Schedule into Step 2
+                          Load This SaaS Schedule into Step 2
                         </Button>
                       </div>
                       <ul className="list-disc space-y-1 pl-4 text-[11px] text-slate-700">
@@ -6163,7 +6163,7 @@ export function ModuleEWorkspace({
                               >
                                 <FileCheck2 className="mr-1.5 h-3.5 w-3.5" />
                                 {item.conciergeQuotesRequested
-                                  ? '✓ 3 Quotes Requested (BMU Concierge)'
+                                  ? '✓ 3 Quotes Requested (3-Quote Concierge)'
                                   : selectedCountry === 'IE'
                                     ? 'Request 3 Vetted IE Quotes'
                                     : selectedCountry === 'GB'
@@ -10846,7 +10846,7 @@ export function ModuleEWorkspace({
               {step5Data.aiCoachTip && (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-950">
                   <p className="font-bold text-emerald-900">
-                    🦄 Unicorn Compliance &amp; Grant Assessor Tip:
+                    🚀 Preflight Compliance &amp; Grant Assessor Tip:
                   </p>
                   <p className="mt-1 leading-relaxed text-emerald-900">
                     {step5Data.aiCoachTip}

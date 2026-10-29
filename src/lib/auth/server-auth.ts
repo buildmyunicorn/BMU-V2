@@ -4,8 +4,10 @@ import { eq } from 'drizzle-orm';
 import { db, ensureDatabaseSchemaSynced } from '@/db';
 import { startupPlans, users } from '@/db/schema';
 
-const SESSION_COOKIE_NAME = 'bmu_session_token';
-const ADMIN_SESSION_COOKIE_NAME = 'bmu_super_admin_token';
+const SESSION_COOKIE_NAME = 'spf_session_token';
+const LEGACY_SESSION_COOKIE_NAME = 'bmu_session_token';
+const ADMIN_SESSION_COOKIE_NAME = 'spf_super_admin_token';
+const LEGACY_ADMIN_SESSION_COOKIE_NAME = 'bmu_super_admin_token';
 
 // Never fall back to a static public secret in production.
 // If BETTER_AUTH_SECRET is missing in production, generate an ephemeral per-instance secret
@@ -20,7 +22,7 @@ function getSessionSecret(): string {
   }
   if (process.env.NODE_ENV === 'production') {
     console.error(
-      '[BMU SECURITY WARNING] BETTER_AUTH_SECRET is missing or too short in production! Using ephemeral secret.'
+      '[Startup Preflight SECURITY WARNING] BETTER_AUTH_SECRET is missing or too short in production! Using ephemeral secret.'
     );
     return EPHEMERAL_FALLBACK_SECRET;
   }
@@ -178,7 +180,9 @@ export async function setServerSessionCookie(payload: {
 export async function getServerSessionCookie(): Promise<SessionTokenPayload | null> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const token =
+      cookieStore.get(SESSION_COOKIE_NAME)?.value ||
+      cookieStore.get(LEGACY_SESSION_COOKIE_NAME)?.value;
     if (!token) return null;
     return verifyPayload(token, FOUNDER_TOKEN_TTL_MS);
   } catch {
@@ -190,6 +194,7 @@ export async function clearServerSessionCookie(): Promise<void> {
   try {
     const cookieStore = await cookies();
     cookieStore.delete(SESSION_COOKIE_NAME);
+    cookieStore.delete(LEGACY_SESSION_COOKIE_NAME);
   } catch {
     // Ignore if called outside request context
   }
@@ -218,7 +223,9 @@ export async function setAdminSessionCookie(payload: {
 export async function getAdminSessionCookie(): Promise<SessionTokenPayload | null> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value;
+    const token =
+      cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value ||
+      cookieStore.get(LEGACY_ADMIN_SESSION_COOKIE_NAME)?.value;
     if (!token) return null;
     const payload = verifyPayload(token, ADMIN_TOKEN_TTL_MS);
     if (!payload || payload.role !== 'SUPER_ADMIN') return null;
@@ -232,6 +239,7 @@ export async function clearAdminSessionCookie(): Promise<void> {
   try {
     const cookieStore = await cookies();
     cookieStore.delete(ADMIN_SESSION_COOKIE_NAME);
+    cookieStore.delete(LEGACY_ADMIN_SESSION_COOKIE_NAME);
   } catch {
     // Ignore if called outside request context
   }

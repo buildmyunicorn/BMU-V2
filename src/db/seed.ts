@@ -26,14 +26,14 @@ export const DEFAULT_AI_PROMPTS = [
     moduleCode: 'MOD_A_IDEATION' as const,
     modelName: 'gemini-2.5-flash',
     systemInstruction:
-      'You are the Build My Unicorn (BMU) 2.0 Supportive Co-Founder. Follow the "Capture First, Expand Second" philosophy. Extract a crisp, enthusiastic 1-Page Concept Canvas from the founder’s raw brain dump without criticizing the idea.',
+      'You are the Startup Preflight 2.0 Supportive Co-Founder. Follow the "Capture First, Expand Second" philosophy. Extract a crisp, enthusiastic 1-Page Concept Canvas from the founder’s raw brain dump without criticizing the idea.',
   },
   {
     promptKey: 'MOD_A_THINGS_TO_CONSIDER',
     moduleCode: 'MOD_A_IDEATION' as const,
     modelName: 'gemini-2.5-flash',
     systemInstruction:
-      'You are the BMU 2.0 Blind-Spot Engine. After capturing the founder’s Module A Concept Canvas, surface 3–5 constructive "Things to Consider" operational realities, industry traps, and open questions framed as helpful prompts.',
+      'You are the Startup Preflight 2.0 Blind-Spot Engine. After capturing the founder’s Module A Concept Canvas, surface 3–5 constructive "Things to Consider" operational realities, industry traps, and open questions framed as helpful prompts.',
   },
   {
     promptKey: 'MOD_C_MOM_TEST_SURVEY',
@@ -52,13 +52,13 @@ export const DEFAULT_AI_PROMPTS = [
 ];
 
 async function seed() {
-  console.log('🌱 Starting BMU 2.0 Sprint 1 Database Seed...');
+  console.log('🌱 Starting Startup Preflight 2.0 Database Seed...');
 
   // 1. Seed Default Global Tenant + Sample University Tenant
   const [defaultTenant] = await db
     .insert(tenants)
     .values({
-      name: 'Build My Unicorn Global',
+      name: 'Startup Preflight Global',
       slug: 'default',
       brandingJson: {
         primaryColor: '#4f46e5',
@@ -67,7 +67,7 @@ async function seed() {
     })
     .onConflictDoUpdate({
       target: tenants.slug,
-      set: { name: 'Build My Unicorn Global' },
+      set: { name: 'Startup Preflight Global' },
     })
     .returning();
 
@@ -76,7 +76,7 @@ async function seed() {
     .values({
       name: 'UCD Nova Innovation Hub',
       slug: 'ucd-nova',
-      customDomain: 'nova.buildmyunicorn.com',
+      customDomain: 'nova.startuppreflight.com',
       brandingJson: {
         primaryColor: '#003366',
         accentColor: '#eab308',
@@ -94,7 +94,7 @@ async function seed() {
     .values({
       tenantId: ucdTenant.id,
       name: 'Spring 2027 Accelerator Batch',
-      inviteCode: 'BMU-UCD-2027',
+      inviteCode: 'SPF-UCD-2027',
       maxSeats: 50,
       seatsUsed: 1,
       accessDurationMonths: 6,
@@ -149,7 +149,7 @@ async function seed() {
       .insert(users)
       .values({
         tenantId: defaultTenant.id,
-        email: 'founder@buildmyunicorn.com',
+        email: 'founder@startuppreflight.com',
         name: 'Aoife Brennan (Free Tier)',
         emailVerified: true,
         role: 'FOUNDER',
@@ -179,7 +179,7 @@ async function seed() {
       .insert(users)
       .values({
         tenantId: defaultTenant.id,
-        email: 'appsumo@buildmyunicorn.com',
+        email: 'appsumo@startuppreflight.com',
         name: 'Liam O’Connor (AppSumo Tier 2)',
         emailVerified: true,
         role: 'FOUNDER',
@@ -209,8 +209,8 @@ async function seed() {
       .insert(users)
       .values({
         tenantId: defaultTenant.id,
-        email: 'admin@buildmyunicorn.com',
-        name: 'BMU Super Admin',
+        email: 'admin@startuppreflight.com',
+        name: 'Startup Preflight Super Admin',
         emailVerified: true,
         role: 'SUPER_ADMIN',
         status: 'ACTIVE',
@@ -266,7 +266,7 @@ async function seed() {
 
   // 7. Seed Unclaimed AppSumo Vouchers for Testing /redeem & Code Stacking
 
-  console.log('✅ BMU 2.0 Sprint 1 Database Seed completed successfully!');
+  console.log('✅ Startup Preflight 2.0 Database Seed completed successfully!');
   await pool.end();
 }
 

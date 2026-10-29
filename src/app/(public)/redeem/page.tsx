@@ -26,16 +26,16 @@ import { Badge } from '@/components/ui/badge';
 import { calculateAppSumoTierLimits } from '@/lib/entitlements';
 
 const VALID_DEMO_CODES = [
-  'SUMO-BMU-1001-ALPHA',
-  'SUMO-BMU-1002-BRAVO',
-  'SUMO-BMU-1003-CHARLIE',
-  'SUMO-BMU-1004-DELTA',
-  'SUMO-BMU-1005-ECHO',
+  'SUMO-SPF-1001-ALPHA',
+  'SUMO-SPF-1002-BRAVO',
+  'SUMO-SPF-1003-CHARLIE',
+  'SUMO-SPF-1004-DELTA',
+  'SUMO-SPF-1005-ECHO',
 ];
 
 export default function RedeemPage() {
   const [redeemedCodes, setRedeemedCodes] = useState<string[]>([
-    'SUMO-BMU-1001-ALPHA',
+    'SUMO-SPF-1001-ALPHA',
   ]);
   const [inputCode, setInputCode] = useState('');
   const [feedback, setFeedback] = useState<{
@@ -65,11 +65,15 @@ export default function RedeemPage() {
       return;
     }
 
-    if (!cleaned.startsWith('SUMO-') && !cleaned.startsWith('BMU-')) {
+    if (
+      !cleaned.startsWith('SUMO-') &&
+      !cleaned.startsWith('SPF-') &&
+      !cleaned.startsWith('BMU-')
+    ) {
       setFeedback({
         type: 'error',
         message:
-          'Unrecognized code format. Use SUMO-BMU-XXXX or BMU-UCD-2027.',
+          'Unrecognized code format. Use SUMO-SPF-XXXX or SPF-UCD-2027.',
       });
       return;
     }

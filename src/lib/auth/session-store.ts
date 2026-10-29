@@ -1406,22 +1406,33 @@ export interface BmuLocalSession {
   activePlanId: string;
 }
 
-const STORAGE_KEY = 'bmu_v2_session_state_v1';
-const PER_USER_STORAGE_PREFIX = 'bmu_v2_session_by_email_v1::';
-const PUBLIC_SURVEYS_REGISTRY_KEY = 'bmu_v2_public_surveys_registry_v1';
+const STORAGE_KEY = 'spf_v2_session_state_v1';
+const LEGACY_STORAGE_KEY = 'bmu_v2_session_state_v1';
+const PER_USER_STORAGE_PREFIX = 'spf_v2_session_by_email_v1::';
+const LEGACY_PER_USER_STORAGE_PREFIX = 'bmu_v2_session_by_email_v1::';
+const PUBLIC_SURVEYS_REGISTRY_KEY = 'spf_v2_public_surveys_registry_v1';
+const LEGACY_PUBLIC_SURVEYS_REGISTRY_KEY = 'bmu_v2_public_surveys_registry_v1';
 
 function getPerUserStorageKey(email: string): string {
   return `${PER_USER_STORAGE_PREFIX}${email.trim().toLowerCase()}`;
+}
+
+function getLegacyPerUserStorageKey(email: string): string {
+  return `${LEGACY_PER_USER_STORAGE_PREFIX}${email.trim().toLowerCase()}`;
 }
 
 export function loadBmuSessionForEmail(email: string): BmuLocalSession | null {
   if (typeof window === 'undefined' || !email?.trim()) return null;
   try {
     const cleanEmail = email.trim().toLowerCase();
-    const raw = window.localStorage.getItem(getPerUserStorageKey(cleanEmail));
+    const raw =
+      window.localStorage.getItem(getPerUserStorageKey(cleanEmail)) ||
+      window.localStorage.getItem(getLegacyPerUserStorageKey(cleanEmail));
     if (!raw) {
       // Also check if the active STORAGE_KEY currently belongs to this email
-      const activeRaw = window.localStorage.getItem(STORAGE_KEY);
+      const activeRaw =
+        window.localStorage.getItem(STORAGE_KEY) ||
+        window.localStorage.getItem(LEGACY_STORAGE_KEY);
       if (activeRaw) {
         const activeParsed = JSON.parse(activeRaw) as BmuLocalSession;
         if (activeParsed?.user?.email?.trim().toLowerCase() === cleanEmail) {
@@ -1463,7 +1474,7 @@ export function getDefaultDemoSession(): BmuLocalSession {
     user: {
       id: 'user-aoife-1',
       name: 'Aoife Brennan',
-      email: 'founder@buildmyunicorn.com',
+      email: 'founder@startuppreflight.com',
       role: 'FOUNDER',
       founderStage: 'IDEA_EXPLORER',
       teamStructure: 'SOLO',
@@ -1507,7 +1518,9 @@ export function loadBmuSession(): BmuLocalSession {
     return getDefaultDemoSession();
   }
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(STORAGE_KEY) ||
+      window.localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) {
       return getDefaultDemoSession();
     }
@@ -1566,7 +1579,11 @@ export function saveBmuSession(session: BmuLocalSession): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanedSession));
   try {
     const cleanEmail = cleanedSession.user?.email?.trim().toLowerCase();
-    if (cleanEmail && cleanEmail !== 'founder@buildmyunicorn.com') {
+    if (
+      cleanEmail &&
+      cleanEmail !== 'founder@startuppreflight.com' &&
+      cleanEmail !== 'founder@buildmyunicorn.com'
+    ) {
       const perUserKey = getPerUserStorageKey(cleanEmail);
       const isBlankDemoFallback =
         cleanedSession.user.id === 'user-aoife-1' &&
@@ -1582,7 +1599,9 @@ export function saveBmuSession(session: BmuLocalSession): void {
     // Ignore localStorage quota issues
   }
   try {
-    const rawRegistry = window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+    const rawRegistry =
+      window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY) ||
+      window.localStorage.getItem(LEGACY_PUBLIC_SURVEYS_REGISTRY_KEY);
     const registry: Record<string, SavedValidationSurvey & { planTitle?: string }> =
       rawRegistry ? JSON.parse(rawRegistry) : {};
     for (const plan of cleanedSession.plans) {
@@ -1610,7 +1629,9 @@ export function removePublicSurveyFromLocalRegistry(publicSlug: string): void {
   if (typeof window === 'undefined') return;
   try {
     const cleanSlug = decodeURIComponent(publicSlug).trim();
-    const rawRegistry = window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+    const rawRegistry =
+      window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY) ||
+      window.localStorage.getItem(LEGACY_PUBLIC_SURVEYS_REGISTRY_KEY);
     if (!rawRegistry) return;
     const registry = JSON.parse(rawRegistry) as Record<
       string,
@@ -1634,7 +1655,9 @@ export function loadPublicSurveyFromLocalRegistry(
   if (typeof window === 'undefined') return null;
   try {
     const cleanSlug = decodeURIComponent(publicSlug).trim();
-    const rawRegistry = window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+    const rawRegistry =
+      window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY) ||
+      window.localStorage.getItem(LEGACY_PUBLIC_SURVEYS_REGISTRY_KEY);
     if (rawRegistry) {
       const registry = JSON.parse(rawRegistry) as Record<
         string,
@@ -1675,7 +1698,9 @@ export function appendResponseToLocalRegistryAndSession(
   if (typeof window === 'undefined') return;
   const cleanSlug = decodeURIComponent(publicSlug).trim();
   try {
-    const rawRegistry = window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+    const rawRegistry =
+      window.localStorage.getItem(PUBLIC_SURVEYS_REGISTRY_KEY) ||
+      window.localStorage.getItem(LEGACY_PUBLIC_SURVEYS_REGISTRY_KEY);
     if (rawRegistry) {
       const registry = JSON.parse(rawRegistry) as Record<
         string,
@@ -1757,7 +1782,7 @@ export function registerNewFounderSession(params: {
       whiteLabelExportEnabled: sumo.whiteLabelExportEnabled,
       isVaultReadonly: false,
     };
-  } else if (cleanCode.startsWith('BMU-')) {
+  } else if (cleanCode.startsWith('SPF-') || cleanCode.startsWith('BMU-')) {
     const cohortLimits = calculatePassLimits('COHORT_PASS', 6);
     redeemedCodes.push(cleanCode);
     entitlement = {
@@ -1793,7 +1818,10 @@ export function registerNewFounderSession(params: {
       name: params.name.trim() || 'New Founder',
       email: params.email.trim().toLowerCase(),
       role: 'FOUNDER',
-      cohortCode: cleanCode.startsWith('BMU-') ? cleanCode : undefined,
+      cohortCode:
+        cleanCode.startsWith('SPF-') || cleanCode.startsWith('BMU-')
+          ? cleanCode
+          : undefined,
       onboardingCompleted: false,
     },
     entitlement,
@@ -1835,7 +1863,7 @@ export function completeFounderOnboarding(params: {
 
   const firstPlan: ActiveStartupPlan = {
     id: planId,
-    title: params.planTitle.trim() || 'My First Unicorn Idea',
+    title: params.planTitle.trim() || 'My First Startup Plan',
     oneLinerSummary: params.oneLinerSummary.trim(),
     industryCategory: params.industryCategory,
     hqCountryCode: params.hqCountryCode,

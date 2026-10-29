@@ -56,10 +56,11 @@ export default function RegisterPage() {
     if (
       voucherCode.trim() &&
       !voucherCode.trim().toUpperCase().startsWith('SUMO-') &&
+      !voucherCode.trim().toUpperCase().startsWith('SPF-') &&
       !voucherCode.trim().toUpperCase().startsWith('BMU-')
     ) {
       setErrorMsg(
-        'Voucher codes must start with SUMO- (AppSumo) or BMU- (University/LEO Cohort).'
+        'Voucher codes must start with SUMO- (AppSumo) or SPF- (University/LEO Cohort).'
       );
       return;
     }
@@ -111,7 +112,7 @@ export default function RegisterPage() {
                 <Sparkles className="h-5 w-5" />
               </div>
               <span className="text-lg font-bold tracking-tight text-slate-900">
-                Build My Unicorn
+                Startup Preflight
               </span>
             </Link>
 

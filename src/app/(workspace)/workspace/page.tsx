@@ -3453,7 +3453,7 @@ export default function WorkspacePage() {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <span className="hidden text-base font-bold tracking-tight text-slate-900 sm:inline">
-                  Build My Unicorn
+                  Startup Preflight
                 </span>
                 <span className="hidden text-slate-300 sm:inline">/</span>
                 <span className="max-w-[165px] truncate text-sm font-bold text-indigo-700 sm:max-w-none sm:font-semibold">
@@ -3521,7 +3521,7 @@ export default function WorkspacePage() {
             >
               <Bot className="h-4 w-4" />
               <span className=" sm:hidden">Ask AI</span>
-              <span className="hidden sm:inline">Ask Unicorn AI</span>
+              <span className="hidden sm:inline">Ask Preflight AI</span>
             </Button>
           </div>
         </div>
@@ -4411,7 +4411,7 @@ export default function WorkspacePage() {
               {showImStuckHelper && (
                 <div className="mb-3 rounded-xl border border-violet-200 bg-violet-50/70 p-3.5 text-xs text-violet-950">
                   <div className="font-bold">
-                    ✨ Ask Unicorn Sub-Question Breakdown:
+                    ✨ Ask Preflight AI Sub-Question Breakdown:
                   </div>
                   <ol className="mt-1.5 list-inside list-decimal space-y-1 text-violet-900">
                     <li>
@@ -4630,7 +4630,7 @@ export default function WorkspacePage() {
               {!activeEntitlement.isVaultReadonly && (
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
                   <div className="text-xs text-slate-500">
-                    💡 Save your own notes directly, or let Ask Unicorn tidy up your wording while keeping your meaning.
+                    💡 Save your own notes directly, or let Ask Preflight AI tidy up your wording while keeping your meaning.
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
@@ -4688,7 +4688,7 @@ export default function WorkspacePage() {
                   <Badge variant="success">No Right or Wrong Answer</Badge>
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Build My Unicorn adapts its coaching to match <strong>your</strong> personal goals — whether you want to replace your 9-to-5 salary, build a weekend side hustle, champion a mission, or scale a venture-backed company.
+                  Startup Preflight adapts its coaching to match <strong>your</strong> personal goals — whether you want to replace your 9-to-5 salary, build a weekend side hustle, champion a mission, or scale a venture-backed company.
                 </CardDescription>
               </div>
             </CardHeader>
@@ -4905,7 +4905,7 @@ export default function WorkspacePage() {
               {!activeEntitlement.isVaultReadonly && (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
                   <div className="text-xs text-slate-500">
-                    🎯 Your personal ambition shapes how Ask Unicorn coaches you across Modules A–G.
+                    🎯 Your personal ambition shapes how Ask Preflight AI coaches you across Modules A–G.
                   </div>
                   <Button
                     size="sm"
@@ -6087,7 +6087,7 @@ export default function WorkspacePage() {
                       <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-300">
                         {activeEntitlement.whiteLabelExportEnabled
                           ? 'Startup Concept & Readiness Brief'
-                          : 'Build My Unicorn 2.0 • Startup Concept & Readiness Brief'}
+                          : 'Startup Preflight • Startup Concept & Readiness Brief'}
                       </span>
                       <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-slate-200">
                         {countryPack.countryName} ({countryPack.defaultCurrency})
@@ -6460,7 +6460,7 @@ export default function WorkspacePage() {
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-indigo-600" />
             <span className="font-semibold text-slate-800">
-              Build My Unicorn 2.0
+              Startup Preflight
             </span>
             <span>© {new Date().getFullYear()} All rights reserved.</span>
           </div>
@@ -6473,7 +6473,7 @@ export default function WorkspacePage() {
       </footer>
 
       {/* ========================================================= */}
-      {/* LAYER 2: SLIDE-OUT "ASK UNICORN" AI SIDEKICK DRAWER       */}
+      {/* LAYER 2: SLIDE-OUT "ASK PREFLIGHT AI" SIDEKICK DRAWER     */}
       {/* ========================================================= */}
       {askUnicornOpen && (
         <div className="fixed bottom-3 left-3 right-3 z-40 rounded-2xl border border-indigo-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96">
@@ -6482,7 +6482,7 @@ export default function WorkspacePage() {
               <Bot className="h-5 w-5" />
               <div>
                 <div className="text-xs font-bold">
-                  Ask Unicorn (Co-Founder AI)
+                  Ask Preflight AI (Co-Founder AI)
                 </div>
                 <div className="text-[10px] text-indigo-100">
                   Context: {currentPlan.title} •{' '}
@@ -6535,7 +6535,7 @@ export default function WorkspacePage() {
                   onClick={() =>
                     setBrainDumpText(
                       brainDumpText +
-                        '\n\n[Unicorn Suggestion]: Highlight how much money or time the customer loses every single week before buying your solution.'
+                        '\n\n[Preflight AI Suggestion]: Highlight how much money or time the customer loses every single week before buying your solution.'
                     )
                   }
                   className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"

@@ -167,7 +167,7 @@ export default function LoginPage() {
         user: {
           ...base.user,
           name: 'Liam O’Connor',
-          email: 'appsumo@buildmyunicorn.com',
+          email: 'appsumo@startuppreflight.com',
         },
         entitlement: {
           userId: 'user-liam-sumo',
@@ -180,7 +180,7 @@ export default function LoginPage() {
           whiteLabelExportEnabled: false,
           isVaultReadonly: false,
         },
-        redeemedCodes: ['SUMO-BMU-1001-ALPHA', 'SUMO-BMU-1002-BRAVO'],
+        redeemedCodes: ['SUMO-SPF-1001-ALPHA', 'SUMO-SPF-1002-BRAVO'],
       };
       saveBmuSession(session);
     } else if (persona === 'UCD_COHORT') {
@@ -192,7 +192,7 @@ export default function LoginPage() {
           name: 'Ciara Murphy',
           email: 'ciara@ucdconnect.ie',
           founderStage: 'ACCELERATOR_COHORT',
-          cohortCode: 'BMU-UCD-2027',
+          cohortCode: 'SPF-UCD-2027',
         },
         entitlement: {
           userId: 'user-ciara-cohort',
@@ -215,7 +215,7 @@ export default function LoginPage() {
         user: {
           ...base.user,
           name: 'Tomo (Super Admin)',
-          email: 'admin@buildmyunicorn.com',
+          email: 'admin@startuppreflight.com',
           role: 'SUPER_ADMIN',
         },
         entitlement: {
@@ -247,7 +247,7 @@ export default function LoginPage() {
                 <Sparkles className="h-5 w-5" />
               </div>
               <span className="text-xl font-bold tracking-tight text-slate-900">
-                Build My Unicorn
+                Startup Preflight
               </span>
             </Link>
             <p className="text-xs text-slate-500">
@@ -346,7 +346,7 @@ export default function LoginPage() {
               </form>
 
               <div className="flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
-                <span>New to Build My Unicorn?</span>
+                <span>New to Startup Preflight?</span>
                 <Link
                   href="/register"
                   className="font-semibold text-indigo-600 hover:underline"

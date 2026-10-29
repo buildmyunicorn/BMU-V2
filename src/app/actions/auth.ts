@@ -82,7 +82,7 @@ async function ensureDefaultTenantId(): Promise<string> {
     .insert(tenants)
     .values({
       slug: 'default',
-      name: 'Build My Unicorn Global',
+      name: 'Startup Preflight Global',
       brandingJson: {
         primaryColor: '#4f46e5',
         accentColor: '#f59e0b',
@@ -120,7 +120,7 @@ async function buildSessionFromDbUser(
       .from(vouchers)
       .where(eq(vouchers.redeemedByUserId, dbUser.id));
   } catch (err) {
-    console.warn('[BMU Auth] Non-fatal error loading user vouchers:', err);
+    console.warn('[SPF Auth] Non-fatal error loading user vouchers:', err);
   }
 
   const mappedPlans: ActiveStartupPlan[] = [];
@@ -307,7 +307,7 @@ async function buildSessionFromDbUser(
       }
     } catch (err) {
       console.warn(
-        `[BMU Auth] Non-fatal error hydrating relational surveys for plan ${plan.id}:`,
+        `[SPF Auth] Non-fatal error hydrating relational surveys for plan ${plan.id}:`,
         err
       );
     }
@@ -363,7 +363,7 @@ async function buildSessionFromDbUser(
         .where(eq(openQuestionsParkingLot.planId, plan.id));
     } catch (err) {
       console.warn(
-        `[BMU Auth] Non-fatal error loading open questions for plan ${plan.id}:`,
+        `[SPF Auth] Non-fatal error loading open questions for plan ${plan.id}:`,
         err
       );
     }
@@ -535,7 +535,7 @@ export async function registerFounderAction(input: {
     }
 
     let cohortId: string | null = null;
-    if (cleanCode.startsWith('BMU-')) {
+    if (cleanCode.startsWith('SPF-') || cleanCode.startsWith('BMU-')) {
       const [foundCohort] = await db
         .select()
         .from(cohorts)
@@ -602,7 +602,7 @@ export async function registerFounderAction(input: {
           redeemedAt: new Date(),
         });
       }
-    } else if (cleanCode.startsWith('BMU-')) {
+    } else if (cleanCode.startsWith('SPF-') || cleanCode.startsWith('BMU-')) {
       const cohortLimits = calculatePassLimits('COHORT_PASS', 6);
       await db.insert(userEntitlements).values({
         userId: createdUser.id,
@@ -644,7 +644,7 @@ export async function registerFounderAction(input: {
     };
   } catch (err) {
     console.warn(
-      '[BMU Auth] PostgreSQL unreachable during register; using local fallback:',
+      '[SPF Auth] PostgreSQL unreachable during register; using local fallback:',
       err instanceof Error ? err.message : err
     );
     return {
@@ -742,7 +742,7 @@ export async function loginFounderAction(input: {
     };
   } catch (err) {
     console.warn(
-      '[BMU Auth] PostgreSQL unreachable during login; using local fallback:',
+      '[SPF Auth] PostgreSQL unreachable during login; using local fallback:',
       err instanceof Error ? err.message : err
     );
     return {
@@ -810,7 +810,7 @@ export async function completeOnboardingAction(input: {
       .where(eq(users.id, dbUser.id))
       .returning();
 
-    const cleanTitle = input.planTitle.trim() || 'My First Unicorn Idea';
+    const cleanTitle = input.planTitle.trim() || 'My First Startup Plan';
     const cleanSummary = input.oneLinerSummary.trim();
 
     const [createdPlan] = await db
@@ -862,7 +862,7 @@ export async function completeOnboardingAction(input: {
     };
   } catch (err) {
     console.warn(
-      '[BMU Auth] PostgreSQL unreachable during onboarding; using local fallback:',
+      '[SPF Auth] PostgreSQL unreachable during onboarding; using local fallback:',
       err instanceof Error ? err.message : err
     );
     return {

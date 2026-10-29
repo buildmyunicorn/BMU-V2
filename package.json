@@ -1,5 +1,5 @@
 {
-  "name": "bmu-platform",
+  "name": "startup-preflight-platform",
   "version": "2.0.0",
   "private": true,
   "scripts": {

@@ -110,7 +110,7 @@ export async function saveModuleBStep1BeachheadAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module B] Could not persist Step 1 Beachhead to Cloud SQL:',
+      '[SPF Module B] Could not persist Step 1 Beachhead to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -222,7 +222,7 @@ export async function saveModuleBStep2CompetitorsAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module B] Could not persist Step 2 Competitors to Cloud SQL:',
+      '[SPF Module B] Could not persist Step 2 Competitors to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -325,7 +325,7 @@ export async function saveModuleBStep3MarketSizingAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module B] Could not persist Step 3 Market Sizing to Cloud SQL:',
+      '[SPF Module B] Could not persist Step 3 Market Sizing to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -426,7 +426,7 @@ export async function saveModuleBStep4CompetitiveWedgeAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module B] Could not persist Step 4 Competitive Edge to Cloud SQL:',
+      '[SPF Module B] Could not persist Step 4 Competitive Edge to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };
@@ -519,7 +519,7 @@ export async function saveModuleBStep5CompleteAction(input: {
     return { ok: true, persistedToCloudSql: true };
   } catch (err) {
     console.warn(
-      '[BMU Module B] Could not persist Step 5 Things to Consider to Cloud SQL:',
+      '[SPF Module B] Could not persist Step 5 Things to Consider to Cloud SQL:',
       err instanceof Error ? err.message : err
     );
     return { ok: true, persistedToCloudSql: false };

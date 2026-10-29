@@ -1,5 +1,5 @@
 /**
- * Unified Build My Unicorn (BMU) 2.0 Document Export Shell.
+ * Unified Startup Preflight Document Export Shell.
  * Standardizes the exact Module A ("Module 1") magazine-quality HTML & Print-to-PDF
  * design system across every module (Modules A through I) on the platform.
  */
@@ -16,7 +16,7 @@ export function escapeDocumentHtml(str: string): string {
 export interface BmuDocumentShellProps {
   /** Browser tab & PDF title */
   documentTitle: string;
-  /** Top indigo eyebrow text (e.g. "BUILD MY UNICORN 2.0 • MODULE A CONCEPT & READINESS BRIEF") */
+  /** Top indigo eyebrow text (e.g. "STARTUP PREFLIGHT • MODULE A CONCEPT & READINESS BRIEF") */
   eyebrow: string;
   /** Startup Plan Title (H1) */
   planTitle: string;
