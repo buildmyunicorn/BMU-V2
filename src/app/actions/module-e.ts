@@ -20,6 +20,16 @@ import type {
   RiskRegisterStep3Data,
   SupplierRedundancyPostureType,
   ProjectRiskRegisterItem,
+  SupportReturnsAndQcStep4Data,
+  SupportOperatingModelType,
+  SupportResponseSlaType,
+  ReturnsAndWarrantyPolicyType,
+  QcCheckpointItem,
+  PermitsComplianceAndInsuranceStep5Data,
+  RegulatorySectorPostureType,
+  DataPrivacyPostureType,
+  InsuranceCoverageBundleType,
+  ComplianceChecklistItem,
   ProductTrackType,
   SalesChannelOptionType,
   DeliveryFulfillmentModelType,
@@ -34,6 +44,10 @@ import {
   type ModuleEPremisesEquipmentGenerationResult,
   generateModuleERiskRegisterViaRouter,
   type ModuleERiskRegisterGenerationResult,
+  generateModuleESupportReturnsAndQcViaRouter,
+  type ModuleESupportReturnsAndQcGenerationResult,
+  generateModuleEPermitsAndInsuranceViaRouter,
+  type ModuleEPermitsAndInsuranceGenerationResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -423,3 +437,233 @@ export async function generateModuleERiskRegisterWithAiAction(input: {
 }): Promise<ModuleERiskRegisterGenerationResult> {
   return generateModuleERiskRegisterViaRouter(input);
 }
+
+/**
+ * Persists Module E Step 4 (Customer Support, Returns, Warranty & Quality Control SOP)
+ * to `plan_modules_data` (`MOD_E_OPERATIONS`).
+ */
+export async function saveModuleEStep4SupportReturnsAndQcAction(input: {
+  planId: string;
+  supportReturnsAndQc: SupportReturnsAndQcStep4Data;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
+  try {
+    await ensureModuleEEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_E_OPERATIONS')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleEData;
+
+    const nowIso = new Date().toISOString();
+    const updatedPayload: SavedModuleEData = {
+      ...existingPayload,
+      supportReturnsAndQc: {
+        ...input.supportReturnsAndQc,
+        lastSavedAt: nowIso,
+      },
+      lastSavedAt: nowIso,
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage ?? 0,
+      input.completionPercentage ?? 80
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_E_OPERATIONS',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_E_STEP_4',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module E] Could not persist Step 4 Support, Returns & QC to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Calls the central AI router (`generateModuleESupportReturnsAndQcViaRouter`) to draft
+ * Customer Support, Returns, Warranty & 3-Gate Quality Control (QC) SOP + Narratives.
+ */
+export async function generateModuleESupportReturnsAndQcWithAiAction(input: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  currentSupportOperatingModel?: SupportOperatingModelType | '';
+  currentSupportResponseSla?: SupportResponseSlaType | '';
+  currentReturnsAndWarrantyPolicy?: ReturnsAndWarrantyPolicyType | '';
+  currentEstimatedReturnRatePercent?: number;
+  currentCostPerReturnIncident?: number;
+  currentWarrantyDurationMonths?: number;
+  currentQcCheckpoints?: QcCheckpointItem[];
+  mode?: 'POPULATE_QC_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleESupportReturnsAndQcGenerationResult> {
+  return generateModuleESupportReturnsAndQcViaRouter(input);
+}
+
+/**
+ * Persists Module E Step 5 (Regulatory, Licensing, Health & Safety, GDPR & Instant Startup Insurance Matcher)
+ * to `plan_modules_data` (`MOD_E_OPERATIONS`).
+ */
+export async function saveModuleEStep5PermitsAndInsuranceAction(input: {
+  planId: string;
+  permitsAndInsurance: PermitsComplianceAndInsuranceStep5Data;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false };
+  }
+
+  try {
+    await ensureModuleEEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_E_OPERATIONS')
+        )
+      )
+      .limit(1);
+
+    const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
+      {}) as SavedModuleEData;
+
+    const nowIso = new Date().toISOString();
+    const updatedPayload: SavedModuleEData = {
+      ...existingPayload,
+      permitsAndInsurance: {
+        ...input.permitsAndInsurance,
+        lastSavedAt: nowIso,
+      },
+      lastSavedAt: nowIso,
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage ?? 0,
+      input.completionPercentage ?? 90
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedPayload,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(eq(planModulesData.id, existingMod[0].id));
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_E_OPERATIONS',
+        structuredInputsJsonb: updatedPayload,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_E_STEP_5',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn(
+      '[BMU Module E] Could not persist Step 5 Permits, Compliance & Insurance to Cloud SQL:',
+      err instanceof Error ? err.message : err
+    );
+    return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Calls the central AI router (`generateModuleEPermitsAndInsuranceViaRouter`) to draft
+ * Regulatory, Licensing, Health & Safety, GDPR & Commercial Insurance Blueprint + Narratives.
+ */
+export async function generateModuleEPermitsAndInsuranceWithAiAction(input: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  currentRegulatorySectorPosture?: RegulatorySectorPostureType | '';
+  currentDataPrivacyPosture?: DataPrivacyPostureType | '';
+  currentInsuranceCoverageBundle?: InsuranceCoverageBundleType | '';
+  currentEstimatedAnnualInsurancePremium?: number;
+  currentSelectedInsuranceProviderName?: string;
+  currentComplianceItems?: ComplianceChecklistItem[];
+  mode?: 'POPULATE_COMPLIANCE_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleEPermitsAndInsuranceGenerationResult> {
+  return generateModuleEPermitsAndInsuranceViaRouter(input);
+}
+

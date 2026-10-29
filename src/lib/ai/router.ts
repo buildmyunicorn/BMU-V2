@@ -81,6 +81,17 @@ import type {
   ProjectRiskCategoryType,
   ResidualRiskRatingType,
   ProjectRiskRegisterItem,
+  SupportOperatingModelType,
+  SupportResponseSlaType,
+  ReturnsAndWarrantyPolicyType,
+  QcGateTimingType,
+  QcCheckpointItem,
+  RegulatorySectorPostureType,
+  DataPrivacyPostureType,
+  InsuranceCoverageBundleType,
+  ComplianceItemCategoryType,
+  ComplianceItemStatusType,
+  ComplianceChecklistItem,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -7620,6 +7631,925 @@ Return ONLY valid JSON matching this exact structure:
     engineMode: 'smart-synthesizer',
   };
 }
+
+// ============================================================================
+// MODULE E STEP 4: CUSTOMER SUPPORT, RETURNS, WARRANTY & QUALITY CONTROL (QC)
+// ============================================================================
+
+export interface ModuleESupportReturnsAndQcGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  supportOperatingModel: SupportOperatingModelType;
+  supportResponseSla: SupportResponseSlaType;
+  returnsAndWarrantyPolicy: ReturnsAndWarrantyPolicyType;
+  estimatedReturnOrRefundRatePercent: number;
+  costPerReturnOrRemakeIncident: number;
+  warrantyDurationMonths: number;
+  qcCheckpoints: QcCheckpointItem[];
+  qualityControlAndStandardsNarrative: string;
+  customerSupportAndReturnsNarrative: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleESupportReturnsAndQcViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  currentSupportOperatingModel?: SupportOperatingModelType | '';
+  currentSupportResponseSla?: SupportResponseSlaType | '';
+  currentReturnsAndWarrantyPolicy?: ReturnsAndWarrantyPolicyType | '';
+  currentEstimatedReturnRatePercent?: number;
+  currentCostPerReturnIncident?: number;
+  currentWarrantyDurationMonths?: number;
+  currentQcCheckpoints?: QcCheckpointItem[];
+  mode?: 'POPULATE_QC_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleESupportReturnsAndQcGenerationResult> {
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_E_STEP4_SUPPORT_RETURNS_QC'
+  );
+
+  const countryPack = getCountryRulePack(params.hqCountryCode);
+  const currency = params.baseCurrency || countryPack.defaultCurrency;
+  const cleanTitle =
+    sanitizePromptInput(params.planTitle, 100) || 'the business';
+  const isNarrativesOnly = params.mode === 'NARRATIVES_ONLY';
+
+  const consumerLawAndGrantLabel =
+    params.hqCountryCode === 'IE'
+      ? 'Ireland Consumer Rights Act 2022 (CRAA), CCPC distance-selling regulations, and Local Enterprise Office (LEO) / Enterprise Ireland quality assurance standards'
+      : params.hqCountryCode === 'GB'
+        ? 'UK Consumer Rights Act 2015, Consumer Contracts Regulations 2013, and Innovate UK / British Business Bank Start Up Loan operational standards'
+        : `${countryPack.countryName} statutory consumer protection & grant underwriting standards`;
+
+  const buildSmartFallback = (): Omit<
+    ModuleESupportReturnsAndQcGenerationResult,
+    'allowed' | 'reason' | 'creditsUsedAfter' | 'engineMode'
+  > => {
+    const isPhysicalOrHardware =
+      params.selectedTrack === 'PHYSICAL_PRODUCT_ECOM' ||
+      params.selectedTrack === 'HYBRID_HARDWARE_SOFTWARE';
+    const isService = params.selectedTrack === 'PRODUCTIZED_SERVICE_AGENCY';
+
+    const defaultSupportModel: SupportOperatingModelType =
+      (params.currentSupportOperatingModel as SupportOperatingModelType) ||
+      (isPhysicalOrHardware || isService
+        ? 'DIRECT_FOUNDER_CONCIERGE_EMAIL_WHATSAPP'
+        : 'SELF_SERVE_DOCS_PLUS_FOUNDER_TIER2');
+
+    const defaultSla: SupportResponseSlaType =
+      (params.currentSupportResponseSla as SupportResponseSlaType) ||
+      (isPhysicalOrHardware || isService
+        ? 'NEXT_BUSINESS_DAY_24H'
+        : 'SAME_BUSINESS_DAY_UNDER_4H');
+
+    const defaultPolicy: ReturnsAndWarrantyPolicyType =
+      (params.currentReturnsAndWarrantyPolicy as ReturnsAndWarrantyPolicyType) ||
+      (isPhysicalOrHardware
+        ? 'STATUTORY_14_DAY_COOLING_OFF'
+        : isService
+          ? 'MILESTONE_ACCEPTANCE_SIGN_OFF'
+          : 'THIRTY_DAY_MONEY_BACK_OR_TRIAL');
+
+    const defaultReturnRate =
+      params.currentEstimatedReturnRatePercent ??
+      (isPhysicalOrHardware ? 2.5 : isService ? 1.5 : 2.0);
+
+    const defaultIncidentCost =
+      params.currentCostPerReturnIncident ??
+      (isPhysicalOrHardware ? 24 : isService ? 85 : 12);
+
+    const defaultWarrantyMonths =
+      params.currentWarrantyDurationMonths ??
+      (isPhysicalOrHardware ? 12 : 0);
+
+    const fallbackCheckpoints: QcCheckpointItem[] =
+      isNarrativesOnly &&
+      params.currentQcCheckpoints &&
+      params.currentQcCheckpoints.length > 0
+        ? params.currentQcCheckpoints
+        : isPhysicalOrHardware
+          ? [
+              {
+                id: 'qc-1',
+                gateTiming: 'INCOMING_MATERIAL_OR_DATA_CHECK',
+                checkpointName:
+                  'Incoming Raw Material, Component & Packaging Inspection',
+                passFailStandard:
+                  '100% visual check of incoming stock against specification sheet, zero structural defects, and batch/supplier lot number logged on arrival.',
+                defectFallbackAction:
+                  'Quarantine non-conforming batch immediately, photograph defects for supplier credit note, and draw from 21-day safety buffer stock.',
+                ownerRole: 'Founder / Production Lead',
+              },
+              {
+                id: 'qc-2',
+                gateTiming: 'IN_PROCESS_BUILD_OR_CODE_REVIEW',
+                checkpointName:
+                  'In-Process Dimensional Tolerance & Surface Finish Check',
+                passFailStandard:
+                  'Verify assembly tolerances, structural integrity, and finish cure quality before final branding or custom detailing is applied.',
+                defectFallbackAction:
+                  'Re-machine or re-finish unit at the bench before packaging so zero sub-standard units enter finished goods inventory.',
+                ownerRole: 'Founder / Workshop Lead',
+              },
+              {
+                id: 'qc-3',
+                gateTiming: 'PRE_DISPATCH_FINAL_INSPECTION',
+                checkpointName:
+                  'Pre-Dispatch Final Inspection, Care Guide & Protective Packaging Gate',
+                passFailStandard:
+                  'Final visual inspection under bright bench lighting, care/safety insert included, corner/impact protection fitted, and tracked courier label verified.',
+                defectFallbackAction:
+                  'Hold shipment, replace unit or packaging immediately, and log root cause in weekly QC ledger.',
+                ownerRole: 'Founder / Dispatch Lead',
+              },
+            ]
+          : isService
+            ? [
+                {
+                  id: 'qc-1',
+                  gateTiming: 'INCOMING_MATERIAL_OR_DATA_CHECK',
+                  checkpointName:
+                    'Client Intake Brief, Scope Boundary & Asset Readiness Gate',
+                  passFailStandard:
+                    'Signed statement of work, complete client intake questionnaire, and verified access credentials prior to sprint kickoff.',
+                  defectFallbackAction:
+                    'Pause kickoff timer and send automated missing-asset checklist before allocating delivery hours.',
+                  ownerRole: 'Founder / Account Lead',
+                },
+                {
+                  id: 'qc-2',
+                  gateTiming: 'IN_PROCESS_BUILD_OR_CODE_REVIEW',
+                  checkpointName:
+                    'Mid-Sprint Internal QA & Deliverable Peer Review',
+                  passFailStandard:
+                    '100% of deliverables checked against standard SOP rubric and client brief before client preview.',
+                  defectFallbackAction:
+                    'Resolve gaps internally prior to client review meeting to prevent revision loops.',
+                  ownerRole: 'Delivery Lead',
+                },
+                {
+                  id: 'qc-3',
+                  gateTiming: 'PRE_DISPATCH_FINAL_INSPECTION',
+                  checkpointName:
+                    'Final Handover Sign-Off & Post-Delivery Satisfaction Check',
+                  passFailStandard:
+                    'Client milestone sign-off recorded, handover documentation delivered, and 7-day post-delivery check-in scheduled.',
+                  defectFallbackAction:
+                    'Execute 1-round scope remedy within 48 business hours under service guarantee.',
+                  ownerRole: 'Founder / Client Success Lead',
+                },
+              ]
+            : [
+                {
+                  id: 'qc-1',
+                  gateTiming: 'INCOMING_MATERIAL_OR_DATA_CHECK',
+                  checkpointName:
+                    'Input Validation, Schema Integrity & Upstream API Guardrails',
+                  passFailStandard:
+                    'Strict server-side input validation, tenant/plan ownership verification, and rate-limit checks on 100% of incoming requests.',
+                  defectFallbackAction:
+                    'Fail closed to deterministic fallback response and log structured warning without exposing sensitive state.',
+                  ownerRole: 'Technical Lead',
+                },
+                {
+                  id: 'qc-2',
+                  gateTiming: 'IN_PROCESS_BUILD_OR_CODE_REVIEW',
+                  checkpointName:
+                    'Automated TypeScript, Lint & Staging Regression Gate',
+                  passFailStandard:
+                    'Zero TypeScript compilation errors, verified database migration parity, and passing core user-journey smoke tests in staging.',
+                  defectFallbackAction:
+                    'Block production deployment automatically until build and regression checks pass 100%.',
+                  ownerRole: 'Founder / Engineering Lead',
+                },
+                {
+                  id: 'qc-3',
+                  gateTiming: 'POST_DELIVERY_CUSTOMER_CHECKIN',
+                  checkpointName:
+                    'Post-Onboarding Activation Check & Support Telemetry Review',
+                  passFailStandard:
+                    'User completes core activation workflow within first session with zero unhandled client/server exceptions.',
+                  defectFallbackAction:
+                    'Trigger proactive founder check-in email and patch UX friction point in next weekly release.',
+                  ownerRole: 'Founder / Product Lead',
+                },
+              ];
+
+    const statutoryRuleText =
+      params.hqCountryCode === 'IE'
+        ? 'full compliance with the Ireland Consumer Rights Act 2022 (CRAA) and CCPC distance-selling rules (including the 14-day statutory cooling-off period for standard goods and clear upfront disclosure for bespoke/made-to-order items)'
+        : params.hqCountryCode === 'GB'
+          ? 'full compliance with the UK Consumer Rights Act 2015 and Consumer Contracts Regulations 2013 (including the 14-day distance-selling cancellation window for standard goods and bespoke/made-to-order exemptions)'
+          : `full compliance with ${countryPack.countryName} statutory consumer protection and distance-selling regulations`;
+
+    return {
+      supportOperatingModel: defaultSupportModel,
+      supportResponseSla: defaultSla,
+      returnsAndWarrantyPolicy: defaultPolicy,
+      estimatedReturnOrRefundRatePercent: defaultReturnRate,
+      costPerReturnOrRemakeIncident: defaultIncidentCost,
+      warrantyDurationMonths: defaultWarrantyMonths,
+      qcCheckpoints: fallbackCheckpoints,
+      qualityControlAndStandardsNarrative: `${cleanTitle} enforces a structured ${fallbackCheckpoints.length}-gate Quality Control (QC) protocol spanning incoming verification, in-process build standards, and pre-release inspection. By catching defects before customer handover, we hold our projected return/rework rate to ${defaultReturnRate}% (averaging ${formatPlanCurrency(defaultIncidentCost, currency)} per incident), protecting both unit gross margins in Module G and brand reputation.`,
+      customerSupportAndReturnsNarrative: `Customer support operates on a ${defaultSupportModel.replace(/_/g, ' ').toLowerCase()} model with a ${defaultSla.replace(/_/g, ' ').toLowerCase()} response SLA, ensuring early customers receive fast, accountable resolution without overwhelming founder bandwidth. Our returns, refund, and ${defaultWarrantyMonths > 0 ? `${defaultWarrantyMonths}-month warranty` : 'service guarantee'} policy is structured for ${statutoryRuleText}.`,
+    };
+  };
+
+  if (!authCtx.canCallLiveGemini || !authCtx.activeApiKey) {
+    return {
+      allowed: true,
+      ...buildSmartFallback(),
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const fallback = buildSmartFallback();
+
+    const countryConsumerRulesPrompt =
+      params.hqCountryCode === 'IE'
+        ? `1. Tailor all consumer rights, returns, and quality assurance guidance strictly to Ireland (Consumer Rights Act 2022, CCPC distance-selling rules, 14-day cooling-off vs. bespoke goods exemption, and IE LEO / Enterprise Ireland standards).
+2. Do NOT mention UK Consumer Rights Act 2015, Trading Standards, Innovate UK, or British Business Bank rules for an Ireland-based startup.`
+        : params.hqCountryCode === 'GB'
+          ? `1. Tailor all consumer rights, returns, and quality assurance guidance strictly to the United Kingdom (UK Consumer Rights Act 2015, Consumer Contracts Regulations 2013, 14-day cooling-off vs. bespoke goods exemption, and UK Innovate UK / British Business Bank Start Up Loan standards).
+2. Do NOT mention Ireland Consumer Rights Act 2022, CCPC, IE LEO, or Enterprise Ireland rules for a UK-based startup.`
+          : `1. Tailor all consumer rights, returns, and quality assurance guidance to ${countryPack.countryName} statutory consumer protection standards.`;
+
+    const prompt = `You are an expert startup COO and ${consumerLawAndGrantLabel} advisor.
+Generate Module E Step 4 (Customer Support, Returns, Warranty & Quality Control SOP) for:
+- Startup Title: ${sanitizePromptInput(params.planTitle, 120)}
+- Industry Category: ${sanitizePromptInput(params.industryCategory, 80)}
+- HQ Country: ${params.hqCountryCode} (Currency: ${currency})
+- Product Track: ${params.selectedTrack} ${params.otherProductTrackText ? `(${sanitizePromptInput(params.otherProductTrackText, 100)})` : ''}
+- Core Problem: ${sanitizePromptInput(params.coreProblem, 250)}
+- Proposed Solution: ${sanitizePromptInput(params.proposedSolution, 250)}
+- Mode: ${isNarrativesOnly ? 'NARRATIVES_ONLY (synthesize narratives from current QC checkpoints)' : 'POPULATE_QC_AND_NARRATIVES (generate 3 concrete QC checkpoints across incoming, in-process, and pre-dispatch/post-delivery gates plus narratives)'}
+
+CRITICAL COUNTRY & STATUTORY RULES:
+${countryConsumerRulesPrompt}
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "supportOperatingModel": "SELF_SERVE_DOCS_PLUS_FOUNDER_TIER2" | "DIRECT_FOUNDER_CONCIERGE_EMAIL_WHATSAPP" | "AI_TRIAGE_CHATBOT_PLUS_HUMAN_FALLBACK" | "DEDICATED_PART_TIME_SUPPORT_AGENT",
+  "supportResponseSla": "INSTANT_AUTOMATED_24_7" | "SAME_BUSINESS_DAY_UNDER_4H" | "NEXT_BUSINESS_DAY_24H" | "FORTY_EIGHT_HOUR_STANDARD",
+  "returnsAndWarrantyPolicy": "STATUTORY_14_DAY_COOLING_OFF" | "BESPOKE_PERSONALIZED_EXEMPT_TRANSIT_REPLACE" | "THIRTY_DAY_MONEY_BACK_OR_TRIAL" | "MILESTONE_ACCEPTANCE_SIGN_OFF",
+  "estimatedReturnOrRefundRatePercent": 2.5,
+  "costPerReturnOrRemakeIncident": 22,
+  "warrantyDurationMonths": 12,
+  "qcCheckpoints": [
+    {
+      "gateTiming": "INCOMING_MATERIAL_OR_DATA_CHECK" | "IN_PROCESS_BUILD_OR_CODE_REVIEW" | "PRE_DISPATCH_FINAL_INSPECTION" | "POST_DELIVERY_CUSTOMER_CHECKIN",
+      "checkpointName": "Specific QC gate title",
+      "passFailStandard": "Measurable pass/fail inspection criteria",
+      "defectFallbackAction": "Immediate containment and remediation action if a defect is detected",
+      "ownerRole": "Founder / Role"
+    }
+  ],
+  "qualityControlAndStandardsNarrative": "2-3 sentences explaining the 3-stage QC protocol, defect containment, and how it protects unit economics",
+  "customerSupportAndReturnsNarrative": "2-3 sentences explaining the support SLA, returns/warranty workflow, and compliance with statutory consumer rights"
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        temperature: 0.3,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const rawText = response.text?.trim() || '';
+    if (rawText) {
+      const parsed = JSON.parse(rawText) as {
+        supportOperatingModel?: string;
+        supportResponseSla?: string;
+        returnsAndWarrantyPolicy?: string;
+        estimatedReturnOrRefundRatePercent?: number;
+        costPerReturnOrRemakeIncident?: number;
+        warrantyDurationMonths?: number;
+        qcCheckpoints?: Array<{
+          gateTiming?: string;
+          checkpointName?: string;
+          passFailStandard?: string;
+          defectFallbackAction?: string;
+          ownerRole?: string;
+        }>;
+        qualityControlAndStandardsNarrative?: string;
+        customerSupportAndReturnsNarrative?: string;
+      };
+
+      if (
+        typeof parsed.qualityControlAndStandardsNarrative === 'string' &&
+        parsed.qualityControlAndStandardsNarrative.trim().length > 20 &&
+        typeof parsed.customerSupportAndReturnsNarrative === 'string' &&
+        parsed.customerSupportAndReturnsNarrative.trim().length > 20
+      ) {
+        creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+          verifiedUserId: authCtx.verifiedUserId,
+          planId: params.planId,
+          promptKey: 'MOD_E_STEP4_SUPPORT_RETURNS_QC',
+          modelUsed: 'gemini-2.5-flash',
+          inputTokens: response.usageMetadata?.promptTokenCount || 320,
+          outputTokens: response.usageMetadata?.candidatesTokenCount || 380,
+          usedByokKey: authCtx.usedByokKey,
+          fallbackCreditsUsed: authCtx.currentCreditsUsed,
+        });
+
+        const validSupportModels = new Set<string>([
+          'SELF_SERVE_DOCS_PLUS_FOUNDER_TIER2',
+          'DIRECT_FOUNDER_CONCIERGE_EMAIL_WHATSAPP',
+          'AI_TRIAGE_CHATBOT_PLUS_HUMAN_FALLBACK',
+          'DEDICATED_PART_TIME_SUPPORT_AGENT',
+          'OTHER',
+        ]);
+        const validSlas = new Set<string>([
+          'INSTANT_AUTOMATED_24_7',
+          'SAME_BUSINESS_DAY_UNDER_4H',
+          'NEXT_BUSINESS_DAY_24H',
+          'FORTY_EIGHT_HOUR_STANDARD',
+          'OTHER',
+        ]);
+        const validPolicies = new Set<string>([
+          'STATUTORY_14_DAY_COOLING_OFF',
+          'BESPOKE_PERSONALIZED_EXEMPT_TRANSIT_REPLACE',
+          'THIRTY_DAY_MONEY_BACK_OR_TRIAL',
+          'MILESTONE_ACCEPTANCE_SIGN_OFF',
+          'OTHER',
+        ]);
+        const validGates = new Set<string>([
+          'INCOMING_MATERIAL_OR_DATA_CHECK',
+          'IN_PROCESS_BUILD_OR_CODE_REVIEW',
+          'PRE_DISPATCH_FINAL_INSPECTION',
+          'POST_DELIVERY_CUSTOMER_CHECKIN',
+          'OTHER',
+        ]);
+
+        const items: QcCheckpointItem[] =
+          isNarrativesOnly &&
+          params.currentQcCheckpoints &&
+          params.currentQcCheckpoints.length > 0
+            ? params.currentQcCheckpoints
+            : Array.isArray(parsed.qcCheckpoints) &&
+                parsed.qcCheckpoints.length >= 2
+              ? parsed.qcCheckpoints.slice(0, 6).map((cp, idx) => ({
+                  id: `ai-qc-${idx + 1}-${Date.now()}`,
+                  gateTiming: validGates.has(String(cp.gateTiming))
+                    ? (cp.gateTiming as QcGateTimingType)
+                    : idx === 0
+                      ? 'INCOMING_MATERIAL_OR_DATA_CHECK'
+                      : idx === 1
+                        ? 'IN_PROCESS_BUILD_OR_CODE_REVIEW'
+                        : 'PRE_DISPATCH_FINAL_INSPECTION',
+                  checkpointName:
+                    sanitizePromptInput(cp.checkpointName, 160) ||
+                    `Quality Control Gate #${idx + 1}`,
+                  passFailStandard:
+                    sanitizePromptInput(cp.passFailStandard, 260) ||
+                    '100% conformance with documented product/service specification.',
+                  defectFallbackAction:
+                    sanitizePromptInput(cp.defectFallbackAction, 260) ||
+                    'Hold release/dispatch immediately and remediate before customer handover.',
+                  ownerRole:
+                    sanitizePromptInput(cp.ownerRole, 80) ||
+                    'Founder / Quality Lead',
+                }))
+              : fallback.qcCheckpoints;
+
+        return {
+          allowed: true,
+          supportOperatingModel: validSupportModels.has(
+            String(parsed.supportOperatingModel)
+          )
+            ? (parsed.supportOperatingModel as SupportOperatingModelType)
+            : fallback.supportOperatingModel,
+          supportResponseSla: validSlas.has(String(parsed.supportResponseSla))
+            ? (parsed.supportResponseSla as SupportResponseSlaType)
+            : fallback.supportResponseSla,
+          returnsAndWarrantyPolicy: validPolicies.has(
+            String(parsed.returnsAndWarrantyPolicy)
+          )
+            ? (parsed.returnsAndWarrantyPolicy as ReturnsAndWarrantyPolicyType)
+            : fallback.returnsAndWarrantyPolicy,
+          estimatedReturnOrRefundRatePercent: Math.max(
+            0,
+            Math.min(
+              50,
+              Number(
+                (
+                  Number(
+                    parsed.estimatedReturnOrRefundRatePercent ??
+                      fallback.estimatedReturnOrRefundRatePercent
+                  ) || 2
+                ).toFixed(1)
+              )
+            )
+          ),
+          costPerReturnOrRemakeIncident: Math.max(
+            0,
+            Math.round(
+              Number(
+                parsed.costPerReturnOrRemakeIncident ??
+                  fallback.costPerReturnOrRemakeIncident
+              )
+            )
+          ),
+          warrantyDurationMonths: Math.max(
+            0,
+            Math.min(
+              120,
+              Math.round(
+                Number(
+                  parsed.warrantyDurationMonths ??
+                    fallback.warrantyDurationMonths
+                )
+              )
+            )
+          ),
+          qcCheckpoints: items,
+          qualityControlAndStandardsNarrative:
+            parsed.qualityControlAndStandardsNarrative.trim(),
+          customerSupportAndReturnsNarrative:
+            parsed.customerSupportAndReturnsNarrative.trim(),
+          creditsUsedAfter,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    }
+  } catch {
+    // Fallback to deterministic synthesizer below
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export interface ModuleEPermitsAndInsuranceGenerationResult {
+  allowed: boolean;
+  reason?: string;
+  regulatorySectorPosture: RegulatorySectorPostureType;
+  otherRegulatorySectorPostureText: string;
+  dataPrivacyPosture: DataPrivacyPostureType;
+  otherDataPrivacyPostureText: string;
+  insuranceCoverageBundle: InsuranceCoverageBundleType;
+  otherInsuranceCoverageBundleText: string;
+  estimatedAnnualInsurancePremium: number;
+  selectedInsuranceProviderName: string;
+  complianceItems: ComplianceChecklistItem[];
+  regulatoryAndComplianceNarrative: string;
+  insuranceAndLiabilityGovernanceNarrative: string;
+  creditsUsedAfter: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleEPermitsAndInsuranceViaRouter(input: {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency?: string;
+  brainDumpText?: string;
+  coreProblem?: string;
+  targetCustomer?: string;
+  proposedSolution?: string;
+  selectedTrack: ProductTrackType;
+  otherProductTrackText?: string;
+  currentRegulatorySectorPosture?: RegulatorySectorPostureType | '';
+  currentDataPrivacyPosture?: DataPrivacyPostureType | '';
+  currentInsuranceCoverageBundle?: InsuranceCoverageBundleType | '';
+  currentEstimatedAnnualInsurancePremium?: number;
+  currentSelectedInsuranceProviderName?: string;
+  currentComplianceItems?: ComplianceChecklistItem[];
+  mode?: 'POPULATE_COMPLIANCE_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+}): Promise<ModuleEPermitsAndInsuranceGenerationResult> {
+  const isSoftware =
+    input.selectedTrack === 'SAAS_SOFTWARE_AI' ||
+    input.selectedTrack === 'HYBRID_HARDWARE_SOFTWARE';
+  const isPhysical =
+    input.selectedTrack === 'PHYSICAL_PRODUCT_ECOM' ||
+    input.selectedTrack === 'HYBRID_HARDWARE_SOFTWARE';
+  const isFoodHosp = /food|bev|hospitality|cafe|bakery|cosmetic/i.test(
+    `${input.industryCategory || ''} ${input.otherProductTrackText || ''}`
+  );
+  const isMarketplace = input.selectedTrack === 'MARKETPLACE_PLATFORM';
+
+  const isIE = input.hqCountryCode === 'IE';
+  const isGB = input.hqCountryCode === 'GB';
+  const currencySymbol =
+    input.baseCurrency === 'GBP' || isGB
+      ? '£'
+      : input.baseCurrency === 'USD'
+        ? '$'
+        : '€';
+
+  const buildSmartFallback = (): Omit<
+    ModuleEPermitsAndInsuranceGenerationResult,
+    'allowed' | 'creditsUsedAfter' | 'engineMode' | 'reason'
+  > => {
+    const regulatorySectorPosture: RegulatorySectorPostureType =
+      input.currentRegulatorySectorPosture ||
+      (isFoodHosp
+        ? 'FOOD_BEV_HYGIENE_HACCP'
+        : isPhysical
+          ? 'PHYSICAL_PRODUCT_SAFETY_CE_UKCA'
+          : 'STANDARD_COMMERCIAL_UNREGULATED');
+
+    const dataPrivacyPosture: DataPrivacyPostureType =
+      input.currentDataPrivacyPosture ||
+      (isSoftware || isMarketplace
+        ? 'B2B_DATA_PROCESSOR_DPA_SCC'
+        : 'STANDARD_CUSTOMER_CRM_COOKIES');
+
+    const insuranceCoverageBundle: InsuranceCoverageBundleType =
+      input.currentInsuranceCoverageBundle ||
+      (isSoftware || isMarketplace
+        ? 'TECH_SAAS_PI_CYBER'
+        : isPhysical || isFoodHosp
+          ? 'PRODUCT_PUBLIC_LIABILITY_STOCK'
+          : 'PUBLIC_EMPLOYERS_CORE');
+
+    const estimatedAnnualInsurancePremium =
+      typeof input.currentEstimatedAnnualInsurancePremium === 'number' &&
+      input.currentEstimatedAnnualInsurancePremium > 0
+        ? input.currentEstimatedAnnualInsurancePremium
+        : isSoftware || isMarketplace
+          ? isGB
+            ? 850
+            : 950
+          : isPhysical || isFoodHosp
+            ? isGB
+              ? 1100
+              : 1250
+            : isGB
+              ? 550
+              : 650;
+
+    const selectedInsuranceProviderName =
+      input.currentSelectedInsuranceProviderName?.trim() ||
+      (isIE
+        ? isSoftware || isMarketplace
+          ? 'Hiscox Ireland / Arachas Cyber & Tech PI'
+          : 'Allianz Ireland / Arachas Commercial Combined'
+        : isGB
+          ? isSoftware || isMarketplace
+            ? 'Superscript / Hiscox UK Tech & Cyber PI'
+            : 'Simply Business / Aviva UK Commercial Combined'
+          : 'Commercial Startup Insurance Broker');
+
+    const defaultItems: ComplianceChecklistItem[] = [
+      {
+        id: 'comp-1',
+        category: 'CORPORATE_TAX_GRANT_CLEARANCE',
+        requirementTitle: isIE
+          ? 'CRO Incorporation & Revenue eTax Clearance Certificate (TC2 via ROS)'
+          : isGB
+            ? 'Companies House Incorporation & HMRC Corporation Tax UTR Registration'
+            : 'Corporate Registration & Tax Clearance Certificate',
+        regulatoryBody: isIE
+          ? 'Companies Registration Office (CRO) & Revenue Commissioners (ROS.ie)'
+          : isGB
+            ? 'Companies House & HM Revenue & Customs (HMRC)'
+            : 'National Corporate & Tax Registry',
+        status: 'IN_PROGRESS',
+        evidenceOrReferenceNote: isIE
+          ? 'Mandatory prerequisite before any Local Enterprise Office (LEO) or Enterprise Ireland grant drawdown can be paid out.'
+          : isGB
+            ? 'Active Companies House registration number and UK business bank account required for Innovate UK & Start Up Loans.'
+            : 'Required for corporate banking and grant eligibility.',
+        estimatedAnnualCost: 0,
+      },
+      {
+        id: 'comp-2',
+        category: 'DATA_PRIVACY_GDPR_SECURITY',
+        requirementTitle: isIE
+          ? 'EU GDPR Privacy Notice, ROPA & Data Processing Agreements (Irish Data Protection Act 2018)'
+          : isGB
+            ? 'UK GDPR Compliance, Privacy Notice & Annual ICO Data Protection Fee Registration'
+            : 'GDPR / Data Privacy Policy, Cookie Consent & Data Processing Agreements',
+        regulatoryBody: isIE
+          ? 'Data Protection Commission (DPC Ireland — dataprotection.ie)'
+          : isGB
+            ? "Information Commissioner's Office (ICO UK — ico.org.uk)"
+            : 'National Data Protection Authority',
+        status: 'IN_PROGRESS',
+        evidenceOrReferenceNote: isIE
+          ? 'EU/EEA cloud hosting residency verified; Article 28 Data Processing Agreements (DPAs) in place with sub-processors.'
+          : isGB
+            ? 'ICO Tier 1 Data Protection Fee (£40/yr via Direct Debit) and UK GDPR Privacy & Cookie Policies published.'
+            : 'Customer PII encrypted at rest and in transit with clear opt-in consent.',
+        estimatedAnnualCost: isGB ? 40 : 0,
+      },
+      {
+        id: 'comp-3',
+        category: 'HEALTH_SAFETY_PREMISES',
+        requirementTitle: isIE
+          ? 'Written Safety Statement & Risk Assessment (Section 20 SHWW Act 2005 via HSA BeSMART.ie)'
+          : isGB
+            ? 'HSE Health & Safety Policy & Workplace Risk Assessment (HSWA 1974)'
+            : 'Workplace Health & Safety Policy & Risk Assessment',
+        regulatoryBody: isIE
+          ? 'Health and Safety Authority (HSA Ireland — hsa.ie / BeSMART.ie)'
+          : isGB
+            ? 'Health and Safety Executive (HSE UK — hse.gov.uk)'
+            : 'Occupational Health & Safety Authority',
+        status: 'PLANNED_BEFORE_LAUNCH',
+        evidenceOrReferenceNote: isIE
+          ? 'Generated free via HSA BeSMART.ie portal covering workspace ergonomics, electrical safety, and operational hazards.'
+          : isGB
+            ? 'Documented HSE hazard assessment covering operations, display screen equipment (DSE), and visitor/contractor safety.'
+            : 'Covers operational workspace safety and contractor protocols.',
+        estimatedAnnualCost: 0,
+      },
+      {
+        id: 'comp-4',
+        category:
+          isPhysical || isFoodHosp
+            ? 'SECTOR_PRODUCT_LICENSE'
+            : 'COMMERCIAL_INSURANCE_POLICY',
+        requirementTitle: isFoodHosp
+          ? isIE
+            ? 'HSE Environmental Health Food Business Registration & FSAI HACCP Food Safety Plan'
+            : 'Local Council Food Business Registration (28 Days Prior) & FSA SFBB HACCP Pack'
+          : isPhysical
+            ? isIE
+              ? 'EU General Product Safety Regulation (GPSR 2023/988) Technical File, CE Marking & CCPC Labelling'
+              : 'UK Product Safety (UKCA / CE Marking), Technical File & OPSS / Trading Standards Traceability'
+            : isIE
+              ? 'Commercial Professional Indemnity (PI), Cyber Liability & Public/Employers Liability Policy'
+              : 'Commercial PI, Cyber & Statutory UK Employers Liability (£5m Min) Insurance Policy',
+        regulatoryBody: isFoodHosp
+          ? isIE
+            ? 'Food Safety Authority of Ireland (FSAI) & HSE Environmental Health Officer (EHO)'
+            : 'Food Standards Agency (FSA) & Local Authority Environmental Health'
+          : isPhysical
+            ? isIE
+              ? 'Competition and Consumer Protection Commission (CCPC) & National Standards Authority of Ireland (NSAI)'
+              : 'Office for Product Safety and Standards (OPSS) & Local Trading Standards'
+            : isIE
+              ? 'Central Bank of Ireland Regulated Commercial Insurer / Broker'
+              : 'FCA Regulated Commercial Insurer / Broker',
+        status: 'PLANNED_BEFORE_LAUNCH',
+        evidenceOrReferenceNote:
+          isPhysical || isFoodHosp
+            ? 'Batch/lot numbering, supplier certificates of conformity, and safety labelling verified before first commercial dispatch.'
+            : `Indicative annual policy estimate of ${currencySymbol}${estimatedAnnualInsurancePremium.toLocaleString()}/yr (${currencySymbol}${Math.round(estimatedAnnualInsurancePremium / 12).toLocaleString()}/mo in Module I Overheads); actual premium subject to insurer underwriting.`,
+        estimatedAnnualCost:
+          isPhysical || isFoodHosp ? 150 : estimatedAnnualInsurancePremium,
+      },
+    ];
+
+    const complianceItems =
+      input.mode === 'NARRATIVES_ONLY' &&
+      input.currentComplianceItems &&
+      input.currentComplianceItems.length > 0
+        ? input.currentComplianceItems
+        : defaultItems;
+
+    const jurisdictionAuthoritySummary = isIE
+      ? 'Irish statutory requirements including Revenue eTax Clearance (TC2 via ROS), the Companies Registration Office (CRO), the Health and Safety Authority (HSA Section 20 Written Safety Statement via BeSMART.ie), and the Data Protection Commission (DPC under EU GDPR and the Irish Data Protection Act 2018)'
+      : isGB
+        ? 'UK statutory requirements including Companies House, HM Revenue & Customs (HMRC), the Health and Safety Executive (HSE under the Health and Safety at Work etc. Act 1974), and the Information Commissioner’s Office (ICO under UK GDPR and the Data Protection Act 2018)'
+        : 'national corporate, tax, workplace health and safety, and data protection authorities';
+
+    const regulatoryAndComplianceNarrative = `${input.planTitle} maintains a proactive, audit-ready regulatory compliance framework aligned with ${jurisdictionAuthoritySummary}. Prior to commercial scale and any grant drawdown, the business ensures corporate and tax good standing alongside documented workplace safety assessments and structured data governance (${dataPrivacyPosture.replace(/_/g, ' ').toLowerCase()}). All customer and operational records are processed under strict least-privilege access controls, documented Data Processing Agreements (DPAs), and transparent privacy disclosures, ensuring zero regulatory bottlenecks during enterprise procurement or funding audits.`;
+
+    const insuranceAndLiabilityGovernanceNarrative = `To insulate ${input.planTitle} from commercial, product, and operational liability, the business has scoped a ${insuranceCoverageBundle.replace(/_/g, ' ').toLowerCase()} insurance bundle (${selectedInsuranceProviderName}) with an indicative estimated annual premium of ${currencySymbol}${estimatedAnnualInsurancePremium.toLocaleString()}/year (approx. ${currencySymbol}${Math.round(estimatedAnnualInsurancePremium / 12).toLocaleString()}/month factored into Module I Fixed Overheads; actual coverage, policy limits, and premiums may vary subject to formal underwriting). ${
+      isIE
+        ? 'This structure satisfies Local Enterprise Office (LEO), Enterprise Ireland, and commercial landlord/enterprise client indemnity conditions across Ireland.'
+        : isGB
+          ? 'This structure satisfies British Business Bank Start Up Loans, Innovate UK, and UK statutory £5m Employers’ Liability requirements upon hiring.'
+          : 'This coverage protects balance-sheet runway against third-party claims, professional errors, and business interruption.'
+    }`;
+
+    return {
+      regulatorySectorPosture,
+      otherRegulatorySectorPostureText: '',
+      dataPrivacyPosture,
+      otherDataPrivacyPostureText: '',
+      insuranceCoverageBundle,
+      otherInsuranceCoverageBundleText: '',
+      estimatedAnnualInsurancePremium,
+      selectedInsuranceProviderName,
+      complianceItems,
+      regulatoryAndComplianceNarrative,
+      insuranceAndLiabilityGovernanceNarrative,
+    };
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_E_STEP5_PERMITS_INSURANCE'
+  );
+
+  if (!authCtx.canCallLiveGemini || !authCtx.activeApiKey) {
+    return {
+      allowed: true,
+      ...buildSmartFallback(),
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const fallback = buildSmartFallback();
+
+    const prompt = `You are an expert startup operations, regulatory compliance, GDPR, and commercial insurance advisor for ${
+      isIE ? 'Ireland (IE)' : isGB ? 'the United Kingdom (GB)' : input.hqCountryCode
+    }.
+Draft a realistic, grant-audit-ready Regulatory, Licensing, Health & Safety, GDPR & Commercial Insurance Blueprint (Module E Step 5) for the following startup:
+- Startup Title: ${sanitizePromptInput(input.planTitle, 160)}
+- Industry Category: ${sanitizePromptInput(input.industryCategory, 120)}
+- Product Track: ${sanitizePromptInput(input.selectedTrack, 80)} ${input.otherProductTrackText ? `(${sanitizePromptInput(input.otherProductTrackText, 120)})` : ''}
+- HQ Country: ${input.hqCountryCode} (${currencySymbol})
+- Core Problem: ${sanitizePromptInput(input.coreProblem, 400)}
+- Target Customer: ${sanitizePromptInput(input.targetCustomer, 300)}
+- Proposed Solution: ${sanitizePromptInput(input.proposedSolution, 500)}
+
+Strict Jurisdiction Rules:
+${
+  isIE
+    ? '- This startup is based in IRELAND (IE). Reference ONLY Irish bodies and statutes: Revenue eTax Clearance Certificate (TC2 via ROS), CRO, Health and Safety Authority (HSA Written Safety Statement under Section 20 of the SHWW Act 2005 / BeSMART.ie), Data Protection Commission (DPC Ireland & EU GDPR / Irish Data Protection Act 2018), CCPC / NSAI / FSAI / EU GPSR 2023/988 CE marking, and Irish commercial insurers (e.g. Hiscox Ireland, Allianz Ireland, Arachas, FBD). NEVER mention UK bodies (no HMRC, no Companies House, no ICO, no UKCA, no HSE UK, no Innovate UK).'
+    : isGB
+      ? '- This startup is based in the UNITED KINGDOM (GB). Reference ONLY UK bodies and statutes: Companies House, HMRC UTR, UK Health and Safety Executive (HSE under HSWA 1974), Information Commissioner’s Office (ICO Annual Data Protection Fee & UK GDPR / Data Protection Act 2018), OPSS / Trading Standards / FSA / UKCA marking, statutory £5m Employers’ Liability minimum when hiring, and UK commercial insurers (e.g. Hiscox UK, Superscript, Simply Business, Aviva UK). NEVER mention Irish bodies (no Revenue ROS TC2, no CRO, no DPC Ireland, no HSA BeSMART.ie, no LEO).'
+      : '- Reference appropriate national corporate, tax, data privacy, and commercial insurance standards.'
+}
+- Always treat the annual insurance premium as an indicative estimate and note in the insurance narrative that actual coverage and premiums may vary subject to underwriting.
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "regulatorySectorPosture": "STANDARD_COMMERCIAL_UNREGULATED" | "PHYSICAL_PRODUCT_SAFETY_CE_UKCA" | "FOOD_BEV_HYGIENE_HACCP" | "FINTECH_HEALTH_REGULATED" | "OTHER",
+  "dataPrivacyPosture": "MINIMAL_B2B_CONTACT_DATA" | "STANDARD_CUSTOMER_CRM_COOKIES" | "B2B_DATA_PROCESSOR_DPA_SCC" | "HIGH_RISK_SPECIAL_CATEGORY_DPIA" | "OTHER",
+  "insuranceCoverageBundle": "PUBLIC_EMPLOYERS_CORE" | "TECH_SAAS_PI_CYBER" | "PRODUCT_PUBLIC_LIABILITY_STOCK" | "COMPREHENSIVE_COMMERCIAL_ALL_RISK" | "OTHER",
+  "estimatedAnnualInsurancePremium": number,
+  "selectedInsuranceProviderName": "string",
+  "complianceItems": [
+    {
+      "id": "comp-1",
+      "category": "CORPORATE_TAX_GRANT_CLEARANCE" | "DATA_PRIVACY_GDPR_SECURITY" | "HEALTH_SAFETY_PREMISES" | "SECTOR_PRODUCT_LICENSE" | "COMMERCIAL_INSURANCE_POLICY" | "OTHER",
+      "requirementTitle": "string",
+      "regulatoryBody": "string",
+      "status": "VERIFIED_COMPLETE" | "IN_PROGRESS" | "PLANNED_BEFORE_LAUNCH" | "NOT_APPLICABLE" | "OTHER",
+      "evidenceOrReferenceNote": "string",
+      "estimatedAnnualCost": number
+    }
+  ],
+  "regulatoryAndComplianceNarrative": "string (2-3 sentences suitable for formal grant/investor compilation)",
+  "insuranceAndLiabilityGovernanceNarrative": "string (2-3 sentences explicitly stating the indicative estimated annual/monthly premium and that actual coverage and premiums may vary)"
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        temperature: 0.35,
+        maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const rawText = response.text ?? '';
+    const usage = response.usageMetadata;
+    creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+      verifiedUserId: authCtx.verifiedUserId,
+      planId: input.planId,
+      promptKey: 'MOD_E_STEP5_PERMITS_INSURANCE',
+      modelUsed: 'gemini-2.5-flash',
+      inputTokens: usage?.promptTokenCount ?? 700,
+      outputTokens: usage?.candidatesTokenCount ?? 850,
+      usedByokKey: authCtx.usedByokKey,
+      fallbackCreditsUsed: authCtx.currentCreditsUsed,
+    });
+
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]) as Partial<{
+        regulatorySectorPosture: RegulatorySectorPostureType;
+        dataPrivacyPosture: DataPrivacyPostureType;
+        insuranceCoverageBundle: InsuranceCoverageBundleType;
+        estimatedAnnualInsurancePremium: number;
+        selectedInsuranceProviderName: string;
+        complianceItems: ComplianceChecklistItem[];
+        regulatoryAndComplianceNarrative: string;
+        insuranceAndLiabilityGovernanceNarrative: string;
+      }>;
+
+      if (
+        typeof parsed.regulatoryAndComplianceNarrative === 'string' &&
+        parsed.regulatoryAndComplianceNarrative.trim().length > 20 &&
+        typeof parsed.insuranceAndLiabilityGovernanceNarrative === 'string' &&
+        parsed.insuranceAndLiabilityGovernanceNarrative.trim().length > 20
+      ) {
+        const items: ComplianceChecklistItem[] =
+          input.mode === 'NARRATIVES_ONLY' &&
+          input.currentComplianceItems &&
+          input.currentComplianceItems.length > 0
+            ? input.currentComplianceItems
+            : Array.isArray(parsed.complianceItems) &&
+                parsed.complianceItems.length >= 3
+              ? parsed.complianceItems.slice(0, 8).map((item, idx) => ({
+                  id: item.id || `comp-${idx + 1}`,
+                  category: item.category || 'CORPORATE_TAX_GRANT_CLEARANCE',
+                  requirementTitle:
+                    String(item.requirementTitle || '').trim() ||
+                    fallback.complianceItems[
+                      idx % fallback.complianceItems.length
+                    ].requirementTitle,
+                  regulatoryBody:
+                    String(item.regulatoryBody || '').trim() ||
+                    fallback.complianceItems[
+                      idx % fallback.complianceItems.length
+                    ].regulatoryBody,
+                  status: item.status || 'IN_PROGRESS',
+                  evidenceOrReferenceNote:
+                    String(item.evidenceOrReferenceNote || '').trim() ||
+                    fallback.complianceItems[
+                      idx % fallback.complianceItems.length
+                    ].evidenceOrReferenceNote,
+                  estimatedAnnualCost: Math.max(
+                    0,
+                    Math.min(
+                      50000,
+                      Math.round(Number(item.estimatedAnnualCost ?? 0))
+                    )
+                  ),
+                }))
+              : fallback.complianceItems;
+
+        return {
+          allowed: true,
+          regulatorySectorPosture:
+            input.currentRegulatorySectorPosture ||
+            parsed.regulatorySectorPosture ||
+            fallback.regulatorySectorPosture,
+          otherRegulatorySectorPostureText: '',
+          dataPrivacyPosture:
+            input.currentDataPrivacyPosture ||
+            parsed.dataPrivacyPosture ||
+            fallback.dataPrivacyPosture,
+          otherDataPrivacyPostureText: '',
+          insuranceCoverageBundle:
+            input.currentInsuranceCoverageBundle ||
+            parsed.insuranceCoverageBundle ||
+            fallback.insuranceCoverageBundle,
+          otherInsuranceCoverageBundleText: '',
+          estimatedAnnualInsurancePremium: Math.max(
+            0,
+            Math.min(
+              100000,
+              Math.round(
+                Number(
+                  input.currentEstimatedAnnualInsurancePremium ||
+                    parsed.estimatedAnnualInsurancePremium ||
+                    fallback.estimatedAnnualInsurancePremium
+                )
+              )
+            )
+          ),
+          selectedInsuranceProviderName:
+            input.currentSelectedInsuranceProviderName?.trim() ||
+            String(parsed.selectedInsuranceProviderName || '').trim() ||
+            fallback.selectedInsuranceProviderName,
+          complianceItems: items,
+          regulatoryAndComplianceNarrative:
+            parsed.regulatoryAndComplianceNarrative.trim(),
+          insuranceAndLiabilityGovernanceNarrative:
+            parsed.insuranceAndLiabilityGovernanceNarrative.trim(),
+          creditsUsedAfter,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    }
+  } catch {
+    // Fallback to deterministic synthesizer below
+  }
+
+  return {
+    allowed: true,
+    ...buildSmartFallback(),
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
 
 
 

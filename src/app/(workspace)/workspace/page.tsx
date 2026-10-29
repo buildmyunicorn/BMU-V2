@@ -127,6 +127,16 @@ import {
   type SupplierRedundancyPostureType,
   type ProjectRiskRegisterItem,
   type RiskRegisterStep3Data,
+  type SupportOperatingModelType,
+  type SupportResponseSlaType,
+  type ReturnsAndWarrantyPolicyType,
+  type QcCheckpointItem,
+  type SupportReturnsAndQcStep4Data,
+  type RegulatorySectorPostureType,
+  type DataPrivacyPostureType,
+  type InsuranceCoverageBundleType,
+  type ComplianceChecklistItem,
+  type PermitsComplianceAndInsuranceStep5Data,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -178,10 +188,14 @@ import {
   saveModuleEStep1OperationsBlueprintAction,
   saveModuleEStep2PremisesEquipmentAction,
   saveModuleEStep3RiskRegisterAction,
+  saveModuleEStep4SupportReturnsAndQcAction,
+  saveModuleEStep5PermitsAndInsuranceAction,
   parkModuleEOpenQuestionAction,
   generateModuleEOperationsBlueprintWithAiAction,
   generateModuleEPremisesEquipmentWithAiAction,
   generateModuleERiskRegisterWithAiAction,
+  generateModuleESupportReturnsAndQcWithAiAction,
+  generateModuleEPermitsAndInsuranceWithAiAction,
 } from '@/app/actions/module-e';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
@@ -2571,6 +2585,261 @@ export default function WorkspacePage() {
     };
   }
 
+  async function handleSaveModuleEStep4SupportReturnsAndQc(
+    supportReturnsAndQc: SupportReturnsAndQcStep4Data,
+    progress = 80
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_E_STEP_4',
+          moduleEData: {
+            ...(p.moduleEData || {}),
+            supportReturnsAndQc,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleEStep4SupportReturnsAndQcAction({
+      planId: currentPlan.id,
+      supportReturnsAndQc,
+      completionPercentage: progress,
+    });
+  }
+
+  async function handleGenerateModuleESupportReturnsAndQcWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    currentSupportOperatingModel?: SupportOperatingModelType | '';
+    currentSupportResponseSla?: SupportResponseSlaType | '';
+    currentReturnsAndWarrantyPolicy?: ReturnsAndWarrantyPolicyType | '';
+    currentEstimatedReturnRatePercent?: number;
+    currentCostPerReturnIncident?: number;
+    currentWarrantyDurationMonths?: number;
+    currentQcCheckpoints?: QcCheckpointItem[];
+    mode?: 'POPULATE_QC_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Customer Support, Returns & QC SOP (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        supportOperatingModel:
+          (params.currentSupportOperatingModel as SupportOperatingModelType) ||
+          'SELF_SERVE_DOCS_PLUS_FOUNDER_TIER2',
+        supportResponseSla:
+          (params.currentSupportResponseSla as SupportResponseSlaType) ||
+          'SAME_BUSINESS_DAY_UNDER_4H',
+        returnsAndWarrantyPolicy:
+          (params.currentReturnsAndWarrantyPolicy as ReturnsAndWarrantyPolicyType) ||
+          'STATUTORY_14_DAY_COOLING_OFF',
+        estimatedReturnOrRefundRatePercent:
+          params.currentEstimatedReturnRatePercent ?? 2.0,
+        costPerReturnOrRemakeIncident:
+          params.currentCostPerReturnIncident ?? 20,
+        warrantyDurationMonths: params.currentWarrantyDurationMonths ?? 12,
+        qcCheckpoints: params.currentQcCheckpoints || [],
+        qualityControlAndStandardsNarrative: '',
+        customerSupportAndReturnsNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleESupportReturnsAndQcWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      baseCurrency: currentPlan.baseCurrency,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      currentSupportOperatingModel: params.currentSupportOperatingModel,
+      currentSupportResponseSla: params.currentSupportResponseSla,
+      currentReturnsAndWarrantyPolicy: params.currentReturnsAndWarrantyPolicy,
+      currentEstimatedReturnRatePercent:
+        params.currentEstimatedReturnRatePercent,
+      currentCostPerReturnIncident: params.currentCostPerReturnIncident,
+      currentWarrantyDurationMonths: params.currentWarrantyDurationMonths,
+      currentQcCheckpoints: params.currentQcCheckpoints,
+      mode: params.mode,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      supportOperatingModel: res.supportOperatingModel,
+      supportResponseSla: res.supportResponseSla,
+      returnsAndWarrantyPolicy: res.returnsAndWarrantyPolicy,
+      estimatedReturnOrRefundRatePercent:
+        res.estimatedReturnOrRefundRatePercent,
+      costPerReturnOrRemakeIncident: res.costPerReturnOrRemakeIncident,
+      warrantyDurationMonths: res.warrantyDurationMonths,
+      qcCheckpoints: res.qcCheckpoints,
+      qualityControlAndStandardsNarrative:
+        res.qualityControlAndStandardsNarrative,
+      customerSupportAndReturnsNarrative:
+        res.customerSupportAndReturnsNarrative,
+      engineMode: res.engineMode,
+    };
+  }
+
+  async function handleSaveModuleEStep5PermitsAndInsurance(
+    permitsAndInsurance: PermitsComplianceAndInsuranceStep5Data,
+    progress = 90
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_E_STEP_5',
+          moduleEData: {
+            ...(p.moduleEData || {}),
+            permitsAndInsurance,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveModuleEStep5PermitsAndInsuranceAction({
+      planId: currentPlan.id,
+      permitsAndInsurance,
+      completionPercentage: progress,
+    });
+  }
+
+  async function handleGenerateModuleEPermitsAndInsuranceWithAi(params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    currentRegulatorySectorPosture?: RegulatorySectorPostureType | '';
+    currentDataPrivacyPosture?: DataPrivacyPostureType | '';
+    currentInsuranceCoverageBundle?: InsuranceCoverageBundleType | '';
+    currentEstimatedAnnualInsurancePremium?: number;
+    currentSelectedInsuranceProviderName?: string;
+    currentComplianceItems?: ComplianceChecklistItem[];
+    mode?: 'POPULATE_COMPLIANCE_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Regulatory, GDPR & Startup Insurance Matcher (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        regulatorySectorPosture:
+          (params.currentRegulatorySectorPosture as RegulatorySectorPostureType) ||
+          'STANDARD_COMMERCIAL_UNREGULATED',
+        otherRegulatorySectorPostureText: '',
+        dataPrivacyPosture:
+          (params.currentDataPrivacyPosture as DataPrivacyPostureType) ||
+          'B2B_DATA_PROCESSOR_DPA_SCC',
+        otherDataPrivacyPostureText: '',
+        insuranceCoverageBundle:
+          (params.currentInsuranceCoverageBundle as InsuranceCoverageBundleType) ||
+          'TECH_SAAS_PI_CYBER',
+        otherInsuranceCoverageBundleText: '',
+        estimatedAnnualInsurancePremium:
+          params.currentEstimatedAnnualInsurancePremium ?? 850,
+        selectedInsuranceProviderName:
+          params.currentSelectedInsuranceProviderName || '',
+        complianceItems: params.currentComplianceItems || [],
+        regulatoryAndComplianceNarrative: '',
+        insuranceAndLiabilityGovernanceNarrative: '',
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await generateModuleEPermitsAndInsuranceWithAiAction({
+      planId: currentPlan.id,
+      planTitle: currentPlan.title,
+      industryCategory: currentPlan.industryCategory,
+      hqCountryCode: selectedCountry,
+      baseCurrency: currentPlan.baseCurrency,
+      brainDumpText,
+      coreProblem: effectiveCanvas.coreProblem,
+      targetCustomer: effectiveCanvas.targetCustomer,
+      proposedSolution: effectiveCanvas.proposedSolution,
+      selectedTrack: params.selectedTrack,
+      otherProductTrackText: params.otherProductTrackText,
+      currentRegulatorySectorPosture: params.currentRegulatorySectorPosture,
+      currentDataPrivacyPosture: params.currentDataPrivacyPosture,
+      currentInsuranceCoverageBundle: params.currentInsuranceCoverageBundle,
+      currentEstimatedAnnualInsurancePremium:
+        params.currentEstimatedAnnualInsurancePremium,
+      currentSelectedInsuranceProviderName:
+        params.currentSelectedInsuranceProviderName,
+      currentComplianceItems: params.currentComplianceItems,
+      mode: params.mode,
+    });
+
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      regulatorySectorPosture: res.regulatorySectorPosture,
+      otherRegulatorySectorPostureText: res.otherRegulatorySectorPostureText,
+      dataPrivacyPosture: res.dataPrivacyPosture,
+      otherDataPrivacyPostureText: res.otherDataPrivacyPostureText,
+      insuranceCoverageBundle: res.insuranceCoverageBundle,
+      otherInsuranceCoverageBundleText: res.otherInsuranceCoverageBundleText,
+      estimatedAnnualInsurancePremium: res.estimatedAnnualInsurancePremium,
+      selectedInsuranceProviderName: res.selectedInsuranceProviderName,
+      complianceItems: res.complianceItems,
+      regulatoryAndComplianceNarrative: res.regulatoryAndComplianceNarrative,
+      insuranceAndLiabilityGovernanceNarrative:
+        res.insuranceAndLiabilityGovernanceNarrative,
+      engineMode: res.engineMode,
+    };
+  }
+
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
     coreProblem: '',
     targetCustomer: '',
@@ -3530,6 +3799,19 @@ export default function WorkspacePage() {
               onGenerateAiRiskRegister={
                 handleGenerateModuleERiskRegisterWithAi
               }
+              onSaveStep4SupportReturnsAndQc={
+                handleSaveModuleEStep4SupportReturnsAndQc
+              }
+              onGenerateAiSupportReturnsAndQc={
+                handleGenerateModuleESupportReturnsAndQcWithAi
+              }
+              onSaveStep5PermitsAndInsurance={
+                handleSaveModuleEStep5PermitsAndInsurance
+              }
+              onGenerateAiPermitsAndInsurance={
+                handleGenerateModuleEPermitsAndInsuranceWithAi
+              }
+              userId={session.user.id}
               onParkOpenQuestion={handleParkModuleEQuestion}
               onBackToModuleD={() => setActiveModule('MOD_D_PRODUCT_BUILD')}
             />

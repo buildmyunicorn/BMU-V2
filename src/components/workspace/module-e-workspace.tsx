@@ -29,6 +29,11 @@ import {
   FileCheck2,
   Scale,
   Gauge,
+  Headphones,
+  RotateCcw,
+  ClipboardCheck,
+  Layers,
+  MessageSquareWarning,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -69,6 +74,19 @@ import type {
   ResidualRiskRatingType,
   ProjectRiskRegisterItem,
   RiskRegisterStep3Data,
+  SupportOperatingModelType,
+  SupportResponseSlaType,
+  ReturnsAndWarrantyPolicyType,
+  QcGateTimingType,
+  QcCheckpointItem,
+  SupportReturnsAndQcStep4Data,
+  RegulatorySectorPostureType,
+  DataPrivacyPostureType,
+  InsuranceCoverageBundleType,
+  ComplianceItemCategoryType,
+  ComplianceItemStatusType,
+  ComplianceChecklistItem,
+  PermitsComplianceAndInsuranceStep5Data,
 } from '@/lib/auth/session-store';
 
 export interface ModuleEWorkspaceProps {
@@ -151,6 +169,66 @@ export interface ModuleEWorkspaceProps {
     riskManagementGovernanceNarrative: string;
     engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
   }>;
+  onSaveStep4SupportReturnsAndQc: (
+    data: SupportReturnsAndQcStep4Data,
+    progress: number
+  ) => Promise<void>;
+  onGenerateAiSupportReturnsAndQc: (params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    currentSupportOperatingModel?: SupportOperatingModelType | '';
+    currentSupportResponseSla?: SupportResponseSlaType | '';
+    currentReturnsAndWarrantyPolicy?: ReturnsAndWarrantyPolicyType | '';
+    currentEstimatedReturnRatePercent?: number;
+    currentCostPerReturnIncident?: number;
+    currentWarrantyDurationMonths?: number;
+    currentQcCheckpoints?: QcCheckpointItem[];
+    mode?: 'POPULATE_QC_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) => Promise<{
+    allowed: boolean;
+    reason?: string;
+    supportOperatingModel: SupportOperatingModelType;
+    supportResponseSla: SupportResponseSlaType;
+    returnsAndWarrantyPolicy: ReturnsAndWarrantyPolicyType;
+    estimatedReturnOrRefundRatePercent: number;
+    costPerReturnOrRemakeIncident: number;
+    warrantyDurationMonths: number;
+    qcCheckpoints: QcCheckpointItem[];
+    qualityControlAndStandardsNarrative: string;
+    customerSupportAndReturnsNarrative: string;
+    engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  }>;
+  onSaveStep5PermitsAndInsurance: (
+    data: PermitsComplianceAndInsuranceStep5Data,
+    progress: number
+  ) => Promise<void>;
+  onGenerateAiPermitsAndInsurance: (params: {
+    selectedTrack: ProductTrackType;
+    otherProductTrackText?: string;
+    currentRegulatorySectorPosture?: RegulatorySectorPostureType | '';
+    currentDataPrivacyPosture?: DataPrivacyPostureType | '';
+    currentInsuranceCoverageBundle?: InsuranceCoverageBundleType | '';
+    currentEstimatedAnnualInsurancePremium?: number;
+    currentSelectedInsuranceProviderName?: string;
+    currentComplianceItems?: ComplianceChecklistItem[];
+    mode?: 'POPULATE_COMPLIANCE_AND_NARRATIVES' | 'NARRATIVES_ONLY';
+  }) => Promise<{
+    allowed: boolean;
+    reason?: string;
+    regulatorySectorPosture: RegulatorySectorPostureType;
+    otherRegulatorySectorPostureText: string;
+    dataPrivacyPosture: DataPrivacyPostureType;
+    otherDataPrivacyPostureText: string;
+    insuranceCoverageBundle: InsuranceCoverageBundleType;
+    otherInsuranceCoverageBundleText: string;
+    estimatedAnnualInsurancePremium: number;
+    selectedInsuranceProviderName: string;
+    complianceItems: ComplianceChecklistItem[];
+    regulatoryAndComplianceNarrative: string;
+    insuranceAndLiabilityGovernanceNarrative: string;
+    engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  }>;
+  userId?: string;
   onParkOpenQuestion: (questionText: string) => Promise<void>;
   onBackToModuleD: () => void;
   whiteLabelEnabled?: boolean;
@@ -1208,6 +1286,714 @@ function buildDefaultStep3DataForPlan(
   };
 }
 
+const SUPPORT_OPERATING_MODEL_OPTIONS: Array<{
+  value: SupportOperatingModelType;
+  label: string;
+  subtitle: string;
+  badge: string;
+}> = [
+  {
+    value: 'SELF_SERVE_DOCS_PLUS_FOUNDER_TIER2',
+    label: 'Self-Serve Help Center / FAQ + Founder Escalation',
+    subtitle:
+      '80% of common questions resolved via self-serve guides/status tracking; complex edge cases escalate to the founder.',
+    badge: 'Lean & Scalable',
+  },
+  {
+    value: 'DIRECT_FOUNDER_CONCIERGE_EMAIL_WHATSAPP',
+    label: 'Direct Founder Concierge (Email / WhatsApp / Phone)',
+    subtitle:
+      'High-touch personal communication for bespoke orders, high-ticket B2B accounts, or early-adopter cohorts.',
+    badge: 'High-Touch Trust',
+  },
+  {
+    value: 'AI_TRIAGE_CHATBOT_PLUS_HUMAN_FALLBACK',
+    label: 'Automated Order / Ticket Triage + Human Escalation',
+    subtitle:
+      'Instant automated order-tracking, refund/return intake, or AI answers 24/7 with seamless human fallback.',
+    badge: '24/7 Automated Triage',
+  },
+  {
+    value: 'DEDICATED_PART_TIME_SUPPORT_AGENT',
+    label: 'Part-Time Customer Success / Admin Assistant',
+    subtitle:
+      'Dedicated part-time customer service or operations assistant handling daily inbox, returns, and scheduling.',
+    badge: 'Delegated Ops',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other (Custom Customer Support Model)',
+    subtitle:
+      'Channel partner support, distributor-managed support, or another custom model—describe below.',
+    badge: 'Custom Support Model',
+  },
+];
+
+const SUPPORT_RESPONSE_SLA_OPTIONS: Array<{
+  value: SupportResponseSlaType;
+  label: string;
+  subtitle: string;
+}> = [
+  {
+    value: 'INSTANT_AUTOMATED_24_7',
+    label: 'Instant Automated Triage (< 5 Mins) + Same-Day Follow-Up',
+    subtitle:
+      'Immediate automated acknowledgment and tracking status, with human follow-up the same business day.',
+  },
+  {
+    value: 'SAME_BUSINESS_DAY_UNDER_4H',
+    label: 'Same Business Day (< 4 Business Hours)',
+    subtitle:
+      'Fast B2B or premium D2C response window during core working hours (Mon–Fri).',
+  },
+  {
+    value: 'NEXT_BUSINESS_DAY_24H',
+    label: 'Within 1 Business Day (24 Hours)',
+    subtitle:
+      'Balanced SLA for solo makers and lean teams batching production and customer inbox once per day.',
+  },
+  {
+    value: 'FORTY_EIGHT_HOUR_STANDARD',
+    label: 'Standard 48-Hour Resolution Window',
+    subtitle:
+      'Low-pressure 2-business-day response commitment for non-urgent inquiries.',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other (Custom Support Response SLA)',
+    subtitle:
+      'Specify your custom tiered SLA or enterprise contract response window.',
+  },
+];
+
+const RETURNS_AND_WARRANTY_POLICY_OPTIONS: Array<{
+  value: ReturnsAndWarrantyPolicyType;
+  label: string;
+  subtitle: string;
+  badge: string;
+}> = [
+  {
+    value: 'STATUTORY_14_DAY_COOLING_OFF',
+    label: '14-Day Statutory Distance-Selling Cooling-Off Window',
+    subtitle:
+      'Standard 14-day return window for unused stock items (customer covers return postage unless faulty) + statutory fault cover.',
+    badge: 'Standard D2C / E-Com',
+  },
+  {
+    value: 'BESPOKE_PERSONALIZED_EXEMPT_TRANSIT_REPLACE',
+    label: 'Bespoke / Made-to-Order Exemption + Free Transit Damage Replacement',
+    subtitle:
+      'Custom-engraved or made-to-spec items are exempt from change-of-mind returns, backed by a 100% photo-verified transit damage replacement guarantee.',
+    badge: 'Artisan / Custom Spec',
+  },
+  {
+    value: 'THIRTY_DAY_MONEY_BACK_OR_TRIAL',
+    label: '30-Day Satisfaction Guarantee / Self-Serve Cancellation',
+    subtitle:
+      'Frictionless 30-day money-back guarantee or 1-click subscription cancellation to maximize buyer confidence.',
+    badge: 'SaaS & Digital',
+  },
+  {
+    value: 'MILESTONE_ACCEPTANCE_SIGN_OFF',
+    label: 'B2B Milestone Acceptance Sign-Off & Scope Remedy Guarantee',
+    subtitle:
+      'Deliverables signed off at structured project gates with a defined 14-day bug/remedy window included.',
+    badge: 'B2B / Service Sprints',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other (Custom Returns, Refund & Warranty Policy)',
+    subtitle:
+      'Specify your custom industry warranty, exchange-only, or commercial SLA terms.',
+    badge: 'Custom Policy',
+  },
+];
+
+const QC_GATE_TIMING_OPTIONS: Array<{
+  value: QcGateTimingType;
+  label: string;
+  shortLabel: string;
+}> = [
+  {
+    value: 'INCOMING_MATERIAL_OR_DATA_CHECK',
+    label: 'Gate 1: Incoming Material / Component / Data Verification',
+    shortLabel: 'Incoming Check',
+  },
+  {
+    value: 'IN_PROCESS_BUILD_OR_CODE_REVIEW',
+    label: 'Gate 2: In-Process Build / Tolerance / Code & Staging QA',
+    shortLabel: 'In-Process QA',
+  },
+  {
+    value: 'PRE_DISPATCH_FINAL_INSPECTION',
+    label: 'Gate 3: Pre-Dispatch Final Inspection / Release Smoke Test',
+    shortLabel: 'Pre-Dispatch Gate',
+  },
+  {
+    value: 'POST_DELIVERY_CUSTOMER_CHECKIN',
+    label: 'Gate 4: Post-Delivery Unboxing / Day-7 Onboarding Check-In',
+    shortLabel: 'Post-Delivery Check',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other (Custom Quality Control Gate)',
+    shortLabel: 'Custom QC Gate',
+  },
+];
+
+function buildDefaultStep4DataForPlan(
+  plan: ActiveStartupPlan,
+  selectedCountry: SupportedCountryCode
+): SupportReturnsAndQcStep4Data {
+  const saved = plan.moduleEData?.supportReturnsAndQc;
+  if (saved && saved.qcCheckpoints && saved.qcCheckpoints.length > 0) {
+    return {
+      supportOperatingModel:
+        saved.supportOperatingModel || 'SELF_SERVE_DOCS_PLUS_FOUNDER_TIER2',
+      otherSupportOperatingModelText:
+        saved.otherSupportOperatingModelText || '',
+      supportResponseSla:
+        saved.supportResponseSla || 'NEXT_BUSINESS_DAY_24H',
+      otherSupportResponseSlaText: saved.otherSupportResponseSlaText || '',
+      returnsAndWarrantyPolicy:
+        saved.returnsAndWarrantyPolicy || 'STATUTORY_14_DAY_COOLING_OFF',
+      otherReturnsAndWarrantyPolicyText:
+        saved.otherReturnsAndWarrantyPolicyText || '',
+      estimatedReturnOrRefundRatePercent:
+        saved.estimatedReturnOrRefundRatePercent ?? 2.0,
+      costPerReturnOrRemakeIncident:
+        saved.costPerReturnOrRemakeIncident ?? 20,
+      warrantyDurationMonths: saved.warrantyDurationMonths ?? 12,
+      qcCheckpoints: saved.qcCheckpoints,
+      qualityControlAndStandardsNarrative:
+        saved.qualityControlAndStandardsNarrative || '',
+      customerSupportAndReturnsNarrative:
+        saved.customerSupportAndReturnsNarrative || '',
+      lastSavedAt: saved.lastSavedAt,
+      aiEngineUsed: saved.aiEngineUsed,
+    };
+  }
+
+  const track =
+    plan.moduleDData?.productVehicle?.productTrack ||
+    detectRecommendedProductTrack(plan);
+  const isPhysical =
+    track === 'PHYSICAL_PRODUCT_ECOM' ||
+    track === 'HYBRID_HARDWARE_SOFTWARE';
+  const isService = track === 'PRODUCTIZED_SERVICE_AGENCY';
+  const isIE = selectedCountry === 'IE';
+  const isUK = selectedCountry === 'GB';
+
+  return {
+    supportOperatingModel: isPhysical || isService
+      ? 'DIRECT_FOUNDER_CONCIERGE_EMAIL_WHATSAPP'
+      : 'SELF_SERVE_DOCS_PLUS_FOUNDER_TIER2',
+    otherSupportOperatingModelText: '',
+    supportResponseSla: isPhysical || isService
+      ? 'NEXT_BUSINESS_DAY_24H'
+      : 'SAME_BUSINESS_DAY_UNDER_4H',
+    otherSupportResponseSlaText: '',
+    returnsAndWarrantyPolicy: isPhysical
+      ? 'STATUTORY_14_DAY_COOLING_OFF'
+      : isService
+        ? 'MILESTONE_ACCEPTANCE_SIGN_OFF'
+        : 'THIRTY_DAY_MONEY_BACK_OR_TRIAL',
+    otherReturnsAndWarrantyPolicyText: '',
+    estimatedReturnOrRefundRatePercent: isPhysical ? 2.5 : isService ? 1.5 : 2.0,
+    costPerReturnOrRemakeIncident: isPhysical ? 24 : isService ? 85 : 12,
+    warrantyDurationMonths: isPhysical ? 12 : 0,
+    qcCheckpoints: isPhysical
+      ? [
+          {
+            id: 'qc-1',
+            gateTiming: 'INCOMING_MATERIAL_OR_DATA_CHECK',
+            checkpointName:
+              'Incoming Raw Material, Component & Packaging Inspection',
+            passFailStandard:
+              '100% visual check of incoming stock against specification sheet, zero structural defects, and supplier batch number logged on arrival.',
+            defectFallbackAction:
+              'Quarantine non-conforming batch immediately, photograph defects for supplier credit note, and draw from safety buffer stock.',
+            ownerRole: 'Founder / Production Lead',
+          },
+          {
+            id: 'qc-2',
+            gateTiming: 'IN_PROCESS_BUILD_OR_CODE_REVIEW',
+            checkpointName:
+              'In-Process Dimensional Tolerance & Surface Finish Check',
+            passFailStandard:
+              'Verify assembly tolerances, structural integrity, and finish cure quality before final branding or custom detailing is applied.',
+            defectFallbackAction:
+              'Re-machine or re-finish unit at the bench before packaging so zero sub-standard units enter finished goods inventory.',
+            ownerRole: 'Founder / Workshop Lead',
+          },
+          {
+            id: 'qc-3',
+            gateTiming: 'PRE_DISPATCH_FINAL_INSPECTION',
+            checkpointName:
+              'Pre-Dispatch Final Inspection, Care Guide & Protective Packaging Gate',
+            passFailStandard: isIE
+              ? 'Final visual inspection under bench lighting, care/safety insert (IE Consumer Rights Act 2022 compliant) included, corner protection fitted, and tracked courier label verified.'
+              : isUK
+                ? 'Final visual inspection under bench lighting, care/safety insert (UK Consumer Rights Act 2015 compliant) included, corner protection fitted, and tracked courier label verified.'
+                : 'Final visual inspection under bench lighting, care/safety insert included, corner protection fitted, and tracked courier label verified.',
+            defectFallbackAction:
+              'Hold shipment, replace unit or packaging immediately, and log root cause in weekly QC ledger.',
+            ownerRole: 'Founder / Dispatch Lead',
+          },
+        ]
+      : isService
+        ? [
+            {
+              id: 'qc-1',
+              gateTiming: 'INCOMING_MATERIAL_OR_DATA_CHECK',
+              checkpointName:
+                'Client Intake Brief, Scope Boundary & Asset Readiness Gate',
+              passFailStandard:
+                'Signed statement of work, complete client intake questionnaire, and verified access credentials prior to sprint kickoff.',
+              defectFallbackAction:
+                'Pause kickoff timer and send automated missing-asset checklist before allocating delivery hours.',
+              ownerRole: 'Founder / Account Lead',
+            },
+            {
+              id: 'qc-2',
+              gateTiming: 'IN_PROCESS_BUILD_OR_CODE_REVIEW',
+              checkpointName:
+                'Mid-Sprint Internal QA & Deliverable Peer Review',
+              passFailStandard:
+                '100% of deliverables checked against standard SOP rubric and client brief before client preview.',
+              defectFallbackAction:
+                'Resolve gaps internally prior to client review meeting to prevent revision loops.',
+              ownerRole: 'Delivery Lead',
+            },
+            {
+              id: 'qc-3',
+              gateTiming: 'PRE_DISPATCH_FINAL_INSPECTION',
+              checkpointName:
+                'Final Handover Sign-Off & Post-Delivery Satisfaction Check',
+              passFailStandard:
+                'Client milestone sign-off recorded, handover documentation delivered, and 7-day post-delivery check-in scheduled.',
+              defectFallbackAction:
+                'Execute 1-round scope remedy within 48 business hours under service guarantee.',
+              ownerRole: 'Founder / Client Success Lead',
+            },
+          ]
+        : [
+            {
+              id: 'qc-1',
+              gateTiming: 'INCOMING_MATERIAL_OR_DATA_CHECK',
+              checkpointName:
+                'Input Validation, Schema Integrity & Upstream API Guardrails',
+              passFailStandard:
+                'Strict server-side input validation, tenant/plan ownership verification, and rate-limit checks on 100% of incoming requests.',
+              defectFallbackAction:
+                'Fail closed to deterministic fallback response and log structured warning without exposing sensitive state.',
+              ownerRole: 'Technical Lead',
+            },
+            {
+              id: 'qc-2',
+              gateTiming: 'IN_PROCESS_BUILD_OR_CODE_REVIEW',
+              checkpointName:
+                'Automated TypeScript, Lint & Staging Regression Gate',
+              passFailStandard:
+                'Zero TypeScript compilation errors, verified database migration parity, and passing core user-journey smoke tests in staging.',
+              defectFallbackAction:
+                'Block production deployment automatically until build and regression checks pass 100%.',
+              ownerRole: 'Founder / Engineering Lead',
+            },
+            {
+              id: 'qc-3',
+              gateTiming: 'POST_DELIVERY_CUSTOMER_CHECKIN',
+              checkpointName:
+                'Post-Onboarding Activation Check & Support Telemetry Review',
+              passFailStandard:
+                'User completes core activation workflow within first session with zero unhandled client/server exceptions.',
+              defectFallbackAction:
+                'Trigger proactive founder check-in email and patch UX friction point in next weekly release.',
+              ownerRole: 'Founder / Product Lead',
+            },
+          ],
+    qualityControlAndStandardsNarrative: '',
+    customerSupportAndReturnsNarrative: '',
+  };
+}
+
+const REGULATORY_SECTOR_POSTURE_OPTIONS: Array<{
+  value: RegulatorySectorPostureType;
+  label: string;
+  subtitle: string;
+  badge: string;
+}> = [
+  {
+    value: 'STANDARD_COMMERCIAL_UNREGULATED',
+    label: 'Standard Commercial / Digital / B2B Operations',
+    subtitle:
+      'Standard corporate, tax clearance, workplace health & safety, and GDPR compliance with no specialist sector license required.',
+    badge: 'Standard Commercial',
+  },
+  {
+    value: 'PHYSICAL_PRODUCT_SAFETY_CE_UKCA',
+    label: 'Physical Product Safety, Labelling & Traceability',
+    subtitle:
+      'Consumer or commercial physical products requiring general product safety files, batch traceability, and CE / UKCA / food-contact declarations.',
+    badge: 'Physical & Craft',
+  },
+  {
+    value: 'FOOD_BEV_HYGIENE_HACCP',
+    label: 'Food, Beverage, Hospitality or Cosmetic Hygiene (HACCP)',
+    subtitle:
+      'Food business registration, Environmental Health inspection, HACCP food safety management, and allergen traceability.',
+    badge: 'Food & Hygiene',
+  },
+  {
+    value: 'FINTECH_HEALTH_REGULATED',
+    label: 'Regulated Sector (Fintech, MedTech, Childcare, Trade License)',
+    subtitle:
+      'Requires statutory professional authorization, financial/clinical regulatory sandbox, or statutory vetting before commercial launch.',
+    badge: 'Regulated Sector',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other (Custom Regulatory or Licensing Posture)',
+    subtitle:
+      'Describe your custom industry licensing, environmental permit, or hybrid regulatory posture below.',
+    badge: 'Custom Posture',
+  },
+];
+
+const DATA_PRIVACY_POSTURE_OPTIONS: Array<{
+  value: DataPrivacyPostureType;
+  label: string;
+  subtitle: string;
+  badge: string;
+}> = [
+  {
+    value: 'MINIMAL_B2B_CONTACT_DATA',
+    label: 'Minimal B2B Contact & Invoicing Records Only',
+    subtitle:
+      'Standard business contact names, emails, and billing records stored in encrypted cloud accounting/CRM tools.',
+    badge: 'Low PII Footprint',
+  },
+  {
+    value: 'STANDARD_CUSTOMER_CRM_COOKIES',
+    label: 'D2C / E-Commerce Customer Orders, Waitlist & Cookie Consent',
+    subtitle:
+      'Processes consumer shipping addresses, marketing opt-ins, and analytics cookies under a published GDPR Privacy Notice.',
+    badge: 'Standard D2C / Web',
+  },
+  {
+    value: 'B2B_DATA_PROCESSOR_DPA_SCC',
+    label: 'Cloud SaaS / B2B Data Processor (Article 28 DPAs & Sub-Processors)',
+    subtitle:
+      'Processes client workspace or customer data under formal Data Processing Agreements (DPAs), encryption at rest, and RBAC.',
+    badge: 'SaaS & AI Platform',
+  },
+  {
+    value: 'HIGH_RISK_SPECIAL_CATEGORY_DPIA',
+    label: 'Special Category / Health / Biometric / Minor Data (Formal DPIA)',
+    subtitle:
+      'Processes sensitive personal data requiring a formal Data Protection Impact Assessment (DPIA) and strict access logging.',
+    badge: 'High-Sensitivity DPIA',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other (Custom Data Privacy & Security Posture)',
+    subtitle:
+      'Specify your custom data residency, on-premise, or sector-specific privacy governance model.',
+    badge: 'Custom Privacy',
+  },
+];
+
+const INSURANCE_COVERAGE_BUNDLE_OPTIONS: Array<{
+  value: InsuranceCoverageBundleType;
+  label: string;
+  subtitle: string;
+  badge: string;
+}> = [
+  {
+    value: 'PUBLIC_EMPLOYERS_CORE',
+    label: 'Core Public Liability + Employers’ Liability Pack',
+    subtitle:
+      'Protects against third-party injury/property damage and statutory employee/contractor liability.',
+    badge: 'Core Commercial',
+  },
+  {
+    value: 'TECH_SAAS_PI_CYBER',
+    label: 'Tech / SaaS Professional Indemnity (PI) + Cyber & Data Liability',
+    subtitle:
+      'Covers software errors/omissions, B2B contract indemnity, cyber incident response, and data breach liability.',
+    badge: 'SaaS, AI & Service',
+  },
+  {
+    value: 'PRODUCT_PUBLIC_LIABILITY_STOCK',
+    label: 'Product Liability + Public Liability + Workshop Tools & Stock',
+    subtitle:
+      'Covers physical products sold to customers, craft markets/trade shows, and workshop machinery/stock against fire or theft.',
+    badge: 'Physical & Makers',
+  },
+  {
+    value: 'COMPREHENSIVE_COMMERCIAL_ALL_RISK',
+    label: 'Comprehensive Commercial Combined + Directors & Officers (D&O)',
+    subtitle:
+      'Full commercial package combining Public/Product/PI/Employers’ Liability, Cyber, plus D&O protection for funded boards.',
+    badge: 'Investor & Enterprise Ready',
+  },
+  {
+    value: 'OTHER',
+    label: 'Other (Custom Insurance Coverage Bundle)',
+    subtitle:
+      'Specify your custom marine transit, clinical trial, trade credit, or bespoke commercial policy bundle.',
+    badge: 'Custom Bundle',
+  },
+];
+
+const COMPLIANCE_ITEM_CATEGORY_OPTIONS: Array<{
+  value: ComplianceItemCategoryType;
+  label: string;
+}> = [
+  {
+    value: 'CORPORATE_TAX_GRANT_CLEARANCE',
+    label: '🏛️ Corporate Registration & Tax Clearance (Grant Prerequisite)',
+  },
+  {
+    value: 'DATA_PRIVACY_GDPR_SECURITY',
+    label: '🔒 Data Privacy, GDPR & Cyber Security Governance',
+  },
+  {
+    value: 'HEALTH_SAFETY_PREMISES',
+    label: '🦺 Workplace Health & Safety Statement / Risk Assessment',
+  },
+  {
+    value: 'SECTOR_PRODUCT_LICENSE',
+    label: '📦 Product Safety, Labelling, Hygiene or Sector License',
+  },
+  {
+    value: 'COMMERCIAL_INSURANCE_POLICY',
+    label: '🛡️ Commercial Insurance Policy & Indemnity Cover',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Compliance / Regulatory Requirement)',
+  },
+];
+
+const COMPLIANCE_ITEM_STATUS_OPTIONS: Array<{
+  value: ComplianceItemStatusType;
+  label: string;
+}> = [
+  {
+    value: 'VERIFIED_COMPLETE',
+    label: '✅ Verified Complete / Active',
+  },
+  {
+    value: 'IN_PROGRESS',
+    label: '⏳ In Progress (Being Finalized)',
+  },
+  {
+    value: 'PLANNED_BEFORE_LAUNCH',
+    label: '🗓️ Planned Prior to Commercial Launch / Grant Drawdown',
+  },
+  {
+    value: 'NOT_APPLICABLE',
+    label: '⚪ Not Applicable (Exempt)',
+  },
+  {
+    value: 'OTHER',
+    label: '✨ Other (Custom Compliance Status)',
+  },
+];
+
+function buildDefaultStep5DataForPlan(
+  plan: ActiveStartupPlan,
+  selectedCountry: SupportedCountryCode
+): PermitsComplianceAndInsuranceStep5Data {
+  const saved = plan.moduleEData?.permitsAndInsurance;
+  if (saved && saved.complianceItems && saved.complianceItems.length > 0) {
+    return {
+      regulatorySectorPosture:
+        saved.regulatorySectorPosture || 'STANDARD_COMMERCIAL_UNREGULATED',
+      otherRegulatorySectorPostureText:
+        saved.otherRegulatorySectorPostureText || '',
+      dataPrivacyPosture:
+        saved.dataPrivacyPosture || 'B2B_DATA_PROCESSOR_DPA_SCC',
+      otherDataPrivacyPostureText: saved.otherDataPrivacyPostureText || '',
+      insuranceCoverageBundle:
+        saved.insuranceCoverageBundle || 'TECH_SAAS_PI_CYBER',
+      otherInsuranceCoverageBundleText:
+        saved.otherInsuranceCoverageBundleText || '',
+      estimatedAnnualInsurancePremium:
+        saved.estimatedAnnualInsurancePremium ?? 850,
+      selectedInsuranceProviderName: saved.selectedInsuranceProviderName || '',
+      complianceItems: saved.complianceItems,
+      regulatoryAndComplianceNarrative:
+        saved.regulatoryAndComplianceNarrative || '',
+      insuranceAndLiabilityGovernanceNarrative:
+        saved.insuranceAndLiabilityGovernanceNarrative || '',
+      lastSavedAt: saved.lastSavedAt,
+      aiEngineUsed: saved.aiEngineUsed,
+    };
+  }
+
+  const track =
+    plan.moduleDData?.productVehicle?.productTrack ||
+    detectRecommendedProductTrack(plan);
+  const isPhysical =
+    track === 'PHYSICAL_PRODUCT_ECOM' ||
+    track === 'HYBRID_HARDWARE_SOFTWARE';
+  const isFoodHosp = /food|bev|hospitality|cafe|bakery|cosmetic/i.test(
+    `${plan.industryCategory || ''} ${plan.moduleDData?.productVehicle?.otherProductTrackText || ''}`
+  );
+  const isSoftware =
+    track === 'SAAS_SOFTWARE_AI' ||
+    track === 'HYBRID_HARDWARE_SOFTWARE' ||
+    track === 'MARKETPLACE_PLATFORM';
+
+  const isIE = selectedCountry === 'IE';
+  const isGB = selectedCountry === 'GB';
+  const defaultPremium = isSoftware
+    ? isGB
+      ? 850
+      : 950
+    : isPhysical || isFoodHosp
+      ? isGB
+        ? 1100
+        : 1250
+      : isGB
+        ? 550
+        : 650;
+
+  return {
+    regulatorySectorPosture: isFoodHosp
+      ? 'FOOD_BEV_HYGIENE_HACCP'
+      : isPhysical
+        ? 'PHYSICAL_PRODUCT_SAFETY_CE_UKCA'
+        : 'STANDARD_COMMERCIAL_UNREGULATED',
+    otherRegulatorySectorPostureText: '',
+    dataPrivacyPosture: isSoftware
+      ? 'B2B_DATA_PROCESSOR_DPA_SCC'
+      : 'STANDARD_CUSTOMER_CRM_COOKIES',
+    otherDataPrivacyPostureText: '',
+    insuranceCoverageBundle: isSoftware
+      ? 'TECH_SAAS_PI_CYBER'
+      : isPhysical || isFoodHosp
+        ? 'PRODUCT_PUBLIC_LIABILITY_STOCK'
+        : 'PUBLIC_EMPLOYERS_CORE',
+    otherInsuranceCoverageBundleText: '',
+    estimatedAnnualInsurancePremium: defaultPremium,
+    selectedInsuranceProviderName: isIE
+      ? isSoftware
+        ? 'Hiscox Ireland / Arachas Cyber & Tech PI'
+        : 'Allianz Ireland / Arachas Commercial Combined'
+      : isGB
+        ? isSoftware
+          ? 'Superscript / Hiscox UK Tech & Cyber PI'
+          : 'Simply Business / Aviva UK Commercial Combined'
+        : 'Commercial Startup Insurance Broker',
+    complianceItems: [
+      {
+        id: 'comp-1',
+        category: 'CORPORATE_TAX_GRANT_CLEARANCE',
+        requirementTitle: isIE
+          ? 'CRO Incorporation & Revenue eTax Clearance Certificate (TC2 via ROS)'
+          : isGB
+            ? 'Companies House Incorporation & HMRC Corporation Tax UTR Registration'
+            : 'Corporate Registration & Tax Clearance Certificate',
+        regulatoryBody: isIE
+          ? 'Companies Registration Office (CRO) & Revenue Commissioners (ROS.ie)'
+          : isGB
+            ? 'Companies House & HM Revenue & Customs (HMRC)'
+            : 'National Corporate & Tax Registry',
+        status: 'IN_PROGRESS',
+        evidenceOrReferenceNote: isIE
+          ? 'Mandatory prerequisite before any Local Enterprise Office (LEO) or Enterprise Ireland grant drawdown can be paid out.'
+          : isGB
+            ? 'Active Companies House registration number and UK business bank account required for Innovate UK & Start Up Loans.'
+            : 'Required for corporate banking and grant eligibility.',
+        estimatedAnnualCost: 0,
+      },
+      {
+        id: 'comp-2',
+        category: 'DATA_PRIVACY_GDPR_SECURITY',
+        requirementTitle: isIE
+          ? 'EU GDPR Privacy Notice, ROPA & Data Processing Agreements (Irish Data Protection Act 2018)'
+          : isGB
+            ? 'UK GDPR Compliance, Privacy Notice & Annual ICO Data Protection Fee Registration'
+            : 'GDPR / Data Privacy Policy, Cookie Consent & Data Processing Agreements',
+        regulatoryBody: isIE
+          ? 'Data Protection Commission (DPC Ireland — dataprotection.ie)'
+          : isGB
+            ? "Information Commissioner's Office (ICO UK — ico.org.uk)"
+            : 'National Data Protection Authority',
+        status: 'IN_PROGRESS',
+        evidenceOrReferenceNote: isIE
+          ? 'EU/EEA cloud hosting residency verified; Article 28 Data Processing Agreements (DPAs) in place with sub-processors.'
+          : isGB
+            ? 'ICO Tier 1 Data Protection Fee (£40/yr via Direct Debit) and UK GDPR Privacy & Cookie Policies published.'
+            : 'Customer PII encrypted at rest and in transit with clear opt-in consent.',
+        estimatedAnnualCost: isGB ? 40 : 0,
+      },
+      {
+        id: 'comp-3',
+        category: 'HEALTH_SAFETY_PREMISES',
+        requirementTitle: isIE
+          ? 'Written Safety Statement & Risk Assessment (Section 20 SHWW Act 2005 via HSA BeSMART.ie)'
+          : isGB
+            ? 'HSE Health & Safety Policy & Workplace Risk Assessment (HSWA 1974)'
+            : 'Workplace Health & Safety Policy & Risk Assessment',
+        regulatoryBody: isIE
+          ? 'Health and Safety Authority (HSA Ireland — hsa.ie / BeSMART.ie)'
+          : isGB
+            ? 'Health and Safety Executive (HSE UK — hse.gov.uk)'
+            : 'Occupational Health & Safety Authority',
+        status: 'PLANNED_BEFORE_LAUNCH',
+        evidenceOrReferenceNote: isIE
+          ? 'Generated free via HSA BeSMART.ie portal covering workspace ergonomics, electrical safety, and operational hazards.'
+          : isGB
+            ? 'Documented HSE hazard assessment covering operations, display screen equipment (DSE), and visitor/contractor safety.'
+            : 'Covers operational workspace safety and contractor protocols.',
+        estimatedAnnualCost: 0,
+      },
+      {
+        id: 'comp-4',
+        category:
+          isPhysical || isFoodHosp
+            ? 'SECTOR_PRODUCT_LICENSE'
+            : 'COMMERCIAL_INSURANCE_POLICY',
+        requirementTitle: isFoodHosp
+          ? isIE
+            ? 'HSE Environmental Health Food Business Registration & FSAI HACCP Food Safety Plan'
+            : 'Local Council Food Business Registration (28 Days Prior) & FSA SFBB HACCP Pack'
+          : isPhysical
+            ? isIE
+              ? 'EU General Product Safety Regulation (GPSR 2023/988) Technical File, CE Marking & CCPC Labelling'
+              : 'UK Product Safety (UKCA / CE Marking), Technical File & OPSS / Trading Standards Traceability'
+            : isIE
+              ? 'Commercial Professional Indemnity (PI), Cyber Liability & Public/Employers Liability Policy'
+              : 'Commercial PI, Cyber & Statutory UK Employers Liability (£5m Min) Insurance Policy',
+        regulatoryBody: isFoodHosp
+          ? isIE
+            ? 'Food Safety Authority of Ireland (FSAI) & HSE Environmental Health Officer (EHO)'
+            : 'Food Standards Agency (FSA) & Local Authority Environmental Health'
+          : isPhysical
+            ? isIE
+              ? 'Competition and Consumer Protection Commission (CCPC) & National Standards Authority of Ireland (NSAI)'
+              : 'Office for Product Safety and Standards (OPSS) & Local Trading Standards'
+            : isIE
+              ? 'Central Bank of Ireland Regulated Commercial Insurer / Broker'
+              : 'FCA Regulated Commercial Insurer / Broker',
+        status: 'PLANNED_BEFORE_LAUNCH',
+        evidenceOrReferenceNote:
+          isPhysical || isFoodHosp
+            ? 'Batch/lot numbering, supplier certificates of conformity, and safety labelling verified before first commercial dispatch.'
+            : 'Indicative annual policy estimate synced to Module I Overheads; actual coverage and premium subject to insurer underwriting.',
+        estimatedAnnualCost:
+          isPhysical || isFoodHosp ? 150 : defaultPremium,
+      },
+    ],
+    regulatoryAndComplianceNarrative: '',
+    insuranceAndLiabilityGovernanceNarrative: '',
+  };
+}
+
 export function ModuleEWorkspace({
   plan,
   selectedCountry,
@@ -1218,6 +2004,11 @@ export function ModuleEWorkspace({
   onGenerateAiPremisesEquipment,
   onSaveStep3RiskRegister,
   onGenerateAiRiskRegister,
+  onSaveStep4SupportReturnsAndQc,
+  onGenerateAiSupportReturnsAndQc,
+  onSaveStep5PermitsAndInsurance,
+  onGenerateAiPermitsAndInsurance,
+  userId,
   onParkOpenQuestion,
   onBackToModuleD,
 }: ModuleEWorkspaceProps) {
@@ -1248,6 +2039,15 @@ export function ModuleEWorkspace({
     buildDefaultStep3DataForPlan(plan, selectedCountry)
   );
 
+  const [step4Data, setStep4Data] = useState<SupportReturnsAndQcStep4Data>(() =>
+    buildDefaultStep4DataForPlan(plan, selectedCountry)
+  );
+
+  const [step5Data, setStep5Data] =
+    useState<PermitsComplianceAndInsuranceStep5Data>(() =>
+      buildDefaultStep5DataForPlan(plan, selectedCountry)
+    );
+
   const [showWhyAsking, setShowWhyAsking] = useState(false);
   const [showExampleDrawer, setShowExampleDrawer] = useState(false);
   const [examplePersonaTab, setExamplePersonaTab] = useState<
@@ -1271,6 +2071,20 @@ export function ModuleEWorkspace({
   const [parkQuestionInputStep3, setParkQuestionInputStep3] = useState('');
   const [isSavingStep3, setIsSavingStep3] = useState(false);
   const [isGeneratingAiStep3, setIsGeneratingAiStep3] = useState(false);
+
+  const [showWhyAskingStep4, setShowWhyAskingStep4] = useState(false);
+  const [showExampleDrawerStep4, setShowExampleDrawerStep4] = useState(false);
+  const [showParkInputStep4, setShowParkInputStep4] = useState(false);
+  const [parkQuestionInputStep4, setParkQuestionInputStep4] = useState('');
+  const [isSavingStep4, setIsSavingStep4] = useState(false);
+  const [isGeneratingAiStep4, setIsGeneratingAiStep4] = useState(false);
+
+  const [showWhyAskingStep5, setShowWhyAskingStep5] = useState(false);
+  const [showExampleDrawerStep5, setShowExampleDrawerStep5] = useState(false);
+  const [showParkInputStep5, setShowParkInputStep5] = useState(false);
+  const [parkQuestionInputStep5, setParkQuestionInputStep5] = useState('');
+  const [isSavingStep5, setIsSavingStep5] = useState(false);
+  const [isGeneratingAiStep5, setIsGeneratingAiStep5] = useState(false);
 
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
 
@@ -2273,6 +3087,434 @@ export function ModuleEWorkspace({
     }
   }
 
+  // =========================================================================
+  // STEP 4 COMPUTED METRICS & HANDLERS (SUPPORT, RETURNS, WARRANTY & QC SOP)
+  // =========================================================================
+
+  const expectedReturnAllowancePerOrder =
+    Math.round(
+      ((Number(step4Data.estimatedReturnOrRefundRatePercent) || 0) / 100) *
+        (Number(step4Data.costPerReturnOrRemakeIncident) || 0) *
+        100
+    ) / 100;
+
+  const expectedMonthlyReturnCostAtMaxCapacity = Math.round(
+    expectedReturnAllowancePerOrder * maxOrdersPerMonthByManualTime
+  );
+
+  const distinctQcGatesCovered = Array.from(
+    new Set(step4Data.qcCheckpoints.map((cp) => cp.gateTiming))
+  );
+
+  function handleUpdateQcCheckpoint(
+    checkpointId: string,
+    updates: Partial<QcCheckpointItem>
+  ) {
+    if (isVaultReadonly) return;
+    setStep4Data((prev) => ({
+      ...prev,
+      qcCheckpoints: prev.qcCheckpoints.map((cp) =>
+        cp.id === checkpointId ? { ...cp, ...updates } : cp
+      ),
+    }));
+  }
+
+  function handleAddQcCheckpoint() {
+    if (isVaultReadonly) return;
+    const newGate: QcCheckpointItem = {
+      id: `qc-custom-${Date.now()}`,
+      gateTiming: 'PRE_DISPATCH_FINAL_INSPECTION',
+      checkpointName: 'Additional Quality Control & Release Verification Gate',
+      passFailStandard:
+        '100% pass against documented specification checklist prior to customer release.',
+      defectFallbackAction:
+        'Hold release immediately, remediate defect, and log root cause.',
+      ownerRole: 'Founder / Quality Lead',
+      isCustom: true,
+    };
+    setStep4Data((prev) => ({
+      ...prev,
+      qcCheckpoints: [...prev.qcCheckpoints, newGate],
+    }));
+  }
+
+  function handleRemoveQcCheckpoint(checkpointId: string) {
+    if (isVaultReadonly) return;
+    setStep4Data((prev) => ({
+      ...prev,
+      qcCheckpoints:
+        prev.qcCheckpoints.length > 1
+          ? prev.qcCheckpoints.filter((cp) => cp.id !== checkpointId)
+          : prev.qcCheckpoints,
+    }));
+  }
+
+  function handleApplyStep4IndustryBenchmark() {
+    if (isVaultReadonly) return;
+    const benchmarkDefaults = buildDefaultStep4DataForPlan(
+      {
+        ...plan,
+        moduleEData: {
+          ...(plan.moduleEData || {}),
+          supportReturnsAndQc: undefined,
+        },
+      },
+      selectedCountry
+    );
+    const isIE = selectedCountry === 'IE';
+    const isUK = selectedCountry === 'GB';
+    const statutoryLabel = isIE
+      ? 'Ireland Consumer Rights Act 2022 (CRAA) and CCPC distance-selling rules'
+      : isUK
+        ? 'UK Consumer Rights Act 2015 and Consumer Contracts Regulations 2013'
+        : `${countryPack.countryName} statutory consumer protection rules`;
+
+    setStep4Data((prev) => ({
+      ...prev,
+      supportOperatingModel:
+        prev.supportOperatingModel || benchmarkDefaults.supportOperatingModel,
+      supportResponseSla:
+        prev.supportResponseSla || benchmarkDefaults.supportResponseSla,
+      returnsAndWarrantyPolicy:
+        prev.returnsAndWarrantyPolicy ||
+        benchmarkDefaults.returnsAndWarrantyPolicy,
+      estimatedReturnOrRefundRatePercent:
+        benchmarkDefaults.estimatedReturnOrRefundRatePercent,
+      costPerReturnOrRemakeIncident:
+        benchmarkDefaults.costPerReturnOrRemakeIncident,
+      warrantyDurationMonths: benchmarkDefaults.warrantyDurationMonths,
+      qcCheckpoints: benchmarkDefaults.qcCheckpoints,
+      qualityControlAndStandardsNarrative:
+        prev.qualityControlAndStandardsNarrative.trim() ||
+        `${plan.title || 'Our business'} enforces a 3-gate Quality Control (QC) SOP covering incoming verification, in-process build standards, and pre-release inspection. Catching defects internally keeps our projected return/remake rate at ${benchmarkDefaults.estimatedReturnOrRefundRatePercent}% and protects unit gross margins in Module G.`,
+      customerSupportAndReturnsNarrative:
+        prev.customerSupportAndReturnsNarrative.trim() ||
+        `We operate a responsive customer support SLA paired with a transparent returns, remake, and warranty policy aligned with ${statutoryLabel}, ensuring customer trust without overwhelming founder bandwidth.`,
+    }));
+    setSaveBanner(
+      `📐 Applied ${countryPack.countryName} Industry Benchmark QC Gates, Return Buffer & Statutory Consumer Policy for your ${inheritedTrack.replace(/_/g, ' ')} track.`
+    );
+  }
+
+  async function handleRunAiStep4(
+    mode: 'POPULATE_QC_AND_NARRATIVES' | 'NARRATIVES_ONLY' = 'POPULATE_QC_AND_NARRATIVES'
+  ) {
+    if (isVaultReadonly) return;
+    setIsGeneratingAiStep4(true);
+    setSaveBanner(null);
+    try {
+      const res = await onGenerateAiSupportReturnsAndQc({
+        selectedTrack: inheritedTrack,
+        otherProductTrackText: inheritedOtherTrackText,
+        currentSupportOperatingModel: step4Data.supportOperatingModel,
+        currentSupportResponseSla: step4Data.supportResponseSla,
+        currentReturnsAndWarrantyPolicy: step4Data.returnsAndWarrantyPolicy,
+        currentEstimatedReturnRatePercent:
+          step4Data.estimatedReturnOrRefundRatePercent,
+        currentCostPerReturnIncident: step4Data.costPerReturnOrRemakeIncident,
+        currentWarrantyDurationMonths: step4Data.warrantyDurationMonths,
+        currentQcCheckpoints: step4Data.qcCheckpoints,
+        mode,
+      });
+
+      if (!res.allowed) return;
+
+      const nextData: SupportReturnsAndQcStep4Data = {
+        ...step4Data,
+        supportOperatingModel:
+          step4Data.supportOperatingModel || res.supportOperatingModel,
+        supportResponseSla:
+          step4Data.supportResponseSla || res.supportResponseSla,
+        returnsAndWarrantyPolicy:
+          step4Data.returnsAndWarrantyPolicy || res.returnsAndWarrantyPolicy,
+        estimatedReturnOrRefundRatePercent:
+          res.estimatedReturnOrRefundRatePercent,
+        costPerReturnOrRemakeIncident: res.costPerReturnOrRemakeIncident,
+        warrantyDurationMonths: res.warrantyDurationMonths,
+        qcCheckpoints:
+          mode === 'NARRATIVES_ONLY' && step4Data.qcCheckpoints.length > 0
+            ? step4Data.qcCheckpoints
+            : res.qcCheckpoints,
+        qualityControlAndStandardsNarrative:
+          res.qualityControlAndStandardsNarrative,
+        customerSupportAndReturnsNarrative:
+          res.customerSupportAndReturnsNarrative,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+
+      setStep4Data(nextData);
+      await onSaveStep4SupportReturnsAndQc(nextData, 82);
+      setSaveBanner(
+        mode === 'NARRATIVES_ONLY'
+          ? '✨ Synthesized your Quality Control & Customer Support Narratives and saved Step 4!'
+          : '✨ Generated your 3-Gate Quality Control SOP, Returns Policy & Narratives and saved Step 4!'
+      );
+    } finally {
+      setIsGeneratingAiStep4(false);
+    }
+  }
+
+  async function handleSaveStep4() {
+    if (isVaultReadonly) return;
+    setIsSavingStep4(true);
+    setSaveBanner(null);
+    try {
+      const nowIso = new Date().toISOString();
+      const nextData: SupportReturnsAndQcStep4Data = {
+        ...step4Data,
+        lastSavedAt: nowIso,
+      };
+      setStep4Data(nextData);
+      const isComplete =
+        Boolean(nextData.supportOperatingModel) &&
+        Boolean(nextData.supportResponseSla) &&
+        Boolean(nextData.returnsAndWarrantyPolicy) &&
+        nextData.qcCheckpoints.length >= 2 &&
+        nextData.qualityControlAndStandardsNarrative.trim().length > 10;
+      await onSaveStep4SupportReturnsAndQc(nextData, isComplete ? 82 : 74);
+      setSaveBanner(
+        '✅ Saved Module E Step 4 (Customer Support, Returns, Warranty & Quality Control SOP)!'
+      );
+    } finally {
+      setIsSavingStep4(false);
+    }
+  }
+
+  // =========================================================================
+  // STEP 5 COMPUTED METRICS & HANDLERS (PERMITS, COMPLIANCE & INSURANCE)
+  // =========================================================================
+
+  const estimatedMonthlyInsuranceOverhead = Math.round(
+    (Number(step5Data.estimatedAnnualInsurancePremium) || 0) / 12
+  );
+
+  const totalAnnualComplianceItemsCost = step5Data.complianceItems.reduce(
+    (sum, item) => sum + (Number(item.estimatedAnnualCost) || 0),
+    0
+  );
+
+  const verifiedOrInProgressComplianceCount = step5Data.complianceItems.filter(
+    (item) =>
+      item.status === 'VERIFIED_COMPLETE' || item.status === 'IN_PROGRESS'
+  ).length;
+
+  const hasCorporateTaxClearanceItem = step5Data.complianceItems.some(
+    (item) => item.category === 'CORPORATE_TAX_GRANT_CLEARANCE'
+  );
+  const hasGdprPrivacyItem = step5Data.complianceItems.some(
+    (item) => item.category === 'DATA_PRIVACY_GDPR_SECURITY'
+  );
+  const hasHealthSafetyItem = step5Data.complianceItems.some(
+    (item) => item.category === 'HEALTH_SAFETY_PREMISES'
+  );
+
+  function handleUpdateComplianceItem(
+    itemId: string,
+    updates: Partial<ComplianceChecklistItem>
+  ) {
+    if (isVaultReadonly) return;
+    setStep5Data((prev) => ({
+      ...prev,
+      complianceItems: prev.complianceItems.map((item) =>
+        item.id === itemId ? { ...item, ...updates } : item
+      ),
+    }));
+  }
+
+  function handleAddComplianceItem() {
+    if (isVaultReadonly) return;
+    const isIE = selectedCountry === 'IE';
+    const isGB = selectedCountry === 'GB';
+    const newItem: ComplianceChecklistItem = {
+      id: `comp-custom-${Date.now()}`,
+      category: 'SECTOR_PRODUCT_LICENSE',
+      requirementTitle:
+        'Additional Regulatory Permit, Certification or Sector Compliance Item',
+      regulatoryBody: isIE
+        ? 'Relevant Irish Regulatory Authority / NSAI / CCPC'
+        : isGB
+          ? 'Relevant UK Regulatory Authority / OPSS / Local Council'
+          : 'Relevant Regulatory Authority',
+      status: 'PLANNED_BEFORE_LAUNCH',
+      evidenceOrReferenceNote:
+        'Document reference number, registration certificate, or pre-launch verification milestone.',
+      estimatedAnnualCost: 0,
+      isCustom: true,
+    };
+    setStep5Data((prev) => ({
+      ...prev,
+      complianceItems: [...prev.complianceItems, newItem],
+    }));
+  }
+
+  function handleRemoveComplianceItem(itemId: string) {
+    if (isVaultReadonly) return;
+    setStep5Data((prev) => ({
+      ...prev,
+      complianceItems:
+        prev.complianceItems.length > 1
+          ? prev.complianceItems.filter((item) => item.id !== itemId)
+          : prev.complianceItems,
+    }));
+  }
+
+  function handleApplyStep5IndustryBenchmark() {
+    if (isVaultReadonly) return;
+    const benchmarkDefaults = buildDefaultStep5DataForPlan(
+      {
+        ...plan,
+        moduleEData: {
+          ...(plan.moduleEData || {}),
+          permitsAndInsurance: undefined,
+        },
+      },
+      selectedCountry
+    );
+    const isIE = selectedCountry === 'IE';
+    const isGB = selectedCountry === 'GB';
+    const currencySym = plan.baseCurrency === 'GBP' || isGB ? '£' : '€';
+    const monthlyEst = Math.round(
+      benchmarkDefaults.estimatedAnnualInsurancePremium / 12
+    );
+
+    setStep5Data((prev) => ({
+      ...prev,
+      regulatorySectorPosture:
+        prev.regulatorySectorPosture ||
+        benchmarkDefaults.regulatorySectorPosture,
+      dataPrivacyPosture:
+        prev.dataPrivacyPosture || benchmarkDefaults.dataPrivacyPosture,
+      insuranceCoverageBundle:
+        prev.insuranceCoverageBundle ||
+        benchmarkDefaults.insuranceCoverageBundle,
+      estimatedAnnualInsurancePremium:
+        benchmarkDefaults.estimatedAnnualInsurancePremium,
+      selectedInsuranceProviderName:
+        prev.selectedInsuranceProviderName.trim() ||
+        benchmarkDefaults.selectedInsuranceProviderName,
+      complianceItems: benchmarkDefaults.complianceItems,
+      regulatoryAndComplianceNarrative:
+        prev.regulatoryAndComplianceNarrative.trim() ||
+        (isIE
+          ? `${plan.title || 'Our business'} maintains full regulatory compliance across Ireland, including CRO good standing, Revenue eTax Clearance (TC2 via ROS) for Local Enterprise Office (LEO) / Enterprise Ireland grant drawdowns, a Written Safety Statement under Section 20 of the Safety, Health and Welfare at Work Act 2005 (via HSA BeSMART.ie), and EU GDPR / Data Protection Commission (DPC) data governance.`
+          : isGB
+            ? `${plan.title || 'Our business'} maintains full regulatory compliance across the UK, including Companies House and HMRC UTR good standing, a documented UK HSE workplace risk assessment under the Health and Safety at Work etc. Act 1974, and annual Information Commissioner's Office (ICO) Data Protection Fee registration under UK GDPR.`
+            : `${plan.title || 'Our business'} maintains full corporate, tax, workplace health & safety, and GDPR data privacy compliance ahead of commercial launch.`),
+      insuranceAndLiabilityGovernanceNarrative:
+        prev.insuranceAndLiabilityGovernanceNarrative.trim() ||
+        `We have scoped a ${benchmarkDefaults.insuranceCoverageBundle.replace(/_/g, ' ').toLowerCase()} commercial insurance package (${benchmarkDefaults.selectedInsuranceProviderName}) with an indicative estimated annual premium of ${currencySym}${benchmarkDefaults.estimatedAnnualInsurancePremium.toLocaleString()}/year (approx. ${currencySym}${monthlyEst.toLocaleString()}/month synced to Module I Overheads; actual coverage, policy limits, and premiums may vary subject to formal insurer underwriting).`,
+    }));
+
+    setSaveBanner(
+      `🛡️ Applied ${countryPack.countryName} statutory compliance checklist & indicative startup insurance benchmark for your ${inheritedTrack.replace(/_/g, ' ')} track!`
+    );
+  }
+
+  function handleSelectPartnerInsuranceBroker(broker: {
+    providerName: string;
+    bundle: InsuranceCoverageBundleType;
+    indicativeAnnualEstimate: number;
+  }) {
+    if (isVaultReadonly) return;
+    const subIdTag = `${plan.id}_${userId || 'founder'}`;
+    setStep5Data((prev) => ({
+      ...prev,
+      insuranceCoverageBundle: broker.bundle,
+      estimatedAnnualInsurancePremium: broker.indicativeAnnualEstimate,
+      selectedInsuranceProviderName: broker.providerName,
+    }));
+    setSaveBanner(
+      `🛡️ Matched "${broker.providerName}" (Indicative Estimate: ${formatPlanCurrency(broker.indicativeAnnualEstimate, plan.baseCurrency)}/yr — actual coverage & premium may vary; Attribution: ?subid=${subIdTag}). Click Save Step 5 below to persist.`
+    );
+  }
+
+  async function handleRunAiStep5(
+    mode:
+      | 'POPULATE_COMPLIANCE_AND_NARRATIVES'
+      | 'NARRATIVES_ONLY' = 'POPULATE_COMPLIANCE_AND_NARRATIVES'
+  ) {
+    if (isVaultReadonly) return;
+    setIsGeneratingAiStep5(true);
+    setSaveBanner(null);
+    try {
+      const res = await onGenerateAiPermitsAndInsurance({
+        selectedTrack: inheritedTrack,
+        otherProductTrackText: inheritedOtherTrackText,
+        currentRegulatorySectorPosture: step5Data.regulatorySectorPosture,
+        currentDataPrivacyPosture: step5Data.dataPrivacyPosture,
+        currentInsuranceCoverageBundle: step5Data.insuranceCoverageBundle,
+        currentEstimatedAnnualInsurancePremium:
+          step5Data.estimatedAnnualInsurancePremium,
+        currentSelectedInsuranceProviderName:
+          step5Data.selectedInsuranceProviderName,
+        currentComplianceItems: step5Data.complianceItems,
+        mode,
+      });
+
+      if (!res.allowed) return;
+
+      const nextData: PermitsComplianceAndInsuranceStep5Data = {
+        ...step5Data,
+        regulatorySectorPosture:
+          step5Data.regulatorySectorPosture || res.regulatorySectorPosture,
+        dataPrivacyPosture:
+          step5Data.dataPrivacyPosture || res.dataPrivacyPosture,
+        insuranceCoverageBundle:
+          step5Data.insuranceCoverageBundle || res.insuranceCoverageBundle,
+        estimatedAnnualInsurancePremium: res.estimatedAnnualInsurancePremium,
+        selectedInsuranceProviderName:
+          step5Data.selectedInsuranceProviderName.trim() ||
+          res.selectedInsuranceProviderName,
+        complianceItems:
+          mode === 'NARRATIVES_ONLY' && step5Data.complianceItems.length > 0
+            ? step5Data.complianceItems
+            : res.complianceItems,
+        regulatoryAndComplianceNarrative: res.regulatoryAndComplianceNarrative,
+        insuranceAndLiabilityGovernanceNarrative:
+          res.insuranceAndLiabilityGovernanceNarrative,
+        aiEngineUsed: res.engineMode,
+        lastSavedAt: new Date().toISOString(),
+      };
+
+      setStep5Data(nextData);
+      await onSaveStep5PermitsAndInsurance(nextData, 92);
+      setSaveBanner(
+        mode === 'NARRATIVES_ONLY'
+          ? '✨ Synthesized your Regulatory Compliance & Insurance Governance Narratives and saved Step 5!'
+          : '✨ Generated your Statutory Compliance Checklist, Indicative Insurance Estimate & Narratives and saved Step 5!'
+      );
+    } finally {
+      setIsGeneratingAiStep5(false);
+    }
+  }
+
+  async function handleSaveStep5() {
+    if (isVaultReadonly) return;
+    setIsSavingStep5(true);
+    setSaveBanner(null);
+    try {
+      const nowIso = new Date().toISOString();
+      const nextData: PermitsComplianceAndInsuranceStep5Data = {
+        ...step5Data,
+        lastSavedAt: nowIso,
+      };
+      setStep5Data(nextData);
+      const isComplete =
+        Boolean(nextData.regulatorySectorPosture) &&
+        Boolean(nextData.dataPrivacyPosture) &&
+        Boolean(nextData.insuranceCoverageBundle) &&
+        nextData.complianceItems.length >= 3 &&
+        nextData.regulatoryAndComplianceNarrative.trim().length > 10;
+      await onSaveStep5PermitsAndInsurance(nextData, isComplete ? 92 : 85);
+      setSaveBanner(
+        '✅ Saved Module E Step 5 (Regulatory, Licensing, Health & Safety, GDPR & Instant Startup Insurance Matcher)!'
+      );
+    } finally {
+      setIsSavingStep5(false);
+    }
+  }
+
   const STEP_TABS: Array<{
     id: 'STEP_1' | 'STEP_2' | 'STEP_3' | 'STEP_4' | 'STEP_5' | 'STEP_6';
     short: string;
@@ -2312,13 +3554,23 @@ export function ModuleEWorkspace({
       id: 'STEP_4',
       short: 'Step 4',
       title: 'Support, Returns & QC',
-      isComplete: false,
+      isComplete:
+        Boolean(step4Data.supportOperatingModel) &&
+        Boolean(step4Data.supportResponseSla) &&
+        Boolean(step4Data.returnsAndWarrantyPolicy) &&
+        step4Data.qcCheckpoints.length >= 2 &&
+        step4Data.qualityControlAndStandardsNarrative.trim().length > 10,
     },
     {
       id: 'STEP_5',
       short: 'Step 5',
       title: 'Permits & Insurance Matcher',
-      isComplete: false,
+      isComplete:
+        Boolean(step5Data.regulatorySectorPosture) &&
+        Boolean(step5Data.dataPrivacyPosture) &&
+        Boolean(step5Data.insuranceCoverageBundle) &&
+        step5Data.complianceItems.length >= 3 &&
+        step5Data.regulatoryAndComplianceNarrative.trim().length > 10,
     },
     {
       id: 'STEP_6',
@@ -6448,11 +7700,2790 @@ export function ModuleEWorkspace({
       )}
 
       {/* ===================================================================== */}
-      {/* UPCOMING STEPS 4–6 PREVIEW CARDS (READY FOR NEXT ITERATIONS)          */}
+      {/* STEP 4: CUSTOMER SUPPORT, RETURNS, WARRANTY & QUALITY CONTROL (QC) SOP*/}
+      {/* ===================================================================== */}
+      {activeTab === 'STEP_4' && (
+        <div className="space-y-6">
+          {/* 4-Layer Support & Action Bar (No Presets — Pure Plan-Driven) */}
+          <Card className="border-indigo-200/80 bg-gradient-to-r from-indigo-50/70 via-white to-emerald-50/50 shadow-xs">
+            <CardContent className="p-4">
+              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-indigo-600 text-white">
+                      Step 4 of 6 • Support, Returns, Warranty &amp; QC SOP
+                    </Badge>
+                    {selectedCountry === 'IE' ? (
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-300 bg-emerald-50 text-emerald-900"
+                      >
+                        🇮🇪 Ireland Consumer Rights Act 2022 (CRAA) &amp; CCPC
+                        Mode
+                      </Badge>
+                    ) : selectedCountry === 'GB' ? (
+                      <Badge
+                        variant="outline"
+                        className="border-indigo-300 bg-indigo-50 text-indigo-900"
+                      >
+                        🇬🇧 UK Consumer Rights Act 2015 &amp; Consumer Contracts
+                        Mode
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="border-slate-300 bg-white text-slate-700"
+                      >
+                        🌍 {countryPack.countryName} Consumer Protection &amp;
+                        QC Mode
+                      </Badge>
+                    )}
+                    {step4Data.aiEngineUsed && (
+                      <Badge
+                        variant="outline"
+                        className="border-violet-200 bg-violet-50 text-[11px] text-violet-800"
+                      >
+                        Engine: {step4Data.aiEngineUsed}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Define how your business handles customer support SLAs,
+                    returns/remakes, statutory warranties, and 3-gate Quality
+                    Control (QC) checkpoints so defect/refund friction never
+                    quietly erodes your Module G unit economics.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowWhyAskingStep4((v) => !v)}
+                    className="h-8 border-indigo-200 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <HelpCircle className="mr-1.5 h-3.5 w-3.5" />
+                    Why Are We Asking?
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowExampleDrawerStep4((v) => !v)}
+                    className="h-8 border-emerald-200 bg-white text-xs text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
+                    Show Me an Example
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly}
+                    onClick={handleApplyStep4IndustryBenchmark}
+                    className="h-8 border-amber-200 bg-amber-50/70 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                  >
+                    <Layers className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                    Use Industry Benchmark
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowParkInputStep4((v) => !v)}
+                    className="h-8 border-slate-200 bg-white text-xs text-slate-700 hover:bg-slate-50"
+                  >
+                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    Park Open Question
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly || isGeneratingAiStep4}
+                    onClick={() =>
+                      handleRunAiStep4('POPULATE_QC_AND_NARRATIVES')
+                    }
+                    className="h-8 border-violet-200 bg-violet-50/70 text-xs font-semibold text-violet-800 hover:bg-violet-100"
+                  >
+                    <MessageSquareWarning className="mr-1.5 h-3.5 w-3.5 text-violet-600" />
+                    I&apos;m Stuck (AI Auto-Draft)
+                  </Button>
+                </div>
+              </div>
+
+              {/* Layer 1A: Why Are We Asking This? */}
+              {showWhyAskingStep4 && (
+                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-bold text-indigo-900">
+                      🎯 Why Evaluators &amp; Investors Audit Your QC &amp;
+                      Returns SOP:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowWhyAskingStep4(false)}
+                      className="text-[11px] font-semibold text-indigo-700 underline"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    <div className="rounded-lg border border-indigo-200/80 bg-white p-2.5">
+                      <p className="font-semibold text-slate-900">
+                        1. Protecting Unit Pocket Profit (Module G)
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        A single damaged shipment, remake, or refund can wipe
+                        out the profit of 3–5 good orders. Explicitly budgeting
+                        an Expected Return/Remake Allowance per order prevents
+                        &ldquo;phantom margin&rdquo; in your financial model.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-indigo-200/80 bg-white p-2.5">
+                      <p className="font-semibold text-slate-900">
+                        {selectedCountry === 'IE'
+                          ? '2. 🇮🇪 Ireland Consumer Rights Act 2022 & LEO Quality Proof'
+                          : selectedCountry === 'GB'
+                            ? '2. 🇬🇧 UK Consumer Rights Act 2015 & Start Up Loan Viability'
+                            : `2. 🌍 ${countryPack.countryName} Statutory Consumer Law & Quality Proof`}
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        {selectedCountry === 'IE'
+                          ? 'Under Ireland’s Consumer Rights Act 2022 (CRAA) and CCPC rules, standard online orders carry a 14-day cooling-off right, while bespoke/custom-made goods are exempt under Part 5 Section 111(d) (except for manufacturing defects). IE LEO evaluators also check how you maintain repeatable export-grade quality.'
+                          : selectedCountry === 'GB'
+                            ? 'Under the UK Consumer Rights Act 2015 (30-day short-term right to reject faulty goods) and Consumer Contracts Regulations 2013 (14-day distance cooling-off, with Regulation 28(1)(b) exemption for bespoke goods), British Business Bank & Innovate UK assessors expect clear QC and warranty standards.'
+                            : 'Consumer protection laws distinguish between standard distance sales (cooling-off returns) and custom/B2B contracts. Clear QC gates prevent defects before dispatch.'}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-indigo-200/80 bg-white p-2.5">
+                      <p className="font-semibold text-slate-900">
+                        3. Protecting Founder Focus
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        Without a realistic Support SLA (e.g., 24-hour weekday
+                        async email vs. unstaffed 24/7 live chat), customer
+                        support interruptions fragment your deep production or
+                        engineering blocks from Step 1.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Layer 1B: Tailored Example Drawer */}
+              {showExampleDrawerStep4 && (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-bold text-emerald-900">
+                      💡 What Good Looks Like for Your Plan (
+                      {plan.title || 'Your Startup'}):
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowExampleDrawerStep4(false)}
+                      className="text-[11px] font-semibold text-emerald-800 underline"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
+                      <p className="font-semibold text-slate-900">
+                        Physical / Craft / Hardware Example
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        • <strong>Support Model:</strong> Founder Async Email +
+                        QR Care Card inside every box (Next Business Day SLA).
+                        <br />• <strong>Returns &amp; Warranty:</strong>{' '}
+                        {selectedCountry === 'IE'
+                          ? '14-Day CCPC Cooling-Off on stock items; Bespoke engraved items exempt under CRAA 2022 Sec 111(d) with 12-Month Structural Remake Guarantee.'
+                          : selectedCountry === 'GB'
+                            ? '14-Day Consumer Contracts Cooling-Off on stock items; Bespoke items exempt under Reg 28(1)(b) with 12-Month Structural Remake Guarantee.'
+                            : '14-Day standard return on stock items; custom orders covered by 12-Month Structural Remake Guarantee.'}
+                        <br />• <strong>3 QC Gates:</strong> (1) Incoming
+                        moisture/material check &rarr; (2) Mid-build dimensional
+                        tolerance check &rarr; (3) Final finish &amp; drop-proof
+                        packaging sign-off.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
+                      <p className="font-semibold text-slate-900">
+                        Digital / SaaS / Service Example
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        • <strong>Support Model:</strong> Self-Serve Help Center
+                        + In-App Contextual Guidance + Async Support Inbox
+                        (&lt; 24h Weekday SLA).
+                        <br />• <strong>Returns &amp; SLA Policy:</strong>{' '}
+                        {selectedCountry === 'IE'
+                          ? '14-Day Money-Back Guarantee / Pro-Rata Credit aligned with Ireland Consumer Rights Act 2022 Part 3 (Digital Content & Services).'
+                          : selectedCountry === 'GB'
+                            ? '14-Day Money-Back Guarantee / Pro-Rata Credit aligned with UK Consumer Rights Act 2015 Chapter 3 (Digital Content).'
+                            : '14-Day Money-Back Guarantee / Self-Serve Cancellation with zero lock-in.'}
+                        <br />• <strong>3 QC Gates:</strong> (1) Automated
+                        TypeScript &amp; Schema Gate &rarr; (2) Staging &amp;
+                        Security Validation &rarr; (3) Post-Release Telemetry
+                        &amp; Billing Receipt Check.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Layer 3: Park It in Open Questions */}
+              {showParkInputStep4 && (
+                <div className="mt-3 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    value={parkQuestionInputStep4}
+                    onChange={(e) => setParkQuestionInputStep4(e.target.value)}
+                    placeholder="e.g., Confirm whether our custom gift bundles qualify for the bespoke cooling-off exemption or require a 3% return buffer..."
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      if (!parkQuestionInputStep4.trim()) return;
+                      await onParkOpenQuestion(
+                        `[Module E Step 4 — Support, Returns & QC] ${parkQuestionInputStep4.trim()}`
+                      );
+                      setParkQuestionInputStep4('');
+                      setShowParkInputStep4(false);
+                      setSaveBanner(
+                        '📌 Parked question in your Open Questions Parking Lot!'
+                      );
+                    }}
+                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  >
+                    Save to Parking Lot
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Live Step 4 KPI Dashboard Strip */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                  Support SLA &amp; Channel
+                </span>
+                <Headphones className="h-4 w-4 text-indigo-600" />
+              </div>
+              <p className="mt-1.5 text-sm font-bold text-slate-900">
+                {step4Data.supportResponseSla === 'OTHER' &&
+                step4Data.otherSupportResponseSlaText
+                  ? step4Data.otherSupportResponseSlaText
+                  : SUPPORT_RESPONSE_SLA_OPTIONS.find(
+                      (o) => o.value === step4Data.supportResponseSla
+                    )?.label || 'Next Business Day (< 24h)'}
+              </p>
+              <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                {step4Data.supportOperatingModel === 'OTHER' &&
+                step4Data.otherSupportOperatingModelText
+                  ? step4Data.otherSupportOperatingModelText
+                  : SUPPORT_OPERATING_MODEL_OPTIONS.find(
+                      (o) => o.value === step4Data.supportOperatingModel
+                    )?.label}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold tracking-wider text-amber-900 uppercase">
+                  Return / Remake Buffer per Order
+                </span>
+                <RotateCcw className="h-4 w-4 text-amber-600" />
+              </div>
+              <p className="mt-1.5 text-lg font-extrabold text-amber-950">
+                {plan.baseCurrency === 'GBP' ? '£' : '€'}
+                {expectedReturnAllowancePerOrder.toFixed(2)}{' '}
+                <span className="text-xs font-normal text-amber-800">
+                  / order
+                </span>
+              </p>
+              <p className="mt-0.5 text-[11px] text-amber-800">
+                {step4Data.estimatedReturnOrRefundRatePercent}% rate ×{' '}
+                {plan.baseCurrency === 'GBP' ? '£' : '€'}
+                {step4Data.costPerReturnOrRemakeIncident} per incident (feeds
+                Module G)
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold tracking-wider text-emerald-900 uppercase">
+                  Active QC Gates Enforced
+                </span>
+                <ClipboardCheck className="h-4 w-4 text-emerald-600" />
+              </div>
+              <p className="mt-1.5 text-lg font-extrabold text-emerald-950">
+                {step4Data.qcCheckpoints.length} Checkpoints{' '}
+                <span className="text-xs font-normal text-emerald-800">
+                  ({distinctQcGatesCovered.length} stage gates)
+                </span>
+              </p>
+              <p className="mt-0.5 text-[11px] text-emerald-800">
+                {step4Data.warrantyDurationMonths > 0
+                  ? `${step4Data.warrantyDurationMonths}-Month Warranty / Guarantee`
+                  : 'Service-Level Guarantee Active'}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold tracking-wider text-indigo-900 uppercase">
+                  Monthly Return Reserve @ Max Cap
+                </span>
+                <ShieldCheck className="h-4 w-4 text-indigo-600" />
+              </div>
+              <p className="mt-1.5 text-lg font-extrabold text-indigo-950">
+                {plan.baseCurrency === 'GBP' ? '£' : '€'}
+                {expectedMonthlyReturnCostAtMaxCapacity.toLocaleString()}{' '}
+                <span className="text-xs font-normal text-indigo-800">/ mo</span>
+              </p>
+              <p className="mt-0.5 text-[11px] text-indigo-800">
+                At {maxOrdersPerMonthByManualTime} orders/mo capacity from Step
+                1
+              </p>
+            </div>
+          </div>
+
+          {/* Strict Country-Isolated Statutory Consumer Rights & Grant Quality Banner */}
+          {selectedCountry === 'IE' ? (
+            <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 p-4">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+                <div className="space-y-1 text-xs text-emerald-950">
+                  <p className="font-bold text-emerald-900">
+                    🇮🇪 Ireland Consumer Rights Act 2022 (CRAA), CCPC &amp; LEO
+                    Quality Standards Guardrail
+                  </p>
+                  <p className="leading-relaxed text-emerald-900">
+                    Under Ireland&apos;s{' '}
+                    <strong>Consumer Rights Act 2022 (CRAA)</strong> and{' '}
+                    <strong>CCPC</strong> distance-selling rules: (1) Standard
+                    consumer online orders carry a mandatory{' '}
+                    <strong>14-day cooling-off cancellation period</strong> from
+                    delivery; (2) Goods made to the consumer&apos;s
+                    specifications or clearly personalized (e.g., custom sizes,
+                    monograms, or bespoke builds) are{' '}
+                    <strong>
+                      exempt from change-of-mind cooling-off under Part 5
+                      Section 111(d)
+                    </strong>
+                    , provided this is stated clearly before checkout; (3)
+                    Faulty or damaged goods remain entitled to repair,
+                    replacement, or refund; and (4) Digital content/SaaS is
+                    governed by <strong>CRAA Part 3</strong> conformity rules.
+                    Documenting your 3-gate QC SOP below also provides direct
+                    operational proof for <strong>IE LEO Priming / Feasibility</strong>{' '}
+                    and <strong>Enterprise Ireland</strong> technical
+                    assessments.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : selectedCountry === 'GB' ? (
+            <div className="rounded-xl border border-indigo-300 bg-indigo-50/80 p-4">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-indigo-700" />
+                <div className="space-y-1 text-xs text-indigo-950">
+                  <p className="font-bold text-indigo-900">
+                    🇬🇧 UK Consumer Rights Act 2015, Consumer Contracts Regs 2013
+                    &amp; Start Up Loan / Innovate UK Quality Guardrail
+                  </p>
+                  <p className="leading-relaxed text-indigo-900">
+                    Under the{' '}
+                    <strong>UK Consumer Rights Act 2015 (CRA 2015)</strong> and{' '}
+                    <strong>
+                      Consumer Contracts (Information, Cancellation and
+                      Additional Charges) Regulations 2013
+                    </strong>
+                    : (1) Standard UK online consumer orders have a{' '}
+                    <strong>14-day cooling-off period</strong> from receipt to
+                    request a return and a further 14 days to send goods back;
+                    (2) Bespoke or personalized goods made to the customer&apos;s
+                    specifications are{' '}
+                    <strong>
+                      exempt from change-of-mind cancellation under Regulation
+                      28(1)(b)
+                    </strong>
+                    ; (3) Consumers hold a statutory{' '}
+                    <strong>30-day short-term right to reject</strong> faulty
+                    goods for a full refund (or repair/replacement within 6
+                    months); and (4) Digital content is governed by{' '}
+                    <strong>CRA 2015 Chapter 3</strong>. Your 3-gate QC SOP
+                    directly feeds your{' '}
+                    <strong>British Business Bank Start Up Loan</strong>{' '}
+                    operations section and{' '}
+                    <strong>Innovate UK Work Package quality assurance</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-slate-700" />
+                <div className="space-y-1 text-xs text-slate-700">
+                  <p className="font-bold text-slate-900">
+                    🌍 {countryPack.countryName} Consumer Protection &amp;
+                    Quality Assurance Guardrail
+                  </p>
+                  <p className="leading-relaxed">
+                    Ensure your checkout terms clearly distinguish between
+                    standard stock items (subject to statutory distance-selling
+                    return windows) and custom/bespoke or B2B orders, while
+                    budgeting a realistic return/remake allowance per order to
+                    protect your unit margins.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PART A: Customer Support Operating Model & Response SLA */}
+          <Card className="border-slate-200 bg-white shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <Headphones className="h-4 w-4 text-indigo-600" />
+                Part A: Customer Support Operating Model &amp; Response SLA
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-600">
+                How will customers get help when an order is delayed, a question
+                arises, or onboarding needs assistance—without derailing your
+                production or engineering schedule?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Support Operating Model Tiles */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-800">
+                  1. Primary Customer Support Operating Model
+                </label>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {SUPPORT_OPERATING_MODEL_OPTIONS.map((opt) => {
+                    const isSelected =
+                      step4Data.supportOperatingModel === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() =>
+                          setStep4Data((prev) => ({
+                            ...prev,
+                            supportOperatingModel: opt.value,
+                          }))
+                        }
+                        className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        }`}
+                      >
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            {opt.label}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="border-slate-200 bg-white text-[10px] text-slate-600"
+                          >
+                            {opt.badge}
+                          </Badge>
+                        </div>
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                          {opt.subtitle}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {step4Data.supportOperatingModel === 'OTHER' && (
+                  <div className="mt-2 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-xs font-semibold text-indigo-950">
+                      Describe your custom Customer Support Operating Model:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={isVaultReadonly}
+                      value={step4Data.otherSupportOperatingModelText || ''}
+                      onChange={(e) =>
+                        setStep4Data((prev) => ({
+                          ...prev,
+                          otherSupportOperatingModelText: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Dedicated WhatsApp VIP concierge for trade buyers + weekly office hours..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Support Response SLA Tiles */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-800">
+                  2. Committed Customer Support Response SLA
+                </label>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {SUPPORT_RESPONSE_SLA_OPTIONS.map((opt) => {
+                    const isSelected =
+                      step4Data.supportResponseSla === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() =>
+                          setStep4Data((prev) => ({
+                            ...prev,
+                            supportResponseSla: opt.value,
+                          }))
+                        }
+                        className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-slate-900">
+                          {opt.label}
+                        </span>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          {opt.subtitle}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {step4Data.supportResponseSla === 'OTHER' && (
+                  <div className="mt-2 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="block text-xs font-semibold text-indigo-950">
+                      Specify your custom Support Response SLA:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={isVaultReadonly}
+                      value={step4Data.otherSupportResponseSlaText || ''}
+                      onChange={(e) =>
+                        setStep4Data((prev) => ({
+                          ...prev,
+                          otherSupportResponseSlaText: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., 2-hour response for enterprise severity-1 issues; 24h for standard tickets..."
+                      className="mt-1.5 w-full rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* PART B: Returns, Refunds, Warranty & Unit Margin Buffer Calculator */}
+          <Card className="border-slate-200 bg-white shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <RotateCcw className="h-4 w-4 text-amber-600" />
+                Part B: Returns, Refunds, Warranty &amp; Unit Margin Buffer
+                Calculator
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-600">
+                Select your statutory returns/warranty posture and quantify the
+                expected cost per return or remake incident so Module G
+                automatically protects your unit gross margin.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Returns & Warranty Policy Tiles */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-800">
+                  1. Returns, Remake &amp; Statutory Warranty Posture (
+                  {selectedCountry === 'IE'
+                    ? '🇮🇪 Ireland Consumer Rights Act 2022 / CCPC'
+                    : selectedCountry === 'GB'
+                      ? '🇬🇧 UK Consumer Rights Act 2015 / Consumer Contracts Regs 2013'
+                      : `🌍 ${countryPack.countryName}`}
+                  )
+                </label>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {RETURNS_AND_WARRANTY_POLICY_OPTIONS.map((opt) => {
+                    const isSelected =
+                      step4Data.returnsAndWarrantyPolicy === opt.value;
+                    const localizedTitle =
+                      opt.value === 'STATUTORY_14_DAY_COOLING_OFF'
+                        ? selectedCountry === 'IE'
+                          ? '14-Day Cooling-Off Returns (Ireland CRAA 2022 / CCPC)'
+                          : selectedCountry === 'GB'
+                            ? '14-Day Cooling-Off + 30-Day Faulty Reject (UK CRA 2015)'
+                            : opt.label
+                        : opt.value ===
+                            'BESPOKE_PERSONALIZED_EXEMPT_TRANSIT_REPLACE'
+                          ? selectedCountry === 'IE'
+                            ? 'Bespoke / Custom Exempt (IE CRAA Sec 111(d) — Defect Remake Only)'
+                            : selectedCountry === 'GB'
+                              ? 'Bespoke / Custom Exempt (UK Reg 28(1)(b) — Defect Remake Only)'
+                              : opt.label
+                          : opt.label;
+
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() =>
+                          setStep4Data((prev) => ({
+                            ...prev,
+                            returnsAndWarrantyPolicy: opt.value,
+                          }))
+                        }
+                        className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
+                          isSelected
+                            ? 'border-amber-600 bg-amber-50/70 ring-2 ring-amber-500/20'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-slate-900">
+                          {localizedTitle}
+                        </span>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          {opt.subtitle}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {step4Data.returnsAndWarrantyPolicy === 'OTHER' && (
+                  <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                    <label className="block text-xs font-semibold text-amber-950">
+                      Describe your custom Returns, Refund &amp; Warranty
+                      Policy:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={isVaultReadonly}
+                      value={step4Data.otherReturnsAndWarrantyPolicyText || ''}
+                      onChange={(e) =>
+                        setStep4Data((prev) => ({
+                          ...prev,
+                          otherReturnsAndWarrantyPolicyText: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., 30-day trial period with free return courier collection + 2-year structural warranty..."
+                      className="mt-1.5 w-full rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-amber-500 focus:outline-none sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Quantitative Return / Remake & Warranty Inputs */}
+              <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800">
+                    Estimated Return / Refund / Remake Rate (%)
+                  </label>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Typical range: 1.5%–3% (Bespoke/SaaS) or 5%–12% (Apparel /
+                    Consumer eCommerce)
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={50}
+                      step={0.5}
+                      disabled={isVaultReadonly}
+                      value={step4Data.estimatedReturnOrRefundRatePercent}
+                      onChange={(e) =>
+                        setStep4Data((prev) => ({
+                          ...prev,
+                          estimatedReturnOrRefundRatePercent: Math.max(
+                            0,
+                            Math.min(50, Number(e.target.value) || 0)
+                          ),
+                        }))
+                      }
+                      className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                    />
+                    <span className="text-xs font-semibold text-slate-600">
+                      % of orders
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800">
+                    Avg Cost per Return, Replacement or Refund (
+                    {plan.baseCurrency === 'GBP' ? '£' : '€'})
+                  </label>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Replacement COGS + reverse shipping + payment gateway fees
+                    or credit
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-700">
+                      {plan.baseCurrency === 'GBP' ? '£' : '€'}
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={50000}
+                      step={1}
+                      disabled={isVaultReadonly}
+                      value={step4Data.costPerReturnOrRemakeIncident}
+                      onChange={(e) =>
+                        setStep4Data((prev) => ({
+                          ...prev,
+                          costPerReturnOrRemakeIncident: Math.max(
+                            0,
+                            Number(e.target.value) || 0
+                          ),
+                        }))
+                      }
+                      className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                    />
+                    <span className="text-xs text-slate-600">/ incident</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800">
+                    Warranty / Service Guarantee Duration (Months)
+                  </label>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    e.g., 12 months structural warranty, 1 month money-back, or
+                    0 for per-job
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={120}
+                      step={1}
+                      disabled={isVaultReadonly}
+                      value={step4Data.warrantyDurationMonths}
+                      onChange={(e) =>
+                        setStep4Data((prev) => ({
+                          ...prev,
+                          warrantyDurationMonths: Math.max(
+                            0,
+                            Math.min(120, Math.round(Number(e.target.value) || 0))
+                          ),
+                        }))
+                      }
+                      className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                    />
+                    <span className="text-xs font-semibold text-slate-600">
+                      months
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Unit Economics Impact Callout */}
+              <div className="flex flex-col justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-950 sm:flex-row sm:items-center">
+                <div>
+                  <span className="font-bold">
+                    📐 Live Module G &ldquo;Pocket Profit&rdquo; Bridge:
+                  </span>{' '}
+                  At a{' '}
+                  <strong>
+                    {step4Data.estimatedReturnOrRefundRatePercent}%
+                  </strong>{' '}
+                  return/remake rate and{' '}
+                  <strong>
+                    {plan.baseCurrency === 'GBP' ? '£' : '€'}
+                    {step4Data.costPerReturnOrRemakeIncident}
+                  </strong>{' '}
+                  cost per incident, you should reserve{' '}
+                  <strong className="underline">
+                    {plan.baseCurrency === 'GBP' ? '£' : '€'}
+                    {expectedReturnAllowancePerOrder.toFixed(2)} per order
+                  </strong>{' '}
+                  in your unit economics calculator so returns never surprise
+                  your cashflow.
+                </div>
+                <Badge className="w-fit shrink-0 bg-amber-700 text-white">
+                  {plan.baseCurrency === 'GBP' ? '£' : '€'}
+                  {expectedReturnAllowancePerOrder.toFixed(2)} / order buffer
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* PART C: 3-Gate Quality Control (QC) & Inspection SOP Builder */}
+          <Card className="border-slate-200 bg-white shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
+                    <ClipboardCheck className="h-4 w-4 text-emerald-600" />
+                    Part C: 3-Gate Quality Control (QC) &amp; Release
+                    Verification SOP
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    Define the concrete pass/fail checkpoints across Incoming
+                    Materials/Dependencies, In-Process Build, and Pre-Dispatch /
+                    Release Sign-Off so defects are caught before the customer
+                    sees them.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isVaultReadonly}
+                  onClick={handleAddQcCheckpoint}
+                  className="h-8 shrink-0 border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Add QC Checkpoint Gate
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {step4Data.qcCheckpoints.map((cp, idx) => (
+                <div
+                  key={cp.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition-all hover:border-slate-300"
+                >
+                  <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className="bg-emerald-700 text-white">
+                        QC Gate #{idx + 1}
+                      </Badge>
+                      <select
+                        disabled={isVaultReadonly}
+                        value={cp.gateTiming}
+                        onChange={(e) =>
+                          handleUpdateQcCheckpoint(cp.id, {
+                            gateTiming: e.target.value as QcGateTimingType,
+                          })
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-base font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      >
+                        {QC_GATE_TIMING_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {step4Data.qcCheckpoints.length > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={isVaultReadonly}
+                        onClick={() => handleRemoveQcCheckpoint(cp.id)}
+                        className="h-7 w-fit text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        Remove Gate
+                      </Button>
+                    )}
+                  </div>
+
+                  {cp.gateTiming === 'OTHER' && (
+                    <div className="mt-2.5">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        Custom QC Gate Timing Label:
+                      </label>
+                      <input
+                        type="text"
+                        disabled={isVaultReadonly}
+                        value={cp.otherGateTimingText || ''}
+                        onChange={(e) =>
+                          handleUpdateQcCheckpoint(cp.id, {
+                            otherGateTimingText: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., Gate 4 — 30-Day Post-Installation Customer Check-In..."
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      />
+                    </div>
+                  )}
+
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-12">
+                    <div className="sm:col-span-8">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        Checkpoint Name &amp; What Is Inspected
+                      </label>
+                      <input
+                        type="text"
+                        disabled={isVaultReadonly}
+                        value={cp.checkpointName}
+                        onChange={(e) =>
+                          handleUpdateQcCheckpoint(cp.id, {
+                            checkpointName: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., Pre-Dispatch Finish, Hydration & Drop-Proof Packaging Sign-Off"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        Owner Role / Sign-Off Authority
+                      </label>
+                      <input
+                        type="text"
+                        disabled={isVaultReadonly}
+                        value={cp.ownerRole}
+                        onChange={(e) =>
+                          handleUpdateQcCheckpoint(cp.id, {
+                            ownerRole: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., Founder / Lead Maker / CI Pipeline"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-emerald-800">
+                        ✅ Measurable Pass / Fail Standard
+                      </label>
+                      <textarea
+                        rows={2}
+                        disabled={isVaultReadonly}
+                        value={cp.passFailStandard}
+                        onChange={(e) =>
+                          handleUpdateQcCheckpoint(cp.id, {
+                            passFailStandard: e.target.value,
+                          })
+                        }
+                        placeholder="What objective measurement or test must pass before this order/release moves forward?"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-amber-900">
+                        🛑 Defect Fallback / Quarantine Action if Failed
+                      </label>
+                      <textarea
+                        rows={2}
+                        disabled={isVaultReadonly}
+                        value={cp.defectFallbackAction}
+                        onChange={(e) =>
+                          handleUpdateQcCheckpoint(cp.id, {
+                            defectFallbackAction: e.target.value,
+                          })
+                        }
+                        placeholder="What happens immediately if an item or build fails this gate?"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* PART D: AI / Founder Grant-Ready Narratives & Summary Table */}
+          <Card className="border-indigo-200 bg-white shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
+                    <Sparkles className="h-4 w-4 text-indigo-600" />
+                    Part D: Quality Assurance &amp; Customer Support Narratives
+                    (Module K Compiler Feed)
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    {selectedCountry === 'IE'
+                      ? 'Synthesize your 3-gate QC SOP and Ireland Consumer Rights Act 2022 (CRAA) / CCPC compliance into formal narrative blocks for your IE LEO / Enterprise Ireland business plan.'
+                      : selectedCountry === 'GB'
+                        ? 'Synthesize your 3-gate QC SOP and UK Consumer Rights Act 2015 / Consumer Contracts Regulations 2013 compliance into formal narrative blocks for your British Business Bank Start Up Loan & Innovate UK plan.'
+                        : 'Synthesize your 3-gate QC SOP, support SLA, and returns/warranty policy into formal narrative blocks for Module K.'}
+                  </CardDescription>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly || isGeneratingAiStep4}
+                    onClick={() => handleRunAiStep4('NARRATIVES_ONLY')}
+                    className="h-8 border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+                  >
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    {isGeneratingAiStep4
+                      ? 'Synthesizing...'
+                      : 'Synthesize Narratives Only'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isGeneratingAiStep4}
+                    onClick={() =>
+                      handleRunAiStep4('POPULATE_QC_AND_NARRATIVES')
+                    }
+                    className="h-8 bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                  >
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                    {isGeneratingAiStep4
+                      ? 'Generating QC & Narratives...'
+                      : 'AI Generate Full QC SOP & Narratives'}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800">
+                    1. Quality Control (QC) &amp; Operational Standards
+                    Narrative
+                  </label>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Explains how your 3-gate inspection SOP prevents defects,
+                    protects brand reputation, and keeps return rates at{' '}
+                    {step4Data.estimatedReturnOrRefundRatePercent}%.
+                  </p>
+                  <textarea
+                    rows={5}
+                    disabled={isVaultReadonly}
+                    value={step4Data.qualityControlAndStandardsNarrative}
+                    onChange={(e) =>
+                      setStep4Data((prev) => ({
+                        ...prev,
+                        qualityControlAndStandardsNarrative: e.target.value,
+                      }))
+                    }
+                    placeholder="Click 'AI Generate Full QC SOP & Narratives' or write how your incoming, in-process, and pre-release QC checkpoints guarantee consistent quality..."
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800">
+                    2. Customer Support SLA, Returns &amp; Statutory Warranty
+                    Narrative
+                  </label>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {selectedCountry === 'IE'
+                      ? 'Explains your support SLA, Ireland Consumer Rights Act 2022 (CRAA) / CCPC compliance, and unit return allowance.'
+                      : selectedCountry === 'GB'
+                        ? 'Explains your support SLA, UK Consumer Rights Act 2015 / Consumer Contracts Regs 2013 compliance, and unit return allowance.'
+                        : 'Explains your customer support SLA, returns/remake policy, and unit return allowance.'}
+                  </p>
+                  <textarea
+                    rows={5}
+                    disabled={isVaultReadonly}
+                    value={step4Data.customerSupportAndReturnsNarrative}
+                    onChange={(e) =>
+                      setStep4Data((prev) => ({
+                        ...prev,
+                        customerSupportAndReturnsNarrative: e.target.value,
+                      }))
+                    }
+                    placeholder="Explain how your support channel, response SLA, and statutory return/warranty policy build customer trust while protecting founder production blocks..."
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Clean Export-Ready QC & Returns Summary Table */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-slate-900">
+                    📋 Module K Preview — 3-Gate Quality Control (QC) SOP Table
+                  </span>
+                  <span className="text-[11px] text-slate-600">
+                    Return Buffer:{' '}
+                    <strong>
+                      {plan.baseCurrency === 'GBP' ? '£' : '€'}
+                      {expectedReturnAllowancePerOrder.toFixed(2)}/order
+                    </strong>{' '}
+                    ({step4Data.estimatedReturnOrRefundRatePercent}% ×{' '}
+                    {plan.baseCurrency === 'GBP' ? '£' : '€'}
+                    {step4Data.costPerReturnOrRemakeIncident})
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                  <table className="w-full min-w-[640px] text-left text-xs">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-700 uppercase">
+                      <tr>
+                        <th className="px-3 py-2">Stage Gate</th>
+                        <th className="px-3 py-2">Checkpoint</th>
+                        <th className="px-3 py-2">Pass / Fail Standard</th>
+                        <th className="px-3 py-2">Defect Fallback Action</th>
+                        <th className="px-3 py-2">Owner</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {step4Data.qcCheckpoints.map((cp) => (
+                        <tr key={cp.id} className="hover:bg-slate-50/80">
+                          <td className="px-3 py-2 font-semibold text-indigo-900">
+                            {cp.gateTiming === 'OTHER' && cp.otherGateTimingText
+                              ? cp.otherGateTimingText
+                              : QC_GATE_TIMING_OPTIONS.find(
+                                  (o) => o.value === cp.gateTiming
+                                )?.label || cp.gateTiming}
+                          </td>
+                          <td className="px-3 py-2 font-semibold text-slate-900">
+                            {cp.checkpointName}
+                          </td>
+                          <td className="px-3 py-2 text-slate-600">
+                            {cp.passFailStandard}
+                          </td>
+                          <td className="px-3 py-2 text-slate-600">
+                            {cp.defectFallbackAction}
+                          </td>
+                          <td className="px-3 py-2 font-medium text-slate-800">
+                            {cp.ownerRole}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Save & Continue Footer */}
+              <div className="flex flex-col justify-between gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveTab('STEP_3')}
+                    className="text-xs"
+                  >
+                    &larr; Back to Step 3 (4-Category Risk Register)
+                  </Button>
+                  {step4Data.lastSavedAt && (
+                    <span className="text-[11px] text-slate-500">
+                      Last saved:{' '}
+                      {new Date(step4Data.lastSavedAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isSavingStep4}
+                    onClick={handleSaveStep4}
+                    className="w-full bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 sm:w-auto"
+                  >
+                    <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                    {isSavingStep4
+                      ? 'Saving Step 4...'
+                      : 'Save Step 4 (Support, Returns & QC SOP)'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly || isSavingStep4}
+                    onClick={async () => {
+                      await handleSaveStep4();
+                      setActiveTab('STEP_5');
+                    }}
+                    className="w-full border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100 sm:w-auto"
+                  >
+                    Save &amp; Continue to Step 5 &rarr;
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* STEP 5: PERMITS, COMPLIANCE, H&S, GDPR & STARTUP INSURANCE MATCHER    */}
+      {/* ===================================================================== */}
+      {activeTab === 'STEP_5' && (
+        <div className="space-y-5">
+          {/* 1. Top Header & 4-Layer Built-In Support Bar (Zero Presets) */}
+          <Card className="border-slate-200 bg-white shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-indigo-950 text-white hover:bg-indigo-900">
+                      Step 5 of 6
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-emerald-900"
+                    >
+                      {selectedCountry === 'IE'
+                        ? '🇮🇪'
+                        : selectedCountry === 'GB'
+                          ? '🇬🇧'
+                          : '🌍'}{' '}
+                      {countryPack.countryName} Statutory Compliance &amp;
+                      Insurance Engine
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-indigo-200 bg-indigo-50 text-indigo-900"
+                    >
+                      Synced to Module I Overheads &amp; Module K Legal
+                      Governance
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-lg font-bold text-slate-900 sm:text-xl">
+                    Permits, Health &amp; Safety, GDPR &amp; Instant Startup
+                    Insurance Matcher
+                  </CardTitle>
+                  <CardDescription className="text-xs leading-relaxed text-slate-600 sm:text-sm">
+                    Verify your{' '}
+                    <span className="font-semibold text-slate-800">
+                      {countryPack.countryName}
+                    </span>{' '}
+                    regulatory and tax clearance requirements, workplace Health
+                    &amp; Safety statement, GDPR data privacy posture, and match
+                    an{' '}
+                    <span className="font-semibold text-slate-800">
+                      indicative estimated commercial insurance bundle
+                    </span>{' '}
+                    (actual coverage &amp; premiums may vary).
+                  </CardDescription>
+                </div>
+
+                {/* 4-Layer Support Action Buttons */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowWhyAskingStep5((prev) => !prev)}
+                    className="h-8 border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                  >
+                    <HelpCircle className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    Why Are We Asking This?
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowExampleDrawerStep5((prev) => !prev)}
+                    className="h-8 border-amber-200 bg-amber-50/70 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                  >
+                    <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                    Show Me an Example
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly}
+                    onClick={handleApplyStep5IndustryBenchmark}
+                    className="h-8 border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                  >
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                    Use Industry Benchmark
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowParkInputStep5((prev) => !prev)}
+                    className="h-8 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  >
+                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+                    Park It
+                  </Button>
+                </div>
+              </div>
+
+              {/* Layer 1A: Why Are We Asking This? Drawer */}
+              {showWhyAskingStep5 && (
+                <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-bold text-indigo-900">
+                      Why Grant Assessors, Loan Officers &amp; B2B Buyers Audit
+                      Your Compliance &amp; Insurance Posture:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowWhyAskingStep5(false)}
+                      className="text-indigo-700 hover:text-indigo-950"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {selectedCountry === 'IE' ? (
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-indigo-900/90">
+                      <li>
+                        <strong>
+                          🇮🇪 LEO &amp; Enterprise Ireland Mandatory Gatekeeper:
+                        </strong>{' '}
+                        No Local Enterprise Office (LEO) Priming/Feasibility
+                        grant or Enterprise Ireland PSSF funding can be drawn
+                        down without an active{' '}
+                        <strong>
+                          Revenue eTax Clearance Certificate (TC2 via ROS)
+                        </strong>{' '}
+                        and up-to-date CRO registration.
+                      </li>
+                      <li>
+                        <strong>
+                          🇮🇪 HSA Written Safety Statement &amp; DPC GDPR:
+                        </strong>{' '}
+                        Under{' '}
+                        <em>
+                          Section 20 of the Safety, Health and Welfare at Work
+                          Act 2005
+                        </em>
+                        , every Irish employer/workshop must prepare a Written
+                        Safety Statement (easily generated for free via{' '}
+                        <strong>HSA BeSMART.ie</strong>), alongside EU GDPR &amp;
+                        Data Protection Commission (DPC) compliance.
+                      </li>
+                      <li>
+                        <strong>
+                          💰 Indicative Insurance Overhead Sync to Module I:
+                        </strong>{' '}
+                        Founders frequently forget commercial insurance in their
+                        financial forecasts. Your indicative estimated annual
+                        premium here automatically divides by 12 into Module I
+                        monthly overheads so your cashflow is realistic (actual
+                        coverage &amp; premiums may vary upon insurer
+                        underwriting).
+                      </li>
+                    </ul>
+                  ) : selectedCountry === 'GB' ? (
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-indigo-900/90">
+                      <li>
+                        <strong>
+                          🇬🇧 Innovate UK, Start Up Loans &amp; SEIS/EIS
+                          Gatekeeper:
+                        </strong>{' '}
+                        Innovate UK Project Monitoring Officers and British
+                        Business Bank Start Up Loans assessors verify active{' '}
+                        <strong>Companies House</strong> status,{' '}
+                        <strong>HMRC UTR</strong> registration, and UK statutory
+                        compliance before releasing funds.
+                      </li>
+                      <li>
+                        <strong>
+                          🇬🇧 ICO Data Protection Fee, UK HSE &amp; £5m
+                          Employers&apos; Liability Law:
+                        </strong>{' '}
+                        UK companies processing personal data must pay the
+                        statutory{' '}
+                        <strong>ICO Data Protection Fee (£40–£60/yr)</strong>,
+                        maintain a UK HSE workplace risk assessment under the{' '}
+                        <em>Health and Safety at Work etc. Act 1974</em>, and
+                        carry at least{' '}
+                        <strong>£5 million Employers&apos; Liability</strong>{' '}
+                        insurance once hiring staff.
+                      </li>
+                      <li>
+                        <strong>
+                          💰 Indicative Insurance Overhead Sync to Module I:
+                        </strong>{' '}
+                        Your indicative estimated annual insurance premium here
+                        automatically divides by 12 into Module I monthly
+                        overheads so your cashflow is realistic (actual coverage
+                        &amp; premiums may vary upon insurer underwriting).
+                      </li>
+                    </ul>
+                  ) : (
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-indigo-900/90">
+                      <li>
+                        <strong>Corporate &amp; Tax Good Standing:</strong>{' '}
+                        Grant bodies, lenders, and enterprise customers require
+                        verified corporate incorporation and active tax
+                        clearance before releasing funds or signing contracts.
+                      </li>
+                      <li>
+                        <strong>
+                          Indicative Insurance Overhead Sync to Module I:
+                        </strong>{' '}
+                        Your indicative estimated annual insurance premium
+                        divides by 12 into Module I monthly overheads so your
+                        36-month cashflow never misses commercial insurance
+                        costs (actual coverage &amp; premiums may vary).
+                      </li>
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* Layer 1B: Show Me an Example Drawer */}
+              {showExampleDrawerStep5 && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-950">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-bold text-amber-900">
+                      Industry-Tailored Compliance &amp; Insurance Examples (
+                      {selectedCountry === 'IE'
+                        ? '🇮🇪'
+                        : selectedCountry === 'GB'
+                          ? '🇬🇧'
+                          : '🌍'}{' '}
+                      {countryPack.countryName}):
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExamplePersonaTab('WOODWORKER_BOARDS')
+                        }
+                        className={`rounded px-2.5 py-1 text-[11px] font-semibold transition ${
+                          examplePersonaTab === 'WOODWORKER_BOARDS'
+                            ? 'bg-amber-800 text-white'
+                            : 'bg-white text-amber-900 hover:bg-amber-100'
+                        }`}
+                      >
+                        🪵 Physical Product / Workshop Example
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExamplePersonaTab('BMU_SAAS')}
+                        className={`rounded px-2.5 py-1 text-[11px] font-semibold transition ${
+                          examplePersonaTab === 'BMU_SAAS'
+                            ? 'bg-amber-800 text-white'
+                            : 'bg-white text-amber-900 hover:bg-amber-100'
+                        }`}
+                      >
+                        💻 Digital SaaS / AI Platform Example
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowExampleDrawerStep5(false)}
+                        className="ml-1 text-amber-800 hover:text-amber-950"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {examplePersonaTab === 'WOODWORKER_BOARDS' ? (
+                    <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      <div className="rounded border border-amber-200 bg-white p-2.5">
+                        <p className="font-bold text-slate-900">
+                          Regulatory &amp; Safety Posture (Craft / Physical
+                          Goods):
+                        </p>
+                        <p className="mt-1 text-slate-700">
+                          {selectedCountry === 'IE'
+                            ? '• Posture: Physical Goods & Consumer Product Safety (EU GPSR 2023/988 & EC 1935/2004 Food-Contact mineral oil/beeswax compliance).\n• Safety: HSA BeSMART.ie Written Safety Statement (Section 20 SHWWA 2005) covering workshop saw dust extraction, PPE & timber storage.\n• Grant Gatekeeper: CRO RBN/LTD + Revenue eTax Clearance (TC2 via ROS).'
+                            : '• Posture: Physical Goods & Consumer Product Safety (UK General Product Safety Regulations & FSA food-contact materials compliance).\n• Safety: UK HSE Workshop Risk Assessment (HSWA 1974) covering woodworking machinery guards, dust extraction & PPE.\n• Grant Gatekeeper: Companies House LTD + HMRC UTR & ICO Fee registration.'}
+                        </p>
+                      </div>
+                      <div className="rounded border border-amber-200 bg-white p-2.5">
+                        <p className="font-bold text-slate-900">
+                          Indicative Insurance Bundle (Estimate Only):
+                        </p>
+                        <p className="mt-1 text-slate-700">
+                          {selectedCountry === 'IE'
+                            ? '• Bundle: Product & Public Liability (€2.6m–€6.5m) + Workshop Equipment All-Risks.\n• Indicative Annual Premium Estimate: ~€850/yr (~€71/mo in Module I Overheads) via Arachas / Allianz Ireland / FBD. Actual coverage & premium may vary.'
+                            : '• Bundle: Product & Public Liability (£2m–£5m) + Workshop Equipment All-Risks.\n• Indicative Annual Premium Estimate: ~£720/yr (~£60/mo in Module I Overheads) via Simply Business / Hiscox UK / Aviva. Actual coverage & premium may vary.'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      <div className="rounded border border-amber-200 bg-white p-2.5">
+                        <p className="font-bold text-slate-900">
+                          Regulatory &amp; Data Privacy Posture (B2B/B2C SaaS):
+                        </p>
+                        <p className="mt-1 text-slate-700">
+                          {selectedCountry === 'IE'
+                            ? '• Posture: Standard Commercial + Active Data Controller / Processor (DPA & Sub-Processors).\n• Privacy: EU GDPR & Irish Data Protection Act 2018 (DPC alignment), Article 30 ROPA, EU/EEA PostgreSQL encryption at rest, and signed Sub-Processor DPAs.\n• Grant Gatekeeper: CRO LTD + Revenue eTax Clearance (TC2 via ROS).'
+                            : '• Posture: Standard Commercial + Active Data Controller / Processor (DPA & Sub-Processors).\n• Privacy: UK GDPR & Data Protection Act 2018, statutory ICO Data Protection Fee (£40/yr), UK/EEA cloud encryption, and signed Sub-Processor DPAs.\n• Grant Gatekeeper: Companies House LTD + HMRC Corporation Tax UTR.'}
+                        </p>
+                      </div>
+                      <div className="rounded border border-amber-200 bg-white p-2.5">
+                        <p className="font-bold text-slate-900">
+                          Indicative Insurance Bundle (Estimate Only):
+                        </p>
+                        <p className="mt-1 text-slate-700">
+                          {selectedCountry === 'IE'
+                            ? '• Bundle: Cyber & Data Breach + Professional Indemnity (Tech E&O) + Public Liability.\n• Indicative Annual Premium Estimate: ~€780/yr (~€65/mo in Module I Overheads) via Hiscox Ireland / Arachas. Actual coverage & premium may vary.'
+                            : '• Bundle: Cyber & Data Breach + Professional Indemnity (Tech E&O) + Public Liability.\n• Indicative Annual Premium Estimate: ~£660/yr (~£55/mo in Module I Overheads) via Superscript / Hiscox UK. Actual coverage & premium may vary.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Layer 3: Park Open Question Input */}
+              {showParkInputStep5 && (
+                <div className="mt-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
+                  <input
+                    value={parkQuestionInputStep5}
+                    onChange={(e) => setParkQuestionInputStep5(e.target.value)}
+                    placeholder={
+                      selectedCountry === 'IE'
+                        ? 'e.g., Confirm with Arachas/Hiscox Ireland whether US/UK export sales require an extended Product Liability endorsement...'
+                        : 'e.g., Confirm with Hiscox UK/Superscript whether our AI feature requires a specialist Tech E&O endorsement...'
+                    }
+                    className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={async () => {
+                        if (!parkQuestionInputStep5.trim()) return;
+                        await onParkOpenQuestion(
+                          parkQuestionInputStep5.trim()
+                        );
+                        setParkQuestionInputStep5('');
+                        setShowParkInputStep5(false);
+                        setSaveBanner(
+                          '📌 Parked compliance/insurance question in your Open Questions Parking Lot!'
+                        );
+                      }}
+                      className="h-9 bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800"
+                    >
+                      Save to Parking Lot
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setShowParkInputStep5(false)}
+                      className="h-9 text-xs text-slate-600"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardHeader>
+          </Card>
+
+          {/* 2. Live 4-Card Compliance & Indicative Insurance Metrics Strip */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-slate-200 bg-white shadow-xs">
+              <CardContent className="p-3.5">
+                <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                  1. Regulatory &amp; Privacy Posture
+                </p>
+                <p className="mt-1 truncate text-sm font-bold text-slate-900">
+                  {REGULATORY_SECTOR_POSTURE_OPTIONS.find(
+                    (o) => o.value === step5Data.regulatorySectorPosture
+                  )?.label || 'Not Selected'}
+                </p>
+                <p className="mt-1 truncate text-[11px] text-slate-600">
+                  Privacy:{' '}
+                  <span className="font-medium text-slate-800">
+                    {DATA_PRIVACY_POSTURE_OPTIONS.find(
+                      (o) => o.value === step5Data.dataPrivacyPosture
+                    )?.label || 'Not Selected'}
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white shadow-xs">
+              <CardContent className="p-3.5">
+                <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                  2. Statutory Grant &amp; Legal Readiness
+                </p>
+                <p className="mt-1 text-sm font-bold text-slate-900">
+                  {step5Data.complianceItems.length} Compliance Items (
+                  {verifiedOrInProgressComplianceCount} Active/Verified)
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] ${
+                      hasCorporateTaxClearanceItem
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                        : 'border-amber-300 bg-amber-50 text-amber-800'
+                    }`}
+                  >
+                    {selectedCountry === 'IE'
+                      ? 'CRO / Revenue TC2'
+                      : selectedCountry === 'GB'
+                        ? 'Co. House / UTR'
+                        : 'Tax Clearance'}{' '}
+                    {hasCorporateTaxClearanceItem ? '✓' : '!'}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] ${
+                      hasHealthSafetyItem
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                        : 'border-amber-300 bg-amber-50 text-amber-800'
+                    }`}
+                  >
+                    {selectedCountry === 'IE'
+                      ? 'HSA Sec 20'
+                      : selectedCountry === 'GB'
+                        ? 'UK HSE'
+                        : 'H&S'}{' '}
+                    {hasHealthSafetyItem ? '✓' : '!'}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] ${
+                      hasGdprPrivacyItem
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                        : 'border-amber-300 bg-amber-50 text-amber-800'
+                    }`}
+                  >
+                    {selectedCountry === 'IE'
+                      ? 'DPC GDPR'
+                      : selectedCountry === 'GB'
+                        ? 'ICO GDPR'
+                        : 'GDPR'}{' '}
+                    {hasGdprPrivacyItem ? '✓' : '!'}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-indigo-200 bg-indigo-50/40 shadow-xs">
+              <CardContent className="p-3.5">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[11px] font-semibold tracking-wide text-indigo-900 uppercase">
+                    3. Est. Annual Insurance Premium
+                  </p>
+                  <Badge
+                    variant="outline"
+                    className="border-amber-300 bg-amber-50 text-[10px] font-semibold text-amber-900"
+                  >
+                    Estimate Only
+                  </Badge>
+                </div>
+                <p className="mt-1 text-base font-extrabold text-indigo-950">
+                  ~
+                  {formatPlanCurrency(
+                    step5Data.estimatedAnnualInsurancePremium,
+                    plan.baseCurrency
+                  )}
+                  <span className="text-xs font-medium text-indigo-800">
+                    /yr (est.)
+                  </span>
+                </p>
+                <p className="mt-0.5 text-[11px] font-medium text-indigo-900">
+                  ≈{' '}
+                  {formatPlanCurrency(
+                    estimatedMonthlyInsuranceOverhead,
+                    plan.baseCurrency
+                  )}
+                  /mo synced to Module I Overheads
+                </p>
+                <p className="mt-1 text-[10px] leading-snug text-amber-900">
+                  *Indicative estimate only — actual coverage, policy limits
+                  &amp; premiums may vary upon underwriting.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white shadow-xs">
+              <CardContent className="p-3.5">
+                <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                  4. Matched Insurance Bundle &amp; Broker
+                </p>
+                <p className="mt-1 truncate text-sm font-bold text-slate-900">
+                  {INSURANCE_COVERAGE_BUNDLE_OPTIONS.find(
+                    (b) => b.value === step5Data.insuranceCoverageBundle
+                  )?.label || 'Not Selected'}
+                </p>
+                <p className="mt-1 truncate text-[11px] text-slate-600">
+                  Provider:{' '}
+                  <span className="font-semibold text-slate-800">
+                    {step5Data.selectedInsuranceProviderName || 'Not specified'}
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 3. Part A: Regulatory Sector Posture & Data Privacy / GDPR Posture Selectors */}
+          <Card className="border-slate-200 bg-white shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold text-slate-900">
+                Part A: Regulatory Sector Posture &amp; GDPR Data Privacy
+                Classification
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-600">
+                Select the regulatory framework and data protection tier that
+                govern how your business operates in{' '}
+                <span className="font-semibold text-slate-800">
+                  {countryPack.countryName}
+                </span>
+                . Every selector includes an{' '}
+                <span className="font-semibold text-slate-800">Other</span>{' '}
+                option for hybrid or specialist models.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* A1. Regulatory Sector Posture Selector */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold text-slate-800">
+                  1. Primary Regulatory &amp; Sector Licensing Posture
+                </label>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {REGULATORY_SECTOR_POSTURE_OPTIONS.map((option) => {
+                    const isSelected =
+                      step5Data.regulatorySectorPosture === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() =>
+                          setStep5Data((prev) => ({
+                            ...prev,
+                            regulatorySectorPosture: option.value,
+                          }))
+                        }
+                        className={`flex flex-col items-start rounded-lg border p-3 text-left transition ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            {option.label}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 text-[10px]"
+                          >
+                            {option.badge}
+                          </Badge>
+                        </div>
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                          {option.subtitle}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Edge-Case Protection: OTHER Regulatory Sector Posture Inline Input */}
+                {step5Data.regulatorySectorPosture === 'OTHER' && (
+                  <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="text-xs font-semibold text-indigo-950">
+                      Describe Your Custom / Hybrid Regulatory Sector Posture:
+                    </label>
+                    <input
+                      disabled={isVaultReadonly}
+                      value={step5Data.otherRegulatorySectorPostureText || ''}
+                      onChange={(e) =>
+                        setStep5Data((prev) => ({
+                          ...prev,
+                          otherRegulatorySectorPostureText: e.target.value,
+                        }))
+                      }
+                      placeholder={
+                        selectedCountry === 'IE'
+                          ? 'e.g., Dual Agri-Tech hardware + cloud telemetry regulated under DAFM & EU Machinery Directive...'
+                          : 'e.g., Dual EdTech DBS-checked tutoring marketplace + UKCA hardware kit...'
+                      }
+                      className="mt-1.5 h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* A2. Data Privacy & GDPR Posture Selector */}
+              <div className="space-y-2.5 border-t border-slate-100 pt-4">
+                <label className="text-xs font-bold text-slate-800">
+                  2.{' '}
+                  {selectedCountry === 'IE'
+                    ? 'EU GDPR & Irish Data Protection Commission (DPC) Posture'
+                    : selectedCountry === 'GB'
+                      ? 'UK GDPR & Information Commissioner’s Office (ICO) Posture'
+                      : 'GDPR, Data Privacy & Cybersecurity Posture'}
+                </label>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {DATA_PRIVACY_POSTURE_OPTIONS.map((option) => {
+                    const isSelected =
+                      step5Data.dataPrivacyPosture === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() =>
+                          setStep5Data((prev) => ({
+                            ...prev,
+                            dataPrivacyPosture: option.value,
+                          }))
+                        }
+                        className={`flex flex-col items-start rounded-lg border p-3 text-left transition ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            {option.label}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 text-[10px]"
+                          >
+                            {option.badge}
+                          </Badge>
+                        </div>
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                          {option.subtitle}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Edge-Case Protection: OTHER Data Privacy Posture Inline Input */}
+                {step5Data.dataPrivacyPosture === 'OTHER' && (
+                  <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="text-xs font-semibold text-indigo-950">
+                      Describe Your Custom Data Privacy / Security Governance
+                      Model:
+                    </label>
+                    <input
+                      disabled={isVaultReadonly}
+                      value={step5Data.otherDataPrivacyPostureText || ''}
+                      onChange={(e) =>
+                        setStep5Data((prev) => ({
+                          ...prev,
+                          otherDataPrivacyPostureText: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., On-premise enterprise deployment with zero customer PII stored on our cloud servers..."
+                      className="mt-1.5 h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 4. Part B: Instant Startup Insurance Matcher & Indicative Premium Estimator */}
+          <Card className="border-indigo-200 bg-white shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Part B: Instant Startup Insurance Matcher &amp; Indicative
+                      Premium Estimator
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="border-amber-300 bg-amber-50 text-[10px] font-semibold text-amber-900"
+                    >
+                      Indicative Estimate — Actual Coverage &amp; Premium May
+                      Vary
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    Match the right commercial insurance bundle for your startup
+                    and set an{' '}
+                    <span className="font-semibold text-slate-800">
+                      indicative estimated annual premium
+                    </span>{' '}
+                    for your Module I financial model.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Prominent Estimate & Coverage Disclaimer Banner */}
+              <div className="rounded-lg border border-amber-300 bg-amber-50/80 p-3 text-xs text-amber-950">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                  <div>
+                    <p className="font-bold text-amber-950">
+                      Important Note on Estimated Annual Insurance Premiums
+                      &amp; Coverage:
+                    </p>
+                    <p className="mt-0.5 leading-relaxed text-amber-900">
+                      The <strong>Estimated Annual Insurance Premium</strong>{' '}
+                      shown below (and the derived{' '}
+                      <strong>
+                        ~
+                        {formatPlanCurrency(
+                          estimatedMonthlyInsuranceOverhead,
+                          plan.baseCurrency
+                        )}
+                        /month
+                      </strong>{' '}
+                      figure synced to Module I Overheads) is an{' '}
+                      <strong>
+                        indicative planning estimate only — not a binding
+                        insurance quote or financial advice
+                      </strong>
+                      . Actual coverage, policy terms, indemnity limits,
+                      exclusions, and final premiums may vary depending on
+                      formal insurer/broker underwriting, projected turnover,
+                      claims history, export territories, and specific
+                      operational risk profile.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* B1. Insurance Coverage Bundle Selector */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold text-slate-800">
+                  1. Select Your Target Startup Insurance Coverage Bundle
+                </label>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {INSURANCE_COVERAGE_BUNDLE_OPTIONS.map((bundle) => {
+                    const isSelected =
+                      step5Data.insuranceCoverageBundle === bundle.value;
+                    return (
+                      <button
+                        key={bundle.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() =>
+                          setStep5Data((prev) => ({
+                            ...prev,
+                            insuranceCoverageBundle: bundle.value,
+                          }))
+                        }
+                        className={`flex flex-col items-start rounded-lg border p-3 text-left transition ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            {bundle.label}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 text-[10px]"
+                          >
+                            {bundle.badge}
+                          </Badge>
+                        </div>
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                          {bundle.subtitle}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Edge-Case Protection: OTHER Insurance Bundle Inline Input */}
+                {step5Data.insuranceCoverageBundle === 'OTHER' && (
+                  <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+                    <label className="text-xs font-semibold text-indigo-950">
+                      Describe Your Custom / Specialist Insurance Coverage
+                      Bundle:
+                    </label>
+                    <input
+                      disabled={isVaultReadonly}
+                      value={step5Data.otherInsuranceCoverageBundleText || ''}
+                      onChange={(e) =>
+                        setStep5Data((prev) => ({
+                          ...prev,
+                          otherInsuranceCoverageBundleText: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Specialist Clinical Trials Liability + Marine Cargo Transit + Directors & Officers (D&O)..."
+                      className="mt-1.5 h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* B2. Estimated Annual Premium Input & Selected Provider */}
+              <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-slate-50/70 p-3.5 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-slate-800">
+                      Estimated Annual Insurance Premium ({plan.baseCurrency}) —{' '}
+                      <span className="text-amber-800 underline decoration-dotted">
+                        Estimate Only
+                      </span>
+                    </label>
+                    <span className="text-[11px] font-semibold text-indigo-700">
+                      ≈{' '}
+                      {formatPlanCurrency(
+                        estimatedMonthlyInsuranceOverhead,
+                        plan.baseCurrency
+                      )}
+                      /mo (Est.)
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    step={50}
+                    disabled={isVaultReadonly}
+                    value={step5Data.estimatedAnnualInsurancePremium}
+                    onChange={(e) =>
+                      setStep5Data((prev) => ({
+                        ...prev,
+                        estimatedAnnualInsurancePremium: Math.max(
+                          0,
+                          Number(e.target.value) || 0
+                        ),
+                      }))
+                    }
+                    className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base font-semibold sm:text-xs"
+                  />
+                  <p className="text-[11px] leading-snug text-slate-600">
+                    <strong>Planning Estimate:</strong> Feeds ~
+                    {formatPlanCurrency(
+                      estimatedMonthlyInsuranceOverhead,
+                      plan.baseCurrency
+                    )}
+                    /month into Module I Overheads. Actual coverage, policy
+                    limits &amp; premiums may vary subject to insurer
+                    underwriting.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-800">
+                    Preferred / Matched Insurance Broker or Underwriter
+                  </label>
+                  <input
+                    disabled={isVaultReadonly}
+                    value={step5Data.selectedInsuranceProviderName}
+                    onChange={(e) =>
+                      setStep5Data((prev) => ({
+                        ...prev,
+                        selectedInsuranceProviderName: e.target.value,
+                      }))
+                    }
+                    placeholder={
+                      selectedCountry === 'IE'
+                        ? 'e.g., Hiscox Ireland / Arachas / Allianz Ireland / FBD'
+                        : selectedCountry === 'GB'
+                          ? 'e.g., Superscript / Hiscox UK / Simply Business / Aviva UK'
+                          : 'e.g., Commercial Startup Insurance Broker'
+                    }
+                    className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                  />
+                  <p className="text-[11px] leading-snug text-slate-600">
+                    Click a vetted {countryPack.countryName} startup broker card
+                    below to auto-fill or enter your own broker.
+                  </p>
+                </div>
+              </div>
+
+              {/* B3. Country-Isolated Instant Startup Insurance Matcher Cards (?subid=[planId]_[userId]) */}
+              <div className="space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-800">
+                    2. Instant{' '}
+                    {selectedCountry === 'IE'
+                      ? '🇮🇪'
+                      : selectedCountry === 'GB'
+                        ? '🇬🇧'
+                        : '🌍'}{' '}
+                    {countryPack.countryName} Startup Insurance Matcher (Click
+                    to Apply Indicative Estimate or Compare Quotes)
+                  </label>
+                  <span className="text-[11px] text-slate-500">
+                    Attribution ID:{' '}
+                    <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700">
+                      ?subid={plan.id}_{userId || 'founder'}
+                    </code>
+                  </span>
+                </div>
+
+                {selectedCountry === 'IE' ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {[
+                      {
+                        providerName:
+                          'Hiscox Ireland (Tech, SaaS & Professional Indemnity)',
+                        focus:
+                          'Ideal for Irish SaaS, AI, B2B Consultancies & Digital Agencies requiring Cyber + Tech E&O + Public Liability.',
+                        bundle:
+                          'TECH_SAAS_PI_CYBER' as InsuranceCoverageBundleType,
+                        indicativeAnnualEstimate: 780,
+                        rangeLabel: '€550–€1,200/yr (Indicative Estimate)',
+                        url: `https://www.hiscox.ie/business-insurance?subid=${encodeURIComponent(`${plan.id}_${userId || 'founder'}`)}`,
+                      },
+                      {
+                        providerName:
+                          'Arachas / Allianz Ireland (Product, Workshop & Commercial Combined)',
+                        focus:
+                          'Ideal for Irish Physical Product Makers, Food/Craft Producers, E-Commerce & Workshops requiring Product & Public Liability (€2.6m–€6.5m).',
+                        bundle:
+                          'PRODUCT_PUBLIC_LIABILITY_STOCK' as InsuranceCoverageBundleType,
+                        indicativeAnnualEstimate: 850,
+                        rangeLabel: '€650–€1,450/yr (Indicative Estimate)',
+                        url: `https://www.arachas.ie/business-insurance?subid=${encodeURIComponent(`${plan.id}_${userId || 'founder'}`)}`,
+                      },
+                      {
+                        providerName:
+                          'FBD / Irish Broker Concierge (Employers, Premises & Trade Package)',
+                        focus:
+                          'Ideal for Irish startups hiring employees, leasing local premises/studios, or bidding on LEO / state tenders.',
+                        bundle:
+                          'COMPREHENSIVE_COMMERCIAL_ALL_RISK' as InsuranceCoverageBundleType,
+                        indicativeAnnualEstimate: 1350,
+                        rangeLabel: '€950–€2,200/yr (Indicative Estimate)',
+                        url: `https://www.fbd.ie/business-insurance?subid=${encodeURIComponent(`${plan.id}_${userId || 'founder'}`)}`,
+                      },
+                    ].map((broker) => (
+                      <div
+                        key={broker.providerName}
+                        className="flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-3 shadow-2xs"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-xs font-bold text-slate-900">
+                              🇮🇪 {broker.providerName}
+                            </p>
+                          </div>
+                          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                            {broker.focus}
+                          </p>
+                          <div className="mt-2 rounded bg-amber-50/80 px-2 py-1 text-[10px] font-medium text-amber-950">
+                            Est. Benchmark: <strong>{broker.rangeLabel}</strong>{' '}
+                            — actual coverage &amp; premium may vary.
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5 pt-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={isVaultReadonly}
+                            onClick={() =>
+                              handleSelectPartnerInsuranceBroker(broker)
+                            }
+                            className="h-7 flex-1 border-indigo-300 bg-indigo-50 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100"
+                          >
+                            Use ~€{broker.indicativeAnnualEstimate}/yr Estimate
+                          </Button>
+                          <a
+                            href={broker.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex h-7 items-center rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            Quote &nearr;
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : selectedCountry === 'GB' ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {[
+                      {
+                        providerName:
+                          'Superscript / Hiscox UK (Flexible Monthly Tech, Cyber & PI)',
+                        focus:
+                          'Ideal for UK SaaS, AI, B2B Services & Innovate UK startups requiring Cyber + Tech E&O + Public Liability.',
+                        bundle:
+                          'TECH_SAAS_PI_CYBER' as InsuranceCoverageBundleType,
+                        indicativeAnnualEstimate: 660,
+                        rangeLabel: '£480–£1,050/yr (Indicative Estimate)',
+                        url: `https://gosuperscript.com/?subid=${encodeURIComponent(`${plan.id}_${userId || 'founder'}`)}`,
+                      },
+                      {
+                        providerName:
+                          'Simply Business / Aviva UK (Product, Workshop & E-Commerce)',
+                        focus:
+                          'Ideal for UK Physical Product Makers, Craft/Workshop Founders & E-Commerce Sellers requiring Product & Public Liability (£2m–£5m).',
+                        bundle:
+                          'PRODUCT_PUBLIC_LIABILITY_STOCK' as InsuranceCoverageBundleType,
+                        indicativeAnnualEstimate: 720,
+                        rangeLabel: '£520–£1,250/yr (Indicative Estimate)',
+                        url: `https://www.simplybusiness.co.uk/?subid=${encodeURIComponent(`${plan.id}_${userId || 'founder'}`)}`,
+                      },
+                      {
+                        providerName:
+                          'Hiscox UK Commercial Combined (+ Statutory £5m Employers’ Liability)',
+                        focus:
+                          'Ideal for UK startups hiring staff (statutory £5m Employers’ Liability legal minimum), leasing premises, or raising SEIS/EIS.',
+                        bundle:
+                          'COMPREHENSIVE_COMMERCIAL_ALL_RISK' as InsuranceCoverageBundleType,
+                        indicativeAnnualEstimate: 1150,
+                        rangeLabel: '£850–£1,900/yr (Indicative Estimate)',
+                        url: `https://www.hiscox.co.uk/business-insurance?subid=${encodeURIComponent(`${plan.id}_${userId || 'founder'}`)}`,
+                      },
+                    ].map((broker) => (
+                      <div
+                        key={broker.providerName}
+                        className="flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-3 shadow-2xs"
+                      >
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">
+                            🇬🇧 {broker.providerName}
+                          </p>
+                          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                            {broker.focus}
+                          </p>
+                          <div className="mt-2 rounded bg-amber-50/80 px-2 py-1 text-[10px] font-medium text-amber-950">
+                            Est. Benchmark: <strong>{broker.rangeLabel}</strong>{' '}
+                            — actual coverage &amp; premium may vary.
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5 pt-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={isVaultReadonly}
+                            onClick={() =>
+                              handleSelectPartnerInsuranceBroker(broker)
+                            }
+                            className="h-7 flex-1 border-indigo-300 bg-indigo-50 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100"
+                          >
+                            Use ~£{broker.indicativeAnnualEstimate}/yr Estimate
+                          </Button>
+                          <a
+                            href={broker.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex h-7 items-center rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            Quote &nearr;
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {[
+                      {
+                        providerName:
+                          'Commercial Tech E&O, Cyber & Professional Indemnity Broker',
+                        focus:
+                          'Recommended for Digital SaaS, AI, Marketplace & B2B Service startups.',
+                        bundle:
+                          'TECH_SAAS_PI_CYBER' as InsuranceCoverageBundleType,
+                        indicativeAnnualEstimate: 780,
+                        rangeLabel: 'Indicative Estimate (~780/yr)',
+                      },
+                      {
+                        providerName:
+                          'Commercial Product & Public Liability + Equipment All-Risks Broker',
+                        focus:
+                          'Recommended for Physical Goods, Workshop, Food/Craft & Hardware startups.',
+                        bundle:
+                          'PRODUCT_PUBLIC_LIABILITY_STOCK' as InsuranceCoverageBundleType,
+                        indicativeAnnualEstimate: 850,
+                        rangeLabel: 'Indicative Estimate (~850/yr)',
+                      },
+                    ].map((broker) => (
+                      <div
+                        key={broker.providerName}
+                        className="flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-3 shadow-2xs"
+                      >
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">
+                            {broker.providerName}
+                          </p>
+                          <p className="mt-1 text-[11px] text-slate-600">
+                            {broker.focus}
+                          </p>
+                          <p className="mt-1.5 text-[10px] text-amber-900">
+                            {broker.rangeLabel} — actual coverage &amp; premium
+                            may vary.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={isVaultReadonly}
+                          onClick={() =>
+                            handleSelectPartnerInsuranceBroker(broker)
+                          }
+                          className="mt-3 h-7 border-indigo-300 bg-indigo-50 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100"
+                        >
+                          Apply Indicative Estimate
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 5. Part C: Dynamic Statutory Compliance, Tax Clearance, H&S & GDPR Checklist */}
+          <Card className="border-slate-200 bg-white shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    Part C:{' '}
+                    {selectedCountry === 'IE'
+                      ? '🇮🇪'
+                      : selectedCountry === 'GB'
+                        ? '🇬🇧'
+                        : '🌍'}{' '}
+                    {countryPack.countryName} Statutory Compliance, Tax
+                    Clearance, H&amp;S &amp; GDPR Checklist
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    Track every mandatory registration, tax clearance, safety
+                    statement, and sector license required for launch and grant
+                    drawdown.
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly || isGeneratingAiStep5}
+                    onClick={() =>
+                      handleRunAiStep5('POPULATE_COMPLIANCE_AND_NARRATIVES')
+                    }
+                    className="h-8 border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                  >
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    {isGeneratingAiStep5
+                      ? 'Drafting with AI...'
+                      : 'AI Tailor Checklist & Narratives'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly}
+                    onClick={handleAddComplianceItem}
+                    className="h-8 border-slate-300 text-xs font-semibold text-slate-800 hover:bg-slate-100"
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Add Compliance Item
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {step5Data.complianceItems.map((item, idx) => (
+                <div
+                  key={item.id}
+                  className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-slate-800 text-[10px] text-white">
+                        #{idx + 1}
+                      </Badge>
+                      <span className="text-xs font-bold text-slate-900">
+                        {item.requirementTitle || 'Compliance Requirement'}
+                      </span>
+                    </div>
+                    {step5Data.complianceItems.length > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={isVaultReadonly}
+                        onClick={() => handleRemoveComplianceItem(item.id)}
+                        className="h-7 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-12">
+                    {/* Category */}
+                    <div className="space-y-1 sm:col-span-4">
+                      <label className="text-[11px] font-semibold text-slate-700">
+                        Compliance Category
+                      </label>
+                      <select
+                        disabled={isVaultReadonly}
+                        value={item.category}
+                        onChange={(e) =>
+                          handleUpdateComplianceItem(item.id, {
+                            category: e.target
+                              .value as ComplianceItemCategoryType,
+                          })
+                        }
+                        className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base text-slate-900 sm:text-xs"
+                      >
+                        {COMPLIANCE_ITEM_CATEGORY_OPTIONS.map((cat) => (
+                          <option key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </option>
+                        ))}
+                      </select>
+                      {item.category === 'OTHER' && (
+                        <input
+                          disabled={isVaultReadonly}
+                          value={item.otherCategoryText || ''}
+                          onChange={(e) =>
+                            handleUpdateComplianceItem(item.id, {
+                              otherCategoryText: e.target.value,
+                            })
+                          }
+                          placeholder="Specify custom compliance category..."
+                          className="mt-1.5 h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                        />
+                      )}
+                    </div>
+
+                    {/* Requirement Title */}
+                    <div className="space-y-1 sm:col-span-5">
+                      <label className="text-[11px] font-semibold text-slate-700">
+                        Requirement / Statutory Obligation Title
+                      </label>
+                      <input
+                        disabled={isVaultReadonly}
+                        value={item.requirementTitle}
+                        onChange={(e) =>
+                          handleUpdateComplianceItem(item.id, {
+                            requirementTitle: e.target.value,
+                          })
+                        }
+                        className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                      />
+                    </div>
+
+                    {/* Status */}
+                    <div className="space-y-1 sm:col-span-3">
+                      <label className="text-[11px] font-semibold text-slate-700">
+                        Verification Status
+                      </label>
+                      <select
+                        disabled={isVaultReadonly}
+                        value={item.status}
+                        onChange={(e) =>
+                          handleUpdateComplianceItem(item.id, {
+                            status: e.target.value as ComplianceItemStatusType,
+                          })
+                        }
+                        className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base text-slate-900 sm:text-xs"
+                      >
+                        {COMPLIANCE_ITEM_STATUS_OPTIONS.map((st) => (
+                          <option key={st.value} value={st.value}>
+                            {st.label}
+                          </option>
+                        ))}
+                      </select>
+                      {item.status === 'OTHER' && (
+                        <input
+                          disabled={isVaultReadonly}
+                          value={item.otherStatusText || ''}
+                          onChange={(e) =>
+                            handleUpdateComplianceItem(item.id, {
+                              otherStatusText: e.target.value,
+                            })
+                          }
+                          placeholder="Specify custom status..."
+                          className="mt-1.5 h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                        />
+                      )}
+                    </div>
+
+                    {/* Regulatory Body */}
+                    <div className="space-y-1 sm:col-span-4">
+                      <label className="text-[11px] font-semibold text-slate-700">
+                        Regulator / Issuing Authority
+                      </label>
+                      <input
+                        disabled={isVaultReadonly}
+                        value={item.regulatoryBody}
+                        onChange={(e) =>
+                          handleUpdateComplianceItem(item.id, {
+                            regulatoryBody: e.target.value,
+                          })
+                        }
+                        className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                      />
+                    </div>
+
+                    {/* Evidence / Reference Note */}
+                    <div className="space-y-1 sm:col-span-6">
+                      <label className="text-[11px] font-semibold text-slate-700">
+                        Verification Evidence, Action Plan or Reference Note
+                      </label>
+                      <input
+                        disabled={isVaultReadonly}
+                        value={item.evidenceOrReferenceNote}
+                        onChange={(e) =>
+                          handleUpdateComplianceItem(item.id, {
+                            evidenceOrReferenceNote: e.target.value,
+                          })
+                        }
+                        className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                      />
+                    </div>
+
+                    {/* Est. Annual License / Fee Cost */}
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-[11px] font-semibold text-slate-700">
+                        Est. Annual Fee ({plan.baseCurrency})
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={10}
+                        disabled={isVaultReadonly}
+                        value={item.estimatedAnnualCost}
+                        onChange={(e) =>
+                          handleUpdateComplianceItem(item.id, {
+                            estimatedAnnualCost: Math.max(
+                              0,
+                              Number(e.target.value) || 0
+                            ),
+                          })
+                        }
+                        className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* 6. Part D: Grant-Ready Regulatory & Insurance Governance Narratives + Module K Preview */}
+          <Card className="border-slate-200 bg-white shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    Part D: Grant-Ready Regulatory &amp; Insurance Governance
+                    Narratives (Module K Export)
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    These structured paragraphs compile directly into your{' '}
+                    {selectedCountry === 'IE'
+                      ? 'LEO / Enterprise Ireland Business Plan & Governance Appendix'
+                      : selectedCountry === 'GB'
+                        ? 'Innovate UK / Start Up Loans / SEIS-EIS Business Plan'
+                        : 'Business Plan Legal & Regulatory Governance Section'}
+                    .
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isVaultReadonly || isGeneratingAiStep5}
+                  onClick={() => handleRunAiStep5('NARRATIVES_ONLY')}
+                  className="h-8 border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                >
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                  {isGeneratingAiStep5
+                    ? 'Synthesizing...'
+                    : 'AI Polish Both Narratives'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-800">
+                    1. Regulatory, Tax Clearance, Health &amp; Safety &amp; GDPR
+                    Compliance Narrative
+                  </label>
+                  <textarea
+                    rows={5}
+                    disabled={isVaultReadonly}
+                    value={step5Data.regulatoryAndComplianceNarrative}
+                    onChange={(e) =>
+                      setStep5Data((prev) => ({
+                        ...prev,
+                        regulatoryAndComplianceNarrative: e.target.value,
+                      }))
+                    }
+                    placeholder={
+                      selectedCountry === 'IE'
+                        ? 'Summarize your CRO status, Revenue eTax Clearance (TC2 via ROS), HSA Section 20 Written Safety Statement (BeSMART.ie), DPC GDPR governance, and EU GPSR / sector compliance...'
+                        : 'Summarize your Companies House & HMRC UTR status, UK HSE Health & Safety Risk Assessment (HSWA 1974), ICO Data Protection Fee registration, and UKCA / sector compliance...'
+                    }
+                    className="w-full rounded-md border border-slate-300 bg-white p-2.5 text-base leading-relaxed sm:text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-800">
+                    2. Commercial Insurance &amp; Liability Governance Narrative
+                    (Includes Estimate Disclaimer)
+                  </label>
+                  <textarea
+                    rows={5}
+                    disabled={isVaultReadonly}
+                    value={step5Data.insuranceAndLiabilityGovernanceNarrative}
+                    onChange={(e) =>
+                      setStep5Data((prev) => ({
+                        ...prev,
+                        insuranceAndLiabilityGovernanceNarrative:
+                          e.target.value,
+                      }))
+                    }
+                    placeholder="Summarize your matched commercial insurance bundle, preferred broker, and indicative estimated annual/monthly premium synced to Module I Overheads (noting that actual coverage and premiums may vary subject to underwriting)..."
+                    className="w-full rounded-md border border-slate-300 bg-white p-2.5 text-base leading-relaxed sm:text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* AI Coach Tip if present */}
+              {step5Data.aiCoachTip && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-950">
+                  <p className="font-bold text-emerald-900">
+                    🦄 Unicorn Compliance &amp; Grant Assessor Tip:
+                  </p>
+                  <p className="mt-1 leading-relaxed text-emerald-900">
+                    {step5Data.aiCoachTip}
+                  </p>
+                </div>
+              )}
+
+              {/* Live Module K Compliance & Insurance Summary Table (overflow-x-auto) */}
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-800">
+                    Live Module K Preview — Regulatory &amp; Insurance
+                    Governance Schedule
+                  </p>
+                  <span className="text-[11px] text-slate-500">
+                    Est. Annual Statutory Fees:{' '}
+                    {formatPlanCurrency(
+                      totalAnnualComplianceItemsCost,
+                      plan.baseCurrency
+                    )}
+                    /yr + Est. Insurance: ~
+                    {formatPlanCurrency(
+                      step5Data.estimatedAnnualInsurancePremium,
+                      plan.baseCurrency
+                    )}
+                    /yr (Estimate — Actual May Vary)
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="min-w-[640px] w-full border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-700">
+                        <th className="px-3 py-2">Category</th>
+                        <th className="px-3 py-2">Requirement</th>
+                        <th className="px-3 py-2">Regulator / Authority</th>
+                        <th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2 text-right">Est. Fee/Yr</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      {step5Data.complianceItems.map((item) => (
+                        <tr key={item.id}>
+                          <td className="px-3 py-2 font-medium text-slate-800">
+                            {item.category === 'OTHER' && item.otherCategoryText
+                              ? item.otherCategoryText
+                              : COMPLIANCE_ITEM_CATEGORY_OPTIONS.find(
+                                  (c) => c.value === item.category
+                                )?.label || item.category}
+                          </td>
+                          <td className="px-3 py-2 text-slate-900">
+                            <p className="font-semibold">
+                              {item.requirementTitle}
+                            </p>
+                            {item.evidenceOrReferenceNote && (
+                              <p className="mt-0.5 text-[11px] text-slate-500">
+                                {item.evidenceOrReferenceNote}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-slate-700">
+                            {item.regulatoryBody}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Badge variant="outline" className="text-[10px]">
+                              {item.status === 'OTHER' && item.otherStatusText
+                                ? item.otherStatusText
+                                : COMPLIANCE_ITEM_STATUS_OPTIONS.find(
+                                    (s) => s.value === item.status
+                                  )?.label || item.status}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium text-slate-800">
+                            {formatPlanCurrency(
+                              item.estimatedAnnualCost,
+                              plan.baseCurrency
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Save & Continue Footer */}
+              <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveTab('STEP_4')}
+                  className="w-full text-xs sm:w-auto"
+                >
+                  &larr; Back to Step 4 (Support, Returns &amp; QC SOP)
+                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isVaultReadonly || isSavingStep5}
+                    onClick={handleSaveStep5}
+                    className="w-full bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 sm:w-auto"
+                  >
+                    <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                    {isSavingStep5
+                      ? 'Saving Step 5...'
+                      : 'Save Step 5 (Permits, Compliance & Insurance)'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly || isSavingStep5}
+                    onClick={async () => {
+                      await handleSaveStep5();
+                      setActiveTab('STEP_6');
+                    }}
+                    className="w-full border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100 sm:w-auto"
+                  >
+                    Save &amp; Continue to Step 6 &rarr;
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* UPCOMING STEP 6 PREVIEW CARD (READY FOR NEXT ITERATION)               */}
       {/* ===================================================================== */}
       {activeTab !== 'STEP_1' &&
         activeTab !== 'STEP_2' &&
-        activeTab !== 'STEP_3' && (
+        activeTab !== 'STEP_3' &&
+        activeTab !== 'STEP_4' &&
+        activeTab !== 'STEP_5' && (
           <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader>
               <CardTitle className="text-base font-bold text-slate-900">
@@ -6460,8 +10491,7 @@ export function ModuleEWorkspace({
                 {STEP_TABS.find((t) => t.id === activeTab)?.title}
               </CardTitle>
               <CardDescription className="text-xs text-slate-600">
-                Complete Steps 1, 2, and 3 first—we are building Steps 4–6
-                sequentially next!
+                Complete Steps 1–5 first—we are building Step 6 next!
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap items-center gap-2">
@@ -6491,6 +10521,24 @@ export function ModuleEWorkspace({
                 className="text-xs"
               >
                 &larr; Return to Step 3 (4-Category Risk Register)
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveTab('STEP_4')}
+                className="text-xs"
+              >
+                &larr; Return to Step 4 (Support, Returns &amp; QC SOP)
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveTab('STEP_5')}
+                className="text-xs"
+              >
+                &larr; Return to Step 5 (Permits, Compliance &amp; Insurance)
               </Button>
             </CardContent>
           </Card>

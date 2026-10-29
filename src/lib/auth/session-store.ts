@@ -1141,10 +1141,161 @@ export interface RiskRegisterStep3Data {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type SupportOperatingModelType =
+  | 'SELF_SERVE_DOCS_PLUS_FOUNDER_TIER2'
+  | 'DIRECT_FOUNDER_CONCIERGE_EMAIL_WHATSAPP'
+  | 'AI_TRIAGE_CHATBOT_PLUS_HUMAN_FALLBACK'
+  | 'DEDICATED_PART_TIME_SUPPORT_AGENT'
+  | 'OTHER';
+
+export type SupportResponseSlaType =
+  | 'INSTANT_AUTOMATED_24_7'
+  | 'SAME_BUSINESS_DAY_UNDER_4H'
+  | 'NEXT_BUSINESS_DAY_24H'
+  | 'FORTY_EIGHT_HOUR_STANDARD'
+  | 'OTHER';
+
+export type ReturnsAndWarrantyPolicyType =
+  | 'STATUTORY_14_DAY_COOLING_OFF'
+  | 'BESPOKE_PERSONALIZED_EXEMPT_TRANSIT_REPLACE'
+  | 'THIRTY_DAY_MONEY_BACK_OR_TRIAL'
+  | 'MILESTONE_ACCEPTANCE_SIGN_OFF'
+  | 'OTHER';
+
+export type QcGateTimingType =
+  | 'INCOMING_MATERIAL_OR_DATA_CHECK'
+  | 'IN_PROCESS_BUILD_OR_CODE_REVIEW'
+  | 'PRE_DISPATCH_FINAL_INSPECTION'
+  | 'POST_DELIVERY_CUSTOMER_CHECKIN'
+  | 'OTHER';
+
+export interface QcCheckpointItem {
+  id: string;
+  gateTiming: QcGateTimingType;
+  otherGateTimingText?: string;
+  checkpointName: string;
+  passFailStandard: string;
+  defectFallbackAction: string;
+  ownerRole: string;
+  isCustom?: boolean;
+}
+
+export interface SupportReturnsAndQcStep4Data {
+  supportOperatingModel: SupportOperatingModelType | '';
+  otherSupportOperatingModelText?: string;
+  supportResponseSla: SupportResponseSlaType | '';
+  otherSupportResponseSlaText?: string;
+  returnsAndWarrantyPolicy: ReturnsAndWarrantyPolicyType | '';
+  otherReturnsAndWarrantyPolicyText?: string;
+  estimatedReturnOrRefundRatePercent: number;
+  costPerReturnOrRemakeIncident: number;
+  warrantyDurationMonths: number;
+  qcCheckpoints: QcCheckpointItem[];
+  qualityControlAndStandardsNarrative: string;
+  customerSupportAndReturnsNarrative: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type RegulatorySectorPostureType =
+  | 'STANDARD_COMMERCIAL_UNREGULATED'
+  | 'PHYSICAL_PRODUCT_SAFETY_CE_UKCA'
+  | 'FOOD_BEV_HYGIENE_HACCP'
+  | 'FINTECH_HEALTH_REGULATED'
+  | 'STANDARD_GENERAL_COMMERCIAL'
+  | 'PHYSICAL_GOODS_GPSR_CE_PRODUCT_SAFETY'
+  | 'FOOD_BEVERAGE_COSMETIC_HYGIENE'
+  | 'DIGITAL_AI_FINTECH_REGULATED_DATA'
+  | 'OTHER';
+
+export type DataPrivacyPostureType =
+  | 'MINIMAL_B2B_CONTACT_DATA'
+  | 'STANDARD_CUSTOMER_CRM_COOKIES'
+  | 'B2B_DATA_PROCESSOR_DPA_SCC'
+  | 'HIGH_RISK_SPECIAL_CATEGORY_DPIA'
+  | 'STANDARD_CUSTOMER_CRM_CHECKOUT_GDPR'
+  | 'B2B_DATA_PROCESSOR_DPA_EU_UK_HOSTING'
+  | 'SENSITIVE_SPECIAL_CATEGORY_DPIA_REQUIRED'
+  | 'MINIMAL_NO_PII_STORED'
+  | 'OTHER';
+
+export type InsuranceCoverageBundleType =
+  | 'PUBLIC_EMPLOYERS_CORE'
+  | 'TECH_SAAS_PI_CYBER'
+  | 'PRODUCT_PUBLIC_LIABILITY_STOCK'
+  | 'COMPREHENSIVE_COMMERCIAL_ALL_RISK'
+  | 'PUBLIC_AND_PRODUCT_LIABILITY_PACK'
+  | 'PRO_INDEMNITY_AND_CYBER_SAAS_PACK'
+  | 'ALL_IN_COMMERCIAL_COMBINED_EMPLOYERS'
+  | 'PRE_TRADING_MINIMAL_HOLDING'
+  | 'CYBER_PI_TECH_EO'
+  | 'PRODUCT_PUBLIC_LIABILITY'
+  | 'FULL_COMMERCIAL_COMBINED_EMPLOYERS'
+  | 'OTHER';
+
+export type ComplianceItemCategoryType =
+  | 'CORPORATE_TAX_GRANT_CLEARANCE'
+  | 'DATA_PRIVACY_GDPR_SECURITY'
+  | 'HEALTH_SAFETY_PREMISES'
+  | 'SECTOR_PRODUCT_LICENSE'
+  | 'COMMERCIAL_INSURANCE_POLICY'
+  | 'PRODUCT_SECTOR_LICENSING'
+  | 'DATA_PRIVACY_CYBER_GDPR'
+  | 'OTHER';
+
+export type ComplianceItemStatusType =
+  | 'VERIFIED_COMPLETE'
+  | 'IN_PROGRESS'
+  | 'PLANNED_BEFORE_LAUNCH'
+  | 'NOT_APPLICABLE'
+  | 'VERIFIED_ACTIVE'
+  | 'IN_PROGRESS_PRE_LAUNCH'
+  | 'REQUIRED_BEFORE_FIRST_SALE_OR_GRANT'
+  | 'OTHER';
+
+export interface ComplianceChecklistItem {
+  id: string;
+  category: ComplianceItemCategoryType;
+  otherCategoryText?: string;
+  requirementTitle: string;
+  regulatoryBody: string;
+  issuingAuthority?: string;
+  status: ComplianceItemStatusType;
+  otherStatusText?: string;
+  evidenceOrReferenceNote: string;
+  actionPlanOrEvidenceNote?: string;
+  estimatedAnnualCost: number;
+  estimatedOneOffFilingCost?: number;
+  isCustom?: boolean;
+}
+
+export interface PermitsComplianceAndInsuranceStep5Data {
+  regulatorySectorPosture: RegulatorySectorPostureType | '';
+  otherRegulatorySectorPostureText?: string;
+  dataPrivacyPosture: DataPrivacyPostureType | '';
+  otherDataPrivacyPostureText?: string;
+  insuranceCoverageBundle: InsuranceCoverageBundleType | '';
+  otherInsuranceCoverageBundleText?: string;
+  estimatedAnnualInsurancePremium: number; // Explicitly indicative estimate; actual coverage & premium may vary
+  selectedInsuranceProviderName: string;
+  targetIndemnityLimitSummary?: string;
+  partnerInsuranceQuoteRequested?: boolean;
+  complianceItems: ComplianceChecklistItem[];
+  regulatoryAndComplianceNarrative: string;
+  insuranceAndLiabilityGovernanceNarrative: string;
+  regulatoryAndComplianceReadinessNarrative?: string;
+  insuranceAndLiabilityProtectionNarrative?: string;
+  aiCoachTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface SavedModuleEData {
   operationsBlueprint?: OperationsBlueprintStep1Data;
   premisesAndEquipment?: PremisesAndEquipmentStep2Data;
   riskRegister?: RiskRegisterStep3Data;
+  supportReturnsAndQc?: SupportReturnsAndQcStep4Data;
+  permitsAndInsurance?: PermitsComplianceAndInsuranceStep5Data;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;
 }
