@@ -48,6 +48,7 @@ import {
   type SavedModuleCData,
   type SavedModuleDData,
   type SavedModuleEData,
+  type SavedMasterDocumentData,
   type SavedValidationSurvey,
   type SavedSurveyResponse,
   type SurveyQuestionItem,
@@ -136,6 +137,7 @@ async function buildSessionFromDbUser(
     const modC = modRows.find((m) => m.moduleCode === 'MOD_C_SURVEYS_FEEDBACK');
     const modD = modRows.find((m) => m.moduleCode === 'MOD_D_PRODUCT_BUILD');
     const modE = modRows.find((m) => m.moduleCode === 'MOD_E_OPERATIONS');
+    const modK = modRows.find((m) => m.moduleCode === 'MOD_K_BUSINESS_PLAN');
     const structuredInputs = (modA?.structuredInputsJsonb ?? {}) as {
       brainDumpText?: string;
       exportPotential?: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
@@ -151,12 +153,16 @@ async function buildSessionFromDbUser(
       founderMotivation?: SavedFounderMotivation;
       teamAndBudget?: SavedTeamAndBudget;
       founderRealityCheck?: SavedFounderRealityCheck;
+      masterDocumentData?: SavedMasterDocumentData;
     };
 
     const modBInputs = (modB?.structuredInputsJsonb ?? {}) as SavedModuleBData;
     const modCInputs = (modC?.structuredInputsJsonb ?? {}) as SavedModuleCData;
     const modDInputs = (modD?.structuredInputsJsonb ?? {}) as SavedModuleDData;
     const modEInputs = (modE?.structuredInputsJsonb ?? {}) as SavedModuleEData;
+    const modKInputs = (modK?.structuredInputsJsonb ?? {}) as {
+      masterDocumentData?: SavedMasterDocumentData;
+    };
 
     const mergedSurveysBySlug = new Map<string, SavedValidationSurvey>();
 
@@ -431,6 +437,8 @@ async function buildSessionFromDbUser(
               : modEInputs.thingsToConsider,
           }
         : undefined,
+      masterDocumentData:
+        modKInputs.masterDocumentData || structuredInputs.masterDocumentData,
       openQuestions: questionRows.map((q) => q.questionText),
     });
   }

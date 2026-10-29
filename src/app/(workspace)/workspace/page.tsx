@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Sparkles,
   Globe2,
@@ -41,6 +42,7 @@ import {
   Copy,
   Eye,
   CheckCircle2,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -68,6 +70,8 @@ import {
   type SupportedCountryCode,
 } from '@/lib/localization';
 import {
+  hasActiveBmuSession,
+  clearActiveBmuSession,
   loadBmuSession,
   loadBmuSessionForEmail,
   saveBmuSession,
@@ -140,11 +144,16 @@ import {
   type OperationsReadinessConfidenceType,
   type OperationsBlindSpotItem,
   type OperationsBlindSpotAuditStep6Data,
+  type SavedMasterDocumentData,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
   logoutFounderAction,
 } from '@/app/actions/auth';
+import {
+  saveMasterDocumentDataAction,
+  weaveMasterDocumentStoryWithAiAction,
+} from '@/app/actions/master-document';
 import {
   generateModuleAConceptCanvasAction,
   saveModuleACanvasEditsAction,
@@ -206,6 +215,7 @@ import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
 import { ModuleDWorkspace } from '@/components/workspace/module-d-workspace';
 import { ModuleEWorkspace } from '@/components/workspace/module-e-workspace';
+import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
 import { LocalBugCaptureWidget } from '@/components/workspace/local-bug-capture-widget';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 import {
@@ -223,6 +233,10 @@ import {
   BIGGEST_WORRY_LABELS,
   type ModuleABriefData,
 } from '@/lib/export/module-a-brief';
+import {
+  buildDeterministicMasterStory,
+  type MasterDocumentVerifiedFacts,
+} from '@/lib/export/master-document-brief';
 import type { BlindSpotItem } from '@/db/schema';
 
 const MODULES_LIST: Array<{
@@ -253,7 +267,7 @@ const MODULES_LIST: Array<{
     code: 'MOD_C_SURVEYS_FEEDBACK',
     short: 'Module C',
     title: 'Customer Surveys & Feedback',
-    subtitle: 'Public /v/[slug] Survey, Waitlist & 1-on-1 Interview Log',
+    subtitle: 'Public Validation Surveys, Waitlist & 1-on-1 Interview Log',
     icon: MessageSquare,
     progress: 0,
   },
@@ -324,6 +338,7 @@ const MODULES_LIST: Array<{
 ];
 
 export default function WorkspacePage() {
+  const router = useRouter();
   const [session, setSession] = useState<BmuLocalSession>(() =>
     getDefaultDemoSession()
   );
@@ -347,6 +362,7 @@ export default function WorkspacePage() {
   // Workspace UX Interactive States
   const [activeModule, setActiveModule] =
     useState<ModuleCode>('MOD_A_IDEATION');
+  const [isMasterDocumentOpen, setIsMasterDocumentOpen] = useState(false);
   const [pendingModuleAfterUnlock, setPendingModuleAfterUnlock] =
     useState<ModuleCode | null>(null);
   const [planDropdownOpen, setPlanDropdownOpen] = useState(false);
@@ -398,6 +414,12 @@ export default function WorkspacePage() {
 
   // Hydrate from localStorage first, then sync with Cloud SQL PostgreSQL session cookie if present
   useEffect(() => {
+    const hasLocalSession = hasActiveBmuSession();
+    if (!hasLocalSession) {
+      router.replace('/login');
+      return;
+    }
+
     const loaded = loadBmuSession();
     setSession(loaded);
     const activePlan =
@@ -617,6 +639,10 @@ export default function WorkspacePage() {
                     : dbPlan.moduleCData || localPlan.moduleCData,
                 moduleDData: mergedModuleDData,
                 moduleEData: mergedModuleEData,
+                masterDocumentData: pickNewerBySavedAt(
+                  localPlan.masterDocumentData,
+                  dbPlan.masterDocumentData
+                ),
               };
             });
 
@@ -2965,6 +2991,86 @@ export default function WorkspacePage() {
     };
   }
 
+  async function handleSaveMasterDocumentData(
+    masterDocumentData: SavedMasterDocumentData
+  ) {
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          masterDocumentData: {
+            ...masterDocumentData,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    await saveMasterDocumentDataAction({
+      planId: currentPlan.id,
+      masterDocumentData,
+    });
+  }
+
+  async function handleWeaveMasterDocumentStoryWithAi(
+    facts: MasterDocumentVerifiedFacts
+  ) {
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Master Document Story Weaver (${aiCreditCheck.reason})`
+      );
+      return {
+        allowed: false,
+        reason: aiCreditCheck.reason,
+        story: buildDeterministicMasterStory(facts),
+        engineMode: 'smart-synthesizer' as const,
+      };
+    }
+
+    const res = await weaveMasterDocumentStoryWithAiAction({
+      planId: currentPlan.id,
+      facts,
+    });
+
+    setSession((prev) => {
+      const updatedPlans = prev.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          masterDocumentData: {
+            ...res.story,
+            lastSavedAt: new Date().toISOString(),
+          },
+        };
+      });
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+        plans: updatedPlans,
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
+
+    return {
+      allowed: res.allowed,
+      reason: res.reason,
+      story: res.story,
+      engineMode: res.engineMode,
+    };
+  }
+
   const effectiveCanvas: SavedConceptCanvas = conceptCanvas || {
     coreProblem: '',
     targetCustomer: '',
@@ -3341,28 +3447,69 @@ export default function WorkspacePage() {
   const savedModEBlueprint = currentPlan.moduleEData?.operationsBlueprint;
   const savedModEPremisesEquipment =
     currentPlan.moduleEData?.premisesAndEquipment;
+  const savedModERiskRegister = currentPlan.moduleEData?.riskRegister;
+  const savedModESupport = currentPlan.moduleEData?.supportReturnsAndQc;
+  const savedModECompliance = currentPlan.moduleEData?.permitsAndInsurance;
+  const savedModEBlindSpotAudit = currentPlan.moduleEData?.blindSpotAudit;
   const step1ModEScore = savedModEBlueprint
     ? savedModEBlueprint.orderLifecycleStages.length >= 3 &&
       savedModEBlueprint.endToEndFulfillmentNarrative.trim().length > 10 &&
       savedModEBlueprint.scalingAndBottleneckDeRiskingNarrative.trim().length >
         10
-      ? 22
+      ? 20
       : 12
     : 0;
   const step2ModEScore = savedModEPremisesEquipment
     ? savedModEPremisesEquipment.equipmentItems.length >= 1 &&
       savedModEPremisesEquipment.equipmentRoiAndGrantComplianceNarrative.trim()
         .length > 10
-      ? 23
+      ? 20
       : 12
     : 0;
-  const totalModEScore = step1ModEScore + step2ModEScore;
+  const step3ModEScore = savedModERiskRegister?.riskItems?.length ? 15 : 0;
+  const step4ModEScore = savedModESupport?.qcCheckpoints?.length ? 15 : 0;
+  const step5ModEScore = savedModECompliance?.complianceItems?.length ? 15 : 0;
+  const step6ModEScore = savedModEBlindSpotAudit?.blindSpots?.length ? 15 : 0;
+  const totalModEScore =
+    step1ModEScore +
+    step2ModEScore +
+    step3ModEScore +
+    step4ModEScore +
+    step5ModEScore +
+    step6ModEScore;
   const moduleEProgressPercent =
     totalModEScore > 0
       ? Math.min(100, totalModEScore)
       : activeModule === 'MOD_E_OPERATIONS'
         ? 10
         : 0;
+
+  const masterDocChapterPills: Array<{
+    short: string;
+    code: ModuleCode;
+    progress: number;
+  }> = [
+    { short: 'A', code: 'MOD_A_IDEATION', progress: moduleAProgressPercent },
+    { short: 'B', code: 'MOD_B_MARKET', progress: moduleBProgressPercent },
+    {
+      short: 'C',
+      code: 'MOD_C_SURVEYS_FEEDBACK',
+      progress: moduleCProgressPercent,
+    },
+    {
+      short: 'D',
+      code: 'MOD_D_PRODUCT_BUILD',
+      progress: moduleDProgressPercent,
+    },
+    { short: 'E', code: 'MOD_E_OPERATIONS', progress: moduleEProgressPercent },
+  ];
+  const syncedChaptersCount = masterDocChapterPills.filter(
+    (c) => c.progress > 0
+  ).length;
+  const overallSyncedProgressPercent = Math.round(
+    masterDocChapterPills.reduce((acc, c) => acc + c.progress, 0) /
+      masterDocChapterPills.length
+  );
 
   const moduleABriefData: ModuleABriefData = {
     planTitle: currentPlan.title,
@@ -3445,6 +3592,10 @@ export default function WorkspacePage() {
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <Link
               href="/"
+              onClick={() => {
+                clearActiveBmuSession();
+                logoutFounderAction().catch(() => {});
+              }}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xs hover:opacity-95 sm:h-9 sm:w-9"
               title="Back to Home"
             >
@@ -3501,6 +3652,7 @@ export default function WorkspacePage() {
               href="/login"
               title="Sign Out"
               onClick={() => {
+                clearActiveBmuSession();
                 logoutFounderAction().catch(() => {});
               }}
             >
@@ -3641,6 +3793,94 @@ export default function WorkspacePage() {
             )}
           </div>
 
+          {/* Prominent Left-Sidebar Tile: Living Master Document */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsMasterDocumentOpen(true);
+              setMobileSidebarOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`group relative w-full overflow-hidden rounded-xl border p-3.5 text-left transition-all ${
+              isMasterDocumentOpen
+                ? 'border-indigo-400 bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-900 text-white shadow-md ring-2 ring-indigo-400/50'
+                : 'border-indigo-200/90 bg-gradient-to-br from-indigo-950/95 via-indigo-900/95 to-violet-900/95 text-white shadow-xs hover:border-indigo-400 hover:shadow-md'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                    isMasterDocumentOpen
+                      ? 'bg-emerald-500 text-white shadow-xs'
+                      : 'bg-white/15 text-indigo-100 group-hover:bg-white/25'
+                  }`}
+                >
+                  <BookOpen className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-extrabold tracking-tight text-white sm:text-sm">
+                      Living Master Document
+                    </span>
+                    <Badge className="border-emerald-400/40 bg-emerald-500/20 px-1.5 py-0 text-[9px] font-bold text-emerald-200">
+                      LIVE
+                    </Badge>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-indigo-200/90">
+                    Whole-picture blueprint across Modules A–E
+                  </p>
+                </div>
+              </div>
+              <ArrowRight
+                className={`mt-1 h-4 w-4 shrink-0 transition-transform ${
+                  isMasterDocumentOpen
+                    ? 'translate-x-0.5 text-emerald-300'
+                    : 'text-indigo-300 group-hover:translate-x-0.5 group-hover:text-white'
+                }`}
+              />
+            </div>
+
+            {/* Chapter Status Pills [A] [B] [C] [D] [E] */}
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
+                {masterDocChapterPills.map((ch) => (
+                  <span
+                    key={ch.short}
+                    className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                      ch.progress > 0
+                        ? 'bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-400/40'
+                        : 'bg-white/10 text-indigo-300/70'
+                    }`}
+                  >
+                    {ch.short}
+                    {ch.progress > 0 ? ' ✓' : ''}
+                  </span>
+                ))}
+              </div>
+              <span className="text-[10px] font-semibold text-indigo-200">
+                {syncedChaptersCount}/5 Chapters • {overallSyncedProgressPercent}%
+              </span>
+            </div>
+
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/15">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 transition-all duration-300"
+                style={{ width: `${Math.max(8, overallSyncedProgressPercent)}%` }}
+              />
+            </div>
+
+            <div className="mt-2 flex items-center justify-between text-[10px] font-semibold text-indigo-200/90">
+              <span className="flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3 text-emerald-300" />
+                Zero-Hallucination Grounded
+              </span>
+              <span className="underline decoration-indigo-400/60 underline-offset-2 group-hover:text-white">
+                {isMasterDocumentOpen ? 'Viewing Full Picture' : 'Open Full Picture →'}
+              </span>
+            </div>
+          </button>
+
           {/* Mobile/Tablet Collapsible Module & Parking Lot Toggle (< lg only) */}
           <button
             type="button"
@@ -3649,27 +3889,31 @@ export default function WorkspacePage() {
           >
             <div className="flex min-w-0 items-center gap-2.5">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
-                {activeModule === 'MOD_A_IDEATION'
-                  ? 'A'
-                  : activeModule === 'MOD_B_MARKET'
-                    ? 'B'
-                    : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
-                      ? 'C'
-                      : activeModule === 'MOD_D_PRODUCT_BUILD'
-                        ? 'D'
-                        : 'E'}
+                {isMasterDocumentOpen
+                  ? '★'
+                  : activeModule === 'MOD_A_IDEATION'
+                    ? 'A'
+                    : activeModule === 'MOD_B_MARKET'
+                      ? 'B'
+                      : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+                        ? 'C'
+                        : activeModule === 'MOD_D_PRODUCT_BUILD'
+                          ? 'D'
+                          : 'E'}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-xs font-bold text-slate-900">
-                  {activeModule === 'MOD_A_IDEATION'
-                    ? 'Module A: Ideation & Founder Fit'
-                    : activeModule === 'MOD_B_MARKET'
-                      ? 'Module B: Market & Competitors'
-                      : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
-                        ? 'Module C: Customer Surveys & Feedback'
-                        : activeModule === 'MOD_D_PRODUCT_BUILD'
-                          ? 'Module D: Product & Build Vehicle'
-                          : 'Module E: Operations & Fulfillment'}
+                  {isMasterDocumentOpen
+                    ? 'Living Master Document (Modules A–E)'
+                    : activeModule === 'MOD_A_IDEATION'
+                      ? 'Module A: Ideation & Founder Fit'
+                      : activeModule === 'MOD_B_MARKET'
+                        ? 'Module B: Market & Competitors'
+                        : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+                          ? 'Module C: Customer Surveys & Feedback'
+                          : activeModule === 'MOD_D_PRODUCT_BUILD'
+                            ? 'Module D: Product & Build Vehicle'
+                            : 'Module E: Operations & Fulfillment'}
                 </div>
                 <div className="text-[11px] text-indigo-700">
                   {mobileSidebarOpen
@@ -3699,7 +3943,8 @@ export default function WorkspacePage() {
                 {MODULES_LIST.map((mod) => {
                   const access = canAccessModule(activeEntitlement, mod.code);
                   const IconComponent = mod.icon;
-                  const isCurrent = activeModule === mod.code;
+                  const isCurrent =
+                    !isMasterDocumentOpen && activeModule === mod.code;
                   const modProgress =
                     mod.code === 'MOD_A_IDEATION'
                       ? moduleAProgressPercent
@@ -3718,6 +3963,12 @@ export default function WorkspacePage() {
                       key={mod.code}
                       type="button"
                       onClick={() => {
+                        if (mod.code === 'MOD_K_BUSINESS_PLAN') {
+                          setIsMasterDocumentOpen(true);
+                          setMobileSidebarOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                          return;
+                        }
                         if (!access.allowed) {
                           setPendingModuleAfterUnlock(mod.code);
                           setPaywallModalFeature(
@@ -3732,6 +3983,7 @@ export default function WorkspacePage() {
                           mod.code === 'MOD_D_PRODUCT_BUILD' ||
                           mod.code === 'MOD_E_OPERATIONS'
                         ) {
+                          setIsMasterDocumentOpen(false);
                           setActiveModule(mod.code);
                           setMobileSidebarOpen(false);
                         }
@@ -3899,7 +4151,46 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {activeModule === 'MOD_E_OPERATIONS' ? (
+          {isMasterDocumentOpen ? (
+            <MasterDocumentWorkspace
+              key={`master-doc-${currentPlan.id}`}
+              plan={{
+                ...currentPlan,
+                hqCountryCode: selectedCountry,
+                brainDumpText,
+                conceptCanvas: effectiveCanvas,
+                founderMotivation,
+                teamAndBudget,
+                founderRealityCheck,
+                thingsToConsider: liveThingsToConsider,
+                openQuestions,
+              }}
+              founderName={session.user.name}
+              brainDumpText={brainDumpText}
+              conceptCanvas={effectiveCanvas}
+              founderMotivation={founderMotivation}
+              teamAndBudget={teamAndBudget}
+              founderRealityCheck={founderRealityCheck}
+              moduleABlindSpots={liveThingsToConsider}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
+              onSaveMasterDocumentData={handleSaveMasterDocumentData}
+              onWeaveStoryWithAi={handleWeaveMasterDocumentStoryWithAi}
+              onJumpToModule={(modCode) => {
+                const access = canAccessModule(activeEntitlement, modCode);
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock(modCode);
+                  setPaywallModalFeature(
+                    `${modCode} — ${access.reason}`
+                  );
+                  return;
+                }
+                setIsMasterDocumentOpen(false);
+                setActiveModule(modCode);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          ) : activeModule === 'MOD_E_OPERATIONS' ? (
             <ModuleEWorkspace
               key={currentPlan.id}
               plan={{

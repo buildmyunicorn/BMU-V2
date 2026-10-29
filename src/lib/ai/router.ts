@@ -8923,6 +8923,235 @@ Return valid JSON matching:
   };
 }
 
+// ============================================================================
+// LIVING MASTER DOCUMENT — ZERO-HALLUCINATION EXECUTIVE STORY WEAVER
+// ============================================================================
+
+import {
+  buildDeterministicMasterStory,
+  sanitizeSurveyTerminologyForReader,
+  type MasterDocumentVerifiedFacts,
+} from '@/lib/export/master-document-brief';
+import type { SavedMasterDocumentData } from '@/lib/auth/session-store';
+
+export interface MasterDocumentStoryWeaveResult {
+  allowed: boolean;
+  reason?: string;
+  story: SavedMasterDocumentData;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+/**
+ * Weaves a 3-paragraph Cohesive Executive Story for the Living Master Document
+ * using ONLY verified founder inputs across Modules A–E.
+ * Enforces `temperature: 0.1`, closed-world grounding, and strips any `/v/[slug]` route jargon.
+ */
+export async function weaveMasterDocumentStoryViaRouter(input: {
+  planId: string;
+  facts: MasterDocumentVerifiedFacts;
+}): Promise<MasterDocumentStoryWeaveResult> {
+  const deterministicStory = buildDeterministicMasterStory(input.facts);
+
+  const authCtx = await authorizeAndPrepareGeminiCall('MASTER_DOC_WEAVE_STORY');
+  if (authCtx.creditCheckBlocked) {
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      story: deterministicStory,
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  if (
+    authCtx.canCallLiveGemini &&
+    authCtx.activeApiKey &&
+    input.facts.activeChaptersCount > 0
+  ) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const f = input.facts;
+
+      // Build a strictly gated JSON ledger containing ONLY modules the founder has actually started
+      const verifiedLedger: Record<string, unknown> = {
+        startupName: sanitizePromptInput(f.planTitle, 160),
+        hqCountry: f.countryName,
+        currency: f.currency,
+        industry: f.industryCategory,
+        scope: f.exportScopeLabel,
+      };
+
+      if (f.hasModuleA) {
+        verifiedLedger.moduleA_ConceptAndFit = {
+          coreProblem: sanitizePromptInput(f.coreProblem, 400),
+          targetCustomer: sanitizePromptInput(f.targetCustomer, 300),
+          proposedSolution: sanitizePromptInput(f.proposedSolution, 400),
+          unfairAdvantage: sanitizePromptInput(f.unfairAdvantage, 300),
+          revenueAndGrantFit: sanitizePromptInput(f.revenueAndGrantFit, 300),
+          teamStructure: f.teamStructureLabel,
+          weeklyHours: f.weeklyHoursLabel,
+          startingBudgetBracket: f.startingBudgetLabel,
+          dealbreakers: f.dealbreakersList,
+        };
+      }
+
+      if (f.hasModuleB) {
+        verifiedLedger.moduleB_MarketAndCompetitors = {
+          buyerModel: f.buyerModelLabel,
+          beachheadCustomer: sanitizePromptInput(f.beachheadSegment, 300),
+          whyCustomersSwitch: sanitizePromptInput(f.whySwitchOneSentence, 300),
+          mappedCompetitors: f.competitorNames.slice(0, 5),
+          somYear1To2Revenue: f.somFormatted || undefined,
+          samReachableMarket: f.samFormatted || undefined,
+          competitiveEdgeSummary: sanitizePromptInput(
+            f.competitiveEdgeSummary,
+            300
+          ),
+        };
+      }
+
+      if (f.hasModuleC) {
+        verifiedLedger.moduleC_CustomerValidation = {
+          publicValidationSurveysCount: f.surveysCount,
+          totalSurveyResponses: f.totalSurveyResponses,
+          earlyWaitlistSignups: f.waitlistOptInsCount,
+          oneOnOneInterviewsLogged: f.interviewsCount,
+          strongSignalInterviews: f.strongSignalInterviewsCount,
+          avgInterviewPainOutOf5: f.avgInterviewPainScore || undefined,
+          headlineInsight: sanitizePromptInput(f.surveyHeadlineInsight, 300),
+        };
+      }
+
+      if (f.hasModuleD) {
+        verifiedLedger.moduleD_ProductAndScope = {
+          productVehicle: f.formFactorLabel || f.productTrackLabel,
+          v1PrototypeApproach: f.prototypeApproachLabel,
+          launchTimeline: f.launchTimelineLabel,
+          ownedDirectChannelSharePercent: f.ownedChannelsSharePercent,
+          rentedPartnerChannelSharePercent: f.rentedChannelsSharePercent,
+          v1MustHaveFeatures: f.v1MustHaveTitles.slice(0, 6),
+          deferredToPostV1: f.deferredPostV1Titles.slice(0, 4),
+          workPackagesCount: f.workPackagesCount,
+          totalWorkPackagesBudget:
+            f.totalWorkPackagesCost > 0
+              ? `${f.currency} ${f.totalWorkPackagesCost}`
+              : undefined,
+        };
+      }
+
+      if (f.hasModuleE) {
+        verifiedLedger.moduleE_OperationsAndRisk = {
+          fulfillmentMode: f.fulfillmentModeLabel,
+          turnaroundSla: f.turnaroundSlaLabel,
+          activeMinutesPerOrder: f.totalActiveMinutesPerOrder,
+          directVariableCostPerOrder: `${f.currency} ${f.totalDirectVariableCostPerOrder}`,
+          maxOrdersPerWeekCapacity: f.maxWeeklyOrdersCapacity,
+          premisesSetup: f.premisesModeLabel,
+          monthlyPremisesCost: `${f.currency} ${f.monthlyPremisesCost}`,
+          equipmentItemsCount: f.equipmentItemsCount,
+          totalEquipmentCapexExVat: `${f.currency} ${f.totalEquipmentCapexExVat}`,
+          riskItemsCount: f.riskItemsCount,
+          topMitigatedRisk: sanitizePromptInput(
+            f.topRiskTitleAndMitigation,
+            300
+          ),
+        };
+      }
+
+      const prompt = `You are a strict, zero-hallucination executive copy-editor for Startup Preflight.
+Your ONLY job is to weave the founder's verified inputs in VERIFIED_FOUNDER_FACTS below into a smooth, coherent 3-paragraph Executive Story.
+
+STRICT ZERO-HALLUCINATION RULES (MANDATORY):
+1. CLOSED-WORLD FACTS ONLY: You may ONLY state facts, numbers, prices, currencies, customer segments, competitors, survey counts, features, and operational metrics that appear explicitly in VERIFIED_FOUNDER_FACTS below.
+2. NEVER INVENT OR EXTRAPOLATE: Do NOT invent market statistics, customer quotes, competitor names, survey responses, timelines, or costs.
+3. UNSTARTED MODULES: If a module is NOT present in VERIFIED_FOUNDER_FACTS (for example, if moduleC_CustomerValidation or moduleE_OperationsAndRisk is absent), state clearly in that paragraph that that section has not yet been populated—NEVER make up placeholder facts for it.
+4. PLAIN-ENGLISH TERMINOLOGY: Never write "/v/[slug]" or any URL route path. Always refer to surveys in plain English as "public validation surveys".
+
+VERIFIED_FOUNDER_FACTS:
+${JSON.stringify(verifiedLedger, null, 2)}
+
+Return valid JSON matching this exact structure:
+{
+  "paragraph1OpportunityAndMarket": "3-4 crisp sentences weaving Module A (Concept & Founder Fit) and Module B (Beachhead Market, Competitors & SOM/SAM) using only verified facts.",
+  "paragraph2ValidationAndProduct": "3-4 crisp sentences weaving Module C (Public Validation Surveys & 1-on-1 Interviews) and Module D (Product Vehicle, Channel Split, V1 Must-Haves & Work Packages) using only verified facts.",
+  "paragraph3OperationsAndExecution": "3-4 crisp sentences weaving Module E (Fulfillment Mode, Unit Order Effort/Cost, Premises/Equipment CapEx & Risk Mitigation) using only verified facts."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          paragraph1OpportunityAndMarket?: string;
+          paragraph2ValidationAndProduct?: string;
+          paragraph3OperationsAndExecution?: string;
+        };
+
+        if (
+          parsed.paragraph1OpportunityAndMarket?.trim() &&
+          parsed.paragraph2ValidationAndProduct?.trim() &&
+          parsed.paragraph3OperationsAndExecution?.trim()
+        ) {
+          creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: input.planId,
+            promptKey: 'MASTER_DOC_WEAVE_STORY',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 450,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 320,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            story: {
+              paragraph1OpportunityAndMarket: sanitizeSurveyTerminologyForReader(
+                parsed.paragraph1OpportunityAndMarket.trim()
+              ),
+              paragraph1Sources: deterministicStory.paragraph1Sources,
+              paragraph2ValidationAndProduct: sanitizeSurveyTerminologyForReader(
+                parsed.paragraph2ValidationAndProduct.trim()
+              ),
+              paragraph2Sources: deterministicStory.paragraph2Sources,
+              paragraph3OperationsAndExecution:
+                sanitizeSurveyTerminologyForReader(
+                  parsed.paragraph3OperationsAndExecution.trim()
+                ),
+              paragraph3Sources: deterministicStory.paragraph3Sources,
+              isCustomEdited: false,
+              lastWeavedAt: new Date().toISOString(),
+              aiEngineUsed: 'gemini-2.5-flash',
+            },
+            creditsUsedAfter,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch {
+      // Fall back to deterministic story below
+    }
+  }
+
+  return {
+    allowed: true,
+    story: deterministicStory,
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
 
 
 

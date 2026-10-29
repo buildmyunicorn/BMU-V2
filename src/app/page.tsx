@@ -38,7 +38,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { loadBmuSession, type BmuLocalSession } from '@/lib/auth/session-store';
+import { clearActiveBmuSession } from '@/lib/auth/session-store';
+import { logoutFounderAction } from '@/app/actions/auth';
 import {
   submitEarlyAccessWaitlistAction,
   type EarlyAccessLeadRecord,
@@ -236,7 +237,6 @@ const JURISDICTION_OPTIONS = [
 ] as const;
 
 export default function LandingPage() {
-  const [session, setSession] = useState<BmuLocalSession | null>(null);
   const [activePhase, setActivePhase] = useState<'ALL' | ModulePhase>('ALL');
 
   // Early-Access Waitlist Interactive State
@@ -249,7 +249,7 @@ export default function LandingPage() {
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
 
   useEffect(() => {
-    setSession(loadBmuSession());
+    clearActiveBmuSession();
   }, []);
 
   const filteredModules =
@@ -370,50 +370,44 @@ export default function LandingPage() {
               Beta / Dev Access:
             </span>
 
-            {session ? (
-              <Link href="/workspace">
-                <Button
-                  size="sm"
-                  className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
-                >
-                  Open Dev Workspace
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/redeem">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2.5 text-xs text-slate-600"
-                  >
-                    <Ticket className="h-3.5 w-3.5 text-amber-600" />
-                    <span className="hidden sm:inline">Redeem Code</span>
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 border-slate-200 px-3 text-xs text-slate-700"
-                  >
-                    <LogIn className="h-3.5 w-3.5 text-slate-500" />
-                    Dev Log In
-                  </Button>
-                </Link>
-                <Link href="/register">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="h-8 bg-slate-900 px-3 text-xs text-white hover:bg-slate-800"
-                  >
-                    <UserPlus className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Preview</span> Sandbox
-                  </Button>
-                </Link>
-              </>
-            )}
+            <Link href="/redeem">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2.5 text-xs text-slate-600"
+              >
+                <Ticket className="h-3.5 w-3.5 text-amber-600" />
+                <span className="hidden sm:inline">Redeem Code</span>
+              </Button>
+            </Link>
+
+            <Link href="/register">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 border-slate-200 px-3 text-xs text-slate-700"
+              >
+                <UserPlus className="h-3.5 w-3.5 text-slate-500" />
+                <span className="hidden sm:inline">Preview</span> Sandbox
+              </Button>
+            </Link>
+
+            <Link
+              href="/login"
+              onClick={() => {
+                clearActiveBmuSession();
+                logoutFounderAction().catch(() => {});
+              }}
+            >
+              <Button
+                size="sm"
+                className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                Open Dev Workspace
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
           </nav>
         </div>
       </header>

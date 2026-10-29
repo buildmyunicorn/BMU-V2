@@ -1374,6 +1374,20 @@ export interface ActiveUserProfile {
   onboardingCompleted: boolean;
 }
 
+export interface SavedMasterDocumentData {
+  paragraph1OpportunityAndMarket: string;
+  paragraph1Sources: string[];
+  paragraph2ValidationAndProduct: string;
+  paragraph2Sources: string[];
+  paragraph3OperationsAndExecution: string;
+  paragraph3Sources: string[];
+  isCustomEdited?: boolean;
+  showUpcomingChaptersRoadmap?: boolean;
+  lastWeavedAt?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface ActiveStartupPlan {
   id: string;
   title: string;
@@ -1395,6 +1409,7 @@ export interface ActiveStartupPlan {
   moduleCData?: SavedModuleCData;
   moduleDData?: SavedModuleDData;
   moduleEData?: SavedModuleEData;
+  masterDocumentData?: SavedMasterDocumentData;
   openQuestions: string[];
 }
 
@@ -1511,6 +1526,28 @@ export function getDefaultDemoSession(): BmuLocalSession {
     ],
     activePlanId: 'plan-greencart-1',
   };
+}
+
+export function hasActiveBmuSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw =
+      window.localStorage.getItem(STORAGE_KEY) ||
+      window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    return Boolean(raw);
+  } catch {
+    return false;
+  }
+}
+
+export function clearActiveBmuSession(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    // Ignore storage removal errors
+  }
 }
 
 export function loadBmuSession(): BmuLocalSession {
