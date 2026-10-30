@@ -305,40 +305,48 @@ const MODULES_LIST: Array<{
     progress: 0,
   },
   {
-    code: 'MOD_G_REVENUE',
+    code: 'MOD_G_LAUNCHPAD',
     short: 'Module G',
+    title: 'Getting Set Up (Launchpad & Operations)',
+    subtitle: 'Legal Entity, Domain & Email, Banking, VAT/Payroll, Insurance & IP',
+    icon: ShieldCheck,
+    progress: 0,
+  },
+  {
+    code: 'MOD_H_REVENUE',
+    short: 'Module H',
     title: 'Selling, Sales Assumptions & Pocket Profit',
     subtitle: 'Pricing Architect, Written Sales Assumptions & Unit Economics',
     icon: DollarSign,
     progress: 0,
   },
   {
-    code: 'MOD_H_MARKETING',
-    short: 'Module H',
+    code: 'MOD_I_MARKETING',
+    short: 'Module I',
     title: 'Marketing, 4Ps & First 10 Customers',
     subtitle: '3-Second Hook, 4Ps Strategy, Day-1 Hustle & Reverse Budget',
     icon: Megaphone,
     progress: 0,
   },
   {
-    code: 'MOD_I_FINANCE',
-    short: 'Module I',
+    code: 'MOD_J_FINANCE',
+    short: 'Module J',
     title: 'Financials, 36-Mo Cashflow & Legal Shield',
     subtitle: 'No-Spreadsheet Builder, Localized Taxes, Cash Trough & IP Shield',
     icon: Scale,
     progress: 0,
   },
   {
-    code: 'MOD_J_GRANTS_FUNDING',
-    short: 'Module J',
+    code: 'MOD_K_GRANTS_FUNDING',
+    short: 'Module K',
     title: 'Grants, Loans & Tax Relief Hub',
     subtitle: 'IE LEO / EI / SURE & UK Start Up Loans / Innovate UK / SEIS Matcher',
     icon: Sparkles,
     progress: 0,
   },
   {
-    code: 'MOD_K_BUSINESS_PLAN',
-    short: 'Module K',
+    code: 'MOD_L_BUSINESS_PLAN',
+    short: 'Module L',
     title: 'Living Business Plan & Grant Compiler',
     subtitle: '5 Official Modes (IE LEO, Innovate UK, Start Up Loans, SEIS, Plan)',
     icon: FileText,
@@ -4147,7 +4155,7 @@ export default function WorkspacePage() {
                       key={mod.code}
                       type="button"
                       onClick={() => {
-                        if (mod.code === 'MOD_K_BUSINESS_PLAN') {
+                        if (mod.code === 'MOD_L_BUSINESS_PLAN') {
                           setIsMasterDocumentOpen(true);
                           setMobileSidebarOpen(false);
                           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -7140,18 +7148,18 @@ export default function WorkspacePage() {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               onOpenModuleJGrantsHub={() => {
-                const modJAccess = canAccessModule(
+                const modKAccess = canAccessModule(
                   activeEntitlement,
-                  'MOD_J_GRANTS_FUNDING'
+                  'MOD_K_GRANTS_FUNDING'
                 );
-                if (!modJAccess.allowed) {
-                  setPendingModuleAfterUnlock('MOD_J_GRANTS_FUNDING');
+                if (!modKAccess.allowed) {
+                  setPendingModuleAfterUnlock('MOD_K_GRANTS_FUNDING');
                   setPaywallModalFeature(
-                    `Module J: Full Non-Dilutive Grants, Loans & Tax Relief Hub (${modJAccess.reason})`
+                    `Module K: Full Non-Dilutive Grants, Loans & Tax Relief Hub (${modKAccess.reason})`
                   );
                   return;
                 }
-                setActiveModule('MOD_J_GRANTS_FUNDING');
+                setActiveModule('MOD_K_GRANTS_FUNDING');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               isVaultReadonly={activeEntitlement.isVaultReadonly}

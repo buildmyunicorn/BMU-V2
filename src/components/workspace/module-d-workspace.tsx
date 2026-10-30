@@ -42,6 +42,9 @@ import {
   Download,
   Printer,
   Copy,
+  ChevronDown,
+  ChevronUp,
+  Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -4360,6 +4363,16 @@ export function ModuleDWorkspace({
     return 'STEP_1';
   });
 
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (plan.currentModuleStep === 'MOD_D_STEP_6') return 6;
+    if (plan.currentModuleStep === 'MOD_D_STEP_5') return 5;
+    if (plan.currentModuleStep === 'MOD_D_STEP_4') return 4;
+    if (plan.currentModuleStep === 'MOD_D_STEP_3') return 3;
+    if (plan.currentModuleStep === 'MOD_D_STEP_2') return 2;
+    return 1;
+  });
+  const [showModuleDBriefPreview, setShowModuleDBriefPreview] = useState(true);
+
   const [showWhyCard, setShowWhyCard] = useState(true);
   const [showExamples, setShowExamples] = useState(false);
   const [isSavingStep1, setIsSavingStep1] = useState(false);
@@ -4571,14 +4584,19 @@ export function ModuleDWorkspace({
   useEffect(() => {
     if (plan.currentModuleStep === 'MOD_D_STEP_6') {
       setActiveTab('STEP_6');
+      setOpenStep(6);
     } else if (plan.currentModuleStep === 'MOD_D_STEP_5') {
       setActiveTab('STEP_5');
+      setOpenStep(5);
     } else if (plan.currentModuleStep === 'MOD_D_STEP_4') {
       setActiveTab('STEP_4');
+      setOpenStep(4);
     } else if (plan.currentModuleStep === 'MOD_D_STEP_3') {
       setActiveTab('STEP_3');
+      setOpenStep(3);
     } else if (plan.currentModuleStep === 'MOD_D_STEP_2') {
       setActiveTab('STEP_2');
+      setOpenStep(2);
     }
 
     const autoTrack = detectRecommendedProductTrack(plan);
@@ -5067,6 +5085,11 @@ export function ModuleDWorkspace({
       );
       if (goToStep2After) {
         setActiveTab('STEP_2');
+        setOpenStep(2);
+        setTimeout(() => {
+          const el = document.getElementById('module-d-step-2');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
         setSaveBanner(
           'Step 1 saved! Now configure Step 2: Own vs. Rent Sales & Delivery Channels tailored to your track.'
         );
@@ -5128,6 +5151,11 @@ export function ModuleDWorkspace({
       );
       if (goToStep3After) {
         setActiveTab('STEP_3');
+        setOpenStep(3);
+        setTimeout(() => {
+          const el = document.getElementById('module-d-step-3');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
         setSaveBanner(
           `Step 2 (${step2Data.estimatedBlendedFeePercent}% Blended Fee) saved! Now configure Step 3: Ruthless V1 Scope Filter.`
         );
@@ -5400,6 +5428,11 @@ export function ModuleDWorkspace({
       );
       if (advanceToStep4) {
         setActiveTab('STEP_4');
+        setOpenStep(4);
+        setTimeout(() => {
+          const el = document.getElementById('module-d-step-4');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
       }
       setSaveBanner(
         `Step 3 (Ruthless V1 Scope Filter: ${
@@ -5798,6 +5831,11 @@ export function ModuleDWorkspace({
       );
       if (advanceToStep5) {
         setActiveTab('STEP_5');
+        setOpenStep(5);
+        setTimeout(() => {
+          const el = document.getElementById('module-d-step-5');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
       }
       setSaveBanner(
         `Step 4 (3-Tier Build-vs-Buy & Secret Sauce Matrix: ${step4Data.items.length} items) saved!${
@@ -6294,6 +6332,11 @@ export function ModuleDWorkspace({
       );
       if (advanceToStep6) {
         setActiveTab('STEP_6');
+        setOpenStep(6);
+        setTimeout(() => {
+          const el = document.getElementById('module-d-step-6');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
       }
     } finally {
       setIsSavingStep5(false);
@@ -7435,381 +7478,373 @@ export function ModuleDWorkspace({
     }, 350);
   };
 
+  const moduleDReadinessSteps = [
+    {
+      stepNumber: 1,
+      label: 'Product Track & V1 Format',
+      isComplete: step1Data.ahaMomentNarrative.trim().length > 10,
+      summary:
+        step1Data.ahaMomentNarrative.trim() ||
+        `${selectedTrackMeta.label} — ${
+          step1Data.formFactor === 'OTHER'
+            ? step1Data.otherFormFactorText || 'Custom'
+            : activeTrackConfig.formFactorOptions.find(
+                (f) => f.value === step1Data.formFactor
+              )?.label || step1Data.formFactor
+        }`,
+    },
+    {
+      stepNumber: 2,
+      label: 'Own vs. Rent Channels',
+      isComplete: step2Data.rentToOwnBridgeStrategy.trim().length > 10,
+      summary:
+        step2Data.rentToOwnBridgeStrategy.trim() ||
+        `${
+          step2Data.primaryChannel === 'OTHER'
+            ? step2Data.otherPrimaryChannelText || 'Custom Channel'
+            : activeStep2TrackConfig.channelOptions.find(
+                (c) => c.value === step2Data.primaryChannel
+              )?.label || step2Data.primaryChannel
+        } (${step2Data.primaryChannelSharePercent}%) • ${step2Data.estimatedBlendedFeePercent}% Blended Fee`,
+    },
+    {
+      stepNumber: 3,
+      label: 'Ruthless V1 Scope Filter',
+      isComplete: step3Data.items.length > 0,
+      summary:
+        step3Data.items.length > 0
+          ? `${
+              step3Data.items.filter((i) => i.bucket === 'MUST_HAVE_V1').length
+            } Day-1 Core items vs. ${
+              step3Data.items.filter((i) => i.bucket !== 'MUST_HAVE_V1').length
+            } Deferred / V2`
+          : 'Define Day-1 Core vs. V1.5 / V2 in Step 3',
+    },
+    {
+      stepNumber: 4,
+      label: 'Make/Build vs. Buy Matrix',
+      isComplete: step4Data.items.length > 0,
+      summary:
+        step4Data.items.length > 0
+          ? `${step4Data.items.length} stack items mapped (${formatPlanCurrency(
+              step4OneOffTotal,
+              plan.baseCurrency
+            )} once-off, ${formatPlanCurrency(
+              step4MonthlyTotal,
+              plan.baseCurrency
+            )}/mo)`
+          : 'Classify Tier 1 IP vs. Tier 2/3 tools in Step 4',
+    },
+    {
+      stepNumber: 5,
+      label: 'Work Packages (WP1–4)',
+      isComplete: step5Data.workPackages.length > 0,
+      summary:
+        step5Data.workPackages.length > 0
+          ? `${step5Data.workPackages.length} Work Packages & ${step5Data.flowStages.length} Flow Stages defined`
+          : 'Break roadmap into WP1–WP4 in Step 5',
+    },
+    {
+      stepNumber: 6,
+      label: 'Blind-Spot Audit & Brief',
+      isComplete: step6Data.blindSpots.length > 0,
+      summary:
+        step6Data.blindSpots.length > 0
+          ? `${step6Data.blindSpots.length} blind spots reviewed & 1-page brief ready`
+          : 'Run cross-step check & export 1-Page Product Brief in Step 6',
+    },
+  ];
+
+  const completedModuleDCoreStepsCount = moduleDReadinessSteps
+    .slice(0, 5)
+    .filter((s) => s.isComplete).length;
+
+  const completedModuleDReadinessCount = moduleDReadinessSteps.filter(
+    (s) => s.isComplete
+  ).length;
+
+  const totalModuleDProgress = Math.round(
+    (completedModuleDReadinessCount / moduleDReadinessSteps.length) * 100
+  );
   return (
     <div className="space-y-6">
       {/* ================================================================= */}
-      {/* MODULE D HEADER CARD & 6-STEP NAVIGATION                          */}
+      {/* MODULE D HEADER CARD & 6-STEP ACCORDION NAVIGATION               */}
       {/* ================================================================= */}
-      <Card className="border-indigo-200 bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 text-white shadow-md">
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-indigo-500/30 text-indigo-200 hover:bg-indigo-500/40">
-                  Module D • Product &amp; Delivery Blueprint
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
-                >
-                  <SelectedTrackIcon className="mr-1 h-3 w-3" />
-                  {selectedTrackMeta.badgeText}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="border-slate-700 bg-slate-800/70 text-slate-300"
-                >
-                  {countryPack.countryName} ({plan.baseCurrency})
-                </Badge>
-              </div>
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-                What Are We Actually Building? (Product &amp; V1 Blueprint)
-              </h1>
-              <p className="max-w-3xl text-xs text-slate-300 sm:text-sm">
-                Turn your validated customer insights from Modules A–C into a
-                right-sized Version 1 product—automatically tailored to whether
-                you are building{' '}
-                <strong className="text-white">SaaS/Software</strong>, selling a{' '}
-                <strong className="text-white">
-                  Physical Product on Amazon/Etsy
-                </strong>
-                , or launching an{' '}
-                <strong className="text-white">
-                  Educational / Support Platform
-                </strong>
-                .
-              </p>
+      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
+                Module D • Product &amp; Delivery Blueprint
+              </Badge>
+              <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200">
+                <SelectedTrackIcon className="mr-1 h-3 w-3" />
+                {selectedTrackMeta.badgeText}
+              </Badge>
+              <Badge className="border-indigo-400/30 bg-white/10 text-indigo-100">
+                {countryPack.countryName} ({plan.baseCurrency})
+              </Badge>
             </div>
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+              Module D: What Are We Actually Building? (Product &amp; V1 Blueprint)
+            </h1>
+            <p className="max-w-3xl text-xs text-indigo-100/90 sm:text-sm">
+              Turn your validated customer insights from Modules A–C into a
+              right-sized Version 1 product—automatically tailored to whether
+              you are building <strong className="text-white">SaaS/Software</strong>,
+              selling a{' '}
+              <strong className="text-white">
+                Physical Product on Amazon/Etsy
+              </strong>
+              , or launching an{' '}
+              <strong className="text-white">
+                Educational / Support Platform
+              </strong>
+              .
+            </p>
+          </div>
 
+          <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                onClick={() =>
+                  setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
+                }
+                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={onBackToModuleC}
-                className="border-slate-700 bg-slate-800/80 text-xs text-slate-200 hover:bg-slate-700 hover:text-white"
+                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                 Module C (Surveys)
               </Button>
             </div>
-          </div>
-
-          {/* 6-Step Sub-Navigation Bar */}
-          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            {[
-              {
-                id: 'STEP_1' as const,
-                stepNum: 'Step 1',
-                title: 'Product Track & V1 Format',
-                subtitle: 'Adaptive Vehicle & Aha! Moment',
-                icon: Layers,
-                ready: true,
-              },
-              {
-                id: 'STEP_2' as const,
-                stepNum: 'Step 2',
-                title: 'Own vs. Rent Channels',
-                subtitle: 'Fees, Fulfillment & Bridge',
-                icon: ShoppingBag,
-                ready: true,
-              },
-              {
-                id: 'STEP_3' as const,
-                stepNum: 'Step 3',
-                title: 'Ruthless V1 Scope Filter',
-                subtitle: 'Day-1 Core vs. V1.5 & V2',
-                icon: SlidersHorizontal,
-                ready: true,
-              },
-              {
-                id: 'STEP_4' as const,
-                stepNum: 'Step 4',
-                title: 'Make/Build vs. Buy',
-                subtitle: '3-Tier Stack & Smart Costs',
-                icon: Wrench,
-                ready: true,
-              },
-              {
-                id: 'STEP_5' as const,
-                stepNum: 'Step 5',
-                title: 'Work Packages (WP1–4)',
-                subtitle: 'Milestones & System Flow',
-                icon: Workflow,
-                ready: true,
-              },
-              {
-                id: 'STEP_6' as const,
-                stepNum: 'Step 6',
-                title: 'Blind-Spot Audit & Brief',
-                subtitle: 'Review & PDF/HTML Export',
-                icon: FileText,
-                ready: true,
-              },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-start gap-2.5 rounded-xl border p-2.5 text-left transition ${
-                    isActive
-                      ? 'border-indigo-400 bg-indigo-500/25 text-white shadow-xs'
-                      : 'border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-800/70'
-                  }`}
-                >
-                  <div
-                    className={`mt-0.5 rounded-lg p-1.5 ${
-                      isActive
-                        ? 'bg-indigo-500 text-white'
-                        : 'bg-slate-800 text-slate-400'
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
-                        {tab.stepNum}
-                      </span>
-                      {tab.id === 'STEP_1' &&
-                        step1Data.ahaMomentNarrative.trim().length > 10 && (
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                        )}
-                      {tab.id === 'STEP_2' &&
-                        step2Data.rentToOwnBridgeStrategy.trim().length > 10 && (
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                        )}
-                      {tab.id === 'STEP_3' && step3Data.items.length > 0 && (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                      )}
-                      {tab.id === 'STEP_4' && step4Data.items.length > 0 && (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                      )}
-                      {tab.id === 'STEP_5' &&
-                        step5Data.workPackages.length > 0 && (
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                        )}
-                      {tab.id === 'STEP_6' &&
-                        step6Data.blindSpots.length > 0 && (
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                        )}
-                    </div>
-                    <div className="truncate text-xs font-semibold">
-                      {tab.title}
-                    </div>
-                    <div className="truncate text-[10px] text-slate-400">
-                      {tab.subtitle}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ================================================================= */}
-      {/* UPSTREAM PROOF ANCHOR BAR (PULLS FROM MODULES A, B & C)           */}
-      {/* ================================================================= */}
-      <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/60 p-4 shadow-2xs">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-indigo-600 p-2 text-white">
-              <ShieldCheck className="h-4 w-4" />
+            <div className="text-right text-[11px] text-indigo-200">
+              Module D Progress: <strong>{totalModuleDProgress}%</strong> ({completedModuleDCoreStepsCount} of 5 Core Steps Ready)
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-slate-900">
-                  Upstream Customer Anchor (Modules A–C)
-                </span>
-                {surveyResponseCount > 0 || interviewCount > 0 ? (
-                  <Badge className="bg-emerald-600 text-[10px] text-white">
-                    Validated: {surveyResponseCount} Survey Responses •{' '}
-                    {waitlistCount} Waitlist Leads • {interviewCount} 1-on-1
-                    Interviews
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className="border-amber-300 bg-amber-50 text-[10px] text-amber-800"
-                  >
-                    Concept Stage — Designing V1 around Module A/B Persona
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-700">
-                <strong>Target Customer:</strong>{' '}
-                {plan.moduleBData?.beachhead?.beachheadSegment ||
-                  plan.conceptCanvas?.targetCustomer ||
-                  'Early adopters in your beachhead market'}{' '}
-                • <strong>#1 Problem to Solve in V1:</strong>{' '}
-                <span className="italic text-slate-800">
-                  &ldquo;
-                  {validatedPainPoint
-                    ? validatedPainPoint.slice(0, 180)
-                    : 'Deliver a fast, reliable solution to their core bottleneck without over-complicating Day 1.'}
-                  &rdquo;
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowExamples((prev) => !prev)}
-              className="border-indigo-300 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
-            >
-              <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
-              {showExamples
-                ? 'Hide 3 Real Examples'
-                : 'Test 3 Examples (SaaS, Woodworker, Autism Sleep)'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowWhyCard((prev) => !prev)}
-              className="border-slate-300 bg-white text-xs text-slate-700"
-            >
-              <HelpCircle className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
-              {showWhyCard ? 'Hide Coaching' : 'Why Ask This?'}
-            </Button>
           </div>
         </div>
 
-        {/* 1-CLICK INTERACTIVE SCENARIO TESTER DRAWER */}
-        {showExamples && (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-white p-4 shadow-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-              <div>
-                <div className="text-xs font-bold text-slate-900">
-                  ✨ Interactive Track Examples — Click Any Example to See Step 1
-                  Transform Live
+        {/* 6-Step Accordion Navigation Strip */}
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            {
+              step: 'Step 1',
+              title: 'Product Track & V1',
+              targetId: 'module-d-step-1',
+              stepNum: 1,
+              done: moduleDReadinessSteps[0]?.isComplete ?? false,
+            },
+            {
+              step: 'Step 2',
+              title: 'Own vs. Rent Channels',
+              targetId: 'module-d-step-2',
+              stepNum: 2,
+              done: moduleDReadinessSteps[1]?.isComplete ?? false,
+            },
+            {
+              step: 'Step 3',
+              title: 'Ruthless Scope Filter',
+              targetId: 'module-d-step-3',
+              stepNum: 3,
+              done: moduleDReadinessSteps[2]?.isComplete ?? false,
+            },
+            {
+              step: 'Step 4',
+              title: 'Make vs. Buy Matrix',
+              targetId: 'module-d-step-4',
+              stepNum: 4,
+              done: moduleDReadinessSteps[3]?.isComplete ?? false,
+            },
+            {
+              step: 'Step 5',
+              title: 'Work Packages WP1–4',
+              targetId: 'module-d-step-5',
+              stepNum: 5,
+              done: moduleDReadinessSteps[4]?.isComplete ?? false,
+            },
+            {
+              step: 'Overview',
+              title: 'Product & Scope Brief',
+              targetId: 'module-d-step-6',
+              stepNum: 6,
+              done:
+                completedModuleDCoreStepsCount === 5 ||
+                (moduleDReadinessSteps[5]?.isComplete ?? false),
+            },
+          ].map((item, idx, arr) => {
+            const firstIncompleteIdx = arr.findIndex((s) => !s.done);
+            const isStepOpen =
+              openStep === 'ALL'
+                ? (firstIncompleteIdx === -1
+                    ? idx === arr.length - 1
+                    : idx === firstIncompleteIdx)
+                : openStep === item.stepNum;
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => {
+                  setOpenStep(item.stepNum);
+                  setActiveTab(`STEP_${item.stepNum}` as any);
+                  setTimeout(() => {
+                    const el = document.getElementById(item.targetId);
+                    if (el) {
+                      el.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      });
+                    }
+                  }, 40);
+                }}
+                className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
+                  isStepOpen
+                    ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
+                    : item.done
+                      ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
+                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                }`}
+              >
+                <div className="flex items-center justify-between font-bold">
+                  <span>{item.step}</span>
+                  {item.done ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-300" />
+                  ) : isStepOpen ? (
+                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  ) : null}
                 </div>
-                <p className="text-[11px] text-slate-600">
-                  See how Module D automatically adapts its questions for a SaaS
-                  platform, an Amazon/Etsy Woodworker, or an Autism Parent Sleep
-                  Education platform:
+                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {/* =================================================================== */}
+      {/* STEP 1: PRODUCT TRACK & V1 FORMAT */}
+      {/* =================================================================== */}
+      {openStep !== 'ALL' && openStep !== 1 ? (
+        <div
+          id="module-d-step-1"
+          onClick={() => {
+            setOpenStep(1);
+            setActiveTab('STEP_1');
+          }}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleDReadinessSteps[0]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleDReadinessSteps[0]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '1'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 1: Product Track & V1 Format
+                  </h2>
+                  {moduleDReadinessSteps[0]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleDReadinessSteps[0]?.summary}
                 </p>
               </div>
             </div>
-
-            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-              {/* Example 1: Startup Preflight SaaS */}
-              <div className="flex flex-col justify-between rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge className="bg-indigo-600 text-[10px] text-white">
-                      <Laptop className="mr-1 h-3 w-3" />
-                      Track 1: SaaS / AI
-                    </Badge>
-                    <span className="text-[10px] font-semibold text-indigo-700">
-                      Startup Preflight
-                    </span>
-                  </div>
-                  <div className="mt-2 text-xs font-bold text-slate-900">
-                    B2B / Prosumer Startup Builder SaaS
-                  </div>
-                  <p className="mt-1 text-[11px] text-slate-600">
-                    <strong>Vehicle:</strong> Responsive Web Platform (0% App
-                    Store tax) + Focused Full-Code V1 with Gemini 2.5 AI
-                    Co-Pilot.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleLoadScenarioPreset('BMU_SAAS')}
-                  className="mt-3 w-full border-indigo-300 bg-white text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
-                >
-                  Load SaaS Example Into Step 1
-                </Button>
-              </div>
-
-              {/* Example 2: Woodworker Chopping Boards */}
-              <div className="flex flex-col justify-between rounded-xl border border-amber-200 bg-amber-50/40 p-3.5">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge className="bg-amber-600 text-[10px] text-white">
-                      <Hammer className="mr-1 h-3 w-3" />
-                      Track 2: Physical / Craft
-                    </Badge>
-                    <span className="text-[10px] font-semibold text-amber-800">
-                      Amazon &amp; Etsy Maker
-                    </span>
-                  </div>
-                  <div className="mt-2 text-xs font-bold text-slate-900">
-                    Artisan Hardwood Chopping Boards
-                  </div>
-                  <p className="mt-1 text-[11px] text-slate-600">
-                    <strong>Vehicle:</strong> Curated 2–3 Hero SKUs (Flagship
-                    Board + Beeswax Gift Bundle) produced in 20-unit workshop
-                    batches. Zero app questions!
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    handleLoadScenarioPreset('WOODWORKER_AMAZON_ETSY')
-                  }
-                  className="mt-3 w-full border-amber-300 bg-white text-xs font-semibold text-amber-800 hover:bg-amber-100"
-                >
-                  Load Woodworker Example Into Step 1
-                </Button>
-              </div>
-
-              {/* Example 3: Autism Parent Sleep Platform */}
-              <div className="flex flex-col justify-between rounded-xl border border-emerald-200 bg-emerald-50/40 p-3.5">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge className="bg-emerald-600 text-[10px] text-white">
-                      <HeartHandshake className="mr-1 h-3 w-3" />
-                      Track 3: Education / Support
-                    </Badge>
-                    <span className="text-[10px] font-semibold text-emerald-800">
-                      Parent Sleep Platform
-                    </span>
-                  </div>
-                  <div className="mt-2 text-xs font-bold text-slate-900">
-                    Autism Family Sensory Sleep Platform
-                  </div>
-                  <p className="mt-1 text-[11px] text-slate-600">
-                    <strong>Vehicle:</strong> Mobile-Ready Web Portal with 5-min
-                    &ldquo;listen-in-the-dark&rdquo; audio guides, printable
-                    visual schedules &amp; 14-night sleep log.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    handleLoadScenarioPreset('AUTISM_SLEEP_EDUCATION')
-                  }
-                  className="mt-3 w-full border-emerald-300 bg-white text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
-                >
-                  Load Autism Sleep Example Into Step 1
-                </Button>
-              </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div id="module-d-step-1" className="scroll-mt-24 space-y-4">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleDReadinessSteps[0]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {moduleDReadinessSteps[0]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '1'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 1: Product Track & V1 Format
+                </h2>
+                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                  Step 1 of 6
+                </Badge>
+                {moduleDReadinessSteps[0]?.isComplete ? (
+                  <Badge variant="success" className="shrink-0 text-[10px]">
+                    Completed
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                    In Progress
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Choose your product type and define your core 60-second "Aha! Moment" before spending money on code or materials.
+              </p>
+            </div>
 
-      {/* ================================================================= */}
-      {/* STEP 1 CONTENT: PRODUCT TRACK, FORM FACTOR & V1 PROTOTYPE         */}
-      {/* ================================================================= */}
-      {activeTab === 'STEP_1' ? (
-        <div className="space-y-6">
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+<div className="space-y-6">
           {/* LAYER 1: WHY ARE WE ASKING THIS? */}
           {showWhyCard && (
             <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
@@ -8489,8 +8524,124 @@ export function ModuleDWorkspace({
             </CardContent>
           </Card>
         </div>
-      ) : activeTab === 'STEP_2' ? (
-        <div className="space-y-6">
+        </div>
+      )}
+      {/* =================================================================== */}
+      {/* STEP 2: OWN VS. RENT SALES CHANNELS */}
+      {/* =================================================================== */}
+      {openStep !== 'ALL' && openStep !== 2 ? (
+        <div
+          id="module-d-step-2"
+          onClick={() => {
+            setOpenStep(2);
+            setActiveTab('STEP_2');
+          }}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleDReadinessSteps[1]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleDReadinessSteps[1]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '2'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 2: Own vs. Rent Sales Channels
+                  </h2>
+                  {moduleDReadinessSteps[1]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleDReadinessSteps[1]?.summary}
+                </p>
+              </div>
+            </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div id="module-d-step-2" className="scroll-mt-24 space-y-4">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleDReadinessSteps[1]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {moduleDReadinessSteps[1]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '2'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 2: Own vs. Rent Sales Channels
+                </h2>
+                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                  Step 2 of 6
+                </Badge>
+                {moduleDReadinessSteps[1]?.isComplete ? (
+                  <Badge variant="success" className="shrink-0 text-[10px]">
+                    Completed
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                    In Progress
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Balance third-party marketplaces (Amazon, App Store, Etsy) with 0%-commission direct channels and track your real blended fee %.
+              </p>
+            </div>
+
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+<div className="space-y-6">
           {/* LAYER 1: WHY ARE WE ASKING THIS? (STEP 2) */}
           {showWhyCard && (
             <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
@@ -9517,8 +9668,124 @@ export function ModuleDWorkspace({
             </CardContent>
           </Card>
         </div>
-      ) : activeTab === 'STEP_3' ? (
-        <div className="space-y-6">
+        </div>
+      )}
+      {/* =================================================================== */}
+      {/* STEP 3: RUTHLESS V1 SCOPE FILTER */}
+      {/* =================================================================== */}
+      {openStep !== 'ALL' && openStep !== 3 ? (
+        <div
+          id="module-d-step-3"
+          onClick={() => {
+            setOpenStep(3);
+            setActiveTab('STEP_3');
+          }}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleDReadinessSteps[2]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleDReadinessSteps[2]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '3'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 3: Ruthless V1 Scope Filter
+                  </h2>
+                  {moduleDReadinessSteps[2]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleDReadinessSteps[2]?.summary}
+                </p>
+              </div>
+            </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div id="module-d-step-3" className="scroll-mt-24 space-y-4">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleDReadinessSteps[2]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {moduleDReadinessSteps[2]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '3'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 3: Ruthless V1 Scope Filter
+                </h2>
+                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                  Step 3 of 6
+                </Badge>
+                {moduleDReadinessSteps[2]?.isComplete ? (
+                  <Badge variant="success" className="shrink-0 text-[10px]">
+                    Completed
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                    In Progress
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Separate non-negotiable Day-1 features from V1.5 fast-follows and Phase 2 icebox ideas so you launch in weeks, not years.
+              </p>
+            </div>
+
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+<div className="space-y-6">
           {/* =============================================================== */}
           {/* STEP 3 WHY ARE WE ASKING THIS? + 3-SCENARIO PRESET SWITCHER     */}
           {/* =============================================================== */}
@@ -10727,8 +10994,124 @@ export function ModuleDWorkspace({
             </CardContent>
           </Card>
         </div>
-      ) : activeTab === 'STEP_4' ? (
-        <div className="space-y-6">
+        </div>
+      )}
+      {/* =================================================================== */}
+      {/* STEP 4: MAKE/BUILD VS. BUY MATRIX & SMART COSTS */}
+      {/* =================================================================== */}
+      {openStep !== 'ALL' && openStep !== 4 ? (
+        <div
+          id="module-d-step-4"
+          onClick={() => {
+            setOpenStep(4);
+            setActiveTab('STEP_4');
+          }}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleDReadinessSteps[3]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleDReadinessSteps[3]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '4'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 4: Make/Build vs. Buy Matrix & Smart Costs
+                  </h2>
+                  {moduleDReadinessSteps[3]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleDReadinessSteps[3]?.summary}
+                </p>
+              </div>
+            </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div id="module-d-step-4" className="scroll-mt-24 space-y-4">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleDReadinessSteps[3]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {moduleDReadinessSteps[3]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '4'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 4: Make/Build vs. Buy Matrix & Smart Costs
+                </h2>
+                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                  Step 4 of 6
+                </Badge>
+                {moduleDReadinessSteps[3]?.isComplete ? (
+                  <Badge variant="success" className="shrink-0 text-[10px]">
+                    Completed
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                    In Progress
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Classify Tier 1 core IP vs. off-the-shelf Tier 2 & 3 tools, and track once-off build costs vs. monthly tool subscriptions.
+              </p>
+            </div>
+
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+<div className="space-y-6">
           {/* =============================================================== */}
           {/* STEP 4 MICRO-COACHING & WHY CARD                                */}
           {/* =============================================================== */}
@@ -11903,8 +12286,124 @@ export function ModuleDWorkspace({
             </CardContent>
           </Card>
         </div>
-      ) : activeTab === 'STEP_5' ? (
-        <div className="space-y-4">
+        </div>
+      )}
+      {/* =================================================================== */}
+      {/* STEP 5: WORK PACKAGES (WP1–WP4) & SYSTEM FLOW */}
+      {/* =================================================================== */}
+      {openStep !== 'ALL' && openStep !== 5 ? (
+        <div
+          id="module-d-step-5"
+          onClick={() => {
+            setOpenStep(5);
+            setActiveTab('STEP_5');
+          }}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleDReadinessSteps[4]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleDReadinessSteps[4]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '5'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 5: Work Packages (WP1–WP4) & System Flow
+                  </h2>
+                  {moduleDReadinessSteps[4]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleDReadinessSteps[4]?.summary}
+                </p>
+              </div>
+            </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div id="module-d-step-5" className="scroll-mt-24 space-y-4">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleDReadinessSteps[4]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {moduleDReadinessSteps[4]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '5'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 5: Work Packages (WP1–WP4) & System Flow
+                </h2>
+                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                  Step 5 of 6
+                </Badge>
+                {moduleDReadinessSteps[4]?.isComplete ? (
+                  <Badge variant="success" className="shrink-0 text-[10px]">
+                    Completed
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                    In Progress
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Structure your execution roadmap into formal grant-ready work packages with clear deliverable proof and derisking gates.
+              </p>
+            </div>
+
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+<div className="space-y-4">
           {/* STEP 5 MICRO-COACHING & TRACK BANNER */}
           <Card className="border-indigo-200 bg-indigo-50/40 shadow-xs">
             <CardContent className="p-4">
@@ -13052,7 +13551,7 @@ export function ModuleDWorkspace({
                     ) : (
                       <>
                         <Save className="mr-1.5 h-3.5 w-3.5" />
-                        Save &amp; Continue to Step 6
+                        Next: Product Brief &amp; Overview
                         <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                       </>
                     )}
@@ -13190,12 +13689,157 @@ export function ModuleDWorkspace({
             </CardContent>
           </Card>
         </div>
+        </div>
+      )}
+      {/* =================================================================== */}
+      {/* MODULE D SUMMARY DOCUMENT: PRODUCT, SCOPE & WORK PACKAGE BRIEF      */}
+      {/* (Matches Module A & Module B Overview Step Standard 100%)           */}
+      {/* =================================================================== */}
+      {openStep !== 'ALL' && openStep !== 6 ? (
+        <div
+          id="module-d-step-6"
+          onClick={() => {
+            setOpenStep(6);
+            setActiveTab('STEP_6');
+          }}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  completedModuleDCoreStepsCount === 5
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Product, Scope &amp; Work Package Brief (Executive Summary)
+                  </h2>
+                  <Badge
+                    variant={
+                      completedModuleDCoreStepsCount === 5
+                        ? 'success'
+                        : 'secondary'
+                    }
+                    className="shrink-0 text-[10px]"
+                  >
+                    {completedModuleDCoreStepsCount}/5 Sections Ready
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  Your complete Module D product vehicle, V1 scope filter, build-vs-buy matrix &amp; work package brief — ready to view, audit, print to PDF, or export.
+                </p>
+              </div>
+            </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Open Overview</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : (
-        /* ================================================================= */
-        /* STEP 6: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT AUDIT &      */
-        /* EXPORTABLE 1-PAGE PRODUCT, SCOPE & WORK PACKAGE BRIEF             */
-        /* ================================================================= */
-        <div className="space-y-6">
+        <Card
+          id="module-d-step-6"
+          className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    completedModuleDCoreStepsCount === 5
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Product, Scope &amp; Work Package Brief
+                </h2>
+                <Badge
+                  variant={
+                    completedModuleDCoreStepsCount === 5
+                      ? 'success'
+                      : 'secondary'
+                  }
+                  className="shrink-0 text-[10px]"
+                >
+                  {completedModuleDCoreStepsCount}/5 Sections Ready
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Everything you captured across Steps 1–5 is compiled below into a clean executive summary document and constructive blind-spot audit you can download, print to PDF, or share with a co-founder, developer, or grant advisor before moving into Module E.
+              </p>
+            </div>
+
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+          <CardContent className="space-y-6 px-0 pb-0 pt-4">
+            {/* 5-STEP MODULE D READINESS CHECKLIST */}
+            <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Module D Readiness Checklist (Steps 1–5 Included in Your Brief)
+                </div>
+                <span className="text-xs font-semibold text-indigo-700">
+                  Live-Synced with Your Answers Above
+                </span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                {moduleDReadinessSteps.slice(0, 5).map((step) => (
+                  <div
+                    key={step.stepNumber}
+                    className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs transition-all ${
+                      step.isComplete
+                        ? 'border-emerald-200 bg-emerald-50/40'
+                        : 'border-amber-200 bg-amber-50/40'
+                    }`}
+                  >
+                    <CheckCircle2
+                      className={`mt-0.5 h-4 w-4 shrink-0 ${
+                        step.isComplete ? 'text-emerald-600' : 'text-amber-500'
+                      }`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-slate-900">
+                        Step {step.stepNumber}: {step.label}
+                      </div>
+                      <p className="mt-0.5 truncate text-[11px] text-slate-600">
+                        {step.summary}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           <Card className="border-slate-200 shadow-xs">
             <CardHeader className="border-b border-slate-100 bg-slate-50/60 pb-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -14609,7 +15253,35 @@ export function ModuleDWorkspace({
               )}
             </CardContent>
           </Card>
-        </div>
+
+          {/* Conversion / Handoff CTA Bar into Module E (Matches Module A & B Dark Footer Bar 100%) */}
+          {onContinueToModuleE && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
+              <div className="text-xs">
+                <span className="font-semibold text-indigo-300">
+                  Ready to map how {plan.title} fulfills orders &amp; operates day-to-day?
+                </span>{' '}
+                Continue to Module E to build your 5-stage fulfillment workflow, grant-compliant equipment schedule, and formal project risk register.
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isSavingStep6}
+                onClick={async () => {
+                  if (!isVaultReadonly) {
+                    await handleSaveStep6();
+                  }
+                  onContinueToModuleE();
+                }}
+                className="shrink-0 bg-indigo-600 text-white hover:bg-indigo-500"
+              >
+                Continue to Module E: Operations &amp; Fulfillment
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

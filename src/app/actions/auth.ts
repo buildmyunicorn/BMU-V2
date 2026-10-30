@@ -138,7 +138,11 @@ async function buildSessionFromDbUser(
     const modC = modRows.find((m) => m.moduleCode === 'MOD_C_SURVEYS_FEEDBACK');
     const modD = modRows.find((m) => m.moduleCode === 'MOD_D_PRODUCT_BUILD');
     const modE = modRows.find((m) => m.moduleCode === 'MOD_E_OPERATIONS');
-    const modK = modRows.find((m) => m.moduleCode === 'MOD_K_BUSINESS_PLAN');
+    const modK = modRows.find(
+      (m) =>
+        m.moduleCode === 'MOD_L_BUSINESS_PLAN' ||
+        (m.moduleCode as string) === 'MOD_K_BUSINESS_PLAN'
+    );
     const structuredInputs = (modA?.structuredInputsJsonb ?? {}) as {
       brainDumpText?: string;
       exportPotential?: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';

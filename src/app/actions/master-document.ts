@@ -17,15 +17,15 @@ import type { SavedMasterDocumentData } from '@/lib/auth/session-store';
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-let modKEnumEnsured = false;
+let modLEnumEnsured = false;
 
-async function ensureModKEnumInPostgres(): Promise<void> {
-  if (modKEnumEnsured) return;
+async function ensureModLEnumInPostgres(): Promise<void> {
+  if (modLEnumEnsured) return;
   try {
     await db.execute(
-      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_K_BUSINESS_PLAN'`
+      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_L_BUSINESS_PLAN'`
     );
-    modKEnumEnsured = true;
+    modLEnumEnsured = true;
   } catch {
     // Non-fatal if enum value already exists
   }
@@ -33,7 +33,7 @@ async function ensureModKEnumInPostgres(): Promise<void> {
 
 /**
  * Persists the founder's Living Master Document story or view settings
- * to `plan_modules_data` (`MOD_K_BUSINESS_PLAN`).
+ * to `plan_modules_data` (`MOD_L_BUSINESS_PLAN`).
  */
 export async function saveMasterDocumentDataAction(input: {
   planId: string;
@@ -62,7 +62,7 @@ export async function saveMasterDocumentDataAction(input: {
   };
 
   try {
-    await ensureModKEnumInPostgres();
+    await ensureModLEnumInPostgres();
 
     const existingMod = await db
       .select()
@@ -70,7 +70,7 @@ export async function saveMasterDocumentDataAction(input: {
       .where(
         and(
           eq(planModulesData.planId, input.planId),
-          eq(planModulesData.moduleCode, 'MOD_K_BUSINESS_PLAN')
+          eq(planModulesData.moduleCode, 'MOD_L_BUSINESS_PLAN')
         )
       )
       .limit(1);
@@ -95,7 +95,7 @@ export async function saveMasterDocumentDataAction(input: {
     } else {
       await db.insert(planModulesData).values({
         planId: input.planId,
-        moduleCode: 'MOD_K_BUSINESS_PLAN',
+        moduleCode: 'MOD_L_BUSINESS_PLAN',
         completionPercentage: 50,
         structuredInputsJsonb: nextPayload,
         aiThingsToConsiderJsonb: [],

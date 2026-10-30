@@ -63,11 +63,12 @@ export const moduleCodeEnum = pgEnum('module_code', [
   'MOD_D_PRODUCT_BUILD',
   'MOD_E_OPERATIONS',
   'MOD_F_COFOUNDER_TEAM',
-  'MOD_G_REVENUE',
-  'MOD_H_MARKETING',
-  'MOD_I_FINANCE',
-  'MOD_J_GRANTS_FUNDING',
-  'MOD_K_BUSINESS_PLAN',
+  'MOD_G_LAUNCHPAD',
+  'MOD_H_REVENUE',
+  'MOD_I_MARKETING',
+  'MOD_J_FINANCE',
+  'MOD_K_GRANTS_FUNDING',
+  'MOD_L_BUSINESS_PLAN',
 ]);
 
 export const questionStatusEnum = pgEnum('question_status', [

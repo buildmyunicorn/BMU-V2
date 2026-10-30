@@ -14,7 +14,7 @@ Instead, BMU 2.0 follows a **"Capture First, Expand Second"** flow:
 * **Multi-Tenancy from Day 1:** Even though **White-Labeling** (for Accelerators, LEOs, UK Growth Hubs, Universities) is a Phase 2 rollout, the database and authentication architecture must be designed as multi-tenant from day one so orgs can spin up custom portals later without a rewrite.
 * **Multi-Plan / Multi-Project Workspaces (1-to-Many Architecture):** A single user account can create, manage, and switch between **multiple startup plans/ideas**.
   * *Why this matters:* Serial entrepreneurs have multiple ideas on the go; early founders often want to test 2–3 different concepts in Module A before committing to one; and existing founders frequently want to **clone/branch** an existing plan to test a B2B vs. B2C pivot without losing their original work.
-  * *Database Hierarchy:* `Tenant (White-Label Org)` $\rightarrow$ `Cohort / Program (Optional)` $\rightarrow$ `User Account` $\rightarrow$ `Startup Plan / Workspace (Multiple)` $\rightarrow$ `Plan-Specific Team Collaborators & Modules (A–K)`.
+  * *Database Hierarchy:* `Tenant (White-Label Org)` $\rightarrow$ `Cohort / Program (Optional)` $\rightarrow$ `User Account` $\rightarrow$ `Startup Plan / Workspace (Multiple)` $\rightarrow$ `Plan-Specific Team Collaborators & Modules (A–L)`.
 * **Unified Entitlement Engine (6-Month Pass + AppSumo LTD + Institutional Cohort Pass):**
   * Built-in entitlement engine that supports **Free Module A Hooks**, **One-Off Time Passes (6-Month Launch Pass)**, **AppSumo Lifetime Deal (LTD) Vouchers**, AND **B2B Institutional Seat Licenses**, with strict monthly AI token guardrails and a global 500 calls/day circuit breaker to protect margins.
 * **International Jurisdiction & Localization Engine (Plan-Level Settings):**
@@ -48,7 +48,17 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 * **White-Label Mentor Escalation (Phase 2 Ready):** Allows cohort founders to flag a specific module for their Accelerator/LEO/University mentor to review.
 
 ### Edge-Case Protection: Always Include an "Other" Option on Tile/Pill Selectors
-* Every single-select or multi-select tile, card, button, or pill option group across all modules (Modules A–K) **must** include an `"OTHER"` option that reveals an inline custom text input when selected, persisted in the plan data and reflected in AI blind-spot reviews and exported briefs.
+* Every single-select or multi-select tile, card, button, or pill option group across all modules (Modules A–L) **must** include an `"OTHER"` option that reveals an inline custom text input when selected, persisted in the plan data and reflected in AI blind-spot reviews and exported briefs.
+
+### Unified Module Step & Final Overview Brief Architecture Standard (Locked In for All Modules A–L)
+* **Collapsible Step Accordion (`openStep`):** Every module workspace (`module-*-workspace.tsx`) wraps each step in a collapsible accordion state (`openStep: number | 'ALL'`), defaulting to the first incomplete step (or the final Overview step when all core steps are complete), with an **`Expand All Steps` / `Focus Step-by-Step`** toggle in the top module header banner.
+* **Collapsed vs. Expanded Step Cards:**
+  * **Collapsed State:** Compact summary card (`rounded-xl border border-slate-200 bg-white p-4 shadow-xs hover:border-indigo-300`) with `flex items-center justify-between gap-3`, `min-w-0 flex-1` truncated title & 1-line live summary, dynamic completion circle (`bg-emerald-600 text-white` with `<Check />` + `Completed` badge when done; `bg-indigo-600 text-white` with step number + `In Progress` badge when in progress), and a `shrink-0` **`Edit Step`** (`ChevronDown`) button.
+  * **Expanded State:** Full form card (`rounded-xl border border-slate-200 bg-white p-6 shadow-xs`) with `flex items-start justify-between gap-4 border-b border-slate-100 pb-4`, matching dynamic step number/tick badge, plain-English founder-first subtitle, a `shrink-0` **`Collapse Step`** (`ChevronUp`) button in the top-right header, and a clean bottom toolbar (`Wand2` AI helpers, `Save`, and `Next Step` with `ArrowRight`).
+* **Final Step = Module Overview & Executive Summary Brief:**
+  * The final step of every module is formatted as an **Overview / Executive Summary Brief** step (`step: 'Overview'` in the top navigation strip):
+    * **Collapsed State:** Uses `<FileText />` inside the circle badge (`bg-emerald-600` when all core sections are ready, else `bg-indigo-600`), displays the module brief title + `{completedCoreCount}/{N} Sections Ready` badge, and a `shrink-0` **`Open Overview`** (`ChevronDown`) button.
+    * **Expanded State:** Gradient card (`rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm`) containing: (1) the **Module Readiness Checklist Grid** (`Steps 1..N` with emerald/amber `<CheckCircle2 />` cards and live summaries), (2) the **Constructive "Things to Consider" Blind-Spot Review & 1-Page Executive Brief** (with Copy Markdown, Download HTML, and Print/Save as PDF exports), and (3) a dark **Conversion / Handoff CTA Bar** (`bg-slate-900`) to save and continue to the next module.
 
 ### Confirmed Removals & Deferred Features
 * ❌ **Pre-recorded Video Tutorials:** Dropped (replaced by Section 0 Contextual Micro-Coaching).
@@ -58,7 +68,7 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 
 ---
 
-## Section 1: The 11 Core Founder Modules (Modules A–K)
+## Section 1: The 12 Core Founder Modules (Modules A–L)
 
 ### Module A: Ideation, Founder DNA & Vision Extraction (The "Free Hook" Experience)
 *Because Module A is the free experience before the paywall, it cannot feel like a basic 4-box form. It must give the founder goosebumps—helping them understand **themselves** and their **business** so deeply in 15 minutes that upgrading feels like a no-brainer.*
@@ -142,7 +152,7 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 * **Step 1: "A Day in the Life of an Order" (End-to-End Fulfillment Blueprint)**
 * **Step 2: Premises, Plant & Equipment Schedule + Grant Asset Rules (IE LEO vs. UK Innovate UK):**
   * **For Ireland (LEO Priming/Feasibility):** Enforces the **1-Quote (<€5k) / 3-Quote (>€5k) Rule** and automatically blocks **Excluded Mobile Assets** (laptops, tablets, smartphones, and vehicles) from being placed in the LEO Capital Grant claim.
-  * **The "3-Quote Concierge" Supplier Engine (3-Quote Marketplace Hook):** Directly solves the IE LEO **1-Quote (<€5k) / 3-Quote (>€5k) Rule**. Next to any equipment, branding, or R&D consultancy line item without uploaded PDF quotes, founders can click **"Auto-Request 3 LEO-Compliant Quotes"** from BMU's Verified Supplier Marketplace. Uploaded partner quotes automatically attach to Appendix C of the LEO compilation pack in Module K.
+  * **The "3-Quote Concierge" Supplier Engine (3-Quote Marketplace Hook):** Directly solves the IE LEO **1-Quote (<€5k) / 3-Quote (>€5k) Rule**. Next to any equipment, branding, or R&D consultancy line item without uploaded PDF quotes, founders can click **"Auto-Request 3 LEO-Compliant Quotes"** from BMU's Verified Supplier Marketplace. Uploaded partner quotes automatically attach to Appendix C of the LEO compilation pack in Module L.
   * **For UK (Innovate UK Smart Grant):** Includes an automatic **Innovate UK Capital Usage & Depreciation Calculator** (since Innovate UK only funds the depreciated usage of equipment during the grant project months).
 * **Step 3: Formal Project Risk Register (Mandatory for UK Innovate UK Q8 Appendix & UK Start Up Loans):**
   * Generates a structured **Risk Register Table** across **Technical, Commercial, Managerial, and Environmental Risks** (Likelihood 1–5, Impact 1–5, Mitigation)—formatted to export as the mandatory **2-Page A4 Risk Register PDF Appendix** for Innovate UK.
@@ -168,7 +178,33 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 
 ---
 
-### Module G: Selling, Pricing, Sales Assumptions & Unit Economics
+### 🚀 Module G: Getting Set Up (`MOD_G_LAUNCHPAD` — Launchpad & Operations Hub)
+* **Position & Access:** Placed directly after **Module F** in the main workspace sidebar navigation (gated behind Paid Passes — `SIX_MONTH_SOLO`, `SIX_MONTH_COFOUNDER`, `APPSUMO_LTD`, `COHORT_PASS` — just like Modules B–L).
+* **Top Progress Indicator:** Features a live **"Operations Readiness Score (0–100%)"** progress bar auto-calculated from how many of the 6 operational setup cards are marked `ALREADY_HAVE` or `IN_PROGRESS`.
+* **Smart Pre-Population:** Pre-populates candidate company names and sector from **Module A** and branding/domain/compliance context from **Module E** (while treating future Module F & J fields as optional until built).
+* **The 6 Operational Setup Cards (Each with a 2-State Top Pill Toggle: `[I Already Have This]` vs. `[Help Me Set This Up]`):**
+  1. **Card 1: Legal Entity & Company Registration**
+     * *Have It:* Form to save Entity Type, CRO / Companies House Number, Incorporation Date, and Tax Reference.
+     * *Need It:* Displays pre-filled company name candidates from Module A and renders `<PartnerSlot slot="OPS_STEP_1_INCORPORATION" />` (showing the €249 Irish LTD Concierge option for `IE` and £0 Tide / 1st Formations for `GB`).
+  2. **Card 2: Domain Name & Official `@company` Email**
+     * *Have It:* Inputs for Primary Domain URL and Official `@company` Email (shows a live green badge when a custom domain email is entered, or a yellow credibility warning `isConsumerEmailWarning = true` if a `@gmail.com`, `@outlook.com`, `@yahoo.com`, `@hotmail.com`, or `@icloud.com` consumer address is detected).
+     * *Need It:* Renders the live `.ie` / `.co.uk` / `.com` Domain Availability Checker bar (`/api/domains/check`) followed by `<PartnerSlot slot="OPS_STEP_2_DOMAIN" />` and `<PartnerSlot slot="OPS_STEP_2_EMAIL" />`.
+  3. **Card 3: Business Bank Account**
+     * *Have It:* Bank Name, Currency (`EUR` / `GBP`), and a checkbox confirming separation from personal accounts.
+     * *Need It:* Renders `<PartnerSlot slot="OPS_STEP_3_BANKING" />`.
+  4. **Card 4: Bookkeeping, VAT & Payroll**
+     * *Have It:* Dropdowns for active Accounting & Payroll software + VAT/PAYE registration toggles.
+     * *Need It:* Renders `<PartnerSlot slot="OPS_STEP_4_ACCOUNTING" />` and `<PartnerSlot slot="OPS_STEP_4_PAYROLL" />`.
+  5. **Card 5: Statutory Startup Insurance**
+     * *Have It:* Checkboxes for Employer's Liability, Public Liability, and Professional Indemnity + Insurer Name.
+     * *Need It:* Renders `<PartnerSlot slot="OPS_STEP_5_INSURANCE" />`.
+  6. **Card 6: Baseline Legal, IP & GDPR Compliance**
+     * *Have It:* Checkboxes for Website Privacy Policy, Terms of Service, and IP Assignment.
+     * *Need It:* Renders `<PartnerSlot slot="OPS_STEP_6_LEGAL_IP" />`.
+
+---
+
+### Module H: Selling, Pricing, Sales Assumptions & Unit Economics (`MOD_H_REVENUE`)
 * **Step 1: Revenue Model & Pricing Architect** (informed by Module B Competitors & Module C Surveys).
 * **Step 2: "How a Sale Actually Happens" & Written Sales Assumptions (IE LEO Section 7 + UK Start Up Loans Tab #3):**
   * Walks through B2C impulse vs. B2B procurement delays (30/60/90-day invoice terms) and documents seasonality, conversion rates, average order volume per month, and confirmed pipeline/orders.
@@ -178,7 +214,7 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 
 ---
 
-### Module H: Marketing, 4Ps Strategy & Reverse-Engineered Budget
+### Module I: Marketing, 4Ps Strategy & Reverse-Engineered Budget (`MOD_I_MARKETING`)
 * **Step 1: Brand Positioning & The "3-Second Pitch"** (One-Liner, Trust Signals & Digital Footprint Checklist).
 * **Step 2: The "4Ps" Marketing Strategy, Route to Market & Digital Presence:**
   * Satisfies IE LEO's **150-Word Minimum on Website/Online Sales/Social Media** AND UK Innovate UK's **400-Word Route to Market & Commercialisation** requirement.
@@ -190,14 +226,14 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 
 ---
 
-### Module I: Finances, Localized Taxes, 36-Month Cashflow & Legal Red Tape
+### Module J: Finances, Localized Taxes, 36-Month Cashflow & Legal Red Tape (`MOD_J_FINANCE`)
 * **Step 1: The "No-Spreadsheet" Financial Builder + Sensitivity Analysis:**
-  * 70% pre-assembled in their chosen base currency from **Module G (Pocket Profit)**, **Module H (Marketing Budget)**, and **Module F (Team & Hiring)**, with interactive scenario sliders.
+  * 70% pre-assembled in their chosen base currency from **Module H (Pocket Profit)**, **Module I (Marketing Budget)**, and **Module F (Team & Hiring)**, with interactive scenario sliders.
 * **Step 2: The "Forgotten Overheads" & Localized Tax Checklist:**
   * Automatically switches between **Ireland** (*Employer PRSI 11.15%, VAT 23%*), **United Kingdom** (*Employer National Insurance 13.8%, Workplace Pension 3% Auto-Enrolment, VAT 20% above £90k threshold, Corporation Tax 19–25%*), **US**, **AU**, **CA**, and **EU**.
   * **Cloud Accounting Software Setup (Affiliate Hook):** Offers 50%–75% off first 6 months on **Xero, QuickBooks, FreeAgent, or Surf Accounts** directly alongside the 36-Month Cashflow export.
 * **Step 3: 36-Month Cashflow Trough, P&L & Balance Sheet Generator:**
-  * Separates **Paper Profit (P&L)** from **Actual Cashflow**, showing exact monthly breakeven and calculating the exact **Maximum Cash Trough / Funding Gap** (e.g., *"You hit a cash trough of -€32,000 in Month 11 before turning cashflow-positive in Month 14"*), which feeds straight into **Module J (Grants & Funding Matcher)**! Includes 1-click IFRS/GAAP Excel/CSV export.
+  * Separates **Paper Profit (P&L)** from **Actual Cashflow**, showing exact monthly breakeven and calculating the exact **Maximum Cash Trough / Funding Gap** (e.g., *"You hit a cash trough of -€32,000 in Month 11 before turning cashflow-positive in Month 14"*), which feeds straight into **Module K (Grants & Funding Matcher)**! Includes 1-click IFRS/GAAP Excel/CSV export.
 * **Step 4: Corporate Structure, Cap Table, IP Assignment Shield & Advisors Directory:**
   * Captures LTD vs. Sole Trader status, IP assignment agreements for developers/freelancers, and the names of the startup's **Bank, Accountant, Solicitor, and Insurance Broker**.
   * **Business Bank Account & LTD Incorporation Perks Drawer (Bank Bounty Hook):** If the founder selects *"Not Incorporated Yet"* or *"No Business Bank Account Yet"*, opens a localized **"Fast-Track Incorporation & Banking"** drawer:
@@ -207,12 +243,12 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 
 ---
 
-### ⭐ Module J: Grants, Non-Dilutive Funding & Investor Tax Relief Hub (Flagship Standalone Module #3)
+### ⭐ Module K: Grants, Non-Dilutive Funding & Investor Tax Relief Hub (Flagship Standalone Module #3 — `MOD_K_GRANTS_FUNDING`)
 * **Why This Deserves Its Own Dedicated Module in the Sidebar:**
-  *"Find Free Government Grants & Tax Relief"* is one of the single highest-converting hooks for startups in Ireland and the UK. Having **Module J: Grants & Funding Hub** prominently visible in the left navigation bar shows founders immediately that BMU 2.0 doesn't just help them plan—it helps them **fund** the business without giving away equity.
+  *"Find Free Government Grants & Tax Relief"* is one of the single highest-converting hooks for startups in Ireland and the UK. Having **Module K: Grants & Funding Hub** prominently visible in the left navigation bar shows founders immediately that BMU 2.0 doesn't just help them plan—it helps them **fund** the business without giving away equity.
 
-* **Step 1: Instant Grant & Tax Relief Matcher (Powered by Data Collected in Modules A–I)**
-  * Uses the founder's HQ Country (`IE`, `GB`, `US`, `AU`, `CA`, `EU`), County/Region (e.g., *50% Standard vs. 60% BMW Region* in Ireland), Sector (*Manufacturing / Internationally Traded Services* vs. *Local Retail*), Headcount, and Module I **Cashflow Funding Gap** to rank every eligible program into 3 buckets:
+* **Step 1: Instant Grant & Tax Relief Matcher (Powered by Data Collected in Modules A–J)**
+  * Uses the founder's HQ Country (`IE`, `GB`, `US`, `AU`, `CA`, `EU`), County/Region (e.g., *50% Standard vs. 60% BMW Region* in Ireland), Sector (*Manufacturing / Internationally Traded Services* vs. *Local Retail*), Headcount, and Module J **Cashflow Funding Gap** to rank every eligible program into 3 buckets:
     * 🟢 **Ready to Apply Now (High Match)**
     * 🟡 **Eligible Once Incorporated / Trading**
     * 🔴 **Not Eligible (With Clear Explanation Why — e.g., Local Retail Displacement or HMRC Excluded Trade)**
@@ -234,27 +270,27 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 
 * **Step 2: Interactive "Grant Readiness Scorecard" & Missing Evidence Checklist**
   * **Automated Incorporation & Banking Unlocker (Bank Bounty Hook):** Whenever a grant is marked 🟡 *"Eligible Once Incorporated / Business Bank Account Opened"*, displays an inline action card: **"Unlock This Grant in 10 Minutes — Register Your LTD & Open Your Business Bank Account (Plus Claim €50–£100 Startup Cash)"**.
-  * For every grant the founder selects, displays a live readiness bar (e.g., **`90% Complete from Modules A–I`**) and prompts ONLY for the remaining grant-specific items in one clean screen:
+  * For every grant the founder selects, displays a live readiness bar (e.g., **`90% Complete from Modules A–J`**) and prompts ONLY for the remaining grant-specific items in one clean screen:
     * **For IE LEO Priming/Feasibility:** Verifies the **1-Quote (<€5k) / 3-Quote (>€5k) Schedule**, flags any accidentally included laptops/phones, checks **50%/60% Match Funding proof**, and captures **CRO Number, eTax Clearance Access Number, and EU *De Minimis* State Aid declaration**.
     * **For UK Innovate UK Smart Grant:** Generates the **Q5 Additionality / Justification for Public Funding narrative** (why private investors won't fund the R&D risk today), **Q9 Value for Money for the UK Taxpayer**, confirms **100% UK R&D location**, and checks the **UK Minimal Financial Assistance (£315k MFA)** subsidy limit.
-    * **For UK Start Up Loans:** Verifies alignment between the founder's **Personal Survival Budget (Module F)**, **Written Sales Assumptions (Module G)**, and **36-Month Cashflow Forecast (Module I)**.
+    * **For UK Start Up Loans:** Verifies alignment between the founder's **Personal Survival Budget (Module F)**, **Written Sales Assumptions (Module H)**, and **36-Month Cashflow Forecast (Module J)**.
     * **For UK HMRC SEIS / EIS Advance Assurance:** Generates the formal **HMRC "Risk-to-Capital" Condition Statement**, checks **Ordinary Shares (no liquidation preference)**, captures the **10-digit UK UTR Number & Date Trading Started**, and logs the **Mandatory Named Prospective Angel Investor(s)**.
 
 * **Step 3: The "Grant Timing & Cashflow Bridge" Reality Check**
-  * **The Reimbursement Warning:** Visually overlays the grant payout timeline onto the founder's Module I Cashflow Chart—showing them that **grants reimburse after you spend the money and submit receipts + tax clearance**, so they need working capital (or a Microfinance Ireland / UK Start Up Loan bridge) to pay suppliers upfront.
+  * **The Reimbursement Warning:** Visually overlays the grant payout timeline onto the founder's Module J Cashflow Chart—showing them that **grants reimburse after you spend the money and submit receipts + tax clearance**, so they need working capital (or a Microfinance Ireland / UK Start Up Loan bridge) to pay suppliers upfront.
   * **The "Don't Spend Before Approval" Rule:** Warns founders that any invoice dated *before* the official LEO or Innovate UK Grant Offer Letter is signed is **100% ineligible** for reimbursement.
 
-* **Step 4: 1-Click "Send to Module K Official Application Compiler"**
-  * Sends the selected Grant/SEIS package directly into **Module K** to compile the official forms, word-count-checked answers, and Appendices A–F.
+* **Step 4: 1-Click "Send to Module L Official Application Compiler"**
+  * Sends the selected Grant/SEIS package directly into **Module L** to compile the official forms, word-count-checked answers, and Appendices A–F.
 
 ---
 
-### Module K: The Living Business Plan & Official Grant Application Compiler
+### Module L: The Living Business Plan & Official Grant Application Compiler (`MOD_L_BUSINESS_PLAN`)
 * **Step 1: Instant Compilation & "Official Format" Switcher:**
   * Founders can switch their compiled workspace with 1 click between **5 Official Country & Funder Formats**:
     1. 🇮🇪 **Ireland — Official LEO Business Plan & Priming/Feasibility Form Mode:** Enforces the 7 official LEO sections, **150-Word Minimum Green Checkmarks**, and Appendices A–F.
     2. 🇬🇧 **UK — Innovate UK Smart Grant (IFS Portal Mode):** Formats answers to the exact **9 IFS Portal Questions** with strict **Maximum Word-Count Bars** (*300 / 400 / 600 words*) + generates the **2-Page A4 11pt Font PDF Appendices** (Project Plan Gantt, Risk Register, and Technical Merit Diagram).
-    3. 🇬🇧 **UK — British Business Bank "Start Up Loans" 4-Part Pack:** Outputs the aligned *1. Business Plan, 2. Personal Survival Budget (from Module F), 3. Written Sales Assumptions (from Module G), and 4. 12–36 Month Cashflow Forecast (from Module I)*.
+    3. 🇬🇧 **UK — British Business Bank "Start Up Loans" 4-Part Pack:** Outputs the aligned *1. Business Plan, 2. Personal Survival Budget (from Module F), 3. Written Sales Assumptions (from Module H), and 4. 12–36 Month Cashflow Forecast (from Module J)*.
     4. 🇬🇧 **UK — HMRC SEIS / EIS Advance Assurance Pack:** Outputs the HMRC-compliant 3-Year Business Plan, 3-Year Financial Forecast, "Risk-to-Capital" Cover Letter, Named Investor Schedule, and Articles of Association Ordinary Share Checklist.
     5. 🌍 **Universal Comprehensive Business Plan / 2-Page Executive Teaser.**
 * **Step 2: Rich Editor with Live Financial, Survey & Equipment/Work-Package Blocks**
@@ -264,10 +300,10 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 
 ---
 
-## Section 2: How the "Invisible Grant Engine" & Module J Work Together
-1. **Stage 1 — Quiet Background Capture (Modules A $\rightarrow$ I):** As the founder answers normal, plain-English business questions in Modules A–I, BMU quietly structures 85% of the required IE LEO and UK Innovate UK / Start Up Loan / SEIS fields in the background.
-2. **Stage 2 — Dedicated Grants & Funding Hub (Module J):** Matches the founder with every eligible grant/relief in their country, shows a `90% Ready` progress bar, and collects the final administrative details (quotes, tax clearance, named SEIS investor, or additionality justification).
-3. **Stage 3 — Official Compiler (Module K):** Compiles the finished application, word-count-checked boxes, financial tables, and Appendices A–F in one click.
+## Section 2: How the "Invisible Grant Engine" & Module K Work Together
+1. **Stage 1 — Quiet Background Capture (Modules A $\rightarrow$ J):** As the founder answers normal, plain-English business questions in Modules A–J, BMU quietly structures 85% of the required IE LEO and UK Innovate UK / Start Up Loan / SEIS fields in the background.
+2. **Stage 2 — Dedicated Grants & Funding Hub (Module K):** Matches the founder with every eligible grant/relief in their country, shows a `90% Ready` progress bar, and collects the final administrative details (quotes, tax clearance, named SEIS investor, or additionality justification).
+3. **Stage 3 — Official Compiler (Module L):** Compiles the finished application, word-count-checked boxes, financial tables, and Appendices A–F in one click.
 
 ---
 
@@ -295,17 +331,24 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 * **Automated 60-Day AppSumo Refund / Revocation Handler** & **Monthly Replenishing Unicorn AI Credits**.
 
 ### 3.3 Deep User & Funnel Analytics Dashboard
-* **User Activity & Engagement Metrics:** DAU/WAU/MAU, demographic breakdowns (country, industry, solo vs. team), AI token burn per user, Public Survey response volume, Co-Founder Interview completion rates, Grant Matcher conversion rates, and the **"Friction Heatmap"** across Modules A–K.
+* **User Activity & Engagement Metrics:** DAU/WAU/MAU, demographic breakdowns (country, industry, solo vs. team), AI token burn per user, Public Survey response volume, Co-Founder Interview completion rates, Grant Matcher conversion rates, and the **"Friction Heatmap"** across Modules A–L.
 
 ### 3.4 Country Rule Packs & Grant Database Manager (No-Code CMS)
 * **Jurisdiction & Tax Rule Editor** + **Grant Directory CMS** with **AI Grant URL Scraper** (pre-loaded with Ireland LEO/Enterprise Ireland and UK Innovate UK/Start Up Loans/SEIS/EIS rules).
 
 ### 3.5 AI Prompt Studio, Guardrails & Cost Control ("The Brain Manager")
-* Live-edit system instructions and model routing (`gemini-2.5-flash` vs. `gemini-2.5-pro`) for all 11 modules without redeploying code.
+* Live-edit system instructions and model routing (`gemini-2.5-flash` vs. `gemini-2.5-pro`) for all 12 modules without redeploying code.
 
-### 3.6 Partner Perks, Affiliate Links & "3-Quote Concierge" Manager
-* **Contextual Affiliate CMS:** Manage partner cards, promo codes, and tracking URLs segmented by Country (`IE`, `GB`, `CA`, `AU`, `US`) and Module Step (`MODULE_A_DOMAIN`, `MODULE_D_SHOPIFY`, `MODULE_E_INSURANCE`, `MODULE_I_BANK`, `MODULE_I_ACCOUNTING`).
-* **Sub-ID & Webhook Attribution:** Automatically appends `?subid=[planId]_[userId]` to all outbound bank, formation, and software affiliate links to track conversion payouts (via Impact, PartnerStack, Awin) and auto-check off the founder's *"Business Bank Account Opened"* milestone in Module J.
+### 3.6 Dynamic Partner & Referral Engine (`/admin/partners` + `/admin` Tab) & "3-Quote Concierge" Manager
+* **Super-Admin Partner Management (`/admin/partners` & `/admin` Tab):**
+  * **Partner Management Table:** Displays all `AffiliatePartner` records with filters by Country (`ALL`, `IE`, `GB`), Placement Slot, and Status (`Active` / `Inactive`), quick-toggle switch for `isActive`, `sortOrder` priority reordering, and 30-day click counts + estimated pipeline commission value.
+  * **Add / Edit Partner Modal:** Form fields for Partner Name, Slug, Target Country (`ALL`, `IE`, `GB`), Headline, Description, Badge Text (e.g., *"10% OFF FIRST YEAR"*), copyable Promo Code, CTA Button text, Destination URL (with `{projectId}` macro hint), Estimated Bounty (€), and **Multi-Select Placement Checkboxes (`placements`)** covering all 6 **Module G (`MOD_G_LAUNCHPAD`)** cards (`OPS_STEP_1_INCORPORATION`, `OPS_STEP_2_DOMAIN`, `OPS_STEP_2_EMAIL`, `OPS_STEP_3_BANKING`, `OPS_STEP_4_ACCOUNTING`, `OPS_STEP_4_PAYROLL`, `OPS_STEP_5_INSURANCE`, `OPS_STEP_6_LEGAL_IP`) and contextual module steps (`MOD_C_STEP_4_SURVEY_BOOST`, `MOD_D_STEP_2_ECOMMERCE_NO_CODE`, `MOD_D_STEP_3_TECH_AGENCY_QUOTES`, `MOD_E_STEP_2_BRANDING_DOMAINS`, and future Module J/L audit warnings).
+  * **Pre-Seeded Default `IE` & `GB` Partners:** Blacknight, Namecheap, GoDaddy, Google Workspace, Wise Business, Revolut Business, Tide UK, Xero, Superscript, Irish LTD Concierge, and 1st Formations.
+* **Backend APIs & Click Tracking:**
+  * **Operations Setup API (`/api/projects/[projectId]/operations`):** `GET` and `PATCH` endpoints to fetch/save `StartupOperationsSetup`, auto-calculate `opsReadinessScore` (0–100%), and auto-flag `isConsumerEmailWarning`.
+  * **Free Domain Availability Checker API (`/api/domains/check`):** Server-side live `.ie`, `.co.uk`, and `.com` DNS/RDAP availability lookup.
+  * **Affiliate Click Tracker & Redirect Route (`/api/go/[slug]`):** Accepts `?projectId=[id]`, logs clicks in `AffiliateClickLog` (`userId`, `projectId`, `cf-ipcountry`), replaces `{projectId}` in `destinationUrl`, and issues a `307 Temporary Redirect`.
+  * **Reusable `<PartnerSlot slot="..." projectId="..." />` Component:** Drop-in widget reading the user's detected country (`IE` vs. `GB`) and rendering active partners in `sortOrder` with 1-click promo code copy and `/api/go/[slug]?projectId=[id]` routing.
 * **"3-Quote Concierge" Vendor Routing:** Manage vetted dev agencies, R&D consultants, and equipment suppliers by category; automatically route founder quote requests from Module D/E and track lead fees (€50–€100/lead) or project finder's fees (5%–10%).
 
 ---
@@ -314,11 +357,11 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 
 1. **Core B2C Launch Passes (Option 1 Locked In):**
    * Free "Module A Hook" (Steps 1–7) $\rightarrow$ Paywall at Module B offering a **One-Off 6-Month Launch Pass** (**Solo Pass: €129 / £109** or **Co-Founder Team Pass: €199 / £169**).
-   * Includes full access to Modules A–K, the Hosted Customer Survey Engine (`/v/[slug]`), the Blind-Reveal Co-Founder Engine, and Official Grant/SEIS Application Exports.
+   * Includes full access to Modules A–L, the Hosted Customer Survey Engine (`/v/[slug]`), the Blind-Reveal Co-Founder Engine, and Official Grant/SEIS Application Exports.
 
 2. **Month-6 "Grant Radar & Living Vault" Micro-Subscription (Renewal Engine):**
    * At the end of the 6-Month Launch Pass, founders can either let their plan drop into **Read-Only Vault Mode (Free)** OR activate the **€9/month (or €79/year) "Grant Radar & Living Vault" Subscription**.
-   * **What It Unlocks:** Keeps all 11 modules editable, maintains live public survey/waitlist pages, and runs an automated **24/7 Grant & Tax Relief Radar** that emails the founder the moment a new regional grant opens (or when their company crosses key age/headcount milestones, such as moving from LEO Feasibility $\rightarrow$ LEO Priming $\rightarrow$ Enterprise Ireland PSSF) with 90% of the new application pre-filled.
+   * **What It Unlocks:** Keeps all 12 modules editable, maintains live public survey/waitlist pages, and runs an automated **24/7 Grant & Tax Relief Radar** that emails the founder the moment a new regional grant opens (or when their company crosses key age/headcount milestones, such as moving from LEO Feasibility $\rightarrow$ LEO Priming $\rightarrow$ Enterprise Ireland PSSF) with 90% of the new application pre-filled.
 
 3. **AppSumo LTD Tiers:**
    * **1 Code:** Solo Founder, 1 Active Business Plan.
@@ -330,7 +373,7 @@ Since we are building from scratch and dropping high-maintenance video tutorials
    * Designed for **Universities, Accelerators, Irish LEOs (SYOB courses), Enterprise Ireland New Frontiers, and UK Growth Hubs**.
    * Sold as bulk 6-Month Cohort Pass Bundles (€2,500–€5,000 per cohort) unlocked via a single institutional invite code, paired with White-Label Mentor Escalation (Section 0.4).
 
-5. **Business Bank & LTD Incorporation Bounties (Modules I & J):**
+5. **Business Bank & LTD Incorporation Bounties (Modules G, J & K):**
    * High-converting CPA partner bounties (€50–€120 per activated account) triggered when unincorporated founders register their UK/Irish LTD company and open their mandatory business bank account (via **Tide, Revolut Business, Starling, Anna Money, Wise Business, and local CRO/Companies House formation partners**).
    * Framed as a **Founder Cash Perk** (e.g., *"Get £75–£100 free startup cash + free LTD incorporation"*).
 
@@ -338,11 +381,11 @@ Since we are building from scratch and dropping high-maintenance video tutorials
    * Monetizes the mandatory **IE LEO 1-Quote (<€5k) / 3-Quote (>€5k) Rule** and UK R&D subcontractor sourcing.
    * Founders click *"Request 3 LEO-Compliant Quotes in 48 Hours"* in Module D (Tech Build) or Module E (Equipment/Consultancy); vetted partner agencies/suppliers pay BMU a **€50–€100 qualified lead fee** or a **5%–10% finder's fee** on grant-funded contracts won.
 
-7. **Contextual Tech Stack, Domain & Insurance Affiliates (Modules A, D, E & I):**
+7. **Contextual Tech Stack, Domain & Insurance Affiliates (Modules A, D, E, G & J):**
    * Native, non-intrusive "Founder Perks" embedded at the exact moment of buyer intent:
-     * **Module A (Step 3):** Domain registration (`.ie`, `.co.uk`, `.com`) & Google Workspace bundles.
+     * **Module A (Step 3) & Module G (Card 2):** Domain registration (`.ie`, `.co.uk`, `.com`) & Google Workspace bundles.
      * **Module D (Steps 2–3):** E-commerce & No-Code platform referrals (**Shopify Partner Program** up to $150/merchant, Webflow, Bubble, Stripe).
-     * **Module E (Step 5) & Module I (Step 4):** Startup Business Insurance (**Superscript, Hiscox, Dolmen**) and Cloud Accounting (**Xero, QuickBooks, FreeAgent**).
+     * **Module E (Step 5), Module G (Cards 4–5) & Module J (Step 4):** Startup Business Insurance (**Superscript, Hiscox, Dolmen**) and Cloud Accounting (**Xero, QuickBooks, FreeAgent**).
 
 ---
 
@@ -370,10 +413,10 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 ---
 
 ## Section 7: Go-To-Market (GTM) & Marketing Strategy
-1. **High-Intent Niche Google Search Ads (IE & UK):** Target specific painkiller searches for **Module J Grants** (*"LEO priming grant application"*, *"Innovate UK smart grant template"*, *"Start Up Loans personal survival budget"*, *"SEIS advance assurance business plan"*) and **Module F Co-Founder Pre-Nups** (*"co-founder equity split calculator"*).
+1. **High-Intent Niche Google Search Ads (IE & UK):** Target specific painkiller searches for **Module K Grants** (*"LEO priming grant application"*, *"Innovate UK smart grant template"*, *"Start Up Loans personal survival budget"*, *"SEIS advance assurance business plan"*) and **Module F Co-Founder Pre-Nups** (*"co-founder equity split calculator"*).
 2. **Viral Loop #1:** `"Powered by Build My Unicorn"` badge on every public **Module C Customer Survey & Waitlist Page** (`buildmyunicorn.com/v/[slug]`).
 3. **Viral Loop #2:** Co-Founder Invites & social challenges built around **Module F's Awkward Co-Founder Questions**.
-4. **Viral Loop #3:** Public SEO-indexed **IE & UK Startup Grant Directory** (`buildmyunicorn.com/grants/[slug]`) feeding straight into **Module J**.
+4. **Viral Loop #3:** Public SEO-indexed **IE & UK Startup Grant Directory** (`buildmyunicorn.com/grants/[slug]`) feeding straight into **Module K**.
 5. **AppSumo Launch + B2B University / LEO / UK Growth Hub Cohort Partnerships.**
 6. **Dynamic Regional Landing Pages & SEO Routes:**
    * **Dynamic Regional Homepage Personalization (`IE` vs. `GB`):**
@@ -397,4 +440,4 @@ Since we are building from scratch and dropping high-maintenance video tutorials
 1. **Preserve Desktop Layout (`sm:` / `lg:` Breakpoints):** Keep the 12-column desktop workspace (`lg:grid-cols-12`) intact while stacking cleanly on mobile viewports.
 2. **Zero iOS Safari Input Auto-Zoom (`16px` Mobile Inputs):** Enforce `16px` (`text-base sm:text-xs` / `text-base sm:text-sm`) on mobile inputs so iOS Safari never auto-zooms the page.
 3. **Full-Width Mobile Answer Targets on Public Pages (`/v/[slug]`):** Use `sm:pl-9` and full-width mobile CTAs (`w-full sm:w-auto`).
-4. **Collapsible Mobile Sidebar & Slim Sticky Header in `/workspace`:** Collapse the 11-module navigation list and Open Questions Parking Lot behind the mobile module switcher on `< 1024px` (`lg:hidden`).
+4. **Collapsible Mobile Sidebar & Slim Sticky Header in `/workspace`:** Collapse the 12-module navigation list and Open Questions Parking Lot behind the mobile module switcher on `< 1024px` (`lg:hidden`).

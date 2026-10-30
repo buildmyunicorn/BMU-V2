@@ -1689,7 +1689,7 @@ export function MasterDocumentWorkspace({
       )}
 
       {/* =================================================================== */}
-      {/* OPTIONAL UPCOMING CHAPTERS ROADMAP (MODULES F–I)                    */}
+      {/* OPTIONAL UPCOMING CHAPTERS ROADMAP (MODULES F–K)                    */}
       {/* =================================================================== */}
       {showUpcomingRoadmap && (
         <section className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/30 p-5 sm:p-6">
@@ -1697,7 +1697,7 @@ export function MasterDocumentWorkspace({
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-indigo-600" />
               <h3 className="text-sm font-bold text-slate-900">
-                Upcoming Blueprint Chapters Roadmap (Modules F–I)
+                Upcoming Blueprint Chapters Roadmap (Modules F–K)
               </h3>
             </div>
             <Badge variant="secondary" className="text-[10px]">
@@ -1716,8 +1716,17 @@ export function MasterDocumentWorkspace({
             </div>
             <div className="rounded-xl border border-slate-200 bg-white/80 p-3.5 text-xs">
               <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
+                Chapter 7: Getting Set Up — Launchpad &amp; Operations (Module G)
+              </div>
+              <p className="mt-1 text-slate-600">
+                6-card setup hub (0–100% Ops Readiness Score): Legal Entity (CRO/Companies House), Domain &amp; @company Email, Business Bank Account, Bookkeeping/VAT/Payroll, Startup Insurance, and Legal/IP/GDPR.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white/80 p-3.5 text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-slate-900">
                 <DollarSign className="h-3.5 w-3.5 text-indigo-600" />
-                Chapter 7: Selling, Sales Assumptions &amp; Pocket Profit (Module G)
+                Chapter 8: Selling, Sales Assumptions &amp; Pocket Profit (Module H)
               </div>
               <p className="mt-1 text-slate-600">
                 Pricing architect, written sales assumptions, and unit economics pulling COGS and fees from Modules D &amp; E.
@@ -1726,7 +1735,7 @@ export function MasterDocumentWorkspace({
             <div className="rounded-xl border border-slate-200 bg-white/80 p-3.5 text-xs">
               <div className="flex items-center gap-1.5 font-bold text-slate-900">
                 <Megaphone className="h-3.5 w-3.5 text-indigo-600" />
-                Chapter 8: Marketing, 4Ps &amp; First 10 Customers (Module H)
+                Chapter 9: Marketing, 4Ps &amp; First 10 Customers (Module I)
               </div>
               <p className="mt-1 text-slate-600">
                 Brand positioning, 4Ps strategy, waitlist lead conversion, and reverse-engineered marketing budget.
@@ -1735,7 +1744,7 @@ export function MasterDocumentWorkspace({
             <div className="rounded-xl border border-slate-200 bg-white/80 p-3.5 text-xs">
               <div className="flex items-center gap-1.5 font-bold text-slate-900">
                 <Scale className="h-3.5 w-3.5 text-indigo-600" />
-                Chapter 9: Financials, Cashflow &amp; Grant Readiness (Module I)
+                Chapter 10: Financials, Cashflow &amp; Grant Readiness (Modules J &amp; K)
               </div>
               <p className="mt-1 text-slate-600">
                 36-month no-spreadsheet financial builder, cashflow trough, and IE/UK non-dilutive grant matcher.

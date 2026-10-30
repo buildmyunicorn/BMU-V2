@@ -43,11 +43,11 @@ export const DEFAULT_AI_PROMPTS = [
       'Analyze customer discovery survey questions against "The Mom Test" principles. Flag leading or compliment-seeking questions and rewrite them to focus on past behaviors, concrete spending, and real workflow friction.',
   },
   {
-    promptKey: 'MOD_K_RED_FLAG_AUDIT',
-    moduleCode: 'MOD_K_BUSINESS_PLAN' as const,
+    promptKey: 'MOD_L_RED_FLAG_AUDIT',
+    moduleCode: 'MOD_L_BUSINESS_PLAN' as const,
     modelName: 'gemini-2.5-pro',
     systemInstruction:
-      'Perform a deep narrative-vs-financial and official grant pre-flight contradiction audit across Modules A through J. Highlight discrepancies between pricing, hiring timelines, marketing budgets, cashflow runway, and IE LEO / UK Innovate UK / Start Up Loans / SEIS compliance.',
+      'Perform a deep narrative-vs-financial and official grant pre-flight contradiction audit across Modules A through K. Highlight discrepancies between pricing, hiring timelines, marketing budgets, cashflow runway, and IE LEO / UK Innovate UK / Start Up Loans / SEIS compliance.',
   },
 ];
 

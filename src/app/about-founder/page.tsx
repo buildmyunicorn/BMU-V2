@@ -30,14 +30,14 @@ export default function AboutFounderPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
       {/* Top Banner */}
-      <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-200">
+      <div className="border-b border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-center text-xs text-indigo-200">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-2.5 py-0.5 font-bold text-amber-300 ring-1 ring-amber-500/30">
-            <Construction className="h-3.5 w-3.5 text-amber-400" />
-            STARTUP PREFLIGHT IN ACTIVE DEVELOPMENT
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/20 px-2.5 py-0.5 font-bold text-indigo-300 ring-1 ring-indigo-500/30">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+            EARLY ACCESS • PUBLIC BETA
           </span>
-          <span className="text-amber-200/90">
-            Building the next-generation supportive co-founder &amp; grant readiness builder.
+          <span className="text-indigo-200/90">
+            The supportive AI co-founder &amp; grant readiness builder for Ireland &amp; UK founders.
           </span>
         </div>
       </div>
@@ -54,8 +54,8 @@ export default function AboutFounderPage() {
                 <span className="text-base font-bold tracking-tight text-white">
                   Startup Preflight
                 </span>
-                <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber-300 uppercase ring-1 ring-amber-500/30">
-                  In Development
+                <span className="rounded-md bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-indigo-300 uppercase ring-1 ring-indigo-500/30">
+                  Early Access
                 </span>
               </div>
               <p className="hidden text-xs text-slate-400 sm:block">
@@ -386,10 +386,16 @@ export default function AboutFounderPage() {
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-8 text-xs text-slate-500">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
-          <p>© {new Date().getFullYear()} Startup Preflight • Built by Thomas Walsh</p>
-          <div className="flex gap-4">
+          <p>© {new Date().getFullYear()} Startup Preflight • Founding Date: 2026 • Dublin, Ireland • Built by Thomas Walsh</p>
+          <div className="flex flex-wrap gap-4">
             <Link href="/" className="hover:text-slate-300">
               Home
+            </Link>
+            <Link href="/privacy" className="hover:text-slate-300">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="hover:text-slate-300">
+              Terms of Service
             </Link>
             <a
               href="https://www.linkedin.com/in/twalsh-start-ups/"
@@ -398,6 +404,12 @@ export default function AboutFounderPage() {
               className="hover:text-slate-300"
             >
               LinkedIn
+            </a>
+            <a
+              href="mailto:hello@startuppreflight.com"
+              className="hover:text-slate-300"
+            >
+              hello@startuppreflight.com
             </a>
             <Link href="/login" className="hover:text-slate-300">
               Sign In

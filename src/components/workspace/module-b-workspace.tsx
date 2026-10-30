@@ -34,6 +34,8 @@ import {
   FileText,
   CheckCircle2,
   Eye,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -698,6 +700,9 @@ export function ModuleBWorkspace({
             'Brick & Mortar / Hospitality / Local Business'
         ? 'B2C_CONSUMERS'
         : 'B2B_BUSINESSES';
+
+  // Step Accordion state: 1, 2, 3, 4, 5, 6 (Summary Brief), or 'ALL'
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(1);
 
   const savedBeachhead = plan.moduleBData?.beachhead;
 
@@ -1955,16 +1960,29 @@ export function ModuleBWorkspace({
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onBackToModuleA}
-              className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back to Module A Canvas
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
+                }
+                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onBackToModuleA}
+                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to Module A Canvas
+              </Button>
+            </div>
             <div className="text-right text-[11px] text-indigo-200">
               Module B Progress: <strong>{totalModuleBProgress}%</strong> (All 5
               Steps Active)
@@ -1972,72 +1990,95 @@ export function ModuleBWorkspace({
           </div>
         </div>
 
-        {/* 5-Step Progress Strip inside Module B */}
-        <div className="mt-5 grid grid-cols-2 gap-2 pt-4 border-t border-indigo-800/70 sm:grid-cols-5">
+        {/* 6-Step Progress Strip inside Module B (Steps 1-5 + Summary Brief) */}
+        <div className="mt-5 grid grid-cols-2 gap-2 pt-4 border-t border-indigo-800/70 sm:grid-cols-3 lg:grid-cols-6">
           {[
             {
               step: 'Step 1',
               title: 'Customers & Target Markets',
               targetId: 'module-b-step-1',
-              active: true,
-              done: step1Completion >= 20,
+              stepNum: 1,
+              done: moduleBReadinessSteps[0]?.isComplete ?? false,
             },
             {
               step: 'Step 2',
-              title: 'Competitors & Current Habits',
+              title: 'Competitors & Habits',
               targetId: 'module-b-step-2',
-              active: true,
-              done: step2Completion >= 20,
+              stepNum: 2,
+              done: moduleBReadinessSteps[1]?.isComplete ?? false,
             },
             {
               step: 'Step 3',
               title: 'Plain-English Market Sizing',
               targetId: 'module-b-step-3',
-              active: true,
-              done: step3Completion >= 20,
+              stepNum: 3,
+              done: moduleBReadinessSteps[2]?.isComplete ?? false,
             },
             {
               step: 'Step 4',
-              title: 'Competitive Edge & Stand Out',
+              title: 'Competitive Edge & Moat',
               targetId: 'module-b-step-4',
-              active: true,
-              done: step4Completion >= 20,
+              stepNum: 4,
+              done: moduleBReadinessSteps[3]?.isComplete ?? false,
             },
             {
               step: 'Step 5',
-              title: 'Market Things to Consider',
+              title: 'Blind-Spot Review',
               targetId: 'module-b-step-5',
-              active: true,
-              done: step5Completion >= 20,
+              stepNum: 5,
+              done: moduleBReadinessSteps[4]?.isComplete ?? false,
             },
-          ].map((item) => (
-            <button
-              key={item.step}
-              type="button"
-              onClick={() => {
-                if (item.targetId) {
-                  document
-                    .getElementById(item.targetId)
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-              className={`rounded-xl border px-3 py-2 text-left text-xs transition-all ${
-                item.active
-                  ? 'border-amber-300/80 bg-white/15 text-white shadow-xs hover:bg-white/20'
-                  : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
-              }`}
-            >
-              <div className="flex items-center justify-between font-bold">
-                <span>{item.step}</span>
-                {item.done ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-300" />
-                ) : item.active ? (
-                  <span className="h-2 w-2 rounded-full bg-amber-400" />
-                ) : null}
-              </div>
-              <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
-            </button>
-          ))}
+            {
+              step: 'Overview',
+              title: 'Validation Brief',
+              targetId: 'module-b-step-6',
+              stepNum: 6,
+              done: completedModuleBReadinessCount === 5,
+            },
+          ].map((item, idx, arr) => {
+            const firstIncompleteIdx = arr.findIndex((s) => !s.done);
+            const isStepOpen =
+              openStep === 'ALL'
+                ? (firstIncompleteIdx === -1
+                    ? idx === arr.length - 1
+                    : idx === firstIncompleteIdx)
+                : openStep === item.stepNum;
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => {
+                  setOpenStep(item.stepNum);
+                  setTimeout(() => {
+                    const el = document.getElementById(item.targetId);
+                    if (el) {
+                      el.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      });
+                    }
+                  }, 40);
+                }}
+                className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
+                  isStepOpen
+                    ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
+                    : item.done
+                      ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
+                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                }`}
+              >
+                <div className="flex items-center justify-between font-bold">
+                  <span>{item.step}</span>
+                  {item.done ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-300" />
+                  ) : isStepOpen ? (
+                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  ) : null}
+                </div>
+                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -2058,34 +2099,106 @@ export function ModuleBWorkspace({
       {/* =================================================================== */}
       {/* STEP 1: DEFINING WHO YOU SELL TO & TARGET COUNTRIES                 */}
       {/* =================================================================== */}
-      <Card id="module-b-step-1" className="border-indigo-100 shadow-xs">
-        <CardHeader className="border-b border-slate-100 bg-slate-50/60">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Badge>Module B • Step 1 of 5</Badge>
-                <button
-                  type="button"
-                  onClick={() => setShowJargonTooltip(!showJargonTooltip)}
-                  className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
-                >
-                  <Info className="h-3 w-3" />
-                  Why start with a specific customer group?
-                </button>
+      {openStep !== 'ALL' && openStep !== 1 ? (
+        <div
+          id="module-b-step-1"
+          onClick={() => setOpenStep(1)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleBReadinessSteps[0]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleBReadinessSteps[0]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '1'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 1: Target Customers &amp; Selling Markets
+                  </h2>
+                  {moduleBReadinessSteps[0]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleBReadinessSteps[0]?.summary}
+                </p>
               </div>
-              <CardTitle className="mt-2 text-lg">
-                Step 1: Who Are Your Customers &amp; Where Are You Selling?
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Define <strong>who will buy from you</strong> (especially the
-                first group you want to win) and which countries you plan to
-                sell in. This powers your competitor research, market sizing,
-                and export grant matching.
-              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <Card id="module-b-step-1" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleBReadinessSteps[0]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {moduleBReadinessSteps[0]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '1'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 1: Who Are Your Customers &amp; Where Are You Selling?
+                </h2>
+                <Badge variant="success" className="shrink-0">Step 1 of 5</Badge>
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Define who will buy from you (especially the first group you want to win) and which countries you plan to sell in.
+              </p>
             </div>
 
-            {/* Layer 1 Micro-Coaching Toggles */}
-            <div className="flex flex-wrap items-center gap-1.5">
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -2114,7 +2227,17 @@ export function ModuleBWorkspace({
                 I&apos;m Stuck
               </Button>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowJargonTooltip(!showJargonTooltip)}
+              className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
+            >
+              <Info className="h-3 w-3" />
+              Why start with a specific customer group?
+            </button>
           </div>
+
+          <CardContent className="space-y-6 px-0 pb-0 pt-4">
 
           {/* Inline Helpful Tip */}
           {showJargonTooltip && (
@@ -2250,9 +2373,7 @@ export function ModuleBWorkspace({
               </div>
             </div>
           )}
-        </CardHeader>
 
-        <CardContent className="space-y-6 pt-6">
           {/* 1. Buyer Model Selector (Multi-Select Supported) */}
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -2664,7 +2785,7 @@ export function ModuleBWorkspace({
             </div>
           </div>
 
-          {/* Step 1 Action Bar: Park Question + Save Step 1 */}
+          {/* Step 1 Action Bar: Park Question + Save Step 1 + Next */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
             <Button
               type="button"
@@ -2684,59 +2805,157 @@ export function ModuleBWorkspace({
               Not 100% sure who approves budget? Park in Open Questions
             </Button>
 
-            <Button
-              type="button"
-              size="sm"
-              disabled={isVaultReadonly || isSaving}
-              onClick={handleSaveStep1}
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving Step 1...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save Step 1 (Customers &amp; Markets)
-                </>
-              )}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={isVaultReadonly || isSaving}
+                onClick={handleSaveStep1}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving Step 1...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Step 1 (Customers &amp; Markets)
+                  </>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={async () => {
+                  if (!isVaultReadonly) {
+                    await handleSaveStep1();
+                  }
+                  setOpenStep(2);
+                  setTimeout(() => {
+                    document
+                      .getElementById('module-b-step-2')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 40);
+                }}
+                className="bg-slate-900 text-white hover:bg-slate-800"
+              >
+                Next: Competitors &amp; Habits
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       {/* =================================================================== */}
       {/* STEP 2: COMPETITORS & HOW CUSTOMERS DEAL WITH THIS TODAY            */}
       {/* =================================================================== */}
-      <Card id="module-b-step-2" className="border-indigo-100 shadow-xs">
-        <CardHeader className="border-b border-slate-100 bg-slate-50/60">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Badge>Module B • Step 2 of 5</Badge>
-                <Badge
-                  variant="secondary"
-                  className="bg-indigo-50 text-indigo-700"
+      {openStep !== 'ALL' && openStep !== 2 ? (
+        <div
+          id="module-b-step-2"
+          onClick={() => setOpenStep(2)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleBReadinessSteps[1]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleBReadinessSteps[1]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '2'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 2: Competitors &amp; Current Habits
+                  </h2>
+                  {moduleBReadinessSteps[1]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleBReadinessSteps[1]?.summary}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <Card id="module-b-step-2" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleBReadinessSteps[1]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
                 >
+                  {moduleBReadinessSteps[1]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '2'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 2: Competitors &amp; How Customers Deal With This Today
+                </h2>
+                <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 shrink-0">
                   AI Market Scout Enabled
                 </Badge>
               </div>
-              <CardTitle className="mt-2 text-lg">
-                Step 2: Competitors &amp; How Customers Deal With This Today
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Show how your target customers currently handle this problem
-                (even if it&apos;s spreadsheets or WhatsApp), map out direct
-                competitors in <strong>{targetMarkets.join(', ')}</strong>, and
-                define why customers will switch to{' '}
-                <strong>{plan.title}</strong>.
-              </CardDescription>
+              <p className="mt-1 text-xs text-slate-600">
+                Show how your target customers currently handle this problem, map out direct competitors in {targetMarkets.join(', ')}, and define why customers will switch to {plan.title}.
+              </p>
             </div>
 
-            {/* Step 2 Layer 1 Micro-Coaching Toggles */}
-            <div className="flex flex-wrap items-center gap-1.5">
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -2872,9 +3091,8 @@ export function ModuleBWorkspace({
               </div>
             </div>
           )}
-        </CardHeader>
 
-        <CardContent className="space-y-6 pt-6">
+          <CardContent className="space-y-6 px-0 pb-0 pt-4">
           {/* PART 1: HOW CUSTOMERS DEAL WITH THIS TODAY (WORKAROUNDS) */}
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -3225,7 +3443,7 @@ export function ModuleBWorkspace({
             </div>
           </div>
 
-          {/* Step 2 Action Bar: Park Question + Save Step 2 */}
+          {/* Step 2 Action Bar: Park Question + Save Step 2 + Next */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
             <Button
               type="button"
@@ -3245,67 +3463,164 @@ export function ModuleBWorkspace({
               Unsure on competitor pricing? Park in Open Questions
             </Button>
 
-            <Button
-              type="button"
-              size="sm"
-              disabled={isVaultReadonly || isSavingStep2}
-              onClick={handleSaveStep2}
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
-            >
-              {isSavingStep2 ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving Step 2...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save Step 2 (Competitors &amp; Current Habits)
-                </>
-              )}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={isVaultReadonly || isSavingStep2}
+                onClick={handleSaveStep2}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                {isSavingStep2 ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving Step 2...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Step 2 (Competitors &amp; Current Habits)
+                  </>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={async () => {
+                  if (!isVaultReadonly) {
+                    await handleSaveStep2();
+                  }
+                  setOpenStep(3);
+                  setTimeout(() => {
+                    document
+                      .getElementById('module-b-step-3')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 40);
+                }}
+                className="bg-slate-900 text-white hover:bg-slate-800"
+              >
+                Next: Market Sizing
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       {/* =================================================================== */}
       {/* STEP 3: MARKET SIZING WITHOUT THE MATHS HEADACHE                    */}
       {/* =================================================================== */}
-      <Card
-        id="module-b-step-3"
-        className="border-indigo-200 bg-white shadow-xs"
-      >
-        <CardHeader className="border-b border-slate-100 bg-slate-50/60">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
+      {openStep !== 'ALL' && openStep !== 3 ? (
+        <div
+          id="module-b-step-3"
+          onClick={() => setOpenStep(3)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleBReadinessSteps[2]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleBReadinessSteps[2]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '3'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 3: Plain-English Market Sizing ({countryPack.defaultCurrency})
+                  </h2>
+                  {moduleBReadinessSteps[2]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleBReadinessSteps[2]?.summary}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <Card
+          id="module-b-step-3"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-indigo-600 text-white">
-                  Step 3 of 5 • Active Step
-                </Badge>
-                <Badge variant="outline">
-                  Bottom-Up Calculator ({countryPack.defaultCurrency})
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleBReadinessSteps[2]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {moduleBReadinessSteps[2]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '3'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 3: Market Sizing Without the Maths Headache
+                </h2>
+                <Badge variant="outline" className="shrink-0">
+                  Bottom-Up ({countryPack.defaultCurrency})
                 </Badge>
                 {marketSegments.length > 1 && (
-                  <Badge variant="secondary">
-                    {marketSegments.length} Customer Groups Combined
+                  <Badge variant="secondary" className="shrink-0">
+                    {marketSegments.length} Customer Groups
                   </Badge>
                 )}
               </div>
-              <CardTitle className="text-lg">
-                Step 3: Market Sizing Without the Maths Headache
-              </CardTitle>
-              <CardDescription>
-                Skip the fake &ldquo;1% of a $50 Billion global industry&rdquo;
-                guessing game. Answer 3 simple questions per customer group and
-                we&apos;ll calculate your{' '}
-                <strong>Year 1–2 Revenue Goal</strong>,{' '}
-                <strong>Reachable Market</strong>, and{' '}
-                <strong>Wider Long-Term Market</strong> automatically in{' '}
-                <strong>{countryPack.defaultCurrency}</strong>.
+              <CardDescription className="mt-1">
+                Skip the fake &ldquo;1% of a $50 Billion global industry&rdquo; guessing game. Answer 3 simple questions per customer group and we&apos;ll calculate your Year 1–2 Revenue Goal, Reachable Market, and Wider Long-Term Market automatically in {countryPack.defaultCurrency}.
               </CardDescription>
             </div>
 
-            {/* Layer 1 + Layer 2 + Layer 3 Support Buttons */}
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
@@ -3346,65 +3661,64 @@ export function ModuleBWorkspace({
                 <BarChart3 className="h-3.5 w-3.5 text-emerald-600" />
                 Use Industry Benchmark
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={isVaultReadonly || isEstimatingStep3Ai}
-                onClick={handleRunAiMarketSizing}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
-              >
-                {isEstimatingStep3Ai ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Estimating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Estimate Customer Counts with AI
-                  </>
-                )}
-              </Button>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isVaultReadonly || isEstimatingStep3Ai}
+              onClick={handleRunAiMarketSizing}
+              className="bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              {isEstimatingStep3Ai ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Estimating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Estimate Customer Counts with AI
+                </>
+              )}
+            </Button>
           </div>
-        </CardHeader>
 
-        <CardContent className="space-y-6 pt-5">
-          {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
-          {showStep3WhyCard && (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
-              <div className="flex items-start gap-2.5">
-                <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-                <div className="space-y-1.5">
-                  <div className="font-bold">
-                    Why do grant panels and investors prefer &ldquo;Bottom-Up
-                    Maths&rdquo; over big industry reports?
+          <CardContent className="space-y-6 px-0 pb-0 pt-4">
+            {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
+            {showStep3WhyCard && (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                <div className="flex items-start gap-2.5">
+                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <div className="space-y-1.5">
+                    <div className="font-bold">
+                      Why do grant panels and investors prefer &ldquo;Bottom-Up
+                      Maths&rdquo; over big industry reports?
+                    </div>
+                    <p className="leading-relaxed text-indigo-900/90">
+                      When a founder says{' '}
+                      <em>
+                        &ldquo;The global software market is €100 Billion and we
+                        only need 1%&rdquo;
+                      </em>
+                      , reviewers immediately push back because it doesn&apos;t
+                      show how many real customers you need to win. Instead,
+                      counting <strong>Number of Customers × Price Paid</strong>{' '}
+                      proves your Year 1–2 revenue goal is grounded in reality —
+                      especially if you sell to{' '}
+                      <strong>more than one customer group</strong> (for example,
+                      individual users <em>plus</em> universities or business
+                      teams).
+                    </p>
                   </div>
-                  <p className="leading-relaxed text-indigo-900/90">
-                    When a founder says{' '}
-                    <em>
-                      &ldquo;The global software market is €100 Billion and we
-                      only need 1%&rdquo;
-                    </em>
-                    , reviewers immediately push back because it doesn&apos;t
-                    show how many real customers you need to win. Instead,
-                    counting <strong>Number of Customers × Price Paid</strong>{' '}
-                    proves your Year 1–2 revenue goal is grounded in reality —
-                    especially if you sell to{' '}
-                    <strong>more than one customer group</strong> (for example,
-                    individual users <em>plus</em> universities or business
-                    teams).
-                  </p>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Layer 1: Industry-Tailored Example Drawer */}
-          {showStep3Examples && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="font-bold">
+            {/* Layer 1: Industry-Tailored Example Drawer */}
+            {showStep3Examples && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-bold">
                   💡 How a Multi-Group Startup Sizes Their Market (Example in{' '}
                   {countryPack.defaultCurrency})
                 </span>
@@ -4074,7 +4388,7 @@ export function ModuleBWorkspace({
             )}
           </div>
 
-          {/* Step 3 Action Bar: Park Question + Save Step 3 */}
+          {/* Step 3 Action Bar: Park Question + Save Step 3 + Next */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
             <Button
               type="button"
@@ -4094,56 +4408,158 @@ export function ModuleBWorkspace({
               Unsure on exact customer counts? Park in Open Questions
             </Button>
 
-            <Button
-              type="button"
-              size="sm"
-              disabled={isVaultReadonly || isSavingStep3}
-              onClick={handleSaveStep3}
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
-            >
-              {isSavingStep3 ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving Step 3...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save Step 3 (Market Sizing in {countryPack.defaultCurrency})
-                </>
-              )}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={isVaultReadonly || isSavingStep3}
+                onClick={handleSaveStep3}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                {isSavingStep3 ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving Step 3...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Step 3 (Market Sizing in {countryPack.defaultCurrency})
+                  </>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={async () => {
+                  if (!isVaultReadonly) {
+                    await handleSaveStep3();
+                  }
+                  setOpenStep(4);
+                  setTimeout(() => {
+                    document
+                      .getElementById('module-b-step-4')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 40);
+                }}
+                className="bg-slate-900 text-white hover:bg-slate-800"
+              >
+                Next: Competitive Edge
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       {/* =================================================================== */}
       {/* STEP 4 OF 5: COMPETITIVE EDGE & HOW YOU STAND OUT                   */}
       {/* =================================================================== */}
-      <Card
-        id="module-b-step-4"
-        className="scroll-mt-6 border-indigo-200 shadow-sm"
-      >
-        <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Badge variant="default">Step 4 of 5</Badge>
-                <span className="text-xs font-semibold text-indigo-700">
-                  Why Customers Switch &amp; What Stops Copycats
-                </span>
+      {openStep !== 'ALL' && openStep !== 4 ? (
+        <div
+          id="module-b-step-4"
+          onClick={() => setOpenStep(4)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleBReadinessSteps[3]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleBReadinessSteps[3]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '4'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 4: Competitive Edge &amp; Stand Out
+                  </h2>
+                  {moduleBReadinessSteps[3]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleBReadinessSteps[3]?.summary}
+                </p>
               </div>
-              <CardTitle className="mt-1.5 text-lg">
-                Step 4: Competitive Edge &amp; How You Stand Out
-              </CardTitle>
-              <CardDescription className="mt-0.5 text-xs">
-                Show side-by-side how you win against current customer habits
-                and competitors, how you make switching effortless, and what
-                protects your business as you grow.
-              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <Card
+          id="module-b-step-4"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleBReadinessSteps[3]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {moduleBReadinessSteps[3]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '4'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 4: Competitive Edge &amp; How You Stand Out
+                </h2>
+                <Badge variant="default" className="shrink-0">Step 4 of 5</Badge>
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Show side-by-side how you win against current customer habits and competitors, how you make switching effortless, and what protects your business as you grow.
+              </p>
             </div>
 
-            {/* Layer 1 & 2 Support Buttons */}
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+          {/* Layer 1 & 2 Support Buttons */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
@@ -4167,72 +4583,70 @@ export function ModuleBWorkspace({
                   ? 'Hide Examples'
                   : `Show ${plan.industryCategory} Example`}
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={isVaultReadonly || isGeneratingStep4Ai}
-                onClick={handleRunAiCompetitiveEdge}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
-              >
-                {isGeneratingStep4Ai ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Drafting Edge...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-3.5 w-3.5" />
-                    Auto-Draft Competitive Edge with AI
-                  </>
-                )}
-              </Button>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isVaultReadonly || isGeneratingStep4Ai}
+              onClick={handleRunAiCompetitiveEdge}
+              className="bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              {isGeneratingStep4Ai ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Drafting Edge...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-3.5 w-3.5" />
+                  Auto-Draft Competitive Edge with AI
+                </>
+              )}
+            </Button>
           </div>
 
-          {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
-          {showStep4WhyCard && (
-            <div className="mt-3 rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
-              <div className="font-bold text-indigo-900">
-                💡 Why Are We Asking This? (Co-Founder Coaching)
-              </div>
-              <p className="mt-1 leading-relaxed text-indigo-900/90">
-                Being <em>&ldquo;slightly better&rdquo;</em> isn&apos;t enough to
-                get busy customers to abandon a habit they already know. First,
-                you need a <strong>low-risk way for them to switch</strong>.
-                Second, investors and grant boards always ask:{' '}
-                <em>
-                  &ldquo;What stops an existing software company or competitor
-                  from copying this next month?&rdquo;
-                </em>{' '}
-                This step gives you a clear, visual answer to both questions.
-              </p>
-            </div>
-          )}
-
-          {/* Layer 1: Industry-Tailored Weak vs Strong Example */}
-          {showStep4Examples && (
-            <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs md:grid-cols-2">
-              <div className="rounded-lg border border-rose-200 bg-white p-3">
-                <div className="font-bold text-rose-700">
-                  ❌ Vague Claim (What Grant Boards &amp; Buyers Doubt)
+          <CardContent className="space-y-6 px-0 pb-0 pt-4">
+            {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
+            {showStep4WhyCard && (
+              <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+                <div className="font-bold text-indigo-900">
+                  💡 Why Are We Asking This? (Co-Founder Coaching)
                 </div>
-                <p className="mt-1 text-slate-600">
-                  &ldquo;{competitiveEdgeExamples.weakExample}&rdquo;
+                <p className="mt-1 leading-relaxed text-indigo-900/90">
+                  Being <em>&ldquo;slightly better&rdquo;</em> isn&apos;t enough to
+                  get busy customers to abandon a habit they already know. First,
+                  you need a <strong>low-risk way for them to switch</strong>.
+                  Second, investors and grant boards always ask:{' '}
+                  <em>
+                    &ldquo;What stops an existing software company or competitor
+                    from copying this next month?&rdquo;
+                  </em>{' '}
+                  This step gives you a clear, visual answer to both questions.
                 </p>
               </div>
-              <div className="rounded-lg border border-emerald-200 bg-white p-3">
-                <div className="font-bold text-emerald-800">
-                  ✅ Clear Competitive Edge ({plan.industryCategory})
-                </div>
-                <p className="mt-1 text-slate-700">
-                  &ldquo;{competitiveEdgeExamples.strongExample}&rdquo;
-                </p>
-              </div>
-            </div>
-          )}
-        </CardHeader>
+            )}
 
-        <CardContent className="space-y-6 pt-6">
+            {/* Layer 1: Industry-Tailored Weak vs Strong Example */}
+            {showStep4Examples && (
+              <div className="grid grid-cols-1 gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs md:grid-cols-2">
+                <div className="rounded-lg border border-rose-200 bg-white p-3">
+                  <div className="font-bold text-rose-700">
+                    ❌ Vague Claim (What Grant Boards &amp; Buyers Doubt)
+                  </div>
+                  <p className="mt-1 text-slate-600">
+                    &ldquo;{competitiveEdgeExamples.weakExample}&rdquo;
+                  </p>
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-white p-3">
+                  <div className="font-bold text-emerald-800">
+                    ✅ Clear Competitive Edge ({plan.industryCategory})
+                  </div>
+                  <p className="mt-1 text-slate-700">
+                    &ldquo;{competitiveEdgeExamples.strongExample}&rdquo;
+                  </p>
+                </div>
+              </div>
+            )}
           {/* =============================================================== */}
           {/* 4.1 SIDE-BY-SIDE COMPARISON SCORER                              */}
           {/* =============================================================== */}
@@ -4684,7 +5098,7 @@ export function ModuleBWorkspace({
             />
           </div>
 
-          {/* Step 4 Action Bar: Park Question + Save Step 4 */}
+          {/* Step 4 Action Bar: Park Question + Save Step 4 + Next */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
             <Button
               type="button"
@@ -4704,207 +5118,392 @@ export function ModuleBWorkspace({
               Unsure what stops copycats? Park in Open Questions
             </Button>
 
-            <Button
-              type="button"
-              size="sm"
-              disabled={isVaultReadonly || isSavingStep4}
-              onClick={handleSaveStep4}
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
-            >
-              {isSavingStep4 ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving Step 4...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save Step 4 (Competitive Edge &amp; Stand Out)
-                </>
-              )}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={isVaultReadonly || isSavingStep4}
+                onClick={handleSaveStep4}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                {isSavingStep4 ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving Step 4...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Step 4 (Competitive Edge &amp; Stand Out)
+                  </>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={async () => {
+                  if (!isVaultReadonly) {
+                    await handleSaveStep4();
+                  }
+                  setOpenStep(5);
+                  setTimeout(() => {
+                    document
+                      .getElementById('module-b-step-5')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 40);
+                }}
+                className="bg-slate-900 text-white hover:bg-slate-800"
+              >
+                Next: Blind-Spot Review
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       {/* =================================================================== */}
       {/* STEP 5 OF 5: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARD      */}
       {/* (Matches Module A Step 6 Design 100%)                               */}
       {/* =================================================================== */}
-      <div
-        id="module-b-step-5"
-        className="scroll-mt-6 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 p-5 shadow-xs"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Step 5: Constructive &ldquo;Things to Consider&rdquo;
-                (Blind-Spot Engine)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Updates live as you fill in Steps 1–4 — combining your target
-                customer, competitors, {countryPack.defaultCurrency} market
-                sizing, and competitive edge.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-900">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-              Live-Synced with Steps 1–4
-            </span>
-            <Badge variant="default">Co-Founder Perspective</Badge>
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
-          {liveModuleBThingsToConsider.map((item, idx) => (
-            <div
-              key={item.id || idx}
-              className={`flex flex-col justify-between rounded-xl border p-4 shadow-2xs transition-all ${
-                item.severity === 'WARNING'
-                  ? 'border-amber-300 bg-amber-50/40'
-                  : 'border-slate-200/90 bg-white'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                      item.severity === 'WARNING'
-                        ? 'bg-amber-100 text-amber-900'
-                        : 'bg-indigo-50 text-indigo-800'
-                    }`}
-                  >
-                    {item.severity === 'WARNING'
-                      ? '⚠️ Priority Blind Spot'
-                      : '💡 Co-Founder Check'}
-                  </span>
-                </div>
-                <div className="mt-2 text-xs font-bold text-slate-900">
-                  {item.title}
-                </div>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-                  {item.explanation}
-                </p>
-                {item.suggestedAction && (
-                  <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-indigo-900 ring-1 ring-slate-200/70">
-                    <strong>Action Step:</strong> {item.suggestedAction}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 flex justify-end border-t border-slate-100 pt-2">
-                <button
-                  type="button"
-                  disabled={isVaultReadonly}
-                  onClick={() => {
-                    onParkQuestion(
-                      `Module B Blind-Spot Action: ${item.suggestedAction}`
-                    );
-                    setSaveBanner(
-                      `📌 Parked "${item.title}" in your Open Questions Parking Lot!`
-                    );
-                  }}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
-                >
-                  <BookmarkPlus className="h-3 w-3" />
-                  Park in Open Questions
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Step 5 Bottom Save Bar */}
-        {!isVaultReadonly && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/90 px-4 py-3">
-            <div className="text-xs text-slate-600">
-              ✨ Change any option or add notes in Steps 1–4 above and watch
-              these 6 cards adapt immediately.
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                disabled={isSavingStep5}
-                onClick={handleSaveStep5AndComplete}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
+      {openStep !== 'ALL' && openStep !== 5 ? (
+        <div
+          id="module-b-step-5"
+          onClick={() => setOpenStep(5)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  moduleBReadinessSteps[4]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
               >
-                {isSavingStep5 ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Saving Module B...
-                  </>
+                {moduleBReadinessSteps[4]?.isComplete ? (
+                  <Check className="h-4 w-4" />
                 ) : (
-                  <>
-                    <Save className="h-3.5 w-3.5" />
-                    Save All Module B Progress
-                  </>
+                  '5'
                 )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 5: Market Blind-Spot Review
+                  </h2>
+                  {moduleBReadinessSteps[4]?.isComplete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {moduleBReadinessSteps[4]?.summary}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Edit Step</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div
+          id="module-b-step-5"
+          className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 p-6 shadow-xs"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-indigo-100 pb-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    moduleBReadinessSteps[4]?.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {moduleBReadinessSteps[4]?.isComplete ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    '5'
+                  )}
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Step 5: Constructive &ldquo;Things to Consider&rdquo; (Blind-Spot Engine)
+                </h2>
+                <Badge variant="default" className="shrink-0">Step 5 of 5</Badge>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-900 shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                  Live-Synced with Steps 1–4
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Updates live as you fill in Steps 1–4 — combining your target customer, competitors, {countryPack.defaultCurrency} market sizing, and competitive edge.
+              </p>
+            </div>
+
+            {openStep !== 'ALL' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+              >
+                <span>Collapse Step</span>
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
+            {liveModuleBThingsToConsider.map((item, idx) => (
+              <div
+                key={item.id || idx}
+                className={`flex flex-col justify-between rounded-xl border p-4 shadow-2xs transition-all ${
+                  item.severity === 'WARNING'
+                    ? 'border-amber-300 bg-amber-50/40'
+                    : 'border-slate-200/90 bg-white'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        item.severity === 'WARNING'
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'bg-indigo-50 text-indigo-800'
+                      }`}
+                    >
+                      {item.severity === 'WARNING'
+                        ? '⚠️ Priority Blind Spot'
+                        : '💡 Co-Founder Check'}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs font-bold text-slate-900">
+                    {item.title}
+                  </div>
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+                    {item.explanation}
+                  </p>
+                  {item.suggestedAction && (
+                    <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-indigo-900 ring-1 ring-slate-200/70">
+                      <strong>Action Step:</strong> {item.suggestedAction}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 flex justify-end border-t border-slate-100 pt-2">
+                  <button
+                    type="button"
+                    disabled={isVaultReadonly}
+                    onClick={() => {
+                      onParkQuestion(
+                        `Module B Blind-Spot Action: ${item.suggestedAction}`
+                      );
+                      setSaveBanner(
+                        `📌 Parked "${item.title}" in your Open Questions Parking Lot!`
+                      );
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+                  >
+                    <BookmarkPlus className="h-3 w-3" />
+                    Park in Open Questions
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Step 5 Bottom Save Bar */}
+          {!isVaultReadonly && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/90 px-4 py-3">
+              <div className="text-xs text-slate-600">
+                ✨ Change any option or add notes in Steps 1–4 above and watch
+                these 6 cards adapt immediately.
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isSavingStep5}
+                  onClick={handleSaveStep5AndComplete}
+                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  {isSavingStep5 ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving Module B...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-3.5 w-3.5" />
+                      Save All Module B Progress
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={async () => {
+                    await handleSaveStep5AndComplete();
+                    setOpenStep(6);
+                    setTimeout(() => {
+                      document
+                        .getElementById('module-b-step-6')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 40);
+                  }}
+                  className="bg-slate-900 text-white hover:bg-slate-800"
+                >
+                  Next: Validation Brief &amp; Export
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* =================================================================== */}
       {/* MODULE B SUMMARY DOCUMENT: MARKET & CUSTOMER VALIDATION BRIEF       */}
       {/* (Matches Module A Step 7 Document Preview & Download Card 100%)     */}
       {/* =================================================================== */}
-      <Card className="border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm">
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+      {openStep !== 'ALL' && openStep !== 6 ? (
+        <div
+          id="module-b-step-6"
+          onClick={() => setOpenStep(6)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  completedModuleBReadinessCount === 5
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Market &amp; Customer Validation Brief (Executive Summary)
+                  </h2>
+                  <Badge
+                    variant={
+                      completedModuleBReadinessCount === 5
+                        ? 'success'
+                        : 'secondary'
+                    }
+                    className="shrink-0 text-[10px]"
+                  >
+                    {completedModuleBReadinessCount}/5 Sections Ready
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  Your complete Module B market research, competitor analysis &amp; sizing brief — ready to view, print to PDF, or export.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Open Overview</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <Card id="module-b-step-6" className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="default">
-                  Module B Summary Document
-                </Badge>
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    completedModuleBReadinessCount === 5
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Market &amp; Customer Validation Brief
+                </h2>
                 <Badge
                   variant={
                     completedModuleBReadinessCount === 5
                       ? 'success'
                       : 'secondary'
                   }
-                  className="text-[10px]"
+                  className="shrink-0 text-[10px]"
                 >
                   {completedModuleBReadinessCount}/5 Sections Ready
                 </Badge>
               </div>
-              <CardTitle className="mt-2 flex items-center gap-2 text-base">
-                <FileText className="h-4 w-4 text-indigo-600" />
-                Your Market &amp; Customer Validation Brief
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Everything you captured across Steps 1–5 is compiled below into
-                a clean executive summary document you can download, print to
-                PDF, or share with a co-founder, mentor, or grant advisor before
-                moving into Module C.
-              </CardDescription>
+              <p className="mt-1 text-xs text-slate-600">
+                Everything you captured across Steps 1–5 is compiled below into a clean executive summary document you can download, print to PDF, or share with a co-founder, mentor, or grant advisor before moving into Module C.
+              </p>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setShowModuleBBriefPreview(!showModuleBBriefPreview)
-              }
-              className="text-xs"
-            >
-              <Eye className="h-3.5 w-3.5 text-indigo-600" />
-              {showModuleBBriefPreview
-                ? 'Hide Live Document Preview'
-                : 'Show Live Document Preview'}
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setShowModuleBBriefPreview(!showModuleBBriefPreview)
+                }
+                className="text-xs"
+              >
+                <Eye className="h-3.5 w-3.5 text-indigo-600" />
+                {showModuleBBriefPreview
+                  ? 'Hide Live Preview'
+                  : 'Show Live Preview'}
+              </Button>
+              {openStep !== 'ALL' && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenStep(0);
+                  }}
+                  className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                >
+                  <span>Collapse Step</span>
+                  <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
-        </CardHeader>
 
-        <CardContent className="space-y-5">
+          <CardContent className="space-y-5 px-0 pb-0 pt-4">
           {/* 5-STEP MODULE B READINESS CHECKLIST */}
           <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -5260,6 +5859,7 @@ export function ModuleBWorkspace({
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

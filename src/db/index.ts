@@ -38,11 +38,12 @@ export function ensureDatabaseSchemaSynced(): Promise<void> {
           ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_D_PRODUCT_BUILD';
           ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_E_OPERATIONS';
           ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_F_COFOUNDER_TEAM';
-          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_G_REVENUE';
-          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_H_MARKETING';
-          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_I_FINANCE';
-          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_J_GRANTS_FUNDING';
-          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_K_BUSINESS_PLAN';
+          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_G_LAUNCHPAD';
+          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_H_REVENUE';
+          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_I_MARKETING';
+          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_J_FINANCE';
+          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_K_GRANTS_FUNDING';
+          ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_L_BUSINESS_PLAN';
 
           ALTER TABLE startup_plans
             ADD COLUMN IF NOT EXISTS grant_eligibility_sector text,

@@ -873,7 +873,7 @@ export function ModuleAGrantCheckerStep({
                 className="border-emerald-200 bg-emerald-50/60 text-xs font-medium text-emerald-800 hover:bg-emerald-100/70"
               >
                 <TrendingUp className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
-                Explore Full Module J Grants Hub
+                Explore Full Module K Grants Hub
               </Button>
             </div>
 

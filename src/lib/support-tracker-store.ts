@@ -25,11 +25,12 @@ export type SupportModuleScope =
   | 'MOD_D_PRODUCT_BUILD'
   | 'MOD_E_OPERATIONS'
   | 'MOD_F_COFOUNDER_TEAM'
-  | 'MOD_G_REVENUE'
-  | 'MOD_H_MARKETING'
-  | 'MOD_I_FINANCE'
-  | 'MOD_J_GRANTS_FUNDING'
-  | 'MOD_K_BUSINESS_PLAN'
+  | 'MOD_G_LAUNCHPAD'
+  | 'MOD_H_REVENUE'
+  | 'MOD_I_MARKETING'
+  | 'MOD_J_FINANCE'
+  | 'MOD_K_GRANTS_FUNDING'
+  | 'MOD_L_BUSINESS_PLAN'
   | 'OTHER';
 
 export interface SupportTicketRecord {
@@ -125,11 +126,12 @@ export const SUPPORT_MODULE_SCOPE_OPTIONS: Array<{
   { value: 'MOD_D_PRODUCT_BUILD', label: 'Module D: Product & Build', shortBadge: 'Mod D (Product)' },
   { value: 'MOD_E_OPERATIONS', label: 'Module E: Operations & Risk', shortBadge: 'Mod E (Ops)' },
   { value: 'MOD_F_COFOUNDER_TEAM', label: 'Module F: Team & Alignment', shortBadge: 'Mod F (Team)' },
-  { value: 'MOD_G_REVENUE', label: 'Module G: Pricing & Unit Economics', shortBadge: 'Mod G (Revenue)' },
-  { value: 'MOD_H_MARKETING', label: 'Module H: Marketing & First 10', shortBadge: 'Mod H (Marketing)' },
-  { value: 'MOD_I_FINANCE', label: 'Module I: 3-Year Finance & Cashflow', shortBadge: 'Mod I (Finance)' },
-  { value: 'MOD_J_GRANTS_FUNDING', label: 'Module J: Grants & Tax Relief Hub', shortBadge: 'Mod J (Grants)' },
-  { value: 'MOD_K_BUSINESS_PLAN', label: 'Module K: Business Plan & Compiler', shortBadge: 'Mod K (Compiler)' },
+  { value: 'MOD_G_LAUNCHPAD', label: 'Module G: Getting Set Up (Launchpad & Operations)', shortBadge: 'Mod G (Launchpad)' },
+  { value: 'MOD_H_REVENUE', label: 'Module H: Pricing & Unit Economics', shortBadge: 'Mod H (Revenue)' },
+  { value: 'MOD_I_MARKETING', label: 'Module I: Marketing & First 10', shortBadge: 'Mod I (Marketing)' },
+  { value: 'MOD_J_FINANCE', label: 'Module J: 3-Year Finance & Cashflow', shortBadge: 'Mod J (Finance)' },
+  { value: 'MOD_K_GRANTS_FUNDING', label: 'Module K: Grants & Tax Relief Hub', shortBadge: 'Mod K (Grants)' },
+  { value: 'MOD_L_BUSINESS_PLAN', label: 'Module L: Business Plan & Compiler', shortBadge: 'Mod L (Compiler)' },
   { value: 'OTHER', label: 'Other Area', shortBadge: 'Other' },
 ];
 

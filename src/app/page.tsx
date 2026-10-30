@@ -25,6 +25,7 @@ import {
   ChevronUp,
   Coins,
   Lightbulb,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -114,8 +115,19 @@ const MODULES_PREVIEW: ModulePreviewItem[] = [
     badgeVariant: 'default',
   },
   {
-    code: 'MOD_G_REVENUE',
+    code: 'MOD_G_LAUNCHPAD',
     short: 'Module G',
+    title: 'Getting Set Up (Launchpad & Operations)',
+    plainDesc:
+      'Track your 0–100% Operations Readiness Score across 6 setup cards: Legal Entity (CRO / Companies House), live .ie/.co.uk/.com Domain & @company Email check, Business Banking, Bookkeeping/VAT/Payroll, Startup Insurance, and Legal/GDPR.',
+    grantLink: 'Unlocks Incorporation, Bank Bounties & Partner Perks',
+    icon: ShieldCheck,
+    badge: 'Full Pass',
+    badgeVariant: 'secondary',
+  },
+  {
+    code: 'MOD_H_REVENUE',
+    short: 'Module H',
     title: 'Pricing & "Pocket Profit" Per Sale',
     plainDesc:
       'Set your price and see exactly how much cash stays in your pocket on a single sale after fees and delivery costs.',
@@ -125,8 +137,8 @@ const MODULES_PREVIEW: ModulePreviewItem[] = [
     badgeVariant: 'secondary',
   },
   {
-    code: 'MOD_H_MARKETING',
-    short: 'Module H',
+    code: 'MOD_I_MARKETING',
+    short: 'Module I',
     title: 'Getting Your First 10 Customers',
     plainDesc:
       'Turn your early waitlist leads into paying customers with a practical outreach playbook and realistic marketing budget.',
@@ -136,8 +148,8 @@ const MODULES_PREVIEW: ModulePreviewItem[] = [
     badgeVariant: 'secondary',
   },
   {
-    code: 'MOD_I_FINANCE',
-    short: 'Module I',
+    code: 'MOD_J_FINANCE',
+    short: 'Module J',
     title: 'No-Spreadsheet 3-Year Financial Builder',
     plainDesc:
       'Answer guided questions to generate 3-year cashflow projections, localized tax/PRSI/NIC overheads, and your exact funding gap.',
@@ -147,8 +159,8 @@ const MODULES_PREVIEW: ModulePreviewItem[] = [
     badgeVariant: 'secondary',
   },
   {
-    code: 'MOD_J_GRANTS_FUNDING',
-    short: 'Module J',
+    code: 'MOD_K_GRANTS_FUNDING',
+    short: 'Module K',
     title: 'Grant, Loan & Investor Tax Relief Matcher',
     plainDesc:
       'See every Ireland & UK grant, loan, or tax scheme you match with, score your readiness, and plan around reimbursement delays.',
@@ -158,8 +170,8 @@ const MODULES_PREVIEW: ModulePreviewItem[] = [
     badgeVariant: 'default',
   },
   {
-    code: 'MOD_K_BUSINESS_PLAN',
-    short: 'Module K',
+    code: 'MOD_L_BUSINESS_PLAN',
+    short: 'Module L',
     title: '1-Click Grant & Business Plan Compiler',
     plainDesc:
       'Compile your answers into official agency formats or a clean Business Plan—checked by AI for contradictions before you send.',
@@ -243,16 +255,16 @@ export default function LandingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
-      {/* Clear "Under Active Development" Top Banner */}
-      <div className="border-b border-amber-200/80 bg-amber-50/90 px-4 py-2 text-center">
+      {/* Early Access Public Beta Top Banner */}
+      <div className="border-b border-indigo-200/80 bg-indigo-50/80 px-4 py-2 text-center">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-2 text-xs text-slate-800">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-2.5 py-0.5 font-bold text-amber-950 ring-1 ring-amber-500/30">
-            <Construction className="h-3.5 w-3.5 text-amber-700" />
-            COMING SOON • UNDER ACTIVE DEVELOPMENT
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/15 px-2.5 py-0.5 font-bold text-indigo-950 ring-1 ring-indigo-500/30">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+            EARLY ACCESS • PUBLIC BETA
           </span>
           <span className="font-medium text-slate-700">
-            We&apos;re currently building &amp; testing Startup Preflight. Join
-            the early-access list below for launch updates.
+            Startup Preflight is in active Early-Access Beta. Join the priority
+            founder list below or sign in to your workspace.
           </span>
         </div>
       </div>
@@ -269,8 +281,8 @@ export default function LandingPage() {
                 <span className="text-base font-bold tracking-tight text-slate-900">
                   Startup Preflight
                 </span>
-                <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber-900 uppercase">
-                  In Development
+                <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-indigo-700 uppercase ring-1 ring-indigo-200">
+                  Early Access
                 </span>
               </div>
               <p className="hidden text-xs text-slate-500 sm:block">
@@ -333,13 +345,13 @@ export default function LandingPage() {
           className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-indigo-50/30 to-slate-50 px-4 py-12 sm:px-6 lg:py-16"
         >
           <div className="mx-auto max-w-4xl text-center">
-            {/* Single Clean Development Status Badge */}
-            <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3.5 py-1 text-xs font-semibold text-amber-950 shadow-2xs">
+            {/* Single Clean Early-Access Status Badge */}
+            <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3.5 py-1 text-xs font-semibold text-indigo-950 shadow-2xs">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-600" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-600" />
               </span>
-              Under Active Development • Early-Access Waitlist Open
+              Early-Access Public Beta • Priority Onboarding Open
             </div>
 
             <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:leading-[1.14]">
@@ -379,8 +391,8 @@ export default function LandingPage() {
                     Get Early Launch Access
                   </span>
                 </div>
-                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-900">
-                  Currently in Development
+                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-800">
+                  Public Beta Priority
                 </span>
               </div>
 
@@ -686,7 +698,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Optional Expandable Drawer for the Full 11 Modules */}
+            {/* Optional Expandable Drawer for the Full 12 Modules */}
             <div className="mt-10 text-center">
               <button
                 type="button"
@@ -695,13 +707,13 @@ export default function LandingPage() {
               >
                 {showAllModules ? (
                   <>
-                    Hide the 11 under-the-hood modules (A–K)
+                    Hide the 12 under-the-hood modules (A–L)
                     <ChevronUp className="h-4 w-4" />
                   </>
                 ) : (
                   <>
-                    Curious what happens under the hood? See all 11 guided
-                    modules (A–K)
+                    Curious what happens under the hood? See all 12 guided
+                    modules (A–L)
                     <ChevronDown className="h-4 w-4" />
                   </>
                 )}
@@ -750,7 +762,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      {/* Footer with Clear Development Status */}
+      {/* Footer with Company, Legal & Contact Metadata */}
       <footer className="border-t border-slate-200 bg-slate-900 text-slate-400">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
           <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
@@ -762,8 +774,8 @@ export default function LandingPage() {
                 <span className="text-sm font-bold text-white">
                   Startup Preflight
                 </span>
-                <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-400/30">
-                  Coming Soon • Under Active Development
+                <span className="rounded-full bg-indigo-500/20 px-2.5 py-0.5 text-[10px] font-semibold text-indigo-300 ring-1 ring-indigo-400/30">
+                  Early Access • Public Beta
                 </span>
               </div>
               <p className="mt-2 max-w-xl text-xs text-slate-400">
@@ -773,19 +785,49 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-xs">
-              <Link href="/about-founder" className="hover:text-white">
-                Meet the Founder
-              </Link>
-              <a href="#early-access" className="hover:text-white">
-                Early-Access Waitlist
-              </a>
-              <Link href="/login" className="hover:text-white">
-                Sign In
-              </Link>
-              <span className="text-slate-600">
-                © {new Date().getFullYear()} Startup Preflight
-              </span>
+            <div className="flex flex-col gap-2 text-xs sm:items-end">
+              <div className="flex flex-wrap items-center gap-4">
+                <Link href="/about-founder" className="hover:text-white">
+                  Meet the Founder
+                </Link>
+                <Link href="/privacy" className="hover:text-white">
+                  Privacy Policy
+                </Link>
+                <Link href="/terms" className="hover:text-white">
+                  Terms of Service
+                </Link>
+                <a
+                  href="https://www.linkedin.com/in/twalsh-start-ups/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white"
+                >
+                  LinkedIn
+                </a>
+                <a
+                  href="mailto:hello@startuppreflight.com"
+                  className="hover:text-white"
+                >
+                  Contact
+                </a>
+                <Link href="/login" className="hover:text-white">
+                  Sign In
+                </Link>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                <span>Founding Date: 2026</span>
+                <span>•</span>
+                <span>Dublin, Ireland</span>
+                <span>•</span>
+                <a
+                  href="mailto:hello@startuppreflight.com"
+                  className="hover:text-slate-400"
+                >
+                  hello@startuppreflight.com
+                </a>
+                <span>•</span>
+                <span>© {new Date().getFullYear()} Startup Preflight</span>
+              </div>
             </div>
           </div>
         </div>
