@@ -14,6 +14,7 @@ import {
 } from '@/lib/auth/server-auth';
 import {
   synthesizeModuleAConceptCanvasViaRouter,
+  synthesizeModuleAGrantPositioningViaRouter,
   type ConceptCanvasBlocks,
 } from '@/lib/ai/router';
 import type { SupportedCountryCode } from '@/lib/localization';
@@ -21,6 +22,7 @@ import type {
   SavedFounderMotivation,
   SavedTeamAndBudget,
   SavedFounderRealityCheck,
+  SavedGrantEligibilityCheck,
 } from '@/lib/auth/session-store';
 
 const UUID_REGEX =
@@ -170,6 +172,7 @@ export async function saveModuleACanvasEditsAction(input: {
   founderMotivation?: SavedFounderMotivation;
   teamAndBudget?: SavedTeamAndBudget;
   founderRealityCheck?: SavedFounderRealityCheck;
+  grantEligibilityCheck?: SavedGrantEligibilityCheck;
   thingsToConsider?: BlindSpotItem[];
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
@@ -193,6 +196,10 @@ export async function saveModuleACanvasEditsAction(input: {
       )
       .limit(1);
 
+    const prevInputs = (existingMod[0]?.structuredInputsJsonb ?? {}) as {
+      grantEligibilityCheck?: SavedGrantEligibilityCheck;
+    };
+
     const structuredPayload = {
       brainDumpText: input.brainDumpText,
       exportPotential: input.exportPotential,
@@ -203,6 +210,8 @@ export async function saveModuleACanvasEditsAction(input: {
       founderMotivation: input.founderMotivation,
       teamAndBudget: input.teamAndBudget,
       founderRealityCheck: input.founderRealityCheck,
+      grantEligibilityCheck:
+        input.grantEligibilityCheck ?? prevInputs.grantEligibilityCheck,
     };
 
     if (existingMod.length > 0) {
@@ -230,6 +239,146 @@ export async function saveModuleACanvasEditsAction(input: {
   } catch {
     return { ok: true, persistedToCloudSql: false };
   }
+}
+
+/**
+ * Runs the AI Grant Positioning Advisor for Module A Step 8 (IE & UK) and persists
+ * the founder's Step 8 micro-question answers + AI advice into Cloud SQL.
+ */
+export async function generateModuleAGrantPositioningAdviceAction(input: {
+  userId?: string;
+  planId: string;
+  planTitle: string;
+  brainDumpText: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
+  canvas: ConceptCanvasBlocks;
+  founderMotivation?: SavedFounderMotivation;
+  teamAndBudget?: SavedTeamAndBudget;
+  founderRealityCheck?: SavedFounderRealityCheck;
+  grantCheck: SavedGrantEligibilityCheck;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  persistedToCloudSql: boolean;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  positioningTips: string[];
+  updatedRevenueAndGrantFit: string;
+  creditsUsedAfter?: number;
+}> {
+  const cookieUser = await getServerSessionCookie();
+  const effectiveUserId = cookieUser?.userId || input.userId;
+
+  const aiResult = await synthesizeModuleAGrantPositioningViaRouter({
+    userId: effectiveUserId,
+    planId: input.planId,
+    planTitle: input.planTitle,
+    brainDumpText: input.brainDumpText,
+    industryCategory: input.industryCategory,
+    hqCountryCode: input.hqCountryCode,
+    exportPotential: input.exportPotential,
+    conceptCanvas: input.canvas,
+    founderMotivation: input.founderMotivation,
+    teamAndBudget: input.teamAndBudget,
+    founderRealityCheck: input.founderRealityCheck,
+    grantCheck: input.grantCheck,
+  });
+
+  if (!aiResult.allowed) {
+    return {
+      ok: false,
+      error: aiResult.reason || 'Monthly AI credit limit reached.',
+      persistedToCloudSql: false,
+      engineMode: aiResult.engineMode,
+      positioningTips: aiResult.positioningTips,
+      updatedRevenueAndGrantFit: aiResult.updatedRevenueAndGrantFit,
+      creditsUsedAfter: aiResult.creditsUsedAfter,
+    };
+  }
+
+  let persistedToCloudSql = false;
+
+  if (UUID_REGEX.test(input.planId)) {
+    const ownership = await verifyActiveSessionAndPlanOwnership(input.planId);
+    if (ownership.authorized) {
+      try {
+        const existingMod = await db
+          .select()
+          .from(planModulesData)
+          .where(
+            and(
+              eq(planModulesData.planId, input.planId),
+              eq(planModulesData.moduleCode, 'MOD_A_IDEATION')
+            )
+          )
+          .limit(1);
+
+        const updatedGrantCheck: SavedGrantEligibilityCheck = {
+          ...input.grantCheck,
+          aiGrantPositioningAdvice: aiResult.positioningTips,
+          aiEngineUsed: aiResult.engineMode,
+          lastCheckedAt: new Date().toISOString(),
+        };
+
+        const structuredPayload = {
+          brainDumpText: input.brainDumpText,
+          exportPotential: input.exportPotential,
+          conceptCanvas: {
+            ...input.canvas,
+            revenueAndGrantFit:
+              aiResult.updatedRevenueAndGrantFit ||
+              input.canvas.revenueAndGrantFit,
+            lastSynthesizedAt: new Date().toISOString(),
+          },
+          founderMotivation: input.founderMotivation,
+          teamAndBudget: input.teamAndBudget,
+          founderRealityCheck: input.founderRealityCheck,
+          grantEligibilityCheck: updatedGrantCheck,
+        };
+
+        if (existingMod.length > 0) {
+          await db
+            .update(planModulesData)
+            .set({
+              structuredInputsJsonb: structuredPayload,
+              completionPercentage: 100,
+              updatedAt: new Date(),
+            })
+            .where(eq(planModulesData.id, existingMod[0].id));
+        } else {
+          await db.insert(planModulesData).values({
+            planId: input.planId,
+            moduleCode: 'MOD_A_IDEATION',
+            structuredInputsJsonb: structuredPayload,
+            aiThingsToConsiderJsonb: [],
+            completionPercentage: 100,
+          });
+        }
+
+        await db
+          .update(startupPlans)
+          .set({
+            currentModuleStep: 'MOD_A_STEP_8',
+            updatedAt: new Date(),
+          })
+          .where(eq(startupPlans.id, input.planId));
+
+        persistedToCloudSql = true;
+      } catch {
+        // Non-blocking fallback
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    persistedToCloudSql,
+    engineMode: aiResult.engineMode,
+    positioningTips: aiResult.positioningTips,
+    updatedRevenueAndGrantFit: aiResult.updatedRevenueAndGrantFit,
+    creditsUsedAfter: aiResult.creditsUsedAfter,
+  };
 }
 
 /**

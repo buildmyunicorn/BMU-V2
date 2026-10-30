@@ -9152,6 +9152,181 @@ Return valid JSON matching this exact structure:
   };
 }
 
+/**
+ * Module A Step 8 — AI Grant Positioning Advisor (IE & UK)
+ * Evaluates the founder's idea, Concept Canvas, and Step 8 micro-questions
+ * to produce 3 tailored grant positioning tips + an updated Concept Canvas
+ * revenueAndGrantFit summary.
+ */
+export async function synthesizeModuleAGrantPositioningViaRouter(input: {
+  userId?: string;
+  planId?: string;
+  planTitle: string;
+  brainDumpText: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
+  conceptCanvas?: ConceptCanvasBlocks;
+  founderMotivation?: SavedFounderMotivation;
+  teamAndBudget?: SavedTeamAndBudget;
+  founderRealityCheck?: SavedFounderRealityCheck;
+  grantCheck: import('@/lib/grants/module-a-grant-checker').SavedGrantEligibilityCheck;
+}): Promise<{
+  allowed: boolean;
+  reason?: string;
+  positioningTips: string[];
+  updatedRevenueAndGrantFit: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}> {
+  const {
+    evaluateModuleAGrantEligibility,
+    GRANT_ACTIVITY_TYPE_LABELS,
+    GRANT_LEGAL_ENTITY_LABELS,
+    GRANT_PAYE_STATUS_LABELS,
+    GRANT_REGIONAL_TIER_LABELS,
+  } = await import('@/lib/grants/module-a-grant-checker');
+
+  const evalSummary = evaluateModuleAGrantEligibility({
+    hqCountryCode: input.hqCountryCode,
+    exportPotential: input.exportPotential,
+    industryCategory: input.industryCategory,
+    brainDumpText: input.brainDumpText,
+    conceptCanvas: input.conceptCanvas,
+    founderMotivation: input.founderMotivation,
+    teamAndBudget: input.teamAndBudget,
+    founderRealityCheck: input.founderRealityCheck,
+    grantCheck: input.grantCheck,
+  });
+
+  const topImmediateGrant =
+    evalSummary.qualifiesNowGrants[0]?.grantName ||
+    evalSummary.unlockableNextGrants[0]?.grantName ||
+    'Local Enterprise Support';
+
+  const fallbackRevenueAndGrantFit = `Pricing in ${evalSummary.currency}; eligible for up to ${evalSummary.immediateQualifiedPoolFormatted} in immediate ${evalSummary.countryCode === 'IE' ? 'Irish' : 'UK'} startup supports (led by ${topImmediateGrant}) + up to ${evalSummary.unlockableScalePoolFormatted} in Phase 2 scale funding.`;
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_A_GRANT_ELIGIBILITY_CHECKER',
+    'You are an expert Irish (LEO, Enterprise Ireland, Revenue SURE) and UK (British Business Bank Start Up Loans, Innovate UK, HMRC SEIS/EIS) startup grant evaluator and supportive co-founder.'
+  );
+
+  if (authCtx.creditCheckBlocked) {
+    return {
+      allowed: false,
+      reason: authCtx.blockReason,
+      positioningTips: evalSummary.strategicPositioningTips,
+      updatedRevenueAndGrantFit: fallbackRevenueAndGrantFit,
+      creditsUsedAfter: authCtx.currentCreditsUsed,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  let creditsUsedAfter = authCtx.currentCreditsUsed;
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const prompt = `${authCtx.systemInstruction}
+
+Founder Plan Title: ${sanitizePromptInput(input.planTitle, 140)}
+Country: ${evalSummary.countryCode === 'IE' ? 'Ireland (EUR)' : 'United Kingdom (GBP)'}
+Industry: ${sanitizePromptInput(input.industryCategory, 120)}
+Export Scope: ${input.exportPotential}
+Founder Idea: ${sanitizePromptInput(input.brainDumpText, 800)}
+Problem: ${sanitizePromptInput(input.conceptCanvas?.coreProblem, 300)}
+Solution: ${sanitizePromptInput(input.conceptCanvas?.proposedSolution, 300)}
+
+Step 8 Eligibility Answers:
+- Legal Entity Stage: ${GRANT_LEGAL_ENTITY_LABELS[input.grantCheck.legalEntityStage]}${input.grantCheck.otherLegalEntityText ? ` (${sanitizePromptInput(input.grantCheck.otherLegalEntityText, 120)})` : ''}
+- Commercial Activity: ${GRANT_ACTIVITY_TYPE_LABELS[input.grantCheck.commercialActivityType]}${input.grantCheck.otherCommercialActivityText ? ` (${sanitizePromptInput(input.grantCheck.otherCommercialActivityText, 120)})` : ''}
+- Founder PAYE / Commitment: ${GRANT_PAYE_STATUS_LABELS[input.grantCheck.founderPayeStatus]}${input.grantCheck.otherFounderPayeText ? ` (${sanitizePromptInput(input.grantCheck.otherFounderPayeText, 120)})` : ''}
+- Region Tier: ${GRANT_REGIONAL_TIER_LABELS[input.grantCheck.regionalLocationTier]}${input.grantCheck.otherRegionalLocationText ? ` (${sanitizePromptInput(input.grantCheck.otherRegionalLocationText, 120)})` : ''}
+- Custom Notes: ${sanitizePromptInput(input.grantCheck.customGrantNotes, 300)}
+
+Qualified Immediate Grants (${evalSummary.immediateQualifiedPoolFormatted}): ${evalSummary.qualifiesNowGrants.map((g) => `${g.grantName} (${g.potentialValueFormatted})`).join('; ')}
+Unlockable Next Grants (${evalSummary.unlockableScalePoolFormatted}): ${evalSummary.unlockableNextGrants.map((g) => `${g.grantName} (${g.potentialValueFormatted})`).join('; ')}
+
+Return valid JSON with:
+{
+  "positioningTips": [
+    "1. Specific advice on how to frame their exact idea to pass evaluator rules (e.g. non-displacement, export potential, or technical innovation)...",
+    "2. Specific sequencing advice on which grant/loan/tax relief to claim first given their legal entity & starting budget...",
+    "3. Specific procurement/evidence trap to avoid (e.g. 3 quotes, Letter of Offer timing, or customer survey proof in Module C)..."
+  ],
+  "updatedRevenueAndGrantFit": "1 crisp sentence summarizing their revenue model and top qualified ${evalSummary.countryCode} grant pathway (${evalSummary.immediateQualifiedPoolFormatted} immediate pool)."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.25,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          positioningTips?: string[];
+          updatedRevenueAndGrantFit?: string;
+        };
+        if (
+          Array.isArray(parsed.positioningTips) &&
+          parsed.positioningTips.length >= 2
+        ) {
+          creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: input.planId,
+            promptKey: 'MOD_A_GRANT_ELIGIBILITY_CHECKER',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 380,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 240,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            positioningTips: parsed.positioningTips
+              .slice(0, 4)
+              .map((t) => String(t).trim()),
+            updatedRevenueAndGrantFit:
+              parsed.updatedRevenueAndGrantFit?.trim() ||
+              fallbackRevenueAndGrantFit,
+            creditsUsedAfter,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch {
+      // Fall back to deterministic positioning tips below
+    }
+  }
+
+  creditsUsedAfter = await recordGeminiUsageAndIncrementCredits({
+    verifiedUserId: authCtx.verifiedUserId,
+    planId: input.planId,
+    promptKey: 'MOD_A_GRANT_ELIGIBILITY_CHECKER',
+    modelUsed: 'smart-synthesizer',
+    inputTokens: 0,
+    outputTokens: 0,
+    usedByokKey: false,
+    fallbackCreditsUsed: authCtx.currentCreditsUsed,
+  });
+
+  return {
+    allowed: true,
+    positioningTips: evalSummary.strategicPositioningTips,
+    updatedRevenueAndGrantFit: fallbackRevenueAndGrantFit,
+    creditsUsedAfter,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+
 
 
 

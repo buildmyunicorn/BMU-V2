@@ -8,6 +8,9 @@ import {
   type SupportedCountryCode,
 } from '@/lib/localization';
 import type { StartupHat, BlindSpotItem } from '@/db/schema';
+import type { SavedGrantEligibilityCheck } from '@/lib/grants/module-a-grant-checker';
+
+export type { SavedGrantEligibilityCheck };
 
 export type FounderMotivationType =
   | 'LEAVE_JOB'
@@ -1404,6 +1407,7 @@ export interface ActiveStartupPlan {
   founderMotivation?: SavedFounderMotivation;
   teamAndBudget?: SavedTeamAndBudget;
   founderRealityCheck?: SavedFounderRealityCheck;
+  grantEligibilityCheck?: SavedGrantEligibilityCheck;
   thingsToConsider?: BlindSpotItem[];
   moduleBData?: SavedModuleBData;
   moduleCData?: SavedModuleCData;

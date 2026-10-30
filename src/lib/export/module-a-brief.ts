@@ -24,7 +24,12 @@ import type {
   FounderDealbreakerType,
   GrowthTradeoffPreference,
   BiggestWorryPreset,
+  SavedGrantEligibilityCheck,
 } from '@/lib/auth/session-store';
+import {
+  evaluateModuleAGrantEligibility,
+  isGrantCheckerSupportedForCountry,
+} from '@/lib/grants/module-a-grant-checker';
 
 export interface ModuleABriefData {
   planTitle: string;
@@ -37,6 +42,7 @@ export interface ModuleABriefData {
   founderMotivation: SavedFounderMotivation;
   teamAndBudget: SavedTeamAndBudget;
   founderRealityCheck: SavedFounderRealityCheck;
+  grantEligibilityCheck?: SavedGrantEligibilityCheck;
   thingsToConsider: BlindSpotItem[];
   openQuestions: string[];
   whiteLabelEnabled?: boolean;
@@ -265,10 +271,44 @@ ${data.thingsToConsider
   )
   .join('\n\n')}
 
----
+${
+  isGrantCheckerSupportedForCountry(data.hqCountryCode) &&
+  data.grantEligibilityCheck
+    ? (() => {
+        const grantEval = evaluateModuleAGrantEligibility({
+          hqCountryCode: data.hqCountryCode,
+          exportPotential: data.exportPotential,
+          industryCategory: data.industryCategory,
+          brainDumpText: data.brainDumpText,
+          conceptCanvas: data.conceptCanvas,
+          founderMotivation: data.founderMotivation,
+          teamAndBudget: data.teamAndBudget,
+          founderRealityCheck: data.founderRealityCheck,
+          grantCheck: data.grantEligibilityCheck,
+        });
+        const positioningTips =
+          data.grantEligibilityCheck.aiGrantPositioningAdvice &&
+          data.grantEligibilityCheck.aiGrantPositioningAdvice.length > 0
+            ? data.grantEligibilityCheck.aiGrantPositioningAdvice
+            : grantEval.strategicPositioningTips;
+        return `---
 
-## 7. Next Milestone (Module B)
-- [ ] Launch Module B Customer Validation Survey (/v/my-startup) to test willingness-to-pay with 10 target buyers in ${countryPack.countryName}.
+## 7. Grants & Non-Dilutive Funding You Qualify For Right Now (Step 7)
+- **Immediate Qualified Grant & Loan Pool:** ${grantEval.immediateQualifiedPoolFormatted} (${grantEval.qualifiesNowGrants.length} schemes ready now)
+- **Unlockable Phase 2 Scale Pool:** ${grantEval.unlockableScalePoolFormatted} (${grantEval.unlockableNextGrants.length} schemes unlockable next)
+- **🟢 Grants You Qualify For Right Now:**
+${grantEval.qualifiesNowGrants.map((g) => `  - **${g.grantName}** (${g.providerAgency} • ${g.potentialValueFormatted}) — ${g.whyYouMatchOrMiss} *(Match Rule: ${g.coFundingOrMatchRequirement})*`).join('\n') || '  - Complete Step 7 micro-questions to view immediate matches.'}
+- **🟡 Unlockable Next (Phase 2):**
+${grantEval.unlockableNextGrants.map((g) => `  - **${g.grantName}** (${g.potentialValueFormatted}) — Unlock Step: ${g.unlockRequirement || g.whyYouMatchOrMiss}`).join('\n') || '  - None'}
+- **Grant Positioning Strategy:**
+${positioningTips.map((t) => `  - ${t}`).join('\n')}
+`;
+      })()
+    : ''
+}---
+
+## Next Milestone (Module B)
+- [ ] Launch Module B Market & Competitor Intelligence and Module C Customer Validation Survey to test willingness-to-pay with 10 target buyers in ${countryPack.countryName}.
 `;
 }
 
@@ -484,7 +524,57 @@ export function buildModuleAStandaloneHtmlDocument(
           )
           .join('')}
       </div>
+    </div>
+    ${
+      isGrantCheckerSupportedForCountry(data.hqCountryCode) &&
+      data.grantEligibilityCheck
+        ? (() => {
+            const grantEval = evaluateModuleAGrantEligibility({
+              hqCountryCode: data.hqCountryCode,
+              exportPotential: data.exportPotential,
+              industryCategory: data.industryCategory,
+              brainDumpText: data.brainDumpText,
+              conceptCanvas: data.conceptCanvas,
+              founderMotivation: data.founderMotivation,
+              teamAndBudget: data.teamAndBudget,
+              founderRealityCheck: data.founderRealityCheck,
+              grantCheck: data.grantEligibilityCheck,
+            });
+            return `
+    <!-- 7. GRANTS & FUNDING YOU QUALIFY FOR RIGHT NOW (STEP 7) -->
+    <div class="section">
+      <div class="section-title">7. Grants &amp; Non-Dilutive Funding You Qualify For Right Now (Step 7)</div>
+      <div class="grid-2" style="margin-bottom: 12px;">
+        <div class="card" style="background: #ecfdf5; border-color: #a7f3d0;">
+          <div class="card-label" style="color: #047857;">Immediate Qualified Grant &amp; Loan Pool</div>
+          <div class="card-value" style="font-size: 16px; font-weight: 700; color: #065f46;">${escapeHtml(grantEval.immediateQualifiedPoolFormatted)} (${grantEval.qualifiesNowGrants.length} Schemes Qualify Right Now)</div>
+        </div>
+        <div class="card" style="background: #eef2ff; border-color: #c7d2fe;">
+          <div class="card-label" style="color: #4338ca;">Unlockable Phase 2 Scale Pool</div>
+          <div class="card-value" style="font-size: 16px; font-weight: 700; color: #312e81;">${escapeHtml(grantEval.unlockableScalePoolFormatted)} (${grantEval.unlockableNextGrants.length} Schemes Unlockable Next)</div>
+        </div>
+      </div>
+      <div class="grid-2">
+        ${[...grantEval.qualifiesNowGrants, ...grantEval.unlockableNextGrants]
+          .map(
+            (g) => `
+          <div class="card" style="background: ${g.matchTier === 'QUALIFIES_NOW' ? '#f0fdf4' : '#fffbeb'}; border-color: ${g.matchTier === 'QUALIFIES_NOW' ? '#bbf7d0' : '#fde68a'};">
+            <div class="card-label" style="color: ${g.matchTier === 'QUALIFIES_NOW' ? '#047857' : '#b45309'};">
+              ${g.matchTier === 'QUALIFIES_NOW' ? '🟢 Qualifies Right Now' : '🟡 Unlockable Next'} • ${escapeHtml(g.providerAgency)} (${escapeHtml(g.fundingTypeBadge)})
+            </div>
+            <div class="card-value" style="font-weight: 700; margin-bottom: 4px;">${escapeHtml(g.grantName)} — ${escapeHtml(g.potentialValueFormatted)}</div>
+            <div style="font-size: 12px; color: #475569; margin-bottom: 4px;">${escapeHtml(g.whyYouMatchOrMiss)}</div>
+            <div style="font-size: 11px; font-weight: 600; color: ${g.matchTier === 'QUALIFIES_NOW' ? '#065f46' : '#92400e'};">
+              ${g.matchTier === 'QUALIFIES_NOW' ? `Match / Co-Funding: ${escapeHtml(g.coFundingOrMatchRequirement)}` : `Unlock Milestone: ${escapeHtml(g.unlockRequirement || g.coFundingOrMatchRequirement)}`}
+            </div>
+          </div>`
+          )
+          .join('')}
+      </div>
     </div>`;
+          })()
+        : ''
+    }`;
 
   const footerCtaHtml = `<strong>Ready for Module B (Market &amp; Competitor Intelligence)?</strong>
       Your Module A Concept &amp; Readiness Brief is complete. Continue to Module B inside Startup Preflight to map your Target Customers, Competitors, ${escapeHtml(countryPack.countryName)} Market Sizing, and Competitive Edge.`;

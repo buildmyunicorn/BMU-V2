@@ -30,6 +30,11 @@ import {
   formatInterviewCommitment,
   INTERVIEW_SIGNAL_LABELS,
 } from '@/lib/export/module-c-brief';
+import {
+  isGrantCheckerSupportedForCountry,
+  evaluateModuleAGrantEligibility,
+  getDefaultGrantEligibilityCheck,
+} from '@/lib/grants/module-a-grant-checker';
 import type {
   ActiveStartupPlan,
   SavedConceptCanvas,
@@ -1177,7 +1182,7 @@ export function buildMasterDocumentMarkdown(
     lines.push(
       '---',
       '',
-      '## Chapter 1: Ideation, Concept Canvas & Founder Fit (Module A)',
+      '## Chapter 1: Ideation, Concept Canvas, Founder Fit & Grant Eligibility (Module A)',
       '',
       `- **Raw Idea Summary:** ${facts.brainDumpText || '—'}`,
       `- **1. Core Problem:** ${facts.coreProblem || '—'}`,
@@ -1191,6 +1196,43 @@ export function buildMasterDocumentMarkdown(
       `- **#1 Worry & Reality Check:** ${facts.biggestWorryLabel ? `${facts.biggestWorryLabel} — ` : ''}${facts.biggestWorryNotes || '—'}`,
       ''
     );
+
+    if (
+      isGrantCheckerSupportedForCountry(plan.hqCountryCode) &&
+      params.conceptCanvas &&
+      params.founderMotivation &&
+      params.teamAndBudget &&
+      params.founderRealityCheck
+    ) {
+      const grantEval = evaluateModuleAGrantEligibility({
+        hqCountryCode: plan.hqCountryCode,
+        exportPotential: plan.exportPotential,
+        industryCategory: plan.industryCategory,
+        brainDumpText: facts.brainDumpText,
+        conceptCanvas: params.conceptCanvas,
+        founderMotivation: params.founderMotivation,
+        teamAndBudget: params.teamAndBudget,
+        founderRealityCheck: params.founderRealityCheck,
+        grantCheck:
+          plan.grantEligibilityCheck ||
+          getDefaultGrantEligibilityCheck({
+            hqCountryCode: plan.hqCountryCode,
+            exportPotential: plan.exportPotential,
+            industryCategory: plan.industryCategory,
+            founderMotivation: params.founderMotivation,
+          }),
+      });
+      lines.push(
+        '### Grants & Non-Dilutive Funding You Qualify For Right Now (Step 7)',
+        `- **Immediate Qualified Pool:** ${grantEval.immediateQualifiedPoolFormatted} (${grantEval.qualifiesNowGrants.length} schemes ready now)`,
+        `- **Unlockable Phase 2 Scale Pool:** ${grantEval.unlockableScalePoolFormatted} (${grantEval.unlockableNextGrants.length} schemes unlockable next)`,
+        ...grantEval.qualifiesNowGrants.map(
+          (g) =>
+            `- **🟢 ${g.grantName}** (${g.providerAgency} • ${g.potentialValueFormatted}): ${g.whyYouMatchOrMiss} *(Match Rule: ${g.coFundingOrMatchRequirement})*`
+        ),
+        ''
+      );
+    }
   }
 
   // Chapter 2: Module B
@@ -1468,11 +1510,52 @@ export function buildMasterDocumentStandaloneHtml(
 
   // Chapter 1: Module A
   if (facts.hasModuleA) {
+    const grantHtml =
+      isGrantCheckerSupportedForCountry(plan.hqCountryCode) &&
+      params.conceptCanvas &&
+      params.founderMotivation &&
+      params.teamAndBudget &&
+      params.founderRealityCheck
+        ? (() => {
+            const grantEval = evaluateModuleAGrantEligibility({
+              hqCountryCode: plan.hqCountryCode,
+              exportPotential: plan.exportPotential,
+              industryCategory: plan.industryCategory,
+              brainDumpText: facts.brainDumpText,
+              conceptCanvas: params.conceptCanvas,
+              founderMotivation: params.founderMotivation,
+              teamAndBudget: params.teamAndBudget,
+              founderRealityCheck: params.founderRealityCheck,
+              grantCheck:
+                plan.grantEligibilityCheck ||
+                getDefaultGrantEligibilityCheck({
+                  hqCountryCode: plan.hqCountryCode,
+                  exportPotential: plan.exportPotential,
+                  industryCategory: plan.industryCategory,
+                  founderMotivation: params.founderMotivation,
+                }),
+            });
+            return `
+              <div class="box" style="margin-top: 10px; background: #ecfdf5; border-color: #a7f3d0;">
+                <div class="box-label" style="color: #047857;">🟢 Grants &amp; Non-Dilutive Funding You Qualify For Right Now (Step 7 • ${escapeDocumentHtml(grantEval.immediateQualifiedPoolFormatted)} Pool)</div>
+                <div class="box-value">
+                  ${grantEval.qualifiesNowGrants
+                    .map(
+                      (g) =>
+                        `<div style="margin-bottom: 6px;"><strong>${escapeDocumentHtml(g.grantName)}</strong> (${escapeDocumentHtml(g.providerAgency)} • <strong>${escapeDocumentHtml(g.potentialValueFormatted)}</strong>): ${escapeDocumentHtml(g.whyYouMatchOrMiss)}</div>`
+                    )
+                    .join('')}
+                </div>
+              </div>
+            `;
+          })()
+        : '';
+
     sections.push(`
       <div class="section">
         <div class="section-header">
           <span class="section-num">A</span>
-          <span class="section-title">Chapter 1: Ideation, Concept Canvas & Founder Fit (Module A)</span>
+          <span class="section-title">Chapter 1: Ideation, Concept Canvas, Founder Fit &amp; Grant Eligibility (Module A)</span>
         </div>
         <div class="grid-2">
           <div class="box">
@@ -1500,6 +1583,7 @@ export function buildMasterDocumentStandaloneHtml(
             <strong>Non-Negotiables:</strong> ${escapeDocumentHtml(facts.dealbreakersList.join(', ') || 'None specified')}
           </div>
         </div>
+        ${grantHtml}
       </div>
     `);
   }

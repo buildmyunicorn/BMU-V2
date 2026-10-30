@@ -17,6 +17,7 @@ import {
   BookmarkPlus,
   Bot,
   ChevronDown,
+  ChevronUp,
   GitBranch,
   Plus,
   Check,
@@ -145,6 +146,7 @@ import {
   type OperationsBlindSpotItem,
   type OperationsBlindSpotAuditStep6Data,
   type SavedMasterDocumentData,
+  type SavedGrantEligibilityCheck,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -158,7 +160,14 @@ import {
   generateModuleAConceptCanvasAction,
   saveModuleACanvasEditsAction,
   parkOpenQuestionAction,
+  generateModuleAGrantPositioningAdviceAction,
 } from '@/app/actions/module-a';
+import {
+  isGrantCheckerSupportedForCountry,
+  getDefaultGrantEligibilityCheck,
+  evaluateModuleAGrantEligibility,
+} from '@/lib/grants/module-a-grant-checker';
+import { ModuleAGrantCheckerStep } from '@/components/workspace/module-a-grant-checker-step';
 import {
   saveModuleBStep1BeachheadAction,
   saveModuleBStep2CompetitorsAction,
@@ -381,6 +390,9 @@ export default function WorkspacePage() {
     null
   );
 
+  // Module A Step Accordion / Dropdown View State (1..7 or 'ALL')
+  const [openModAStep, setOpenModAStep] = useState<number | 'ALL'>(1);
+
   // Module A Step 2, Step 3, Step 4 & Step 5 Live State
   const [conceptCanvas, setConceptCanvas] = useState<SavedConceptCanvas | null>(
     null
@@ -406,6 +418,15 @@ export default function WorkspacePage() {
       biggestWorryPreset: 'FINDING_FIRST_10',
       biggestWorryNotes: '',
     });
+  const [grantEligibilityCheck, setGrantEligibilityCheck] =
+    useState<SavedGrantEligibilityCheck>(() =>
+      getDefaultGrantEligibilityCheck({
+        hqCountryCode: 'IE',
+        industryCategory: 'B2B SaaS / AI App',
+        exportPotential: 'DOMESTIC_ONLY',
+      })
+    );
+  const [isRunningGrantAdvisor, setIsRunningGrantAdvisor] = useState(false);
   const [thingsToConsider, setThingsToConsider] = useState<BlindSpotItem[]>([]);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [isEditingCanvas, setIsEditingCanvas] = useState(false);
@@ -447,6 +468,14 @@ export default function WorkspacePage() {
       if (activePlan.founderRealityCheck) {
         setFounderRealityCheck(activePlan.founderRealityCheck);
       }
+      setGrantEligibilityCheck(
+        activePlan.grantEligibilityCheck ||
+          getDefaultGrantEligibilityCheck({
+            hqCountryCode: activePlan.hqCountryCode,
+            industryCategory: activePlan.industryCategory,
+            exportPotential: activePlan.exportPotential,
+          })
+      );
       setThingsToConsider(activePlan.thingsToConsider || []);
       setOpenQuestions(activePlan.openQuestions || []);
       if (activePlan.currentModuleStep?.startsWith('MOD_E')) {
@@ -671,6 +700,9 @@ export default function WorkspacePage() {
             if (dbPlan.founderRealityCheck) {
               setFounderRealityCheck(dbPlan.founderRealityCheck);
             }
+            if (dbPlan.grantEligibilityCheck) {
+              setGrantEligibilityCheck(dbPlan.grantEligibilityCheck);
+            }
             setThingsToConsider(dbPlan.thingsToConsider || []);
             setOpenQuestions(dbPlan.openQuestions || []);
             if (dbPlan.currentModuleStep?.startsWith('MOD_E')) {
@@ -689,6 +721,21 @@ export default function WorkspacePage() {
         setCloudDbConnected(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (!isGrantCheckerSupportedForCountry(selectedCountry) && openModAStep === 8) {
+      setOpenModAStep(7);
+    }
+    setGrantEligibilityCheck((prev) => {
+      if (selectedCountry === 'IE' && prev.regionalLocationTier.startsWith('GB_')) {
+        return { ...prev, regionalLocationTier: 'IE_STANDARD_50_MATCH' };
+      }
+      if (selectedCountry === 'GB' && prev.regionalLocationTier.startsWith('IE_')) {
+        return { ...prev, regionalLocationTier: 'GB_ENGLAND_GROWTH_HUB' };
+      }
+      return prev;
+    });
+  }, [selectedCountry, openModAStep]);
 
   const currentPlan =
     session.plans.find((p) => p.id === session.activePlanId) ||
@@ -848,6 +895,17 @@ export default function WorkspacePage() {
         biggestWorryNotes: '',
       }
     );
+    setGrantEligibilityCheck(
+      found.grantEligibilityCheck ||
+        getDefaultGrantEligibilityCheck({
+          hqCountryCode: found.hqCountryCode,
+          industryCategory: found.industryCategory,
+          exportPotential: found.exportPotential,
+        })
+    );
+    if (!isGrantCheckerSupportedForCountry(found.hqCountryCode) && openModAStep === 8) {
+      setOpenModAStep(7);
+    }
     setThingsToConsider(found.thingsToConsider || []);
     setOpenQuestions(found.openQuestions || []);
     setPlanDropdownOpen(false);
@@ -3154,11 +3212,26 @@ export default function WorkspacePage() {
     }
   }
 
-  async function handleSaveCanvasEdits() {
+  async function handleSaveCanvasEdits(
+    overrideGrantCheck?: SavedGrantEligibilityCheck | React.MouseEvent
+  ) {
     setIsSavingCanvas(true);
     setSynthesisBanner(null);
     try {
       const toSave = effectiveCanvas;
+      const validOverride =
+        overrideGrantCheck &&
+        typeof overrideGrantCheck === 'object' &&
+        'legalEntityStage' in overrideGrantCheck
+          ? (overrideGrantCheck as SavedGrantEligibilityCheck)
+          : undefined;
+      const grantCheckToSave: SavedGrantEligibilityCheck = validOverride
+        ? {
+            ...validOverride,
+            lastCheckedAt:
+              validOverride.lastCheckedAt || new Date().toISOString(),
+          }
+        : grantEligibilityCheck;
       await saveModuleACanvasEditsAction({
         planId: currentPlan.id,
         brainDumpText,
@@ -3167,9 +3240,11 @@ export default function WorkspacePage() {
         founderMotivation,
         teamAndBudget,
         founderRealityCheck,
+        grantEligibilityCheck: grantCheckToSave,
         thingsToConsider: liveThingsToConsider,
       });
       setConceptCanvas(toSave);
+      setGrantEligibilityCheck(grantCheckToSave);
       setThingsToConsider(liveThingsToConsider);
       setIsEditingCanvas(false);
 
@@ -3182,6 +3257,7 @@ export default function WorkspacePage() {
               founderMotivation,
               teamAndBudget,
               founderRealityCheck,
+              grantEligibilityCheck: grantCheckToSave,
               thingsToConsider: liveThingsToConsider,
             }
           : p
@@ -3190,9 +3266,85 @@ export default function WorkspacePage() {
       setSession(updatedSession);
       saveBmuSession(updatedSession);
 
-      setSynthesisBanner('✅ Your notes and Step 6 Blind-Spot Review have been updated and saved!');
+      setSynthesisBanner(
+        validOverride
+          ? '✅ Your Grant Eligibility Check answers have been saved!'
+          : '✅ Your notes and Step 6 Blind-Spot Review have been updated and saved!'
+      );
     } finally {
       setIsSavingCanvas(false);
+    }
+  }
+
+  async function handleRunAiGrantPositioning(
+    overrideGrantCheck?: SavedGrantEligibilityCheck
+  ) {
+    const activeCheck = overrideGrantCheck || grantEligibilityCheck;
+    if (!aiCreditCheck.allowed) {
+      setPaywallModalFeature(
+        `AI Grant Positioning Advisor (${aiCreditCheck.reason})`
+      );
+      return;
+    }
+
+    setIsRunningGrantAdvisor(true);
+    setSynthesisBanner(null);
+    try {
+      const res = await generateModuleAGrantPositioningAdviceAction({
+        userId: session.user.id,
+        planId: currentPlan.id,
+        planTitle: currentPlan.title,
+        hqCountryCode: selectedCountry,
+        industryCategory: currentPlan.industryCategory,
+        exportPotential: currentPlan.exportPotential,
+        brainDumpText,
+        canvas: effectiveCanvas,
+        founderMotivation,
+        teamAndBudget,
+        founderRealityCheck,
+        grantCheck: activeCheck,
+      });
+
+      const updatedGrantCheck: SavedGrantEligibilityCheck = {
+        ...activeCheck,
+        aiGrantPositioningAdvice: res.positioningTips,
+        aiEngineUsed: res.engineMode,
+        lastCheckedAt: new Date().toISOString(),
+      };
+      const updatedCanvas: SavedConceptCanvas = {
+        ...effectiveCanvas,
+        revenueAndGrantFit: res.updatedRevenueAndGrantFit,
+      };
+
+      setGrantEligibilityCheck(updatedGrantCheck);
+      setConceptCanvas(updatedCanvas);
+
+      const updatedPlans = session.plans.map((p) =>
+        p.id === currentPlan.id
+          ? {
+              ...p,
+              conceptCanvas: updatedCanvas,
+              grantEligibilityCheck: updatedGrantCheck,
+            }
+          : p
+      );
+      const updatedSession: BmuLocalSession = {
+        ...session,
+        entitlement: {
+          ...session.entitlement,
+          aiCreditsUsedThisMonth:
+            res.creditsUsedAfter ?? session.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+        plans: updatedPlans,
+      };
+      setSession(updatedSession);
+      saveBmuSession(updatedSession);
+
+      setSynthesisBanner(
+        '🎯 Revealed your qualified grants, AI Grant Positioning Strategy, and synced Box 5 (Revenue & Grant Fit)!'
+      );
+    } finally {
+      setIsRunningGrantAdvisor(false);
     }
   }
 
@@ -3216,6 +3368,22 @@ export default function WorkspacePage() {
   const filledCanvasBoxesCount = canvasBoxValues.filter(
     (val) => val.trim().length > 5
   ).length;
+
+  const isGrantCheckerSupported =
+    isGrantCheckerSupportedForCountry(selectedCountry);
+  const liveGrantEvaluation = isGrantCheckerSupported
+    ? evaluateModuleAGrantEligibility({
+        hqCountryCode: selectedCountry,
+        exportPotential: currentPlan.exportPotential,
+        industryCategory: currentPlan.industryCategory,
+        brainDumpText,
+        conceptCanvas: effectiveCanvas,
+        founderMotivation,
+        teamAndBudget,
+        founderRealityCheck,
+        grantCheck: grantEligibilityCheck,
+      })
+    : null;
 
   const moduleAReadinessSteps = [
     {
@@ -3289,11 +3457,26 @@ export default function WorkspacePage() {
           ? `${liveThingsToConsider.length} tailored blind-spot cards reviewed`
           : `${liveThingsToConsider.length} live cards adapting as you answer Steps 1–5`,
     },
+    ...(isGrantCheckerSupported && liveGrantEvaluation
+      ? [
+          {
+            stepNumber: 7,
+            label: 'Grant & Funding Eligibility Check',
+            isComplete: Boolean(grantEligibilityCheck?.lastCheckedAt),
+            summary: grantEligibilityCheck?.lastCheckedAt
+              ? `${liveGrantEvaluation.qualifiesNowGrants.length} Qualified Now (${liveGrantEvaluation.immediateQualifiedPoolFormatted}) • ${liveGrantEvaluation.unlockableNextGrants.length} Phase 2`
+              : 'Click "Check What Grants I Qualify For" in Step 7',
+          },
+        ]
+      : []),
   ];
 
+  const totalReadinessStepsCount = moduleAReadinessSteps.length;
   const completedReadinessCount = moduleAReadinessSteps.filter(
     (s) => s.isComplete
   ).length;
+  const briefStepNumber = isGrantCheckerSupported ? 8 : 7;
+  const briefStepId = isGrantCheckerSupported ? 'mod-a-step-8' : 'mod-a-step-7';
 
   // Granular live progress percentage across all 20 required inputs in Module A (Steps 1-6)
   const moduleACheckpoints = [
@@ -3522,6 +3705,7 @@ export default function WorkspacePage() {
     founderMotivation,
     teamAndBudget,
     founderRealityCheck,
+    grantEligibilityCheck,
     thingsToConsider: liveThingsToConsider,
     openQuestions,
     whiteLabelEnabled: activeEntitlement.whiteLabelExportEnabled,
@@ -4395,105 +4579,135 @@ export default function WorkspacePage() {
                       Module A: Ideation, Concept Canvas &amp; Founder Fit
                     </h1>
                     <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
-                      Don&apos;t worry about corporate buzzwords. First, capture your raw idea for{' '}
-                      <strong className="text-white">{currentPlan.title}</strong>, shape your 1-page Concept Canvas, align it with your personal goals and budget, and review your Co-Founder Blind-Spots.
+                      Capture your core idea for <strong className="text-white">{currentPlan.title}</strong>, shape a clean 1-page canvas, set your starting runway, and uncover your blind spots before spending a penny.
                     </p>
                   </div>
 
-                  <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        if (!coFounderCheck.allowed) {
-                          setPaywallModalFeature(
-                            `Invite Co-Founder (${coFounderCheck.reason})`
-                          );
-                        }
-                      }}
+                      onClick={() =>
+                        setOpenModAStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
+                      }
                       className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                     >
-                      <Users className="h-3.5 w-3.5 text-indigo-200" />
-                      Invite Co-Founder
-                      {!coFounderCheck.allowed && (
-                        <Lock className="ml-1 h-3 w-3 text-amber-300" />
-                      )}
+                      {openModAStep === 'ALL'
+                        ? 'Focus Step-by-Step'
+                        : 'Expand All Steps'}
                     </Button>
-                    <div className="text-right text-[11px] text-indigo-200">
-                      Module A Progress: <strong>{moduleAProgressPercent}%</strong> (
-                      {completedReadinessCount} of 6 Core Steps Complete)
-                    </div>
                   </div>
                 </div>
 
-                {/* 7-Step Progress Strip inside Module A Top Tile */}
-                <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-4 lg:grid-cols-7">
+                {/* Progress Strip inside Module A Top Tile (7 steps default, 8 steps when in IE or GB) */}
+                <div
+                  className={`mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-4 ${
+                    isGrantCheckerSupportedForCountry(selectedCountry)
+                      ? 'lg:grid-cols-8'
+                      : 'lg:grid-cols-7'
+                  }`}
+                >
                   {[
                     {
                       step: 'Step 1',
-                      title: 'Raw Idea Capture',
+                      title: 'Idea Dump',
                       targetId: 'mod-a-step-1',
+                      stepNum: 1,
                       done: moduleAReadinessSteps[0]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 2',
                       title: 'Concept Canvas',
                       targetId: 'mod-a-step-2',
+                      stepNum: 2,
                       done: moduleAReadinessSteps[1]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 3',
-                      title: 'Personal "Why"',
+                      title: 'Your "Why"',
                       targetId: 'mod-a-step-3',
+                      stepNum: 3,
                       done: moduleAReadinessSteps[2]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 4',
                       title: 'Team & Budget',
                       targetId: 'mod-a-step-4',
+                      stepNum: 4,
                       done: moduleAReadinessSteps[3]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 5',
                       title: 'Reality Check',
                       targetId: 'mod-a-step-5',
+                      stepNum: 5,
                       done: moduleAReadinessSteps[4]?.isComplete ?? false,
                     },
                     {
                       step: 'Step 6',
-                      title: 'Blind-Spot Review',
+                      title: 'Blind Spots',
                       targetId: 'mod-a-step-6',
+                      stepNum: 6,
                       done: moduleAReadinessSteps[5]?.isComplete ?? false,
                     },
-                    {
-                      step: 'Step 7',
-                      title: 'Readiness Brief',
-                      targetId: 'mod-a-step-7',
-                      done: completedReadinessCount === 6,
-                    },
+                    ...(isGrantCheckerSupported
+                      ? [
+                          {
+                            step: 'Step 7',
+                            title: 'Grant Checker',
+                            targetId: 'mod-a-step-7',
+                            stepNum: 7,
+                            done: Boolean(grantEligibilityCheck?.lastCheckedAt),
+                          },
+                          {
+                            step: 'Overview',
+                            title: 'Startup Summary',
+                            targetId: 'mod-a-step-8',
+                            stepNum: 8,
+                            done:
+                              completedReadinessCount ===
+                              totalReadinessStepsCount,
+                          },
+                        ]
+                      : [
+                          {
+                            step: 'Overview',
+                            title: 'Startup Summary',
+                            targetId: 'mod-a-step-7',
+                            stepNum: 7,
+                            done:
+                              completedReadinessCount ===
+                              totalReadinessStepsCount,
+                          },
+                        ]),
                   ].map((item, idx, arr) => {
                     const firstIncompleteIdx = arr.findIndex((s) => !s.done);
-                    const isActive =
-                      firstIncompleteIdx === -1
-                        ? idx === arr.length - 1
-                        : idx === firstIncompleteIdx;
+                    const isStepOpen =
+                      openModAStep === 'ALL'
+                        ? (firstIncompleteIdx === -1
+                            ? idx === arr.length - 1
+                            : idx === firstIncompleteIdx)
+                        : openModAStep === item.stepNum;
                     return (
                       <button
                         key={item.step}
                         type="button"
                         onClick={() => {
-                          const el = document.getElementById(item.targetId);
-                          if (el) {
-                            el.scrollIntoView({
-                              behavior: 'smooth',
-                              block: 'start',
-                            });
-                          }
+                          setOpenModAStep(item.stepNum);
+                          setTimeout(() => {
+                            const el = document.getElementById(item.targetId);
+                            if (el) {
+                              el.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start',
+                              });
+                            }
+                          }, 40);
                         }}
                         className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
-                          isActive
-                            ? 'border-amber-300/80 bg-white/15 text-white shadow-xs'
+                          isStepOpen
+                            ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                             : item.done
                               ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
                               : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
@@ -4503,7 +4717,7 @@ export default function WorkspacePage() {
                           <span>{item.step}</span>
                           {item.done ? (
                             <Check className="h-3.5 w-3.5 text-emerald-300" />
-                          ) : isActive ? (
+                          ) : isStepOpen ? (
                             <span className="h-2 w-2 rounded-full bg-amber-400" />
                           ) : null}
                         </div>
@@ -4517,735 +4731,1114 @@ export default function WorkspacePage() {
               </div>
 
               {/* STEP 1: RAW IDEA BRAIN DUMP CARD */}
-              <div
-                id="mod-a-step-1"
-                className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                        1
-                      </span>
-                      <h2 className="text-base font-bold text-slate-900">
-                        Step 1: Let&apos;s Capture Your Raw Idea for{' '}
-                        <span className="text-indigo-600">{currentPlan.title}</span>
-                      </h2>
-                      <Badge variant="success">Jargon-Free Brain Dump</Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-600">
-                      Follow our <strong>Capture First, Expand Second</strong> rule:
-                      don&apos;t worry about buzzwords. Tell us what breaks today
-                      and who you are helping.
-                    </p>
-                  </div>
-                </div>
-
-            {/* LAYER 1 SUPPORT BAR: Why Are We Asking This? + Show Me an Example + Jargon Tooltip */}
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowWhyCard(!showWhyCard)}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    showWhyCard
-                      ? 'bg-indigo-100 text-indigo-900'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+              {openModAStep !== 'ALL' && openModAStep !== 1 ? (
+                <div
+                  id="mod-a-step-1"
+                  onClick={() => setOpenModAStep(1)}
+                  className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
                 >
-                  <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
-                  Why Are We Asking This?
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowExamples(!showExamples)}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    showExamples
-                      ? 'bg-emerald-100 text-emerald-900'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  <Lightbulb className="h-3.5 w-3.5 text-emerald-600" />
-                  Show Me an Example ({currentPlan.industryCategory})
-                </button>
-              </div>
-
-              {/* Inline Jargon Pill */}
-              <div className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
-                <Info className="h-3.5 w-3.5 text-slate-400" />
-                <span>Jargon Free:</span>
-                <span
-                  className="cursor-help font-semibold text-indigo-600 underline decoration-dotted"
-                  title="Value Proposition simply means: Why would a busy customer pick your solution instead of doing nothing?"
-                >
-                  What is a Value Proposition?
-                </span>
-              </div>
-            </div>
-
-            {/* Collapsible Micro-Coaching Card (Replaces Videos!) */}
-            {showWhyCard && (
-              <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-xs text-indigo-950">
-                <div className="font-bold text-indigo-900">
-                  💡 Micro-Coaching (30-Second Read — No 20-Minute Videos):
-                </div>
-                <p className="mt-1 leading-relaxed text-indigo-900/90">
-                  90% of first-time founders get stuck trying to sound like a
-                  corporate textbook. Investors and grant boards (like{' '}
-                  <strong>
-                    {countryGrants[0]?.grantName || 'Local Enterprise Grants'}
-                  </strong>
-                  ) actually want to hear the{' '}
-                  <strong>specific real-world trigger</strong>: who loses time
-                  or money today, how they currently hack around it with
-                  spreadsheets, and what your product automates.
-                </p>
-              </div>
-            )}
-
-            {/* Collapsible Industry Examples Card */}
-            {showExamples && (
-              <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs md:grid-cols-3">
-                <div className="flex flex-col justify-between rounded-lg bg-white p-3 shadow-2xs">
-                  <div>
-                    <div className="font-bold text-emerald-800">
-                      1. B2B SaaS Example
-                    </div>
-                    <p className="mt-1 text-slate-600">
-                      &ldquo;Independent grocers lose{' '}
-                      {formatPlanCurrency(1800, countryPack.defaultCurrency)}/wk
-                      in expired fresh food because staff check dates manually on
-                      Friday nights.&rdquo;
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setBrainDumpText(
-                        `Independent grocers lose ${formatPlanCurrency(1800, countryPack.defaultCurrency)}/wk in expired fresh food because staff check dates manually on Friday nights. Our mobile app scans shelf labels and automatically triggers 40% markdown alerts 48 hours before expiry.`
-                      )
-                    }
-                    className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
-                  >
-                    Use This Example →
-                  </button>
-                </div>
-                <div className="flex flex-col justify-between rounded-lg bg-white p-3 shadow-2xs">
-                  <div>
-                    <div className="font-bold text-emerald-800">
-                      2. Service / Agency Example
-                    </div>
-                    <p className="mt-1 text-slate-600">
-                      &ldquo;Local dental clinics miss 30% of new patient calls
-                      during lunch hours. We provide a 24/7 AI WhatsApp booking
-                      concierge.&rdquo;
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setBrainDumpText(
-                        'Local dental clinics miss 30% of new patient calls during lunch hours and evenings. We provide a 24/7 AI WhatsApp booking concierge that books hygiene & emergency slots directly into their calendar.'
-                      )
-                    }
-                    className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
-                  >
-                    Use This Example →
-                  </button>
-                </div>
-                <div className="flex flex-col justify-between rounded-lg bg-white p-3 shadow-2xs">
-                  <div>
-                    <div className="font-bold text-emerald-800">
-                      3. Physical / Consumer Product
-                    </div>
-                    <p className="mt-1 text-slate-600">
-                      &ldquo;Commuters in rainy cities ruin leather work shoes. We
-                      make breathable waterproof merino slip-ons.&rdquo;
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setBrainDumpText(
-                        'Urban bike and rail commuters in rainy cities ruin smart leather work shoes or have to carry a spare pair in their backpack. We make breathable waterproof merino wool dress slip-ons.'
-                      )
-                    }
-                    className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
-                  >
-                    Use This Example →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Guided Brain Dump Input */}
-            <div className="mt-5">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <label className="text-sm font-semibold text-slate-800">
-                  Your Raw Idea Brain Dump
-                </label>
-                <div className="flex items-center gap-2">
-                  {/* Layer 2: "I'm Stuck — Help Me Break This Down" */}
-                  <button
-                    type="button"
-                    onClick={() => setShowImStuckHelper(!showImStuckHelper)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
-                  >
-                    <Wand2 className="h-3.5 w-3.5" />
-                    I&apos;m Stuck — Break This Into 3 Easy Questions
-                  </button>
-                </div>
-              </div>
-
-              {/* "I'm Stuck" 3-Question Sub-Prompt Helper */}
-              {showImStuckHelper && (
-                <div className="mb-3 rounded-xl border border-violet-200 bg-violet-50/70 p-3.5 text-xs text-violet-950">
-                  <div className="font-bold">
-                    ✨ Ask Preflight AI Sub-Question Breakdown:
-                  </div>
-                  <ol className="mt-1.5 list-inside list-decimal space-y-1 text-violet-900">
-                    <li>
-                      Who is the exact person getting frustrated every week?
-                    </li>
-                    <li>
-                      What annoying manual task are they doing right now to
-                      cope?
-                    </li>
-                    <li>
-                      If your product worked like magic tomorrow, what result
-                      would they get in 10 minutes?
-                    </li>
-                  </ol>
-                </div>
-              )}
-
-              <textarea
-                rows={4}
-                disabled={activeEntitlement.isVaultReadonly || isSavingCanvas}
-                value={brainDumpText}
-                onChange={(e) => setBrainDumpText(e.target.value)}
-                placeholder="Write your idea in your own words — who is struggling, what costs them time or money today, and how your product helps..."
-                className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
-              />
-
-              {/* Step 1 Save Bar: Keep Founder's Exact Words */}
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-xs text-slate-500">
-                  💬 <strong>Your exact words stay here.</strong> There are no
-                  right or wrong answers — just get your initial thoughts down.
-                </div>
-                {!activeEntitlement.isVaultReadonly && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isSavingCanvas}
-                    onClick={handleSaveCanvasEdits}
-                  >
-                    {isSavingCanvas ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-3.5 w-3.5" />
-                        Save My Raw Idea
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* STEP 2: FLESH OUT YOUR IDEA (USER-TYPED 5-BLOCK CONCEPT CANVAS + AI TIDY UP) */}
-          <Card id="mod-a-step-2" className="scroll-mt-24">
-            <CardHeader className="pb-3">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Sparkles className="h-4 w-4 text-indigo-600" />
-                  Step 2: Flesh Out Your Idea (1-Page Concept Canvas)
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Type your thoughts into the 5 boxes below to help you think
-                  through how your idea works.{' '}
-                  <strong className="text-slate-700">
-                    There are no right or wrong answers
-                  </strong>{' '}
-                  — write in plain English, save your exact notes, or click{' '}
-                  <strong className="text-indigo-700">
-                    Tidy Up My Notes with AI
-                  </strong>{' '}
-                  at the bottom of this card anytime to polish your wording.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* Box 1: The Core Problem */}
-                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                      1. The Core Problem
-                    </div>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      What frustrating problem are people dealing with today,
-                      and what does it cost them?
-                    </p>
-                  </div>
-                  <textarea
-                    rows={4}
-                    disabled={activeEntitlement.isVaultReadonly}
-                    value={effectiveCanvas.coreProblem}
-                    onChange={(e) =>
-                      setConceptCanvas({
-                        ...effectiveCanvas,
-                        coreProblem: e.target.value,
-                      })
-                    }
-                    placeholder="Type your answer here... (e.g., Shop owners waste 3 hours every Friday checking expiry dates by hand)"
-                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
-                  />
-                </div>
-
-                {/* Box 2: Target Customer */}
-                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                      2. Target Customer
-                    </div>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      Who is the very first type of customer you want to help in{' '}
-                      {countryPack.countryName} (or beyond)?
-                    </p>
-                  </div>
-                  <textarea
-                    rows={4}
-                    disabled={activeEntitlement.isVaultReadonly}
-                    value={effectiveCanvas.targetCustomer}
-                    onChange={(e) =>
-                      setConceptCanvas({
-                        ...effectiveCanvas,
-                        targetCustomer: e.target.value,
-                      })
-                    }
-                    placeholder={`Type your answer here... (e.g., Independent grocers and convenience stores in ${countryPack.countryName})`}
-                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
-                  />
-                </div>
-
-                {/* Box 3: Your Solution */}
-                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                      3. Your Solution
-                    </div>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      In plain English, how does your product or service fix the
-                      problem for them?
-                    </p>
-                  </div>
-                  <textarea
-                    rows={4}
-                    disabled={activeEntitlement.isVaultReadonly}
-                    value={effectiveCanvas.proposedSolution}
-                    onChange={(e) =>
-                      setConceptCanvas({
-                        ...effectiveCanvas,
-                        proposedSolution: e.target.value,
-                      })
-                    }
-                    placeholder="Type your answer here... (e.g., A simple phone app that scans shelf labels and alerts staff 48 hours before items expire)"
-                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
-                  />
-                </div>
-
-                {/* Box 4: Why You Win (Unfair Edge) */}
-                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                      4. Why Customers Pick You
-                    </div>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      Why will customers choose your idea over doing nothing or
-                      using spreadsheets?
-                    </p>
-                  </div>
-                  <textarea
-                    rows={4}
-                    disabled={activeEntitlement.isVaultReadonly}
-                    value={effectiveCanvas.unfairAdvantage}
-                    onChange={(e) =>
-                      setConceptCanvas({
-                        ...effectiveCanvas,
-                        unfairAdvantage: e.target.value,
-                      })
-                    }
-                    placeholder="Type your answer here... (e.g., Takes 5 minutes to set up with no complicated IT systems needed)"
-                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
-                  />
-                </div>
-
-                {/* Box 5: How You Make Money & Grant Fit */}
-                <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 md:col-span-2 lg:col-span-2">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                      5. How You Charge &amp; Funding Thoughts (
-                      {countryPack.countryName} — {countryPack.defaultCurrency})
-                    </div>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      How do you think you&apos;ll charge customers (e.g.,
-                      monthly fee, one-off sale, commission)? Any rough price in{' '}
-                      {countryPack.defaultCurrency} is fine!
-                    </p>
-                  </div>
-                  <textarea
-                    rows={4}
-                    disabled={activeEntitlement.isVaultReadonly}
-                    value={effectiveCanvas.revenueAndGrantFit}
-                    onChange={(e) =>
-                      setConceptCanvas({
-                        ...effectiveCanvas,
-                        revenueAndGrantFit: e.target.value,
-                      })
-                    }
-                    placeholder={`Type your answer here... (e.g., Monthly subscription around ${formatPlanCurrency(99, countryPack.defaultCurrency)}/month per shop, plus exploring ${countryGrants[0]?.grantName || 'local startup grants'})`}
-                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
-                  />
-                </div>
-              </div>
-
-              {/* Step 2 Bottom Save & AI Tidy Up Bar */}
-              {!activeEntitlement.isVaultReadonly && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
-                  <div className="text-xs text-slate-500">
-                    💡 Save your own notes directly, or let Ask Preflight AI tidy up your wording while keeping your meaning.
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isSavingCanvas || isSynthesizing}
-                      onClick={handleSaveCanvasEdits}
-                    >
-                      {isSavingCanvas ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-3.5 w-3.5" />
-                          Save My Notes
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={isSynthesizing || isSavingCanvas}
-                      onClick={handleTidyUpNotesWithAi}
-                    >
-                      {isSynthesizing ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Tidying Up Your Notes...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-3.5 w-3.5" />
-                          Tidy Up My Notes with AI
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* STEP 3: YOUR PERSONAL "WHY" & AMBITION (FOUNDER MOTIVATION) */}
-          <Card id="mod-a-step-3" className="scroll-mt-24">
-            <CardHeader>
-              <div>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                    3
-                  </span>
-                  Step 3: Your Personal &ldquo;Why&rdquo; &amp; Ambition
-                  <Badge variant="success">No Right or Wrong Answer</Badge>
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Startup Preflight adapts its coaching to match <strong>your</strong> personal goals — whether you want to replace your 9-to-5 salary, build a weekend side hustle, champion a mission, or scale a venture-backed company.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {/* 1. Primary Motivation Cards */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  1. What is driving you to build this? (Pick what fits best right now)
-                </label>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {(
-                    [
-                      {
-                        id: 'LEAVE_JOB' as FounderMotivationType,
-                        emoji: '💼',
-                        title: 'Leave My 9-to-5 & Be My Own Boss',
-                        subtitle:
-                          'Replace my current income, gain freedom over my schedule, and build a sustainable business I own.',
-                      },
-                      {
-                        id: 'SIDE_HUSTLE' as FounderMotivationType,
-                        emoji: '🌙',
-                        title: 'Build a Profitable Side Hustle',
-                        subtitle:
-                          'Keep my day job for now while building a low-overhead extra income stream on evenings and weekends.',
-                      },
-                      {
-                        id: 'SAVE_THE_WORLD' as FounderMotivationType,
-                        emoji: '🌍',
-                        title: 'Solve a Mission I Care About',
-                        subtitle:
-                          'Fix a broken problem in my community or industry and create meaningful social, environmental, or human impact.',
-                      },
-                      {
-                        id: 'SCALE_STARTUP' as FounderMotivationType,
-                        emoji: '🚀',
-                        title: 'Scale a High-Growth Startup',
-                        subtitle:
-                          'Build a fast-growing company, hire a team, and potentially apply for state grants or raise investor funding.',
-                      },
-                      {
-                        id: 'BUILD_TO_SELL' as FounderMotivationType,
-                        emoji: '🏆',
-                        title: 'Build a Company & Sell It',
-                        subtitle:
-                          'Create a valuable, systemised business asset with recurring revenue that an acquirer or competitor will want to buy.',
-                      },
-                      {
-                        id: 'OTHER' as FounderMotivationType,
-                        emoji: '✨',
-                        title: 'Other (Write Your Own Goal)',
-                        subtitle:
-                          'My motivation or situation doesn’t fit neatly into the boxes above — I’ll describe it in my own words.',
-                      },
-                    ] as const
-                  ).map((option) => {
-                    const isSelected =
-                      founderMotivation.primaryMotivation === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        disabled={activeEntitlement.isVaultReadonly}
-                        onClick={() =>
-                          setFounderMotivation({
-                            ...founderMotivation,
-                            primaryMotivation: option.id,
-                          })
-                        }
-                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
-                          isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
-                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
-                        } disabled:opacity-60`}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                          moduleAReadinessSteps[0]?.isComplete
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-indigo-600 text-white'
+                        }`}
                       >
+                        {moduleAReadinessSteps[0]?.isComplete ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          '1'
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h2 className="truncate text-sm font-bold text-slate-900">
+                            Step 1: Tell us your idea in your own words
+                          </h2>
+                          {moduleAReadinessSteps[0]?.isComplete ? (
+                            <Badge variant="success" className="shrink-0 text-[10px]">
+                              Completed
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                              In Progress
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-slate-500">
+                          {brainDumpText.trim().length >= 20
+                            ? `"${brainDumpText.trim().slice(0, 90)}..."`
+                            : 'Don’t worry about sounding polished. Write a rough sentence or two to kick off.'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                      >
+                        <span>Edit Step</span>
+                        <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  id="mod-a-step-1"
+                  className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+                >
+                  <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                            moduleAReadinessSteps[0]?.isComplete
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-indigo-600 text-white'
+                          }`}
+                        >
+                          {moduleAReadinessSteps[0]?.isComplete ? (
+                            <Check className="h-3.5 w-3.5" />
+                          ) : (
+                            '1'
+                          )}
+                        </span>
+                        <h2 className="text-base font-bold text-slate-900">
+                          Step 1: Tell us your idea in your own words ({currentPlan.title})
+                        </h2>
+                        <Badge variant="success" className="shrink-0">Plain English</Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-600">
+                        Don&apos;t worry about sounding polished. Bullet points, rough notes, or a quick paragraph all work.
+                      </p>
+                    </div>
+
+                    {openModAStep !== 'ALL' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenModAStep(0);
+                        }}
+                        className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                      >
+                        <span>Collapse Step</span>
+                        <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* LAYER 1 SUPPORT BAR: Why Are We Asking This? + Show Me an Example + Jargon Tooltip */}
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowWhyCard(!showWhyCard)}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          showWhyCard
+                            ? 'bg-indigo-100 text-indigo-900'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
+                        💡 Why this matters
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowExamples(!showExamples)}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          showExamples
+                            ? 'bg-emerald-100 text-emerald-900'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        <Lightbulb className="h-3.5 w-3.5 text-emerald-600" />
+                        📝 Example ({currentPlan.industryCategory})
+                      </button>
+                    </div>
+
+                    {/* Inline Jargon Pill */}
+                    <div className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                      <Info className="h-3.5 w-3.5 text-slate-400" />
+                      <span>Value Proposition = Why someone pays you instead of doing nothing</span>
+                    </div>
+                  </div>
+
+                  {/* Collapsible Micro-Coaching Card (Replaces Videos!) */}
+                  {showWhyCard && (
+                    <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                      <div className="font-bold text-indigo-900">
+                        💡 Why this matters:
+                      </div>
+                      <p className="mt-1 leading-relaxed text-indigo-900/90">
+                        Grant assessors (like your Local Enterprise Office or Innovate UK) and early customers want to know who is hurting today, what manual hacks they use, and how your solution saves them time or money. Keep it simple and direct.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Collapsible Industry Examples Card */}
+                  {showExamples && (
+                    <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs md:grid-cols-3">
+                      <div className="flex flex-col justify-between rounded-lg bg-white p-3 shadow-2xs">
                         <div>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xl">{option.emoji}</span>
-                            {isSelected && (
-                              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                                Selected
-                              </span>
-                            )}
+                          <div className="font-bold text-emerald-800">
+                            1. B2B / Software
                           </div>
-                          <div className="mt-2 text-xs font-bold text-slate-900">
-                            {option.title}
-                          </div>
-                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
-                            {option.subtitle}
+                          <p className="mt-1 text-slate-600">
+                            &ldquo;Independent grocers lose{' '}
+                            {formatPlanCurrency(1800, countryPack.defaultCurrency)}/wk
+                            in expired fresh food because staff check dates manually on
+                            Friday nights.&rdquo;
                           </p>
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                {founderMotivation.primaryMotivation === 'OTHER' && (
-                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
-                      ✨ Tell us what is driving you in your own words:
-                    </label>
-                    <input
-                      type="text"
-                      disabled={activeEntitlement.isVaultReadonly}
-                      value={founderMotivation.otherMotivationText || ''}
-                      onChange={(e) =>
-                        setFounderMotivation({
-                          ...founderMotivation,
-                          otherMotivationText: e.target.value,
-                        })
-                      }
-                      placeholder="E.g., Spinning out a tool we built inside our family business, or creating a seasonal lifestyle business..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
-                    />
-                  </div>
-                )}
-              </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBrainDumpText(
+                              `Independent grocers lose ${formatPlanCurrency(1800, countryPack.defaultCurrency)}/wk in expired fresh food because staff check dates manually on Friday nights. Our mobile app scans shelf labels and automatically triggers 40% markdown alerts 48 hours before expiry.`
+                            )
+                          }
+                          className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
+                        >
+                          Use This Example →
+                        </button>
+                      </div>
+                      <div className="flex flex-col justify-between rounded-lg bg-white p-3 shadow-2xs">
+                        <div>
+                          <div className="font-bold text-emerald-800">
+                            2. Service / Agency
+                          </div>
+                          <p className="mt-1 text-slate-600">
+                            &ldquo;Local dental clinics miss 30% of new patient calls
+                            during lunch hours. We provide a 24/7 AI WhatsApp booking
+                            concierge.&rdquo;
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBrainDumpText(
+                              'Local dental clinics miss 30% of new patient calls during lunch hours and evenings. We provide a 24/7 AI WhatsApp booking concierge that books hygiene & emergency slots directly into their calendar.'
+                            )
+                          }
+                          className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
+                        >
+                          Use This Example →
+                        </button>
+                      </div>
+                      <div className="flex flex-col justify-between rounded-lg bg-white p-3 shadow-2xs">
+                        <div>
+                          <div className="font-bold text-emerald-800">
+                            3. Physical / Consumer Product
+                          </div>
+                          <p className="mt-1 text-slate-600">
+                            &ldquo;Commuters in rainy cities ruin leather work shoes. We
+                            make breathable waterproof merino slip-ons.&rdquo;
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBrainDumpText(
+                              'Urban bike and rail commuters in rainy cities ruin smart leather work shoes or have to carry a spare pair in their backpack. We make breathable waterproof merino wool dress slip-ons.'
+                            )
+                          }
+                          className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
+                        >
+                          Use This Example →
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
-              {/* 2. Weekly Hours Available */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  2. How much time can you realistically give this each week?
-                </label>
-                <div className="mt-2 flex flex-wrap gap-2.5">
-                  {(
-                    [
-                      {
-                        id: '5_TO_10_HRS' as FounderWeeklyHours,
-                        label: '⏰ 5–10 hrs / week (Evenings & Weekends)',
-                      },
-                      {
-                        id: '15_TO_25_HRS' as FounderWeeklyHours,
-                        label: '⚡ 15–25 hrs / week (Part-Time Focus)',
-                      },
-                      {
-                        id: '40_PLUS_HRS' as FounderWeeklyHours,
-                        label: '🔥 40+ hrs / week (Full-Time All-In)',
-                      },
-                      {
-                        id: 'OTHER' as FounderWeeklyHours,
-                        label: '✨ Other (Custom Schedule)',
-                      },
-                    ] as const
-                  ).map((pill) => {
-                    const isSelected =
-                      founderMotivation.weeklyHoursAvailable === pill.id;
-                    return (
-                      <button
-                        key={pill.id}
-                        type="button"
-                        disabled={activeEntitlement.isVaultReadonly}
-                        onClick={() =>
-                          setFounderMotivation({
-                            ...founderMotivation,
-                            weeklyHoursAvailable: pill.id,
-                          })
-                        }
-                        className={`rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
-                          isSelected
-                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
-                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
-                        } disabled:opacity-60`}
-                      >
-                        {pill.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {founderMotivation.weeklyHoursAvailable === 'OTHER' && (
-                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
-                      ✨ Describe your weekly schedule or availability:
-                    </label>
-                    <input
-                      type="text"
-                      disabled={activeEntitlement.isVaultReadonly}
-                      value={founderMotivation.otherWeeklyHoursText || ''}
-                      onChange={(e) =>
-                        setFounderMotivation({
-                          ...founderMotivation,
-                          otherWeeklyHoursText: e.target.value,
-                        })
-                      }
-                      placeholder="E.g., 2 full days a week (Thurs/Fri), or seasonal sprints between client projects..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
-                    />
-                  </div>
-                )}
-              </div>
+                  {/* Guided Brain Dump Input */}
+                  <div className="mt-5">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <label className="text-sm font-semibold text-slate-800">
+                        Your Raw Idea Brain Dump
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {/* Layer 2: "I'm Stuck — Help Me Break This Down" */}
+                        <button
+                          type="button"
+                          onClick={() => setShowImStuckHelper(!showImStuckHelper)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                        >
+                          <Wand2 className="h-3.5 w-3.5" />
+                          I&apos;m Stuck — 3 Simple Prompts
+                        </button>
+                      </div>
+                    </div>
 
-              {/* 3. Personal 12-Month Success Vision */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  3. In your own words: What does &ldquo;success&rdquo; look like for you 12 months from today?
-                </label>
-                <p className="mt-0.5 text-[11px] text-slate-500">
-                  Be honest with yourself — e.g., &ldquo;Making {formatPlanCurrency(4000, countryPack.defaultCurrency)}/month so I can hand in my notice&rdquo;, &ldquo;10 paying local shops using it every week&rdquo;, or &ldquo;Helping 500 families in my community&rdquo;.
-                </p>
-                <textarea
-                  rows={3}
-                  disabled={activeEntitlement.isVaultReadonly}
-                  value={founderMotivation.twelveMonthSuccessVision}
-                  onChange={(e) =>
-                    setFounderMotivation({
-                      ...founderMotivation,
-                      twelveMonthSuccessVision: e.target.value,
-                    })
-                  }
-                  placeholder="Write what 12-month success looks like for your life and business..."
-                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
-                />
-              </div>
-
-              {/* Step 3 Bottom Save Bar */}
-              {!activeEntitlement.isVaultReadonly && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
-                  <div className="text-xs text-slate-500">
-                    🎯 Your personal ambition shapes how Ask Preflight AI coaches you across Modules A–G.
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isSavingCanvas}
-                    onClick={handleSaveCanvasEdits}
-                  >
-                    {isSavingCanvas ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-3.5 w-3.5" />
-                        Save My Motivation
-                      </>
+                    {/* "I'm Stuck" 3-Question Sub-Prompt Helper */}
+                    {showImStuckHelper && (
+                      <div className="mb-3 rounded-xl border border-violet-200 bg-violet-50/70 p-3.5 text-xs text-violet-950">
+                        <div className="font-bold">
+                          ✨ 3 Quick Questions to Unstick You:
+                        </div>
+                        <ol className="mt-1.5 list-inside list-decimal space-y-1 text-violet-900">
+                          <li>
+                            Who is the exact person getting frustrated every week?
+                          </li>
+                          <li>
+                            What annoying manual task are they doing right now to
+                            cope?
+                          </li>
+                          <li>
+                            If your product worked like magic tomorrow, what result
+                            would they get in 10 minutes?
+                          </li>
+                        </ol>
+                      </div>
                     )}
-                  </Button>
+
+                    <textarea
+                      rows={4}
+                      disabled={activeEntitlement.isVaultReadonly || isSavingCanvas}
+                      value={brainDumpText}
+                      onChange={(e) => setBrainDumpText(e.target.value)}
+                      placeholder="e.g. Independent plumbers waste 3 hours every Friday chasing unpaid invoices. Our WhatsApp tool sends 1-click payment links with automatic reminders..."
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+
+                    {/* Step 1 Save Bar: Keep Founder's Exact Words */}
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-xs text-slate-500">
+                        💬 <strong>Your exact words are saved.</strong> We never overwrite what you write.
+                      </div>
+                      {!activeEntitlement.isVaultReadonly && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isSavingCanvas}
+                            onClick={handleSaveCanvasEdits}
+                          >
+                            {isSavingCanvas ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="h-3.5 w-3.5" />
+                                Save My Raw Idea
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isSavingCanvas}
+                            onClick={() => {
+                              handleSaveCanvasEdits();
+                              setOpenModAStep(2);
+                              setTimeout(() => {
+                                const el = document.getElementById('mod-a-step-2');
+                                if (el)
+                                  el.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'start',
+                                  });
+                              }, 40);
+                            }}
+                            className="bg-indigo-600 text-white hover:bg-indigo-700"
+                          >
+                            Next: Concept Canvas
+                            <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+
+          {/* STEP 2: FLESH OUT YOUR IDEA (USER-TYPED 5-BLOCK CONCEPT CANVAS + AI TIDY UP) */}
+          {openModAStep !== 'ALL' && openModAStep !== 2 ? (
+            <div
+              id="mod-a-step-2"
+              onClick={() => setOpenModAStep(2)}
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      filledCanvasBoxesCount === 5
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 text-white'
+                    }`}
+                  >
+                    {filledCanvasBoxesCount === 5 ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      '2'
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-sm font-bold text-slate-900">
+                        Step 2: Your 1-Page Concept Canvas
+                      </h2>
+                      {moduleAReadinessSteps[1]?.isComplete ? (
+                        <Badge variant="success" className="shrink-0 text-[10px]">
+                          Completed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                          In Progress
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                      {effectiveCanvas.coreProblem
+                        ? `Problem: ${effectiveCanvas.coreProblem.slice(0, 80)}...`
+                        : 'Define the problem, target customer, solution, unfair edge, and revenue model.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  >
+                    <span>Edit Step</span>
+                    <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              id="mod-a-step-2"
+              className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        filledCanvasBoxesCount === 5
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-indigo-600 text-white'
+                      }`}
+                    >
+                      {filledCanvasBoxesCount === 5 ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        '2'
+                      )}
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900">
+                      Step 2: Your 1-Page Concept Canvas
+                    </h2>
+                    <Badge variant="outline" className="shrink-0 border-indigo-200 bg-indigo-50/50 text-[10px] text-indigo-700">
+                      {filledCanvasBoxesCount}/5 Boxes Filled
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Shape your raw idea into 5 simple building blocks. Write in plain English or click <strong className="text-indigo-700">Tidy Up My Notes with AI</strong> anytime to polish your wording.
+                  </p>
+                </div>
+
+                {openModAStep !== 'ALL' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenModAStep(0);
+                    }}
+                    className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                  >
+                    <span>Collapse Step</span>
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-5 space-y-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {/* Box 1: The Core Problem */}
+                  <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        1. What&apos;s broken today? (The Problem)
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        What frustrating problem are people dealing with, and what does it cost them?
+                      </p>
+                    </div>
+                    <textarea
+                      rows={4}
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={effectiveCanvas.coreProblem}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          coreProblem: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., Shop owners waste 3 hours every Friday checking expiry dates by hand..."
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* Box 2: Target Customer */}
+                  <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        2. Who feels this pain most? (Target Customer)
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Who is the very first type of customer you want to help in {countryPack.countryName}?
+                      </p>
+                    </div>
+                    <textarea
+                      rows={4}
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={effectiveCanvas.targetCustomer}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          targetCustomer: e.target.value,
+                        })
+                      }
+                      placeholder={`e.g., Independent grocers and convenience store owners in ${countryPack.countryName}...`}
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* Box 3: Your Solution */}
+                  <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        3. How does your product fix it? (The Solution)
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        In plain English, what does your product or service actually do?
+                      </p>
+                    </div>
+                    <textarea
+                      rows={4}
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={effectiveCanvas.proposedSolution}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          proposedSolution: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., A mobile app that scans shelf barcodes and automatically alerts staff 48 hours before items expire..."
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* Box 4: Why You Win (Unfair Edge) */}
+                  <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        4. Why pick you? (Your Edge)
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Why will customers choose your idea over doing nothing or using spreadsheets?
+                      </p>
+                    </div>
+                    <textarea
+                      rows={4}
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={effectiveCanvas.unfairAdvantage}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          unfairAdvantage: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., Takes 5 minutes to set up with zero hardware and works directly with their existing pos barcodes..."
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* Box 5: How You Make Money & Grant Fit */}
+                  <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 md:col-span-2 lg:col-span-2">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                        5. How will you charge? (Pricing &amp; Grants)
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Subscription, one-off price, commission? Any rough number in {countryPack.defaultCurrency} works!
+                      </p>
+                    </div>
+                    <textarea
+                      rows={4}
+                      disabled={activeEntitlement.isVaultReadonly}
+                      value={effectiveCanvas.revenueAndGrantFit}
+                      onChange={(e) =>
+                        setConceptCanvas({
+                          ...effectiveCanvas,
+                          revenueAndGrantFit: e.target.value,
+                        })
+                      }
+                      placeholder={`e.g., Monthly subscription of ${formatPlanCurrency(99, countryPack.defaultCurrency)}/month per shop, plus exploring ${countryGrants[0]?.grantName || 'local startup grants'}...`}
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                {/* Step 2 Bottom Save & AI Tidy Up Bar */}
+                {!activeEntitlement.isVaultReadonly && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
+                    <div className="text-xs text-slate-500">
+                      💡 Save your notes directly, or let Ask Preflight AI tidy up your wording without changing your meaning.
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isSavingCanvas || isSynthesizing}
+                        onClick={handleSaveCanvasEdits}
+                      >
+                        {isSavingCanvas ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-3.5 w-3.5" />
+                            Save My Notes
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={isSynthesizing || isSavingCanvas}
+                        onClick={handleTidyUpNotesWithAi}
+                      >
+                        {isSynthesizing ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Tidying Up Your Notes...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Tidy Up My Notes with AI
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isSavingCanvas}
+                        onClick={() => {
+                          handleSaveCanvasEdits();
+                          setOpenModAStep(3);
+                          setTimeout(() => {
+                            const el = document.getElementById('mod-a-step-3');
+                            if (el)
+                              el.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start',
+                              });
+                          }, 40);
+                        }}
+                        className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      >
+                        Next: Your &ldquo;Why&rdquo;
+                        <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: YOUR PERSONAL "WHY" & AMBITION (FOUNDER MOTIVATION) */}
+          {openModAStep !== 'ALL' && openModAStep !== 3 ? (
+            <div
+              id="mod-a-step-3"
+              onClick={() => setOpenModAStep(3)}
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      moduleAReadinessSteps[2]?.isComplete
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 text-white'
+                    }`}
+                  >
+                    {moduleAReadinessSteps[2]?.isComplete ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      '3'
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-sm font-bold text-slate-900">
+                        Step 3: Your Personal &ldquo;Why&rdquo; &amp; Ambition
+                      </h2>
+                      {moduleAReadinessSteps[2]?.isComplete ? (
+                        <Badge variant="success" className="shrink-0 text-[10px]">
+                          Completed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                          In Progress
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                      {moduleAReadinessSteps[2]?.summary}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  >
+                    <span>Edit Step</span>
+                    <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              id="mod-a-step-3"
+              className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        moduleAReadinessSteps[2]?.isComplete
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-indigo-600 text-white'
+                      }`}
+                    >
+                      {moduleAReadinessSteps[2]?.isComplete ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        '3'
+                      )}
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900">
+                      Step 3: Your Personal &ldquo;Why&rdquo; &amp; Ambition
+                    </h2>
+                    <Badge variant="success" className="shrink-0">Personalized</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    We adapt our coaching to match your personal goals — whether you want a steady side-income, freedom from your 9-to-5, or a fast-growing scaleup.
+                  </p>
+                </div>
+
+                {openModAStep !== 'ALL' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenModAStep(0);
+                    }}
+                    className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                  >
+                    <span>Collapse Step</span>
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-5 space-y-5">
+                {/* 1. Primary Motivation Cards */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    1. What is driving you to build this?
+                  </label>
+                  <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {(
+                      [
+                        {
+                          id: 'LEAVE_JOB' as FounderMotivationType,
+                          emoji: '💼',
+                          title: 'Leave My 9-to-5 & Be My Own Boss',
+                          subtitle:
+                            'Replace my current income and build a sustainable business I own.',
+                        },
+                        {
+                          id: 'SIDE_HUSTLE' as FounderMotivationType,
+                          emoji: '🌙',
+                          title: 'Build a Profitable Side Hustle',
+                          subtitle:
+                            'Keep my day job while creating an extra income stream on evenings & weekends.',
+                        },
+                        {
+                          id: 'SAVE_THE_WORLD' as FounderMotivationType,
+                          emoji: '🌍',
+                          title: 'Solve a Problem I Care About',
+                          subtitle:
+                            'Fix a broken issue in my industry or community with real impact.',
+                        },
+                        {
+                          id: 'SCALE_STARTUP' as FounderMotivationType,
+                          emoji: '🚀',
+                          title: 'Scale a High-Growth Startup',
+                          subtitle:
+                            'Build a fast-growing tech company, hire a team, and seek grants or investor funding.',
+                        },
+                        {
+                          id: 'BUILD_TO_SELL' as FounderMotivationType,
+                          emoji: '🏆',
+                          title: 'Build to Sell',
+                          subtitle:
+                            'Create a systematised, valuable asset designed to be acquired.',
+                        },
+                        {
+                          id: 'OTHER' as FounderMotivationType,
+                          emoji: '✨',
+                          title: 'Other (Custom Goal)',
+                          subtitle:
+                            'Describe your personal motivation in your own words below.',
+                        },
+                      ] as const
+                    ).map((option) => {
+                      const isSelected =
+                        founderMotivation.primaryMotivation === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          disabled={activeEntitlement.isVaultReadonly}
+                          onClick={() =>
+                            setFounderMotivation({
+                              ...founderMotivation,
+                              primaryMotivation: option.id,
+                            })
+                          }
+                          className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                            isSelected
+                              ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                          } disabled:opacity-60`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xl">{option.emoji}</span>
+                              {isSelected && (
+                                <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                  Selected
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-2 text-xs font-bold text-slate-900">
+                              {option.title}
+                            </div>
+                            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                              {option.subtitle}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {founderMotivation.primaryMotivation === 'OTHER' && (
+                    <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                      <label className="block text-[11px] font-bold text-indigo-950">
+                        ✨ Tell us what is driving you in your own words:
+                      </label>
+                      <input
+                        type="text"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        value={founderMotivation.otherMotivationText || ''}
+                        onChange={(e) =>
+                          setFounderMotivation({
+                            ...founderMotivation,
+                            otherMotivationText: e.target.value,
+                          })
+                        }
+                        placeholder="e.g. Spinning out a tool we built internally, or creating a seasonal lifestyle business..."
+                        className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Weekly Hours Available */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    2. How much time can you realistically give this each week?
+                  </label>
+                  <div className="mt-2 flex flex-wrap gap-2.5">
+                    {(
+                      [
+                        {
+                          id: '5_TO_10_HRS' as FounderWeeklyHours,
+                          label: '⏰ 5–10 hrs / week (Evenings & Weekends)',
+                        },
+                        {
+                          id: '15_TO_25_HRS' as FounderWeeklyHours,
+                          label: '⚡ 15–25 hrs / week (Part-Time Focus)',
+                        },
+                        {
+                          id: '40_PLUS_HRS' as FounderWeeklyHours,
+                          label: '🔥 40+ hrs / week (Full-Time All-In)',
+                        },
+                        {
+                          id: 'OTHER' as FounderWeeklyHours,
+                          label: '✨ Other (Custom Schedule)',
+                        },
+                      ] as const
+                    ).map((pill) => {
+                      const isSelected =
+                        founderMotivation.weeklyHoursAvailable === pill.id;
+                      return (
+                        <button
+                          key={pill.id}
+                          type="button"
+                          disabled={activeEntitlement.isVaultReadonly}
+                          onClick={() =>
+                            setFounderMotivation({
+                              ...founderMotivation,
+                              weeklyHoursAvailable: pill.id,
+                            })
+                          }
+                          className={`rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
+                            isSelected
+                              ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                              : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                          } disabled:opacity-60`}
+                        >
+                          {pill.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {founderMotivation.weeklyHoursAvailable === 'OTHER' && (
+                    <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+                      <label className="block text-[11px] font-bold text-indigo-950">
+                        ✨ Describe your weekly schedule or availability:
+                      </label>
+                      <input
+                        type="text"
+                        disabled={activeEntitlement.isVaultReadonly}
+                        value={founderMotivation.otherWeeklyHoursText || ''}
+                        onChange={(e) =>
+                          setFounderMotivation({
+                            ...founderMotivation,
+                            otherWeeklyHoursText: e.target.value,
+                          })
+                        }
+                        placeholder="e.g. 2 full days per week (Thurs/Fri), or seasonal sprints..."
+                        className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Personal 12-Month Success Vision */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    3. What does &ldquo;success&rdquo; look like 12 months from today?
+                  </label>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Be honest with yourself — e.g., &ldquo;Making {formatPlanCurrency(4000, countryPack.defaultCurrency)}/month so I can hand in my notice&rdquo; or &ldquo;10 paying shops in {countryPack.countryName} using it weekly&rdquo;.
+                  </p>
+                  <textarea
+                    rows={3}
+                    disabled={activeEntitlement.isVaultReadonly}
+                    value={founderMotivation.twelveMonthSuccessVision}
+                    onChange={(e) =>
+                      setFounderMotivation({
+                        ...founderMotivation,
+                        twelveMonthSuccessVision: e.target.value,
+                      })
+                    }
+                    placeholder="e.g. Hit €4,000/month recurring revenue, or help 100 paying customers..."
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                  />
+                </div>
+
+                {/* Step 3 Bottom Save Bar */}
+                {!activeEntitlement.isVaultReadonly && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
+                    <div className="text-xs text-slate-500">
+                      🎯 Your ambition shapes how the AI co-pilot guides you across future modules.
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isSavingCanvas}
+                        onClick={handleSaveCanvasEdits}
+                      >
+                        {isSavingCanvas ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-3.5 w-3.5" />
+                            Save My Motivation
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={isSavingCanvas}
+                        onClick={() => {
+                          handleSaveCanvasEdits();
+                          setOpenModAStep(4);
+                          setTimeout(() => {
+                            const el = document.getElementById('mod-a-step-4');
+                            if (el)
+                              el.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start',
+                              });
+                          }, 40);
+                        }}
+                        className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      >
+                        Next: Team &amp; Budget
+                        <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* STEP 4: YOUR TEAM & STARTING BUDGET (DAY-1 RESOURCES) */}
-          <Card id="mod-a-step-4" className="scroll-mt-24">
-            <CardHeader>
-              <div>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                    4
+          {openModAStep !== 'ALL' && openModAStep !== 4 ? (
+            <div
+              id="mod-a-step-4"
+              onClick={() => setOpenModAStep(4)}
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      moduleAReadinessSteps[3]?.isComplete
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 text-white'
+                    }`}
+                  >
+                    {moduleAReadinessSteps[3]?.isComplete ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      '4'
+                    )}
                   </span>
-                  Step 4: Your Team &amp; Starting Budget (Day-1 Resources)
-                  <Badge variant="secondary">Realistic Guardrails</Badge>
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Whether you are a solo founder bootstrapping with{' '}
-                  {formatPlanCurrency(0, countryPack.defaultCurrency)} or a
-                  co-founder team with savings ready to invest, knowing your
-                  starting team and budget helps us tailor your MVP path and{' '}
-                  {countryPack.countryName} grant options.
-                </CardDescription>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-sm font-bold text-slate-900">
+                        Step 4: Your Team &amp; Starting Budget
+                      </h2>
+                      {moduleAReadinessSteps[3]?.isComplete ? (
+                        <Badge variant="success" className="shrink-0 text-[10px]">
+                          Completed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                          In Progress
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                      {moduleAReadinessSteps[3]?.summary}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  >
+                    <span>Edit Step</span>
+                    <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-5">
+            </div>
+          ) : (
+            <div
+              id="mod-a-step-4"
+              className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        moduleAReadinessSteps[3]?.isComplete
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-indigo-600 text-white'
+                      }`}
+                    >
+                      {moduleAReadinessSteps[3]?.isComplete ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        '4'
+                      )}
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900">
+                      Step 4: Your Team &amp; Starting Budget
+                    </h2>
+                    <Badge variant="secondary" className="shrink-0">Runway Guardrails</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Knowing your team setup and savings helps us recommend the right MVP build scope and verify {countryPack.countryName} grant match-funding rules.
+                  </p>
+                </div>
+
+                {openModAStep !== 'ALL' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenModAStep(0);
+                    }}
+                    className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                  >
+                    <span>Collapse Step</span>
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-5 space-y-5">
               {/* 1. Team Structure Cards */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  1. Who is building this right now? (Solo vs. Team)
+                  1. Who is building this right now?
                 </label>
                 <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   {(
@@ -5255,35 +5848,35 @@ export default function WorkspacePage() {
                         emoji: '👤',
                         title: 'Flying Solo (100% Me)',
                         subtitle:
-                          'I am building, testing, and running this on my own for now.',
+                          'Building, testing, and running this on my own for now.',
                       },
                       {
                         id: 'SEEKING_COFOUNDER' as PlanTeamStructureType,
                         emoji: '🤝',
-                        title: 'Solo, Looking for a Co-Founder',
+                        title: 'Solo, Looking for Co-Founder',
                         subtitle:
-                          'Starting alone today, but I want to bring on a partner to share skills & workload.',
+                          'Starting alone today, but want a partner to share skills & workload.',
                       },
                       {
                         id: 'COFOUNDER_TEAM' as PlanTeamStructureType,
                         emoji: '👥',
                         title: 'Co-Founder Team (2+ Founders)',
                         subtitle:
-                          'We are splitting ownership and building this business together.',
+                          'Splitting ownership and building the business together.',
                       },
                       {
                         id: 'SOLO_PLUS_CONTRACTORS' as PlanTeamStructureType,
                         emoji: '🛠️',
                         title: 'Solo + Freelancers / Agency',
                         subtitle:
-                          'I own it solo, bringing in paid contractors or specialists for specific tasks.',
+                          'Solo owner, bringing in paid contractors or agencies for specific tasks.',
                       },
                       {
                         id: 'OTHER' as PlanTeamStructureType,
                         emoji: '✨',
-                        title: 'Other (Custom Team Setup)',
+                        title: 'Other (Custom Team)',
                         subtitle:
-                          'Family business, spin-out, cooperative, or another structure — I’ll describe it below.',
+                          'Family business, university spin-out, or other structure.',
                       },
                     ] as const
                   ).map((option) => {
@@ -5341,7 +5934,7 @@ export default function WorkspacePage() {
                           otherTeamStructureText: e.target.value,
                         })
                       }
-                      placeholder="E.g., University research spin-out with 2 advisors, or husband-and-wife part-time partnership..."
+                      placeholder="e.g. University research spin-out with 2 advisors, or part-time partnership..."
                       className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
@@ -5359,17 +5952,17 @@ export default function WorkspacePage() {
                       {
                         id: 'BUILD_IN_HOUSE' as TeamSkillCoverageType,
                         label:
-                          '✅ Yes — I/we can build & deliver Version 1 ourselves',
+                          '✅ Yes — We can build & deliver V1 ourselves',
                       },
                       {
                         id: 'PARTIAL_SKILLS' as TeamSkillCoverageType,
                         label:
-                          '🧩 Mostly — I/we have domain/sales skills, but need help with tech or build',
+                          '🧩 Mostly — Need help with tech or build',
                       },
                       {
                         id: 'NEED_EXTERNAL_BUILDER' as TeamSkillCoverageType,
                         label:
-                          '🚨 No — I/we will need to hire someone or find a co-founder to build it',
+                          '🚨 No — Need a technical partner or agency',
                       },
                       {
                         id: 'OTHER' as TeamSkillCoverageType,
@@ -5416,7 +6009,7 @@ export default function WorkspacePage() {
                           otherSkillCoverageText: e.target.value,
                         })
                       }
-                      placeholder="E.g., Using white-label software + our own consulting team, or partnering with a contract manufacturer..."
+                      placeholder="e.g. Using no-code tools + our own consulting team, or partnering with a manufacturer..."
                       className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
@@ -5426,10 +6019,10 @@ export default function WorkspacePage() {
               {/* 3. Starting Capital / Investment Buckets */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  3. How much money do you have to invest in getting this idea started? ({countryPack.defaultCurrency})
+                  3. How much starting money or savings do you have allocated? ({countryPack.defaultCurrency})
                 </label>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  Pick the bucket that feels realistic for your personal savings or current team kitty — we use this to protect your cashflow and check grant match-funding rules.
+                  Pick the range that feels realistic for your savings — we use this to protect your cashflow and check grant match-funding rules.
                 </p>
                 <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {(
@@ -5439,42 +6032,42 @@ export default function WorkspacePage() {
                         emoji: '🌱',
                         amountLabel: `${formatPlanCurrency(0, countryPack.defaultCurrency)} (Sweat Equity)`,
                         subtitle:
-                          'Bootstrapping with my time, free tools, and early customer pre-sales only.',
+                          'Bootstrapping with time, free tools, and customer pre-sales.',
                       },
                       {
                         id: 'UNDER_1K' as StartingBudgetBracket,
                         emoji: '☕',
                         amountLabel: `Under ${formatPlanCurrency(1000, countryPack.defaultCurrency)}`,
                         subtitle:
-                          'Micro-budget for a domain, basic software tools, and scrappy validation tests.',
+                          'Micro-budget for domain, no-code tools, and initial tests.',
                       },
                       {
                         id: '1K_TO_5K' as StartingBudgetBracket,
                         emoji: '🧱',
                         amountLabel: `${formatPlanCurrency(1000, countryPack.defaultCurrency)} – ${formatPlanCurrency(5000, countryPack.defaultCurrency)}`,
                         subtitle:
-                          'Seed savings for a lean prototype, company registration, and initial marketing.',
+                          'Lean prototype, company registration, and initial customer outreach.',
                       },
                       {
                         id: '5K_TO_25K' as StartingBudgetBracket,
                         emoji: '🚀',
                         amountLabel: `${formatPlanCurrency(5000, countryPack.defaultCurrency)} – ${formatPlanCurrency(25000, countryPack.defaultCurrency)}`,
                         subtitle:
-                          'Solid runway to fund MVP build, equipment, or upfront match-funding for state grants.',
+                          'Fund MVP build, equipment, or upfront grant match-funding.',
                       },
                       {
                         id: 'OVER_25K' as StartingBudgetBracket,
                         emoji: '🏦',
                         amountLabel: `${formatPlanCurrency(25000, countryPack.defaultCurrency)}+`,
                         subtitle:
-                          'Well capitalized with personal funds or early backing ready to deploy carefully.',
+                          'Well capitalized with personal savings or early backing ready to deploy.',
                       },
                       {
                         id: 'OTHER' as StartingBudgetBracket,
                         emoji: '✨',
-                        amountLabel: 'Other (Custom Budget Setup)',
+                        amountLabel: 'Other (Custom Budget)',
                         subtitle:
-                          'Grant voucher, revenue from an existing business, or another funding setup.',
+                          'Grant voucher, cashflow from existing business, or other setup.',
                       },
                     ] as const
                   ).map((bucket) => {
@@ -5532,7 +6125,7 @@ export default function WorkspacePage() {
                           otherBudgetText: e.target.value,
                         })
                       }
-                      placeholder={`E.g., Funded out of cashflow from our existing consultancy, or ${formatPlanCurrency(10000, countryPack.defaultCurrency)} innovation voucher...`}
+                      placeholder={`e.g. Funded out of cashflow from existing consultancy, or ${formatPlanCurrency(10000, countryPack.defaultCurrency)} voucher...`}
                       className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
@@ -5542,10 +6135,10 @@ export default function WorkspacePage() {
               {/* 4. Deeper Team & Funding Notes */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  4. Go Deeper: Tell us about your team skills, missing roles, or how you plan to fund the gap
+                  4. Extra Team &amp; Funding Notes (Optional)
                 </label>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  E.g., &ldquo;I have 8 years in grocery retail operations, looking for a technical co-founder&rdquo; or &ldquo;Putting in {formatPlanCurrency(3000, countryPack.defaultCurrency)} from savings and hoping to apply for {countryGrants[0]?.grantName || 'a local feasibility grant'}&rdquo;.
+                  e.g., &ldquo;I have 8 years in retail operations, looking for a technical co-founder&rdquo; or &ldquo;Putting in {formatPlanCurrency(3000, countryPack.defaultCurrency)} from savings and hoping to apply for {countryGrants[0]?.grantName || 'local grants'}&rdquo;.
                 </p>
                 <textarea
                   rows={3}
@@ -5566,55 +6159,161 @@ export default function WorkspacePage() {
               {!activeEntitlement.isVaultReadonly && (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
                   <div className="text-xs text-slate-500">
-                    🛡️ Your team setup and {countryPack.defaultCurrency} starting budget automatically update your blind-spot guardrails below.
+                    🛡️ Your team setup and starting budget automatically update your blind-spot review below.
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isSavingCanvas}
-                    onClick={handleSaveCanvasEdits}
-                  >
-                    {isSavingCanvas ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-3.5 w-3.5" />
-                        Save Team &amp; Budget
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isSavingCanvas}
+                      onClick={handleSaveCanvasEdits}
+                    >
+                      {isSavingCanvas ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-3.5 w-3.5" />
+                          Save Team &amp; Budget
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={isSavingCanvas}
+                      onClick={() => {
+                        handleSaveCanvasEdits();
+                        setOpenModAStep(5);
+                        setTimeout(() => {
+                          const el = document.getElementById('mod-a-step-5');
+                          if (el)
+                            el.scrollIntoView({
+                              behavior: 'smooth',
+                              block: 'start',
+                            });
+                        }, 40);
+                      }}
+                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                    >
+                      Next: Reality Check
+                      <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+          )}
 
           {/* STEP 5: FOUNDER FIT, DEALBREAKERS & REALITY CHECK */}
-          <Card id="mod-a-step-5" className="scroll-mt-24">
-            <CardHeader>
-              <div>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                    5
+          {openModAStep !== 'ALL' && openModAStep !== 5 ? (
+            <div
+              id="mod-a-step-5"
+              onClick={() => setOpenModAStep(5)}
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      moduleAReadinessSteps[4]?.isComplete
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 text-white'
+                    }`}
+                  >
+                    {moduleAReadinessSteps[4]?.isComplete ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      '5'
+                    )}
                   </span>
-                  Step 5: Founder Fit, Dealbreakers &amp; Reality Check
-                  <Badge variant="secondary">Protect Your Sanity</Badge>
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Before you start building or spending money, let&apos;s make sure
-                  this business fits your real life — your industry contacts, how
-                  soon you need a personal wage, what you refuse to do, and your
-                  honest #1 worry.
-                </CardDescription>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-sm font-bold text-slate-900">
+                        Step 5: Founder Fit &amp; Reality Check
+                      </h2>
+                      {moduleAReadinessSteps[4]?.isComplete ? (
+                        <Badge variant="success" className="shrink-0 text-[10px]">
+                          Completed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                          In Progress
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                      {moduleAReadinessSteps[4]?.summary}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  >
+                    <span>Edit Step</span>
+                    <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-5">
+            </div>
+          ) : (
+            <div
+              id="mod-a-step-5"
+              className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        moduleAReadinessSteps[4]?.isComplete
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-indigo-600 text-white'
+                      }`}
+                    >
+                      {moduleAReadinessSteps[4]?.isComplete ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        '5'
+                      )}
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900">
+                      Step 5: Founder Fit &amp; Reality Check
+                    </h2>
+                    <Badge variant="secondary" className="shrink-0">Protect Your Sanity</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Let&apos;s make sure this business fits your real life — your warm network, personal income timeline, and lifestyle boundaries.
+                  </p>
+                </div>
+
+                {openModAStep !== 'ALL' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenModAStep(0);
+                    }}
+                    className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                  >
+                    <span>Collapse Step</span>
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-5 space-y-5">
               {/* 1. Insider Advantage & Warm Contacts ("The Monday Morning Test") */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  1. The Monday Morning Test: How well do you know this industry &amp; your first 5 buyers?
+                  1. The Monday Morning Test: How well do you know this industry?
                 </label>
                 <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {(
@@ -5622,30 +6321,30 @@ export default function WorkspacePage() {
                       {
                         id: 'LIVED_IT_INSIDER' as IndustryConnectionLevel,
                         emoji: '🔑',
-                        title: 'I’ve Lived It (Industry Insider)',
+                        title: 'Industry Insider',
                         subtitle:
-                          'I worked in this industry or experienced this exact problem firsthand — I already know the jargon and key buyers.',
+                          'I worked in this space or lived this exact problem — I know the jargon and buyers.',
                       },
                       {
                         id: 'WARM_CONNECTIONS' as IndustryConnectionLevel,
                         emoji: '🤝',
-                        title: 'I Know a Few People (Warm Network)',
+                        title: 'Warm Network',
                         subtitle:
-                          'I could message 3–5 target buyers on WhatsApp or LinkedIn on Monday morning to ask for honest feedback.',
+                          'I can message 3–5 potential buyers on LinkedIn/WhatsApp for honest feedback.',
                       },
                       {
                         id: 'STARTING_COLD' as IndustryConnectionLevel,
                         emoji: '🧭',
-                        title: 'Starting Cold (Outsider)',
+                        title: 'Starting Cold',
                         subtitle:
-                          'I spotted this opportunity from the outside and don’t personally know target buyers yet.',
+                          'Spotted this opportunity from the outside; building my network from scratch.',
                       },
                       {
                         id: 'OTHER' as IndustryConnectionLevel,
                         emoji: '✨',
-                        title: 'Other (Custom Industry Access)',
+                        title: 'Other (Custom Access)',
                         subtitle:
-                          'Channel partner, trade association, co-founder network, or another setup — I’ll describe it below.',
+                          'Trade body, partner network, co-founder network, or another setup.',
                       },
                     ] as const
                   ).map((option) => {
@@ -5705,7 +6404,7 @@ export default function WorkspacePage() {
                           otherIndustryConnectionText: e.target.value,
                         })
                       }
-                      placeholder="E.g., My advisor runs a trade body with 400 members, or we already serve an adjacent market..."
+                      placeholder="e.g. My advisor runs a trade body, or we already serve an adjacent market..."
                       className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
@@ -5715,7 +6414,7 @@ export default function WorkspacePage() {
               {/* 2. Personal Income Urgency */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  2. Personal Income Pressure: How soon do you need this business to pay you a personal wage?
+                  2. How soon do you need this business to pay you an income?
                 </label>
                 <div className="mt-2 flex flex-wrap gap-2.5">
                   {(
@@ -5723,21 +6422,21 @@ export default function WorkspacePage() {
                       {
                         id: 'NO_RUSH_12M_PLUS' as PersonalIncomeUrgency,
                         label:
-                          '🛡️ No Rush (12+ Months) — Covered by day job, partner, or savings',
+                          '🛡️ No Rush (12+ Months) — Covered by day job or savings',
                       },
                       {
                         id: 'MEDIUM_6_TO_12M' as PersonalIncomeUrgency,
                         label:
-                          '⏳ Within 6–12 Months — Need steady progress toward replacing income',
+                          '⏳ Within 6–12 Months — Need steady progress to replace income',
                       },
                       {
                         id: 'URGENT_1_TO_3M' as PersonalIncomeUrgency,
                         label:
-                          '⚡ Urgent (Within 1–3 Months) — I need fast cashflow from customers now',
+                          '⚡ Urgent (Within 1–3 Months) — Need fast customer cashflow now',
                       },
                       {
                         id: 'OTHER' as PersonalIncomeUrgency,
-                        label: '✨ Other (Custom Income Timeline)',
+                        label: '✨ Other (Custom Timeline)',
                       },
                     ] as const
                   ).map((pill) => {
@@ -5768,7 +6467,7 @@ export default function WorkspacePage() {
                 {founderRealityCheck.personalIncomeUrgency === 'OTHER' && (
                   <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
                     <label className="block text-[11px] font-bold text-indigo-950">
-                      ✨ Describe your personal income timeline or runway:
+                      ✨ Describe your personal income timeline:
                     </label>
                     <input
                       type="text"
@@ -5780,7 +6479,7 @@ export default function WorkspacePage() {
                           otherIncomeUrgencyText: e.target.value,
                         })
                       }
-                      placeholder="E.g., On Back to Work Enterprise Allowance for 12 months, or reinvesting all profits for 2 years..."
+                      placeholder="e.g. On Enterprise Allowance for 12 months, or reinvesting all profits for 2 years..."
                       className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
@@ -5790,41 +6489,37 @@ export default function WorkspacePage() {
               {/* 3. Lifestyle Dealbreakers / Anti-Goals (Multi-Select) */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  3. Your Dealbreakers (Anti-Goals): What do you REFUSE to do in this business? (Select all that apply)
+                  3. Your Dealbreakers: What do you REFUSE to do? (Select all that apply)
                 </label>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  Plenty of founders accidentally build a business they hate running. Pick your boundaries now so our AI never pushes you into the wrong model.
+                  Set your boundaries now so our AI never nudges you into a business model you hate running.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(
                     [
                       {
                         id: 'NO_BIG_TEAM' as FounderDealbreakerType,
-                        label: '🚫 I don’t want to manage a big team of staff',
+                        label: '🚫 No big staff management',
                       },
                       {
                         id: 'NO_PHYSICAL_PREMISES' as FounderDealbreakerType,
-                        label:
-                          '🚫 I don’t want a physical shop, lease, or warehouse',
+                        label: '🚫 No physical shop / lease',
                       },
                       {
                         id: 'NO_COLD_SALES' as FounderDealbreakerType,
-                        label:
-                          '🚫 I hate cold calling & high-pressure B2B enterprise sales',
+                        label: '🚫 No cold outbound calling',
                       },
                       {
                         id: 'NO_OUTSIDE_INVESTORS' as FounderDealbreakerType,
-                        label:
-                          '🚫 I don’t want VCs or outside investors telling me what to do',
+                        label: '🚫 No outside VC investors',
                       },
                       {
                         id: 'NO_WEEKEND_SUPPORT' as FounderDealbreakerType,
-                        label:
-                          '🚫 I don’t want 24/7 customer emergencies on weekends',
+                        label: '🚫 No weekend 24/7 emergencies',
                       },
                       {
                         id: 'OTHER' as FounderDealbreakerType,
-                        label: '✨ Other (Add My Own Boundary)',
+                        label: '✨ Other (Custom Boundary)',
                       },
                     ] as const
                   ).map((item) => {
@@ -5877,7 +6572,7 @@ export default function WorkspacePage() {
                           otherDealbreakerText: e.target.value,
                         })
                       }
-                      placeholder="E.g., No international travel away from family, or no holding perishable inventory..."
+                      placeholder="e.g. No international travel away from family, or no perishable inventory..."
                       className="mt-1.5 w-full rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-rose-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
@@ -5887,7 +6582,7 @@ export default function WorkspacePage() {
               {/* 4. Ownership, Grants & Control Trade-Off */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  4. Ownership &amp; Funding Philosophy: How do you feel about sharing equity vs. staying 100% in control?
+                  4. Ownership &amp; Funding Philosophy
                 </label>
                 <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   {(
@@ -5895,36 +6590,36 @@ export default function WorkspacePage() {
                       {
                         id: 'BOOTSTRAP_100_CONTROL' as GrowthTradeoffPreference,
                         emoji: '👑',
-                        title: '100% My Own Boss (Bootstrap)',
+                        title: '100% Bootstrap',
                         subtitle:
-                          'Grow at my own pace using customer revenue — keep 100% ownership and total freedom.',
+                          'Grow using customer revenue — keep full ownership and total freedom.',
                       },
                       {
                         id: 'NON_DILUTIVE_GRANTS' as GrowthTradeoffPreference,
                         emoji: '🏛️',
-                        title: 'Customer Sales + State Grants',
-                        subtitle: `Keep my equity while tapping ${countryPack.countryName} non-dilutive grants (${countryGrants[0]?.grantName || 'local enterprise support'}).`,
+                        title: 'Customer Sales + Grants',
+                        subtitle: `Keep equity while leveraging ${countryPack.countryName} state grants (${countryGrants[0]?.grantName || 'local enterprise support'}).`,
                       },
                       {
                         id: 'SHARE_EQUITY_COFOUNDER' as GrowthTradeoffPreference,
                         emoji: '🤝',
-                        title: 'Share Equity with a Co-Founder',
+                        title: 'Co-Founder Partnership',
                         subtitle:
-                          'Happy to split ownership with the right partner so I don’t have to carry the whole load alone.',
+                          'Share equity with the right partner so I don’t carry the whole load alone.',
                       },
                       {
                         id: 'RAISE_INVESTMENT' as GrowthTradeoffPreference,
                         emoji: '📈',
-                        title: 'Open to Angel / VC Investment',
+                        title: 'Open to Investors',
                         subtitle:
-                          'Willing to trade a slice of equity for capital and mentorship to grow much faster.',
+                          'Willing to trade equity for capital and mentorship to grow much faster.',
                       },
                       {
                         id: 'OTHER' as GrowthTradeoffPreference,
                         emoji: '✨',
-                        title: 'Other (Custom Ownership View)',
+                        title: 'Other (Custom View)',
                         subtitle:
-                          'Revenue-share, community-owned, strategic joint venture, or still deciding.',
+                          'Revenue-share, community-owned, or still deciding.',
                       },
                     ] as const
                   ).map((option) => {
@@ -5982,7 +6677,7 @@ export default function WorkspacePage() {
                           otherGrowthTradeoffText: e.target.value,
                         })
                       }
-                      placeholder="E.g., Open to strategic industry partner taking a minority stake, or revenue-based financing..."
+                      placeholder="e.g. Open to strategic industry partner taking a minority stake, or revenue-based financing..."
                       className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
@@ -5993,7 +6688,7 @@ export default function WorkspacePage() {
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    5. Honest Gut-Check: What is your #1 worry or fear about this idea right now?
+                    5. Honest Gut-Check: What is your #1 worry right now?
                   </label>
                   <button
                     type="button"
@@ -6024,7 +6719,7 @@ export default function WorkspacePage() {
                   </button>
                 </div>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  Every founder has a secret worry. Naming it now lets us turn it into your #1 validation test in Module B.
+                  Every founder has a worry. Naming it now lets us turn it into your #1 validation test in Module B.
                 </p>
                 <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {(
@@ -6034,42 +6729,42 @@ export default function WorkspacePage() {
                         emoji: '💳',
                         title: 'Will Anyone Actually Pay?',
                         subtitle:
-                          'People might say "nice idea", but stick with spreadsheets or doing nothing.',
+                          'Will people buy or stick to free hacks & spreadsheets?',
                       },
                       {
                         id: 'FINDING_FIRST_10' as BiggestWorryPreset,
                         emoji: '📣',
-                        title: 'Finding My First 10 Customers',
+                        title: 'Finding First 10 Customers',
                         subtitle:
-                          'I don’t know how to get in front of buyers without spending a fortune on ads.',
+                          'How to reach target buyers without burning cash on ads.',
                       },
                       {
                         id: 'HOW_TO_BUILD' as BiggestWorryPreset,
                         emoji: '🛠️',
                         title: 'How to Actually Build It',
                         subtitle:
-                          'Worried the tech, operations, or regulations will be too complex or costly.',
+                          'Worried the tech or build will cost too much.',
                       },
                       {
                         id: 'COMPETITION_OR_AI' as BiggestWorryPreset,
                         emoji: '🦈',
-                        title: 'Big Competitors or AI Copying It',
+                        title: 'Big Competitors / AI Copycats',
                         subtitle:
-                          'What stops an existing software company or AI tool from doing this?',
+                          'What stops existing tools or AI from copying this?',
                       },
                       {
                         id: 'TIME_AND_ENERGY' as BiggestWorryPreset,
                         emoji: '🔋',
-                        title: 'Running Out of Time or Cash',
+                        title: 'Running Out of Time & Energy',
                         subtitle:
-                          'Trying to juggle this alongside life/work without burning out.',
+                          'Balancing this with work/life without burning out.',
                       },
                       {
                         id: 'OTHER' as BiggestWorryPreset,
                         emoji: '✨',
                         title: 'Other (Write Your Own Worry)',
                         subtitle:
-                          'Something else is on my mind — I’ll write it in the box directly below.',
+                          'Something else is on my mind — write it below.',
                       },
                     ] as const
                   ).map((worry) => {
@@ -6123,7 +6818,7 @@ export default function WorkspacePage() {
                       biggestWorryNotes: e.target.value,
                     })
                   }
-                  placeholder="Optional: Tell us in your own words what worries you most or where you feel least confident..."
+                  placeholder="Optional: Tell us what worries you most or where you feel least confident..."
                   className="mt-2.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
                 />
               </div>
@@ -6134,205 +6829,465 @@ export default function WorkspacePage() {
                   <div className="text-xs text-slate-500">
                     🧭 Your dealbreakers, income timeline, and #1 worry directly shape your Step 6 blind-spot review below.
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isSavingCanvas}
-                    onClick={handleSaveCanvasEdits}
-                  >
-                    {isSavingCanvas ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-3.5 w-3.5" />
-                        Save Reality Check
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isSavingCanvas}
+                      onClick={handleSaveCanvasEdits}
+                    >
+                      {isSavingCanvas ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-3.5 w-3.5" />
+                          Save Reality Check
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={isSavingCanvas}
+                      onClick={() => {
+                        handleSaveCanvasEdits();
+                        setOpenModAStep(6);
+                        setTimeout(() => {
+                          const el = document.getElementById('mod-a-step-6');
+                          if (el)
+                            el.scrollIntoView({
+                              behavior: 'smooth',
+                              block: 'start',
+                            });
+                        }, 40);
+                      }}
+                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                    >
+                      Next: Blind Spots
+                      <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+          )}
 
           {/* STEP 6: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARD */}
-          <div
-            id="mod-a-step-6"
-            className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 p-5 shadow-xs"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
-                  <Sparkles className="h-4 w-4" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Step 6: Constructive &ldquo;Things to Consider&rdquo;
-                    (Blind-Spot Engine)
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Updates live as you fill in Steps 1–5 — combining your idea,
-                    motivation, {countryPack.defaultCurrency} budget,
-                    dealbreakers, and #1 worry.
+          {openModAStep !== 'ALL' && openModAStep !== 6 ? (
+            <div
+              id="mod-a-step-6"
+              onClick={() => setOpenModAStep(6)}
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/50 via-white to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-400 hover:shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      moduleAReadinessSteps[5]?.isComplete
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 text-white'
+                    }`}
+                  >
+                    {moduleAReadinessSteps[5]?.isComplete ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      '6'
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-sm font-bold text-slate-900">
+                        Step 6: Blind-Spot Review (&ldquo;Things to Consider&rdquo;)
+                      </h2>
+                      {moduleAReadinessSteps[5]?.isComplete ? (
+                        <Badge variant="success" className="shrink-0 text-[10px]">
+                          Completed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                          In Progress
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                      {moduleAReadinessSteps[5]?.summary}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  >
+                    <span>Edit Step</span>
+                    <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              id="mod-a-step-6"
+              className="scroll-mt-24 rounded-xl border border-indigo-200 bg-white p-6 shadow-xs"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        moduleAReadinessSteps[5]?.isComplete
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-indigo-600 text-white'
+                      }`}
+                    >
+                      {moduleAReadinessSteps[5]?.isComplete ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        '6'
+                      )}
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900">
+                      Step 6: Blind-Spot Review (&ldquo;Things to Consider&rdquo;)
+                    </h2>
+                    <Badge variant="default" className="shrink-0">Co-Founder Perspective</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Live co-founder check combining your idea, budget, and worry into constructive advice.
                   </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-900">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                  Live-Synced with Steps 1–5
-                </span>
-                <Badge variant="default">Co-Founder Perspective</Badge>
-              </div>
-            </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
-              {liveThingsToConsider.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className={`flex flex-col justify-between rounded-xl border p-4 shadow-2xs transition-all ${
-                    item.severity === 'WARNING'
-                      ? 'border-amber-300 bg-amber-50/40'
-                      : 'border-slate-200/90 bg-white'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                          item.severity === 'WARNING'
-                            ? 'bg-amber-100 text-amber-900'
-                            : 'bg-indigo-50 text-indigo-800'
-                        }`}
-                      >
-                        {item.severity === 'WARNING'
-                          ? '⚠️ Priority Blind Spot'
-                          : '💡 Co-Founder Check'}
-                      </span>
-                    </div>
-                    <div className="mt-2 text-xs font-bold text-slate-900">
-                      {item.title}
-                    </div>
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-                      {item.explanation}
-                    </p>
-                    {item.suggestedAction && (
-                      <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-indigo-900 ring-1 ring-slate-200/70">
-                        <strong>Action Step:</strong> {item.suggestedAction}
+                {openModAStep !== 'ALL' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenModAStep(0);
+                    }}
+                    className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                  >
+                    <span>Collapse Step</span>
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-5 space-y-5">
+                {liveThingsToConsider.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    className={`flex flex-col justify-between rounded-xl border p-4 shadow-2xs transition-all ${
+                      item.severity === 'WARNING'
+                        ? 'border-amber-300 bg-amber-50/40'
+                        : 'border-slate-200/90 bg-white'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                            item.severity === 'WARNING'
+                              ? 'bg-amber-100 text-amber-900'
+                              : 'bg-indigo-50 text-indigo-800'
+                          }`}
+                        >
+                          {item.severity === 'WARNING'
+                            ? '⚠️ Priority Blind Spot'
+                            : '💡 Co-Founder Check'}
+                        </span>
                       </div>
-                    )}
+                      <div className="mt-2 text-xs font-bold text-slate-900">
+                        {item.title}
+                      </div>
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+                        {item.explanation}
+                      </p>
+                      {item.suggestedAction && (
+                        <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-indigo-900 ring-1 ring-slate-200/70">
+                          <strong>Action Step:</strong> {item.suggestedAction}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Step 6 Bottom Save & AI Tidy Bar */}
+              {!activeEntitlement.isVaultReadonly && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/90 px-4 py-3">
+                  <div className="text-xs text-slate-600">
+                    ✨ Change any option or add notes in Steps 1–5 above and watch these cards adapt immediately.
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isSynthesizing}
+                      onClick={handleTidyUpNotesWithAi}
+                    >
+                      {isSynthesizing ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Tidying...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
+                          AI Tidy Up All Notes
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={isSavingCanvas}
+                      onClick={handleSaveCanvasEdits}
+                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                    >
+                      {isSavingCanvas ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Saving Module A...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-3.5 w-3.5" />
+                          Save All Module A Progress
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setOpenModAStep(7);
+                        setTimeout(() => {
+                          const el = document.getElementById('mod-a-step-7');
+                          if (el)
+                            el.scrollIntoView({
+                              behavior: 'smooth',
+                              block: 'start',
+                            });
+                        }, 40);
+                      }}
+                      className="bg-emerald-600 text-white hover:bg-emerald-700"
+                    >
+                      {isGrantCheckerSupported
+                        ? 'Next: Step 7 — Check Grant Eligibility'
+                        : 'View Startup Overview & Summary'}
+                      <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
+          )}
 
-            {/* Step 6 Bottom Save & AI Tidy Bar */}
-            {!activeEntitlement.isVaultReadonly && (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/90 px-4 py-3">
-                <div className="text-xs text-slate-600">
-                  ✨ Change any option or add notes in Steps 1–5 above and watch these 6 cards adapt immediately.
+          {/* ========================================================= */}
+          {/* STEP 7: INSTANT GRANT & FUNDING ELIGIBILITY CHECKER       */}
+          {/* (Only visible for supported regions: IE & GB)             */}
+          {/* ========================================================= */}
+          {isGrantCheckerSupported && (
+            <ModuleAGrantCheckerStep
+              isOpen={openModAStep === 'ALL' || openModAStep === 7}
+              isAllExpanded={openModAStep === 'ALL'}
+              onExpandStep={() => setOpenModAStep(7)}
+              onCollapseStep={() => setOpenModAStep(6)}
+              hqCountryCode={selectedCountry}
+              planTitle={currentPlan.title}
+              industryCategory={currentPlan.industryCategory}
+              exportPotential={currentPlan.exportPotential}
+              brainDumpText={brainDumpText}
+              conceptCanvas={effectiveCanvas}
+              founderMotivation={founderMotivation}
+              teamAndBudget={teamAndBudget}
+              founderRealityCheck={founderRealityCheck}
+              grantCheck={grantEligibilityCheck}
+              onChangeGrantCheck={(next) => setGrantEligibilityCheck(next)}
+              onSaveGrantCheck={handleSaveCanvasEdits}
+              isSaving={isSavingCanvas}
+              onRunAiGrantPositioning={handleRunAiGrantPositioning}
+              isRunningAiAdvisor={isRunningGrantAdvisor}
+              onParkOpenQuestion={handleParkSpecificQuestion}
+              onContinueToBrief={() => {
+                setOpenModAStep(8);
+                setTimeout(() => {
+                  const el = document.getElementById('mod-a-step-8');
+                  if (el) {
+                    el.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'start',
+                    });
+                  }
+                }, 40);
+              }}
+              onContinueToModuleB={() => {
+                const modBAccess = canAccessModule(
+                  activeEntitlement,
+                  'MOD_B_MARKET'
+                );
+                if (!modBAccess.allowed) {
+                  setPendingModuleAfterUnlock('MOD_B_MARKET');
+                  setPaywallModalFeature(
+                    `Module B: Market Sizing, Competitor Scout & Buyer Persona (${modBAccess.reason})`
+                  );
+                  return;
+                }
+                setActiveModule('MOD_B_MARKET');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onOpenModuleJGrantsHub={() => {
+                const modJAccess = canAccessModule(
+                  activeEntitlement,
+                  'MOD_J_GRANTS_FUNDING'
+                );
+                if (!modJAccess.allowed) {
+                  setPendingModuleAfterUnlock('MOD_J_GRANTS_FUNDING');
+                  setPaywallModalFeature(
+                    `Module J: Full Non-Dilutive Grants, Loans & Tax Relief Hub (${modJAccess.reason})`
+                  );
+                  return;
+                }
+                setActiveModule('MOD_J_GRANTS_FUNDING');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+            />
+          )}
+
+          {/* ========================================================= */}
+          {/* STARTUP OVERVIEW & SUMMARY BRIEF (LIVE DOCUMENT)          */}
+          {/* ========================================================= */}
+          {openModAStep !== 'ALL' && openModAStep !== briefStepNumber ? (
+            <div
+              id={briefStepId}
+              onClick={() => setOpenModAStep(briefStepNumber)}
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      completedReadinessCount === totalReadinessStepsCount
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 text-white'
+                    }`}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="truncate text-sm font-bold text-slate-900">
+                        Startup Overview &amp; Summary Brief
+                      </h2>
+                      {completedReadinessCount === totalReadinessStepsCount ? (
+                        <Badge variant="success" className="shrink-0 text-[10px]">
+                          Ready to Export
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                          {completedReadinessCount}/{totalReadinessStepsCount} Sections Ready
+                        </Badge>
+                      )}
+                      {isGrantCheckerSupported && liveGrantEvaluation && (
+                        <Badge variant="success" className="shrink-0 text-[10px]">
+                          Includes {liveGrantEvaluation.qualifiesNowGrants.length} Qualified Grants ({liveGrantEvaluation.immediateQualifiedPoolFormatted})
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                      Your complete Module A startup summary &amp; grant eligibility brief — ready to view, print to PDF, or share before starting Module B.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0 ml-3">
                   <Button
                     size="sm"
-                    variant="outline"
-                    disabled={isSynthesizing}
-                    onClick={handleTidyUpNotesWithAi}
+                    variant="ghost"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
                   >
-                    {isSynthesizing ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Tidying...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
-                        AI Tidy Up All Notes
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={isSavingCanvas}
-                    onClick={handleSaveCanvasEdits}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700"
-                  >
-                    {isSavingCanvas ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Saving Module A...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-3.5 w-3.5" />
-                        Save All Module A Progress
-                      </>
-                    )}
+                    <span>Open Overview</span>
+                    <ChevronDown className="ml-1 h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* ========================================================= */}
-          {/* STEP 7: DOWNLOADABLE STARTUP CONCEPT & READINESS BRIEF     */}
-          {/* ========================================================= */}
-          <Card
-            id="mod-a-step-7"
-            className="scroll-mt-24 border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm"
-          >
-            <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+            </div>
+          ) : (
+            <div
+              id={briefStepId}
+              className="scroll-mt-24 rounded-xl border border-indigo-200 bg-white p-6 shadow-xs"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="default">
-                      Step 7 • Module A Summary Document
-                    </Badge>
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        completedReadinessCount === totalReadinessStepsCount
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-indigo-600 text-white'
+                      }`}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900">
+                      Startup Overview &amp; Summary Brief
+                    </h2>
                     <Badge
                       variant={
-                        completedReadinessCount === 6 ? 'success' : 'secondary'
+                        completedReadinessCount === totalReadinessStepsCount
+                          ? 'success'
+                          : 'secondary'
                       }
-                      className="text-[10px]"
+                      className="shrink-0 text-[10px]"
                     >
-                      {completedReadinessCount}/6 Sections Ready
+                      {completedReadinessCount}/{totalReadinessStepsCount} Sections Ready
                     </Badge>
                   </div>
-                  <CardTitle className="mt-2 flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4 text-indigo-600" />
-                    Step 7: Your Startup Concept &amp; Readiness Brief
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    Everything you captured across Steps 1–6 is compiled below
-                    into a clean executive summary document you can download,
-                    print to PDF, or share with a co-founder, mentor, or Local
-                    Enterprise advisor before moving into Module B.
-                  </CardDescription>
+                  <p className="mt-1 text-xs text-slate-600">
+                    A live 1-page summary of your startup concept, founder profile, blind-spot review, and qualified grants — ready to download, print to PDF, or share with an advisor or co-founder.
+                  </p>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowBriefPreview(!showBriefPreview)}
-                  className="text-xs"
-                >
-                  <Eye className="h-3.5 w-3.5 text-indigo-600" />
-                  {showBriefPreview
-                    ? 'Hide Live Document Preview'
-                    : 'Show Live Document Preview'}
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowBriefPreview(!showBriefPreview)}
+                    className="h-8 shrink-0 border-indigo-200 text-xs text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    {showBriefPreview
+                      ? 'Hide Document Preview'
+                      : 'Show Document Preview'}
+                  </Button>
+                  {openModAStep !== 'ALL' && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenModAStep(0);
+                      }}
+                      className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                    >
+                      <span>Collapse Overview</span>
+                      <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
-            </CardHeader>
 
-            <CardContent className="space-y-5">
-              {/* OPTION C: 6-STEP MODULE A READINESS CHECKLIST */}
+              <div className="mt-5 space-y-5">
+              {/* OPTION C: MODULE A READINESS CHECKLIST */}
               <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Module A Readiness Checklist (Steps 1–6 Included in Your
-                    Brief)
+                    Module A Readiness Checklist (Steps 1–{totalReadinessStepsCount} Included in Your Brief)
                   </div>
                   <span className="text-xs font-semibold text-indigo-700">
                     Live-Synced with Your Answers Above
@@ -6629,7 +7584,7 @@ export default function WorkspacePage() {
                     </div>
 
                     {/* Section 4: Top Co-Founder Blind-Spot Takeaways & Open Questions */}
-                    <div className="pt-5">
+                    <div className="py-5">
                       <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
                         4. Co-Founder Blind-Spot Review &amp; Next Validation
                         Steps (Step 6)
@@ -6650,14 +7605,164 @@ export default function WorkspacePage() {
                         ))}
                       </div>
                     </div>
+
+                    {/* Section 5: Grants & Non-Dilutive Funding You Qualify For Right Now (Step 7 — IE & GB) */}
+                    {isGrantCheckerSupported && liveGrantEvaluation && (
+                      <div className="pt-5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                            5. Grants &amp; Non-Dilutive Funding You Qualify For Right Now (Step 7)
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-900">
+                              🟢 Qualified Now Pool: {liveGrantEvaluation.immediateQualifiedPoolFormatted}
+                            </span>
+                            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-900">
+                              🟡 Phase 2 Unlockable: {liveGrantEvaluation.unlockableScalePoolFormatted}
+                            </span>
+                          </div>
+                        </div>
+
+                        {!grantEligibilityCheck?.lastCheckedAt && (
+                          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 text-xs text-amber-950">
+                            <span>
+                              💡 <strong>Tip:</strong> Want to lock in your exact legal entity, PAYE tax history, and regional match rate? Run the 4-question pop-out check in Step 7.
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setOpenModAStep(7);
+                                setTimeout(() => {
+                                  const el = document.getElementById('mod-a-step-7');
+                                  if (el) {
+                                    el.scrollIntoView({
+                                      behavior: 'smooth',
+                                      block: 'start',
+                                    });
+                                  }
+                                }, 40);
+                              }}
+                              className="h-7 border-amber-300 bg-white text-[11px] font-semibold text-amber-900 hover:bg-amber-100"
+                            >
+                              Open Step 7 Grant Checker
+                            </Button>
+                          </div>
+                        )}
+
+                        <div className="mt-3">
+                          <div className="text-xs font-bold text-emerald-900">
+                            🟢 Grants &amp; Supports You Qualify For Right Now ({liveGrantEvaluation.qualifiesNowGrants.length} Schemes)
+                          </div>
+                          <div className="mt-2 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                            {liveGrantEvaluation.qualifiesNowGrants.map((grant) => (
+                              <div
+                                key={grant.slug}
+                                className="flex flex-col justify-between rounded-xl border border-emerald-200 bg-emerald-50/35 p-3.5"
+                              >
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                                      Qualifies Now
+                                    </span>
+                                    <span className="rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-900">
+                                      {grant.fundingTypeBadge}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1.5 text-sm font-bold leading-snug text-slate-900">
+                                    {grant.grantName}
+                                  </div>
+                                  <div className="mt-0.5 text-[11px] font-medium text-slate-500">
+                                    {grant.providerAgency}
+                                  </div>
+                                  <div className="mt-2 rounded-lg border border-emerald-200/90 bg-emerald-100/75 px-2.5 py-1.5 text-[11px] font-extrabold leading-snug text-emerald-950 break-words">
+                                    💰 {grant.potentialValueFormatted}
+                                  </div>
+                                  <p className="mt-2 text-[11px] leading-relaxed text-slate-700">
+                                    <strong className="text-slate-900">Why you qualify: </strong>
+                                    {grant.whyYouMatchOrMiss}
+                                  </p>
+                                </div>
+                                <p className="mt-2 border-t border-emerald-200/60 pt-1.5 text-[11px] leading-relaxed text-emerald-900">
+                                  <strong>Match / Co-Funding Rule: </strong>
+                                  {grant.coFundingOrMatchRequirement}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {liveGrantEvaluation.unlockableNextGrants.length > 0 && (
+                          <div className="mt-3.5">
+                            <div className="text-xs font-bold text-amber-900">
+                              🟡 Phase 2 Scale Schemes (Unlockable Next — Up to {liveGrantEvaluation.unlockableScalePoolFormatted})
+                            </div>
+                            <div className="mt-2 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                              {liveGrantEvaluation.unlockableNextGrants.map((grant) => (
+                                <div
+                                  key={grant.slug}
+                                  className="flex flex-col justify-between rounded-xl border border-amber-200/80 bg-amber-50/30 p-3"
+                                >
+                                  <div>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="rounded-md bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                                        Phase 2 Unlockable
+                                      </span>
+                                      <span className="rounded-md border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+                                        {grant.fundingTypeBadge}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1.5 text-sm font-bold leading-snug text-slate-900">
+                                      {grant.grantName}
+                                    </div>
+                                    <div className="mt-0.5 text-[11px] font-medium text-slate-500">
+                                      {grant.providerAgency}
+                                    </div>
+                                    <div className="mt-2 rounded-lg border border-amber-200/90 bg-amber-100/75 px-2.5 py-1.5 text-[11px] font-bold leading-snug text-amber-950 break-words">
+                                      🎯 {grant.potentialValueFormatted}
+                                    </div>
+                                  </div>
+                                  {grant.unlockRequirement && (
+                                    <p className="mt-2 border-t border-amber-200/60 pt-1.5 text-[11px] leading-relaxed text-amber-950">
+                                      <strong>🔑 Unlock Milestone: </strong>
+                                      {grant.unlockRequirement}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {((grantEligibilityCheck?.aiGrantPositioningAdvice &&
+                          grantEligibilityCheck.aiGrantPositioningAdvice.length > 0) ||
+                          liveGrantEvaluation.strategicPositioningTips.length > 0) && (
+                          <div className="mt-3.5 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-900">
+                              ✨ Grant Positioning Strategy for Evaluators
+                            </div>
+                            <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[11px] text-slate-700">
+                              {(grantEligibilityCheck?.aiGrantPositioningAdvice &&
+                              grantEligibilityCheck.aiGrantPositioningAdvice.length > 0
+                                ? grantEligibilityCheck.aiGrantPositioningAdvice
+                                : liveGrantEvaluation.strategicPositioningTips
+                              ).map((tip, idx) => (
+                                <li key={idx}>{tip}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* STEP 7 BOTTOM ACTION BAR: DOWNLOAD, PRINT TO PDF, OR COPY BRIEF */}
+              {/* STEP 8 BOTTOM ACTION BAR: DOWNLOAD, PRINT TO PDF, OR COPY BRIEF */}
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
                 <div className="text-xs text-slate-600">
-                  📥 <strong>Take your Concept &amp; Readiness Brief with you:</strong>{' '}
+                  📥 <strong>Take your Concept &amp; Grant Readiness Brief with you:</strong>{' '}
                   Download a standalone file, print/save as PDF, or copy for your
                   notes.
                 </div>
@@ -6715,31 +7820,35 @@ export default function WorkspacePage() {
                   <strong>Module C</strong> (<code>/v/{currentPlan.moduleCData?.surveys?.[0]?.publicSlug || 'my-startup'}</code>{' '}
                   Surveys &amp; 1-on-1 Interviews).
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const modBAccess = canAccessModule(
-                      activeEntitlement,
-                      'MOD_B_MARKET'
-                    );
-                    if (!modBAccess.allowed) {
-                      setPendingModuleAfterUnlock('MOD_B_MARKET');
-                      setPaywallModalFeature(
-                        `Module B: Market Sizing, Competitor Scout & Buyer Persona (${modBAccess.reason})`
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const modBAccess = canAccessModule(
+                        activeEntitlement,
+                        'MOD_B_MARKET'
                       );
-                      return;
-                    }
-                    setActiveModule('MOD_B_MARKET');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="bg-indigo-500 text-white hover:bg-indigo-400"
-                >
-                  Continue to Module B
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                      if (!modBAccess.allowed) {
+                        setPendingModuleAfterUnlock('MOD_B_MARKET');
+                        setPaywallModalFeature(
+                          `Module B: Market Sizing, Competitor Scout & Buyer Persona (${modBAccess.reason})`
+                        );
+                        return;
+                      }
+                      setActiveModule('MOD_B_MARKET');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="bg-indigo-500 text-white hover:bg-indigo-400"
+                  >
+                    Continue to Module B
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+          )}
           </>
           )}
         </main>

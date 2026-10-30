@@ -44,6 +44,7 @@ import {
   type SavedFounderMotivation,
   type SavedTeamAndBudget,
   type SavedFounderRealityCheck,
+  type SavedGrantEligibilityCheck,
   type SavedModuleBData,
   type SavedModuleCData,
   type SavedModuleDData,
@@ -153,6 +154,7 @@ async function buildSessionFromDbUser(
       founderMotivation?: SavedFounderMotivation;
       teamAndBudget?: SavedTeamAndBudget;
       founderRealityCheck?: SavedFounderRealityCheck;
+      grantEligibilityCheck?: SavedGrantEligibilityCheck;
       masterDocumentData?: SavedMasterDocumentData;
     };
 
@@ -399,6 +401,7 @@ async function buildSessionFromDbUser(
       founderMotivation: structuredInputs.founderMotivation,
       teamAndBudget: structuredInputs.teamAndBudget,
       founderRealityCheck: structuredInputs.founderRealityCheck,
+      grantEligibilityCheck: structuredInputs.grantEligibilityCheck,
       thingsToConsider: Array.isArray(modA?.aiThingsToConsiderJsonb)
         ? modA.aiThingsToConsiderJsonb
         : undefined,
