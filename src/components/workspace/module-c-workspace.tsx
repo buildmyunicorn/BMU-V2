@@ -719,7 +719,7 @@ export function ModuleCWorkspace({
   const [isExtractingInterviewAi, setIsExtractingInterviewAi] =
     useState<boolean>(false);
   const [showLiveCallCheatSheet, setShowLiveCallCheatSheet] =
-    useState<boolean>(true);
+    useState<boolean>(false);
 
   // AI Focus Prompt drawer/card state (opened when user clicks "Build with AI")
   const [showAiFocusSelector, setShowAiFocusSelector] = useState<boolean>(false);
@@ -746,10 +746,55 @@ export function ModuleCWorkspace({
   const [copiedLinkSlug, setCopiedLinkSlug] = useState<string | null>(null);
   const [copiedEmails, setCopiedEmails] = useState<boolean>(false);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
-  const [showWhyCard, setShowWhyCard] = useState<boolean>(true);
+  const [showWhyCard, setShowWhyCard] = useState<boolean>(false);
   const [parkQuestionDraft, setParkQuestionDraft] = useState<string>('');
   const [showParkInput, setShowParkInput] = useState<boolean>(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState<boolean>(false);
+
+  // Focused Window / Studio Modals for Surveys & 1-on-1 Interviews
+  const [isSurveyStudioOpen, setIsSurveyStudioOpen] = useState<boolean>(false);
+  const [isInterviewModalOpen, setIsInterviewModalOpen] =
+    useState<boolean>(false);
+
+  // Step Accordion State (GEMINI.md Section 6 Standard:
+  // Step 1 = Surveys, Step 2 = 1-on-1 Interviews, Step 3 = Blind-Spot Review, Step 4 = Overview Brief)
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    const hasValidSurvey = surveys.some((s) => s.questions.length > 0);
+    if (!hasValidSurvey) return 1;
+    if (interviewLogs.length === 0) return 2;
+    return 1;
+  });
+
+  const scrollToStep = (stepNum: number) => {
+    setOpenStep(stepNum);
+    if (typeof document !== 'undefined') {
+      setTimeout(() => {
+        const el = document.getElementById(`module-c-step-${stepNum}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 60);
+    }
+  };
+
+  const openSurveyInStudio = (
+    survey: SavedValidationSurvey,
+    initialTab: 'BUILDER' | 'OUTREACH' | 'INSIGHTS' = 'BUILDER',
+    openAiSelector = false
+  ) => {
+    activeSurveyRef.current = survey;
+    setActiveSurveyId(survey.id);
+    setActiveModuleCSection('SURVEYS');
+    setActiveViewTab(initialTab);
+    setShowAiFocusSelector(openAiSelector);
+    setShowPublishConfirm(false);
+    setIsSurveyStudioOpen(true);
+    if (initialTab === 'INSIGHTS') {
+      setTimeout(() => {
+        void handleSyncLiveResponses(true);
+      }, 40);
+    }
+  };
 
   // Whether the active survey is published & permanently locked against question/option edits
   const isSurveyPublished = Boolean(activeSurvey?.isPublished);
@@ -878,8 +923,8 @@ export function ModuleCWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSurvey?.publicSlug]);
 
-  // 1. CREATE NEW BLANK SURVEY
-  const handleCreateNewBlankSurvey = async () => {
+  // 1. CREATE NEW BLANK SURVEY (OPENS DIRECTLY IN SURVEY STUDIO WINDOW)
+  const handleCreateNewBlankSurvey = async (openAiBuilder = false) => {
     if (isVaultReadonly) return;
     const currentAll = surveysRef.current;
     const newBlank = createBlankSurvey(plan, currentAll.length + 1);
@@ -890,11 +935,12 @@ export function ModuleCWorkspace({
     setActiveSurveyId(newBlank.id);
     setActiveModuleCSection('SURVEYS');
     setActiveViewTab('BUILDER');
-    setShowAiFocusSelector(false);
+    setShowAiFocusSelector(openAiBuilder);
     setShowPublishConfirm(false);
+    setIsSurveyStudioOpen(true);
     await onSaveSurvey(newBlank, nextSurveys);
     setStatusBanner(
-      '✨ Created a fresh blank survey! Add questions manually or click "Build with AI" to pick your focus.'
+      '✨ Created a fresh survey in Survey Studio! Add questions manually or click "Build with AI" to pick your focus.'
     );
   };
 
@@ -922,12 +968,13 @@ export function ModuleCWorkspace({
     setShowAiFocusSelector(false);
   };
 
-  // 2. DELETE SURVEY (CAN DELETE ANY SURVEY, INCLUDING THE LAST ONE TO REVERT TO NONE)
-  const handleDeleteCurrentSurvey = async () => {
-    if (!activeSurvey || isVaultReadonly) return;
-    const deletedTitle = activeSurvey.title.trim() || 'Untitled Survey';
-    const deletedId = activeSurvey.id;
-    const deletedSlug = activeSurvey.publicSlug;
+  // 2. DELETE SURVEY BY ID OR CURRENT SURVEY
+  const handleDeleteSurveyById = async (targetSurvey?: SavedValidationSurvey) => {
+    const surveyToDelete = targetSurvey || activeSurvey;
+    if (!surveyToDelete || isVaultReadonly) return;
+    const deletedTitle = surveyToDelete.title.trim() || 'Untitled Survey';
+    const deletedId = surveyToDelete.id;
+    const deletedSlug = surveyToDelete.publicSlug;
 
     removePublicSurveyFromLocalRegistry(deletedSlug);
 
@@ -941,6 +988,7 @@ export function ModuleCWorkspace({
       activeSurveyRef.current = undefined;
       setSurveys([]);
       setActiveSurveyId('');
+      setIsSurveyStudioOpen(false);
       await onDeleteSurvey(deletedId, deletedSlug, []);
       setStatusBanner(
         `🗑️ Deleted "${deletedTitle}". You now have 0 surveys — click "+ Create New Survey" whenever you're ready to start one.`
@@ -948,12 +996,43 @@ export function ModuleCWorkspace({
       return;
     }
 
+    const nextActive =
+      activeSurvey?.id === deletedId
+        ? remaining[0]
+        : activeSurvey || remaining[0];
     surveysRef.current = remaining;
-    activeSurveyRef.current = remaining[0];
+    activeSurveyRef.current = nextActive;
     setSurveys(remaining);
-    setActiveSurveyId(remaining[0].id);
+    setActiveSurveyId(nextActive.id);
+    if (activeSurvey?.id === deletedId) {
+      setIsSurveyStudioOpen(false);
+    }
     await onDeleteSurvey(deletedId, deletedSlug, remaining);
     setStatusBanner(`🗑️ Deleted survey "${deletedTitle}".`);
+  };
+
+  const handleDeleteCurrentSurvey = async () => {
+    await handleDeleteSurveyById(activeSurvey);
+  };
+
+  const handleToggleSurveyActiveById = async (
+    targetSurvey: SavedValidationSurvey
+  ) => {
+    if (isVaultReadonly) return;
+    const updated: SavedValidationSurvey = {
+      ...targetSurvey,
+      isActive: !targetSurvey.isActive,
+      updatedAt: new Date().toISOString(),
+    };
+    const nextSurveys = surveysRef.current.map((s) =>
+      s.id === targetSurvey.id ? updated : s
+    );
+    surveysRef.current = nextSurveys;
+    if (activeSurveyRef.current?.id === targetSurvey.id) {
+      activeSurveyRef.current = updated;
+    }
+    setSurveys(nextSurveys);
+    await onSaveSurvey(updated, nextSurveys);
   };
 
   // 3. TOGGLE AI FOCUS AREA PILL
@@ -1477,6 +1556,7 @@ export function ModuleCWorkspace({
         : `🎙️ Saved 1-on-1 customer interview log for ${cleanName}!`
     );
     resetInterviewForm();
+    setIsInterviewModalOpen(false);
   };
 
   const handleEditInterviewLog = (log: SavedCustomerInterviewLog) => {
@@ -1496,6 +1576,7 @@ export function ModuleCWorkspace({
     setInterviewSignalBadge(log.signalBadge);
     setInterviewMomTestCoachingNote(log.momTestCoachingNote || '');
     setLinkedWaitlistResponseId(log.linkedResponseId);
+    setIsInterviewModalOpen(true);
   };
 
   const handleDeleteInterviewLog = async (id: string) => {
@@ -1547,7 +1628,10 @@ export function ModuleCWorkspace({
       );
     }
 
+    setIsSurveyStudioOpen(false);
     setActiveModuleCSection('INTERVIEWS');
+    setOpenStep((prev) => (prev === 'ALL' ? 'ALL' : 2));
+    setIsInterviewModalOpen(true);
     setStatusBanner(
       `🎙️ Pre-filled 1-on-1 Interview Logger for ${
         lead.respondentNameOrRole || lead.respondentEmail || 'Waitlist Lead'
@@ -1654,13 +1738,17 @@ export function ModuleCWorkspace({
     return `${origin}/v/${slug || activeSurvey?.publicSlug || 'survey'}`;
   };
 
-  const handleCopyPublicLink = () => {
-    if (!activeSurvey) return;
-    const fullUrl = getPublicSurveyFullUrl(activeSurvey.publicSlug);
+  const handleCopyPublicLink = (slugOverride?: string) => {
+    const targetSlug =
+      typeof slugOverride === 'string' && slugOverride
+        ? slugOverride
+        : activeSurvey?.publicSlug;
+    if (!targetSlug) return;
+    const fullUrl = getPublicSurveyFullUrl(targetSlug);
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(fullUrl);
     }
-    setCopiedLinkSlug(activeSurvey.publicSlug);
+    setCopiedLinkSlug(targetSlug);
     setTimeout(() => setCopiedLinkSlug(null), 2500);
   };
 
@@ -2037,7 +2125,7 @@ export function ModuleCWorkspace({
   const moduleCReadinessSteps = [
     {
       stepNumber: 1,
-      label: 'Customer Validation Survey (/v/[slug])',
+      label: 'Customer Validation Survey',
       isComplete: validSurveys.length > 0,
       summary:
         validSurveys.length > 0
@@ -2159,31 +2247,43 @@ export function ModuleCWorkspace({
     }, 250);
   };
 
+  const isStep1Complete = validSurveys.length > 0;
+  const isStep2Complete = interviewLogs.length > 0;
+  const isStep3Complete =
+    hasValidationActivity && liveThingsToConsider.length >= 6;
+  const completedCoreStepsCount =
+    (isStep1Complete ? 1 : 0) +
+    (isStep2Complete ? 1 : 0) +
+    (isStep3Complete ? 1 : 0);
+
   return (
     <div className="space-y-6">
       {/* =================================================================== */}
-      {/* MODULE C TOP HEADER BANNER                                          */}
+      {/* MODULE C TOP HEADER BANNER (GEMINI.md SECTION 6 STANDARD)           */}
       {/* =================================================================== */}
       <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
-                Module C • Customer Surveys, Mom-Test Co-Pilot &amp; Insights
+                Module C • Customer Surveys, 1-on-1 Calls &amp; Validation Brief
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200">
                 <ShieldCheck className="mr-1 h-3 w-3" />
-                Zero-Login Public Survey Links (/v/[slug])
+                Zero-Login Shareable Survey Links
+              </Badge>
+              <Badge className="border-white/20 bg-white/10 text-xs text-indigo-100">
+                {completedCoreStepsCount} of 3 Core Steps Ready
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-              Module C: Customer Validation Survey Builder &amp; Insights Engine
+              Module C: Customer Validation Surveys &amp; 1-on-1 Discovery Hub
             </h1>
             <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
-              Create multiple targeted surveys for{' '}
-              <strong className="text-white">{plan.title}</strong>, use AI to
-              build or rewrite questions using <em>The Mom Test</em>, share a
-              no-login link with anyone, and turn responses into clear insights.
+              Launch focused <em>Mom-Test</em> customer surveys in their own
+              studio window for{' '}
+              <strong className="text-white">{plan.title}</strong>, log live
+              1-on-1 customer calls, and compile your validation brief.
             </p>
           </div>
 
@@ -2192,8 +2292,40 @@ export function ModuleCWorkspace({
               type="button"
               variant="outline"
               size="sm"
+              onClick={() =>
+                setOpenStep((prev) =>
+                  prev === 'ALL'
+                    ? !isStep1Complete
+                      ? 1
+                      : !isStep2Complete
+                        ? 2
+                        : 1
+                    : 'ALL'
+                )
+              }
+              className="shrink-0 border-indigo-300/50 bg-indigo-800/50 text-xs text-white hover:bg-indigo-700/60"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-indigo-200" />
+              {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+            </Button>
+            {openStep !== 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenStep(0)}
+                className="shrink-0 border-indigo-300/50 bg-indigo-950/60 text-xs text-indigo-100 hover:bg-indigo-800/60"
+              >
+                <ChevronUp className="h-3.5 w-3.5 text-indigo-200" />
+                Collapse All
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setShowWhyCard(!showWhyCard)}
-              className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              className="shrink-0 border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
             >
               <HelpCircle className="h-3.5 w-3.5 text-indigo-200" />
               {showWhyCard ? 'Hide Mom-Test Tips' : 'Why The Mom Test?'}
@@ -2203,7 +2335,7 @@ export function ModuleCWorkspace({
               variant="outline"
               size="sm"
               onClick={() => setShowParkInput(!showParkInput)}
-              className="border-amber-400/40 bg-amber-500/20 text-xs text-amber-100 hover:bg-amber-500/30"
+              className="shrink-0 border-amber-400/40 bg-amber-500/20 text-xs text-amber-100 hover:bg-amber-500/30"
             >
               <BookmarkPlus className="h-3.5 w-3.5 text-amber-300" />
               Park Open Question
@@ -2259,7 +2391,7 @@ export function ModuleCWorkspace({
               value={parkQuestionDraft}
               onChange={(e) => setParkQuestionDraft(e.target.value)}
               placeholder="e.g., Should we survey clinic receptionists separately from clinic owners?"
-              className="flex-1 border-indigo-700 bg-white text-xs text-slate-900"
+              className="flex-1 border-indigo-700 bg-white text-base text-slate-900 sm:text-xs"
             />
             <Button
               type="button"
@@ -2279,6 +2411,72 @@ export function ModuleCWorkspace({
             </Button>
           </div>
         )}
+
+        {/* 4-Step Navigation Strip (Matches Module B & Module D 100%) */}
+        <div className="mt-5 grid grid-cols-1 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              step: 'Step 1',
+              title: `Customer Surveys (${surveys.length})`,
+              targetId: 'module-c-step-1',
+              stepNum: 1,
+              done: isStep1Complete,
+            },
+            {
+              step: 'Step 2',
+              title: `1-on-1 Interviews (${interviewLogs.length})`,
+              targetId: 'module-c-step-2',
+              stepNum: 2,
+              done: isStep2Complete,
+            },
+            {
+              step: 'Step 3',
+              title: 'Blind-Spot Review',
+              targetId: 'module-c-step-3',
+              stepNum: 3,
+              done: isStep3Complete,
+            },
+            {
+              step: 'Overview',
+              title: 'Validation Brief',
+              targetId: 'module-c-step-4',
+              stepNum: 4,
+              done: hasValidationActivity,
+            },
+          ].map((item, idx, arr) => {
+            const firstIncompleteIdx = arr.findIndex((s) => !s.done);
+            const isStepOpen =
+              openStep === 'ALL'
+                ? firstIncompleteIdx === -1
+                  ? idx === arr.length - 1
+                  : idx === firstIncompleteIdx
+                : openStep === item.stepNum;
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => scrollToStep(item.stepNum)}
+                className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
+                  isStepOpen
+                    ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
+                    : item.done
+                      ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
+                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                }`}
+              >
+                <div className="flex items-center justify-between font-bold">
+                  <span>{item.step}</span>
+                  {item.done ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-300" />
+                  ) : isStepOpen ? (
+                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  ) : null}
+                </div>
+                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Status Notification Banner */}
@@ -2296,240 +2494,453 @@ export function ModuleCWorkspace({
       )}
 
       {/* =================================================================== */}
-      {/* TOP-LEVEL MODULE C SECTION LAUNCHPAD: SURVEYS vs. 1-ON-1 INTERVIEWS */}
+      {/* STEP 1: CUSTOMER VALIDATION SURVEYS (OVERVIEW TILES GRID)           */}
       {/* =================================================================== */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* SECTION CARD 1: CUSTOMER VALIDATION SURVEYS */}
+      {openStep !== 'ALL' && openStep !== 1 ? (
         <div
-          onClick={() => setActiveModuleCSection('SURVEYS')}
-          className={`cursor-pointer rounded-2xl border-2 p-4 transition-all ${
-            activeModuleCSection === 'SURVEYS'
-              ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-2 ring-indigo-600/15'
-              : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
-          }`}
+          id="module-c-step-1"
+          onClick={() => setOpenStep(1)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
         >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                  activeModuleCSection === 'SURVEYS'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-indigo-100 text-indigo-700'
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  isStep1Complete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
                 }`}
               >
-                <MessageSquare className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-bold text-slate-900">
-                    Customer Validation Surveys
-                  </span>
-                  <Badge
-                    className={
-                      activeModuleCSection === 'SURVEYS'
-                        ? 'bg-indigo-600 text-[10px] font-bold text-white'
-                        : 'bg-slate-100 text-[10px] font-bold text-slate-700'
-                    }
-                  >
-                    {surveys.length} {surveys.length === 1 ? 'Survey' : 'Surveys'}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                  Build bias-free <em>Mom Test</em> surveys, share zero-login{' '}
-                  <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-indigo-700">
-                    /v/[slug]
-                  </code>{' '}
-                  links &amp; QR flyers, and capture waitlist leads.
-                </p>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              size="sm"
-              disabled={isVaultReadonly}
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleCreateNewBlankSurvey();
-              }}
-              className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Create New Survey
-            </Button>
-          </div>
-        </div>
-
-        {/* SECTION CARD 2: STANDALONE 1-ON-1 CUSTOMER INTERVIEWS */}
-        <div
-          onClick={() => setActiveModuleCSection('INTERVIEWS')}
-          className={`cursor-pointer rounded-2xl border-2 p-4 transition-all ${
-            activeModuleCSection === 'INTERVIEWS'
-              ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-2 ring-indigo-600/15'
-              : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
-          }`}
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                  activeModuleCSection === 'INTERVIEWS'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-violet-100 text-violet-700'
-                }`}
-              >
-                <Mic className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-bold text-slate-900">
-                    1-on-1 Customer Interviews
-                  </span>
-                  <Badge
-                    className={
-                      activeModuleCSection === 'INTERVIEWS'
-                        ? 'bg-indigo-600 text-[10px] font-bold text-white'
-                        : 'bg-slate-100 text-[10px] font-bold text-slate-700'
-                    }
-                  >
-                    {interviewLogs.length}{' '}
-                    {interviewLogs.length === 1 ? 'Interview' : 'Interviews'}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                  Log live coffee chats, Zoom calls, or DMs independently of
-                  surveys—with a Live Call Cheat Sheet &amp; AI Signal Extractor.
-                </p>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              size="sm"
-              disabled={isVaultReadonly}
-              onClick={(e) => {
-                e.stopPropagation();
-                resetInterviewForm();
-                setActiveModuleCSection('INTERVIEWS');
-                setStatusBanner(
-                  '🎙️ Ready to log a new 1-on-1 customer interview! Paste your call notes below or open the 5 Mom-Test Call Prompts.'
-                );
-              }}
-              className="bg-violet-600 text-xs text-white hover:bg-violet-700"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Create 1-on-1 Interview
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* =================================================================== */}
-      {/* SECTION 1: CUSTOMER VALIDATION SURVEYS                              */}
-      {/* =================================================================== */}
-      {activeModuleCSection === 'SURVEYS' && (
-      <Card className="border-slate-200 shadow-2xs">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Your Surveys ({surveys.length}):
+                {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
               </span>
-              {surveys.length === 0 ? (
-                <span className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-1 text-xs text-slate-500">
-                  No surveys created yet
-                </span>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  {surveys.map((s, idx) => {
-                    const isSelected = s.id === activeSurvey?.id;
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => {
-                          activeSurveyRef.current = s;
-                          setActiveSurveyId(s.id);
-                          setShowAiFocusSelector(false);
-                          setShowPublishConfirm(false);
-                        }}
-                        className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
-                          isSelected
-                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
-                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-indigo-300 hover:bg-white'
-                        }`}
-                      >
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            s.isActive ? 'bg-emerald-400' : 'bg-slate-400'
-                          }`}
-                        />
-                        <span className="max-w-[180px] truncate">
-                          {s.title.trim() || `Survey #${idx + 1} (Blank)`}
-                        </span>
-                        {s.isPublished ? (
-                          <span
-                            className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
-                              isSelected
-                                ? 'bg-emerald-500/30 text-emerald-100'
-                                : 'bg-emerald-100 text-emerald-800'
-                            }`}
-                            title="Published & permanently locked against question edits"
-                          >
-                            <Lock className="h-2.5 w-2.5" />
-                            Published
-                          </span>
-                        ) : (
-                          <span
-                            className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                              isSelected
-                                ? 'bg-amber-400/30 text-amber-100'
-                                : 'bg-amber-100 text-amber-800'
-                            }`}
-                          >
-                            Draft
-                          </span>
-                        )}
-                        <span
-                          className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                            isSelected
-                              ? 'bg-indigo-800 text-indigo-100'
-                              : 'bg-slate-200/80 text-slate-600'
-                          }`}
-                        >
-                          {s.responses?.length || 0} resp
-                        </span>
-                      </button>
-                    );
-                  })}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 1: Customer Validation Surveys
+                  </h2>
+                  {isStep1Complete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                      In Progress
+                    </Badge>
+                  )}
                 </div>
-              )}
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {surveys.length > 0
+                    ? `${surveys.length} survey(s) • ${allResponsesAcrossSurveys.length} total response(s) • ${waitlistAcrossSurveys.length} waitlist lead(s)`
+                    : 'Create bias-free Mom-Test surveys and share zero-login customer links'}
+                </p>
+              </div>
+            </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-xs font-semibold text-indigo-600 group-hover:bg-indigo-50"
+              >
+                Edit Step
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          id="module-c-step-1"
+          className="scroll-mt-24 space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+        >
+          {/* Step 1 Expanded Header */}
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <span
+                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  isStep1Complete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900">
+                    Step 1: Customer Validation Surveys
+                  </h2>
+                  {isStep1Complete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Each survey below is shown as a clean overview tile. Click{' '}
+                  <strong>&ldquo;Open Survey Studio&rdquo;</strong> on any tile
+                  to build questions, grab your QR code &amp; outreach links, or
+                  analyze responses in a dedicated window.
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <Button
                 type="button"
                 size="sm"
                 disabled={isVaultReadonly}
-                onClick={handleCreateNewBlankSurvey}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
+                onClick={() => void handleCreateNewBlankSurvey(true)}
+                className="shrink-0 bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
               >
-                <Plus className="h-3.5 w-3.5" />
-                Create New Survey
+                <Sparkles className="h-3.5 w-3.5" />
+                Build New Survey with AI
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isVaultReadonly}
+                onClick={() => void handleCreateNewBlankSurvey(false)}
+                className="shrink-0 border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+              >
+                <Plus className="h-3.5 w-3.5 text-indigo-600" />
+                New Blank Survey
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="shrink-0 text-xs text-slate-500 hover:text-slate-800"
+              >
+                Collapse Step
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
 
-          {/* PUBLIC SHAREABLE NO-LOGIN LINK BAR FOR ACTIVE SURVEY */}
-          {activeSurvey && (
-            <div className="mt-3.5 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5">
+          {/* Survey Overview Tiles Grid */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {surveys.map((s, idx) => {
+              const sResponses = s.responses?.length || 0;
+              const sRealResponses = (s.responses || []).filter(
+                (r) => !r.isSimulated
+              ).length;
+              const sWaitlist = (s.responses || []).filter(
+                (r) =>
+                  r.joinedWaitlist ||
+                  Boolean(r.respondentEmail && r.respondentEmail.includes('@'))
+              ).length;
+              const sSignalScore =
+                s.aiInsightsSummary?.signalScoreOutOf100 ?? null;
+
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => openSurveyInStudio(s, 'BUILDER')}
+                  className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-indigo-50/25 p-5 shadow-2xs transition-all hover:border-indigo-400 hover:shadow-md"
+                >
+                  <div className="space-y-3">
+                    {/* Top Row: Badges + Active Toggle + Delete */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge className="bg-indigo-100 text-[10px] font-bold text-indigo-900">
+                          Survey #{idx + 1}
+                        </Badge>
+                        {s.isPublished ? (
+                          <Badge className="border-emerald-300 bg-emerald-100 text-[10px] font-bold text-emerald-900">
+                            <Lock className="mr-1 h-2.5 w-2.5 text-emerald-700" />
+                            Published &amp; Locked
+                          </Badge>
+                        ) : (
+                          <Badge className="border-amber-300 bg-amber-100 text-[10px] font-bold text-amber-900">
+                            Draft (Editable)
+                          </Badge>
+                        )}
+                        <button
+                          type="button"
+                          disabled={isVaultReadonly}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleToggleSurveyActiveById(s);
+                          }}
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition-all ${
+                            s.isActive
+                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                          }`}
+                        >
+                          {s.isActive ? '● Accepting Responses' : '○ Paused'}
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleDeleteSurveyById(s);
+                        }}
+                        title="Delete survey"
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Title & Subtitle */}
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 group-hover:text-indigo-700">
+                        {s.title.trim() || `Survey #${idx + 1} (Untitled Draft)`}
+                      </h3>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">
+                        {s.introDescription?.trim() ||
+                          (s.questions.length > 0
+                            ? `${s.questions.length} Mom-Test validation question(s) ready to share.`
+                            : 'Blank survey draft — open Survey Studio to add questions manually or with AI.')}
+                      </p>
+                    </div>
+
+                    {/* Shareable Public Link Strip */}
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-slate-50/90 px-3 py-1.5 text-xs"
+                    >
+                      <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-indigo-700">
+                        <Share2 className="h-3 w-3 shrink-0 text-slate-400" />
+                        <span className="truncate font-semibold">
+                          Survey Link: {s.publicSlug}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPublicLink(s.publicSlug)}
+                          className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-indigo-50 hover:text-indigo-700"
+                        >
+                          {copiedLinkSlug === s.publicSlug ? (
+                            <>
+                              <Check className="h-3 w-3 text-emerald-600" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3 text-slate-500" />
+                              Copy Link
+                            </>
+                          )}
+                        </button>
+                        <Link
+                          href={`/v/${s.publicSlug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-slate-200 hover:bg-indigo-50"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Open Page
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* 4 Mini Metrics Strip */}
+                    <div className="grid grid-cols-3 gap-2 pt-1 sm:grid-cols-4">
+                      <div className="rounded-xl border border-slate-200/80 bg-white px-2.5 py-2 text-center">
+                        <div className="text-sm font-extrabold text-slate-900">
+                          {s.questions.length}
+                        </div>
+                        <div className="text-[10px] font-medium text-slate-500">
+                          Questions
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/80 bg-white px-2.5 py-2 text-center">
+                        <div className="text-sm font-extrabold text-indigo-700">
+                          {sResponses}
+                        </div>
+                        <div className="text-[10px] font-medium text-slate-500">
+                          {sRealResponses > 0
+                            ? `${sRealResponses} Real Resp`
+                            : 'Responses'}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/80 bg-white px-2.5 py-2 text-center">
+                        <div className="text-sm font-extrabold text-emerald-700">
+                          {sWaitlist}
+                        </div>
+                        <div className="text-[10px] font-medium text-slate-500">
+                          Waitlist Leads
+                        </div>
+                      </div>
+                      <div className="hidden rounded-xl border border-slate-200/80 bg-white px-2.5 py-2 text-center sm:block">
+                        <div className="text-sm font-extrabold text-violet-700">
+                          {sSignalScore !== null ? `${sSignalScore}/100` : '—'}
+                        </div>
+                        <div className="text-[10px] font-medium text-slate-500">
+                          AI Signal
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tile Footer Action Buttons */}
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3.5"
+                  >
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => openSurveyInStudio(s, 'BUILDER')}
+                      className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                    >
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
+                      Open Survey Studio
+                    </Button>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openSurveyInStudio(s, 'OUTREACH')}
+                        className="h-8 border-violet-200 bg-violet-50/70 px-2.5 text-xs font-semibold text-violet-800 hover:bg-violet-100"
+                      >
+                        <QrCode className="h-3.5 w-3.5 text-violet-700" />
+                        Share &amp; QR
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openSurveyInStudio(s, 'INSIGHTS')}
+                        className="h-8 border-emerald-200 bg-emerald-50/70 px-2.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                      >
+                        <BarChart3 className="h-3.5 w-3.5 text-emerald-700" />
+                        Results ({sResponses})
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* + Create New Survey Overview Tile */}
+            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-6 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50/60">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+                <Plus className="h-5 w-5" />
+              </div>
+              <h3 className="mt-3 text-sm font-bold text-slate-900">
+                Create a New Customer Survey
+              </h3>
+              <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-600">
+                Each survey opens in its own focused window where you can build
+                questions, print a QR flyer, and analyze responses.
+              </p>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isVaultReadonly}
+                  onClick={() => void handleCreateNewBlankSurvey(true)}
+                  className="bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Build with AI Co-Pilot
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isVaultReadonly}
+                  onClick={() => void handleCreateNewBlankSurvey(false)}
+                  className="bg-white text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+                >
+                  <Plus className="h-3.5 w-3.5 text-indigo-600" />
+                  Start Blank Survey
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 1 Bottom Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <div className="text-xs text-slate-500">
+              💡 Tip: Click any survey tile above to open its full Survey Studio
+              window.
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => scrollToStep(2)}
+                className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+              >
+                Next Step: 1-on-1 Interviews
+                <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* FOCUSED SURVEY STUDIO MODAL WINDOW (SURVEYMONKEY / TYPEFORM STYLE)  */}
+      {/* =================================================================== */}
+      {isSurveyStudioOpen && activeSurvey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-2 backdrop-blur-xs sm:p-4 lg:p-6">
+          <div className="relative flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-indigo-200 bg-slate-50 shadow-2xl">
+            {/* STUDIO STICKY TOP HEADER BAR */}
+            <div className="border-b border-slate-200 bg-white px-4 py-3.5 shadow-2xs sm:px-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="font-semibold text-slate-700">
-                    Public No-Login Link:
-                  </span>
-                  <div className="flex items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1 font-mono text-xs text-slate-700">
-                    <span className="text-slate-400">/v/</span>
+                {/* Left: Back to Tiles + Survey Switcher + Slug & Status */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSurveyStudioOpen(false)}
+                    className="border-slate-300 bg-slate-50 text-xs font-bold text-slate-800 hover:bg-slate-100"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    Back to Survey Tiles
+                  </Button>
+
+                  {surveys.length > 1 && (
+                    <select
+                      value={activeSurvey.id}
+                      onChange={(e) => {
+                        const found = surveys.find(
+                          (s) => s.id === e.target.value
+                        );
+                        if (found) {
+                          activeSurveyRef.current = found;
+                          setActiveSurveyId(found.id);
+                          setShowAiFocusSelector(false);
+                          setShowPublishConfirm(false);
+                        }
+                      }}
+                      className="rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-1.5 text-base font-bold text-indigo-950 focus:outline-hidden sm:text-xs"
+                    >
+                      {surveys.map((s, idx) => (
+                        <option key={s.id} value={s.id}>
+                          Survey #{idx + 1}:{' '}
+                          {s.title.trim() || 'Untitled Survey'}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  <div className="flex items-center rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">
+                    <span className="mr-1.5 font-semibold text-slate-500">
+                      Link Name:
+                    </span>
                     <input
                       type="text"
                       disabled={isSurveyLocked}
@@ -2543,19 +2954,21 @@ export function ModuleCWorkspace({
                           publicSlug: clean || 'survey',
                         }));
                       }}
-                      className="w-44 bg-transparent font-semibold text-indigo-700 focus:outline-hidden disabled:cursor-not-allowed disabled:text-slate-500 sm:w-56"
+                      className="w-36 bg-transparent font-mono text-base font-semibold text-indigo-700 focus:outline-hidden disabled:cursor-not-allowed disabled:text-slate-500 sm:w-48 sm:text-xs"
                     />
                   </div>
+
                   {isSurveyPublished ? (
                     <Badge className="border-emerald-300 bg-emerald-100 text-[11px] font-bold text-emerald-900">
                       <Lock className="mr-1 h-3 w-3 text-emerald-700" />
-                      Published &amp; Locked (Tamper-Proof)
+                      Published &amp; Locked
                     </Badge>
                   ) : (
                     <Badge className="border-amber-300 bg-amber-100 text-[11px] font-bold text-amber-900">
                       Draft Mode (Editable)
                     </Badge>
                   )}
+
                   <button
                     type="button"
                     disabled={isVaultReadonly}
@@ -2577,6 +2990,7 @@ export function ModuleCWorkspace({
                   </button>
                 </div>
 
+                {/* Right: Publish & Lock + Copy Link + Preview + Close */}
                 <div className="flex flex-wrap items-center gap-2">
                   {!isSurveyPublished && (
                     <Button
@@ -2586,7 +3000,7 @@ export function ModuleCWorkspace({
                         isVaultReadonly || activeSurvey.questions.length === 0
                       }
                       onClick={() => setShowPublishConfirm(true)}
-                      className="bg-emerald-600 text-white shadow-2xs hover:bg-emerald-700"
+                      className="bg-emerald-600 text-xs text-white shadow-2xs hover:bg-emerald-700"
                     >
                       <Lock className="h-3.5 w-3.5" />
                       Publish &amp; Lock Survey
@@ -2597,7 +3011,8 @@ export function ModuleCWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={handleCopyPublicLink}
+                    onClick={() => handleCopyPublicLink()}
+                    className="text-xs"
                   >
                     {copiedLinkSlug === activeSurvey.publicSlug ? (
                       <>
@@ -2607,20 +3022,9 @@ export function ModuleCWorkspace({
                     ) : (
                       <>
                         <Copy className="h-3.5 w-3.5 text-slate-600" />
-                        Copy Shareable Link
+                        Copy Link
                       </>
                     )}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActiveViewTab('OUTREACH')}
-                    className="border-violet-200 bg-violet-50/80 text-violet-800 hover:bg-violet-100"
-                  >
-                    <QrCode className="h-3.5 w-3.5 text-violet-700" />
-                    Outreach &amp; QR Kit
                   </Button>
 
                   <Link
@@ -2632,38 +3036,32 @@ export function ModuleCWorkspace({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100"
+                      className="border-indigo-200 bg-indigo-50/70 text-xs text-indigo-700 hover:bg-indigo-100"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
-                      {isSurveyPublished
-                        ? 'Open Live Survey'
-                        : 'Preview Survey'}
+                      {isSurveyPublished ? 'Open Live Survey' : 'Preview Survey'}
                     </Button>
                   </Link>
 
                   <Button
                     type="button"
-                    variant="outline"
                     size="sm"
-                    disabled={isVaultReadonly}
-                    onClick={handleDeleteCurrentSurvey}
-                    className="border-rose-200 text-rose-600 hover:bg-rose-50"
+                    onClick={() => setIsSurveyStudioOpen(false)}
+                    className="bg-slate-900 text-xs font-bold text-white hover:bg-slate-800"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete Survey
+                    <Check className="h-3.5 w-3.5" />
+                    Done
                   </Button>
                 </div>
               </div>
 
               {/* INLINE PUBLISH & LOCK CONFIRMATION PROMPT */}
               {showPublishConfirm && !isSurveyPublished && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-emerald-400 bg-emerald-50/95 p-3.5 text-xs text-emerald-950">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-emerald-400 bg-emerald-50/95 p-3.5 text-xs text-emerald-950">
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 font-bold text-emerald-900">
                       <Lock className="h-4 w-4 text-emerald-700" />
-                      <span>
-                        Publish &amp; Permanently Lock This Survey?
-                      </span>
+                      <span>Publish &amp; Permanently Lock This Survey?</span>
                     </div>
                     <p className="max-w-2xl text-[11px] leading-relaxed text-emerald-800">
                       Once published, your{' '}
@@ -2673,9 +3071,9 @@ export function ModuleCWorkspace({
                         answer choices cannot be edited
                       </strong>
                       . This guarantees that nobody can alter questions
-                      afterwards to make results look more favorable—keeping your
-                      data 100% credible for co-founders, grants, and investors.
-                      (You can always create a new survey later!)
+                      afterwards to make results look more favorable—keeping
+                      your data 100% credible for co-founders, grants, and
+                      investors.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -2700,187 +3098,136 @@ export function ModuleCWorkspace({
                   </div>
                 </div>
               )}
+
+              {/* 3-STEP PIPELINE NAVIGATION BAR INSIDE SURVEY STUDIO */}
+              <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewTab('BUILDER')}
+                    className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
+                      activeViewTab === 'BUILDER'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
+                    }`}
+                  >
+                    {isSurveyPublished ? (
+                      <Lock className="h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    <span>
+                      1. Build Questions ({activeSurvey.questions.length}
+                      {isSurveyPublished ? ' • Locked' : ''})
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewTab('OUTREACH')}
+                    className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
+                      activeViewTab === 'OUTREACH'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
+                    }`}
+                  >
+                    <QrCode className="h-3.5 w-3.5 shrink-0" />
+                    <span>2. Share &amp; QR Kit</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveViewTab('INSIGHTS');
+                      void handleSyncLiveResponses(true);
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
+                      activeViewTab === 'INSIGHTS'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
+                    }`}
+                  >
+                    <BarChart3 className="h-3.5 w-3.5 shrink-0" />
+                    <span>3. Results &amp; AI Insights</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] ${
+                        activeViewTab === 'INSIGHTS'
+                          ? 'bg-indigo-800 text-indigo-100'
+                          : 'bg-white text-indigo-700'
+                      }`}
+                    >
+                      {totalResponses}
+                    </span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {activeViewTab === 'BUILDER' && !isSurveyPublished && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isSurveyLocked}
+                      onClick={() =>
+                        setShowAiFocusSelector(!showAiFocusSelector)
+                      }
+                      className="bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {showAiFocusSelector
+                        ? 'Close AI Focus Selector'
+                        : 'Build Questions with AI'}
+                    </Button>
+                  )}
+
+                  {activeViewTab === 'BUILDER' && isSurveyPublished && (
+                    <Badge className="border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900">
+                      <Lock className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                      Questions Locked for Result Integrity
+                    </Badge>
+                  )}
+
+                  {activeViewTab === 'OUTREACH' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isVaultReadonly}
+                      onClick={handleRegenerateOutreachTemplates}
+                      className="text-xs"
+                    >
+                      <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
+                      Refresh Copy from Idea Context
+                    </Button>
+                  )}
+
+                  {activeViewTab === 'INSIGHTS' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isSyncingResponses}
+                      onClick={() => handleSyncLiveResponses(false)}
+                      className="text-xs"
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 ${
+                          isSyncingResponses ? 'animate-spin' : ''
+                        }`}
+                      />
+                      Sync Live Responses
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-      )}
 
-      {/* =================================================================== */}
-      {/* EMPTY STATE WHEN 0 SURVEYS EXIST                                    */}
-      {/* =================================================================== */}
-      {activeModuleCSection === 'SURVEYS' && !activeSurvey && (
-        <Card className="border-2 border-dashed border-slate-300 bg-slate-50/70">
-          <CardContent className="flex flex-col items-center justify-center p-10 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
-              <MessageSquare className="h-6 w-6" />
-            </div>
-            <h3 className="mt-3 text-base font-bold text-slate-900">
-              No Customer Validation Surveys Active
-            </h3>
-            <p className="mt-1 max-w-md text-xs leading-relaxed text-slate-600">
-              Click <strong>&ldquo;+ Create New Survey&rdquo;</strong> below to
-              open a fresh blank survey canvas, or switch to{' '}
-              <strong>1-on-1 Customer Interviews</strong> if you&apos;re logging
-              live discovery calls first.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                disabled={isVaultReadonly}
-                onClick={handleCreateNewBlankSurvey}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Create New Survey
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  resetInterviewForm();
-                  setActiveModuleCSection('INTERVIEWS');
-                }}
-                className="border-violet-200 bg-white text-violet-800 hover:bg-violet-50"
-              >
-                <Mic className="h-3.5 w-3.5 text-violet-600" />
-                Create 1-on-1 Interview ({interviewLogs.length})
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* =================================================================== */}
-      {/* SURVEY SUB-NAVIGATION TABS: 1. BUILDER | 2. OUTREACH | 3. INSIGHTS  */}
-      {/* =================================================================== */}
-      {activeModuleCSection === 'SURVEYS' && activeSurvey && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-            <button
-              type="button"
-              onClick={() => setActiveViewTab('BUILDER')}
-              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all sm:justify-start sm:py-2 sm:text-sm ${
-                activeViewTab === 'BUILDER'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {isSurveyPublished ? (
-                <Lock className="h-4 w-4 shrink-0" />
-              ) : (
-                <SlidersHorizontal className="h-4 w-4 shrink-0" />
-              )}
-              <span>
-                1. Survey Questions ({activeSurvey.questions.length}
-                {isSurveyPublished ? ' • Locked' : ' Questions'})
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveViewTab('OUTREACH')}
-              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all sm:justify-start sm:py-2 sm:text-sm ${
-                activeViewTab === 'OUTREACH'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <QrCode className="h-4 w-4 shrink-0" />
-              <span>2. Outreach &amp; QR Kit</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveViewTab('INSIGHTS');
-                handleSyncLiveResponses(true);
-              }}
-              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all sm:justify-start sm:py-2 sm:text-sm ${
-                activeViewTab === 'INSIGHTS'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <BarChart3 className="h-4 w-4 shrink-0" />
-              <span>3. Results &amp; AI Insights</span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[11px] ${
-                  activeViewTab === 'INSIGHTS'
-                    ? 'bg-indigo-800 text-indigo-100'
-                    : 'bg-indigo-50 text-indigo-700'
-                }`}
-              >
-                {totalResponses}
-              </span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {activeViewTab === 'BUILDER' && !isSurveyPublished && (
-              <Button
-                type="button"
-                size="sm"
-                disabled={isSurveyLocked}
-                onClick={() => setShowAiFocusSelector(!showAiFocusSelector)}
-                className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                {showAiFocusSelector
-                  ? 'Close AI Focus Selector'
-                  : 'Build Questions with AI'}
-              </Button>
-            )}
-
-            {activeViewTab === 'BUILDER' && isSurveyPublished && (
-              <Badge className="border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900">
-                <Lock className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
-                Questions Locked for Result Integrity
-              </Badge>
-            )}
-
-            {activeViewTab === 'OUTREACH' && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isVaultReadonly}
-                onClick={handleRegenerateOutreachTemplates}
-              >
-                <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
-                Refresh Copy from Idea Context
-              </Button>
-            )}
-
-            {activeViewTab === 'INSIGHTS' && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isSyncingResponses}
-                onClick={() => handleSyncLiveResponses(false)}
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${
-                    isSyncingResponses ? 'animate-spin' : ''
-                  }`}
-                />
-                Sync Live Responses
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TAB 1: ULTRA-SIMPLE SURVEY BUILDER                                  */}
-      {/* =================================================================== */}
-      {activeModuleCSection === 'SURVEYS' &&
-        activeSurvey &&
-        activeViewTab === 'BUILDER' && (
-        <div className="space-y-5">
+            {/* STUDIO SCROLLABLE BODY */}
+            <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
+              {/* =========================================================== */}
+              {/* TAB 1: ULTRA-SIMPLE SURVEY BUILDER                          */}
+              {/* =========================================================== */}
+              {activeViewTab === 'BUILDER' && (
+                <div className="space-y-5">
           {/* TAMPER-PROOF PUBLISHED LOCK BANNER */}
           {isSurveyPublished && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50/70 to-white p-4 text-xs text-emerald-950 shadow-2xs">
@@ -2917,7 +3264,7 @@ export function ModuleCWorkspace({
                 size="sm"
                 variant="outline"
                 disabled={isVaultReadonly}
-                onClick={handleCreateNewBlankSurvey}
+                onClick={() => handleCreateNewBlankSurvey()}
                 className="border-emerald-300 bg-white text-xs font-bold text-emerald-900 hover:bg-emerald-100"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -3196,7 +3543,7 @@ export function ModuleCWorkspace({
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700">
-                  Short Welcome Note (Shown at top of /v/{activeSurvey.publicSlug})
+                  Short Welcome Note (Shown at the top of your public survey page)
                 </label>
                 <textarea
                   rows={2}
@@ -3741,11 +4088,8 @@ export function ModuleCWorkspace({
                     {activeSurvey.questions.length === 1 ? '' : 's'}
                   </strong>{' '}
                   so nobody can change questions later to make the results look
-                  more favorable. Once locked, share your{' '}
-                  <code className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-emerald-900">
-                    /v/{activeSurvey.publicSlug}
-                  </code>{' '}
-                  link with confidence.
+                  more favorable. Once locked, share your public survey link
+                  with confidence.
                 </p>
               </div>
               <Button
@@ -3765,10 +4109,7 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {/* TAB 2: OUTREACH DISTRIBUTION KIT + PRINTABLE QR CODE                */}
       {/* =================================================================== */}
-      {activeModuleCSection === 'SURVEYS' &&
-        activeSurvey &&
-        activeViewTab === 'OUTREACH' &&
-        effectiveOutreachTemplates && (
+      {activeViewTab === 'OUTREACH' && effectiveOutreachTemplates && (
           <div className="space-y-6">
             {/* Top Guidance Banner */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-4 shadow-2xs">
@@ -3783,12 +4124,9 @@ export function ModuleCWorkspace({
                 </div>
                 <p className="max-w-2xl text-xs text-slate-600">
                   Zero-pitch, <em>Mom Test</em>-friendly outreach messages with
-                  your live{' '}
-                  <code className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono text-indigo-900">
-                    /v/{activeSurvey.publicSlug}
-                  </code>{' '}
-                  link automatically injected, plus a downloadable &amp;
-                  printable QR code flyer for in-person discovery.
+                  your live shareable survey link automatically injected, plus a
+                  downloadable &amp; printable QR code flyer for in-person
+                  discovery.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -3796,7 +4134,7 @@ export function ModuleCWorkspace({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={handleCopyPublicLink}
+                  onClick={() => handleCopyPublicLink()}
                   className="bg-white text-xs"
                 >
                   {copiedLinkSlug === activeSurvey.publicSlug ? (
@@ -4105,11 +4443,8 @@ export function ModuleCWorkspace({
                           2. Printable QR Code &amp; Event Flyer
                         </CardTitle>
                         <CardDescription className="text-xs text-slate-600">
-                          Scan with any phone camera to open{' '}
-                          <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-indigo-700">
-                            /v/{activeSurvey.publicSlug}
-                          </code>{' '}
-                          with zero login.
+                          Scan with any phone camera to open your public survey
+                          page with zero login.
                         </CardDescription>
                       </div>
                       <Badge className="bg-emerald-100 text-[10px] font-bold text-emerald-900">
@@ -4282,699 +4617,9 @@ export function ModuleCWorkspace({
         )}
 
       {/* =================================================================== */}
-      {/* STANDALONE SECTION 2: 1-ON-1 CUSTOMER INTERVIEW LOGGER & EXTRACTOR  */}
-      {/* =================================================================== */}
-      {activeModuleCSection === 'INTERVIEWS' && (
-        <div className="space-y-6">
-          {/* Top Summary & Collapsible Live Call Cheat Sheet */}
-          <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-white to-violet-50/70 shadow-2xs">
-            <CardContent className="space-y-4 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-indigo-600 text-[10px] font-bold text-white">
-                      <Mic className="mr-1 h-3 w-3" />
-                      1-on-1 Discovery Co-Pilot
-                    </Badge>
-                    <Badge className="border-emerald-300 bg-emerald-100 text-[10px] font-bold text-emerald-900">
-                      {
-                        interviewLogs.filter(
-                          (i) => i.signalBadge === 'STRONG_SIGNAL'
-                        ).length
-                      }{' '}
-                      Strong Signal •{' '}
-                      {
-                        interviewLogs.filter(
-                          (i) => i.signalBadge === 'POLITE_FLUFF'
-                        ).length
-                      }{' '}
-                      Polite Fluff Filtered
-                    </Badge>
-                  </div>
-                  <h2 className="text-base font-bold text-slate-900 sm:text-lg">
-                    1-on-1 Customer Interview Logger &amp; AI &ldquo;Mom Test&rdquo;
-                    Extractor
-                  </h2>
-                  <p className="max-w-2xl text-xs leading-relaxed text-slate-600">
-                    Surveys tell you <em>what</em> is happening; 5 to 10 live
-                    1-on-1 conversations tell you <em>why</em>—and uncover exact
-                    pricing, workarounds, and pilot commitments. Paste messy call
-                    notes below and let AI extract the gold.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setShowLiveCallCheatSheet(!showLiveCallCheatSheet)
-                    }
-                    className="border-indigo-200 bg-white text-xs text-indigo-800 hover:bg-indigo-50"
-                  >
-                    <FileText className="h-3.5 w-3.5 text-indigo-600" />
-                    {showLiveCallCheatSheet
-                      ? 'Hide Live Call Cheat Sheet'
-                      : 'Show 5 Mom-Test Call Prompts'}
-                    {showLiveCallCheatSheet ? (
-                      <ChevronUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isVaultReadonly}
-                    onClick={handleSimulateSampleInterviews}
-                    className="border-indigo-300 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
-                  >
-                    <FlaskConical className="h-3.5 w-3.5" />
-                    Simulate 3 Sample Calls
-                  </Button>
-
-                  {interviewLogs.some((i) => i.isSimulated) && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isVaultReadonly}
-                      onClick={handleClearSimulatedInterviews}
-                      className="bg-white text-xs text-slate-600"
-                    >
-                      Clear Simulated
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {showLiveCallCheatSheet && (
-                <div className="rounded-xl border border-indigo-200/80 bg-white p-4">
-                  <div className="mb-2.5 flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-900">
-                      🎙️ Live Call Cheat Sheet — 5 Questions to Ask on Your Call
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Keep this open during Zoom or coffee chats
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-5">
-                    {buildLiveCallCheatSheetPrompts(plan, activeSurvey).map(
-                      (item, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs"
-                        >
-                          <div className="space-y-1.5">
-                            <div className="font-bold text-indigo-950">
-                              {item.title}
-                            </div>
-                            <p className="font-medium italic leading-relaxed text-slate-800">
-                              {item.question}
-                            </p>
-                          </div>
-                          <p className="mt-2 border-t border-slate-200/80 pt-1.5 text-[10px] leading-snug text-slate-500">
-                            💡 {item.whyItWorks}
-                          </p>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* LEFT COLUMN (7 COLS): LOG / EDIT INTERVIEW FORM + AI EXTRACTOR */}
-            <div className="space-y-4 lg:col-span-7">
-              <Card className="border-slate-200 shadow-2xs">
-                <CardHeader className="pb-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
-                        <Mic className="h-4 w-4 text-indigo-600" />
-                        {editingInterviewId
-                          ? 'Edit 1-on-1 Interview Log'
-                          : 'Log a 1-on-1 Customer Conversation'}
-                      </CardTitle>
-                      <CardDescription className="text-xs text-slate-600">
-                        Paste raw notes or voice-memo transcripts first, then
-                        click{' '}
-                        <strong>
-                          &ldquo;Extract with AI Mom-Test Filter&rdquo;
-                        </strong>{' '}
-                        to auto-fill the structured fields.
-                      </CardDescription>
-                    </div>
-                    {editingInterviewId && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={resetInterviewForm}
-                        className="text-xs"
-                      >
-                        Cancel Edit
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-4">
-                  {/* Row 1: Name/Role, Email, Date */}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-slate-700">
-                        Person Name &amp; Role *
-                      </label>
-                      <Input
-                        disabled={isVaultReadonly}
-                        value={intervieweeNameOrRole}
-                        onChange={(e) =>
-                          setIntervieweeNameOrRole(e.target.value)
-                        }
-                        placeholder="e.g., Sarah Jenkins (Clinic Owner)"
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-slate-700">
-                        Email / Contact (Optional)
-                      </label>
-                      <Input
-                        disabled={isVaultReadonly}
-                        value={intervieweeEmail}
-                        onChange={(e) => setIntervieweeEmail(e.target.value)}
-                        placeholder="sarah@example.com"
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-slate-700">
-                        Conversation Date
-                      </label>
-                      <Input
-                        type="date"
-                        disabled={isVaultReadonly}
-                        value={interviewDate}
-                        onChange={(e) => setInterviewDate(e.target.value)}
-                        className="text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Row 2: Conversation Channel Selector (with OTHER per GEMINI.md Rule 1.5) */}
-                  <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Conversation Channel:
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                      {INTERVIEW_CHANNEL_OPTIONS.map((ch) => {
-                        const isSelected = interviewChannel === ch.code;
-                        return (
-                          <button
-                            key={ch.code}
-                            type="button"
-                            disabled={isVaultReadonly}
-                            onClick={() => setInterviewChannel(ch.code)}
-                            className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
-                              isSelected
-                                ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
-                                : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
-                            }`}
-                          >
-                            <span className="text-xs font-bold">
-                              {ch.label}
-                            </span>
-                            <span className="mt-0.5 text-[10px] leading-tight text-slate-500">
-                              {ch.subtitle}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {interviewChannel === 'OTHER' && (
-                      <div className="pt-1">
-                        <Input
-                          disabled={isVaultReadonly}
-                          value={otherInterviewChannelText}
-                          onChange={(e) =>
-                            setOtherInterviewChannelText(e.target.value)
-                          }
-                          placeholder="Specify custom channel (e.g., Trade Show Floor, WhatsApp Call, Slack Huddle)..."
-                          className="border-indigo-300 bg-indigo-50/30 text-xs"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Row 3: Raw Messy Call Notes + AI Mom-Test Extractor Button */}
-                  <div className="space-y-2 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <label className="block text-xs font-bold text-indigo-950">
-                          1. Brain-Dump Raw Call Notes or Transcript
-                        </label>
-                        <p className="text-[11px] text-slate-600">
-                          Jot down messy bullet points from the conversation—what
-                          broke last week, what tools they pay for today, and
-                          what they said at the end.
-                        </p>
-                      </div>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={
-                          isVaultReadonly ||
-                          !interviewRawNotes.trim() ||
-                          isExtractingInterviewAi
-                        }
-                        onClick={handleExtractInterviewWithAi}
-                        className="bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
-                      >
-                        {isExtractingInterviewAi ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Extracting Mom-Test Signal...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-3.5 w-3.5" />
-                            Extract with AI Mom-Test Filter
-                          </>
-                        )}
-                      </Button>
-                    </div>
-
-                    <textarea
-                      rows={5}
-                      disabled={isVaultReadonly}
-                      value={interviewRawNotes}
-                      onChange={(e) => setInterviewRawNotes(e.target.value)}
-                      placeholder="e.g., Spoke with Sarah for 15 mins. Last Tuesday her clinic lost 3 hours chasing patient intake forms across email and Excel. They pay €140/mo for an older tool but staff hate using it. She asked if she can test our V1 next month with 2 receptionists..."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-hidden"
-                    />
-                  </div>
-
-                  {/* Row 4: Structured Takeaways (Auto-filled by AI or manually editable) */}
-                  <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900">
-                        2. Structured Mom-Test Proof (Auto-Filled by AI or Edit
-                        Directly)
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {(
-                          [
-                            {
-                              code: 'STRONG_SIGNAL',
-                              label: '🔥 Strong Signal',
-                              activeCls:
-                                'bg-emerald-600 text-white border-emerald-600',
-                            },
-                            {
-                              code: 'MIXED_SIGNAL',
-                              label: '⚖️ Mixed Signal',
-                              activeCls:
-                                'bg-amber-500 text-slate-950 border-amber-500',
-                            },
-                            {
-                              code: 'POLITE_FLUFF',
-                              label: '⚠️ Polite Fluff',
-                              activeCls:
-                                'bg-rose-600 text-white border-rose-600',
-                            },
-                          ] as const
-                        ).map((b) => (
-                          <button
-                            key={b.code}
-                            type="button"
-                            disabled={isVaultReadonly}
-                            onClick={() => setInterviewSignalBadge(b.code)}
-                            className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-all ${
-                              interviewSignalBadge === b.code
-                                ? b.activeCls
-                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                            }`}
-                          >
-                            {b.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-slate-700">
-                        Key Takeaway (1-Sentence Summary of Past Behavior &amp;
-                        Pain):
-                      </label>
-                      <Input
-                        disabled={isVaultReadonly}
-                        value={interviewKeyTakeaway}
-                        onChange={(e) =>
-                          setInterviewKeyTakeaway(e.target.value)
-                        }
-                        placeholder="e.g., Loses 3 hours every week chasing intake forms manually despite paying €140/mo for legacy software."
-                        className="bg-white text-xs"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold text-slate-700">
-                          Best Verbatim Customer Quote:
-                        </label>
-                        <textarea
-                          rows={2}
-                          disabled={isVaultReadonly}
-                          value={interviewVerbatimQuote}
-                          onChange={(e) =>
-                            setInterviewVerbatimQuote(e.target.value)
-                          }
-                          placeholder='"Last Tuesday we spent 3 hours fixing a single batch by hand..."'
-                          className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold text-slate-700">
-                          Current Workaround &amp; Monthly Spend:
-                        </label>
-                        <textarea
-                          rows={2}
-                          disabled={isVaultReadonly}
-                          value={interviewWorkaroundAndSpend}
-                          onChange={(e) =>
-                            setInterviewWorkaroundAndSpend(e.target.value)
-                          }
-                          placeholder="e.g., Shared Excel tracker + €140/mo legacy software + 3 hrs/wk admin."
-                          className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Pain / Urgency 1-5 Selector */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Observed Pain / Urgency Level (1 = Minor annoyance, 5 =
-                        Hair-on-fire problem):
-                      </label>
-                      <div className="grid grid-cols-5 gap-2">
-                        {[1, 2, 3, 4, 5].map((score) => (
-                          <button
-                            key={score}
-                            type="button"
-                            disabled={isVaultReadonly}
-                            onClick={() => setInterviewPainScore(score)}
-                            className={`rounded-xl border py-2 text-center text-xs font-bold transition-all ${
-                              interviewPainScore === score
-                                ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
-                                : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
-                            }`}
-                          >
-                            {score} / 5
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Commitment / Next-Step Outcome Selector (with OTHER per GEMINI.md Rule 1.5) */}
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-700">
-                        Commitment / Call Outcome (Skin in the Game):
-                      </label>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {INTERVIEW_COMMITMENT_OPTIONS.map((opt) => {
-                          const isSelected = interviewCommitment === opt.code;
-                          return (
-                            <button
-                              key={opt.code}
-                              type="button"
-                              disabled={isVaultReadonly}
-                              onClick={() => {
-                                setInterviewCommitment(opt.code);
-                                setInterviewSignalBadge(opt.defaultSignal);
-                              }}
-                              className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
-                                isSelected
-                                  ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
-                                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
-                              }`}
-                            >
-                              <span className="text-xs font-bold">
-                                {opt.label}
-                              </span>
-                              <span className="mt-0.5 text-[10px] leading-snug text-slate-500">
-                                {opt.subtitle}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {interviewCommitment === 'OTHER' && (
-                        <div className="pt-1">
-                          <Input
-                            disabled={isVaultReadonly}
-                            value={otherInterviewCommitmentText}
-                            onChange={(e) =>
-                              setOtherInterviewCommitmentText(e.target.value)
-                            }
-                            placeholder="Describe custom outcome or commitment (e.g., Invited us to observe their team workflow next Tuesday)..."
-                            className="border-indigo-300 bg-white text-xs"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {interviewMomTestCoachingNote && (
-                      <div className="rounded-xl border border-indigo-200 bg-indigo-50/80 p-3 text-xs text-indigo-950">
-                        <span className="font-bold">
-                          💡 AI Mom-Test Coaching Note:{' '}
-                        </span>
-                        {interviewMomTestCoachingNote}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-1">
-                    <Button
-                      type="button"
-                      disabled={
-                        isVaultReadonly ||
-                        (!intervieweeNameOrRole.trim() &&
-                          !interviewRawNotes.trim() &&
-                          !interviewKeyTakeaway.trim())
-                      }
-                      onClick={handleSaveInterviewLog}
-                      className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      {editingInterviewId
-                        ? 'Update 1-on-1 Interview Log'
-                        : 'Save 1-on-1 Interview to Evidence Log'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* RIGHT COLUMN (5 COLS): LOGGED 1-ON-1 INTERVIEWS FEED */}
-            <div className="space-y-4 lg:col-span-5">
-              <Card className="border-slate-200 shadow-2xs">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-base font-bold text-slate-900">
-                        Logged 1-on-1 Interviews ({interviewLogs.length})
-                      </CardTitle>
-                      <CardDescription className="text-xs text-slate-600">
-                        Feeds directly into your Module C AI Insights &amp;
-                        Module I Business Plan proof blocks.
-                      </CardDescription>
-                    </div>
-                    {activeSurvey && interviewLogs.length > 0 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setActiveModuleCSection('SURVEYS');
-                          setActiveViewTab('INSIGHTS');
-                          void handleRunAiAnalysis();
-                        }}
-                        className="border-indigo-200 bg-indigo-50/70 text-xs text-indigo-800 hover:bg-indigo-100"
-                      >
-                        <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
-                        Synthesize in Insights
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-3">
-                  {interviewLogs.length === 0 ? (
-                    <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 p-6 text-center">
-                      <Mic className="mx-auto h-7 w-7 text-slate-400" />
-                      <div className="mt-2 text-xs font-bold text-slate-800">
-                        No 1-on-1 Customer Calls Logged Yet
-                      </div>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                        Paste notes from your first customer chat on the left,
-                        or click{' '}
-                        <strong>&ldquo;Simulate 3 Sample Calls&rdquo;</strong>{' '}
-                        to see how AI separates real buyer signal from polite
-                        compliments.
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={isVaultReadonly}
-                        onClick={handleSimulateSampleInterviews}
-                        className="mt-3 border-indigo-200 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
-                      >
-                        <FlaskConical className="h-3.5 w-3.5" />
-                        Simulate 3 Sample Calls
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {interviewLogs.map((log) => {
-                        const channelLabel =
-                          log.channel === 'OTHER'
-                            ? log.otherChannelText || 'Custom Channel'
-                            : INTERVIEW_CHANNEL_OPTIONS.find(
-                                (c) => c.code === log.channel
-                              )?.label || log.channel;
-                        const commitmentLabel =
-                          log.commitmentOutcome === 'OTHER'
-                            ? `✨ ${log.otherCommitmentText || 'Custom Outcome'}`
-                            : INTERVIEW_COMMITMENT_OPTIONS.find(
-                                (c) => c.code === log.commitmentOutcome
-                              )?.label || log.commitmentOutcome;
-
-                        return (
-                          <div
-                            key={log.id}
-                            className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-indigo-200"
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-2">
-                              <div>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="text-xs font-bold text-slate-900">
-                                    {log.intervieweeNameOrRole}
-                                  </span>
-                                  {log.isSimulated && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-[10px]"
-                                    >
-                                      Simulated
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="text-[11px] text-slate-500">
-                                  {channelLabel} • {log.date}
-                                  {log.intervieweeEmail
-                                    ? ` • ${log.intervieweeEmail}`
-                                    : ''}
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-1.5">
-                                <Badge
-                                  className={`text-[10px] font-bold ${
-                                    log.signalBadge === 'STRONG_SIGNAL'
-                                      ? 'bg-emerald-100 text-emerald-900'
-                                      : log.signalBadge === 'POLITE_FLUFF'
-                                        ? 'bg-rose-100 text-rose-900'
-                                        : 'bg-amber-100 text-amber-900'
-                                  }`}
-                                >
-                                  {log.signalBadge === 'STRONG_SIGNAL'
-                                    ? '🔥 Strong Signal'
-                                    : log.signalBadge === 'POLITE_FLUFF'
-                                      ? '⚠️ Polite Fluff'
-                                      : '⚖️ Mixed Signal'}
-                                </Badge>
-                                <Badge className="bg-indigo-50 text-[10px] font-bold text-indigo-800">
-                                  Pain: {log.painScore1To5}/5
-                                </Badge>
-                              </div>
-                            </div>
-
-                            <p className="text-xs font-medium leading-relaxed text-slate-800">
-                              {log.keyTakeaway}
-                            </p>
-
-                            {log.verbatimQuote && (
-                              <div className="rounded-xl border border-slate-200/90 bg-slate-50 p-2.5 text-[11px] italic text-slate-700">
-                                &ldquo;{log.verbatimQuote}&rdquo;
-                              </div>
-                            )}
-
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                              <span>
-                                <strong>Workaround/Spend:</strong>{' '}
-                                {log.workaroundAndSpend}
-                              </span>
-                            </div>
-
-                            {log.momTestCoachingNote && (
-                              <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-1.5 text-[11px] text-indigo-950">
-                                💡 {log.momTestCoachingNote}
-                              </div>
-                            )}
-
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
-                              <span className="text-[11px] font-semibold text-indigo-900">
-                                {commitmentLabel}
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  disabled={isVaultReadonly}
-                                  onClick={() => handleEditInterviewLog(log)}
-                                  className="rounded-lg px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={isVaultReadonly}
-                                  onClick={() =>
-                                    handleDeleteInterviewLog(log.id)
-                                  }
-                                  className="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
       {/* TAB 3: SURVEY RESULTS & AI "SIGNAL VS. NOISE" INSIGHTS ENGINE       */}
       {/* =================================================================== */}
-      {activeModuleCSection === 'SURVEYS' &&
-        activeSurvey &&
-        activeViewTab === 'INSIGHTS' && (
+      {activeViewTab === 'INSIGHTS' && (
         <div className="space-y-6">
           {/* Top Simulation & AI Action Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-4 shadow-2xs">
@@ -4983,12 +4628,9 @@ export function ModuleCWorkspace({
                 Survey &amp; Interview Results — Mom-Test Insights Engine
               </div>
               <p className="text-xs text-slate-600">
-                Share{' '}
-                <code className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono text-indigo-900">
-                  /v/{activeSurvey.publicSlug}
-                </code>{' '}
-                with real prospects, log 1-on-1 calls, or simulate 5 sample
-                responses to test your charts &amp; AI insights right now.
+                Share your public survey link with real prospects, log 1-on-1
+                calls, or simulate 5 sample responses to test your charts &amp;
+                AI insights right now.
               </p>
             </div>
 
@@ -5081,7 +4723,7 @@ export function ModuleCWorkspace({
                 <div className="mt-0.5 text-[11px] text-slate-500">
                   {totalResponses > 0
                     ? `${Math.round((waitlistResponses.length / totalResponses) * 100)}% opt-in rate`
-                    : 'Emails captured on /v/[slug]'}
+                    : 'Emails captured on your public survey'}
                 </div>
               </CardContent>
             </Card>
@@ -5153,7 +4795,7 @@ export function ModuleCWorkspace({
                     className="border-indigo-200 text-indigo-700"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
-                    Open /v/{activeSurvey.publicSlug}
+                    Open Public Survey Page
                   </Button>
                 </Link>
                 <Button
@@ -5747,65 +5389,1046 @@ export function ModuleCWorkspace({
           )}
         </div>
       )}
+            </div>
+
+            {/* STUDIO STICKY BOTTOM FOOTER BAR */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsSurveyStudioOpen(false)}
+                  className="text-xs font-semibold"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Back to Survey Tiles
+                </Button>
+
+                {!isVaultReadonly && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteSurveyById(activeSurvey)}
+                    className="border-rose-200 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete Survey
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {activeViewTab === 'BUILDER' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setActiveViewTab('OUTREACH')}
+                    className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                  >
+                    <QrCode className="h-3.5 w-3.5" />
+                    Next: Share &amp; QR Kit
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+
+                {activeViewTab === 'OUTREACH' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setActiveViewTab('INSIGHTS');
+                      void handleSyncLiveResponses(true);
+                    }}
+                    className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Next: Results &amp; AI Insights ({totalResponses})
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+
+                {activeViewTab === 'INSIGHTS' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsSurveyStudioOpen(false)}
+                    className="bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Done — Back to Overview Tiles
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =================================================================== */}
-      {/* MODULE C BLIND-SPOT REVIEW & EXPORTABLE VALIDATION BRIEF (GATED)    */}
+      {/* STEP 2: 1-ON-1 CUSTOMER DISCOVERY INTERVIEWS (OVERVIEW TILES GRID)  */}
       {/* =================================================================== */}
-      {!hasValidationActivity ? (
-        <Card className="border-amber-200/90 bg-gradient-to-br from-amber-50/50 via-white to-slate-50 shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
-                  <Lock className="h-4 w-4" />
+      {openStep !== 'ALL' && openStep !== 2 ? (
+        <div
+          id="module-c-step-2"
+          onClick={() => setOpenStep(2)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                  isStep2Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                }`}
+              >
+                {isStep2Complete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '2'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-bold text-slate-900">
+                    Step 2: 1-on-1 Customer Discovery Interviews
+                  </span>
+                  <Badge
+                    variant={isStep2Complete ? 'success' : 'outline'}
+                    className="shrink-0 text-[10px]"
+                  >
+                    {isStep2Complete ? 'Completed' : 'In Progress'}
+                  </Badge>
                 </div>
-                <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    Co-Founder Blind-Spot Review &amp; Customer Validation Brief
-                    Locked
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-600">
-                    Create at least one <strong>Customer Survey</strong> or log
-                    at least one <strong>1-on-1 Customer Interview</strong>{' '}
-                    above to unlock your Blind-Spot Checker and exportable
-                    Validation Brief.
-                  </CardDescription>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {interviewLogs.length > 0
+                    ? `${interviewLogs.length} 1-on-1 interview(s) logged • ${
+                        interviewLogs.filter(
+                          (i) => i.signalBadge === 'STRONG_SIGNAL'
+                        ).length
+                      } Strong Signal • ${
+                        interviewLogs.filter(
+                          (i) => i.signalBadge === 'POLITE_FLUFF'
+                        ).length
+                      } Polite Fluff filtered`
+                    : 'No 1-on-1 customer calls logged yet — log a Zoom/coffee chat or simulate 3 sample calls'}
+                </p>
+              </div>
+            </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-xs font-semibold text-indigo-700 group-hover:bg-indigo-50"
+              >
+                Edit Step
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          id="module-c-step-2"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+        >
+          {/* Step 2 Header */}
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <span
+                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                  isStep2Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                }`}
+              >
+                {isStep2Complete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '2'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                    Step 2: 1-on-1 Customer Discovery Interviews
+                  </h2>
+                  <Badge
+                    variant={isStep2Complete ? 'success' : 'outline'}
+                    className="shrink-0 text-[10px]"
+                  >
+                    {isStep2Complete ? 'Completed' : 'In Progress'}
+                  </Badge>
+                  {interviewLogs.length > 0 && (
+                    <Badge className="shrink-0 border-emerald-300 bg-emerald-100 text-[10px] font-bold text-emerald-900">
+                      {
+                        interviewLogs.filter(
+                          (i) => i.signalBadge === 'STRONG_SIGNAL'
+                        ).length
+                      }{' '}
+                      Strong Signal •{' '}
+                      {
+                        interviewLogs.filter(
+                          (i) => i.signalBadge === 'POLITE_FLUFF'
+                        ).length
+                      }{' '}
+                      Polite Fluff Filtered
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Surveys tell you <em>what</em> is happening; 5 to 10 live
+                  1-on-1 conversations tell you <em>why</em>—and uncover exact
+                  pricing, workarounds, and pilot commitments. Click{' '}
+                  <strong>&ldquo;+ Log 1-on-1 Interview&rdquo;</strong> to open
+                  the focused AI Mom-Test Extractor window.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={isVaultReadonly}
+                onClick={() => {
+                  resetInterviewForm();
+                  setIsInterviewModalOpen(true);
+                }}
+                className="shrink-0 bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Log 1-on-1 Interview
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="shrink-0 text-xs text-slate-500 hover:text-slate-800"
+              >
+                Collapse Step
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-5">
+            {/* Quick Action Bar: Live Call Cheat Sheet + Simulate Sample Calls */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200/80 bg-indigo-50/40 p-3.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setShowLiveCallCheatSheet(!showLiveCallCheatSheet)
+                  }
+                  className="border-indigo-200 bg-white text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+                >
+                  <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                  {showLiveCallCheatSheet
+                    ? 'Hide Live Call Cheat Sheet'
+                    : 'Show 5 Mom-Test Call Prompts'}
+                  {showLiveCallCheatSheet ? (
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+
+                <span className="text-xs text-slate-600">
+                  Going on a Zoom or coffee chat? Open the 5 non-leading prompts
+                  to ask on your call.
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isVaultReadonly}
+                  onClick={handleSimulateSampleInterviews}
+                  className="border-indigo-300 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                >
+                  <FlaskConical className="h-3.5 w-3.5" />
+                  Simulate 3 Sample Calls
+                </Button>
+
+                {interviewLogs.some((i) => i.isSimulated) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isVaultReadonly}
+                    onClick={handleClearSimulatedInterviews}
+                    className="bg-white text-xs text-slate-600"
+                  >
+                    Clear Simulated
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {showLiveCallCheatSheet && (
+              <div className="rounded-xl border border-indigo-200/80 bg-white p-4 shadow-2xs">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                    🎙️ Live Call Cheat Sheet — 5 Questions to Ask on Your Call
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Keep this open during Zoom or coffee chats
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-5">
+                  {buildLiveCallCheatSheetPrompts(plan, activeSurvey).map(
+                    (item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="font-bold text-indigo-950">
+                            {item.title}
+                          </div>
+                          <p className="font-medium italic leading-relaxed text-slate-800">
+                            {item.question}
+                          </p>
+                        </div>
+                        <p className="mt-2 border-t border-slate-200/80 pt-1.5 text-[10px] leading-snug text-slate-500">
+                          💡 {item.whyItWorks}
+                        </p>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
-              <Badge className="border border-amber-300 bg-amber-100 text-[11px] font-semibold text-amber-900">
-                Requires 1+ Survey or 1-on-1 Interview
-              </Badge>
+            )}
+
+            {/* 1-ON-1 INTERVIEWS OVERVIEW TILES GRID */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {interviewLogs.map((log) => {
+                const channelLabel =
+                  log.channel === 'OTHER'
+                    ? log.otherChannelText || 'Custom Channel'
+                    : INTERVIEW_CHANNEL_OPTIONS.find(
+                        (c) => c.code === log.channel
+                      )?.label || log.channel;
+                const commitmentLabel =
+                  log.commitmentOutcome === 'OTHER'
+                    ? `✨ ${log.otherCommitmentText || 'Custom Outcome'}`
+                    : INTERVIEW_COMMITMENT_OPTIONS.find(
+                        (c) => c.code === log.commitmentOutcome
+                      )?.label || log.commitmentOutcome;
+
+                return (
+                  <div
+                    key={log.id}
+                    className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-indigo-300 hover:shadow-md"
+                  >
+                    <div className="space-y-2.5">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-sm font-bold text-slate-900">
+                              {log.intervieweeNameOrRole}
+                            </span>
+                            {log.isSimulated && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                Simulated
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {channelLabel} • {log.date}
+                            {log.intervieweeEmail
+                              ? ` • ${log.intervieweeEmail}`
+                              : ''}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            className={`text-[10px] font-bold ${
+                              log.signalBadge === 'STRONG_SIGNAL'
+                                ? 'bg-emerald-100 text-emerald-900'
+                                : log.signalBadge === 'POLITE_FLUFF'
+                                  ? 'bg-rose-100 text-rose-900'
+                                  : 'bg-amber-100 text-amber-900'
+                            }`}
+                          >
+                            {log.signalBadge === 'STRONG_SIGNAL'
+                              ? '🔥 Strong Signal'
+                              : log.signalBadge === 'POLITE_FLUFF'
+                                ? '⚠️ Polite Fluff'
+                                : '⚖️ Mixed Signal'}
+                          </Badge>
+                          <Badge className="bg-indigo-50 text-[10px] font-bold text-indigo-800">
+                            Pain: {log.painScore1To5}/5
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <p className="text-xs font-medium leading-relaxed text-slate-800">
+                        {log.keyTakeaway}
+                      </p>
+
+                      {log.verbatimQuote && (
+                        <div className="rounded-xl border border-slate-200/90 bg-slate-50 p-2.5 text-[11px] italic text-slate-700">
+                          &ldquo;{log.verbatimQuote}&rdquo;
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                        <span>
+                          <strong>Workaround/Spend:</strong>{' '}
+                          {log.workaroundAndSpend}
+                        </span>
+                      </div>
+
+                      {log.momTestCoachingNote && (
+                        <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-1.5 text-[11px] text-indigo-950">
+                          💡 {log.momTestCoachingNote}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+                      <span className="text-[11px] font-semibold text-indigo-900">
+                        {commitmentLabel}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isVaultReadonly}
+                          onClick={() => handleEditInterviewLog(log)}
+                          className="h-7 px-2.5 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                        >
+                          Edit in Logger
+                        </Button>
+                        <button
+                          type="button"
+                          disabled={isVaultReadonly}
+                          onClick={() => handleDeleteInterviewLog(log.id)}
+                          className="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* + LOG NEW 1-ON-1 INTERVIEW TILE */}
+              <button
+                type="button"
+                disabled={isVaultReadonly}
+                onClick={() => {
+                  resetInterviewForm();
+                  setIsInterviewModalOpen(true);
+                }}
+                className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-6 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50/40 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+                  <Mic className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-bold text-slate-900">
+                    + Log a 1-on-1 Customer Interview
+                  </div>
+                  <p className="max-w-xs text-xs leading-relaxed text-slate-500">
+                    Open the focused Interview Logger window to paste raw call
+                    notes and let AI extract Mom-Test signal, quotes, and pain
+                    scores.
+                  </p>
+                </div>
+              </button>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 bg-white/90 p-4 text-xs text-slate-600">
+          </div>
+
+          {/* Step 2 Bottom Toolbar */}
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => scrollToStep(1)}
+              className="text-xs font-semibold"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Previous: Step 1 (Customer Surveys)
+            </Button>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {activeSurvey && interviewLogs.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    openSurveyInStudio(activeSurvey, 'INSIGHTS', false);
+                    void handleRunAiAnalysis();
+                  }}
+                  className="border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                  Synthesize Calls in Survey Insights
+                </Button>
+              )}
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => scrollToStep(3)}
+                className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+              >
+                Next Step: Validation Brief &amp; Blind Spots
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* FOCUSED 1-ON-1 INTERVIEW LOGGER MODAL WINDOW                        */}
+      {/* =================================================================== */}
+      {isInterviewModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-2 backdrop-blur-xs sm:p-4 lg:p-6">
+          <div className="relative flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-indigo-200 bg-white shadow-2xl">
+            {/* Modal Sticky Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                  <Mic className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {editingInterviewId
+                      ? 'Edit 1-on-1 Customer Interview Log'
+                      : 'Log a 1-on-1 Customer Conversation'}
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    Paste raw notes or voice-memo transcripts first, then click{' '}
+                    <strong>&ldquo;Extract with AI Mom-Test Filter&rdquo;</strong>{' '}
+                    to auto-fill the structured fields.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    resetInterviewForm();
+                    setIsInterviewModalOpen(false);
+                  }}
+                  className="text-xs font-semibold"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
+              {/* Row 1: Name/Role, Email, Date */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700">
+                    Person Name &amp; Role *
+                  </label>
+                  <Input
+                    disabled={isVaultReadonly}
+                    value={intervieweeNameOrRole}
+                    onChange={(e) => setIntervieweeNameOrRole(e.target.value)}
+                    placeholder="e.g., Sarah Jenkins (Clinic Owner)"
+                    className="text-base sm:text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700">
+                    Email / Contact (Optional)
+                  </label>
+                  <Input
+                    disabled={isVaultReadonly}
+                    value={intervieweeEmail}
+                    onChange={(e) => setIntervieweeEmail(e.target.value)}
+                    placeholder="sarah@example.com"
+                    className="text-base sm:text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700">
+                    Conversation Date
+                  </label>
+                  <Input
+                    type="date"
+                    disabled={isVaultReadonly}
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                    className="text-base sm:text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Conversation Channel Selector (with OTHER per GEMINI.md Rule 1.5) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Conversation Channel:
+                </label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {INTERVIEW_CHANNEL_OPTIONS.map((ch) => {
+                    const isSelected = interviewChannel === ch.code;
+                    return (
+                      <button
+                        key={ch.code}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() => setInterviewChannel(ch.code)}
+                        className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                        }`}
+                      >
+                        <span className="text-xs font-bold">{ch.label}</span>
+                        <span className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                          {ch.subtitle}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {interviewChannel === 'OTHER' && (
+                  <div className="pt-1">
+                    <Input
+                      disabled={isVaultReadonly}
+                      value={otherInterviewChannelText}
+                      onChange={(e) =>
+                        setOtherInterviewChannelText(e.target.value)
+                      }
+                      placeholder="Specify custom channel (e.g., Trade Show Floor, WhatsApp Call, Slack Huddle)..."
+                      className="border-indigo-300 bg-indigo-50/30 text-base sm:text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Row 3: Raw Messy Call Notes + AI Mom-Test Extractor Button */}
+              <div className="space-y-2 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <label className="block text-xs font-bold text-indigo-950">
+                      1. Brain-Dump Raw Call Notes or Transcript
+                    </label>
+                    <p className="text-[11px] text-slate-600">
+                      Jot down messy bullet points from the conversation—what
+                      broke last week, what tools they pay for today, and what
+                      they said at the end.
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={
+                      isVaultReadonly ||
+                      !interviewRawNotes.trim() ||
+                      isExtractingInterviewAi
+                    }
+                    onClick={handleExtractInterviewWithAi}
+                    className="bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
+                  >
+                    {isExtractingInterviewAi ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Extracting Mom-Test Signal...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Extract with AI Mom-Test Filter
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <textarea
+                  rows={5}
+                  disabled={isVaultReadonly}
+                  value={interviewRawNotes}
+                  onChange={(e) => setInterviewRawNotes(e.target.value)}
+                  placeholder="e.g., Spoke with Sarah for 15 mins. Last Tuesday her clinic lost 3 hours chasing patient intake forms across email and Excel. They pay €140/mo for an older tool but staff hate using it. She asked if she can test our V1 next month with 2 receptionists..."
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                />
+              </div>
+
+              {/* Row 4: Structured Takeaways (Auto-filled by AI or manually editable) */}
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-slate-900">
+                    2. Structured Mom-Test Proof (Auto-Filled by AI or Edit
+                    Directly)
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {(
+                      [
+                        {
+                          code: 'STRONG_SIGNAL',
+                          label: '🔥 Strong Signal',
+                          activeCls:
+                            'bg-emerald-600 text-white border-emerald-600',
+                        },
+                        {
+                          code: 'MIXED_SIGNAL',
+                          label: '⚖️ Mixed Signal',
+                          activeCls:
+                            'bg-amber-500 text-slate-950 border-amber-500',
+                        },
+                        {
+                          code: 'POLITE_FLUFF',
+                          label: '⚠️ Polite Fluff',
+                          activeCls: 'bg-rose-600 text-white border-rose-600',
+                        },
+                      ] as const
+                    ).map((b) => (
+                      <button
+                        key={b.code}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() => setInterviewSignalBadge(b.code)}
+                        className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-all ${
+                          interviewSignalBadge === b.code
+                            ? b.activeCls
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700">
+                    Key Takeaway (1-Sentence Summary of Past Behavior &amp;
+                    Pain):
+                  </label>
+                  <Input
+                    disabled={isVaultReadonly}
+                    value={interviewKeyTakeaway}
+                    onChange={(e) => setInterviewKeyTakeaway(e.target.value)}
+                    placeholder="e.g., Loses 3 hours every week chasing intake forms manually despite paying €140/mo for legacy software."
+                    className="bg-white text-base sm:text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">
+                      Best Verbatim Customer Quote:
+                    </label>
+                    <textarea
+                      rows={2}
+                      disabled={isVaultReadonly}
+                      value={interviewVerbatimQuote}
+                      onChange={(e) =>
+                        setInterviewVerbatimQuote(e.target.value)
+                      }
+                      placeholder='"Last Tuesday we spent 3 hours fixing a single batch by hand..."'
+                      className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">
+                      Current Workaround &amp; Monthly Spend:
+                    </label>
+                    <textarea
+                      rows={2}
+                      disabled={isVaultReadonly}
+                      value={interviewWorkaroundAndSpend}
+                      onChange={(e) =>
+                        setInterviewWorkaroundAndSpend(e.target.value)
+                      }
+                      placeholder="e.g., Shared Excel tracker + €140/mo legacy software + 3 hrs/wk admin."
+                      className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Pain / Urgency 1-5 Selector */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Observed Pain / Urgency Level (1 = Minor annoyance, 5 =
+                    Hair-on-fire problem):
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[1, 2, 3, 4, 5].map((score) => (
+                      <button
+                        key={score}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() => setInterviewPainScore(score)}
+                        className={`rounded-xl border py-2 text-center text-xs font-bold transition-all ${
+                          interviewPainScore === score
+                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                        }`}
+                      >
+                        {score} / 5
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Commitment / Next-Step Outcome Selector (with OTHER per GEMINI.md Rule 1.5) */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Commitment / Call Outcome (Skin in the Game):
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {INTERVIEW_COMMITMENT_OPTIONS.map((opt) => {
+                      const isSelected = interviewCommitment === opt.code;
+                      return (
+                        <button
+                          key={opt.code}
+                          type="button"
+                          disabled={isVaultReadonly}
+                          onClick={() => {
+                            setInterviewCommitment(opt.code);
+                            setInterviewSignalBadge(opt.defaultSignal);
+                          }}
+                          className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
+                            isSelected
+                              ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                          }`}
+                        >
+                          <span className="text-xs font-bold">{opt.label}</span>
+                          <span className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                            {opt.subtitle}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {interviewCommitment === 'OTHER' && (
+                    <div className="pt-1">
+                      <Input
+                        disabled={isVaultReadonly}
+                        value={otherInterviewCommitmentText}
+                        onChange={(e) =>
+                          setOtherInterviewCommitmentText(e.target.value)
+                        }
+                        placeholder="Describe custom outcome or commitment (e.g., Invited us to observe their team workflow next Tuesday)..."
+                        className="border-indigo-300 bg-white text-base sm:text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {interviewMomTestCoachingNote && (
+                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/80 p-3 text-xs text-indigo-950">
+                    <span className="font-bold">
+                      💡 AI Mom-Test Coaching Note:{' '}
+                    </span>
+                    {interviewMomTestCoachingNote}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Sticky Footer */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  resetInterviewForm();
+                  setIsInterviewModalOpen(false);
+                }}
+                className="text-xs font-semibold"
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                disabled={
+                  isVaultReadonly ||
+                  (!intervieweeNameOrRole.trim() &&
+                    !interviewRawNotes.trim() &&
+                    !interviewKeyTakeaway.trim())
+                }
+                onClick={handleSaveInterviewLog}
+                className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {editingInterviewId
+                  ? 'Update 1-on-1 Interview Log'
+                  : 'Save 1-on-1 Interview to Evidence Log'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* STEP 3: CONSTRUCTIVE "THINGS TO CONSIDER" (BLIND-SPOT REVIEW)       */}
+      {/* (Matches Module B Step 5 Collapsible Card 100%)                     */}
+      {/* =================================================================== */}
+      {openStep !== 'ALL' && openStep !== 3 ? (
+        <div
+          id="module-c-step-3"
+          onClick={() => setOpenStep(3)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                  isStep3Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                }`}
+              >
+                {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900">
+                    Step 3: Constructive &ldquo;Things to Consider&rdquo; (Blind-Spot Review)
+                  </h2>
+                  {isStep3Complete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {hasValidationActivity
+                    ? `6 tailored Co-Founder Blind-Spot cards synthesizing your ${validSurveys.length} survey(s) & ${interviewLogs.length} 1-on-1 call(s)`
+                    : 'Create at least 1 survey or log 1 customer interview to unlock your 6 Co-Founder Blind-Spot cards'}
+                </p>
+              </div>
+            </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-xs font-semibold text-indigo-700 group-hover:bg-indigo-50"
+              >
+                Edit Step
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          id="module-c-step-3"
+          className="scroll-mt-24 space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
+        >
+          {/* Step 3 Expanded Header */}
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <span
+                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                  isStep3Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                }`}
+              >
+                {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                    Step 3: Constructive &ldquo;Things to Consider&rdquo; (Blind-Spot Review)
+                  </h2>
+                  {isStep3Complete ? (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                      In Progress
+                    </Badge>
+                  )}
+                  <Badge variant="warning" className="shrink-0 text-[10px]">
+                    Supportive Co-Founder Audit • 6 Cards
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Before you move into <strong>Module D (Product &amp; V1 Scope)</strong>,
+                  review 6 constructive blind-spot checks synthesizing your{' '}
+                  <strong>{validSurveys.length} survey(s)</strong>,{' '}
+                  <strong>{allResponsesAcrossSurveys.length} response(s)</strong>,{' '}
+                  <strong>{interviewLogs.length} 1-on-1 interview(s)</strong>, and{' '}
+                  <strong>{countryPack.countryName}</strong> grant readiness.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="shrink-0 text-xs text-slate-500 hover:text-slate-800"
+              >
+                Collapse Step
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          {!hasValidationActivity ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-4 text-xs text-slate-700">
               <div className="max-w-2xl leading-relaxed">
-                We never generate a fake blind-spot audit or validation document
-                when you have zero surveys and zero 1-on-1 interviews. Start by
-                building a Mom-Test survey or logging your first 1-on-1
-                discovery chat!
+                <strong>🔒 Requires 1+ Survey or 1-on-1 Interview:</strong> We
+                never generate a fake blind-spot audit when you have zero
+                surveys and zero 1-on-1 interviews. Start by building a Mom-Test
+                survey in Step 1 or logging your first 1-on-1 discovery chat in
+                Step 2!
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setActiveModuleCSection('SURVEYS');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+                  onClick={() => scrollToStep(1)}
+                  className="border-indigo-200 bg-white text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
                 >
                   <FileText className="h-3.5 w-3.5 text-indigo-600" />
-                  Go to Customer Surveys
+                  Go to Step 1: Surveys
                 </Button>
                 <Button
                   type="button"
                   size="sm"
                   onClick={() => {
-                    setActiveModuleCSection('INTERVIEWS');
+                    scrollToStep(2);
                     resetInterviewForm();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    setIsInterviewModalOpen(true);
                   }}
                   className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
                 >
@@ -5814,32 +6437,85 @@ export function ModuleCWorkspace({
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {/* =============================================================== */}
-          {/* CONSTRUCTIVE "THINGS TO CONSIDER" (MODULE C BLIND-SPOT ENGINE)  */}
-          {/* =============================================================== */}
-          <Card className="border-amber-200/90 bg-gradient-to-br from-amber-50/60 via-white to-indigo-50/30 shadow-xs">
-            <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-amber-600" />
-                  <CardTitle className="text-base">
-                    Constructive &ldquo;Things to Consider&rdquo; (Module C
-                    Blind-Spot Engine)
-                  </CardTitle>
-                  <Badge variant="warning">
-                    Supportive Co-Founder Audit • 6 Cards
-                  </Badge>
-                </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {liveThingsToConsider.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col justify-between rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50/40 via-white to-white p-4 shadow-2xs"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge
+                        variant={
+                          item.severity === 'WARNING' ? 'warning' : 'secondary'
+                        }
+                        className="text-[10px]"
+                      >
+                        {item.category}
+                      </Badge>
+                      <span className="text-[11px] font-semibold text-amber-700">
+                        {item.severity === 'WARNING'
+                          ? '⚠️ Key Blind Spot'
+                          : '💡 Opportunity'}
+                      </span>
+                    </div>
+                    <h4 className="mt-2 text-sm font-bold text-slate-900">
+                      {item.title}
+                    </h4>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                      {item.explanation}
+                    </p>
+                  </div>
 
+                  {item.suggestedAction && (
+                    <div className="mt-3 rounded-lg bg-indigo-50/70 px-3 py-2 text-xs text-indigo-950">
+                      <strong className="font-semibold text-indigo-700">
+                        Suggested Action:{' '}
+                      </strong>
+                      {item.suggestedAction}
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center justify-end border-t border-slate-100 pt-2.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onParkQuestion(
+                          `[Module C - ${item.category}] ${item.title}: ${item.suggestedAction || item.explanation}`
+                        )
+                      }
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 hover:text-amber-950"
+                    >
+                      <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
+                      Park in Open Questions
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Step 3 Bottom Save & Next Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => scrollToStep(2)}
+              className="text-xs font-semibold"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Previous: Step 2 (1-on-1 Interviews)
+            </Button>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {!isVaultReadonly && hasValidationActivity && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={isVaultReadonly || isSavingComplete}
+                  disabled={isSavingComplete}
                   onClick={handleSaveModuleCComplete}
                 >
                   {isSavingComplete ? (
@@ -5850,518 +6526,588 @@ export function ModuleCWorkspace({
                   ) : (
                     <>
                       <Check className="h-3.5 w-3.5 text-emerald-600" />
-                      Save All Module C Progress
+                      Save Module C Progress
                     </>
                   )}
                 </Button>
-              </div>
-              <CardDescription>
-                Before you move into <strong>Module D (Product &amp; V1 Scope)</strong>,
-                here are 6 constructive blind-spot checks synthesizing your{' '}
-                <strong>{validSurveys.length} survey(s)</strong>,{' '}
-                <strong>{allResponsesAcrossSurveys.length} response(s)</strong>,{' '}
-                <strong>{interviewLogs.length} 1-on-1 interview(s)</strong>, and{' '}
-                <strong>{countryPack.countryName}</strong> grant readiness:
-              </CardDescription>
-            </CardHeader>
+              )}
 
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {liveThingsToConsider.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-col justify-between rounded-xl border border-amber-200/80 bg-white p-4 shadow-2xs"
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => scrollToStep(4)}
+                className="bg-slate-900 text-xs font-bold text-white hover:bg-slate-800"
+              >
+                Next: Validation Brief &amp; Export
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* STEP 4 (OVERVIEW): CUSTOMER VALIDATION & INTERVIEW BRIEF            */}
+      {/* (Matches Module B Step 6 Overview Brief Card 100%)                  */}
+      {/* =================================================================== */}
+      {openStep !== 'ALL' && openStep !== 4 ? (
+        <div
+          id="module-c-step-4"
+          onClick={() => setOpenStep(4)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                  completedCoreStepsCount === 3
+                    ? 'bg-emerald-600'
+                    : 'bg-indigo-600'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-bold text-slate-900">
+                    Customer Validation &amp; Interview Brief (Executive Summary)
+                  </span>
+                  <Badge
+                    variant={
+                      completedCoreStepsCount === 3 ? 'success' : 'secondary'
+                    }
+                    className="shrink-0 text-[10px]"
                   >
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge
-                          variant={
-                            item.severity === 'WARNING'
-                              ? 'warning'
-                              : 'secondary'
-                          }
-                          className="text-[10px]"
-                        >
-                          {item.category}
-                        </Badge>
-                        <span className="text-[11px] font-semibold text-amber-700">
-                          {item.severity === 'WARNING'
-                            ? '⚠️ Key Blind Spot'
-                            : '💡 Opportunity'}
-                        </span>
-                      </div>
-                      <h4 className="mt-2 text-sm font-bold text-slate-900">
-                        {item.title}
-                      </h4>
-                      <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                        {item.explanation}
-                      </p>
-                    </div>
-
-                    {item.suggestedAction && (
-                      <div className="mt-3 rounded-lg bg-indigo-50/70 px-3 py-2 text-xs text-indigo-950">
-                        <strong className="font-semibold text-indigo-700">
-                          Suggested Action:{' '}
-                        </strong>
-                        {item.suggestedAction}
-                      </div>
-                    )}
-
-                    <div className="mt-3 flex items-center justify-end border-t border-slate-100 pt-2.5">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onParkQuestion(
-                            `[Module C - ${item.category}] ${item.title}: ${item.suggestedAction || item.explanation}`
-                          )
-                        }
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 hover:text-amber-950"
-                      >
-                        <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
-                        Park in Open Questions
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* =============================================================== */}
-          {/* MODULE C SUMMARY DOCUMENT: CUSTOMER VALIDATION & INTERVIEW BRIEF */}
-          {/* =============================================================== */}
-          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-white to-emerald-50/40 shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                      <FileText className="h-3.5 w-3.5" />
-                    </span>
-                    <CardTitle className="text-base">
-                      Module Summary Document: Customer Surveys &amp; 1-on-1
-                      Validation Brief
-                    </CardTitle>
-                    <Badge variant="default">
-                      Live-Synced • Print / PDF / HTML Ready
-                    </Badge>
-                  </div>
-                  <CardDescription className="mt-1">
-                    Your shareable primary market validation dossier combining
-                    your Mom-Test surveys, public <code>/v/[slug]</code>{' '}
-                    results, 1-on-1 customer interview logs, waitlist leads, and
-                    Co-Founder Blind-Spot review.
-                  </CardDescription>
+                    {completedCoreStepsCount}/3 Sections Ready
+                  </Badge>
                 </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {hasValidationActivity
+                    ? `Your complete Module C survey results, 1-on-1 call log & waitlist brief — ready to view, print to PDF, or export.`
+                    : 'Create at least 1 survey or log 1 customer interview to unlock your Validation Brief'}
+                </p>
+              </div>
+            </div>
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-xs font-semibold text-indigo-700 group-hover:bg-indigo-50"
+              >
+                Open Overview
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <Card
+          id="module-c-step-4"
+          className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm"
+        >
+          {/* Overview Step Header */}
+          <div className="flex items-start justify-between gap-4 border-b border-indigo-100 pb-4">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <span
+                className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                  completedCoreStepsCount === 3
+                    ? 'bg-emerald-600'
+                    : 'bg-indigo-600'
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900">
+                    Customer Validation &amp; Interview Brief
+                  </h2>
+                  <Badge
+                    variant={
+                      completedCoreStepsCount === 3 ? 'success' : 'secondary'
+                    }
+                    className="shrink-0 text-[10px]"
+                  >
+                    {completedCoreStepsCount}/3 Sections Ready
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Everything you captured across Steps 1–3 is compiled below
+                  into a clean executive summary document you can download,
+                  print to PDF, or share with a co-founder, mentor, or grant
+                  advisor before moving into Module D.
+                </p>
+              </div>
+            </div>
 
+            <div className="flex shrink-0 items-center gap-2">
+              {hasValidationActivity && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setShowBriefPreview(!showBriefPreview)}
+                  className="text-xs"
                 >
                   <Eye className="h-3.5 w-3.5 text-indigo-600" />
                   {showBriefPreview
-                    ? 'Hide Document Preview'
-                    : 'Show Document Preview'}
+                    ? 'Hide Live Preview'
+                    : 'Show Live Preview'}
                 </Button>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              {/* Readiness Checklist Strip */}
-              <div className="rounded-xl border border-slate-200 bg-white p-3.5">
-                <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-800">
-                    Module C Validation Readiness Checklist
-                  </span>
-                  <span className="font-semibold text-indigo-700">
-                    {
-                      moduleCReadinessSteps.filter((s) => s.isComplete).length
-                    }
-                    /4 Validation Pillars Active
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  {moduleCReadinessSteps.map((step) => (
-                    <div
-                      key={step.stepNumber}
-                      className={`flex items-start gap-2 rounded-lg border p-2.5 text-xs ${
-                        step.isComplete
-                          ? 'border-emerald-200 bg-emerald-50/50 text-emerald-950'
-                          : 'border-amber-200 bg-amber-50/50 text-amber-950'
-                      }`}
-                    >
-                      <CheckCircle2
-                        className={`mt-0.5 h-4 w-4 shrink-0 ${
-                          step.isComplete
-                            ? 'text-emerald-600'
-                            : 'text-amber-500'
-                        }`}
-                      />
-                      <div className="min-w-0">
-                        <div className="font-bold">
-                          {step.stepNumber}. {step.label}
-                        </div>
-                        <div className="mt-0.5 truncate text-[11px] opacity-85">
-                          {step.summary}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* LIVE DOCUMENT PREVIEW (Matches Module A & Module B Document Shell) */}
-              {showBriefPreview && (
-                <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
-                  {/* Document Top Header Bar */}
-                  <div className="border-b-2 border-indigo-600 bg-slate-50/70 px-6 py-5">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                          {whiteLabelEnabled
-                            ? 'MODULE C CUSTOMER VALIDATION & INTERVIEW BRIEF'
-                            : 'BUILD MY UNICORN 2.0 • MODULE C CUSTOMER VALIDATION & INTERVIEW BRIEF'}
-                        </div>
-                        <h3 className="mt-1 text-xl font-extrabold text-slate-900">
-                          {plan.title}
-                        </h3>
-                        <p className="mt-0.5 text-xs text-slate-600">
-                          Prepared for <strong>{founderName}</strong> •{' '}
-                          {countryPack.countryName} ({currency}) •{' '}
-                          {plan.industryCategory}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-right text-xs text-slate-600">
-                        <div>
-                          <strong>Date:</strong> {briefGeneratedDate}
-                        </div>
-                        <div>
-                          <strong>Validation Track:</strong>{' '}
-                          {validSurveys.length} Survey(s) •{' '}
-                          {interviewLogs.length} 1-on-1 Call(s)
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Document Body Sections */}
-                  <div className="divide-y divide-slate-200 px-6 py-5 text-xs">
-                    {/* Section 1: Primary Market Validation Snapshot */}
-                    <div className="pb-5">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                        1. Primary Market Validation Snapshot
-                      </div>
-                      <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
-                          <div className="text-[10px] font-bold uppercase text-indigo-700">
-                            Customer Surveys
-                          </div>
-                          <div className="mt-1 text-sm font-extrabold text-indigo-950">
-                            {validSurveys.length} Survey
-                            {validSurveys.length === 1 ? '' : 's'}
-                          </div>
-                          <div className="mt-1 text-[11px] text-indigo-900/80">
-                            {validSurveys.filter((s) => s.isPublished).length}{' '}
-                            Published &amp; Locked
-                          </div>
-                        </div>
-
-                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
-                          <div className="text-[10px] font-bold uppercase text-emerald-700">
-                            Survey Responses
-                          </div>
-                          <div className="mt-1 text-sm font-extrabold text-emerald-950">
-                            {realResponsesAcrossSurveys.length} Real (
-                            {allResponsesAcrossSurveys.length} Total)
-                          </div>
-                          <div className="mt-1 text-[11px] text-emerald-900/80">
-                            {allResponsesAcrossSurveys.length -
-                              realResponsesAcrossSurveys.length}{' '}
-                            simulated sample(s)
-                          </div>
-                        </div>
-
-                        <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
-                          <div className="text-[10px] font-bold uppercase text-violet-700">
-                            1-on-1 Discovery Calls
-                          </div>
-                          <div className="mt-1 text-sm font-extrabold text-violet-950">
-                            {interviewLogs.length} Logged
-                          </div>
-                          <div className="mt-1 text-[11px] text-violet-900/80">
-                            Avg Customer Pain:{' '}
-                            {interviewLogs.length > 0
-                              ? `${(
-                                  interviewLogs.reduce(
-                                    (acc, i) => acc + i.painScore1To5,
-                                    0
-                                  ) / interviewLogs.length
-                                ).toFixed(1)}/5`
-                              : 'N/A'}
-                          </div>
-                        </div>
-
-                        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
-                          <div className="text-[10px] font-bold uppercase text-amber-800">
-                            Early-Bird Waitlist
-                          </div>
-                          <div className="mt-1 text-sm font-extrabold text-amber-950">
-                            {waitlistAcrossSurveys.length} Lead
-                            {waitlistAcrossSurveys.length === 1 ? '' : 's'}
-                          </div>
-                          <div className="mt-1 text-[11px] text-amber-900/80">
-                            Feeds Module D &amp; Module G
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Section 2: Customer Validation Surveys */}
-                    <div className="py-5">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                        2. Customer Validation Surveys &amp; AI Signal Synthesis
-                      </div>
-                      {validSurveys.length === 0 ? (
-                        <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-slate-500">
-                          No customer surveys created yet (validating via 1-on-1
-                          customer interviews).
-                        </div>
-                      ) : (
-                        <div className="mt-2.5 space-y-3">
-                          {validSurveys.map((survey, sIdx) => {
-                            const sReal = survey.responses.filter(
-                              (r) => !r.isSimulated
-                            ).length;
-                            const sWaitlist = survey.responses.filter(
-                              (r) =>
-                                r.joinedWaitlist &&
-                                Boolean(r.respondentEmail?.trim())
-                            ).length;
-                            return (
-                              <div
-                                key={survey.id}
-                                className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5"
-                              >
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div>
-                                    <span className="text-[10px] font-bold uppercase text-indigo-600">
-                                      Survey #{sIdx + 1} • /v/
-                                      {survey.publicSlug}
-                                    </span>
-                                    <div className="text-sm font-bold text-slate-900">
-                                      {survey.title}
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <Badge
-                                      className={
-                                        survey.isPublished
-                                          ? 'bg-emerald-100 text-[10px] text-emerald-900'
-                                          : 'bg-amber-100 text-[10px] text-amber-900'
-                                      }
-                                    >
-                                      {survey.isPublished
-                                        ? '🔒 Published & Locked'
-                                        : 'Draft'}
-                                    </Badge>
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-[10px]"
-                                    >
-                                      {survey.questions.length} Questions •{' '}
-                                      {survey.responses.length} Responses (
-                                      {sReal} Real) • {sWaitlist} Waitlist
-                                    </Badge>
-                                  </div>
-                                </div>
-
-                                {survey.aiInsightsSummary && (
-                                  <div className="mt-2.5 rounded-lg border border-indigo-200 bg-indigo-50/70 p-2.5 text-[11px] text-indigo-950">
-                                    <div>
-                                      <strong>
-                                        AI Signal Score (
-                                        {
-                                          survey.aiInsightsSummary
-                                            .signalScoreOutOf100
-                                        }
-                                        /100):
-                                      </strong>{' '}
-                                      {
-                                        survey.aiInsightsSummary
-                                          .headlineTakeaway
-                                      }
-                                    </div>
-                                    <div className="mt-1 text-indigo-900/90">
-                                      <strong>
-                                        Recommended V1 Action (Feeds Module D):
-                                      </strong>{' '}
-                                      {
-                                        survey.aiInsightsSummary
-                                          .recommendedNextAction
-                                      }
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Section 3: 1-on-1 Customer Discovery Interviews */}
-                    <div className="py-5">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                        3. 1-on-1 Customer Discovery Interview Log (
-                        {interviewLogs.length})
-                      </div>
-                      {interviewLogs.length === 0 ? (
-                        <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-slate-500">
-                          No 1-on-1 customer interviews logged yet.
-                        </div>
-                      ) : (
-                        <div className="mt-2.5 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-                          {interviewLogs.map((log) => (
-                            <div
-                              key={log.id}
-                              className="rounded-xl border border-slate-200 bg-slate-50/70 p-3"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div>
-                                  <div className="font-bold text-slate-900">
-                                    {log.intervieweeNameOrRole}
-                                  </div>
-                                  <div className="text-[11px] text-slate-500">
-                                    {log.date} • {formatInterviewChannel(log)}
-                                  </div>
-                                </div>
-                                <Badge
-                                  variant={
-                                    log.signalBadge === 'STRONG_SIGNAL'
-                                      ? 'success'
-                                      : log.signalBadge === 'MIXED_SIGNAL'
-                                        ? 'warning'
-                                        : 'secondary'
-                                  }
-                                  className="text-[10px]"
-                                >
-                                  Pain {log.painScore1To5}/5 •{' '}
-                                  {INTERVIEW_SIGNAL_LABELS[log.signalBadge]}
-                                </Badge>
-                              </div>
-                              <p className="mt-1.5 text-[11px] font-medium text-slate-800">
-                                {log.keyTakeaway}
-                              </p>
-                              {log.verbatimQuote?.trim() && (
-                                <p className="mt-1 text-[11px] italic text-slate-600">
-                                  &ldquo;{log.verbatimQuote.trim()}&rdquo;
-                                </p>
-                              )}
-                              <div className="mt-1.5 text-[10px] font-semibold text-indigo-700">
-                                Outcome: {formatInterviewCommitment(log)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Section 4: Co-Founder Blind-Spot Takeaways */}
-                    <div className="pt-5">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                        4. Co-Founder Blind-Spot Review (&ldquo;Things to
-                        Consider&rdquo;)
-                      </div>
-                      <div className="mt-2.5 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-                        {liveThingsToConsider.map((item) => (
-                          <div
-                            key={item.id}
-                            className="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
-                          >
-                            <div className="font-bold text-slate-900">
-                              {item.title}
-                            </div>
-                            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
-                              {item.suggestedAction || item.explanation}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
               )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenStep(0);
+                }}
+                className="shrink-0 text-xs text-slate-500 hover:text-slate-800"
+              >
+                Collapse Step
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
 
-              {/* Bottom Action Bar: Copy, Download HTML, Print/Save PDF */}
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
-                <div className="text-xs text-slate-600">
-                  📥{' '}
-                  <strong>
-                    Take your Customer Validation &amp; Interview Brief with
-                    you:
-                  </strong>{' '}
-                  Download a standalone file, print/save as PDF, or copy for
-                  grant &amp; accelerator applications.
+          <CardContent className="space-y-5 px-0 pb-0 pt-4">
+            {/* Readiness Checklist Strip */}
+            <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
+              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-bold uppercase tracking-wider text-slate-700">
+                  Module C Validation Readiness Checklist (Steps 1–3 Included in
+                  Your Brief)
+                </span>
+                <span className="font-semibold text-indigo-700">
+                  {moduleCReadinessSteps.filter((s) => s.isComplete).length}/4
+                  Validation Pillars Active
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                {moduleCReadinessSteps.map((step) => (
+                  <div
+                    key={step.stepNumber}
+                    className={`flex items-start gap-2 rounded-xl border p-3 text-xs ${
+                      step.isComplete
+                        ? 'border-emerald-200 bg-emerald-50/40 text-emerald-950'
+                        : 'border-amber-200 bg-amber-50/40 text-amber-950'
+                    }`}
+                  >
+                    <CheckCircle2
+                      className={`mt-0.5 h-4 w-4 shrink-0 ${
+                        step.isComplete ? 'text-emerald-600' : 'text-amber-500'
+                      }`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold">
+                        {step.stepNumber}. {step.label}
+                      </div>
+                      <div className="mt-0.5 truncate text-[11px] opacity-85">
+                        {step.summary}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {!hasValidationActivity ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-4 text-xs text-slate-700">
+                <div className="max-w-2xl leading-relaxed">
+                  <strong>🔒 Validation Brief Locked:</strong> Create at least 1
+                  survey in Step 1 or log at least 1 customer interview in Step
+                  2 to unlock your printable Validation Brief.
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={handleCopyModuleCBrief}
+                    onClick={() => scrollToStep(1)}
+                    className="border-indigo-200 bg-white text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
                   >
-                    {briefCopied ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        Copied to Clipboard!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5 text-slate-600" />
-                        Copy Summary
-                      </>
-                    )}
+                    Go to Step 1: Surveys
                   </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadModuleCBriefHtml}
-                  >
-                    <Download className="h-3.5 w-3.5 text-indigo-600" />
-                    Download Brief (.html)
-                  </Button>
-
                   <Button
                     type="button"
                     size="sm"
-                    onClick={handlePrintModuleCBriefPdf}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700"
+                    onClick={() => {
+                      scrollToStep(2);
+                      resetInterviewForm();
+                      setIsInterviewModalOpen(true);
+                    }}
+                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
                   >
-                    <Printer className="h-3.5 w-3.5" />
-                    Print / Save as PDF
+                    Log a 1-on-1 Interview
                   </Button>
                 </div>
               </div>
+            ) : (
+              <>
+                {/* LIVE DOCUMENT PREVIEW (Matches Module A & Module B Document Shell) */}
+                {showBriefPreview && (
+                  <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
+                    {/* Document Top Header Bar */}
+                    <div className="border-b-2 border-indigo-600 bg-slate-50/70 px-6 py-5">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                            {whiteLabelEnabled
+                              ? 'MODULE C CUSTOMER VALIDATION & INTERVIEW BRIEF'
+                              : 'STARTUP PREFLIGHT • MODULE C CUSTOMER VALIDATION & INTERVIEW BRIEF'}
+                          </div>
+                          <h3 className="mt-1 text-xl font-extrabold text-slate-900">
+                            {plan.title}
+                          </h3>
+                          <p className="mt-0.5 text-xs text-slate-600">
+                            Prepared for <strong>{founderName}</strong> •{' '}
+                            {countryPack.countryName} ({currency}) •{' '}
+                            {plan.industryCategory}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-right text-xs text-slate-600">
+                          <div>
+                            <strong>Date:</strong> {briefGeneratedDate}
+                          </div>
+                          <div>
+                            <strong>Validation Track:</strong>{' '}
+                            {validSurveys.length} Survey(s) •{' '}
+                            {interviewLogs.length} 1-on-1 Call(s)
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-              {/* Handoff Footer CTA into Module D */}
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
-                <div className="text-xs">
-                  <span className="font-semibold text-indigo-300">
-                    Ready to scope V1 of {plan.title} based on real customer
-                    evidence?
-                  </span>{' '}
-                  Your validated pain points, workaround spend, and{' '}
-                  <strong>{waitlistAcrossSurveys.length} waitlist leads</strong>{' '}
-                  will automatically feed into{' '}
-                  <strong>
-                    Module D (Product Vehicle &amp; Ruthless V1 Feature Filter)
-                  </strong>
-                  .
+                    {/* Document Body Sections */}
+                    <div className="divide-y divide-slate-200 px-6 py-5 text-xs">
+                      {/* Section 1: Primary Market Validation Snapshot */}
+                      <div className="pb-5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                          1. Primary Market Validation Snapshot
+                        </div>
+                        <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                          <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+                            <div className="text-[10px] font-bold uppercase text-indigo-700">
+                              Customer Surveys
+                            </div>
+                            <div className="mt-1 text-sm font-extrabold text-indigo-950">
+                              {validSurveys.length} Survey
+                              {validSurveys.length === 1 ? '' : 's'}
+                            </div>
+                            <div className="mt-1 text-[11px] text-indigo-900/80">
+                              {validSurveys.filter((s) => s.isPublished).length}{' '}
+                              Published &amp; Locked
+                            </div>
+                          </div>
+
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                            <div className="text-[10px] font-bold uppercase text-emerald-700">
+                              Survey Responses
+                            </div>
+                            <div className="mt-1 text-sm font-extrabold text-emerald-950">
+                              {realResponsesAcrossSurveys.length} Real (
+                              {allResponsesAcrossSurveys.length} Total)
+                            </div>
+                            <div className="mt-1 text-[11px] text-emerald-900/80">
+                              {allResponsesAcrossSurveys.length -
+                                realResponsesAcrossSurveys.length}{' '}
+                              simulated sample(s)
+                            </div>
+                          </div>
+
+                          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+                            <div className="text-[10px] font-bold uppercase text-violet-700">
+                              1-on-1 Discovery Calls
+                            </div>
+                            <div className="mt-1 text-sm font-extrabold text-violet-950">
+                              {interviewLogs.length} Logged
+                            </div>
+                            <div className="mt-1 text-[11px] text-violet-900/80">
+                              Avg Customer Pain:{' '}
+                              {interviewLogs.length > 0
+                                ? `${(
+                                    interviewLogs.reduce(
+                                      (acc, i) => acc + i.painScore1To5,
+                                      0
+                                    ) / interviewLogs.length
+                                  ).toFixed(1)}/5`
+                                : 'N/A'}
+                            </div>
+                          </div>
+
+                          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                            <div className="text-[10px] font-bold uppercase text-amber-800">
+                              Early-Bird Waitlist
+                            </div>
+                            <div className="mt-1 text-sm font-extrabold text-amber-950">
+                              {waitlistAcrossSurveys.length} Lead
+                              {waitlistAcrossSurveys.length === 1 ? '' : 's'}
+                            </div>
+                            <div className="mt-1 text-[11px] text-amber-900/80">
+                              Feeds Module D &amp; Module I
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section 2: Customer Validation Surveys */}
+                      <div className="py-5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                          2. Customer Validation Surveys &amp; AI Signal Synthesis
+                        </div>
+                        {validSurveys.length === 0 ? (
+                          <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-slate-500">
+                            No customer surveys created yet (validating via
+                            1-on-1 customer interviews).
+                          </div>
+                        ) : (
+                          <div className="mt-2.5 space-y-3">
+                            {validSurveys.map((survey, sIdx) => {
+                              const sReal = survey.responses.filter(
+                                (r) => !r.isSimulated
+                              ).length;
+                              const sWaitlist = survey.responses.filter(
+                                (r) =>
+                                  r.joinedWaitlist &&
+                                  Boolean(r.respondentEmail?.trim())
+                              ).length;
+                              return (
+                                <div
+                                  key={survey.id}
+                                  className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5"
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                      <span className="text-[10px] font-bold uppercase text-indigo-600">
+                                        Survey #{sIdx + 1}
+                                      </span>
+                                      <div className="text-sm font-bold text-slate-900">
+                                        {survey.title}
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <Badge
+                                        className={
+                                          survey.isPublished
+                                            ? 'bg-emerald-100 text-[10px] text-emerald-900'
+                                            : 'bg-amber-100 text-[10px] text-amber-900'
+                                        }
+                                      >
+                                        {survey.isPublished
+                                          ? '🔒 Published & Locked'
+                                          : 'Draft'}
+                                      </Badge>
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-[10px]"
+                                      >
+                                        {survey.questions.length} Questions •{' '}
+                                        {survey.responses.length} Responses (
+                                        {sReal} Real) • {sWaitlist} Waitlist
+                                      </Badge>
+                                    </div>
+                                  </div>
+
+                                  {survey.aiInsightsSummary && (
+                                    <div className="mt-2.5 rounded-lg border border-indigo-200 bg-indigo-50/70 p-2.5 text-[11px] text-indigo-950">
+                                      <div>
+                                        <strong>
+                                          AI Signal Score (
+                                          {
+                                            survey.aiInsightsSummary
+                                              .signalScoreOutOf100
+                                          }
+                                          /100):
+                                        </strong>{' '}
+                                        {
+                                          survey.aiInsightsSummary
+                                            .headlineTakeaway
+                                        }
+                                      </div>
+                                      <div className="mt-1 text-indigo-900/90">
+                                        <strong>
+                                          Recommended V1 Action (Feeds Module D):
+                                        </strong>{' '}
+                                        {
+                                          survey.aiInsightsSummary
+                                            .recommendedNextAction
+                                        }
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Section 3: 1-on-1 Customer Discovery Interviews */}
+                      <div className="py-5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                          3. 1-on-1 Customer Discovery Interview Log (
+                          {interviewLogs.length})
+                        </div>
+                        {interviewLogs.length === 0 ? (
+                          <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-slate-500">
+                            No 1-on-1 customer interviews logged yet.
+                          </div>
+                        ) : (
+                          <div className="mt-2.5 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                            {interviewLogs.map((log) => (
+                              <div
+                                key={log.id}
+                                className="rounded-xl border border-slate-200 bg-slate-50/70 p-3"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <div className="font-bold text-slate-900">
+                                      {log.intervieweeNameOrRole}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500">
+                                      {log.date} • {formatInterviewChannel(log)}
+                                    </div>
+                                  </div>
+                                  <Badge
+                                    variant={
+                                      log.signalBadge === 'STRONG_SIGNAL'
+                                        ? 'success'
+                                        : log.signalBadge === 'MIXED_SIGNAL'
+                                          ? 'warning'
+                                          : 'secondary'
+                                    }
+                                    className="text-[10px]"
+                                  >
+                                    Pain {log.painScore1To5}/5 •{' '}
+                                    {INTERVIEW_SIGNAL_LABELS[log.signalBadge]}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1.5 text-[11px] font-medium text-slate-800">
+                                  {log.keyTakeaway}
+                                </p>
+                                {log.verbatimQuote?.trim() && (
+                                  <p className="mt-1 text-[11px] italic text-slate-600">
+                                    &ldquo;{log.verbatimQuote.trim()}&rdquo;
+                                  </p>
+                                )}
+                                <div className="mt-1.5 text-[10px] font-semibold text-indigo-700">
+                                  Outcome: {formatInterviewCommitment(log)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Section 4: Co-Founder Blind-Spot Takeaways */}
+                      <div className="pt-5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                          4. Co-Founder Blind-Spot Review (&ldquo;Things to
+                          Consider&rdquo;)
+                        </div>
+                        <div className="mt-2.5 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                          {liveThingsToConsider.map((item) => (
+                            <div
+                              key={item.id}
+                              className="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
+                            >
+                              <div className="font-bold text-slate-900">
+                                {item.title}
+                              </div>
+                              <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                                {item.suggestedAction || item.explanation}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bottom Action Bar: Copy, Download HTML, Print/Save PDF */}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
+                  <div className="text-xs text-slate-600">
+                    📥{' '}
+                    <strong>
+                      Take your Customer Validation &amp; Interview Brief with
+                      you:
+                    </strong>{' '}
+                    Download a standalone file, print/save as PDF, or copy for
+                    grant &amp; accelerator applications.
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyModuleCBrief}
+                    >
+                      {briefCopied ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          Copied to Clipboard!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5 text-slate-600" />
+                          Copy Summary
+                        </>
+                      )}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownloadModuleCBriefHtml}
+                    >
+                      <Download className="h-3.5 w-3.5 text-indigo-600" />
+                      Download Brief (.html)
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handlePrintModuleCBriefPdf}
+                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      Print / Save as PDF
+                    </Button>
+                  </div>
                 </div>
+              </>
+            )}
+
+            {/* Handoff Footer CTA into Module D (Matches Module B Dark Footer Bar 100%) */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
+              <div className="text-xs">
+                <span className="font-semibold text-indigo-300">
+                  Ready to scope V1 of {plan.title} based on real customer
+                  evidence?
+                </span>{' '}
+                Your validated pain points, workaround spend, and{' '}
+                <strong>{waitlistAcrossSurveys.length} waitlist leads</strong>{' '}
+                will automatically feed into{' '}
+                <strong>
+                  Module D (Product Vehicle &amp; Ruthless V1 Feature Filter)
+                </strong>
+                .
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onBackToModuleB}
+                  className="border-slate-700 bg-slate-800 text-xs text-slate-200 hover:bg-slate-700"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Back to Module B
+                </Button>
                 {onContinueToModuleD && (
                   <Button
                     type="button"
@@ -6370,129 +7116,17 @@ export function ModuleCWorkspace({
                       await handleSaveModuleCComplete();
                       onContinueToModuleD();
                     }}
-                    className="bg-indigo-500 text-white hover:bg-indigo-400"
+                    className="bg-indigo-600 text-white hover:bg-indigo-500"
                   >
                     Continue to Module D
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </>
+            </div>
+          </CardContent>
+        </Card>
       )}
-
-      {/* =================================================================== */}
-      {/* BOTTOM NAVIGATION BAR (BACK TO MODULE B / CONTINUE)                 */}
-      {/* =================================================================== */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onBackToModuleB}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Module B (Market &amp; Competitors)
-        </Button>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {activeModuleCSection === 'SURVEYS' &&
-          activeSurvey &&
-          activeViewTab === 'BUILDER' ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveViewTab('OUTREACH')}
-              >
-                <QrCode className="h-4 w-4 text-indigo-600" />
-                Next: Outreach &amp; QR Kit
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  setActiveViewTab('INSIGHTS');
-                  handleSyncLiveResponses(true);
-                }}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
-              >
-                View Results &amp; AI Insights ({totalResponses})
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </>
-          ) : activeModuleCSection === 'SURVEYS' &&
-            activeSurvey &&
-            activeViewTab === 'OUTREACH' ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveModuleCSection('INTERVIEWS')}
-              >
-                <Mic className="h-4 w-4 text-indigo-600" />
-                Switch to 1-on-1 Interviews ({interviewLogs.length})
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  setActiveViewTab('INSIGHTS');
-                  handleSyncLiveResponses(true);
-                }}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
-              >
-                View Results &amp; AI Insights ({totalResponses})
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </>
-          ) : activeModuleCSection === 'INTERVIEWS' ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveModuleCSection('SURVEYS')}
-              >
-                <FileText className="h-4 w-4 text-indigo-600" />
-                Switch to Customer Surveys ({surveys.length})
-              </Button>
-              {onContinueToModuleD && (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={async () => {
-                    await handleSaveModuleCComplete();
-                    onContinueToModuleD();
-                  }}
-                  className="bg-indigo-600 text-white hover:bg-indigo-700"
-                >
-                  Save &amp; Continue
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              )}
-            </>
-          ) : (
-            onContinueToModuleD && (
-              <Button
-                type="button"
-                size="sm"
-                onClick={async () => {
-                  await handleSaveModuleCComplete();
-                  onContinueToModuleD();
-                }}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
-              >
-                Save &amp; Continue
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            )
-          )}
-        </div>
-      </div>
     </div>
   );
 }

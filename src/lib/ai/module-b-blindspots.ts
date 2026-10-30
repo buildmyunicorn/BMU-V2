@@ -229,7 +229,7 @@ export function buildDynamicModuleBBlindSpots(
       ? `Because you selected international selling markets (${marketsText}), you align strongly with export-focused supports like ${topGrant}. However, grant assessors will ask: "How many real target customers have you actually surveyed or interviewed?"`
       : `You are launching in ${countryPack.countryName} first. Whether you apply for ${topGrant} or bootstrap from customer sales, real customer survey data is the strongest proof you can show.`,
     suggestedAction:
-      'Proceed to Module C (Customer Surveys & Feedback) to publish your unbiased "/v/[slug]" validation survey and collect your first 15+ real buyer responses and waitlist signups.',
+      'Proceed to Module C (Customer Surveys & Feedback) to publish your unbiased customer validation survey link and collect your first 15+ real buyer responses and waitlist signups.',
   };
 
   return [card1, card2, card3, card4, card5, card6];

@@ -3858,6 +3858,8 @@ export default function WorkspacePage() {
               </Button>
             </Link>
 
+            {/* Ask Preflight AI button temporarily hidden */}
+            {/*
             <Button
               size="sm"
               onClick={() => setAskUnicornOpen(!askUnicornOpen)}
@@ -3867,6 +3869,7 @@ export default function WorkspacePage() {
               <span className=" sm:hidden">Ask AI</span>
               <span className="hidden sm:inline">Ask Preflight AI</span>
             </Button>
+            */}
           </div>
         </div>
       </header>

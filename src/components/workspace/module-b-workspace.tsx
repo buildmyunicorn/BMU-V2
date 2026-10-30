@@ -5839,8 +5839,8 @@ export function ModuleBWorkspace({
                 Ready to test {plan.title} with real customers?
               </span>{' '}
               Continue to Module C to generate your unbiased Customer Validation
-              Survey link (<code>/v/my-startup</code>), collect real buyer
-              feedback, and build your early waitlist.
+              Survey link, collect real buyer feedback, and build your early
+              waitlist.
             </div>
             <Button
               type="button"

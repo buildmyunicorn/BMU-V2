@@ -178,8 +178,8 @@ export default function TermsOfServicePage() {
               <p>You agree not to:</p>
               <ul className="list-disc space-y-1.5 pl-5">
                 <li>
-                  Use public validation survey pages (`/v/[slug]`) for phishing,
-                  unlawful data harvesting, deceptive marketing, or spam.
+                  Use public validation survey pages for phishing, unlawful data
+                  harvesting, deceptive marketing, or spam.
                 </li>
                 <li>
                   Attempt to bypass authentication, rate limits, tenant

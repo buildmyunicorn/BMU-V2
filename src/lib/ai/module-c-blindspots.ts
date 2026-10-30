@@ -102,8 +102,8 @@ export function buildDynamicModuleCBlindSpots(
               ? `You have ${simulatedResponses.length} simulated test response(s) in your survey, which is great for previewing charts, but you have 0 real customer responses and 0 logged 1-on-1 interviews for ${input.planTitle}. Building Module D's product scope on unvalidated assumptions is the #1 cause of wasted V1 spend.`
               : `You have drafted your validation questions for ${input.planTitle}, but haven't collected any real survey responses or logged any 1-on-1 customer interviews yet.`,
           suggestedAction: primarySurvey
-            ? `Publish & lock your "/v/${primarySurvey.publicSlug}" survey link, send it to 15–20 people matching "${beachheadLabel}" using the Outreach Kit, or log at least 3–5 real 1-on-1 discovery calls before locking your V1 feature list in Module D.`
-            : `Log at least 5 real 1-on-1 customer discovery calls with "${beachheadLabel}" or publish a public "/v/[slug]" validation survey to gather baseline evidence.`,
+            ? `Publish & lock your "${primarySurvey.title || 'customer validation'}" survey link, send it to 15–20 people matching "${beachheadLabel}" using the Outreach Kit, or log at least 3–5 real 1-on-1 discovery calls before locking your V1 feature list in Module D.`
+            : `Log at least 5 real 1-on-1 customer discovery calls with "${beachheadLabel}" or publish a public validation survey link to gather baseline evidence.`,
         }
       : totalRealTouchpoints < 10
         ? {
@@ -145,7 +145,7 @@ export function buildDynamicModuleCBlindSpots(
             category: 'Surveys vs. 1-on-1 Discovery Balance',
             severity: 'INFO',
             title: `${interviewLogs.length} 1-on-1 Interview${interviewLogs.length === 1 ? '' : 's'} Logged Without a Broad Survey Funnel`,
-            explanation: `Your ${interviewLogs.length} 1-on-1 interview(s) provide rich qualitative quotes and deep context, which is fantastic. However, without an async "/v/[slug]" validation survey, you may miss broader quantitative pattern matching and automated waitlist email capture.`,
+            explanation: `Your ${interviewLogs.length} 1-on-1 interview(s) provide rich qualitative quotes and deep context, which is fantastic. However, without an async public validation survey, you may miss broader quantitative pattern matching and automated waitlist email capture.`,
             suggestedAction: `Consider launching a 5-question Mom-Test survey in Module C using the problems uncovered in your 1-on-1 calls to test if the same pain holds true across 25+ people in "${beachheadLabel}".`,
           }
         : {

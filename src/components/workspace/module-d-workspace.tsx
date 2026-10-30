@@ -480,7 +480,7 @@ export const ADAPTIVE_STEP1_CONFIG_BY_TRACK: Record<
     whyFitsLabel:
       '6. Why this Software Form Factor fits your customer & protects your budget',
     whyFitsPlaceholder:
-      'e.g., Launching as a Desktop-First, Mobile-Ready Web App avoids the 30% Apple App Store fee, lets founders work comfortably on big screens when writing grant applications, and works on mobile for public /v/[slug] customer surveys.',
+      'e.g., Launching as a Desktop-First, Mobile-Ready Web App avoids the 30% Apple App Store fee, lets founders work comfortably on big screens when writing grant applications, and works on mobile for public customer surveys.',
   },
 
   PHYSICAL_PRODUCT_ECOM: {
@@ -2018,7 +2018,7 @@ const ADAPTIVE_STEP3_CONFIG_BY_TRACK: Record<
       {
         id: 'saas-v1-2',
         title:
-          'Hosted Public Validation Survey & Waitlist Engine (/v/[slug] + QR Code Kit)',
+          'Hosted Public Validation Survey & Waitlist Engine (Shareable Survey Link + QR Code Kit)',
         bucket: 'MUST_HAVE_V1',
         categoryTag: 'Viral & Proof Engine',
         effortImpact: 'MEDIUM',
@@ -3733,7 +3733,7 @@ export const ADAPTIVE_STEP5_CONFIG_BY_TRACK: Record<
         stageNumber: 4,
         stageTitle: 'Stage 4: Customer Aha! & Grant Export',
         stageSubtitle:
-          'Instant interactive workspace + hosted /v/[slug] survey + 1-click PDF/HTML brief',
+          'Instant interactive workspace + hosted customer survey + 1-click PDF/HTML brief',
         keyToolsOrMaterials: 'Browser Print/PDF Compiler + Public Survey Route',
         outputOrHandoff: 'Submission-ready Business Plan & Grant Pack',
       },
@@ -4872,9 +4872,9 @@ export function ModuleDWorkspace({
         launchTimeline: '1_TO_3_MONTHS',
         otherLaunchTimelineText: '',
         ahaMomentNarrative:
-          'Within 60 seconds of signing up in their browser, an early-stage founder enters their raw startup idea and immediately receives a structured 1-Page Concept Canvas, Mom-Test public survey (/v/[slug]), and localized IE/UK Grant Readiness score—without touching a blank 40-page template.',
+          'Within 60 seconds of signing up in their browser, an early-stage founder enters their raw startup idea and immediately receives a structured 1-Page Concept Canvas, Mom-Test public survey link, and localized IE/UK Grant Readiness score—without touching a blank 40-page template.',
         whyThisVehicleFitsCustomer:
-          'A desktop-first, mobile-ready Web Platform avoids Apple/Google App Store 15–30% commissions, gives founders a full-screen workspace for financial & grant compilation, and provides mobile-optimized public survey links (/v/[slug]) for respondents.',
+          'A desktop-first, mobile-ready Web Platform avoids Apple/Google App Store 15–30% commissions, gives founders a full-screen workspace for financial & grant compilation, and provides mobile-optimized public survey links for respondents.',
         lastSavedAt: nowIso,
       };
       const nextS2: ChannelMatrixStep2Data = {
@@ -4905,7 +4905,7 @@ export function ModuleDWorkspace({
         scopeDisciplineRule: 'CORE_AHA_FLOW_ONLY_NO_NATIVE_APP',
         otherScopeDisciplineRuleText: '',
         whatWeRefuseToBuildInV1Narrative:
-          'In Version 1, we strictly refuse to build native iOS/Android mobile apps, live Xero/QuickBooks accounting syncs, or custom enterprise SAML SSO. Every engineering hour is focused on the core browser workspace, /v/[slug] validation surveys, and official IE/UK grant exports.',
+          'In Version 1, we strictly refuse to build native iOS/Android mobile apps, live Xero/QuickBooks accounting syncs, or custom enterprise SAML SSO. Every engineering hour is focused on the core browser workspace, customer validation surveys, and official IE/UK grant exports.',
         whyThisLeanV1WinsFasterNarrative:
           'Keeping Version 1 locked to 4 core web capabilities lets us ship in weeks, convert 6-Month Pass and AppSumo/Cohort customers immediately, and protect cloud AI margins with our 500 calls/day circuit breaker.',
         lastSavedAt: nowIso,

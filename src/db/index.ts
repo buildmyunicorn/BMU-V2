@@ -6,20 +6,121 @@ const connectionString =
   process.env.DATABASE_URL ||
   'postgresql://bmu_user:bmu_local_password@localhost:5432/bmu_dev';
 
+const DB_CONNECTION_TIMEOUT_MS = 2500;
+const DB_OFFLINE_COOLDOWN_MS = 15_000;
+const POOL_CONFIG_VERSION = 2;
+
 const globalForDb = globalThis as unknown as {
   pool: Pool | undefined;
+  poolVersion: number | undefined;
   schemaSyncedPromise: Promise<void> | undefined;
+  lastConnectionFailureAt: number | undefined;
 };
 
-export const pool =
-  globalForDb.pool ??
-  new Pool({
+function isConnectionLevelError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const msg =
+    'message' in err && typeof (err as { message?: unknown }).message === 'string'
+      ? (err as { message: string }).message.toLowerCase()
+      : '';
+  const code =
+    'code' in err && typeof (err as { code?: unknown }).code === 'string'
+      ? (err as { code: string }).code.toUpperCase()
+      : '';
+  return (
+    code === 'ETIMEDOUT' ||
+    code === 'ECONNREFUSED' ||
+    code === 'EHOSTUNREACH' ||
+    code === 'ENETUNREACH' ||
+    code === 'ENOTFOUND' ||
+    msg.includes('timeout expired') ||
+    msg.includes('connection terminated') ||
+    msg.includes('connect etimedout') ||
+    msg.includes('connect econnrefused') ||
+    msg.includes('offline circuit breaker')
+  );
+}
+
+function createConfiguredPool(): Pool {
+  const rawPool = new Pool({
     connectionString,
     max: 10,
+    connectionTimeoutMillis: DB_CONNECTION_TIMEOUT_MS,
+    idleTimeoutMillis: 10_000,
   });
+
+  // Prevent unhandled pool error events from crashing the Node process when offline/hotspotting
+  rawPool.on('error', (err) => {
+    if (isConnectionLevelError(err)) {
+      globalForDb.lastConnectionFailureAt = Date.now();
+    }
+  });
+
+  const origConnect = rawPool.connect.bind(rawPool);
+  const origQuery = rawPool.query.bind(rawPool);
+
+  // Wrap connect & query with a 15-second offline circuit breaker so when Cloud SQL is
+  // unreachable (e.g. mobile hotspot IP not in GCP Authorized Networks), subsequent queries
+  // fail in 0ms instead of queuing multiple 2.5s–75s TCP timeouts.
+  rawPool.connect = (async (...args: Parameters<typeof origConnect>) => {
+    const lastFail = globalForDb.lastConnectionFailureAt;
+    if (lastFail && Date.now() - lastFail < DB_OFFLINE_COOLDOWN_MS) {
+      throw new Error(
+        '[SPF DB Offline Circuit Breaker] PostgreSQL unreachable (cooldown active).'
+      );
+    }
+    try {
+      const result = await (origConnect as (...a: unknown[]) => Promise<unknown>)(
+        ...args
+      );
+      globalForDb.lastConnectionFailureAt = undefined;
+      return result;
+    } catch (err) {
+      if (isConnectionLevelError(err)) {
+        globalForDb.lastConnectionFailureAt = Date.now();
+      }
+      throw err;
+    }
+  }) as typeof rawPool.connect;
+
+  rawPool.query = (async (...args: Parameters<typeof origQuery>) => {
+    const lastFail = globalForDb.lastConnectionFailureAt;
+    if (lastFail && Date.now() - lastFail < DB_OFFLINE_COOLDOWN_MS) {
+      throw new Error(
+        '[SPF DB Offline Circuit Breaker] PostgreSQL unreachable (cooldown active).'
+      );
+    }
+    try {
+      const result = await (origQuery as (...a: unknown[]) => Promise<unknown>)(
+        ...args
+      );
+      globalForDb.lastConnectionFailureAt = undefined;
+      return result;
+    } catch (err) {
+      if (isConnectionLevelError(err)) {
+        globalForDb.lastConnectionFailureAt = Date.now();
+      }
+      throw err;
+    }
+  }) as typeof rawPool.query;
+
+  return rawPool;
+}
+
+if (
+  globalForDb.pool &&
+  globalForDb.poolVersion !== POOL_CONFIG_VERSION
+) {
+  globalForDb.pool.end().catch(() => {});
+  globalForDb.pool = undefined;
+  globalForDb.schemaSyncedPromise = undefined;
+}
+
+export const pool = globalForDb.pool ?? createConfiguredPool();
 
 if (process.env.NODE_ENV !== 'production') {
   globalForDb.pool = pool;
+  globalForDb.poolVersion = POOL_CONFIG_VERSION;
 }
 
 export const db = drizzle(pool, { schema });

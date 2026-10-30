@@ -130,7 +130,7 @@ export function buildModuleCMarkdownBrief(data: ModuleCBriefData): string {
     '',
   ];
 
-  lines.push('## 2. Customer Validation Surveys (`/v/[slug]`)');
+  lines.push('## 2. Customer Validation Surveys');
   if (validSurveys.length === 0) {
     lines.push('_No customer surveys created yet (1-on-1 interview track active)._');
     lines.push('');
@@ -141,7 +141,7 @@ export function buildModuleCMarkdownBrief(data: ModuleCBriefData): string {
         (r) => r.joinedWaitlist && Boolean(r.respondentEmail?.trim())
       ).length;
       lines.push(
-        `### ${sIdx + 1}. ${survey.title} (\`/v/${survey.publicSlug}\`)`
+        `### ${sIdx + 1}. ${survey.title}`
       );
       lines.push(
         `- **Status:** ${survey.isPublished ? 'Published & Tamper-Proof Locked' : 'Draft'} | **Responses:** ${survey.responses.length} (${sReal} real) | **Waitlist Signups:** ${sWaitlist}`
@@ -329,7 +329,7 @@ export function buildModuleCStandaloneHtmlDocument(
             <div class="card" style="margin-bottom: 12px;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
                 <div>
-                  <div class="card-label">SURVEY #${idx + 1} • /v/${escapeDocumentHtml(survey.publicSlug)}</div>
+                  <div class="card-label">SURVEY #${idx + 1}</div>
                   <div class="card-value" style="font-size: 15px; font-weight: 800;">${escapeDocumentHtml(survey.title)}</div>
                 </div>
                 <span class="pill" style="margin: 0; background: ${survey.isPublished ? '#ecfdf5' : '#fef3c7'}; border-color: ${survey.isPublished ? '#a7f3d0' : '#fde68a'}; color: ${survey.isPublished ? '#065f46' : '#92400e'};">

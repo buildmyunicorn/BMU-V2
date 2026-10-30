@@ -75,7 +75,7 @@ const MODULES_PREVIEW: ModulePreviewItem[] = [
     short: 'Module C',
     title: '1-Click Customer Survey & Waitlist Link',
     plainDesc:
-      'Generate unbiased customer questions, share a hosted /v/[slug] validation & waitlist link, and log 1-on-1 interviews.',
+      'Generate unbiased customer questions, share a hosted customer validation & waitlist link, and log 1-on-1 interviews.',
     grantLink: 'Builds Real Buyer Proof Grant Assessors Demand',
     icon: MessageSquare,
     badge: 'Flagship Tool',

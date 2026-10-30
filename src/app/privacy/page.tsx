@@ -138,10 +138,9 @@ export default function PrivacyPolicyPage() {
                 </li>
                 <li>
                   <strong>Validation Survey &amp; Waitlist Data:</strong> When
-                  you publish a customer discovery survey (`/v/[slug]`), we
-                  process the responses and optional waitlist contact details
-                  submitted by your prospective customers on your behalf as a
-                  Data Processor.
+                  you publish a customer discovery survey, we process the
+                  responses and optional waitlist contact details submitted by
+                  your prospective customers on your behalf as a Data Processor.
                 </li>
                 <li>
                   <strong>Technical &amp; Usage Telemetry:</strong> IP address

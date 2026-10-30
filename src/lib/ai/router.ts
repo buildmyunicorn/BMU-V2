@@ -3209,7 +3209,7 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
     }
     if (validatedPainPoints.length === 0) {
       validatedPainPoints.push(
-        `Collected ${totalResponses} survey response(s) and ${totalInterviews} interview(s) so far. Share your public /v/[slug] link or log 3–5 customer discovery calls to unlock stronger pattern confidence.`
+        `Collected ${totalResponses} survey response(s) and ${totalInterviews} interview(s) so far. Share your public survey link or log 3–5 customer discovery calls to unlock stronger pattern confidence.`
       );
     }
 
@@ -5193,7 +5193,7 @@ export async function generateModuleDWorkPackagesViaRouter(params: {
           costModel: 'SWEAT_EQUITY_ZERO',
           estimatedCostAmount: 0,
           deliverableMilestoneProof:
-            'Interactive founder workspace + mobile-ready public validation page (/v/[slug]) capturing live responses in <60 seconds.',
+            'Interactive founder workspace + mobile-ready public validation survey page capturing live responses in <60 seconds.',
           linkedTaskSummary:
             'Implement the core browser workflow, adaptive industry tracks, and anti-spam public survey/waitlist engine.',
           isGrantEligibleRAndDOrPrototype: true,
@@ -5262,7 +5262,7 @@ export async function generateModuleDWorkPackagesViaRouter(params: {
         {
           id: 'flow-saas-4',
           stageNumber: 4,
-          stageTitle: 'Live Public Proof (/v/[slug]) & Official Grant Exports',
+          stageTitle: 'Live Public Survey Proof & Official Grant Exports',
           executionBadge: 'IN_HOUSE',
           whatHappensHere:
             'Compiles validated survey proof, unit economics, and Work Packages directly into IE LEO, Enterprise Ireland & UK Innovate UK packs.',
@@ -6269,7 +6269,7 @@ export async function generateModuleEOperationsBlueprintViaRouter(params: {
                 '3. AI-Assisted Module Execution & Live Survey Hosting',
               ownerType: 'AUTOMATED_SYSTEM',
               whatHappensStepByStep:
-                'Founder progresses through Modules A–K using rate-limited Gemini 2.5 Flash/Pro synthesis, Mom-Test survey hosting (/v/[slug]), and financial modelling.',
+                'Founder progresses through Modules A–K using rate-limited Gemini 2.5 Flash/Pro synthesis, Mom-Test survey hosting, and financial modelling.',
               toolsEquipmentOrSupplier:
                 'Google GenAI SDK (router.ts 500/day ceiling) + Public Survey Engine',
               activeMinutesPerOrder: 0,

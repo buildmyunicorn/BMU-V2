@@ -662,6 +662,10 @@ export async function registerFounderAction(input: {
       '[SPF Auth] PostgreSQL unreachable during register; using local fallback:',
       err instanceof Error ? err.message : err
     );
+    await setServerSessionCookie({
+      userId: 'local-founder-session',
+      email: cleanEmail,
+    });
     return {
       ok: true,
       mode: 'local_fallback',
@@ -760,6 +764,10 @@ export async function loginFounderAction(input: {
       '[SPF Auth] PostgreSQL unreachable during login; using local fallback:',
       err instanceof Error ? err.message : err
     );
+    await setServerSessionCookie({
+      userId: 'local-founder-session',
+      email: cleanEmail,
+    });
     return {
       ok: true,
       mode: 'local_fallback',

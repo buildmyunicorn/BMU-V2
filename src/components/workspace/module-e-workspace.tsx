@@ -586,7 +586,7 @@ function buildDefaultStep1DataForPlan(
         stageTitle: '3. AI Co-Founder Synthesis & Hosted Validation Survey',
         ownerType: 'AUTOMATED_SYSTEM',
         whatHappensStepByStep:
-          'Founder builds Modules B–K with rate-limited Gemini 2.5 Flash/Pro synthesis and publishes live Mom-Test survey (/v/[slug]).',
+          'Founder builds Modules B–K with rate-limited Gemini 2.5 Flash/Pro synthesis and publishes live Mom-Test customer surveys.',
         toolsEquipmentOrSupplier:
           'Google GenAI SDK (router.ts 500/day guardrail) + Public Survey Engine',
         activeMinutesPerOrder: 0,
@@ -1056,7 +1056,7 @@ function buildDefaultStep2DataForPlan(
         assetCategory: 'SPECIALIST_RND_TEST_RIG',
         acquisitionMode: 'BUY_NEW_OUTRIGHT',
         preferredSuppliersOrSpecs:
-          'Dedicated physical test bench for verifying 375px mobile survey (/v/[slug]) & zero-zoom input compliance (< 1k Single Quote)',
+          'Dedicated physical test bench for verifying 375px mobile survey & zero-zoom input compliance (< 1k Single Quote)',
         quantity: 1,
         unitCostExVat: 920,
         totalCostExVat: 920,
@@ -2602,7 +2602,7 @@ export function ModuleEWorkspace({
           stageTitle: '3. AI Co-Founder Synthesis & Hosted Validation Survey',
           ownerType: 'AUTOMATED_SYSTEM',
           whatHappensStepByStep:
-            'Founder progresses through Modules B–K using rate-limited Gemini 2.5 Flash/Pro synthesis and hosts live Mom-Test validation surveys (/v/[slug]).',
+            'Founder progresses through Modules B–K using rate-limited Gemini 2.5 Flash/Pro synthesis and hosts live Mom-Test validation surveys.',
           toolsEquipmentOrSupplier:
             'Google GenAI SDK (router.ts 500/day ceiling) + Public Survey Engine',
           activeMinutesPerOrder: 0,
@@ -4670,7 +4670,7 @@ export function ModuleEWorkspace({
                         <strong>5 Stages:</strong> (1) Stripe / Voucher checkout
                         unlocks `user_entitlements` (`0m`, `€2.05`) &rarr; (2)
                         Edge Geo-IP localization &amp; Module A (`0m`, `€0.05`)
-                        &rarr; (3) AI-guided Modules B–K + `/v/[slug]` survey
+                        &rarr; (3) AI-guided Modules B–K + public survey
                         hosting (`0m`, `€0.85`) &rarr; (4) 3-Quote Concierge RFP
                         routing to IE/UK partners (`5m`, `€0.00`) &rarr; (5)
                         Module K Grant Audit &amp; Month-6 Vault renewal (`2m`,

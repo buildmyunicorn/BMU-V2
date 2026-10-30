@@ -335,7 +335,10 @@ export async function verifyActiveSessionAndPlanOwnership(planId?: string): Prom
 
     // Super-admin virtual session (master env credentials) or DB user check
     let isSuperAdmin = Boolean(adminSession && adminSession.role === 'SUPER_ADMIN');
-    if (activeSession.userId !== 'super-admin-root') {
+    if (
+      activeSession.userId !== 'super-admin-root' &&
+      activeSession.userId !== 'super-admin-local'
+    ) {
       const [dbUser] = await db
         .select({
           id: users.id,
