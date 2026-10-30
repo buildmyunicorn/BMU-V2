@@ -2163,6 +2163,117 @@ function extractModuleABSurveyContext(params: {
   };
 }
 
+function normalizeSurveyQuestionKey(text: string): string {
+  return (text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function areQuestionsNearDuplicates(a: string, b: string): boolean {
+  const normA = normalizeSurveyQuestionKey(a);
+  const normB = normalizeSurveyQuestionKey(b);
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+  if (normA.length > 24 && normB.length > 24) {
+    if (normA.includes(normB) || normB.includes(normA)) return true;
+  }
+  const stopWords = new Set([
+    'the',
+    'and',
+    'for',
+    'you',
+    'your',
+    'with',
+    'that',
+    'this',
+    'have',
+    'has',
+    'had',
+    'what',
+    'when',
+    'where',
+    'which',
+    'how',
+    'why',
+    'who',
+    'are',
+    'was',
+    'were',
+    'been',
+    'from',
+    'into',
+    'over',
+    'past',
+    'last',
+    'months',
+    'month',
+    'days',
+    'about',
+    'around',
+  ]);
+  const tokensA = normA
+    .split(' ')
+    .filter((w) => w.length > 2 && !stopWords.has(w));
+  const tokensB = normB
+    .split(' ')
+    .filter((w) => w.length > 2 && !stopWords.has(w));
+  if (tokensA.length >= 4 && tokensB.length >= 4) {
+    const setB = new Set(tokensB);
+    const overlap = tokensA.filter((w) => setB.has(w)).length;
+    const minLen = Math.min(tokensA.length, tokensB.length);
+    if (overlap / minLen >= 0.8) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function deduplicateSurveyQuestions(
+  questions: SurveyQuestionItem[]
+): SurveyQuestionItem[] {
+  const unique: SurveyQuestionItem[] = [];
+  const seenIds = new Set<string>();
+  const nowTs = Date.now();
+
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    if (!q || !q.questionText || !q.questionText.trim()) continue;
+    const isDup = unique.some((existing) =>
+      areQuestionsNearDuplicates(existing.questionText, q.questionText)
+    );
+    if (isDup) continue;
+
+    let cleanId = q.id && !seenIds.has(q.id) ? q.id : `q-${nowTs}-${i + 1}`;
+    while (seenIds.has(cleanId)) {
+      cleanId = `q-${nowTs}-${i + 1}-${Math.random().toString(36).slice(2, 5)}`;
+    }
+    seenIds.add(cleanId);
+
+    const dedupedOptions = Array.isArray(q.options)
+      ? q.options.filter((opt, idx, arr) => {
+          const normOpt = normalizeSurveyQuestionKey(opt);
+          return (
+            Boolean(normOpt) &&
+            arr.findIndex(
+              (candidate) => normalizeSurveyQuestionKey(candidate) === normOpt
+            ) === idx
+          );
+        })
+      : undefined;
+
+    unique.push({
+      ...q,
+      id: cleanId,
+      questionText: q.questionText.trim(),
+      ...(dedupedOptions ? { options: dedupedOptions } : {}),
+    });
+  }
+
+  return unique;
+}
+
 function buildSmartFallbackSurvey(params: {
   planTitle: string;
   industryCategory: string;
@@ -2206,7 +2317,6 @@ function buildSmartFallbackSurvey(params: {
     ? `Want early founder access to ${params.planTitle} to help you go from raw idea to validated startup plan (plus a launch discount)? Drop your email below:`
     : `Want early access to ${params.planTitle} plus a founding-member discount when we launch? Leave your email below:`;
 
-  const candidateQuestions: SurveyQuestionItem[] = [];
   const nowTs = Date.now();
 
   // Build natural workaround options weaving in Module B Step 2 competitors
@@ -2270,205 +2380,260 @@ function buildSmartFallbackSurvey(params: {
     }
   }
 
-  // 1. PROBLEM & PAIN INTENSITY (Context-shaped around the customer's real workflow, never copy-pasted quotes!)
-  if (
-    params.focusAreas.includes('PROBLEM_AND_PAIN') ||
-    params.focusAreas.length === 0
-  ) {
-    if (customTopic) {
-      candidateQuestions.push({
-        id: `q-${nowTs}-1`,
-        questionText: `Thinking back over the past 30 days, what has been the hardest part for you around ${cleanInlineSnippet(customTopic, 75).toLowerCase()}?`,
+  const outcomeOptions: string[] = isStartupIdea
+    ? [
+        'A guided step-by-step path from raw idea to validated plan without a 40-page blank document',
+        'Honest blind-spot feedback that challenges my assumptions before I waste money building',
+        'Built-in customer survey tools and plain-English market/pricing calculators in one place',
+        `Automatic matching with local grants and startup supports in ${ctx.countryPack.countryName}`,
+      ]
+    : [
+        ...(ctx.whySwitchSentence ? [ctx.whySwitchSentence] : []),
+        'Cutting the time it takes from hours of manual work down to a few minutes',
+        'Catching costly mistakes or blind spots before they cause a problem',
+        `Replacing clunky ${ctx.competitorNames[0] || 'spreadsheets and workarounds'} with a simple guided workflow`,
+        'Having clear numbers, tracking, and next steps ready in one place',
+      ];
+
+  // Comprehensive, diverse 9-question structured Mom-Test pool + 1 open story question.
+  // Every entry covers a distinct discovery dimension so no two questions ever duplicate.
+  const structuredPool: Array<{
+    focusTag: SurveyFocusAreaType | 'GENERAL';
+    question: SurveyQuestionItem;
+  }> = [
+    // Q1: Past-30-Day Frequency / Primary Bottleneck (PROBLEM_AND_PAIN)
+    {
+      focusTag: 'PROBLEM_AND_PAIN',
+      question: customTopic
+        ? {
+            id: `q-${nowTs}-1`,
+            questionText: `Thinking back over the past 30 days, what has been the hardest part for you around ${cleanInlineSnippet(customTopic, 75).toLowerCase()}?`,
+            type: 'MULTIPLE_CHOICE',
+            options: isStartupIdea
+              ? [
+                  'Knowing what concrete step to tackle first without spinning my wheels',
+                  'Validating whether real customers actually care and will pay',
+                  'Getting clear on numbers, pricing, and market size',
+                  'It has not been a major issue for me recently',
+                ]
+              : [
+                  'It takes up way too much manual time every week',
+                  'Current tools are clunky and force awkward workarounds',
+                  'It causes costly mistakes or missed opportunities when we get busy',
+                  'It has not been a major issue for me in the past 30 days',
+                ],
+            allowOther: true,
+            momTestPassed: true,
+            momTestFeedback:
+              'Mom-Test Approved: Shapes your custom focus topic into a concrete past-30-day experience question.',
+          }
+        : isStartupIdea
+          ? {
+              id: `q-${nowTs}-1`,
+              questionText:
+                'Thinking back over the past 30 days of working on your startup idea, which part of turning your concept into a real business has slowed you down the most?',
+              type: 'MULTIPLE_CHOICE',
+              options: [
+                'Knowing the right step-by-step roadmap to go from a raw idea to a structured plan',
+                'Validating whether customers actually have the problem and will pay before I build',
+                'Figuring out realistic market sizing, competitor positioning, and pricing',
+                'Navigating local grants, funding applications, or company setup requirements',
+                'Nothing has slowed me down — my validation and launch plan are already sorted',
+              ],
+              allowOther: true,
+              momTestPassed: true,
+              momTestFeedback:
+                'Mom-Test Approved: Translates your Module A founder-coaching concept into the respondent’s real startup-building bottlenecks over the past 30 days.',
+            }
+          : {
+              id: `q-${nowTs}-1`,
+              questionText: `Thinking back over the past 30 days, how often has ${ctx.customerWorkflowGerund} slowed you down or caused extra work?`,
+              type: 'MULTIPLE_CHOICE',
+              options: [
+                'Almost every day — it is a constant time sink in my routine',
+                'Several times a week whenever we get busy',
+                'A few times a month (usually around key deadlines)',
+                'Rarely or never — our current setup handles it smoothly',
+              ],
+              allowOther: true,
+              momTestPassed: true,
+              momTestFeedback:
+                'Mom-Test Approved: Measures real past-30-day frequency in the customer’s own workflow without leading them.',
+            },
+    },
+    // Q2: Pain Severity Scale 1–5 (PROBLEM_AND_PAIN)
+    {
+      focusTag: 'PROBLEM_AND_PAIN',
+      question: {
+        id: `q-${nowTs}-2`,
+        questionText: isStartupIdea
+          ? 'When you sit down to move your startup idea forward, how overwhelming or fragmented does the planning and validation process feel right now on a scale of 1 to 5?'
+          : ctx.triggerPhrase
+            ? `When you are ${ctx.triggerPhrase}, how painful or disruptive is ${ctx.customerWorkflowGerund} on a scale of 1 to 5?`
+            : `Right now, how big of a headache is ${ctx.customerWorkflowGerund} for you on a scale of 1 to 5?`,
+        type: 'SCALE_1_5',
+        scaleMinLabel: isStartupIdea
+          ? '1 = Very clear — I know my exact roadmap'
+          : '1 = Minor annoyance, easy to ignore',
+        scaleMaxLabel: isStartupIdea
+          ? '5 = Major blocker — stuck in guesswork and scattered notes'
+          : '5 = Urgent blocker costing real time or money',
+        momTestPassed: true,
+        momTestFeedback:
+          'Mom-Test Approved: Quantifies pain intensity in the customer’s real situation so you can separate hair-on-fire leads from polite browsers.',
+      },
+    },
+    // Q3: Current Tools, Habits & Named Competitors Used (CURRENT_WORKAROUNDS)
+    {
+      focusTag: 'CURRENT_WORKAROUNDS',
+      question: {
+        id: `q-${nowTs}-3`,
+        questionText: isStartupIdea
+          ? 'How have you tried to structure your startup idea, validate demand, or build your business plan over the past 6 months? (Select all that apply)'
+          : `How are you currently handling ${ctx.customerWorkflowGerund} today—or which of these have you tried in the past 6 months? (Select all that apply)`,
+        type: 'MULTI_SELECT',
+        options: workaroundOptions.slice(0, 5),
+        allowOther: true,
+        momTestPassed: true,
+        momTestFeedback: `Mom-Test Approved: Tests your Module B Step 2 alternatives (${ctx.competitorNames.join(', ') || 'status-quo habits'}) to see what respondents actively use today.`,
+      },
+    },
+    // Q4: #1 Frustration with Current Approach (CURRENT_WORKAROUNDS)
+    {
+      focusTag: 'CURRENT_WORKAROUNDS',
+      question: {
+        id: `q-${nowTs}-4`,
+        questionText: isStartupIdea
+          ? 'What has been your biggest frustration with the tools, templates, or advice you have used so far?'
+          : `What has been your #1 frustration with how your current tools or workarounds handle ${ctx.customerWorkflowGerund}?`,
+        type: 'MULTIPLE_CHOICE',
+        options: frustrationOptions.slice(0, 4),
+        allowOther: true,
+        momTestPassed: true,
+        momTestFeedback:
+          'Mom-Test Approved: Validates whether real customers feel the exact competitor shortfalls you identified in Module B Step 2.',
+      },
+    },
+    // Q5: Past 12-Month Spend & Budget Reality (PAST_SPENDING_BUDGET)
+    {
+      focusTag: 'PAST_SPENDING_BUDGET',
+      question: {
+        id: `q-${nowTs}-5`,
+        questionText: isStartupIdea
+          ? `Over the past 12 months, roughly how much have you spent (${ctx.billingCadenceLabel}) on software, templates, courses, or advisors to help get your startup idea off the ground?`
+          : `Over the past 12 months, roughly how much have you spent (${ctx.billingCadenceLabel}) on software, tools, or external help for ${ctx.customerWorkflowGerund}?`,
+        type: 'MULTIPLE_CHOICE',
+        options: [
+          `${formatPlanCurrency(0, ctx.curr)} — only used free tools and my own time so far`,
+          `Under ${ctx.lowBracket} ${ctx.billingCadenceLabel}`,
+          `${ctx.lowBracket} – ${ctx.midBracket} ${ctx.billingCadenceLabel}`,
+          `${ctx.midBracket} – ${ctx.highBracket} ${ctx.billingCadenceLabel}`,
+          `Over ${ctx.highBracket} ${ctx.billingCadenceLabel}`,
+        ],
+        allowOther: true,
+        momTestPassed: true,
+        momTestFeedback: `Mom-Test Approved: Anchors budget brackets around your Module B Step 3 target price (${ctx.midBracket}) by asking about actual past spend rather than hypothetical promises.`,
+      },
+    },
+    // Q6: Buying Trigger & Urgent Milestone Moment (WORKFLOW_AND_HABITS)
+    {
+      focusTag: 'WORKFLOW_AND_HABITS',
+      question: {
+        id: `q-${nowTs}-6`,
+        questionText: isStartupIdea
+          ? 'What milestone or moment usually pushes you to sit down and get your startup plan and validation sorted out urgently?'
+          : `What moment or deadline usually triggers the urgent need to sort out ${ctx.customerWorkflowGerund}?`,
         type: 'MULTIPLE_CHOICE',
         options: isStartupIdea
           ? [
-              'Knowing what concrete step to tackle first without spinning my wheels',
-              'Validating whether real customers actually care and will pay',
-              'Getting clear on numbers, pricing, and market size',
-              'It has not been a major issue for me recently',
+              'Preparing to apply for a local enterprise grant, incubator, or accelerator deadline',
+              'Before spending serious money or hiring someone to build Version 1',
+              'Getting ready to pitch co-founders, angel investors, or early partners',
+              'Feeling stuck with too many ideas in my head and needing a clear roadmap',
             ]
           : [
-              'It takes up way too much manual time every week',
-              'Current tools are clunky and force awkward workarounds',
-              'It causes costly mistakes or missed opportunities when we get busy',
-              'It has not been a major issue for me in the past 30 days',
+              ctx.triggerPhrase
+                ? `When ${ctx.triggerPhrase}`
+                : 'When preparing for an upcoming client, launch, or reporting deadline',
+              'When manual spreadsheets and notes get too messy and start causing mistakes',
+              'When we realize how many hours every week are being lost to manual steps',
+              'When a manager, partner, or client asks for clear numbers and proof',
             ],
         allowOther: true,
         momTestPassed: true,
         momTestFeedback:
-          'Mom-Test Approved: Shapes your custom focus topic into a concrete past-30-day experience question.',
-      });
-    } else if (isStartupIdea) {
-      candidateQuestions.push({
-        id: `q-${nowTs}-1`,
-        questionText:
-          'Thinking back over the past 30 days of working on your startup idea, which part of turning your concept into a real business has slowed you down the most?',
+          'Mom-Test Approved: Identifies the real-world buying trigger moment from Module B Step 1.',
+      },
+    },
+    // Q7: Most Valuable Outcome / #1 V1 Priority (FEATURE_PRIORITIES)
+    {
+      focusTag: 'FEATURE_PRIORITIES',
+      question: {
+        id: `q-${nowTs}-7`,
+        questionText: isStartupIdea
+          ? 'If one part of taking your startup from early idea to launch could be 10x easier tomorrow, which outcome would help you the most? (Select up to 2)'
+          : `If you could fix ONE part of ${ctx.customerWorkflowGerund} tomorrow, which outcome would be most valuable to you? (Select up to 2)`,
+        type: 'MULTI_SELECT',
+        options: outcomeOptions.slice(0, 4),
+        allowOther: true,
+        momTestPassed: true,
+        momTestFeedback:
+          'Mom-Test Approved: Tests the core value proposition from Module A & Module B Step 4 by asking which outcome solves their biggest bottleneck.',
+      },
+    },
+    // Q8: Past Switching Friction & Why Alternatives Failed (GENERAL)
+    {
+      focusTag: 'GENERAL',
+      question: {
+        id: `q-${nowTs}-8`,
+        questionText: isStartupIdea
+          ? 'Have you ever tried using a business plan template, AI tool, or startup course in the past 12 months only to abandon it—and if so, why did you stop?'
+          : `Have you tried switching how you handle ${ctx.customerWorkflowGerund} in the past 12 months—and what held you back?`,
+        type: 'MULTIPLE_CHOICE',
+        options: isStartupIdea
+          ? [
+              'It felt like generic homework and did not tell me what my specific idea was missing',
+              'It asked for complex financial projections before I had even validated my customers',
+              'It was too expensive for a pre-revenue founder',
+              'I have not tried any structured startup tools or templates yet',
+            ]
+          : [
+              `Tried ${ctx.competitorNames[0] || 'another tool'}, but it was too generic or complex for our workflow`,
+              `Looked at ${ctx.competitorNames[1] || 'hiring external help'}, but the cost (${ctx.highBracket}+) was too high`,
+              'Wanted to improve it, but did not have time to set up a new system from scratch',
+              'Have not actively looked for a better way yet',
+            ],
+        allowOther: true,
+        momTestPassed: true,
+        momTestFeedback:
+          'Mom-Test Approved: Uncovers real past switching friction and why existing alternatives failed them.',
+      },
+    },
+    // Q9: Weekly Time Cost & Operational Impact (WORKFLOW_AND_HABITS / GENERAL)
+    {
+      focusTag: 'WORKFLOW_AND_HABITS',
+      question: {
+        id: `q-${nowTs}-9`,
+        questionText: isStartupIdea
+          ? 'In a typical week, roughly how many hours do you spend researching, rewriting notes, or trying to piece together your startup plan and validation?'
+          : `In a typical week, roughly how much time do you or your team lose dealing with ${ctx.customerWorkflowGerund}?`,
         type: 'MULTIPLE_CHOICE',
         options: [
-          'Knowing the right step-by-step roadmap to go from a raw idea to a structured plan',
-          'Validating whether customers actually have the problem and will pay before I build',
-          'Figuring out realistic market sizing, competitor positioning, and pricing',
-          'Navigating local grants, funding applications, or company setup requirements',
-          'Nothing has slowed me down — my validation and launch plan are already sorted',
+          'Less than 1 hour a week',
+          '1 to 3 hours a week of manual effort',
+          '4 to 8 hours a week (a full workday lost)',
+          'More than 8 hours a week across the team',
         ],
         allowOther: true,
         momTestPassed: true,
         momTestFeedback:
-          'Mom-Test Approved: Translates your Module A founder-coaching concept into the respondent’s real startup-building bottlenecks over the past 30 days.',
-      });
-    } else {
-      candidateQuestions.push({
-        id: `q-${nowTs}-1`,
-        questionText: `Thinking back over the past 30 days, how often has ${ctx.customerWorkflowGerund} slowed you down or caused extra work?`,
-        type: 'MULTIPLE_CHOICE',
-        options: [
-          'Almost every day — it is a constant time sink in my routine',
-          'Several times a week whenever we get busy',
-          'A few times a month (usually around key deadlines)',
-          'Rarely or never — our current setup handles it smoothly',
-        ],
-        allowOther: true,
-        momTestPassed: true,
-        momTestFeedback:
-          'Mom-Test Approved: Measures real past-30-day frequency in the customer’s own workflow without leading them.',
-      });
-    }
+          'Mom-Test Approved: Quantifies real weekly time cost so you can calculate ROI in Module H & Module L.',
+      },
+    },
+  ];
 
-    candidateQuestions.push({
-      id: `q-${nowTs}-2`,
-      questionText: isStartupIdea
-        ? 'When you sit down to move your startup idea forward, how overwhelming or fragmented does the planning and validation process feel right now on a scale of 1 to 5?'
-        : ctx.triggerPhrase
-          ? `When you are ${ctx.triggerPhrase}, how painful or disruptive is ${ctx.customerWorkflowGerund} on a scale of 1 to 5?`
-          : `Right now, how big of a headache is ${ctx.customerWorkflowGerund} for you on a scale of 1 to 5?`,
-      type: 'SCALE_1_5',
-      scaleMinLabel: isStartupIdea
-        ? '1 = Very clear — I know my exact roadmap'
-        : '1 = Minor annoyance, easy to ignore',
-      scaleMaxLabel: isStartupIdea
-        ? '5 = Major blocker — stuck in guesswork and scattered notes'
-        : '5 = Urgent blocker costing real time or money',
-      momTestPassed: true,
-      momTestFeedback:
-        'Mom-Test Approved: Quantifies pain intensity in the customer’s real situation so you can separate hair-on-fire leads from polite browsers.',
-    });
-  }
-
-  // 2. CURRENT WORKAROUNDS & COMPETITORS (Tailored to Module B Step 2 Competitors & Workarounds)
-  if (
-    params.focusAreas.includes('CURRENT_WORKAROUNDS') ||
-    candidateQuestions.length < 3
-  ) {
-    candidateQuestions.push({
-      id: `q-${nowTs}-3`,
-      questionText: isStartupIdea
-        ? 'How have you tried to structure your startup idea, validate demand, or build your business plan over the past 6 months? (Select all that apply)'
-        : `How are you currently handling ${ctx.customerWorkflowGerund} today—or which of these have you tried in the past 6 months? (Select all that apply)`,
-      type: 'MULTI_SELECT',
-      options: workaroundOptions.slice(0, 5),
-      allowOther: true,
-      momTestPassed: true,
-      momTestFeedback: `Mom-Test Approved: Tests your Module B Step 2 alternatives (${ctx.competitorNames.join(', ') || 'status-quo habits'}) to see what respondents actively use today.`,
-    });
-
-    candidateQuestions.push({
-      id: `q-${nowTs}-3b`,
-      questionText: isStartupIdea
-        ? 'What has been your biggest frustration with the tools, templates, or advice you have used so far?'
-        : `What has been your #1 frustration with how your current tools or workarounds handle ${ctx.customerWorkflowGerund}?`,
-      type: 'MULTIPLE_CHOICE',
-      options: frustrationOptions.slice(0, 4),
-      allowOther: true,
-      momTestPassed: true,
-      momTestFeedback:
-        'Mom-Test Approved: Validates whether real customers feel the exact competitor shortfalls you identified in Module B Step 2.',
-    });
-  }
-
-  // 3. PAST SPENDING & BUDGET REALITY (Tailored to Module B Step 3 Price & Billing Cadence)
-  if (params.focusAreas.includes('PAST_SPENDING_BUDGET')) {
-    candidateQuestions.push({
-      id: `q-${nowTs}-4`,
-      questionText: isStartupIdea
-        ? `Over the past 12 months, roughly how much have you spent (${ctx.billingCadenceLabel}) on software, templates, courses, or advisors to help get your startup idea off the ground?`
-        : `Over the past 12 months, roughly how much have you spent (${ctx.billingCadenceLabel}) on software, tools, or external help for ${ctx.customerWorkflowGerund}?`,
-      type: 'MULTIPLE_CHOICE',
-      options: [
-        `${formatPlanCurrency(0, ctx.curr)} — only used free tools and my own time so far`,
-        `Under ${ctx.lowBracket} ${ctx.billingCadenceLabel}`,
-        `${ctx.lowBracket} – ${ctx.midBracket} ${ctx.billingCadenceLabel}`,
-        `${ctx.midBracket} – ${ctx.highBracket} ${ctx.billingCadenceLabel}`,
-        `Over ${ctx.highBracket} ${ctx.billingCadenceLabel}`,
-      ],
-      allowOther: true,
-      momTestPassed: true,
-      momTestFeedback: `Mom-Test Approved: Anchors budget brackets around your Module B Step 3 target price (${ctx.midBracket}) by asking about actual past spend rather than hypothetical promises.`,
-    });
-  }
-
-  // 4. WORKFLOW & HABITS (Tailored to Module B Step 1 Buying Trigger & Decision Maker)
-  if (params.focusAreas.includes('WORKFLOW_AND_HABITS')) {
-    candidateQuestions.push({
-      id: `q-${nowTs}-5`,
-      questionText: isStartupIdea
-        ? 'What milestone or moment usually pushes you to sit down and get your startup plan and validation sorted out urgently?'
-        : `What moment or deadline usually triggers the urgent need to sort out ${ctx.customerWorkflowGerund}?`,
-      type: 'MULTIPLE_CHOICE',
-      options: isStartupIdea
-        ? [
-            'Preparing to apply for a local enterprise grant, incubator, or accelerator deadline',
-            'Before spending serious money or hiring someone to build Version 1',
-            'Getting ready to pitch co-founders, angel investors, or early partners',
-            'Feeling stuck with too many ideas in my head and needing a clear roadmap',
-          ]
-        : [
-            ctx.triggerPhrase
-              ? `When ${ctx.triggerPhrase}`
-              : 'When preparing for an upcoming client, launch, or reporting deadline',
-            'When manual spreadsheets and notes get too messy and start causing mistakes',
-            'When we realize how many hours every week are being lost to manual steps',
-            'When a manager, partner, or client asks for clear numbers and proof',
-          ],
-      allowOther: true,
-      momTestPassed: true,
-      momTestFeedback:
-        'Mom-Test Approved: Identifies the real-world buying trigger moment from Module B Step 1.',
-    });
-  }
-
-  // 5. FEATURE & OUTCOME PRIORITIES (Tailored to Module A Solution/Unfair Advantage & Module B Step 4 Wedge)
-  if (params.focusAreas.includes('FEATURE_PRIORITIES')) {
-    const outcomeOptions: string[] = isStartupIdea
-      ? [
-          'A guided step-by-step path from raw idea to validated plan without a 40-page blank document',
-          'Honest blind-spot feedback that challenges my assumptions before I waste money building',
-          'Built-in customer survey tools and plain-English market/pricing calculators in one place',
-          `Automatic matching with local grants and startup supports in ${ctx.countryPack.countryName}`,
-        ]
-      : [
-          ...(ctx.whySwitchSentence ? [ctx.whySwitchSentence] : []),
-          'Cutting the time it takes from hours of manual work down to a few minutes',
-          'Catching costly mistakes or blind spots before they cause a problem',
-          `Replacing clunky ${ctx.competitorNames[0] || 'spreadsheets and workarounds'} with a simple guided workflow`,
-          'Having clear numbers, tracking, and next steps ready in one place',
-        ];
-
-    candidateQuestions.push({
-      id: `q-${nowTs}-6`,
-      questionText: isStartupIdea
-        ? 'If one part of taking your startup from early idea to launch could be 10x easier tomorrow, which outcome would help you the most? (Select up to 2)'
-        : `If you could fix ONE part of ${ctx.customerWorkflowGerund} tomorrow, which outcome would be most valuable to you? (Select up to 2)`,
-      type: 'MULTI_SELECT',
-      options: outcomeOptions.slice(0, 4),
-      allowOther: true,
-      momTestPassed: true,
-      momTestFeedback:
-        'Mom-Test Approved: Tests the core value proposition from Module A & Module B Step 4 by asking which outcome solves their biggest bottleneck.',
-    });
-  }
-
-  // Always include a natural, conversational Mom-Test open story question at the end
-  candidateQuestions.push({
+  // Open-text Mom-Test story question (always placed last)
+  const openTextStoryQuestion: SurveyQuestionItem = {
     id: `q-${nowTs}-story`,
     questionText: customTopic
       ? `Walk me through the last time you dealt with ${cleanInlineSnippet(customTopic, 70).toLowerCase()} — what happened, and what was the single most frustrating part?`
@@ -2479,43 +2644,46 @@ function buildSmartFallbackSurvey(params: {
     momTestPassed: true,
     momTestFeedback:
       'Mom-Test Approved: Classic "walk me through the last time" prompt written in natural customer language.',
-  });
+  };
 
-  // If we still need more questions to hit desiredCount, insert a natural past-switching question
+  const activeFocusSet = new Set<SurveyFocusAreaType>(
+    params.focusAreas && params.focusAreas.length > 0
+      ? params.focusAreas
+      : ['PROBLEM_AND_PAIN', 'CURRENT_WORKAROUNDS']
+  );
+
   const desiredCount = Math.min(Math.max(params.questionCount || 5, 3), 8);
-  while (candidateQuestions.length < desiredCount) {
-    candidateQuestions.splice(candidateQuestions.length - 1, 0, {
-      id: `q-${nowTs}-extra-${candidateQuestions.length}`,
-      questionText: isStartupIdea
-        ? 'Have you ever tried using a business plan template, AI tool, or startup course in the past 12 months only to abandon it—and if so, why did you stop?'
-        : `Have you tried switching how you handle ${ctx.customerWorkflowGerund} in the past 12 months—and what held you back?`,
-      type: 'MULTIPLE_CHOICE',
-      options: isStartupIdea
-        ? [
-            'It felt like generic homework and did not tell me what my specific idea was missing',
-            'It asked for complex financial projections before I had even validated my customers',
-            'It was too expensive for a pre-revenue founder',
-            'I have not tried any structured startup tools or templates yet',
-          ]
-        : [
-            `Tried ${ctx.competitorNames[0] || 'another tool'}, but it was too generic or complex for our workflow`,
-            `Looked at ${ctx.competitorNames[1] || 'hiring external help'}, but the cost (${ctx.highBracket}+) was too high`,
-            'Wanted to improve it, but did not have time to set up a new system from scratch',
-            'Have not actively looked for a better way yet',
-          ],
-      allowOther: true,
-      momTestPassed: true,
-      momTestFeedback:
-        'Mom-Test Approved: Uncovers real past switching friction and why existing alternatives failed them.',
-    });
+  const targetStructuredCount = Math.max(desiredCount - 1, 2);
+
+  // First pass: pick questions matching the founder's selected focus areas
+  const selectedStructured: SurveyQuestionItem[] = [];
+  const usedIndices = new Set<number>();
+
+  for (let i = 0; i < structuredPool.length; i++) {
+    const entry = structuredPool[i];
+    if (
+      entry.focusTag !== 'GENERAL' &&
+      activeFocusSet.has(entry.focusTag) &&
+      selectedStructured.length < targetStructuredCount
+    ) {
+      selectedStructured.push(entry.question);
+      usedIndices.add(i);
+    }
   }
 
-  const openTextQ = candidateQuestions[candidateQuestions.length - 1];
-  const structuredQs = candidateQuestions.slice(0, candidateQuestions.length - 1);
-  const finalQuestions = [
-    ...structuredQs.slice(0, desiredCount - 1),
-    openTextQ,
-  ];
+  // Second pass: fill any remaining slots up to targetStructuredCount from unused questions in the pool
+  // (never repeating the same question!)
+  for (let i = 0; i < structuredPool.length; i++) {
+    if (selectedStructured.length >= targetStructuredCount) break;
+    if (usedIndices.has(i)) continue;
+    selectedStructured.push(structuredPool[i].question);
+    usedIndices.add(i);
+  }
+
+  const finalQuestions = deduplicateSurveyQuestions([
+    ...selectedStructured.slice(0, targetStructuredCount),
+    openTextStoryQuestion,
+  ]);
 
   return {
     title,
@@ -2627,6 +2795,7 @@ CRITICAL PERSPECTIVE & MOM TEST RULES:
 3. Shape every question and multiple-choice option around the real bottlenecks, tools (${ctx.competitorNames.join(', ')}), frustrations, triggers, and past spending (${ctx.lowBracket} to ${ctx.highBracket}) relevant to this specific idea.
 4. NEVER ask "Would you buy/use ${sanitizePromptInput(params.planTitle, 120)}?" or "Do you think our idea is good?". Ask ONLY about past behavior, current workarounds, real pain intensity, actual money already spent, and a specific "walk me through the last time" open-text story.
 5. Use a balanced mix of "MULTIPLE_CHOICE", "MULTI_SELECT", "SCALE_1_5", and 1 final "OPEN_TEXT" question.
+6. ZERO DUPLICATE OR OVERLAPPING QUESTIONS: Every single question MUST cover a completely distinct discovery angle (e.g. Q1: Past-30-day frequency, Q2: 1–5 pain severity scale, Q3: Current tools & workarounds used, Q4: #1 frustration with current approach, Q5: Actual past 12-month spend/budget bracket, Q6: Urgent buying trigger or weekly hours lost, Final Q: Open-text "Walk me through the last time" story). Never repeat or rephrase the same question twice.
 
 Return strictly valid JSON matching this schema:
 {
@@ -2676,7 +2845,10 @@ Return strictly valid JSON matching this schema:
         };
 
         if (Array.isArray(parsed.questions) && parsed.questions.length >= 2) {
-          const fallback = buildSmartFallbackSurvey(params);
+          const fallback = buildSmartFallbackSurvey({
+            ...params,
+            questionCount: 8,
+          });
           const normalizeType = (t?: string): SurveyQuestionType =>
             t === 'MULTIPLE_CHOICE' ||
             t === 'MULTI_SELECT' ||
@@ -2685,14 +2857,8 @@ Return strictly valid JSON matching this schema:
               ? t
               : 'MULTIPLE_CHOICE';
 
-          resultPayload = {
-            title: parsed.title?.trim() || fallback.title,
-            introDescription:
-              parsed.introDescription?.trim() || fallback.introDescription,
-            waitlistIncentiveText:
-              parsed.waitlistIncentiveText?.trim() ||
-              fallback.waitlistIncentiveText,
-            questions: parsed.questions.map((q, idx) => {
+          const rawMappedQuestions: SurveyQuestionItem[] = parsed.questions.map(
+            (q, idx) => {
               const qType = normalizeType(q.type);
               const fbQuestion =
                 fallback.questions[idx % fallback.questions.length];
@@ -2705,7 +2871,11 @@ Return strictly valid JSON matching this schema:
                   qType === 'MULTIPLE_CHOICE' || qType === 'MULTI_SELECT'
                     ? Array.isArray(q.options) && q.options.length >= 2
                       ? q.options
-                      : fbQuestion.options || ['Option A', 'Option B', 'Option C']
+                      : fbQuestion.options || [
+                          'Option A',
+                          'Option B',
+                          'Option C',
+                        ]
                     : undefined,
                 allowOther:
                   qType === 'MULTIPLE_CHOICE' || qType === 'MULTI_SELECT'
@@ -2726,7 +2896,36 @@ Return strictly valid JSON matching this schema:
                   fbQuestion.momTestFeedback ||
                   'Mom-Test Approved: Focuses on real past behavior and concrete experience.',
               };
-            }),
+            }
+          );
+
+          // Deduplicate AI questions and top up from diverse fallback pool if any duplicate was stripped
+          const dedupedQuestions =
+            deduplicateSurveyQuestions(rawMappedQuestions);
+          for (const fbQ of fallback.questions) {
+            if (dedupedQuestions.length >= desiredCount) break;
+            const alreadyIncluded = dedupedQuestions.some((existing) =>
+              areQuestionsNearDuplicates(existing.questionText, fbQ.questionText)
+            );
+            if (!alreadyIncluded) {
+              dedupedQuestions.push({
+                ...fbQ,
+                id: `q-${Date.now()}-fb-${dedupedQuestions.length + 1}`,
+              });
+            }
+          }
+
+          resultPayload = {
+            title: parsed.title?.trim() || fallback.title,
+            introDescription:
+              parsed.introDescription?.trim() || fallback.introDescription,
+            waitlistIncentiveText:
+              parsed.waitlistIncentiveText?.trim() ||
+              fallback.waitlistIncentiveText,
+            questions: deduplicateSurveyQuestions(dedupedQuestions).slice(
+              0,
+              desiredCount
+            ),
           };
           engineMode = 'gemini-2.5-flash';
           inputTokensCount =
@@ -2989,60 +3188,31 @@ export async function suggestNextMomTestQuestionViaRouter(params: {
     moduleBData: params.moduleBData,
   });
 
-  const existingTexts = params.existingQuestions
-    .map((q) => q.questionText.toLowerCase())
-    .join(' | ');
+  // Build the full 8-question fallback survey across all focus areas + additional specialized Mom-Test questions
+  const fullPoolSurvey = buildSmartFallbackSurvey({
+    planTitle: params.planTitle,
+    industryCategory: params.industryCategory || 'SaaS / AI / Digital',
+    hqCountryCode: params.hqCountryCode || 'IE',
+    coreProblem: params.coreProblem,
+    targetCustomer: params.targetCustomer,
+    proposedSolution: params.proposedSolution,
+    unfairAdvantage: params.unfairAdvantage,
+    moduleBData: params.moduleBData,
+    focusAreas: [
+      'PROBLEM_AND_PAIN',
+      'CURRENT_WORKAROUNDS',
+      'PAST_SPENDING_BUDGET',
+      'WORKFLOW_AND_HABITS',
+      'FEATURE_PRIORITIES',
+    ],
+    questionCount: 8,
+  });
 
-  const hasScale = params.existingQuestions.some((q) => q.type === 'SCALE_1_5');
-  const hasSpend =
-    existingTexts.includes('spend') ||
-    existingTexts.includes('spent') ||
-    existingTexts.includes('pay') ||
-    existingTexts.includes('budget');
-  const hasCompetitorCheck =
-    (ctx.competitorNames[0] &&
-      existingTexts.includes(ctx.competitorNames[0].toLowerCase())) ||
-    existingTexts.includes('workaround');
-
-  let suggested: SurveyQuestionItem;
-
-  if (!hasCompetitorCheck) {
-    suggested = {
-      id: `q-${Date.now()}-ai`,
-      questionText: `Which of these tools or workarounds have you used in the past 6 months when ${ctx.customerWorkflowGerund}? (Select all that apply)`,
-      type: 'MULTI_SELECT',
-      options: [
-        ctx.competitorNames.length >= 2
-          ? `Using ${ctx.competitorNames[0]} or ${ctx.competitorNames[1]}`
-          : `Using ${ctx.competitorNames[0] || 'an existing software tool'}`,
-        ctx.competitorNames[2]
-          ? `Working with ${ctx.competitorNames[2]}`
-          : 'Paying an external consultant, advisor, or agency',
-        'Piecing it together manually in spreadsheets, Notion, or Google Docs',
-        'Nothing structured yet — figuring it out as I go',
-      ],
-      allowOther: true,
-      momTestPassed: true,
-      momTestFeedback: `Mom-Test Approved: Directly tests your Module B Step 2 competitors (${ctx.competitorNames.join(', ') || 'status quo'}) against manual workarounds.`,
-    };
-  } else if (!hasSpend) {
-    suggested = {
-      id: `q-${Date.now()}-ai`,
-      questionText: `Over the past 12 months, roughly how much have you spent (${ctx.billingCadenceLabel}) on tools, templates, or external help for ${ctx.customerWorkflowGerund}?`,
-      type: 'MULTIPLE_CHOICE',
-      options: [
-        `${formatPlanCurrency(0, ctx.curr)} — only used free tools and my own time so far`,
-        `Under ${ctx.lowBracket} ${ctx.billingCadenceLabel}`,
-        `${ctx.lowBracket} – ${ctx.midBracket} ${ctx.billingCadenceLabel}`,
-        `Over ${ctx.midBracket} ${ctx.billingCadenceLabel}`,
-      ],
-      allowOther: true,
-      momTestPassed: true,
-      momTestFeedback: `Mom-Test Approved: Validates real past spending anchored around your Module B Step 3 target price (${ctx.midBracket}).`,
-    };
-  } else if (!hasScale) {
-    suggested = {
-      id: `q-${Date.now()}-ai`,
+  const nowTs = Date.now();
+  const candidatePool: SurveyQuestionItem[] = [
+    ...fullPoolSurvey.questions,
+    {
+      id: `q-${nowTs}-ai-priority`,
       questionText: `Compared to your other priorities right now, how urgent is it for you to ${ctx.customerGoalInfinitive} over the next 3 months?`,
       type: 'SCALE_1_5',
       scaleMinLabel: '1 = Low priority / Someday maybe',
@@ -3050,17 +3220,68 @@ export async function suggestNextMomTestQuestionViaRouter(params: {
       momTestPassed: true,
       momTestFeedback:
         'Mom-Test Approved: Measures whether this is a hair-on-fire priority for your beachhead customer.',
-    };
-  } else {
-    suggested = {
-      id: `q-${Date.now()}-ai`,
+    },
+    {
+      id: `q-${nowTs}-ai-decision`,
+      questionText: `When you decide to adopt a new tool or service for ${ctx.customerWorkflowGerund}, who else typically needs to sign off or be involved?`,
+      type: 'MULTIPLE_CHOICE',
+      options: [
+        'Just me — I make the decision and pay directly',
+        'A co-founder, business partner, or team lead',
+        'Our finance / procurement / operations manager',
+        'An external advisor, accountant, or board member',
+      ],
+      allowOther: true,
+      momTestPassed: true,
+      momTestFeedback:
+        'Mom-Test Approved: Validates the decision-maker vs. end-user buying path from Module B Step 1.',
+    },
+    {
+      id: `q-${nowTs}-ai-shortfall`,
       questionText: `If you tried using ${ctx.competitorNames.slice(0, 2).join(' or ') || 'an existing tool or template'} in the past while ${ctx.customerWorkflowGerund}, what was the #1 reason it fell short for you?`,
       type: 'OPEN_TEXT',
       momTestPassed: true,
       momTestFeedback:
         'Mom-Test Approved: Uncovers real switching triggers and validates the competitor weaknesses you mapped in Module B Step 2.',
-    };
-  }
+    },
+    {
+      id: `q-${nowTs}-ai-discovery`,
+      questionText: `Where do you usually look first when you need a better way or trusted recommendation for ${ctx.customerWorkflowGerund}?`,
+      type: 'MULTIPLE_CHOICE',
+      options: [
+        'Asking peers, founders, or colleagues in my industry network',
+        'Searching Google, YouTube, or AI tools for comparisons',
+        'LinkedIn communities, Reddit threads, or Slack/WhatsApp groups',
+        'Local enterprise support hubs, accelerators, or industry events',
+      ],
+      allowOther: true,
+      momTestPassed: true,
+      momTestFeedback:
+        'Mom-Test Approved: Reveals the exact acquisition channels your target buyers already trust (feeds directly into Module I).',
+    },
+  ];
+
+  // Pick the first candidate question that is NOT a duplicate or near-duplicate of any existing question
+  const unusedCandidate = candidatePool.find(
+    (candidate) =>
+      !params.existingQuestions.some((existing) =>
+        areQuestionsNearDuplicates(existing.questionText, candidate.questionText)
+      )
+  );
+
+  const suggested: SurveyQuestionItem = unusedCandidate
+    ? {
+        ...unusedCandidate,
+        id: `q-${Date.now()}-ai-${Math.random().toString(36).slice(2, 5)}`,
+      }
+    : {
+        id: `q-${Date.now()}-ai-open`,
+        questionText: `What is one part of ${ctx.customerWorkflowGerund} that outsiders or software builders always seem to misunderstand about your day-to-day reality?`,
+        type: 'OPEN_TEXT',
+        momTestPassed: true,
+        momTestFeedback:
+          'Mom-Test Approved: Invites insider domain truth that competitors miss.',
+      };
 
   return {
     allowed: true,

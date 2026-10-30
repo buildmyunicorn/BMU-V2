@@ -499,6 +499,45 @@ function slugifySurveyText(raw: string, suffixNumber: number): string {
   return `${base || 'customer-survey'}-${suffixNumber}`;
 }
 
+function normalizeQuestionTextForDedup(text: string): string {
+  return (text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function deduplicateSurveyQuestionsClient(
+  questions: SurveyQuestionItem[]
+): SurveyQuestionItem[] {
+  const unique: SurveyQuestionItem[] = [];
+  const seenKeys = new Set<string>();
+  const seenIds = new Set<string>();
+
+  for (let i = 0; i < (questions || []).length; i++) {
+    const q = questions[i];
+    if (!q) continue;
+    const normKey = normalizeQuestionTextForDedup(q.questionText);
+    // Keep blank manual questions while editing, but deduplicate non-empty questions
+    if (normKey) {
+      if (seenKeys.has(normKey)) continue;
+      seenKeys.add(normKey);
+    }
+    let cleanId =
+      q.id && !seenIds.has(q.id) ? q.id : `q-${Date.now()}-${i + 1}`;
+    while (seenIds.has(cleanId)) {
+      cleanId = `q-${Date.now()}-${i + 1}-${Math.random().toString(36).slice(2, 5)}`;
+    }
+    seenIds.add(cleanId);
+    unique.push({
+      ...q,
+      id: cleanId,
+    });
+  }
+
+  return unique;
+}
+
 function createBlankSurvey(
   plan: ActiveStartupPlan,
   surveyNumber: number
@@ -551,6 +590,7 @@ export function ModuleCWorkspace({
     const existing = plan.moduleCData?.surveys || [];
     return existing.map((s) => ({
       ...s,
+      questions: deduplicateSurveyQuestionsClient(s.questions || []),
       responses: deduplicateSurveyResponses(s.responses || []),
     }));
   });
@@ -601,6 +641,7 @@ export function ModuleCWorkspace({
         }
         return incomingSurveys.map((s) => ({
           ...s,
+          questions: deduplicateSurveyQuestionsClient(s.questions || []),
           responses: deduplicateSurveyResponses(s.responses || []),
         }));
       }
@@ -617,6 +658,7 @@ export function ModuleCWorkspace({
         if (!curr) {
           return {
             ...inc,
+            questions: deduplicateSurveyQuestionsClient(inc.questions || []),
             responses: deduplicateSurveyResponses(inc.responses || []),
           };
         }
@@ -624,17 +666,18 @@ export function ModuleCWorkspace({
           ...(inc.responses || []),
           ...(curr.responses || []),
         ]);
+        const chosenQuestions =
+          curr.questions.length >= inc.questions.length &&
+          curr.questions.length > 0
+            ? curr.questions
+            : inc.questions;
         return {
           ...curr,
           ...inc,
           title: curr.title.trim() || inc.title,
           isPublished: Boolean(curr.isPublished || inc.isPublished),
           publishedAt: curr.publishedAt || inc.publishedAt,
-          questions:
-            curr.questions.length >= inc.questions.length &&
-            curr.questions.length > 0
-              ? curr.questions
-              : inc.questions,
+          questions: deduplicateSurveyQuestionsClient(chosenQuestions || []),
           responses: mergedResponses,
           aiInsightsSummary: curr.aiInsightsSummary || inc.aiInsightsSummary,
         };
@@ -1062,6 +1105,9 @@ export function ModuleCWorkspace({
       });
 
       if (generated) {
+        const cleanQuestions = deduplicateSurveyQuestionsClient(
+          generated.questions || []
+        );
         await updateActiveSurvey(
           (curr) => {
             const hasLegacyIntroQuote = /currently handle "/i.test(
@@ -1082,10 +1128,10 @@ export function ModuleCWorkspace({
                 ? otherFocusAreaText
                 : '',
               customAiFocusPrompt: customAiFocusPrompt.trim(),
-              questions: generated.questions,
+              questions: cleanQuestions,
             };
           },
-          `✨ Generated ${generated.questions.length} context-shaped Mom-Test questions tailored to your idea!`
+          `✨ Generated ${cleanQuestions.length} context-shaped Mom-Test questions tailored to your idea!`
         );
         setShowAiFocusSelector(false);
       }
@@ -1094,7 +1140,7 @@ export function ModuleCWorkspace({
     }
   };
 
-  // Automatically upgrade any existing draft survey that still has legacy verbatim-quoted questions
+  // Automatically upgrade any existing draft survey that still has legacy verbatim-quoted questions or duplicate questions
   useEffect(() => {
     if (!activeSurvey || isSurveyLocked) return;
     const hasLegacyCopyPasteQuestion = activeSurvey.questions.some((q) =>
@@ -1104,6 +1150,15 @@ export function ModuleCWorkspace({
     );
     if (hasLegacyCopyPasteQuestion && !isGeneratingSurveyWithAi) {
       void handleRunGenerateWithAi();
+      return;
+    }
+
+    const deduped = deduplicateSurveyQuestionsClient(activeSurvey.questions);
+    if (deduped.length < activeSurvey.questions.length) {
+      void updateActiveSurvey((curr) => ({
+        ...curr,
+        questions: deduplicateSurveyQuestionsClient(curr.questions),
+      }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSurvey?.id]);
@@ -1228,7 +1283,10 @@ export function ModuleCWorkspace({
         await updateActiveSurvey(
           (curr) => ({
             ...curr,
-            questions: [...curr.questions, suggested],
+            questions: deduplicateSurveyQuestionsClient([
+              ...curr.questions,
+              suggested,
+            ]),
           }),
           '✨ Added a new Mom-Test question to your survey!'
         );
@@ -3579,16 +3637,6 @@ export function ModuleCWorkspace({
               </p>
 
               <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-                <Button
-                  type="button"
-                  disabled={isSurveyLocked}
-                  onClick={() => setShowAiFocusSelector(true)}
-                  className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xs hover:from-indigo-700 hover:to-violet-700"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Build Questions with AI (Choose Focus)
-                </Button>
-
                 <Button
                   type="button"
                   variant="outline"
