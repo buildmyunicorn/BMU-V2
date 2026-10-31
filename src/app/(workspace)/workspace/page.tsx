@@ -147,6 +147,7 @@ import {
   type OperationsBlindSpotAuditStep6Data,
   type SavedMasterDocumentData,
   type SavedGrantEligibilityCheck,
+  type PromoterProfilesStep1Data,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -224,6 +225,7 @@ import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
 import { ModuleDWorkspace } from '@/components/workspace/module-d-workspace';
 import { ModuleEWorkspace } from '@/components/workspace/module-e-workspace';
+import { ModuleFWorkspace } from '@/components/workspace/module-f-workspace';
 import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
 import { LocalBugCaptureWidget } from '@/components/workspace/local-bug-capture-widget';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
@@ -4094,12 +4096,14 @@ export default function WorkspacePage() {
                         ? 'C'
                         : activeModule === 'MOD_D_PRODUCT_BUILD'
                           ? 'D'
-                          : 'E'}
+                          : activeModule === 'MOD_E_OPERATIONS'
+                            ? 'E'
+                            : 'F'}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-xs font-bold text-slate-900">
                   {isMasterDocumentOpen
-                    ? 'Living Master Document (Modules A–E)'
+                    ? 'Living Master Document (Modules A–F)'
                     : activeModule === 'MOD_A_IDEATION'
                       ? 'Module A: Ideation & Founder Fit'
                       : activeModule === 'MOD_B_MARKET'
@@ -4108,7 +4112,9 @@ export default function WorkspacePage() {
                           ? 'Module C: Customer Surveys & Feedback'
                           : activeModule === 'MOD_D_PRODUCT_BUILD'
                             ? 'Module D: Product & Build Vehicle'
-                            : 'Module E: Operations & Fulfillment'}
+                            : activeModule === 'MOD_E_OPERATIONS'
+                              ? 'Module E: Operations & Fulfillment'
+                              : 'Module F: Team, Survival Budget & Roles'}
                 </div>
                 <div className="text-[11px] text-indigo-700">
                   {mobileSidebarOpen
@@ -4176,7 +4182,8 @@ export default function WorkspacePage() {
                           mod.code === 'MOD_B_MARKET' ||
                           mod.code === 'MOD_C_SURVEYS_FEEDBACK' ||
                           mod.code === 'MOD_D_PRODUCT_BUILD' ||
-                          mod.code === 'MOD_E_OPERATIONS'
+                          mod.code === 'MOD_E_OPERATIONS' ||
+                          mod.code === 'MOD_F_COFOUNDER_TEAM'
                         ) {
                           setIsMasterDocumentOpen(false);
                           setActiveModule(mod.code);
@@ -4382,6 +4389,60 @@ export default function WorkspacePage() {
                 }
                 setIsMasterDocumentOpen(false);
                 setActiveModule(modCode);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          ) : activeModule === 'MOD_F_COFOUNDER_TEAM' ? (
+            <ModuleFWorkspace
+              key={currentPlan.id}
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              onSaveStep1PromoterProfiles={async (promoterProfiles, progress = 20) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_F_STEP_1',
+                      moduleFData: {
+                        ...(p.moduleFData || {}),
+                        promoterProfiles,
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              userId={session.user.id}
+              userName={session.user.name}
+              userEmail={session.user.email}
+              onParkOpenQuestion={(question) => {
+                handleParkSpecificQuestion(question);
+              }}
+              onBackToModuleE={() => setActiveModule('MOD_E_OPERATIONS')}
+              onContinueToModuleG={() => {
+                const access = canAccessModule(
+                  activeEntitlement,
+                  'MOD_G_LAUNCHPAD'
+                );
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock('MOD_G_LAUNCHPAD');
+                  setPaywallModalFeature(
+                    `Module G: Launchpad & Operations Hub — ${access.reason}`
+                  );
+                  return;
+                }
+                setActiveModule('MOD_G_LAUNCHPAD');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />

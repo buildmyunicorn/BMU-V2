@@ -29,6 +29,7 @@ import {
   Download,
   Copy,
   Bug,
+  Archive,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,6 +61,7 @@ import {
   type AdminUserRecord,
   type AccountPresetType,
   type UserRoleType,
+  type UserStatusType,
   type EarlyAccessLeadRecord,
 } from '@/app/actions/admin';
 import {
@@ -169,8 +171,74 @@ function isLifetimeFullAccess(ent: AdminUserRecord['entitlement']): boolean {
   );
 }
 
+const LOCAL_STORAGE_DELETED_USERS_KEY = 'spf_admin_deleted_user_ids_v1';
+const LOCAL_STORAGE_STATUS_OVERRIDES_KEY = 'spf_admin_user_status_overrides_v1';
+
+function getLocalDeletedUserIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(LOCAL_STORAGE_DELETED_USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function addLocalDeletedUserId(id: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getLocalDeletedUserIds();
+    if (!list.includes(id)) {
+      list.push(id);
+      window.localStorage.setItem(
+        LOCAL_STORAGE_DELETED_USERS_KEY,
+        JSON.stringify(list)
+      );
+    }
+  } catch {}
+}
+
+function getLocalStatusOverrides(): Record<
+  string,
+  {
+    status: UserStatusType;
+    deletedAt: string | null;
+    suspensionReason: string | null;
+  }
+> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(LOCAL_STORAGE_STATUS_OVERRIDES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function setLocalStatusOverride(
+  userId: string,
+  data: {
+    status: UserStatusType;
+    deletedAt: string | null;
+    suspensionReason: string | null;
+  }
+) {
+  if (typeof window === 'undefined') return;
+  try {
+    const overrides = getLocalStatusOverrides();
+    overrides[userId] = data;
+    window.localStorage.setItem(
+      LOCAL_STORAGE_STATUS_OVERRIDES_KEY,
+      JSON.stringify(overrides)
+    );
+  } catch {}
+}
+
 function getDemoFallbackAdminUsers(): AdminUserRecord[] {
   const localSession = loadBmuSession();
+  const deletedIds = getLocalDeletedUserIds();
+  const statusOverrides = getLocalStatusOverrides();
+
   const activeLocalRecord: AdminUserRecord = {
     id: localSession.user.id,
     name: `${localSession.user.name} (Your Active Session)`,
@@ -286,13 +354,27 @@ function getDemoFallbackAdminUsers(): AdminUserRecord[] {
     },
   ];
 
-  // Deduplicate by id in case local session matches
+  // Deduplicate and filter out deleted users, apply status overrides
   const seen = new Set<string>();
-  return sampleUsers.filter((u) => {
-    if (seen.has(u.id)) return false;
-    seen.add(u.id);
-    return true;
-  });
+  return sampleUsers
+    .filter((u) => !deletedIds.includes(u.id))
+    .filter((u) => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    })
+    .map((u) => {
+      const override = statusOverrides[u.id];
+      if (override) {
+        return {
+          ...u,
+          status: override.status,
+          deletedAt: override.deletedAt,
+          suspensionReason: override.suspensionReason,
+        };
+      }
+      return u;
+    });
 }
 
 export default function AdminDashboardPage() {
@@ -325,10 +407,11 @@ export default function AdminDashboardPage() {
   const [suspensionReasonInput, setSuspensionReasonInput] =
     useState<string>('');
 
-  const [hardDeleteModalUser, setHardDeleteModalUser] =
+  const [deleteModalUser, setDeleteModalUser] =
     useState<AdminUserRecord | null>(null);
-  const [hardDeleteConfirmEmail, setHardDeleteConfirmEmail] =
-    useState<string>('');
+  const [deleteModalMode, setDeleteModalMode] =
+    useState<'CHOOSE' | 'PURGE'>('CHOOSE');
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState<string>('');
 
   const [notesModalUser, setNotesModalUser] =
     useState<AdminUserRecord | null>(null);
@@ -350,8 +433,12 @@ export default function AdminDashboardPage() {
       setAdminAuthenticated(true);
       setAdminEmail(res.adminEmail || 'admin@startuppreflight.com');
       setDbConnected(res.dbConnected);
+
+      const deletedIds = getLocalDeletedUserIds();
       if (res.dbConnected && res.users.length > 0) {
-        setUsersList(res.users);
+        setUsersList(res.users.filter((u) => !deletedIds.includes(u.id)));
+      } else if (res.dbConnected && res.users.length === 0) {
+        setUsersList([]);
       } else {
         setUsersList(getDemoFallbackAdminUsers());
       }
@@ -741,11 +828,23 @@ export default function AdminDashboardPage() {
   async function handleSoftDeleteUser(user: AdminUserRecord) {
     setBusyUserId(user.id);
     try {
-      await softDeleteOrRestoreUserAction({
+      const res = await softDeleteOrRestoreUserAction({
         userId: user.id,
         action: 'SOFT_DELETE',
       });
+      if (!res.ok) {
+        setBannerMessage({
+          type: 'warning',
+          text: res.error || 'Failed to soft delete user.',
+        });
+        return;
+      }
       const nowIso = new Date().toISOString();
+      setLocalStatusOverride(user.id, {
+        status: 'SOFT_DELETED',
+        deletedAt: nowIso,
+        suspensionReason: user.suspensionReason,
+      });
       setUsersList((prev) =>
         prev.map((u) =>
           u.id === user.id
@@ -757,6 +856,8 @@ export default function AdminDashboardPage() {
         type: 'warning',
         text: `Moved ${user.name} (${user.email}) to Trash (30-day recovery window). Login is disabled.`,
       });
+      setDeleteModalUser(null);
+      setDeleteConfirmEmail('');
     } finally {
       setBusyUserId(null);
     }
@@ -765,9 +866,21 @@ export default function AdminDashboardPage() {
   async function handleRestoreSoftDeletedUser(user: AdminUserRecord) {
     setBusyUserId(user.id);
     try {
-      await softDeleteOrRestoreUserAction({
+      const res = await softDeleteOrRestoreUserAction({
         userId: user.id,
         action: 'RESTORE',
+      });
+      if (!res.ok) {
+        setBannerMessage({
+          type: 'warning',
+          text: res.error || 'Failed to restore user.',
+        });
+        return;
+      }
+      setLocalStatusOverride(user.id, {
+        status: 'ACTIVE',
+        deletedAt: null,
+        suspensionReason: null,
       });
       setUsersList((prev) =>
         prev.map((u) =>
@@ -785,25 +898,35 @@ export default function AdminDashboardPage() {
         type: 'success',
         text: `Restored ${user.name} (${user.email}) from Trash to Active status.`,
       });
+      setDeleteModalUser(null);
+      setDeleteConfirmEmail('');
     } finally {
       setBusyUserId(null);
     }
   }
 
   async function handleConfirmPermanentDelete() {
-    if (!hardDeleteModalUser) return;
-    const target = hardDeleteModalUser;
+    if (!deleteModalUser) return;
+    const target = deleteModalUser;
     setBusyUserId(target.id);
-    setHardDeleteModalUser(null);
-    setHardDeleteConfirmEmail('');
 
     try {
-      await permanentlyDeleteUserAction({ userId: target.id });
+      const res = await permanentlyDeleteUserAction({ userId: target.id });
+      if (!res.ok) {
+        setBannerMessage({
+          type: 'warning',
+          text: res.error || 'Failed to permanently delete user.',
+        });
+        return;
+      }
+      addLocalDeletedUserId(target.id);
       setUsersList((prev) => prev.filter((u) => u.id !== target.id));
       setBannerMessage({
-        type: 'warning',
-        text: `Permanently purged ${target.name} (${target.email}) and all associated startup plans.`,
+        type: 'success',
+        text: `Permanently deleted ${target.name} (${target.email}) and all associated startup plans.`,
       });
+      setDeleteModalUser(null);
+      setDeleteConfirmEmail('');
     } finally {
       setBusyUserId(null);
     }
@@ -1656,7 +1779,11 @@ export default function AdminDashboardPage() {
                                 variant="outline"
                                 size="sm"
                                 disabled={isBusy}
-                                onClick={() => handleSoftDeleteUser(user)}
+                                onClick={() => {
+                                  setDeleteModalUser(user);
+                                  setDeleteModalMode('CHOOSE');
+                                  setDeleteConfirmEmail('');
+                                }}
                                 className="h-7 border-rose-200 bg-rose-50/50 px-2.5 text-xs text-rose-700 hover:bg-rose-100"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -1681,8 +1808,9 @@ export default function AdminDashboardPage() {
                                   size="sm"
                                   disabled={isBusy}
                                   onClick={() => {
-                                    setHardDeleteModalUser(user);
-                                    setHardDeleteConfirmEmail('');
+                                    setDeleteModalUser(user);
+                                    setDeleteModalMode('PURGE');
+                                    setDeleteConfirmEmail('');
                                   }}
                                   className="h-7 px-2.5 text-xs"
                                 >
@@ -1787,11 +1915,11 @@ export default function AdminDashboardPage() {
       )}
 
       {/* ========================================================= */}
-      {/* MODAL 2: PERMANENT HARD DELETE (GDPR PURGE)               */}
+      {/* MODAL 2: DELETE USER (SOFT DELETE OR PERMANENT PURGE)     */}
       {/* ========================================================= */}
-      {hardDeleteModalUser && (
+      {deleteModalUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-rose-200 bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-lg rounded-2xl border border-rose-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-700">
@@ -1799,64 +1927,177 @@ export default function AdminDashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    Permanently Purge Account
+                    {deleteModalMode === 'CHOOSE'
+                      ? 'Delete User Account'
+                      : 'Permanently Purge Account (GDPR)'}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    {hardDeleteModalUser.name} ({hardDeleteModalUser.email})
+                    {deleteModalUser.name} ({deleteModalUser.email})
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setHardDeleteModalUser(null)}
+                onClick={() => {
+                  setDeleteModalUser(null);
+                  setDeleteConfirmEmail('');
+                }}
                 className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="mt-4 space-y-3 text-xs text-slate-600">
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-950">
-                <strong>Warning — Irreversible Action:</strong> This will
-                permanently delete the user record, their entitlement row, and
-                all <strong>{hardDeleteModalUser.plansCount}</strong> Startup
-                Plan(s) from PostgreSQL.
-              </div>
+            {deleteModalMode === 'CHOOSE' ? (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs text-slate-600">
+                  Choose how you want to handle this account. You can move the user to the Trash (soft delete) where they can be restored later, or permanently purge them and all their data immediately.
+                </p>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="confirm-delete-email">
-                  Type <strong>{hardDeleteModalUser.email}</strong> to confirm
-                  permanent deletion:
-                </Label>
-                <Input
-                  id="confirm-delete-email"
-                  placeholder={hardDeleteModalUser.email}
-                  value={hardDeleteConfirmEmail}
-                  onChange={(e) => setHardDeleteConfirmEmail(e.target.value)}
-                />
-              </div>
-            </div>
+                <div className="space-y-2.5 pt-1">
+                  {/* Option A: Soft Delete (Move to Trash) */}
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 transition-all hover:border-amber-300">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-1.5 font-semibold text-xs text-amber-950">
+                          <Archive className="h-3.5 w-3.5 text-amber-700" />
+                          Move to Trash (Soft Delete — Recommended)
+                        </div>
+                        <p className="mt-1 text-[11px] text-amber-800 leading-relaxed">
+                          Disables login access, revokes active sessions, and hides the user from the active roster. All {deleteModalUser.plansCount} startup plan(s) and surveys are preserved and can be restored at any time.
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 border-amber-300 bg-white text-amber-900 hover:bg-amber-100 text-xs h-8"
+                        disabled={busyUserId === deleteModalUser.id}
+                        onClick={() => handleSoftDeleteUser(deleteModalUser)}
+                      >
+                        {busyUserId === deleteModalUser.id ? (
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        ) : null}
+                        Move to Trash
+                      </Button>
+                    </div>
+                  </div>
 
-            <div className="mt-5 flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setHardDeleteModalUser(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={
-                  hardDeleteConfirmEmail.trim().toLowerCase() !==
-                  hardDeleteModalUser.email.toLowerCase()
-                }
-                onClick={handleConfirmPermanentDelete}
-              >
-                Permanently Delete Forever
-              </Button>
-            </div>
+                  {/* Option B: Permanent Purge */}
+                  <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-3.5 transition-all hover:border-rose-300">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-1.5 font-semibold text-xs text-rose-950">
+                          <Trash2 className="h-3.5 w-3.5 text-rose-700" />
+                          Permanently Purge Forever (GDPR Right-to-be-Forgotten)
+                        </div>
+                        <p className="mt-1 text-[11px] text-rose-800 leading-relaxed">
+                          Irreversibly cascades across all PostgreSQL tables, destroying this user, entitlements, {deleteModalUser.plansCount} plan(s), validated surveys, and modules. Cannot be undone.
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="shrink-0 text-xs h-8"
+                        onClick={() => {
+                          setDeleteModalMode('PURGE');
+                          setDeleteConfirmEmail('');
+                        }}
+                      >
+                        Purge...
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDeleteModalUser(null);
+                      setDeleteConfirmEmail('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* PURGE CONFIRMATION */
+              <div className="mt-4 space-y-3 text-xs text-slate-600">
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-950">
+                  <strong>Warning — Irreversible Action:</strong> This will
+                  permanently cascade-delete this user, their entitlement row,
+                  and all <strong>{deleteModalUser.plansCount}</strong> Startup
+                  Plan(s), surveys, and responses from PostgreSQL.
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="confirm-delete-email">
+                      Type <strong>{deleteModalUser.email}</strong> to confirm:
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmEmail(deleteModalUser.email)}
+                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium underline"
+                    >
+                      Auto-fill
+                    </button>
+                  </div>
+                  <Input
+                    id="confirm-delete-email"
+                    placeholder={deleteModalUser.email}
+                    value={deleteConfirmEmail}
+                    onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+
+                <div className="mt-5 flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDeleteModalMode('CHOOSE')}
+                    disabled={busyUserId === deleteModalUser.id}
+                  >
+                    ← Back
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setDeleteModalUser(null);
+                        setDeleteConfirmEmail('');
+                      }}
+                      disabled={busyUserId === deleteModalUser.id}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={
+                        busyUserId === deleteModalUser.id ||
+                        deleteConfirmEmail.trim().toLowerCase() !==
+                          deleteModalUser.email.toLowerCase()
+                      }
+                      onClick={handleConfirmPermanentDelete}
+                    >
+                      {busyUserId === deleteModalUser.id ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          Purging...
+                        </>
+                      ) : (
+                        'Permanently Delete Forever'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

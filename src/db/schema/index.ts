@@ -362,6 +362,10 @@ export const planCollaborators = pgTable(
         workAndSelfEmploymentHistory?: string;
         compiled150WordNarrative?: string;
         cvReadyForAppendixD?: boolean;
+        cvFileName?: string;
+        cvFileSizeBytes?: number;
+        cvUploadedAt?: string;
+        cvBase64Data?: string;
       }>()
       .default({}),
     // Module F Step 3: Personal Survival Budget (Mandatory Tab #2 of UK Start Up Loans Workbook)

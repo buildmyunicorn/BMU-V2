@@ -1348,6 +1348,78 @@ export interface SavedModuleEData {
   lastSavedAt?: string;
 }
 
+// ============================================================================
+// MODULE F (CO-FOUNDER, TEAM, SURVIVAL BUDGET & ROLES) TYPES
+// ============================================================================
+
+export type TeamMemberClassificationType =
+  | 'FOUNDER_PROMOTER'
+  | 'KEY_TEAM_MEMBER'
+  | 'FRACTIONAL_EXECUTIVE'
+  | 'ADVISOR_BOARD'
+  | 'OTHER';
+
+export type TeamWeeklyCommitmentType =
+  | 'FULL_TIME_40H_PLUS'
+  | 'PART_TIME_20_TO_30H'
+  | 'EVENING_WEEKEND_10_TO_15H'
+  | 'FRACTIONAL_ADVISORY_2_TO_5H'
+  | 'OTHER';
+
+export interface TeamMemberProfileItem {
+  id: string;
+  fullName: string;
+  roleClassification: TeamMemberClassificationType;
+  otherRoleClassificationText?: string;
+  jobTitle: string;
+  photoUrl?: string; // Uploaded base64 data-URL or external URL
+  linkedInUrl?: string;
+  email?: string;
+  weeklyCommitment: TeamWeeklyCommitmentType;
+  otherWeeklyCommitmentText?: string;
+  relevantEducationAndDegrees?: string; // e.g. BEng Computer Science, ACCA, Apprentice
+  relevantTrainingCourses?: string; // e.g. LEO Start Your Own Business, EI New Frontiers
+  priorIndustryExperienceYears?: number;
+  keyPastCompaniesOrTrackRecord?: string; // e.g. 8 years senior dev at Stripe / 5 years head chef
+  compiled150WordNarrative: string; // Mandatory for IE LEO min 150 words & UK Innovate UK Q8 Team
+  cvReadyForAppendixD: boolean;
+  cvFileName?: string;
+  cvFileSizeBytes?: number;
+  cvUploadedAt?: string;
+  cvBase64Data?: string; // Stored base64 data URL for viewing/downloading and bundling into Module L Appendix D
+  equitySharePercent?: number;
+  isCurrentUserFounder?: boolean;
+}
+
+export type TeamStructurePostureType =
+  | 'SOLO_FOUNDER_CURRENT'
+  | 'CO_FOUNDING_DUO_OR_TRIO'
+  | 'FOUNDER_PLUS_KEY_TEAM'
+  | 'SOLO_ACTIVELY_RECRUITING_COFOUNDER'
+  | 'OTHER';
+
+export interface PromoterProfilesStep1Data {
+  teamStructurePosture: TeamStructurePostureType | '';
+  otherTeamStructurePostureText?: string;
+  teamMembers: TeamMemberProfileItem[];
+  executiveTeamCapabilityNarrative: string;
+  aiCoachTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export interface SavedModuleFData {
+  promoterProfiles?: PromoterProfilesStep1Data;
+  // Steps 2-6 types will be added as we build each step
+  step2RoleMatrixData?: any;
+  step3SurvivalBudgetData?: any;
+  step4AlignmentData?: any;
+  step5HiringPlanData?: any;
+  step6BlindSpotAuditData?: any;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
 export type FounderStage =
   | 'IDEA_EXPLORER'
   | 'BUILDING_MVP'
@@ -1413,6 +1485,7 @@ export interface ActiveStartupPlan {
   moduleCData?: SavedModuleCData;
   moduleDData?: SavedModuleDData;
   moduleEData?: SavedModuleEData;
+  moduleFData?: SavedModuleFData;
   masterDocumentData?: SavedMasterDocumentData;
   openQuestions: string[];
 }
@@ -1491,9 +1564,9 @@ export function getDefaultDemoSession(): BmuLocalSession {
   const limits = calculatePassLimits('FREE_HOOK');
   return {
     user: {
-      id: 'user-aoife-1',
-      name: 'Aoife Brennan',
-      email: 'founder@startuppreflight.com',
+      id: 'user-default-1',
+      name: '',
+      email: '',
       role: 'FOUNDER',
       founderStage: 'IDEA_EXPLORER',
       teamStructure: 'SOLO',
@@ -1502,13 +1575,13 @@ export function getDefaultDemoSession(): BmuLocalSession {
       onboardingCompleted: true,
     },
     entitlement: {
-      userId: 'user-aoife-1',
+      userId: 'user-default-1',
       planType: 'FREE_HOOK',
       stackedCodesCount: 0,
       maxStartupPlans: limits.maxStartupPlans,
       maxSeatsPerPlan: limits.maxSeatsPerPlan,
       monthlyAiCreditsLimit: limits.monthlyAiCreditsLimit,
-      aiCreditsUsedThisMonth: 8,
+      aiCreditsUsedThisMonth: 0,
       whiteLabelExportEnabled: false,
       isVaultReadonly: false,
     },
@@ -1627,7 +1700,7 @@ export function saveBmuSession(session: BmuLocalSession): void {
     ) {
       const perUserKey = getPerUserStorageKey(cleanEmail);
       const isBlankDemoFallback =
-        cleanedSession.user.id === 'user-aoife-1' &&
+        cleanedSession.user.id === 'user-default-1' &&
         cleanedSession.plans.length === 1 &&
         cleanedSession.plans[0]?.id === 'plan-greencart-1' &&
         !cleanedSession.plans[0]?.brainDumpText;

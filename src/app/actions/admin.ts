@@ -8,6 +8,11 @@ import {
   userEntitlements,
   startupPlans,
   validationSurveys,
+  surveyResponses,
+  planCollaborators,
+  planModulesData,
+  openQuestionsParkingLot,
+  aiUsageLogs,
   vouchers,
   earlyAccessWaitlist,
   supportTickets,
@@ -671,6 +676,13 @@ export async function suspendOrReactivateUserAction(input: {
   }
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUuid(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
 /**
  * Soft-deletes (moves to Trash with 30-day recovery window) or restores a user account.
  */
@@ -680,7 +692,12 @@ export async function softDeleteOrRestoreUserAction(input: {
 }): Promise<{ ok: boolean; dbConnected: boolean; error?: string }> {
   const adminSession = await requireSuperAdminSession();
   if (!adminSession) {
-    return { ok: false, dbConnected: false, error: 'Unauthorized' };
+    return { ok: false, dbConnected: false, error: 'Unauthorized: Super Admin session required.' };
+  }
+
+  // Non-UUID mock/demo users are handled in local fallback mode
+  if (!isValidUuid(input.userId)) {
+    return { ok: true, dbConnected: false };
   }
 
   try {
@@ -719,8 +736,12 @@ export async function softDeleteOrRestoreUserAction(input: {
     }
 
     return { ok: true, dbConnected: true };
-  } catch {
-    return { ok: true, dbConnected: false };
+  } catch (err) {
+    return {
+      ok: true,
+      dbConnected: false,
+      error: err instanceof Error ? err.message : 'Database operation failed.',
+    };
   }
 }
 
@@ -732,20 +753,126 @@ export async function permanentlyDeleteUserAction(input: {
 }): Promise<{ ok: boolean; dbConnected: boolean; error?: string }> {
   const adminSession = await requireSuperAdminSession();
   if (!adminSession) {
-    return { ok: false, dbConnected: false, error: 'Unauthorized' };
+    return { ok: false, dbConnected: false, error: 'Unauthorized: Super Admin session required.' };
+  }
+
+  // Guard against deleting oneself
+  if (adminSession.userId && adminSession.userId === input.userId) {
+    return {
+      ok: false,
+      dbConnected: true,
+      error: 'You cannot delete your own active Super Admin account.',
+    };
+  }
+
+  // Non-UUID mock/demo users (handled on frontend and local session storage)
+  if (!isValidUuid(input.userId)) {
+    return { ok: true, dbConnected: false };
   }
 
   try {
+    // Also protect against deleting the logged-in super admin by email
+    const [targetUser] = await db
+      .select({ email: users.email, role: users.role })
+      .from(users)
+      .where(eq(users.id, input.userId))
+      .limit(1);
+
+    if (
+      targetUser &&
+      adminSession.email &&
+      targetUser.email.toLowerCase() === adminSession.email.toLowerCase()
+    ) {
+      return {
+        ok: false,
+        dbConnected: true,
+        error: 'You cannot delete your own active Super Admin account.',
+      };
+    }
+
+    // Step 1: Explicitly cascade delete all plans owned by this user
+    const ownedPlans = await db
+      .select({ id: startupPlans.id })
+      .from(startupPlans)
+      .where(eq(startupPlans.ownerUserId, input.userId));
+
+    if (ownedPlans.length > 0) {
+      const planIds = ownedPlans.map((p) => p.id);
+
+      // 1a: Find and delete survey responses, then surveys
+      const surveys = await db
+        .select({ id: validationSurveys.id })
+        .from(validationSurveys)
+        .where(inArray(validationSurveys.planId, planIds));
+
+      if (surveys.length > 0) {
+        const surveyIds = surveys.map((s) => s.id);
+        await db
+          .delete(surveyResponses)
+          .where(inArray(surveyResponses.surveyId, surveyIds));
+        await db
+          .delete(validationSurveys)
+          .where(inArray(validationSurveys.id, surveyIds));
+      }
+
+      // 1b: Delete open questions, module data, and collaborators on these plans
+      await db
+        .delete(openQuestionsParkingLot)
+        .where(inArray(openQuestionsParkingLot.planId, planIds));
+      await db
+        .delete(planModulesData)
+        .where(inArray(planModulesData.planId, planIds));
+      await db
+        .delete(planCollaborators)
+        .where(inArray(planCollaborators.planId, planIds));
+
+      // 1c: Unlink AI usage logs referencing these plans
+      await db
+        .update(aiUsageLogs)
+        .set({ planId: null })
+        .where(inArray(aiUsageLogs.planId, planIds));
+
+      // 1d: Delete the startup plans
+      await db
+        .delete(startupPlans)
+        .where(inArray(startupPlans.id, planIds));
+    }
+
+    // Step 2: Delete collaborator entries for this user on any external plans
+    await db
+      .delete(planCollaborators)
+      .where(eq(planCollaborators.userId, input.userId));
+
+    // Step 3: Unlink vouchers redeemed by this user
+    await db
+      .update(vouchers)
+      .set({ redeemedByUserId: null })
+      .where(eq(vouchers.redeemedByUserId, input.userId));
+
+    // Step 4: Unlink AI usage logs created by this user
+    await db
+      .update(aiUsageLogs)
+      .set({ userId: null })
+      .where(eq(aiUsageLogs.userId, input.userId));
+
+    // Step 5: Delete user entitlements
+    await db
+      .delete(userEntitlements)
+      .where(eq(userEntitlements.userId, input.userId));
+
+    // Step 6: Finally delete the user row from PostgreSQL
     await db.delete(users).where(eq(users.id, input.userId));
+
     return { ok: true, dbConnected: true };
   } catch (err) {
+    console.error('[Admin] Error deleting user:', err);
     return {
       ok: false,
       dbConnected: false,
       error:
         err instanceof Error
           ? err.message
-          : 'Failed to permanently delete user.',
+          : 'Failed to permanently delete user from database.',
     };
   }
 }
