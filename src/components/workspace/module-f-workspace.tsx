@@ -31,10 +31,14 @@ import {
   FileUp,
   Download,
   RefreshCw,
+  AlertTriangle,
+  TrendingUp,
 } from 'lucide-react';
 import {
   parseCvAndDraftPromoterBioAction,
+  generateRoleMatrixSummaryAction,
   type ParseCvAndDraftBioResult,
+  type GenerateRoleMatrixSummaryResult,
 } from '@/app/actions/module-f';
 import { Button } from '@/components/ui/button';
 import {
@@ -56,6 +60,11 @@ import type {
   TeamWeeklyCommitmentType,
   TeamStructurePostureType,
   PromoterProfilesStep1Data,
+  StartupHatKey,
+  HatConfidenceLevel,
+  StartupHatAssignment,
+  ExternalAdvisorItem,
+  RoleMatrixStep2Data,
 } from '@/lib/auth/session-store';
 
 export interface ModuleFWorkspaceProps {
@@ -65,6 +74,10 @@ export interface ModuleFWorkspaceProps {
   onSaveStep1PromoterProfiles: (
     data: PromoterProfilesStep1Data,
     progress: number
+  ) => Promise<void>;
+  onSaveStep2RoleMatrix?: (
+    data: RoleMatrixStep2Data,
+    progress?: number
   ) => Promise<void>;
   userId?: string;
   userName?: string;
@@ -191,11 +204,158 @@ function buildDefaultStep1DataForPlan(
   };
 }
 
+export const STARTUP_HATS_CONFIG: Array<{
+  key: StartupHatKey;
+  label: string;
+  shortTitle: string;
+  emoji: string;
+  description: string;
+  whyItMatters: string;
+  defaultWeeklyHours: number;
+}> = [
+  {
+    key: 'VISION_FUNDRAISING',
+    label: '1. Vision, Strategy & Fundraising (CEO)',
+    shortTitle: 'Vision & Fundraising',
+    emoji: '🧭',
+    description:
+      'Setting company direction, investor relations, board governance, and grant pitches.',
+    whyItMatters:
+      'Essential for Enterprise Ireland / LEO / Innovate UK pitching & investor syndicates.',
+    defaultWeeklyHours: 12,
+  },
+  {
+    key: 'PRODUCT_TECH_BUILD',
+    label: '2. Product Architecture & Technical Build (CTO / Product Lead)',
+    shortTitle: 'Product & Tech Build',
+    emoji: '💻',
+    description:
+      'Architecture, software development, physical prototyping, and QA/release engineering.',
+    whyItMatters:
+      'Directly maps to Module D Work Packages and R&D feasibility requirements.',
+    defaultWeeklyHours: 20,
+  },
+  {
+    key: 'SALES_COMMERCIAL_BD',
+    label: '3. Sales & Commercial Business Development (CRO / Sales Lead)',
+    shortTitle: 'Sales & BD',
+    emoji: '🤝',
+    description:
+      'Outbound sales, pilot customer acquisition, enterprise proposals, and pricing negotiation.',
+    whyItMatters:
+      'LEO and grant assessors ruthlessly evaluate who is physically closing paying customers.',
+    defaultWeeklyHours: 15,
+  },
+  {
+    key: 'MARKETING_GROWTH',
+    label: '4. Marketing, Brand & Growth (CMO / Growth Lead)',
+    shortTitle: 'Marketing & Growth',
+    emoji: '📣',
+    description:
+      'Demand generation, content marketing, waitlist conversions, SEO, and paid ad channels.',
+    whyItMatters:
+      'Connects to Module C early waitlist leads and Module I customer acquisition funnels.',
+    defaultWeeklyHours: 10,
+  },
+  {
+    key: 'CUSTOMER_SUCCESS_SUPPORT',
+    label: '5. Customer Support & Success',
+    shortTitle: 'Customer Support',
+    emoji: '🎧',
+    description:
+      'User onboarding, feedback loops, day-to-day customer support, ticket resolution, and retention.',
+    whyItMatters:
+      'Early stage churn kills unit economics; high-touch customer intimacy drives referral loops.',
+    defaultWeeklyHours: 8,
+  },
+  {
+    key: 'OPS_LEGAL_COMPLIANCE',
+    label: '6. Operations, Legal & Regulatory Compliance (COO)',
+    shortTitle: 'Ops, Legal & Compliance',
+    emoji: '⚖️',
+    description:
+      'Vendor management, supply chain, contracts, GDPR/data protection, and insurance.',
+    whyItMatters:
+      'Covers statutory startup compliance, Module E Day in the Life, and risk mitigation.',
+    defaultWeeklyHours: 8,
+  },
+  {
+    key: 'FINANCE_CASHFLOW_GRANTS',
+    label: '7. Finance, Bookkeeping & Grant Drawdowns (CFO)',
+    shortTitle: 'Finance & Grants',
+    emoji: '💶',
+    description:
+      'Cashflow runway monitoring, payroll, PRSI/NIC compliance, and grant claim submissions.',
+    whyItMatters:
+      'Ensures milestone claim drawdowns (e.g. LEO 50% drawdown, Innovate UK quarterly claims) are delivered on time.',
+    defaultWeeklyHours: 7,
+  },
+];
+
+function buildDefaultStep2DataForPlan(
+  plan: ActiveStartupPlan,
+  teamMembers: TeamMemberProfileItem[]
+): RoleMatrixStep2Data {
+  const saved = plan.moduleFData?.step2RoleMatrixData;
+  if (saved && saved.hatAssignments && saved.hatAssignments.length > 0) {
+    return {
+      hatAssignments: saved.hatAssignments,
+      advisors: saved.advisors || [],
+      executiveDivisionSummary: saved.executiveDivisionSummary || '',
+      aiCoachTip: saved.aiCoachTip,
+      lastSavedAt: saved.lastSavedAt,
+    };
+  }
+
+  // Pre-seed 7 hats with sensible defaults from current team members
+  const founder1 = teamMembers[0]?.id || 'UNASSIGNED';
+  const founder2 = teamMembers.length > 1 ? teamMembers[1].id : 'UNASSIGNED';
+
+  const defaultAssignments: StartupHatAssignment[] = STARTUP_HATS_CONFIG.map(
+    (hat) => {
+      let primary = founder1;
+      let backup = 'UNASSIGNED';
+      let confidence: HatConfidenceLevel = 'HIGH_MASTERY';
+
+      if (hat.key === 'PRODUCT_TECH_BUILD' && teamMembers.length > 1) {
+        primary = founder2;
+        backup = founder1;
+      } else if (
+        hat.key === 'OPS_LEGAL_COMPLIANCE' ||
+        hat.key === 'FINANCE_CASHFLOW_GRANTS'
+      ) {
+        confidence = 'LEARNING_ON_THE_JOB';
+        if (teamMembers.length > 1) backup = founder2;
+      } else if (teamMembers.length > 1 && hat.key !== 'PRODUCT_TECH_BUILD') {
+        backup = founder2;
+      }
+
+      return {
+        hatKey: hat.key,
+        title: hat.label,
+        scopeSummary: hat.description,
+        primaryOwnerMemberId: primary,
+        backupOwnerMemberId: backup,
+        weeklyHours: hat.defaultWeeklyHours,
+        confidence,
+        notes: '',
+      };
+    }
+  );
+
+  return {
+    hatAssignments: defaultAssignments,
+    advisors: [],
+    executiveDivisionSummary: '',
+  };
+}
+
 export function ModuleFWorkspace({
   plan,
   selectedCountry,
   isVaultReadonly,
   onSaveStep1PromoterProfiles,
+  onSaveStep2RoleMatrix,
   userId,
   userName,
   userEmail,
@@ -218,6 +378,13 @@ export function ModuleFWorkspace({
   const [isParsingCv, setIsParsingCv] = useState<Record<string, boolean>>({});
   // Track collapsed/expanded team members in Step 1 (default: all collapsed on initial load for a clean, tidy view)
   const [openMemberIds, setOpenMemberIds] = useState<Record<string, boolean>>({});
+
+  // Step 2 State
+  const [step2Data, setStep2Data] = useState<RoleMatrixStep2Data>(() =>
+    buildDefaultStep2DataForPlan(plan, step1Data.teamMembers)
+  );
+  const [isSavingStep2, setIsSavingStep2] = useState(false);
+  const [isDraftingStep2Ai, setIsDraftingStep2Ai] = useState(false);
 
   function toggleMemberCollapse(memberId: string) {
     setOpenMemberIds((prev) => ({
@@ -246,6 +413,18 @@ export function ModuleFWorkspace({
           (m.compiled150WordNarrative.trim().split(/\s+/).length >= 80))
     );
 
+  const step2AssignedHatsCount = step2Data.hatAssignments.filter(
+    (h) => h.primaryOwnerMemberId && h.primaryOwnerMemberId !== 'UNASSIGNED'
+  ).length;
+
+  const step2SummaryWordCount = step2Data.executiveDivisionSummary
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+  const step2Complete =
+    step2AssignedHatsCount === 7 && step2SummaryWordCount >= 30;
+
   const moduleFReadinessSteps = [
     {
       stepNum: 1,
@@ -258,8 +437,10 @@ export function ModuleFWorkspace({
     {
       stepNum: 2,
       title: '7 Startup Hats Matrix',
-      isComplete: false,
-      summary: 'Map Primary & Backup owners for all 7 startup hats',
+      isComplete: step2Complete,
+      summary: step2Complete
+        ? `All 7 Hats assigned (${step2Data.advisors.length} Advisor${step2Data.advisors.length === 1 ? '' : 's'}) • Executive division ready`
+        : `${step2AssignedHatsCount}/7 Hats assigned • Map single-point accountability`,
     },
     {
       stepNum: 3,
@@ -293,6 +474,124 @@ export function ModuleFWorkspace({
   const totalModuleFProgress = Math.round(
     (completedModuleFCoreStepsCount / 5) * 100
   );
+
+  // Step 2 Handlers
+  async function handleSaveStep2() {
+    if (isVaultReadonly) return;
+    try {
+      setIsSavingStep2(true);
+      if (onSaveStep2RoleMatrix) {
+        await onSaveStep2RoleMatrix(step2Data, step2Complete ? 40 : 25);
+      }
+      setSaveBanner(
+        '✅ Saved Module F Step 2 ("7 Startup Hats" Matrix & Strategic Advisory Schedule)!'
+      );
+      setTimeout(() => setSaveBanner(null), 5000);
+    } finally {
+      setIsSavingStep2(false);
+    }
+  }
+
+  function handleUpdateHatAssignment(
+    hatKey: StartupHatKey,
+    updates: Partial<StartupHatAssignment>
+  ) {
+    if (isVaultReadonly) return;
+    setStep2Data((prev) => ({
+      ...prev,
+      hatAssignments: prev.hatAssignments.map((h) =>
+        h.hatKey === hatKey ? { ...h, ...updates } : h
+      ),
+    }));
+  }
+
+  function handleAddAdvisor() {
+    if (isVaultReadonly) return;
+    const newAdvisor: ExternalAdvisorItem = {
+      id: `advisor-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: '',
+      roleOrSpecialty: '',
+      organizationOrAffiliation: '',
+      cadence: 'MONTHLY',
+      notes: '',
+    };
+    setStep2Data((prev) => ({
+      ...prev,
+      advisors: [...prev.advisors, newAdvisor],
+    }));
+  }
+
+  function handleRemoveAdvisor(id: string) {
+    if (isVaultReadonly) return;
+    setStep2Data((prev) => ({
+      ...prev,
+      advisors: prev.advisors.filter((a) => a.id !== id),
+    }));
+  }
+
+  function handleUpdateAdvisor(
+    id: string,
+    updates: Partial<ExternalAdvisorItem>
+  ) {
+    if (isVaultReadonly) return;
+    setStep2Data((prev) => ({
+      ...prev,
+      advisors: prev.advisors.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+    }));
+  }
+
+  async function handleAiDraftRoleMatrixSummary() {
+    if (isVaultReadonly) return;
+    try {
+      setIsDraftingStep2Ai(true);
+      const result = await generateRoleMatrixSummaryAction({
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory,
+        hqCountryCode: selectedCountry,
+        teamMembers: step1Data.teamMembers.map((m) => ({
+          id: m.id,
+          fullName: m.fullName?.trim() || 'Team Member',
+          jobTitle: m.jobTitle?.trim() || 'Founder',
+        })),
+        hatAssignments: step2Data.hatAssignments.map((h) => ({
+          hatKey: h.hatKey,
+          title: h.title,
+          primaryOwnerMemberId: h.primaryOwnerMemberId,
+          backupOwnerMemberId: h.backupOwnerMemberId,
+          weeklyHours: h.weeklyHours,
+          confidence: h.confidence,
+          notes: h.notes,
+        })),
+        advisors: step2Data.advisors.map((a) => ({
+          name: a.name,
+          roleOrSpecialty: a.roleOrSpecialty,
+          organizationOrAffiliation: a.organizationOrAffiliation,
+          cadence: a.cadence,
+        })),
+      });
+
+      if (result && result.executiveDivisionSummary) {
+        setStep2Data((prev) => ({
+          ...prev,
+          executiveDivisionSummary: result.executiveDivisionSummary,
+          aiCoachTip:
+            result.aiCoachTip ||
+            (result.workloadAnalysis?.governanceStrengths &&
+            result.workloadAnalysis.governanceStrengths.length > 0
+              ? `Strengths: ${result.workloadAnalysis.governanceStrengths.join(', ')}`
+              : undefined),
+        }));
+        setSaveBanner(
+          '✨ Generated AI Executive Division of Responsibilities narrative!'
+        );
+        setTimeout(() => setSaveBanner(null), 5000);
+      }
+    } catch (err) {
+      console.error('Failed to generate role matrix summary', err);
+    } finally {
+      setIsDraftingStep2Ai(false);
+    }
+  }
 
   // Step 1 Handlers
   async function handleSaveStep1() {
@@ -1700,14 +1999,858 @@ export function ModuleFWorkspace({
         )}
       </div>
 
-      {/* Placeholders for Steps 2-6 (which will be built out step-by-step) */}
+      {/* STEP 2: "7 STARTUP HATS" ROLE MATRIX & EXTERNAL ADVISORS */}
+      <div id="module-f-step-2" className="scroll-mt-24">
+        {openStep !== 'ALL' && openStep !== 2 ? (
+          /* Collapsed Step 2 Card */
+          <div
+            onClick={() => setOpenStep(2)}
+            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-2xs ${
+                    step2Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                  }`}
+                >
+                  {step2Complete ? <Check className="h-4 w-4" /> : '2'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-xs font-bold text-slate-900">
+                      Step 2: "7 Startup Hats" Role Matrix &amp; External Advisors
+                    </h3>
+                    <Badge
+                      variant={step2Complete ? 'default' : 'outline'}
+                      className={`text-[10px] shrink-0 ${
+                        step2Complete
+                          ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                          : 'border-slate-300 text-slate-600'
+                      }`}
+                    >
+                      {step2Complete ? 'Completed' : 'In Progress'}
+                    </Badge>
+                  </div>
+                  <p className="truncate text-[11px] text-slate-500">
+                    {step2Complete
+                      ? `All 7 Hats assigned across ${step1Data.teamMembers.length} member(s) • ${step2Data.advisors.length} Advisor(s) • Division Narrative Ready`
+                      : `${step2AssignedHatsCount} of 7 Hats assigned • Assign primary owners to avoid grant bottlenecks`}
+                  </p>
+                </div>
+              </div>
+              <div className="ml-3 flex shrink-0 items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs font-semibold text-indigo-600 group-hover:bg-indigo-50"
+                >
+                  Edit Step
+                  <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Expanded Step 2 Card */
+          <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-2xs ${
+                      step2Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                    }`}
+                  >
+                    {step2Complete ? <Check className="h-4 w-4" /> : '2'}
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-sm font-bold text-slate-900">
+                        Step 2: "7 Startup Hats" Role Matrix &amp; External Advisors
+                      </CardTitle>
+                      <Badge
+                        variant={step2Complete ? 'default' : 'outline'}
+                        className={`text-[10px] ${
+                          step2Complete
+                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                            : 'border-slate-300 text-slate-600'
+                        }`}
+                      >
+                        {step2Complete ? 'Completed' : 'In Progress'}
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-xs text-slate-500 mt-1">
+                      Assign single-point accountability across all 7 startup functions, balance team workloads, and schedule strategic advisors (LEO Section 1 &amp; UK Innovate UK IFS Q8 compliant).
+                    </CardDescription>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setActiveWhyCard(activeWhyCard === 2 ? null : 2)
+                    }
+                    className="h-7 text-xs text-slate-500 hover:text-indigo-600"
+                  >
+                    <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                    Why Are We Asking This?
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setActiveExampleCard(activeExampleCard === 2 ? null : 2)
+                    }
+                    className="h-7 text-xs text-slate-500 hover:text-indigo-600"
+                  >
+                    <Lightbulb className="mr-1 h-3.5 w-3.5 text-amber-500" />
+                    Show Me an Example
+                  </Button>
+                  {openStep !== 'ALL' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setOpenStep(0)}
+                      className="h-7 text-xs text-slate-500 hover:text-slate-800"
+                    >
+                      Collapse Step
+                      <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Micro-Coaching: Why Are We Asking This? */}
+              {activeWhyCard === 2 && (
+                <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                  <div className="flex items-start gap-2.5">
+                    <Info className="h-4 w-4 shrink-0 text-indigo-600 mt-0.5" />
+                    <div className="space-y-1.5 leading-relaxed">
+                      <p className="font-bold text-indigo-900">
+                        Why Grant Assessors &amp; Investors Scrutinize the "7 Startup Hats":
+                      </p>
+                      <p>
+                        Early-stage startups do not fail from poor ideas; they fail from single points of failure and founder burnout. Assessors evaluating Irish LEO Feasibility/Priming Grants (Section 1) and UK Innovate UK Smart Grants (Question 8: Capabilities) look for clear functional ownership across 7 indispensable hats:
+                      </p>
+                      <ul className="list-disc pl-4 space-y-1 text-indigo-900/90">
+                        <li>
+                          <strong>Clear Primary Accountability:</strong> One single throat to choke for every critical area so nothing falls through the cracks.
+                        </li>
+                        <li>
+                          <strong>Business Continuity Redundancy:</strong> Having a designated backup owner protects the company if a founder falls ill or travels.
+                        </li>
+                        <li>
+                          <strong>Workload Health:</strong> A founder holding 6 or 7 hats is a major execution risk flag. Assessors want to see realistic weekly commitments and plans to recruit or outsource.
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Micro-Coaching: Show Me an Example */}
+              {activeExampleCard === 2 && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950">
+                  <div className="flex items-start gap-2.5">
+                    <Lightbulb className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                    <div className="space-y-1.5 leading-relaxed">
+                      <p className="font-bold text-amber-900">
+                        High-Scoring Grant Example: 2-Founder Team + Advisory Board
+                      </p>
+                      <p>
+                        <strong>Founder 1 (CEO):</strong> Primary for Vision &amp; Fundraising (12h), Sales &amp; Commercial BD (15h), Customer Support (8h). Total: 35h/wk. Backup for Tech Build.
+                      </p>
+                      <p>
+                        <strong>Founder 2 (CTO):</strong> Primary for Product &amp; Tech Build (25h), Ops/Legal/Compliance (8h), Marketing/Growth (10h). Total: 43h/wk. Backup for Sales.
+                      </p>
+                      <p>
+                        <strong>Finance Hat:</strong> Co-owned with an Outsourced Fractional Bookkeeper/Accountant for VAT returns and LEO claim submission drawdowns (7h/wk).
+                      </p>
+                      <p>
+                        <strong>Advisory Board:</strong> Ex-VP Sales at SaaS scaleup (Monthly 60-min call) + Enterprise Ireland Commercial Mentor.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardHeader>
+
+            <CardContent className="space-y-6 pt-5">
+              {/* 1. Live Team Workload & Burnout Meter */}
+              <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-indigo-50/20 to-slate-50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-indigo-600" />
+                    <span className="text-xs font-bold text-slate-900">
+                      Team Workload &amp; Burnout Risk Meter
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] bg-white text-slate-600 border-slate-200"
+                    >
+                      Live Analysis
+                    </Badge>
+                  </div>
+                  <span className="text-[11px] text-slate-500">
+                    Calculated from primary hat hours across active team members
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {step1Data.teamMembers.map((member) => {
+                    const primaryHats = step2Data.hatAssignments.filter(
+                      (h) => h.primaryOwnerMemberId === member.id
+                    );
+                    const totalHours = primaryHats.reduce(
+                      (acc, h) => acc + (Number(h.weeklyHours) || 0),
+                      0
+                    );
+                    const isOverloaded =
+                      primaryHats.length >= 5 || totalHours >= 50;
+                    const isBorderline =
+                      primaryHats.length === 4 ||
+                      (totalHours >= 40 && totalHours < 50);
+
+                    return (
+                      <div
+                        key={member.id}
+                        className={`rounded-lg border p-3 transition-colors ${
+                          isOverloaded
+                            ? 'border-rose-300 bg-rose-50/70'
+                            : isBorderline
+                            ? 'border-amber-300 bg-amber-50/60'
+                            : 'border-slate-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900 truncate max-w-[150px]">
+                            {member.fullName?.trim()
+                              ? member.fullName
+                              : 'Founder / Member'}
+                          </span>
+                          <Badge
+                            className={`text-[10px] ${
+                              isOverloaded
+                                ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                : isBorderline
+                                ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            }`}
+                          >
+                            {isOverloaded
+                              ? 'High Burnout Risk'
+                              : isBorderline
+                              ? 'Heavy Workload'
+                              : 'Balanced'}
+                          </Badge>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
+                          <span>
+                            Primary Hats: <strong>{primaryHats.length} of 7</strong>
+                          </span>
+                          <span>
+                            Total: <strong>{totalHours} hrs/wk</strong>
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                          <div
+                            className={`h-full transition-all ${
+                              isOverloaded
+                                ? 'bg-rose-500'
+                                : isBorderline
+                                ? 'bg-amber-500'
+                                : 'bg-emerald-500'
+                            }`}
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                Math.round((totalHours / 55) * 100)
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {step2Data.hatAssignments.filter(
+                    (h) =>
+                      !h.primaryOwnerMemberId ||
+                      h.primaryOwnerMemberId === 'UNASSIGNED'
+                  ).length > 0 && (
+                    <div className="rounded-lg border border-amber-300 bg-amber-50/60 p-3 sm:col-span-2 lg:col-span-1">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                        <span>
+                          {
+                            step2Data.hatAssignments.filter(
+                              (h) =>
+                                !h.primaryOwnerMemberId ||
+                                h.primaryOwnerMemberId === 'UNASSIGNED'
+                            ).length
+                          }{' '}
+                          Hat(s) Currently Unassigned
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-amber-700 leading-relaxed">
+                        Grant assessors look for single-point ownership. Assign to a founder or mark as Outsourced Contractor/Agency.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. The 7 Startup Hats Assignment Grid */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900">
+                    2. "7 Startup Hats" Single-Point Accountability Grid
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Assign Primary and Backup ownership across all 7 functions to eliminate role ambiguity and establish business continuity.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {STARTUP_HATS_CONFIG.map((hat) => {
+                    const assignment =
+                      step2Data.hatAssignments.find(
+                        (h) => h.hatKey === hat.key
+                      ) || {
+                        hatKey: hat.key,
+                        title: hat.label,
+                        scopeSummary: hat.description,
+                        primaryOwnerMemberId: 'UNASSIGNED',
+                        backupOwnerMemberId: 'UNASSIGNED',
+                        weeklyHours: hat.defaultWeeklyHours,
+                        confidence: 'HIGH_MASTERY' as HatConfidenceLevel,
+                        notes: '',
+                      };
+
+                    const isUnassigned =
+                      !assignment.primaryOwnerMemberId ||
+                      assignment.primaryOwnerMemberId === 'UNASSIGNED';
+
+                    return (
+                      <div
+                        key={hat.key}
+                        className={`rounded-xl border p-4 shadow-2xs transition-all space-y-3 ${
+                          isUnassigned
+                            ? 'border-amber-200 bg-amber-50/30'
+                            : 'border-slate-200 bg-white hover:border-indigo-200'
+                        }`}
+                      >
+                        {/* Hat Header */}
+                        <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{hat.emoji}</span>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-900">
+                                {hat.label}
+                              </h4>
+                              <p className="text-[11px] text-slate-500">
+                                {hat.description}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-slate-50 text-slate-600 border-slate-200 shrink-0 hidden sm:inline-flex"
+                          >
+                            {hat.defaultWeeklyHours}h benchmark
+                          </Badge>
+                        </div>
+
+                        {/* Dropdowns Row: Primary Owner + Backup Owner */}
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          <div>
+                            <label className="text-[11px] font-semibold text-slate-700 flex items-center justify-between">
+                              <span>Primary Owner (Single Point)</span>
+                              {isUnassigned && (
+                                <span className="text-amber-600 font-bold">
+                                  * Required
+                                </span>
+                              )}
+                            </label>
+                            <select
+                              value={assignment.primaryOwnerMemberId || 'UNASSIGNED'}
+                              onChange={(e) =>
+                                handleUpdateHatAssignment(hat.key, {
+                                  primaryOwnerMemberId: e.target.value,
+                                })
+                              }
+                              disabled={isVaultReadonly}
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+                            >
+                              <option value="UNASSIGNED">
+                                ⚠️ Currently Unassigned (Open Gap)
+                              </option>
+                              <optgroup label="Core Team Members">
+                                {step1Data.teamMembers.map((m) => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.fullName?.trim()
+                                      ? m.fullName
+                                      : 'Unnamed Member'}{' '}
+                                    ({m.jobTitle?.trim() ? m.jobTitle : 'Team Member'}
+                                    {m.roleClassification === 'FOUNDER_PROMOTER'
+                                      ? ' • Founder'
+                                      : ''}
+                                    )
+                                  </option>
+                                ))}
+                              </optgroup>
+                              <optgroup label="External / Outsourced">
+                                <option value="FRACTIONAL_EXTERNAL">
+                                  💼 Outsourced Contractor / Agency
+                                </option>
+                              </optgroup>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] font-semibold text-slate-700">
+                              Backup Owner (Continuity)
+                            </label>
+                            <select
+                              value={assignment.backupOwnerMemberId || 'UNASSIGNED'}
+                              onChange={(e) =>
+                                handleUpdateHatAssignment(hat.key, {
+                                  backupOwnerMemberId: e.target.value,
+                                })
+                              }
+                              disabled={isVaultReadonly}
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+                            >
+                              <option value="UNASSIGNED">
+                                None / Single Owner Only
+                              </option>
+                              <optgroup label="Core Team Members">
+                                {step1Data.teamMembers.map((m) => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.fullName?.trim()
+                                      ? m.fullName
+                                      : 'Unnamed Member'}{' '}
+                                    ({m.jobTitle?.trim() ? m.jobTitle : 'Team Member'})
+                                  </option>
+                                ))}
+                              </optgroup>
+                              <optgroup label="External / Outsourced">
+                                <option value="FRACTIONAL_EXTERNAL">
+                                  💼 Fractional / External Partner
+                                </option>
+                              </optgroup>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Hours & Confidence Level Row */}
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-600">
+                              Estimated Commitment (hrs/week)
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={80}
+                              value={assignment.weeklyHours}
+                              onChange={(e) =>
+                                handleUpdateHatAssignment(hat.key, {
+                                  weeklyHours:
+                                    Number(e.target.value) || 0,
+                                })
+                              }
+                              disabled={isVaultReadonly}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-600">
+                              Domain Competence Level
+                            </label>
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              {[
+                                {
+                                  value: 'HIGH_MASTERY' as const,
+                                  label: 'High Mastery',
+                                  activeClass:
+                                    'bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold',
+                                },
+                                {
+                                  value: 'LEARNING_ON_THE_JOB' as const,
+                                  label: 'Learning',
+                                  activeClass:
+                                    'bg-amber-100 text-amber-800 border-amber-300 font-semibold',
+                                },
+                                {
+                                  value: 'SKILL_GAP' as const,
+                                  label: 'Skill Gap',
+                                  activeClass:
+                                    'bg-rose-100 text-rose-800 border-rose-300 font-semibold',
+                                },
+                              ].map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() =>
+                                    handleUpdateHatAssignment(hat.key, {
+                                      confidence: opt.value,
+                                    })
+                                  }
+                                  disabled={isVaultReadonly}
+                                  className={`rounded-md border px-2 py-1 text-[10px] transition-colors ${
+                                    assignment.confidence === opt.value
+                                      ? opt.activeClass
+                                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Specific Deliverables Notes */}
+                        <div>
+                          <input
+                            type="text"
+                            value={assignment.notes || ''}
+                            onChange={(e) =>
+                              handleUpdateHatAssignment(hat.key, {
+                                notes: e.target.value,
+                              })
+                            }
+                            placeholder="Key specific deliverable, e.g. closing first 10 pilot accounts, sprint velocity..."
+                            disabled={isVaultReadonly}
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-[11px] text-slate-700 focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Strategic Advisory Board & Mentors */}
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900">
+                      3. Strategic Advisory Board &amp; Industry Mentors (Non-Executive)
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      LEO mentorship panels, Enterprise Ireland advisors, university spin-out mentors, or sector veterans.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddAdvisor}
+                    disabled={isVaultReadonly}
+                    className="text-xs border-indigo-200 bg-indigo-50/40 text-indigo-700 hover:bg-indigo-100"
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Add Advisor / Mentor
+                  </Button>
+                </div>
+
+                {step2Data.advisors.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-5 text-center">
+                    <Users className="mx-auto h-7 w-7 text-slate-400 mb-2" />
+                    <p className="text-xs font-medium text-slate-700">
+                      No external advisors added yet (Optional but Highly Recommended for Grants)
+                    </p>
+                    <p className="text-[11px] text-slate-500 max-w-md mx-auto mt-1 mb-3">
+                      Listing 1–2 credible industry advisors or an assigned LEO mentor dramatically increases grant scoring without requiring equity dilution.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddAdvisor}
+                      disabled={isVaultReadonly}
+                      className="text-xs border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50"
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Add First Advisor or Mentor
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {step2Data.advisors.map((advisor, index) => (
+                      <div
+                        key={advisor.id}
+                        className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-3"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            Advisor #{index + 1}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveAdvisor(advisor.id)}
+                            disabled={isVaultReadonly}
+                            className="h-7 px-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-600">
+                              Advisor Name
+                            </label>
+                            <input
+                              type="text"
+                              value={advisor.name}
+                              onChange={(e) =>
+                                handleUpdateAdvisor(advisor.id, {
+                                  name: e.target.value,
+                                })
+                              }
+                              placeholder="e.g. Dr. Aoife O'Brien"
+                              disabled={isVaultReadonly}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-600">
+                              Specialty / Advisory Focus
+                            </label>
+                            <input
+                              type="text"
+                              value={advisor.roleOrSpecialty}
+                              onChange={(e) =>
+                                handleUpdateAdvisor(advisor.id, {
+                                  roleOrSpecialty: e.target.value,
+                                })
+                              }
+                              placeholder="e.g. B2B Enterprise SaaS &amp; GTM"
+                              disabled={isVaultReadonly}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-600">
+                              Organization / Background
+                            </label>
+                            <input
+                              type="text"
+                              value={advisor.organizationOrAffiliation || ''}
+                              onChange={(e) =>
+                                handleUpdateAdvisor(advisor.id, {
+                                  organizationOrAffiliation: e.target.value,
+                                })
+                              }
+                              placeholder="e.g. Ex-VP Sales at Stripe / LEO Mentor"
+                              disabled={isVaultReadonly}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-600">
+                              Engagement Cadence
+                            </label>
+                            <select
+                              value={advisor.cadence}
+                              onChange={(e) =>
+                                handleUpdateAdvisor(advisor.id, {
+                                  cadence: e.target.value as
+                                    | 'MONTHLY'
+                                    | 'QUARTERLY'
+                                    | 'BI_WEEKLY'
+                                    | 'AD_HOC',
+                                })
+                              }
+                              disabled={isVaultReadonly}
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+                            >
+                              <option value="MONTHLY">Monthly 60-min Call</option>
+                              <option value="QUARTERLY">Quarterly Strategy Board</option>
+                              <option value="BI_WEEKLY">Bi-Weekly Tactical Call</option>
+                              <option value="AD_HOC">Ad-Hoc / On-Demand</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-600">
+                              Terms &amp; Compensation
+                            </label>
+                            <input
+                              type="text"
+                              value={advisor.notes || ''}
+                              onChange={(e) =>
+                                handleUpdateAdvisor(advisor.id, {
+                                  notes: e.target.value,
+                                })
+                              }
+                              placeholder="e.g. Pro-Bono / LEO Voucher / 0.25% equity"
+                              disabled={isVaultReadonly}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Executive Division of Responsibilities Narrative */}
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900">
+                      4. Executive Division of Responsibilities Narrative (LEO Section 1 &amp; UK Innovate UK IFS Q8)
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Synthesized grant-ready summary articulating team balance, domain competence, and risk mitigation.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAiDraftRoleMatrixSummary}
+                      disabled={isVaultReadonly || isDraftingStep2Ai}
+                      className="text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+                    >
+                      {isDraftingStep2Ai ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                      )}
+                      Auto-Draft with AI
+                    </Button>
+                    <Badge
+                      variant={
+                        step2Data.executiveDivisionSummary
+                          .trim()
+                          .split(/\s+/)
+                          .filter(Boolean).length >= 50
+                          ? 'default'
+                          : 'outline'
+                      }
+                      className={`text-[10px] ${
+                        step2Data.executiveDivisionSummary
+                          .trim()
+                          .split(/\s+/)
+                          .filter(Boolean).length >= 50
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'border-amber-300 bg-amber-50 text-amber-800'
+                      }`}
+                    >
+                      {
+                        step2Data.executiveDivisionSummary
+                          .trim()
+                          .split(/\s+/)
+                          .filter(Boolean).length
+                      }{' '}
+                      Words{' '}
+                      {step2Data.executiveDivisionSummary
+                        .trim()
+                        .split(/\s+/)
+                        .filter(Boolean).length >= 50
+                        ? '✓ Ready for Appendix'
+                        : '(Target 100–220 words)'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <textarea
+                  rows={5}
+                  value={step2Data.executiveDivisionSummary}
+                  onChange={(e) =>
+                    setStep2Data((prev) => ({
+                      ...prev,
+                      executiveDivisionSummary: e.target.value,
+                    }))
+                  }
+                  placeholder="Click 'Auto-Draft with AI' to automatically synthesize the 7-hat distribution, primary owners, and advisory coverage into a formal narrative suitable for Irish LEO Form Section 1 and UK Innovate UK Question 8..."
+                  disabled={isVaultReadonly}
+                  className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs focus:border-indigo-500 focus:outline-hidden leading-relaxed"
+                />
+
+                {step2Data.aiCoachTip && (
+                  <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2.5 text-xs text-indigo-900 flex items-start gap-2">
+                    <Sparkles className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold">AI Pre-Flight Note: </span>
+                      <span>{step2Data.aiCoachTip}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Step 2 Toolbar: Park Open Question + Save Step 2 + Next Step */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
+                <div className="flex items-center gap-2">
+                  {onParkOpenQuestion && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        onParkOpenQuestion(
+                          'Resolve unassigned functional hats or evaluate fractional contractors to relieve founder operational overload before grant submission.'
+                        )
+                      }
+                      className="text-xs text-slate-600"
+                    >
+                      <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-amber-500" />
+                      Park Open Question
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={handleSaveStep2}
+                    disabled={isSavingStep2 || isVaultReadonly}
+                    className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
+                  >
+                    {isSavingStep2 ? (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Save className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    Save Step 2
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      handleSaveStep2();
+                      setOpenStep(3);
+                    }}
+                    className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  >
+                    Next: Survival Budget
+                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Placeholders for Steps 3-6 (which will be built out step-by-step) */}
       {[
-        {
-          num: 2,
-          id: 'module-f-step-2',
-          title: 'Step 2: "7 Startup Hats" Role Matrix & External Advisors',
-          desc: 'Assign Primary & Backup owners across Vision, Product, Sales, Marketing, Support, Ops, and Finance to prevent overload bottlenecks.',
-        },
         {
           num: 3,
           id: 'module-f-step-3',

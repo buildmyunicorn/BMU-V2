@@ -690,10 +690,14 @@ export function ModuleCWorkspace({
     'SURVEYS' | 'INTERVIEWS'
   >('SURVEYS');
 
-  // Survey sub-view tab: 'BUILDER' vs 'OUTREACH' vs 'INSIGHTS'
+  // Survey sub-view tab: 'BUILDER' vs 'OUTREACH' vs 'INSIGHTS' vs 'AUDIENCE_BOOST'
   const [activeViewTab, setActiveViewTab] = useState<
-    'BUILDER' | 'OUTREACH' | 'INSIGHTS'
+    'BUILDER' | 'OUTREACH' | 'INSIGHTS' | 'AUDIENCE_BOOST'
   >('BUILDER');
+  // State for audience boost interest modal/feedback
+  const [boostWaitlistSubmitted, setBoostWaitlistSubmitted] = useState<boolean>(false);
+  const [selectedBoostTier, setSelectedBoostTier] = useState<string>('TIER_100');
+  const [boostTargetPersonaNotes, setBoostTargetPersonaNotes] = useState<string>('');
   // Active channel inside 'OUTREACH' tab
   const [selectedOutreachChannel, setSelectedOutreachChannel] =
     useState<OutreachChannelType>('LINKEDIN_DM');
@@ -3217,6 +3221,34 @@ export function ModuleCWorkspace({
                       {totalResponses}
                     </span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewTab('AUDIENCE_BOOST')}
+                    className={`group relative flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
+                      activeViewTab === 'AUDIENCE_BOOST'
+                        ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-xs'
+                        : 'border border-amber-300/80 bg-amber-50/70 text-amber-900 hover:border-amber-400 hover:bg-amber-100/70'
+                    }`}
+                  >
+                    <Flame
+                      className={`h-3.5 w-3.5 shrink-0 ${
+                        activeViewTab === 'AUDIENCE_BOOST'
+                          ? 'text-amber-200'
+                          : 'text-amber-600'
+                      }`}
+                    />
+                    <span>4. Guaranteed Responses</span>
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide ${
+                        activeViewTab === 'AUDIENCE_BOOST'
+                          ? 'bg-amber-900/60 text-amber-200'
+                          : 'bg-amber-200/90 text-amber-900'
+                      }`}
+                    >
+                      Boost
+                    </span>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -4209,6 +4241,40 @@ export function ModuleCWorkspace({
               </div>
             </div>
 
+            {/* Fast-Track Response Booster Promo Card */}
+            <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 p-4 shadow-xs">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xs">
+                    <Flame className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                        Zero Time for Cold DMs?
+                      </span>
+                      <Badge className="border-amber-300 bg-amber-100 text-[10px] font-bold text-amber-900">
+                        ⚡ Founder Panel Boost
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-700">
+                      Need 50 to 250+ targeted responses for LEO / Innovate UK validation or your pitch deck? We can source verified B2B/B2C respondents in your exact niche.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setActiveViewTab('AUDIENCE_BOOST')}
+                  className="shrink-0 bg-gradient-to-r from-amber-600 to-orange-600 text-xs font-bold text-white shadow-xs hover:from-amber-700 hover:to-orange-700"
+                >
+                  <Flame className="mr-1.5 h-3.5 w-3.5" />
+                  Explore Guaranteed Responses
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
               {/* ============================================================= */}
               {/* LEFT COLUMN (7 COLS): READY-TO-SEND OUTREACH TEMPLATES        */}
@@ -4856,6 +4922,16 @@ export function ModuleCWorkspace({
                   <FlaskConical className="h-3.5 w-3.5" />
                   Simulate 5 Sample Responses
                 </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveViewTab('AUDIENCE_BOOST')}
+                  className="border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                >
+                  <Flame className="h-3.5 w-3.5 text-amber-600" />
+                  Get 50–250 Guaranteed Responses
+                </Button>
               </div>
             </div>
           ) : (
@@ -5501,6 +5577,19 @@ export function ModuleCWorkspace({
                   <Button
                     type="button"
                     size="sm"
+                    onClick={() => setActiveViewTab('AUDIENCE_BOOST')}
+                    className="bg-gradient-to-r from-amber-600 to-orange-600 text-xs font-bold text-white hover:from-amber-700 hover:to-orange-700"
+                  >
+                    <Flame className="h-3.5 w-3.5" />
+                    Next: Guaranteed Responses
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+
+                {activeViewTab === 'AUDIENCE_BOOST' && (
+                  <Button
+                    type="button"
+                    size="sm"
                     onClick={() => setIsSurveyStudioOpen(false)}
                     className="bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
                   >
@@ -5511,6 +5600,303 @@ export function ModuleCWorkspace({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* TAB 4: GUARANTEED RESPONSES & TARGETED FOUNDER PANEL PLACEHOLDER    */}
+      {/* =================================================================== */}
+      {activeViewTab === 'AUDIENCE_BOOST' && (
+        <div className="space-y-6">
+          {/* Top Banner */}
+          <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-indigo-500/5 p-6 shadow-xs">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900">
+                    <Flame className="mr-1 h-3.5 w-3.5 text-amber-600" />
+                    Targeted Founder Panel • Coming Soon
+                  </Badge>
+                  <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">
+                    Early Access Preview
+                  </span>
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-900 sm:text-xl">
+                  Fast-Track Your Customer Validation with Guaranteed Responses
+                </h3>
+                <p className="max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
+                  Don&apos;t have 40 hours to cold-message prospects on LinkedIn? Get 50 to 250+ targeted, Mom-Test-compliant responses in your exact industry to prove market demand for Enterprise Ireland, LEO, Innovate UK, or angel investors.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-300/80 bg-white/80 p-3 text-center shadow-2xs backdrop-blur-xs">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Target Response Time
+                </div>
+                <div className="text-xl font-extrabold text-amber-600">
+                  24–48 Hours
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  Zero Bots • 100% Verified
+                </div>
+              </div>
+            </div>
+
+            {/* How It Works 3-Step Strip */}
+            <div className="mt-6 grid grid-cols-1 gap-3 border-t border-amber-200/80 pt-4 sm:grid-cols-3">
+              <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
+                  1
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Define Exact Persona
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-600">
+                    Filter by geography (IE / UK / US / EU), job role, company size, or consumer demographic.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
+                  2
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Mom-Test Quality Guard
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-600">
+                    Automated spam detection, AI bot filtering, and manual response quality verification.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
+                  3
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Live Sync to Module C &amp; L
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-600">
+                    Responses feed straight into your charts, AI insights, and official grant application appendices.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing & Tier Placeholders */}
+          <div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900">
+                  Select Response Package (Placeholder Preview)
+                </h4>
+                <p className="text-xs text-slate-500">
+                  These packages are currently in private pilot testing. Join the waitlist to get 25% off when launched.
+                </p>
+              </div>
+              <Badge variant="outline" className="text-[11px] text-slate-600">
+                Currency: {plan.baseCurrency || 'EUR'}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {/* Tier 1: Starter */}
+              <div
+                onClick={() => setSelectedBoostTier('TIER_50')}
+                className={`relative cursor-pointer rounded-2xl border p-5 transition-all ${
+                  selectedBoostTier === 'TIER_50'
+                    ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/20 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Starter Pilot
+                    </span>
+                    <h5 className="mt-1 text-xl font-extrabold text-slate-900">
+                      50 Responses
+                    </h5>
+                  </div>
+                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">
+                    {plan.baseCurrency === 'GBP' ? '£129' : '€149'}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-600">
+                  Perfect for sanity-checking your core problem statement and willingness-to-pay.
+                </p>
+                <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-700">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    Targeted by country (IE, UK, or US)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    48-hour delivery window
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    Anti-bot quality scrub
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    Full AI Insights synthesis
+                  </li>
+                </ul>
+              </div>
+
+              {/* Tier 2: Most Popular */}
+              <div
+                onClick={() => setSelectedBoostTier('TIER_100')}
+                className={`relative cursor-pointer rounded-2xl border p-5 transition-all ${
+                  selectedBoostTier === 'TIER_100'
+                    ? 'border-amber-600 bg-amber-50/50 ring-2 ring-amber-600/30 shadow-md'
+                    : 'border-amber-300 bg-white hover:border-amber-400'
+                }`}
+              >
+                <div className="absolute -top-3 right-4">
+                  <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-[10px] font-bold text-white shadow-2xs">
+                    ⭐ Recommended for Grants
+                  </Badge>
+                </div>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-700">
+                      Grant &amp; Seed Ready
+                    </span>
+                    <h5 className="mt-1 text-xl font-extrabold text-slate-900">
+                      100 Responses
+                    </h5>
+                  </div>
+                  <span className="rounded-lg bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">
+                    {plan.baseCurrency === 'GBP' ? '£229' : '€259'}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-600">
+                  Meets statistical sample criteria for LEO Feasibility/Priming and Innovate UK IFS proof.
+                </p>
+                <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-700">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    Industry &amp; job-role targeting
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    24-hour priority delivery
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    Qualitative verbatim quotes included
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    Grant-ready Module L export block
+                  </li>
+                </ul>
+              </div>
+
+              {/* Tier 3: Deep Dive */}
+              <div
+                onClick={() => setSelectedBoostTier('TIER_250')}
+                className={`relative cursor-pointer rounded-2xl border p-5 transition-all ${
+                  selectedBoostTier === 'TIER_250'
+                    ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/20 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Investor Deep Dive
+                    </span>
+                    <h5 className="mt-1 text-xl font-extrabold text-slate-900">
+                      250 Responses
+                    </h5>
+                  </div>
+                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">
+                    {plan.baseCurrency === 'GBP' ? '£449' : '€499'}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-600">
+                  Enterprise-grade cohort segmentation with maximum confidence for pre-seed / seed rounds.
+                </p>
+                <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-700">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    Hyper-niche decision-maker panel
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    Cross-tab cohort comparison analysis
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    Opt-in list for follow-up 1-on-1 calls
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    White-label PDF report for angels
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Interest Registration / Quote Request Card */}
+          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50/60 via-white to-amber-50/40 shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-bold text-slate-900">
+                Join the Private Panel Beta &amp; Request Audience Feasibility Quote
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-600">
+                Tell us your target audience profile. We&apos;ll calculate custom feasibility and notify you as soon as the panel engine is live for your sector.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {boostWaitlistSubmitted ? (
+                <div className="flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                  <div className="text-xs">
+                    <strong>You&apos;re on the early access priority list!</strong> We&apos;ve logged your niche audience criteria for {plan.title}. We&apos;ll notify you directly when respondent sourcing opens.
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">
+                      Who is your ideal respondent? (Job title, sector, company size, or consumer trait):
+                    </label>
+                    <Input
+                      value={boostTargetPersonaNotes}
+                      onChange={(e) => setBoostTargetPersonaNotes(e.target.value)}
+                      placeholder="e.g., Dental clinic practice managers in Ireland & UK, or parents with toddlers aged 1-4"
+                      className="bg-white text-xs"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                    <div className="text-[11px] text-slate-500">
+                      🔒 No payment taken today • 25% early access discount guaranteed
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setBoostWaitlistSubmitted(true)}
+                      className="bg-gradient-to-r from-amber-600 to-orange-600 text-xs font-bold text-white shadow-xs hover:from-amber-700 hover:to-orange-700"
+                    >
+                      <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                      Register Interest for {selectedBoostTier === 'TIER_50' ? '50 Responses' : selectedBoostTier === 'TIER_250' ? '250 Responses' : '100 Responses'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 

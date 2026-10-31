@@ -1408,10 +1408,52 @@ export interface PromoterProfilesStep1Data {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type StartupHatKey =
+  | 'VISION_FUNDRAISING'
+  | 'PRODUCT_TECH_BUILD'
+  | 'SALES_COMMERCIAL_BD'
+  | 'MARKETING_GROWTH'
+  | 'CUSTOMER_SUCCESS_SUPPORT'
+  | 'OPS_LEGAL_COMPLIANCE'
+  | 'FINANCE_CASHFLOW_GRANTS';
+
+export type HatConfidenceLevel =
+  | 'HIGH_MASTERY'
+  | 'LEARNING_ON_THE_JOB'
+  | 'SKILL_GAP';
+
+export interface StartupHatAssignment {
+  hatKey: StartupHatKey;
+  title: string;
+  scopeSummary: string;
+  primaryOwnerMemberId: string; // member.id or 'FRACTIONAL_EXTERNAL' or 'UNASSIGNED'
+  backupOwnerMemberId?: string; // member.id or 'NONE'
+  weeklyHours: number;
+  confidence: HatConfidenceLevel;
+  notes?: string;
+}
+
+export interface ExternalAdvisorItem {
+  id: string;
+  name: string;
+  roleOrSpecialty: string; // e.g. "Ex-Stripe VP", "Chartered Accountant", "LEO Mentor"
+  organizationOrAffiliation?: string;
+  cadence: 'MONTHLY' | 'QUARTERLY' | 'BI_WEEKLY' | 'AD_HOC';
+  notes?: string;
+}
+
+export interface RoleMatrixStep2Data {
+  hatAssignments: StartupHatAssignment[];
+  advisors: ExternalAdvisorItem[];
+  executiveDivisionSummary: string; // 150-250 word AI/human executive summary for LEO Section 1 & Innovate UK Q8
+  lastSavedAt?: string;
+  aiCoachTip?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface SavedModuleFData {
   promoterProfiles?: PromoterProfilesStep1Data;
-  // Steps 2-6 types will be added as we build each step
-  step2RoleMatrixData?: any;
+  step2RoleMatrixData?: RoleMatrixStep2Data;
   step3SurvivalBudgetData?: any;
   step4AlignmentData?: any;
   step5HiringPlanData?: any;

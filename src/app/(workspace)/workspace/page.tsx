@@ -4423,6 +4423,28 @@ export default function WorkspacePage() {
                   return updatedSession;
                 });
               }}
+              onSaveStep2RoleMatrix={async (step2RoleMatrixData, progress = 40) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_F_STEP_2',
+                      moduleFData: {
+                        ...(p.moduleFData || {}),
+                        step2RoleMatrixData,
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
               userId={session.user.id}
               userName={session.user.name}
               userEmail={session.user.email}

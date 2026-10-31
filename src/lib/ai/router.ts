@@ -10001,6 +10001,270 @@ Return strictly valid JSON with this exact schema:
   return fallbackResult;
 }
 
+export interface GenerateRoleMatrixSummaryResult {
+  allowed: boolean;
+  executiveDivisionSummary: string;
+  workloadAnalysis: {
+    burnoutRisks: string[];
+    gapWarnings: string[];
+    governanceStrengths: string[];
+  };
+  aiCoachTip: string;
+  wordCount: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+function buildSmartRoleMatrixSynthesis(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  teamMembers: Array<{
+    id: string;
+    fullName: string;
+    jobTitle: string;
+  }>;
+  hatAssignments: Array<{
+    hatKey: string;
+    title: string;
+    primaryOwnerMemberId: string;
+    weeklyHours: number;
+    confidence: string;
+    notes?: string;
+  }>;
+  advisors?: Array<{
+    name: string;
+    roleOrSpecialty: string;
+    organizationOrAffiliation?: string;
+  }>;
+}): GenerateRoleMatrixSummaryResult {
+  const planTitle = params.planTitle || 'the startup';
+  const country = params.hqCountryCode || 'IE';
+  const memberMap = new Map<string, string>();
+  params.teamMembers.forEach((m) => {
+    memberMap.set(m.id, m.fullName || m.jobTitle || 'Core Team Member');
+  });
+
+  const getOwnerName = (id: string) => {
+    if (id === 'FRACTIONAL_EXTERNAL') return 'External Specialized Contractor';
+    if (id === 'UNASSIGNED') return 'Unassigned';
+    return memberMap.get(id) || 'Founding Promoter';
+  };
+
+  // Count hats per person
+  const hatCounts: Record<string, number> = {};
+  const unassignedHats: string[] = [];
+  const hatMap = new Map<string, string>();
+
+  params.hatAssignments.forEach((h) => {
+    hatMap.set(h.hatKey, getOwnerName(h.primaryOwnerMemberId));
+    if (h.primaryOwnerMemberId === 'UNASSIGNED') {
+      unassignedHats.push(h.title);
+    } else {
+      const owner = getOwnerName(h.primaryOwnerMemberId);
+      hatCounts[owner] = (hatCounts[owner] || 0) + 1;
+    }
+  });
+
+  const burnoutRisks: string[] = [];
+  Object.entries(hatCounts).forEach(([person, count]) => {
+    if (count >= 4) {
+      burnoutRisks.push(
+        `${person} holds ${count} of the 7 primary functional hats, presenting an operational bottleneck and single-point-of-failure risk.`
+      );
+    }
+  });
+
+  const gapWarnings: string[] = [];
+  if (unassignedHats.length > 0) {
+    gapWarnings.push(
+      `The following core functions currently have no primary owner: ${unassignedHats.join(
+        ', '
+      )}. Grant evaluators will scrutinize execution risk.`
+    );
+  }
+
+  const governanceStrengths: string[] = [];
+  if (params.advisors && params.advisors.length > 0) {
+    governanceStrengths.push(
+      `Supported by an active advisory roster including ${params.advisors
+        .map((a) => `${a.name} (${a.roleOrSpecialty})`)
+        .join(', ')}.`
+    );
+  }
+
+  const visionOwner = hatMap.get('VISION_FUNDRAISING') || 'The Lead Founder';
+  const productOwner =
+    hatMap.get('PRODUCT_TECH_BUILD') || 'The Technical Lead';
+  const salesOwner = hatMap.get('SALES_COMMERCIAL_BD') || 'The Commercial Lead';
+  const opsOwner =
+    hatMap.get('OPS_LEGAL_COMPLIANCE') || 'The Operations Lead';
+  const financeOwner =
+    hatMap.get('FINANCE_CASHFLOW_GRANTS') || 'The Finance Officer';
+
+  const advisorsText =
+    params.advisors && params.advisors.length > 0
+      ? ` Strategic governance is augmented by seasoned external advisors (${params.advisors
+          .map((a) => a.name)
+          .join(', ')}), providing quarterly oversight on technical architecture, legal diligence, and institutional funding milestones.`
+      : '';
+
+  const narrative = `At ${planTitle}, executive responsibilities and operational execution are structured across the founding team to guarantee operational agility while eliminating single-point bottlenecks. ${visionOwner} exercises primary executive leadership, maintaining ultimate authority over long-term vision, investor capital allocation, milestone governance, and grant administration. Technical architecture and product delivery are directed by ${productOwner}, supervising sprint execution, infrastructure security, QA integrity, and contractor workflows. Commercial traction and revenue generation are spearheaded by ${salesOwner}, managing customer discovery interviews, B2B pilot pipelines, and distribution partnerships. Operational risk, statutory filings, supplier management, and regulatory compliance are overseen by ${opsOwner}, ensuring compliance with statutory standards. Financial viability, cashflow trough management, payroll, and grant reimbursement drawdowns are maintained by ${financeOwner}.${advisorsText} This balanced separation of functional hats ensures that execution velocity remains high while fulfilling the governance standards expected by grant awarding bodies and institutional investors.`;
+
+  const words = narrative.trim().split(/\s+/).filter(Boolean);
+
+  return {
+    allowed: true,
+    executiveDivisionSummary: narrative,
+    workloadAnalysis: {
+      burnoutRisks,
+      gapWarnings,
+      governanceStrengths,
+    },
+    aiCoachTip:
+      burnoutRisks.length > 0
+        ? 'Grant evaluators look for balanced management teams. Consider delegating customer support or operations to fractional specialists to avoid overloading primary leaders.'
+        : 'Your hat allocation demonstrates clear single-point accountability with sensible operational balance across technical and commercial execution.',
+    wordCount: words.length,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generateRoleMatrixSummaryViaRouter(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  teamMembers: Array<{
+    id: string;
+    fullName: string;
+    jobTitle: string;
+  }>;
+  hatAssignments: Array<{
+    hatKey: string;
+    title: string;
+    primaryOwnerMemberId: string;
+    backupOwnerMemberId?: string;
+    weeklyHours: number;
+    confidence: string;
+    notes?: string;
+  }>;
+  advisors?: Array<{
+    name: string;
+    roleOrSpecialty: string;
+    organizationOrAffiliation?: string;
+    cadence?: string;
+  }>;
+}): Promise<GenerateRoleMatrixSummaryResult> {
+  const country = params.hqCountryCode || 'IE';
+  const countryLabel =
+    country === 'IE'
+      ? 'Ireland (LEO Form Section 1 & Enterprise Ireland)'
+      : 'United Kingdom (Innovate UK Q8 & Start Up Loans Tab 1)';
+
+  const fallbackResult = buildSmartRoleMatrixSynthesis(params);
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_F_ROLE_MATRIX',
+    'You are an expert startup management consultant and grant assessor evaluating founder team capability and division of responsibilities.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const prompt = `You are evaluating the team management structure and division of functional hats for ${sanitizePromptInput(
+        params.planTitle || 'Startup',
+        100
+      )} in ${countryLabel}.
+Industry: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+
+TEAM MEMBERS LOGGED:
+${JSON.stringify(params.teamMembers, null, 2)}
+
+7 STARTUP HATS ALLOCATION:
+${JSON.stringify(params.hatAssignments, null, 2)}
+
+EXTERNAL ADVISORS:
+${JSON.stringify(params.advisors || [], null, 2)}
+
+TASK:
+1. Synthesize a professional, comprehensive 160 to 220 word "Executive Division of Responsibilities" narrative tailored specifically for official grant applications (${countryLabel}).
+   - Clearly identify which individual is responsible for Vision/Fundraising, Product/Tech, Sales/Commercialization, Operations/Compliance, and Finance.
+   - Address decision-making authority and how deadlock is avoided.
+   - Explain how external advisors support the founding team.
+2. Provide a workload diagnostic: list any burnout risks (where one founder has >= 4 primary hats), any unassigned functional gaps, and key governance strengths.
+3. Provide a constructive, high-leverage 2-sentence AI Coach Tip for the founders.
+
+Return strictly valid JSON with this exact schema:
+{
+  "executiveDivisionSummary": "160-220 word comprehensive executive responsibilities narrative",
+  "burnoutRisks": ["string observation of overload if applicable"],
+  "gapWarnings": ["string observation of vacant hats if applicable"],
+  "governanceStrengths": ["string observation of strong team or advisor coverage"],
+  "aiCoachTip": "Constructive 2-sentence blind spot advice"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.25,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          executiveDivisionSummary?: string;
+          burnoutRisks?: string[];
+          gapWarnings?: string[];
+          governanceStrengths?: string[];
+          aiCoachTip?: string;
+        };
+
+        if (parsed.executiveDivisionSummary) {
+          const words = parsed.executiveDivisionSummary
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            promptKey: 'MOD_F_ROLE_MATRIX',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 750,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 400,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            executiveDivisionSummary: parsed.executiveDivisionSummary.trim(),
+            workloadAnalysis: {
+              burnoutRisks:
+                parsed.burnoutRisks || fallbackResult.workloadAnalysis.burnoutRisks,
+              gapWarnings:
+                parsed.gapWarnings || fallbackResult.workloadAnalysis.gapWarnings,
+              governanceStrengths:
+                parsed.governanceStrengths ||
+                fallbackResult.workloadAnalysis.governanceStrengths,
+            },
+            aiCoachTip:
+              parsed.aiCoachTip?.trim() || fallbackResult.aiCoachTip,
+            wordCount: words.length,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Error in generateRoleMatrixSummaryViaRouter:', err);
+    }
+  }
+
+  return fallbackResult;
+}
+
 
 
 
