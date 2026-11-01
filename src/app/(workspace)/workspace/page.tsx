@@ -5167,6 +5167,32 @@ export default function WorkspacePage() {
                   return updatedSession;
                 });
               }}
+              onSaveStep3BreakevenCalculator={async (step3Data, progress = 65) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_H_STEP_3_BREAKEVEN_ENGINE',
+                      moduleHData: {
+                        ...(p.moduleHData || {}),
+                        step3BreakevenCalculator: step3Data,
+                        completionPercentage: Math.max(
+                          p.moduleHData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
               onBackToModuleG={() => setActiveModule('MOD_G_LAUNCHPAD')}
               onContinueToModuleI={() => {
                 const access = canAccessModule(

@@ -179,7 +179,34 @@ function hasConfiguredGeminiKey(customKey?: string | null): string | null {
   ) {
     return envKey;
   }
+  if (
+    process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' ||
+    process.env.VERTEX_AI === 'true'
+  ) {
+    return 'VERTEX_AI_ACTIVE';
+  }
   return null;
+}
+
+function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
+  const useVertex =
+    process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' ||
+    process.env.VERTEX_AI === 'true';
+
+  if (useVertex) {
+    // If founder provided an individual BYOK key from AI Studio, prefer direct key
+    if (activeApiKey && activeApiKey !== 'VERTEX_AI_ACTIVE') {
+      return new GoogleGenAI({ apiKey: activeApiKey });
+    }
+    // Enterprise Vertex AI (ADC / Cloud Run Service Account)
+    return new GoogleGenAI({
+      vertexai: true,
+      project: process.env.GOOGLE_CLOUD_PROJECT || 'startuppreflight',
+      location: process.env.GOOGLE_CLOUD_LOCATION || 'europe-west1',
+    });
+  }
+
+  return new GoogleGenAI({ apiKey: activeApiKey || process.env.GEMINI_API_KEY || '' });
 }
 
 interface AuthorizedGeminiCallContext {
@@ -584,7 +611,7 @@ export async function synthesizeModuleAConceptCanvasViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const draft = params.draftCanvas || {};
       const userPrompt = `
 Founder Startup Title: ${sanitizePromptInput(params.planTitle, 200)}
@@ -979,7 +1006,7 @@ export async function scoutModuleBCompetitorsViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const marketsText =
         params.targetMarketsArray.length > 0
           ? params.targetMarketsArray.join(', ')
@@ -1266,7 +1293,7 @@ export async function estimateModuleBMarketSizingViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const marketsText =
         params.targetMarketsArray.length > 0
           ? params.targetMarketsArray.join(', ')
@@ -1519,7 +1546,7 @@ export async function generateModuleBCompetitiveEdgeViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const countryPack = getCountryRulePack(params.hqCountryCode);
       const marketsText =
         params.targetMarketsArray.length > 0
@@ -2742,7 +2769,7 @@ export async function generateModuleCSurveyViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const focusDescriptions = params.focusAreas
         .map((fa) =>
           fa === 'OTHER' && params.otherFocusAreaText?.trim()
@@ -3085,7 +3112,7 @@ export async function checkAndRewriteMomTestQuestionViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const prompt = `Evaluate this customer survey question using Rob Fitzpatrick's "The Mom Test" and shape the rewrite naturally around the customer's real-life workflow (NEVER copy-paste raw founder notes in quotes):
 Startup: ${sanitizePromptInput(params.planTitle, 200)}
 Target Persona (Module B Step 1): ${ctx.shortPersona}
@@ -3508,7 +3535,7 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
     (totalResponses > 0 || totalInterviews > 0)
   ) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const fallback = buildSmartFallbackInsights();
       const prompt = `Analyze these customer validation survey results and 1-on-1 customer interviews using Rob Fitzpatrick's "The Mom Test" (Signal vs. Polite Noise):
 Startup: ${sanitizePromptInput(params.planTitle, 200)}
@@ -3763,7 +3790,7 @@ export async function extractMomTestInterviewInsightsViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey && raw.length > 10) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const prompt = `You are a supportive co-founder and "The Mom Test" customer discovery coach.
 Extract structured Mom-Test signal from the founder's raw 1-on-1 customer interview notes.
 
@@ -4019,7 +4046,7 @@ export async function generateModuleDProductVehicleViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const countryPack = getCountryRulePack(params.hqCountryCode);
       const prompt = `You are a pragmatic startup CTO & Product Architect helping a founder define Step 1 of Module D ("What Are We Actually Building? — Product Vehicle & V1 Format").
 
@@ -4258,7 +4285,7 @@ export async function generateModuleDScopeFilterViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const countryPack = getCountryRulePack(params.hqCountryCode);
 
       const prompt = `You are a ruthless Startup Product & Scope Strategist helping a founder draft the "Anti-Scope-Creep Charter & Grant Justification" in Step 3 of Module D.
@@ -4517,7 +4544,7 @@ export async function generateModuleDChannelMatrixViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const countryPack = getCountryRulePack(params.hqCountryCode);
       const fallback = buildSmartFallback();
 
@@ -4929,7 +4956,7 @@ export async function generateModuleDBuildVsBuyViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const countryPack = getCountryRulePack(params.hqCountryCode);
       const fallback = buildSmartFallback();
 
@@ -5528,7 +5555,7 @@ export async function generateModuleDWorkPackagesViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const fallback = buildSmartFallback();
 
       const bvbContext =
@@ -5973,7 +6000,7 @@ export async function generateModuleDBlindSpotAuditViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const existingBsSummary = (params.currentBlindSpots || [])
         .slice(0, 8)
         .map((b) => `${b.title} [${b.category} / ${b.severity}]`)
@@ -6561,7 +6588,7 @@ export async function generateModuleEOperationsBlueprintViaRouter(params: {
   let creditsUsedAfter = authCtx.currentCreditsUsed;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const ai = getGenAiClient(authCtx.activeApiKey);
     const fallback = buildSmartFallback();
 
     const prompt = `You are an expert startup COO and IE Local Enterprise Office (LEO) / UK Innovate UK & Start Up Loans operational advisor.
@@ -7129,7 +7156,7 @@ export async function generateModuleEPremisesEquipmentViaRouter(params: {
   let creditsUsedAfter = authCtx.currentCreditsUsed;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const ai = getGenAiClient(authCtx.activeApiKey);
     const fallback = buildSmartFallback();
 
     const countryGrantRulesPrompt =
@@ -7651,7 +7678,7 @@ export async function generateModuleERiskRegisterViaRouter(params: {
   let creditsUsedAfter = authCtx.currentCreditsUsed;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const ai = getGenAiClient(authCtx.activeApiKey);
     const fallback = buildSmartFallback();
 
     const countryRiskPromptRules =
@@ -8101,7 +8128,7 @@ export async function generateModuleESupportReturnsAndQcViaRouter(params: {
   let creditsUsedAfter = authCtx.currentCreditsUsed;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const ai = getGenAiClient(authCtx.activeApiKey);
     const fallback = buildSmartFallback();
 
     const countryConsumerRulesPrompt =
@@ -8594,7 +8621,7 @@ export async function generateModuleEPermitsAndInsuranceViaRouter(input: {
   let creditsUsedAfter = authCtx.currentCreditsUsed;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const ai = getGenAiClient(authCtx.activeApiKey);
     const fallback = buildSmartFallback();
 
     const prompt = `You are an expert startup operations, regulatory compliance, GDPR, and commercial insurance advisor for ${
@@ -8985,7 +9012,7 @@ export async function generateModuleEBlindSpotAuditViaRouter(input: {
   let creditsUsedAfter = authCtx.currentCreditsUsed;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+    const ai = getGenAiClient(authCtx.activeApiKey);
     const fallback = buildSmartFallback();
     const promptText = `You are the Supportive Co-Founder & Operations Blind-Spot Auditor for Startup Preflight.
 Analyze the founder's Module E (Operations, Premises, Equipment, Risk Register, QC & Statutory Compliance) data and return JSON ONLY:
@@ -9193,7 +9220,7 @@ export async function weaveMasterDocumentStoryViaRouter(input: {
     input.facts.activeChaptersCount > 0
   ) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const f = input.facts;
 
       // Build a strictly gated JSON ledger containing ONLY modules the founder has actually started
@@ -9447,7 +9474,7 @@ export async function synthesizeModuleAGrantPositioningViaRouter(input: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const prompt = `${authCtx.systemInstruction}
 
 Founder Plan Title: ${sanitizePromptInput(input.planTitle, 140)}
@@ -9866,7 +9893,7 @@ export async function parseCvAndDraftPromoterBioViaRouter(params: {
   // If live Gemini is active, let Gemini process the full context
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
 
       const promptInstructions = `You are analyzing a founder/executive CV/resume for a startup grant application in ${countryLabel}.
 Startup Name: ${sanitizePromptInput(params.planTitle || 'Startup', 120)}
@@ -10169,7 +10196,7 @@ export async function generateRoleMatrixSummaryViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const prompt = `You are evaluating the team management structure and division of functional hats for ${sanitizePromptInput(
         params.planTitle || 'Startup',
         100
@@ -10366,7 +10393,7 @@ export async function generateHiringStrategySummaryViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const prompt = `You are a senior startup advisor and grant evaluator specializing in Irish LEO Priming / Enterprise Ireland grants and UK Innovate UK grant applications.
 
 Draft a compelling, professional 180 to 250-word Executive Hiring & Retention Strategy for the official grant and business plan application based on the following verified facts:
@@ -10611,7 +10638,7 @@ export async function generateTeamAuditAndBriefViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const prompt = `Conduct a comprehensive, constructive Team, Governance & Blind-Spot Audit for ${sanitizePromptInput(
         params.planTitle || 'Startup',
         100
@@ -10783,7 +10810,7 @@ export async function generatePricingStrategyJustificationViaRouter(params: {
 
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
-      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const ai = getGenAiClient(authCtx.activeApiKey);
       const prompt = `Write a rigorous, professional 2-to-3 paragraph Pricing Strategy Justification for ${sanitizePromptInput(
         params.planTitle || 'Startup',
         100

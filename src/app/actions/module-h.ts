@@ -236,6 +236,103 @@ export async function saveModuleHStep2PricingTiersAction(input: {
 }
 
 /**
+ * Persists Module H Step 3 ("Pocket Profit" & 3-Year Breakeven Engine) to `plan_modules_data`.
+ */
+export async function saveModuleHStep3BreakevenCalculatorAction(input: {
+  planId: string;
+  breakevenCalculator: BreakevenCalculatorStep3Data;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean; error?: string }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false, error: 'Unauthorized plan access' };
+  }
+
+  try {
+    await ensureModuleHEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_H_REVENUE')
+        )
+      )
+      .limit(1);
+
+    const nowIso = new Date().toISOString();
+    const cleanStep3: BreakevenCalculatorStep3Data = {
+      ...input.breakevenCalculator,
+      lastSavedAt: nowIso,
+    };
+
+    const currentJson: Record<string, unknown> =
+      existingMod.length > 0 &&
+      typeof existingMod[0].structuredInputsJsonb === 'object' &&
+      existingMod[0].structuredInputsJsonb !== null
+        ? (existingMod[0].structuredInputsJsonb as Record<string, unknown>)
+        : {};
+
+    const updatedJson: Record<string, unknown> = {
+      ...currentJson,
+      step3BreakevenCalculator: cleanStep3,
+      lastSavedAt: nowIso,
+    };
+
+    const newCompletion = Math.max(
+      existingMod[0]?.completionPercentage || 0,
+      input.completionPercentage ?? 60
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedJson,
+          completionPercentage: newCompletion,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(planModulesData.planId, input.planId),
+            eq(planModulesData.moduleCode, 'MOD_H_REVENUE')
+          )
+        );
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_H_REVENUE',
+        structuredInputsJsonb: updatedJson,
+        completionPercentage: newCompletion,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_H_STEP_3_BREAKEVEN_ENGINE',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.error('Error saving Module H Step 3:', err);
+    return {
+      ok: false,
+      persistedToCloudSql: false,
+      error: err instanceof Error ? err.message : 'Database error',
+    };
+  }
+}
+
+/**
  * Fetches the canonical hiring & payroll baseline from Module F (Step 5)
  * to ensure 100% data sync with no discrepancies.
  */

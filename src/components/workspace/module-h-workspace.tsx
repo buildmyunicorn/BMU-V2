@@ -32,6 +32,7 @@ import {
   Trash2,
   Target,
   Wand2,
+  RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,10 +46,14 @@ import type {
   ProductOfferingStructure,
   PricingTierItem,
   PricingTiersStep2Data,
+  BreakevenCalculatorStep3Data,
+  BreakevenYearTarget,
+  FrictionCostsStep3Data,
 } from '@/lib/auth/session-store';
 import {
   saveModuleHStep1RevenueModelAction,
   saveModuleHStep2PricingTiersAction,
+  saveModuleHStep3BreakevenCalculatorAction,
   generatePricingStrategyJustificationAction,
 } from '@/app/actions/module-h';
 
@@ -58,6 +63,7 @@ interface ModuleHWorkspaceProps {
   isVaultReadonly?: boolean;
   onSaveStep1RevenueModel?: (step1Data: RevenueModelStep1Data, progress?: number) => Promise<void> | void;
   onSaveStep2PricingTiers?: (step2Data: PricingTiersStep2Data, progress?: number) => Promise<void> | void;
+  onSaveStep3BreakevenCalculator?: (step3Data: BreakevenCalculatorStep3Data, progress?: number) => Promise<void> | void;
   onBackToModuleG?: () => void;
   onContinueToModuleI?: () => void;
 }
@@ -68,13 +74,20 @@ export function ModuleHWorkspace({
   isVaultReadonly = false,
   onSaveStep1RevenueModel,
   onSaveStep2PricingTiers,
+  onSaveStep3BreakevenCalculator,
   onBackToModuleG,
   onContinueToModuleI,
 }: ModuleHWorkspaceProps) {
-  // Step expansion state: default to step 1 (or 2 if 1 is already saved)
+  // Step expansion state: default to first incomplete step
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (plan.moduleHData?.step3BreakevenCalculator?.yearTargets?.length) {
+      return 3;
+    }
+    if (plan.moduleHData?.step2PricingTiers?.tiers?.length) {
+      return 3;
+    }
     if (plan.moduleHData?.step1RevenueModel?.revenueModelVehicle) {
-      return plan.moduleHData?.step2PricingTiers?.tiers?.length ? 2 : 2;
+      return 2;
     }
     return 1;
   });
@@ -238,6 +251,228 @@ export function ModuleHWorkspace({
     0
   );
 
+  // -------------------------------------------------------------
+  // STEP 3 STATE: POCKET PROFIT & 3-YEAR BREAKEVEN ENGINE
+  // -------------------------------------------------------------
+  // 1. Auto-pull canonical payroll & survival budgets from Module F
+  const modFData = plan.moduleFData;
+  const modFStep3 = modFData?.step3SurvivalBudgetData;
+  const modFStep5 = modFData?.step5HiringPlanData;
+
+  const canonicalSurvivalMonthly = (() => {
+    if (modFStep3?.founderBudgets?.length) {
+      const total = modFStep3.founderBudgets.reduce((sum, b) => {
+        const core =
+          (Number(b.housingAndUtilities) || 0) +
+          (Number(b.groceriesAndEssentials) || 0) +
+          (Number(b.transportAndCommute) || 0) +
+          (Number(b.debtAndLoanCommitments) || 0) +
+          (Number(b.dependentsAndFamily) || 0);
+        return sum + Math.max(0, core - (Number(b.incomeOffsetCushion) || 0));
+      }, 0);
+      if (total > 0) return Math.round(total);
+    }
+    return 2500;
+  })();
+
+  const canonicalHiringPayroll = (() => {
+    let y1Annual = 0;
+    let y2Annual = 0;
+    let y3Annual = 0;
+    if (modFStep5?.roles?.length) {
+      for (const role of modFStep5.roles) {
+        if (role.compensationModel === 'PURE_SWEAT_EQUITY' || role.compensationModel === 'ADVISORY_EQUITY') {
+          continue;
+        }
+        const gross = Number(role.grossAnnualSalary) || 0;
+        const employerTaxRate = selectedCountry === 'GB' ? 0.138 : 0.1105; // UK NIC vs IE PRSI
+        const loaded = gross * (1 + employerTaxRate);
+        if (role.yearScheduled <= 1) y1Annual += loaded;
+        if (role.yearScheduled <= 2) y2Annual += loaded;
+        if (role.yearScheduled <= 3) y3Annual += loaded;
+      }
+    }
+    const c1 = Number(modFStep5?.contractorBudgetYear1) || 0;
+    const c2 = Number(modFStep5?.contractorBudgetYear2) || 0;
+    const c3 = Number(modFStep5?.contractorBudgetYear3) || 0;
+
+    const y1Mo = Math.round((y1Annual + c1) / 12) || canonicalSurvivalMonthly;
+    const y2Mo = Math.round((y2Annual + c2) / 12) || Math.round(y1Mo * 2.2);
+    const y3Mo = Math.round((y3Annual + c3) / 12) || Math.round(y1Mo * 3.8);
+
+    return { y1Mo, y2Mo, y3Mo, hasModFRoles: Boolean(modFStep5?.roles?.length) };
+  })();
+
+  // 2. Auto-pull channel fee % from Module D Step 2
+  const defaultGatewayPercent =
+    moduleDChannelMatrix?.estimatedBlendedFeePercent !== undefined
+      ? Number(moduleDChannelMatrix.estimatedBlendedFeePercent)
+      : 2.0;
+
+  // 3. Auto-pull baseline monthly overheads from Module E (premises/equipment)
+  const defaultFixedOverheads = (() => {
+    const modEPremises = plan.moduleEData?.premisesAndEquipment;
+    const rent = Number((modEPremises as any)?.monthlyRentOrFee) || 0;
+    return rent > 0 ? rent + 250 : 350; // e.g., software stack, accounting, insurance baseline
+  })();
+
+  // Default direct variable cost per sale benchmark (10% of net price or €4 minimum)
+  const defaultVariableCogs = Math.max(2, Math.round(blendedAveragePrice * 0.12 * 100) / 100);
+
+  const [step3Data, setStep3Data] = useState<BreakevenCalculatorStep3Data>(() => {
+    const existing = plan.moduleHData?.step3BreakevenCalculator;
+    if (existing && existing.yearTargets?.length === 3) {
+      return {
+        ...existing,
+        activePriceSlider: existing.activePriceSlider || blendedAveragePrice || 49,
+      };
+    }
+
+    const initialPrice = blendedAveragePrice || 49;
+    return {
+      selectedSimulationYear: 1,
+      activePriceSlider: initialPrice,
+      activeCustomerSlider: 150,
+      frictionCosts: {
+        paymentGatewayPercent: defaultGatewayPercent,
+        paymentGatewayFixedCents: 25,
+        directVariableCogsPerUnit: defaultVariableCogs,
+        disputeRefundBufferPercent: 1,
+        affiliateCommissionPercent: 0,
+      },
+      isSandboxActive: false,
+      sandboxMonthlyPayrollOverride: undefined,
+      sandboxNotes: '',
+      yearTargets: [
+        {
+          yearNumber: 1,
+          monthlyPayrollBaseline: canonicalHiringPayroll.y1Mo,
+          otherFixedMonthlyOverheads: defaultFixedOverheads,
+          customersNeededToBreakeven: 0,
+          monthlyRevenueAtBreakeven: 0,
+          monthlyPocketProfitAtTarget: 0,
+        },
+        {
+          yearNumber: 2,
+          monthlyPayrollBaseline: canonicalHiringPayroll.y2Mo,
+          otherFixedMonthlyOverheads: Math.round(defaultFixedOverheads * 1.5),
+          customersNeededToBreakeven: 0,
+          monthlyRevenueAtBreakeven: 0,
+          monthlyPocketProfitAtTarget: 0,
+        },
+        {
+          yearNumber: 3,
+          monthlyPayrollBaseline: canonicalHiringPayroll.y3Mo,
+          otherFixedMonthlyOverheads: Math.round(defaultFixedOverheads * 2.2),
+          customersNeededToBreakeven: 0,
+          monthlyRevenueAtBreakeven: 0,
+          monthlyPocketProfitAtTarget: 0,
+        },
+      ],
+    };
+  });
+
+  // Live Breakeven & Pocket Profit Math
+  const activeSimYear = step3Data.selectedSimulationYear || 1;
+  const activeYearTargetObj =
+    step3Data.yearTargets.find((y) => y.yearNumber === activeSimYear) ||
+    step3Data.yearTargets[0];
+
+  // Effective price being simulated (either slider override in sandbox or blendedAveragePrice)
+  const simulatedNetPrice =
+    step3Data.isSandboxActive && step3Data.activePriceSlider > 0
+      ? step3Data.activePriceSlider
+      : blendedAveragePrice || 49;
+
+  // Per-sale friction deductions
+  const gatewayFeeAmount =
+    Math.round(
+      (simulatedNetPrice * ((step3Data.frictionCosts.paymentGatewayPercent || 0) / 100) +
+        (step3Data.frictionCosts.paymentGatewayFixedCents || 0) / 100) *
+        100
+    ) / 100;
+
+  const refundAndAffiliateFeeAmount =
+    Math.round(
+      simulatedNetPrice *
+        (((step3Data.frictionCosts.disputeRefundBufferPercent || 0) +
+          (step3Data.frictionCosts.affiliateCommissionPercent || 0)) /
+          100) *
+        100
+    ) / 100;
+
+  const directCogsAmount = Number(step3Data.frictionCosts.directVariableCogsPerUnit) || 0;
+  const totalFrictionPerSale =
+    Math.round((gatewayFeeAmount + refundAndAffiliateFeeAmount + directCogsAmount) * 100) / 100;
+
+  // Pocket profit (Contribution Margin) per sale
+  const pocketProfitPerSale = Math.max(
+    0,
+    Math.round((simulatedNetPrice - totalFrictionPerSale) * 100) / 100
+  );
+  const contributionMarginPercent =
+    simulatedNetPrice > 0 ? Math.round((pocketProfitPerSale / simulatedNetPrice) * 100) : 0;
+
+  // Monthly Fixed Costs for selected year
+  const activeMonthlyPayroll =
+    step3Data.isSandboxActive && step3Data.sandboxMonthlyPayrollOverride !== undefined
+      ? step3Data.sandboxMonthlyPayrollOverride
+      : activeYearTargetObj.monthlyPayrollBaseline;
+  const activeMonthlyOverheads = activeYearTargetObj.otherFixedMonthlyOverheads || 0;
+  const totalMonthlyFixedNut = activeMonthlyPayroll + activeMonthlyOverheads;
+
+  // Breakeven Customer / Sale Count for selected year
+  const customersNeededToBreakeven =
+    pocketProfitPerSale > 0 ? Math.ceil(totalMonthlyFixedNut / pocketProfitPerSale) : 9999;
+  const dailySalesNeededToBreakeven = Math.max(
+    0.1,
+    Math.round((customersNeededToBreakeven / 30) * 10) / 10
+  );
+  const monthlyRevenueAtBreakeven = Math.round(customersNeededToBreakeven * simulatedNetPrice);
+
+  // Simulated Monthly Outcome at `activeCustomerSlider`
+  const simulatedMonthlyCustomers = step3Data.activeCustomerSlider || customersNeededToBreakeven;
+  const simulatedMonthlyNetRevenue = Math.round(simulatedMonthlyCustomers * simulatedNetPrice);
+  const simulatedTotalPocketContribution = Math.round(
+    simulatedMonthlyCustomers * pocketProfitPerSale
+  );
+  const simulatedMonthlyNetSurplusOrLoss =
+    simulatedTotalPocketContribution - totalMonthlyFixedNut;
+
+  // Compute all 3 years summary dynamically so yearTargets is always accurate when saved
+  const computedThreeYearTargets: BreakevenYearTarget[] = ([1, 2, 3] as const).map((yr) => {
+    const existingYr = step3Data.yearTargets.find((y) => y.yearNumber === yr);
+    const payroll =
+      yr === activeSimYear &&
+      step3Data.isSandboxActive &&
+      step3Data.sandboxMonthlyPayrollOverride !== undefined
+        ? step3Data.sandboxMonthlyPayrollOverride
+        : existingYr?.monthlyPayrollBaseline ??
+          (yr === 1
+            ? canonicalHiringPayroll.y1Mo
+            : yr === 2
+            ? canonicalHiringPayroll.y2Mo
+            : canonicalHiringPayroll.y3Mo);
+    const overheads = existingYr?.otherFixedMonthlyOverheads ?? defaultFixedOverheads * yr;
+    const totalFixed = payroll + overheads;
+    const custBreakeven =
+      pocketProfitPerSale > 0 ? Math.ceil(totalFixed / pocketProfitPerSale) : 0;
+    const revBreakeven = Math.round(custBreakeven * simulatedNetPrice);
+    const targetCust = Math.max(custBreakeven, Math.round(custBreakeven * 1.25));
+    const pocketProfitAtTarget = Math.round(
+      targetCust * pocketProfitPerSale - totalFixed
+    );
+
+    return {
+      yearNumber: yr,
+      monthlyPayrollBaseline: payroll,
+      otherFixedMonthlyOverheads: overheads,
+      customersNeededToBreakeven: custBreakeven,
+      monthlyRevenueAtBreakeven: revBreakeven,
+      monthlyPocketProfitAtTarget: pocketProfitAtTarget,
+    };
+  });
+
   // Revenue vehicle options formatted with plain-English clarity
   const REVENUE_VEHICLE_OPTIONS: Array<{
     id: RevenueModelVehicle;
@@ -349,6 +584,12 @@ export function ModuleHWorkspace({
     step2Data.tiers.every((t) => t.name.trim().length > 0 && t.priceNetOfTax > 0) &&
     (step1Data.offeringStructure === 'SINGLE_OFFERING' || Math.abs(totalSalesMixSum - 100) <= 2);
 
+  const isStep3Complete =
+    pocketProfitPerSale > 0 &&
+    totalMonthlyFixedNut > 0 &&
+    customersNeededToBreakeven > 0 &&
+    customersNeededToBreakeven < 9999;
+
   // Save Step 1 handler
   const handleSaveStep1 = async () => {
     if (isVaultReadonly) return;
@@ -399,6 +640,93 @@ export function ModuleHWorkspace({
     } catch {
       setSaveStatus('error');
     }
+  };
+
+  // Save Step 3 handler
+  const handleSaveStep3 = async () => {
+    if (isVaultReadonly) return;
+    setSaveStatus('saving');
+    try {
+      const updatedStep3: BreakevenCalculatorStep3Data = {
+        ...step3Data,
+        yearTargets: computedThreeYearTargets,
+      };
+      if (onSaveStep3BreakevenCalculator) {
+        await onSaveStep3BreakevenCalculator(updatedStep3, isStep3Complete ? 65 : 50);
+      }
+      const res = await saveModuleHStep3BreakevenCalculatorAction({
+        planId: plan.id,
+        breakevenCalculator: updatedStep3,
+        completionPercentage: isStep3Complete ? 65 : 50,
+      });
+      if (res.ok) {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      } else {
+        setSaveStatus('error');
+      }
+    } catch {
+      setSaveStatus('error');
+    }
+  };
+
+  // Reset Step 3 to default numbers pulled from across modules (Step 2, Mod D, Mod E, Mod F)
+  const handleResetStep3ToModuleDefaults = () => {
+    const baseNetPrice = blendedAveragePrice || 49;
+    const benchCogs = Math.max(2, Math.round(baseNetPrice * 0.12 * 100) / 100);
+    const estGatewayFee =
+      Math.round(
+        (baseNetPrice * (defaultGatewayPercent / 100) + 0.25) * 100
+      ) / 100;
+    const estRefund = Math.round(baseNetPrice * 0.01 * 100) / 100;
+    const estPocket = Math.max(
+      1,
+      Math.round((baseNetPrice - estGatewayFee - benchCogs - estRefund) * 100) / 100
+    );
+    const y1TotalNut = canonicalHiringPayroll.y1Mo + defaultFixedOverheads;
+    const y1BreakevenCust = Math.ceil(y1TotalNut / estPocket);
+
+    setStep3Data((prev) => ({
+      ...prev,
+      isSandboxActive: false,
+      activePriceSlider: baseNetPrice,
+      activeCustomerSlider: Math.max(y1BreakevenCust, Math.round(y1BreakevenCust * 1.2)),
+      sandboxMonthlyPayrollOverride: undefined,
+      sandboxNotes: '',
+      frictionCosts: {
+        paymentGatewayPercent: defaultGatewayPercent,
+        paymentGatewayFixedCents: 25,
+        directVariableCogsPerUnit: benchCogs,
+        disputeRefundBufferPercent: 1,
+        affiliateCommissionPercent: 0,
+      },
+      yearTargets: [
+        {
+          yearNumber: 1,
+          monthlyPayrollBaseline: canonicalHiringPayroll.y1Mo,
+          otherFixedMonthlyOverheads: defaultFixedOverheads,
+          customersNeededToBreakeven: 0,
+          monthlyRevenueAtBreakeven: 0,
+          monthlyPocketProfitAtTarget: 0,
+        },
+        {
+          yearNumber: 2,
+          monthlyPayrollBaseline: canonicalHiringPayroll.y2Mo,
+          otherFixedMonthlyOverheads: Math.round(defaultFixedOverheads * 1.5),
+          customersNeededToBreakeven: 0,
+          monthlyRevenueAtBreakeven: 0,
+          monthlyPocketProfitAtTarget: 0,
+        },
+        {
+          yearNumber: 3,
+          monthlyPayrollBaseline: canonicalHiringPayroll.y3Mo,
+          otherFixedMonthlyOverheads: Math.round(defaultFixedOverheads * 2.2),
+          customersNeededToBreakeven: 0,
+          monthlyRevenueAtBreakeven: 0,
+          monthlyPocketProfitAtTarget: 0,
+        },
+      ],
+    }));
   };
 
   // Tier management helpers
@@ -564,13 +892,21 @@ export function ModuleHWorkspace({
             type="button"
             onClick={() => setOpenStep(3)}
             className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 3
+              openStep === 3 || openStep === 'ALL'
                 ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40 opacity-70'
+                : 'text-indigo-200 hover:bg-indigo-900/40'
             }`}
           >
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] text-slate-400">
-              3
+            <div
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                isStep3Complete
+                  ? 'bg-emerald-500 text-white'
+                  : isStep2Complete
+                  ? 'bg-indigo-400 text-slate-900'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {isStep3Complete ? <Check className="h-3 w-3" /> : '3'}
             </div>
             <span className="truncate">3. Breakeven Engine</span>
           </button>
@@ -1741,29 +2077,963 @@ export function ModuleHWorkspace({
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* PLACEHOLDERS FOR STEPS 3, 4, 5 (Upcoming)                      */}
+      {/* STEP 3: POCKET PROFIT & 3-YEAR BREAKEVEN ENGINE               */}
       {/* ------------------------------------------------------------- */}
-      {openStep !== 'ALL' && openStep === 3 && (
+      {openStep !== 'ALL' && openStep !== 3 ? (
+        // COLLAPSED STEP 3
+        <div
+          onClick={() => setOpenStep(3)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  Step 3: &ldquo;Pocket Profit&rdquo; &amp; 3-Year Breakeven Engine
+                </h2>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {currencySymbol}
+                  {pocketProfitPerSale.toFixed(2)} Pocket Profit per sale ({contributionMarginPercent}%
+                  margin) • Need <strong>{customersNeededToBreakeven}</strong> sales/mo in Year{' '}
+                  {activeSimYear} to cover {currencySymbol}
+                  {totalMonthlyFixedNut.toLocaleString()}/mo bills
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge
+                variant={isStep3Complete ? 'default' : 'outline'}
+                className={`shrink-0 text-[10px] font-medium ${
+                  isStep3Complete
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'border-slate-300 text-slate-600'
+                }`}
+              >
+                {isStep3Complete ? 'Completed' : 'In Progress'}
+              </Badge>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                Edit Step
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        // EXPANDED STEP 3
+        <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                    isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Step 3: &ldquo;Pocket Profit&rdquo; &amp; 3-Year Breakeven Engine
+                    </CardTitle>
+                    <Badge
+                      variant={isStep3Complete ? 'default' : 'outline'}
+                      className={`shrink-0 text-[10px] font-medium ${
+                        isStep3Complete
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          : 'border-slate-300 text-slate-600'
+                      }`}
+                    >
+                      {isStep3Complete ? 'Completed' : 'In Progress'}
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    See what you actually keep from each sale after fees and delivery costs, and find out
+                    exactly how many sales you need each month to cover your wages and bills across Years
+                    1, 2, and 3.
+                  </CardDescription>
+                </div>
+              </div>
+
+              {openStep !== 'ALL' && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setOpenStep(0)}
+                  className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
+                >
+                  Collapse Step
+                  <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+
+            {/* Micro-Coaching Strip */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveWhyCard(activeWhyCard === 3 ? null : 3)}
+                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+                <span>Why &ldquo;Pocket Profit&rdquo; Matters More Than Sticker Price</span>
+              </button>
+              <span className="text-slate-300">•</span>
+              <button
+                type="button"
+                onClick={() => setActiveExampleCard(activeExampleCard === 3 ? null : 3)}
+                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Show Me a Real Breakeven Example</span>
+              </button>
+            </div>
+
+            {activeWhyCard === 3 && (
+              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950 space-y-1.5">
+                <div className="font-bold text-indigo-900">
+                  Why We Calculate &ldquo;Pocket Profit&rdquo; Before Fixed Bills:
+                </div>
+                <p className="text-indigo-900/90 leading-relaxed">
+                  Every time you make a sale, card processors (like Stripe) or marketplaces (like Amazon or
+                  Apple) take a cut, and it costs you something to deliver that order (packaging, materials,
+                  or cloud servers). What is left over is your <strong>Pocket Profit</strong> (also called
+                  <em> Contribution Margin</em>). This is the actual cash available to pay your wages and
+                  fixed monthly bills.
+                </p>
+              </div>
+            )}
+
+            {activeExampleCard === 3 && (
+              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs text-emerald-950 space-y-1.5">
+                <div className="font-bold text-emerald-900">
+                  Plain-English Breakeven Example:
+                </div>
+                <p className="text-emerald-950/90 leading-relaxed">
+                  Imagine you sell a subscription for <strong>{currencySymbol}50 net</strong>. Stripe takes{' '}
+                  <strong>{currencySymbol}1.25</strong> and cloud hosting/support costs{' '}
+                  <strong>{currencySymbol}3.75</strong> per user. That leaves{' '}
+                  <strong>{currencySymbol}45.00 Pocket Profit</strong> per customer. If your monthly founder
+                  wages and software bills total <strong>{currencySymbol}4,500/month</strong>, you need
+                  exactly <strong>100 paying customers</strong> ({currencySymbol}4,500 ÷ {currencySymbol}45)
+                  to break even. Customer #101 is pure profit!
+                </p>
+              </div>
+            )}
+
+            {/* CROSS-MODULE SYNC BANNER (MOD D + MOD F) */}
+            <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 flex flex-wrap items-center justify-between gap-2 text-xs text-indigo-950">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-600" />
+                <span className="truncate">
+                  <strong>Auto-Pulled Across Platform:</strong> Net Price ({currencySymbol}
+                  {blendedAveragePrice}) from <strong>Step 2</strong> • Platform Fee (
+                  {step3Data.frictionCosts.paymentGatewayPercent}%) from <strong>Module D</strong> •
+                  Wages &amp; Survival Budget ({currencySymbol}
+                  {canonicalHiringPayroll.y1Mo.toLocaleString()}/mo Y1) from <strong>Module F</strong>.
+                </span>
+              </div>
+              <Badge className="bg-white text-indigo-700 border-indigo-200 text-[10px] shrink-0">
+                Live Connected
+              </Badge>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-6 space-y-6">
+            {/* ========================================================= */}
+            {/* PART A: WHAT COMES OUT OF EACH SALE? (PER-SALE FRICTION)  */}
+            {/* ========================================================= */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-5 space-y-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    1. What Comes Out of Each Sale? (Per-Sale Pocket Profit)
+                  </Label>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Before you can pay monthly rent or wages, these variable costs come out of every
+                    single order.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const benchCogs = Math.max(
+                      1,
+                      Math.round(simulatedNetPrice * 0.12 * 100) / 100
+                    );
+                    setStep3Data((prev) => ({
+                      ...prev,
+                      frictionCosts: {
+                        ...prev.frictionCosts,
+                        paymentGatewayPercent: defaultGatewayPercent,
+                        paymentGatewayFixedCents: 25,
+                        directVariableCogsPerUnit: benchCogs,
+                        disputeRefundBufferPercent: 1,
+                      },
+                    }));
+                  }}
+                  disabled={isVaultReadonly}
+                  className="h-8 shrink-0 text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+                >
+                  <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                  Use Industry Benchmark
+                </Button>
+              </div>
+
+              {/* 2-Card Clean Side-by-Side Receipt Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Card 1: Editable Variable Deductions */}
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <span className="text-xs font-bold text-slate-800">
+                      Adjust Variable Costs Per Sale
+                    </span>
+                    <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-600">
+                      Editable
+                    </Badge>
+                  </div>
+
+                  {/* Input 1: Card / Channel Fee (%) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs font-semibold text-slate-700">
+                        Card / Marketplace Fee (%)
+                      </Label>
+                      <span className="text-xs font-bold text-rose-600 shrink-0">
+                        -{currencySymbol}
+                        {gatewayFeeAmount.toFixed(2)} / sale
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="60"
+                          step="0.1"
+                          value={step3Data.frictionCosts.paymentGatewayPercent}
+                          onChange={(e) => {
+                            const val = Math.max(0, Math.min(60, parseFloat(e.target.value) || 0));
+                            setStep3Data((prev) => ({
+                              ...prev,
+                              frictionCosts: {
+                                ...prev.frictionCosts,
+                                paymentGatewayPercent: val,
+                              },
+                            }));
+                          }}
+                          disabled={isVaultReadonly}
+                          className="h-9 pr-7 text-base sm:text-sm font-bold bg-slate-50"
+                        />
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 font-bold text-xs">
+                          %
+                        </div>
+                      </div>
+                      <span className="text-xs font-medium text-slate-500 shrink-0">
+                        + 25c fixed
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Auto-pulled from Module D (e.g. Stripe ~2%, Shopify/Amazon 5–15%).
+                    </p>
+                  </div>
+
+                  {/* Input 2: Direct Delivery Cost Per Unit */}
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs font-semibold text-slate-700">
+                        Direct Cost to Deliver 1 Unit / Order
+                      </Label>
+                      <span className="text-xs font-bold text-rose-600 shrink-0">
+                        -{currencySymbol}
+                        {(directCogsAmount + refundAndAffiliateFeeAmount).toFixed(2)} / sale
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 font-bold text-xs">
+                        {currencySymbol}
+                      </div>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={step3Data.frictionCosts.directVariableCogsPerUnit}
+                        onChange={(e) => {
+                          const val = Math.max(0, parseFloat(e.target.value) || 0);
+                          setStep3Data((prev) => ({
+                            ...prev,
+                            frictionCosts: {
+                              ...prev.frictionCosts,
+                              directVariableCogsPerUnit: val,
+                            },
+                          }));
+                        }}
+                        disabled={isVaultReadonly}
+                        className="h-9 pl-7 text-base sm:text-sm font-bold bg-slate-50"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Materials, packaging, postage, or cloud/AI server cost per customer.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card 2: Live Single-Sale Receipt Breakdown */}
+                <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/50 p-4 shadow-xs flex flex-col justify-between space-y-4">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2.5">
+                      <span className="text-xs font-bold text-slate-900">
+                        Live Single-Sale Receipt Breakdown
+                      </span>
+                      <Badge className="bg-emerald-600 text-white text-[10px]">
+                        {contributionMarginPercent}% Pocket Margin
+                      </Badge>
+                    </div>
+
+                    {/* Line 1: Net Price */}
+                    <div className="flex items-center justify-between text-xs py-1">
+                      <span className="font-medium text-slate-700">
+                        Net Price in Bank (Ex-VAT from Step 2)
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {currencySymbol}
+                        {simulatedNetPrice.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Line 2: Card / Channel Fee */}
+                    <div className="flex items-center justify-between text-xs py-1 border-t border-slate-200/50">
+                      <span className="text-slate-600">
+                        Minus Card / Platform Fee ({step3Data.frictionCosts.paymentGatewayPercent}% + 25c)
+                      </span>
+                      <span className="font-semibold text-rose-600">
+                        -{currencySymbol}
+                        {gatewayFeeAmount.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Line 3: Direct Delivery Cost */}
+                    <div className="flex items-center justify-between text-xs py-1 border-t border-slate-200/50">
+                      <span className="text-slate-600">
+                        Minus Direct Cost to Deliver (+1% refund buffer)
+                      </span>
+                      <span className="font-semibold text-rose-600">
+                        -{currencySymbol}
+                        {(directCogsAmount + refundAndAffiliateFeeAmount).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bottom Highlight: Resulting Pocket Profit */}
+                  <div className="rounded-xl bg-emerald-600 p-3.5 text-white shadow-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-100">
+                          True Pocket Profit Per Sale
+                        </div>
+                        <p className="text-[11px] text-emerald-50 mt-0.5">
+                          Cash left over from 1 sale to pay your monthly bills
+                        </p>
+                      </div>
+                      <div className="text-2xl font-black tracking-tight text-white shrink-0">
+                        {currencySymbol}
+                        {pocketProfitPerSale.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* PART B: 3-YEAR TIME HORIZON SWITCHER & MONTHLY BILLS      */}
+            {/* ========================================================= */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    2. Choose Year &amp; Check Monthly Bills to Cover
+                  </Label>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Switch between Year 1, Year 2, and Year 3 to see how your breakeven target grows as
+                    you hire staff from Module F.
+                  </p>
+                </div>
+
+                {/* 3-Year Pill Switcher */}
+                <div className="grid grid-cols-3 sm:flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                  {([1, 2, 3] as const).map((yr) => {
+                    const isSelected = activeSimYear === yr;
+                    const yrTarget = computedThreeYearTargets.find((y) => y.yearNumber === yr);
+                    return (
+                      <button
+                        key={yr}
+                        type="button"
+                        onClick={() =>
+                          setStep3Data((prev) => ({
+                            ...prev,
+                            selectedSimulationYear: yr,
+                            activeCustomerSlider: Math.max(
+                              yrTarget?.customersNeededToBreakeven || 50,
+                              Math.round((yrTarget?.customersNeededToBreakeven || 50) * 1.2)
+                            ),
+                          }))
+                        }
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                        }`}
+                      >
+                        Year {yr}
+                        <span
+                          className={`ml-1.5 text-[10px] font-normal ${
+                            isSelected ? 'text-indigo-100' : 'text-slate-400'
+                          }`}
+                        >
+                          ({yrTarget?.customersNeededToBreakeven || 0} sales/mo)
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Monthly Fixed Bills Breakdown for Selected Year */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+                {/* Col 1: Monthly Team & Founder Wages (Two-Way Quick Adjuster) */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <Label className="text-xs font-bold text-slate-800 leading-snug">
+                        Year {activeSimYear} Monthly Wages &amp; Founder Draw
+                      </Label>
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 text-[9px] border-indigo-200 bg-indigo-50/50 text-indigo-700"
+                      >
+                        {canonicalHiringPayroll.hasModFRoles ? 'Synced Mod F' : 'Survival Baseline'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500 font-bold text-xs">
+                          {currencySymbol}
+                        </div>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={activeMonthlyPayroll}
+                          onChange={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value) || 0);
+                            setStep3Data((prev) => ({
+                              ...prev,
+                              sandboxMonthlyPayrollOverride: prev.isSandboxActive ? val : undefined,
+                              yearTargets: prev.yearTargets.map((y) =>
+                                y.yearNumber === activeSimYear
+                                  ? { ...y, monthlyPayrollBaseline: val }
+                                  : y
+                              ),
+                            }));
+                          }}
+                          disabled={isVaultReadonly}
+                          className="h-9 pl-7 text-base sm:text-sm font-bold bg-white"
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-slate-500 shrink-0">/ month</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max={activeSimYear === 1 ? 25000 : activeSimYear === 2 ? 50000 : 100000}
+                      step="250"
+                      value={activeMonthlyPayroll}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setStep3Data((prev) => ({
+                          ...prev,
+                          sandboxMonthlyPayrollOverride: prev.isSandboxActive ? val : undefined,
+                          yearTargets: prev.yearTargets.map((y) =>
+                            y.yearNumber === activeSimYear
+                              ? { ...y, monthlyPayrollBaseline: val }
+                              : y
+                          ),
+                        }));
+                      }}
+                      disabled={isVaultReadonly}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Includes founder living draw + Year {activeSimYear} staff salaries &amp; PRSI/NIC.
+                  </p>
+                </div>
+
+                {/* Col 2: Other Monthly Fixed Overheads */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <Label className="text-xs font-bold text-slate-800 leading-snug">
+                        Other Monthly Fixed Bills (Rent, Software, Ins.)
+                      </Label>
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 text-[9px] border-slate-200 bg-white text-slate-600"
+                      >
+                        Mod E + G
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500 font-bold text-xs">
+                          {currencySymbol}
+                        </div>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={activeMonthlyOverheads}
+                          onChange={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value) || 0);
+                            setStep3Data((prev) => ({
+                              ...prev,
+                              yearTargets: prev.yearTargets.map((y) =>
+                                y.yearNumber === activeSimYear
+                                  ? { ...y, otherFixedMonthlyOverheads: val }
+                                  : y
+                              ),
+                            }));
+                          }}
+                          disabled={isVaultReadonly}
+                          className="h-9 pl-7 text-base sm:text-sm font-bold bg-white"
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-slate-500 shrink-0">/ month</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Fixed bills you must pay every month even if you make 0 sales (insurance, accounting,
+                    domains, rent).
+                  </p>
+                </div>
+
+                {/* Col 3: Total Monthly Fixed Nut */}
+                <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/60 p-4 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-indigo-950">
+                        Total Year {activeSimYear} Monthly Bills
+                      </span>
+                      <Badge className="bg-indigo-100 text-indigo-800 text-[10px] shrink-0">
+                        Monthly Nut
+                      </Badge>
+                    </div>
+                    <div className="mt-2 text-2xl font-black text-indigo-950">
+                      {currencySymbol}
+                      {totalMonthlyFixedNut.toLocaleString()}
+                      <span className="text-xs font-semibold text-indigo-700"> / month</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-2.5 border-t border-indigo-200/60 flex items-center justify-between text-xs text-indigo-900">
+                    <span>Annualized Fixed Burn:</span>
+                    <strong>
+                      {currencySymbol}
+                      {(totalMonthlyFixedNut * 12).toLocaleString()} / yr
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* PART C: VISUAL BREAKEVEN CROSSOVER & INTERACTIVE SLIDERS   */}
+            {/* ========================================================= */}
+            <div className="rounded-2xl border-2 border-indigo-600/20 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-5 text-white shadow-md space-y-5">
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-indigo-800/50 pb-4">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30 text-[10px] shrink-0">
+                      Year {activeSimYear} Breakeven Target
+                    </Badge>
+                    {step3Data.isSandboxActive && (
+                      <Badge className="bg-amber-500/20 text-amber-200 border-amber-400/40 text-[10px] shrink-0">
+                        Custom Slider Adjustment Active
+                      </Badge>
+                    )}
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black tracking-tight text-white">
+                    You need{' '}
+                    <span className="text-emerald-400 underline decoration-emerald-400/40 underline-offset-4">
+                      {customersNeededToBreakeven.toLocaleString()} sales / active customers
+                    </span>{' '}
+                    per month in Year {activeSimYear} to break even.
+                  </h3>
+                  <p className="text-xs text-indigo-200">
+                    That is roughly <strong>{dailySalesNeededToBreakeven} sales per day</strong> (generating{' '}
+                    <strong>
+                      {currencySymbol}
+                      {monthlyRevenueAtBreakeven.toLocaleString()}/month
+                    </strong>{' '}
+                    in net turnover) to pay all {currencySymbol}
+                    {totalMonthlyFixedNut.toLocaleString()} of your monthly bills.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleResetStep3ToModuleDefaults}
+                    className="h-9 border-indigo-400/40 bg-indigo-900/60 px-3 text-xs font-semibold text-indigo-100 hover:bg-indigo-800 hover:text-white shrink-0"
+                    title="Reset price, channel fees, overheads, and wages back to the default numbers pulled from Step 2 & Modules D, E, and F"
+                  >
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5 text-emerald-300" />
+                    Reset to Module Defaults
+                  </Button>
+
+                  <div className="rounded-xl bg-white/10 border border-white/15 px-4 py-2 text-right shrink-0">
+                    <div className="text-[10px] uppercase tracking-wider text-indigo-200 font-semibold">
+                      Breakeven Turnover (Net)
+                    </div>
+                    <div className="text-xl font-black text-white">
+                      {currencySymbol}
+                      {monthlyRevenueAtBreakeven.toLocaleString()}
+                      <span className="text-xs font-normal text-indigo-200">/mo</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Sliders: Volume & Price */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Slider 1: Monthly Customer / Sales Volume Simulator */}
+                <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-100">
+                      Test Monthly Sales / Active Customers:
+                    </span>
+                    <span className="text-sm font-black text-emerald-300">
+                      {simulatedMonthlyCustomers.toLocaleString()} sales/mo
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max={Math.max(300, customersNeededToBreakeven * 3)}
+                    step="1"
+                    value={simulatedMonthlyCustomers}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 1;
+                      setStep3Data((prev) => ({
+                        ...prev,
+                        activeCustomerSlider: val,
+                      }));
+                    }}
+                    className="w-full h-2 bg-indigo-950 rounded-lg appearance-none cursor-pointer accent-emerald-400"
+                  />
+                  <div className="flex justify-between text-[10px] text-indigo-300">
+                    <span>1 sale/mo</span>
+                    <span className="text-amber-300 font-semibold">
+                      Breakeven: {customersNeededToBreakeven}
+                    </span>
+                    <span>{Math.max(300, customersNeededToBreakeven * 3)} sales/mo</span>
+                  </div>
+                </div>
+
+                {/* Slider 2: What-If Net Price Simulator */}
+                <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-100">
+                      Test a Different Net Price:
+                    </span>
+                    <span className="text-sm font-black text-indigo-200">
+                      {currencySymbol}
+                      {simulatedNetPrice.toFixed(2)}{' '}
+                      <span className="text-[10px] font-normal text-indigo-300">
+                        (Official: {currencySymbol}
+                        {blendedAveragePrice})
+                      </span>
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max={Math.max(250, Math.round(blendedAveragePrice * 3))}
+                    step="1"
+                    value={simulatedNetPrice}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || blendedAveragePrice;
+                      setStep3Data((prev) => ({
+                        ...prev,
+                        isSandboxActive: true,
+                        activePriceSlider: val,
+                      }));
+                    }}
+                    className="w-full h-2 bg-indigo-950 rounded-lg appearance-none cursor-pointer accent-indigo-400"
+                  />
+                  <div className="flex justify-between text-[10px] text-indigo-300">
+                    <span>{currencySymbol}5</span>
+                    <span>Official: {currencySymbol}{blendedAveragePrice}</span>
+                    <span>
+                      {currencySymbol}
+                      {Math.max(250, Math.round(blendedAveragePrice * 3))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Visual Crossover Bar & Live Monthly Profit/Loss Result */}
+              <div className="rounded-xl bg-slate-950/70 border border-white/10 p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs">
+                    <span className="text-indigo-200">
+                      At <strong>{simulatedMonthlyCustomers} sales/month</strong>, your Pocket Profit is{' '}
+                      <strong>
+                        {currencySymbol}
+                        {simulatedTotalPocketContribution.toLocaleString()}/mo
+                      </strong>{' '}
+                      vs.{' '}
+                      <strong>
+                        {currencySymbol}
+                        {totalMonthlyFixedNut.toLocaleString()}/mo
+                      </strong>{' '}
+                      in fixed bills:
+                    </span>
+                  </div>
+
+                  <div
+                    className={`px-3 py-1 rounded-lg text-xs font-black ${
+                      simulatedMonthlyNetSurplusOrLoss >= 0
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-400/30'
+                    }`}
+                  >
+                    {simulatedMonthlyNetSurplusOrLoss >= 0 ? (
+                      <span>
+                        +{currencySymbol}
+                        {simulatedMonthlyNetSurplusOrLoss.toLocaleString()}/mo Pure Surplus Profit
+                      </span>
+                    ) : (
+                      <span>
+                        {currencySymbol}
+                        {simulatedMonthlyNetSurplusOrLoss.toLocaleString()}/mo Monthly Shortfall (Burn)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Bar Comparing Current Sales Volume to Breakeven */}
+                <div className="space-y-1.5">
+                  <div className="relative h-4 w-full rounded-full bg-slate-800 overflow-hidden">
+                    {/* Breakeven marker at 50% of bar */}
+                    <div
+                      className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-amber-400 z-10"
+                      title={`Breakeven: ${customersNeededToBreakeven} sales`}
+                    />
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        simulatedMonthlyCustomers >= customersNeededToBreakeven
+                          ? 'bg-gradient-to-r from-indigo-500 via-emerald-500 to-emerald-400'
+                          : 'bg-gradient-to-r from-rose-600 to-amber-500'
+                      }`}
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round(
+                            (simulatedMonthlyCustomers /
+                              Math.max(1, customersNeededToBreakeven * 2)) *
+                              100
+                          )
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-indigo-300">
+                    <span className="text-rose-300">Red Zone (Paying bills from savings/grants)</span>
+                    <span className="text-amber-300 font-bold">
+                      ▲ Breakeven ({customersNeededToBreakeven} sales)
+                    </span>
+                    <span className="text-emerald-300">
+                      Green Zone (Self-sustaining profit in bank)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* PART D: 3-YEAR BREAKEVEN SUMMARY TABLE                     */}
+            {/* ========================================================= */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    3. 3-Year Breakeven Comparison Table (Years 1–3)
+                  </Label>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Click any year row below to switch the graph above and inspect how new hires in Module F change your breakeven target.
+                  </p>
+                </div>
+              </div>
+
+              {/* 3-Year Breakeven Comparison Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <table className="w-full min-w-[600px] text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-600">
+                    <tr>
+                      <th className="py-2.5 px-3.5">Horizon</th>
+                      <th className="py-2.5 px-3.5">Monthly Wages (Mod F)</th>
+                      <th className="py-2.5 px-3.5">Other Fixed Bills</th>
+                      <th className="py-2.5 px-3.5">Total Monthly Nut</th>
+                      <th className="py-2.5 px-3.5 text-indigo-700">Breakeven Sales / Mo</th>
+                      <th className="py-2.5 px-3.5 text-emerald-700">Breakeven Turnover / Mo</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {computedThreeYearTargets.map((yr) => {
+                      const isCurr = yr.yearNumber === activeSimYear;
+                      return (
+                        <tr
+                          key={yr.yearNumber}
+                          onClick={() =>
+                            setStep3Data((prev) => ({
+                              ...prev,
+                              selectedSimulationYear: yr.yearNumber,
+                            }))
+                          }
+                          className={`cursor-pointer transition-colors ${
+                            isCurr ? 'bg-indigo-50/50 font-semibold' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <td className="py-2.5 px-3.5 font-bold text-slate-900">
+                            Year {yr.yearNumber}{' '}
+                            {isCurr && (
+                              <Badge className="ml-1 bg-indigo-100 text-indigo-800 text-[9px]">
+                                Viewing
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3.5 text-slate-700">
+                            {currencySymbol}
+                            {yr.monthlyPayrollBaseline.toLocaleString()}/mo
+                          </td>
+                          <td className="py-2.5 px-3.5 text-slate-700">
+                            {currencySymbol}
+                            {yr.otherFixedMonthlyOverheads.toLocaleString()}/mo
+                          </td>
+                          <td className="py-2.5 px-3.5 font-bold text-slate-900">
+                            {currencySymbol}
+                            {(
+                              yr.monthlyPayrollBaseline + yr.otherFixedMonthlyOverheads
+                            ).toLocaleString()}
+                            /mo
+                          </td>
+                          <td className="py-2.5 px-3.5 font-bold text-indigo-700">
+                            {yr.customersNeededToBreakeven.toLocaleString()} sales/mo
+                          </td>
+                          <td className="py-2.5 px-3.5 font-bold text-emerald-700">
+                            {currencySymbol}
+                            {yr.monthlyRevenueAtBreakeven.toLocaleString()}/mo
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom Step 3 Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setOpenStep(2)}
+                  className="text-xs text-slate-600"
+                >
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  Back to Step 2
+                </Button>
+                {saveStatus === 'saved' && (
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
+                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                    Step 3 Saved!
+                  </Badge>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSaveStep3}
+                  disabled={saveStatus === 'saving' || isVaultReadonly}
+                  className="text-xs text-slate-700"
+                >
+                  {saveStatus === 'saving' ? 'Saving...' : 'Save Step 3'}
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    await handleSaveStep3();
+                    setOpenStep(4);
+                    window.scrollTo({ top: 450, behavior: 'smooth' });
+                  }}
+                  disabled={!isStep3Complete || isVaultReadonly}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+                >
+                  Next: Sales Velocity &amp; Assumptions (Step 4)
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* PLACEHOLDERS FOR STEPS 4, 5 (Upcoming)                         */}
+      {/* ------------------------------------------------------------- */}
+      {openStep !== 'ALL' && openStep === 4 && (
         <Card className="rounded-xl border border-indigo-200 bg-indigo-50/20 p-6 text-center space-y-3">
           <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 text-xs">
-            Step 3: Up Next
+            Step 4: Up Next
           </Badge>
           <h3 className="text-base font-bold text-slate-900">
-            Step 3: Pocket Profit &amp; 3-Year Breakeven Simulator
+            Step 4: Sales Velocity, Capacity &amp; Written Assumptions
           </h3>
           <p className="text-xs text-slate-600 max-w-md mx-auto">
-            Next, we will connect your average price of {currencySymbol}
-            {blendedAveragePrice} to your Year 1, 2, and 3 payroll schedules, factoring in Stripe
-            processing fees and direct costs.
+            Next, we will translate your Year 1 breakeven target of{' '}
+            <strong>{computedThreeYearTargets[0]?.customersNeededToBreakeven || 0} sales/month</strong>{' '}
+            into realistic conversion rates, sales cycle days, and written assumptions for grant assessors.
           </p>
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setOpenStep(2)}
+            onClick={() => setOpenStep(3)}
             className="text-xs text-indigo-700"
           >
             <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-            Back to Step 2
+            Back to Step 3
           </Button>
         </Card>
       )}
