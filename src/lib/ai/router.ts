@@ -10708,6 +10708,157 @@ Return strictly valid JSON with this schema:
   return fallbackResult;
 }
 
+// ============================================================================
+// MODULE H: PRICING STRATEGY JUSTIFICATION (FOR GRANT ASSESSORS & BANK MANAGERS)
+// ============================================================================
+
+export interface GeneratePricingStrategyJustificationResult {
+  allowed: boolean;
+  pricingStrategyNotes: string;
+  assessorTip?: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+function buildSmartPricingStrategyJustification(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  currencySymbol?: string;
+  revenueModelVehicle?: string;
+  blendedAveragePrice?: number;
+  tiersSummary?: string;
+  primaryChannel?: string;
+  estimatedBlendedFeePercent?: number;
+  beachheadCustomer?: string;
+  willingnessToPayInsights?: string;
+  competitorPriceRange?: string;
+}): GeneratePricingStrategyJustificationResult {
+  const country = params.hqCountryCode || 'IE';
+  const sym = params.currencySymbol || (country === 'GB' ? '£' : '€');
+  const price = params.blendedAveragePrice || 49;
+  const channel = params.primaryChannel ? params.primaryChannel.replace(/_/g, ' ') : 'Direct checkout';
+  const fee = params.estimatedBlendedFeePercent ?? 2.9;
+
+  const notes = `Our pricing strategy is structured at a net blended price of ${sym}${price} per customer/unit, calibrated directly against willingness-to-pay signals gathered during customer discovery and target persona benchmarking. Operating via ${channel} maintains a blended transaction friction fee of ~${fee}%, ensuring healthy contribution margins to absorb early fulfillment and customer acquisition costs. Under ${
+    country === 'IE'
+      ? 'Irish Local Enterprise Office (LEO Feasibility/Priming) and Enterprise Ireland guidelines'
+      : 'UK Innovate UK and British Business Bank Start Up Loan viability criteria'
+  }, this price point reflects defensible unit economics without relying on unsustainable discount incentives. It positions the solution as a premium, value-driven alternative to legacy incumbents while leaving adequate runway for gross margin reinvestment into product delivery and customer success.`;
+
+  return {
+    allowed: true,
+    pricingStrategyNotes: notes,
+    assessorTip:
+      'Grant officers and bank underwriters look for pricing backed by real customer interviews rather than plucked out of thin air. Pointing to validated willingness-to-pay and payment fee protection builds immediate credibility.',
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generatePricingStrategyJustificationViaRouter(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  currencySymbol?: string;
+  revenueModelVehicle?: string;
+  blendedAveragePrice?: number;
+  tiersSummary?: string;
+  primaryChannel?: string;
+  estimatedBlendedFeePercent?: number;
+  beachheadCustomer?: string;
+  willingnessToPayInsights?: string;
+  competitorPriceRange?: string;
+  unfairAdvantage?: string;
+}): Promise<GeneratePricingStrategyJustificationResult> {
+  const fallback = buildSmartPricingStrategyJustification(params);
+  const country = params.hqCountryCode || 'IE';
+  const countryLabel =
+    country === 'IE'
+      ? 'Ireland (Local Enterprise Office LEO & Enterprise Ireland)'
+      : 'United Kingdom (Innovate UK & British Business Bank Start Up Loans)';
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_H_PRICING_STRATEGY',
+    'You are a senior venture underwriter, commercial banker, and grant assessor specializing in startup unit economics and pricing defensibility.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const prompt = `Write a rigorous, professional 2-to-3 paragraph Pricing Strategy Justification for ${sanitizePromptInput(
+        params.planTitle || 'Startup',
+        100
+      )} in ${countryLabel}.
+This justification will be read directly by government grant assessors (LEO / Innovate UK) and bank loan managers evaluating business viability.
+
+VENTURE CONTEXT (CROSS-MODULE EVIDENCE):
+- Industry Category: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+- Revenue Model: ${sanitizePromptInput(params.revenueModelVehicle || 'Subscription', 60)}
+- Blended Average Price (Net of Tax): ${params.currencySymbol || '€'}${params.blendedAveragePrice || 49}
+- Pricing Tiers / Packages: ${sanitizePromptInput(params.tiersSummary || 'Flagship Offering', 250)}
+- Primary Sales Channel: ${sanitizePromptInput(params.primaryChannel || 'Direct Web', 60)} (Blended platform cut: ${params.estimatedBlendedFeePercent || 2.9}%)
+- Beachhead Target Persona (Mod B): ${sanitizePromptInput(params.beachheadCustomer || 'Target segment', 150)}
+- Customer Willingness-to-Pay & Feedback (Mod C): ${sanitizePromptInput(params.willingnessToPayInsights || 'Validated through customer discovery', 200)}
+- Competitor Price Anchor (Mod B): ${sanitizePromptInput(params.competitorPriceRange || 'Aligned with market alternatives', 150)}
+- Unfair Advantage / Defensibility (Mod A): ${sanitizePromptInput(params.unfairAdvantage || 'Proprietary workflow & domain expertise', 150)}
+
+REQUIREMENTS:
+1. Explain clearly why target customers will pay this specific net price point (referencing value received vs cost of alternatives).
+2. Explain how this price protects gross margin after payment gateway fees (${params.estimatedBlendedFeePercent || 2.9}%) and supports self-sustaining breakeven.
+3. Write with commercial maturity suitable for LEO / Innovate UK grant forms and Start Up Loan business plans.
+4. Keep the text concise (140-200 words total).
+5. Provide a 1-sentence Assessor Tip for the founder.
+
+Return strictly valid JSON:
+{
+  "pricingStrategyNotes": "string (140-200 words)",
+  "assessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          pricingStrategyNotes?: string;
+          assessorTip?: string;
+        };
+
+        if (parsed.pricingStrategyNotes) {
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            promptKey: 'MOD_H_PRICING_STRATEGY',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 600,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 350,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            pricingStrategyNotes: parsed.pricingStrategyNotes.trim(),
+            assessorTip: parsed.assessorTip?.trim() || fallback.assessorTip,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Error in generatePricingStrategyJustificationViaRouter:', err);
+    }
+  }
+
+  return fallback;
+}
+
+
 
 
 

@@ -2299,14 +2299,8 @@ export function ModuleEWorkspace({
     return 'STEP_1';
   });
 
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
-    if (plan.currentModuleStep === 'MOD_E_STEP_6') return 6;
-    if (plan.currentModuleStep === 'MOD_E_STEP_5') return 5;
-    if (plan.currentModuleStep === 'MOD_E_STEP_4') return 4;
-    if (plan.currentModuleStep === 'MOD_E_STEP_3') return 3;
-    if (plan.currentModuleStep === 'MOD_E_STEP_2') return 2;
-    return 1;
-  });
+  // Step Accordion View State: 0 = all collapsed by default, 1..6, or 'ALL'
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
 
   useEffect(() => {
     if (plan.currentModuleStep === 'MOD_E_STEP_6') {
@@ -4237,11 +4231,11 @@ export function ModuleEWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
+                  setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
                 }
                 className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
-                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+                {openStep === 'ALL' ? 'Collapse All Steps' : 'Expand All Steps'}
               </Button>
               <Button
                 type="button"

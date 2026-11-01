@@ -702,7 +702,7 @@ export function ModuleBWorkspace({
         : 'B2B_BUSINESSES';
 
   // Step Accordion state: 1, 2, 3, 4, 5, 6 (Summary Brief), or 'ALL'
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(1);
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
 
   const savedBeachhead = plan.moduleBData?.beachhead;
 
@@ -1966,11 +1966,11 @@ export function ModuleBWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
+                  setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
                 }
                 className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
-                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+                {openStep === 'ALL' ? 'Collapse All Steps' : 'Expand All Steps'}
               </Button>
               <Button
                 type="button"

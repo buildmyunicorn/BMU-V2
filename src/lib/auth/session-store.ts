@@ -1660,6 +1660,104 @@ export interface SavedModuleFData {
   lastSavedAt?: string;
 }
 
+// ==========================================
+// MODULE H: REVENUE & PRICING ARCHITECT TYPES
+// ==========================================
+
+export type RevenueModelVehicle =
+  | 'SUBSCRIPTION_RECURRING'
+  | 'ONE_OFF_TRANSACTION'
+  | 'SERVICE_PROJECT_HOURLY'
+  | 'USAGE_BASED_METERED'
+  | 'MARKETPLACE_COMMISSION'
+  | 'HARDWARE_PLUS_PLAN'
+  | 'OTHER';
+
+export type ProductOfferingStructure = 'SINGLE_OFFERING' | 'MULTI_OFFERING_TIERS';
+
+export interface RevenueModelStep1Data {
+  revenueModelVehicle: RevenueModelVehicle;
+  otherRevenueModelText?: string;
+  offeringStructure: ProductOfferingStructure;
+  valueMetric: string; // e.g., "per active user / month", "per physical item shipped"
+  billingCadenceDefault: 'MONTHLY' | 'ANNUAL' | 'ONE_OFF' | 'PROJECT_MILESTONE';
+  offeringRangeSummary: string; // Plain-English summary of what's being charged
+  selectedCurrency: string; // EUR, GBP, USD
+  lastSavedAt?: string;
+}
+
+export interface PricingTierItem {
+  id: string;
+  name: string; // e.g. "Starter", "Core Flagship", "Premium Bundle"
+  targetPersona: string; // e.g. "Early Adopter / Solopreneur"
+  priceGross?: number; // Gross sticker price including VAT (what customer pays at checkout)
+  priceNetOfTax: number; // Clean turnover net of tax (required for bank & grant due diligence)
+  taxRatePercent: number; // e.g. 23% IE, 20% UK, 0% US
+  billingFrequency: 'MONTHLY' | 'ANNUAL' | 'ONE_OFF';
+  annualDiscountPercent?: number; // e.g. 20% off if billed annually
+  salesMixPercent: number; // e.g. 30%, 60%, 10% (sum = 100%)
+  deliverablesSummary: string; // 2-3 key deliverables
+  isRecommendedDefault?: boolean;
+}
+
+export interface PricingTiersStep2Data {
+  tiers: PricingTierItem[];
+  blendedAveragePriceNet: number;
+  pricingStrategyNotes: string;
+  lastSavedAt?: string;
+}
+
+export interface FrictionCostsStep3Data {
+  paymentGatewayPercent: number; // e.g. 1.7% Stripe
+  paymentGatewayFixedCents: number; // e.g. 25c
+  directVariableCogsPerUnit: number; // materials, hosting, packaging
+  disputeRefundBufferPercent: number; // e.g. 2%
+  affiliateCommissionPercent: number; // e.g. 0% - 10%
+  lastSavedAt?: string;
+}
+
+export interface BreakevenYearTarget {
+  yearNumber: 1 | 2 | 3;
+  monthlyPayrollBaseline: number; // auto-synced from Mod F
+  otherFixedMonthlyOverheads: number;
+  customersNeededToBreakeven: number;
+  monthlyRevenueAtBreakeven: number;
+  monthlyPocketProfitAtTarget: number;
+}
+
+export interface BreakevenCalculatorStep3Data {
+  selectedSimulationYear: 1 | 2 | 3;
+  activePriceSlider: number;
+  activeCustomerSlider: number;
+  frictionCosts: FrictionCostsStep3Data;
+  isSandboxActive: boolean;
+  sandboxMonthlyPayrollOverride?: number;
+  sandboxNotes?: string;
+  yearTargets: BreakevenYearTarget[];
+  lastSavedAt?: string;
+}
+
+export interface SalesAssumptionsStep4Data {
+  salesCycleDays: number; // e.g. 1, 14, 30, 90
+  primarySalesMotion: 'SELF_SERVE_WEB' | 'INSIDE_SALES_DEMO' | 'ENTERPRISE_RFP' | 'RETAIL_MARKETPLACE' | 'OTHER';
+  otherSalesMotionText?: string;
+  expectedConversionRatePercent: number; // e.g. 3%
+  expectedMonthlyChurnOrRepeatPercent: number; // e.g. 4% churn or 30% repeat
+  teamMonthlyCapacityCap: number; // e.g. max 100 clients before hiring
+  writtenAssumptionsNarrative: string;
+  lastSavedAt?: string;
+}
+
+export interface SavedModuleHData {
+  step1RevenueModel?: RevenueModelStep1Data;
+  step2PricingTiers?: PricingTiersStep2Data;
+  step3BreakevenCalculator?: BreakevenCalculatorStep3Data;
+  step4SalesAssumptions?: SalesAssumptionsStep4Data;
+  completionPercentage?: number;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
 export type FounderStage =
   | 'IDEA_EXPLORER'
   | 'BUILDING_MVP'
@@ -1726,6 +1824,7 @@ export interface ActiveStartupPlan {
   moduleDData?: SavedModuleDData;
   moduleEData?: SavedModuleEData;
   moduleFData?: SavedModuleFData;
+  moduleHData?: SavedModuleHData;
   masterDocumentData?: SavedMasterDocumentData;
   openQuestions: string[];
 }

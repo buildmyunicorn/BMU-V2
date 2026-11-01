@@ -799,14 +799,8 @@ export function ModuleCWorkspace({
   const [isInterviewModalOpen, setIsInterviewModalOpen] =
     useState<boolean>(false);
 
-  // Step Accordion State (GEMINI.md Section 6 Standard:
-  // Step 1 = Surveys, Step 2 = 1-on-1 Interviews, Step 3 = Blind-Spot Review, Step 4 = Overview Brief)
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
-    const hasValidSurvey = surveys.some((s) => s.questions.length > 0);
-    if (!hasValidSurvey) return 1;
-    if (interviewLogs.length === 0) return 2;
-    return 1;
-  });
+  // Step Accordion State: 0 = all collapsed by default, 1..4 = specific step open, 'ALL' = all open
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
 
   const scrollToStep = (stepNum: number) => {
     setOpenStep(stepNum);

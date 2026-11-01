@@ -240,6 +240,8 @@ import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
 import { ModuleDWorkspace } from '@/components/workspace/module-d-workspace';
 import { ModuleEWorkspace } from '@/components/workspace/module-e-workspace';
 import { ModuleFWorkspace } from '@/components/workspace/module-f-workspace';
+import { ModuleGWorkspace } from '@/components/workspace/module-g-workspace';
+import { ModuleHWorkspace } from '@/components/workspace/module-h-workspace';
 import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
 import { LocalBugCaptureWidget } from '@/components/workspace/local-bug-capture-widget';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
@@ -502,8 +504,8 @@ export default function WorkspacePage() {
     null
   );
 
-  // Module A Step Accordion / Dropdown View State (1..7 or 'ALL')
-  const [openModAStep, setOpenModAStep] = useState<number | 'ALL'>(1);
+  // Module A Step Accordion / Dropdown View State (0 = all collapsed, 1..7, or 'ALL')
+  const [openModAStep, setOpenModAStep] = useState<number | 'ALL'>(0);
 
   // Module A Step 2, Step 3, Step 4 & Step 5 Live State
   const [conceptCanvas, setConceptCanvas] = useState<SavedConceptCanvas | null>(
@@ -848,8 +850,48 @@ export default function WorkspacePage() {
                     }
                   : undefined;
 
+              const mergedModuleHData =
+                localPlan.moduleHData || dbPlan.moduleHData
+                  ? {
+                      ...(dbPlan.moduleHData || {}),
+                      ...(localPlan.moduleHData || {}),
+                      step1RevenueModel: pickNewerBySavedAt(
+                        localPlan.moduleHData?.step1RevenueModel,
+                        dbPlan.moduleHData?.step1RevenueModel
+                      ),
+                      step2PricingTiers: pickNewerBySavedAt(
+                        localPlan.moduleHData?.step2PricingTiers,
+                        dbPlan.moduleHData?.step2PricingTiers
+                      ),
+                      step3BreakevenCalculator: pickNewerBySavedAt(
+                        localPlan.moduleHData?.step3BreakevenCalculator,
+                        dbPlan.moduleHData?.step3BreakevenCalculator
+                      ),
+                      step4SalesAssumptions: pickNewerBySavedAt(
+                        localPlan.moduleHData?.step4SalesAssumptions,
+                        dbPlan.moduleHData?.step4SalesAssumptions
+                      ),
+                      completionPercentage:
+                        localPlan.moduleHData?.completionPercentage ??
+                        dbPlan.moduleHData?.completionPercentage,
+                      thingsToConsider:
+                        dbPlan.moduleHData?.thingsToConsider ||
+                        localPlan.moduleHData?.thingsToConsider,
+                      lastSavedAt:
+                        pickNewerBySavedAt(
+                          localPlan.moduleHData,
+                          dbPlan.moduleHData
+                        )?.lastSavedAt ||
+                        localPlan.moduleHData?.lastSavedAt ||
+                        dbPlan.moduleHData?.lastSavedAt,
+                    }
+                  : undefined;
+
               const resolvedCurrentStep =
-                localPlan.currentModuleStep?.startsWith('MOD_F') &&
+                localPlan.currentModuleStep?.startsWith('MOD_H') &&
+                !dbPlan.currentModuleStep?.startsWith('MOD_H')
+                  ? localPlan.currentModuleStep
+                  : localPlan.currentModuleStep?.startsWith('MOD_F') &&
                 !dbPlan.currentModuleStep?.startsWith('MOD_F')
                   ? localPlan.currentModuleStep
                   : localPlan.currentModuleStep?.startsWith('MOD_E') &&
@@ -878,6 +920,7 @@ export default function WorkspacePage() {
                 moduleDData: mergedModuleDData,
                 moduleEData: mergedModuleEData,
                 moduleFData: mergedModuleFData,
+                moduleHData: mergedModuleHData,
                 masterDocumentData: pickNewerBySavedAt(
                   localPlan.masterDocumentData,
                   dbPlan.masterDocumentData
@@ -4517,7 +4560,9 @@ export default function WorkspacePage() {
                             ? 'Module D: Product & Build Vehicle'
                             : activeModule === 'MOD_E_OPERATIONS'
                               ? 'Module E: Operations & Fulfillment'
-                              : 'Module F: Team, Survival Budget & Roles'}
+                              : activeModule === 'MOD_F_COFOUNDER_TEAM'
+                                ? 'Module F: Team, Survival Budget & Roles'
+                                : 'Module G: Getting Set Up (Launchpad & Operations)'}
                 </div>
                 <div className="text-[11px] text-indigo-700">
                   {mobileSidebarOpen
@@ -4588,7 +4633,9 @@ export default function WorkspacePage() {
                           mod.code === 'MOD_C_SURVEYS_FEEDBACK' ||
                           mod.code === 'MOD_D_PRODUCT_BUILD' ||
                           mod.code === 'MOD_E_OPERATIONS' ||
-                          mod.code === 'MOD_F_COFOUNDER_TEAM'
+                          mod.code === 'MOD_F_COFOUNDER_TEAM' ||
+                          mod.code === 'MOD_G_LAUNCHPAD' ||
+                          mod.code === 'MOD_H_REVENUE'
                         ) {
                           setIsMasterDocumentOpen(false);
                           setActiveModule(mod.code);
@@ -5033,6 +5080,110 @@ export default function WorkspacePage() {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />
+          ) : activeModule === 'MOD_G_LAUNCHPAD' ? (
+            <ModuleGWorkspace
+              key={currentPlan.id}
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              onBackToModuleF={() => setActiveModule('MOD_F_COFOUNDER_TEAM')}
+              onContinueToModuleH={() => {
+                const access = canAccessModule(
+                  activeEntitlement,
+                  'MOD_H_REVENUE'
+                );
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock('MOD_H_REVENUE');
+                  setPaywallModalFeature(
+                    `Module H: Selling, Sales Assumptions & Pocket Profit — ${access.reason}`
+                  );
+                  return;
+                }
+                setActiveModule('MOD_H_REVENUE');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          ) : activeModule === 'MOD_H_REVENUE' ? (
+            <ModuleHWorkspace
+              key={currentPlan.id}
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              onSaveStep1RevenueModel={async (step1Data, progress = 20) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_H_STEP_1_REVENUE_MODEL',
+                      moduleHData: {
+                        ...(p.moduleHData || {}),
+                        step1RevenueModel: step1Data,
+                        completionPercentage: Math.max(
+                          p.moduleHData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep2PricingTiers={async (step2Data, progress = 40) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_H_STEP_2_PRICING_TIERS',
+                      moduleHData: {
+                        ...(p.moduleHData || {}),
+                        step2PricingTiers: step2Data,
+                        completionPercentage: Math.max(
+                          p.moduleHData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onBackToModuleG={() => setActiveModule('MOD_G_LAUNCHPAD')}
+              onContinueToModuleI={() => {
+                const access = canAccessModule(
+                  activeEntitlement,
+                  'MOD_I_MARKETING'
+                );
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock('MOD_I_MARKETING');
+                  setPaywallModalFeature(
+                    `Module I: Marketing & Customer Acquisition — ${access.reason}`
+                  );
+                  return;
+                }
+                setActiveModule('MOD_I_MARKETING');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           ) : activeModule === 'MOD_E_OPERATIONS' ? (
             <ModuleEWorkspace
               key={currentPlan.id}
@@ -5248,12 +5399,12 @@ export default function WorkspacePage() {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        setOpenModAStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
+                        setOpenModAStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
                       }
                       className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                     >
                       {openModAStep === 'ALL'
-                        ? 'Focus Step-by-Step'
+                        ? 'Collapse All Steps'
                         : 'Expand All Steps'}
                     </Button>
                   </div>
