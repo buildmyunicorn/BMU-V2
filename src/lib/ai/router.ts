@@ -10265,6 +10265,450 @@ Return strictly valid JSON with this exact schema:
   return fallbackResult;
 }
 
+// ----------------------------------------------------------------------------
+// Step 5: 3-Year Executive Hiring & Retention Strategy AI Synthesizer
+// ----------------------------------------------------------------------------
+
+export interface GenerateHiringStrategySummaryResult {
+  allowed: boolean;
+  executiveHiringStrategyNarrative: string;
+  wordCount: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+  keyHighlights?: string[];
+  aiCoachTip?: string;
+}
+
+export async function generateHiringStrategySummaryViaRouter(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  hiringPosture?: string;
+  otherHiringPostureText?: string;
+  roles: Array<{
+    title: string;
+    department: string;
+    employmentMode: string;
+    yearScheduled: number;
+    compensationModel: string;
+    grossAnnualSalary: number;
+    equityGrantPercent?: number;
+    vestingYears?: number;
+    cliffMonths?: number;
+    isGrantReimbursableEligible?: boolean;
+    isRdTaxCreditEligible?: boolean;
+    sweatEquityMilestoneConditions?: string;
+  }>;
+  contractorBudgetYear1?: number;
+  contractorBudgetYear2?: number;
+  contractorBudgetYear3?: number;
+}): Promise<GenerateHiringStrategySummaryResult> {
+  const isGb = params.hqCountryCode === 'GB';
+  const currencySymbol = isGb ? '£' : '€';
+  const countryName = isGb ? 'United Kingdom' : 'Ireland';
+  const primaryGrant = isGb
+    ? 'Innovate UK & British Business Bank Start Up Loans'
+    : 'Local Enterprise Office (LEO) Priming & Feasibility Grants';
+
+  const y1Roles = params.roles.filter((r) => r.yearScheduled <= 1);
+  const y2Roles = params.roles.filter((r) => r.yearScheduled <= 2);
+  const y3Roles = params.roles.filter((r) => r.yearScheduled <= 3);
+
+  const sweatRoles = params.roles.filter(
+    (r) =>
+      r.compensationModel === 'PURE_SWEAT_EQUITY' ||
+      r.compensationModel === 'HYBRID_CASH_EQUITY'
+  );
+
+  // Deterministic smart fallback
+  const fallbackNarrative = `Over the 3-year strategic horizon, ${
+    params.planTitle || 'the startup'
+  } executes a phased, capital-efficient talent acquisition and human capital retention plan tailored to ${countryName} startup governance and ${primaryGrant} guidelines.\n\nIn Year 1, the organisation prioritises runway preservation, deploying ${
+    y1Roles.length
+  } core roles${
+    sweatRoles.length > 0
+      ? ` leveraging founder sweat equity and hybrid equity incentives with 4-year vesting schedules and a 1-year cliff to protect early-stage cash reserves`
+      : ' focused on core product deployment and market validation'
+  }${
+    (params.contractorBudgetYear1 || 0) > 0
+      ? `, complemented by a ${currencySymbol}${params.contractorBudgetYear1} specialist contractor budget for specialized technical and legal workflows`
+      : ''
+  }.\n\nAs product-market fit and commercial revenues scale in Years 2 and 3, direct salaried headcount expands sequentially to ${
+    y2Roles.length
+  } team members in Year 2 and ${
+    y3Roles.length
+  } in Year 3. Hiring focuses on dedicated engineering scale, proactive customer acquisition, and structured operational management. Direct salaried positions incorporate statutory employer overheads (${
+    isGb
+      ? '13.8% Employer NIC plus workplace pension contributions'
+      : '11.15% Employer PRSI'
+  }) and leverage eligible non-dilutive grant wage subsidies to maintain financial resilience. Long-term talent retention is fortified through an employee share ownership pool, milestone-based performance triggers, and competitive regional compensation benchmarks.`;
+
+  const words = fallbackNarrative.trim().split(/\s+/).filter(Boolean);
+  const fallbackResult: GenerateHiringStrategySummaryResult = {
+    allowed: true,
+    executiveHiringStrategyNarrative: fallbackNarrative,
+    wordCount: words.length,
+    engineMode: 'smart-synthesizer',
+    keyHighlights: [
+      `Phased headcount expansion from ${y1Roles.length} in Year 1 to ${y3Roles.length} in Year 3`,
+      sweatRoles.length > 0
+        ? 'Sweat equity protection with 4-year vesting and 12-month cliff schedules'
+        : 'Structured direct salaried employment with statutory tax compliance',
+      `Full alignment with ${countryName} grant and payroll standards (${isGb ? 'NIC & Pension' : 'Class A PRSI'})`,
+    ],
+    aiCoachTip:
+      'Highlighting phased hiring tied to measurable milestone gates demonstrates fiscal discipline to grant assessors and private investors alike.',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_F_HIRING_STRATEGY',
+    'You are an expert startup workforce strategist and government grant evaluator specializing in headcount planning, sweat equity allocation, and statutory payroll compliance.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const prompt = `You are a senior startup advisor and grant evaluator specializing in Irish LEO Priming / Enterprise Ireland grants and UK Innovate UK grant applications.
+
+Draft a compelling, professional 180 to 250-word Executive Hiring & Retention Strategy for the official grant and business plan application based on the following verified facts:
+
+STARTUP CONTEXT:
+- Plan Title: ${params.planTitle || 'Startup'}
+- Industry: ${params.industryCategory || 'Technology / Commercial'}
+- Location: ${countryName} (${primaryGrant})
+- Hiring Strategy Posture: ${params.hiringPosture || 'Balanced Growth'} ${params.otherHiringPostureText ? `(${params.otherHiringPostureText})` : ''}
+
+HEADCOUNT & COMPENSATION DATA:
+- Year 1 Active Team: ${y1Roles.length} roles (${y1Roles.map((r) => `${r.title} [${r.employmentMode}, ${r.compensationModel}]`).join(', ') || 'Founders'})
+- Year 2 Active Team: ${y2Roles.length} roles
+- Year 3 Active Team: ${y3Roles.length} roles
+- Sweat Equity & Share Incentive Roles: ${sweatRoles.length} roles utilizing equity vesting (4-year vesting with 1-year cliff)
+- Annual Contractor Budgets: Y1 ${currencySymbol}${params.contractorBudgetYear1 || 0}, Y2 ${currencySymbol}${params.contractorBudgetYear2 || 0}, Y3 ${currencySymbol}${params.contractorBudgetYear3 || 0}
+- Statutory Overheads Modeled: ${isGb ? '13.8% Employer NIC + 3% Pension' : '11.15% Employer PRSI'}
+
+REQUIREMENTS:
+1. Write 2-3 structured paragraphs in polished, confident business prose suitable for an official grant committee or credit assessor.
+2. Explicitly explain how the startup balances cash runway preservation in Year 1 (via founder commitment, sweat equity/options, or lean contractors) with scalable direct job creation in Years 2 and 3.
+3. Mention talent retention mechanisms (e.g. share options vesting, clear KPIs, milestone bonuses, positive startup culture).
+4. Do NOT use buzzwords or unsubstantiated hype; focus on operational feasibility, fiscal prudence, and statutory compliance.
+
+Return STRICT JSON with this exact schema:
+{
+  "executiveHiringStrategyNarrative": "Full 180-250 word formal grant narrative",
+  "keyHighlights": ["string bullet point 1", "string bullet point 2", "string bullet point 3"],
+  "aiCoachTip": "Constructive 1-2 sentence evaluator perspective tip"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.25,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          executiveHiringStrategyNarrative?: string;
+          keyHighlights?: string[];
+          aiCoachTip?: string;
+        };
+
+        if (parsed.executiveHiringStrategyNarrative) {
+          const w = parsed.executiveHiringStrategyNarrative
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            promptKey: 'MOD_F_HIRING_STRATEGY',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 700,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 400,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            executiveHiringStrategyNarrative: parsed.executiveHiringStrategyNarrative.trim(),
+            keyHighlights: parsed.keyHighlights || fallbackResult.keyHighlights,
+            aiCoachTip: parsed.aiCoachTip?.trim() || fallbackResult.aiCoachTip,
+            wordCount: w.length,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Error in generateHiringStrategySummaryViaRouter:', err);
+    }
+  }
+
+  return fallbackResult;
+}
+
+// ============================================================================
+// MODULE F OVERVIEW: TEAM, GOVERNANCE & HIRING AUDIT & BRIEF SYNTHESIS
+// ============================================================================
+
+export interface GenerateTeamAuditAndBriefResult {
+  allowed: boolean;
+  blindSpots: Array<{
+    id: string;
+    title: string;
+    category:
+      | 'SINGLE_POINT_OF_FAILURE_OR_BURNOUT'
+      | 'EQUITY_VESTING_OR_DEAD_EQUITY_RISK'
+      | 'SURVIVAL_RUNWAY_VS_GRANT_DRAWDOWN_GAP'
+      | 'DECISION_DEADLOCK_OR_GOVERNANCE_SPLIT'
+      | 'PAYROLL_TAX_AND_EMPLOYMENT_LAW_COMPLIANCE'
+      | 'SWEAT_EQUITY_TAX_AND_IP_ASSIGNMENT'
+      | 'OTHER';
+    otherCategoryText?: string;
+    severity: 'WATCH' | 'IMPORTANT' | 'CRITICAL';
+    whyItMatters: string;
+    recommendedActionOrFix: string;
+  }>;
+  executiveTeamCapabilityNarrative: string; // Formatted for LEO Appendix D / Innovate UK Q8
+  governanceAndVestingNarrative: string;
+  talentRetentionAndHiringNarrative: string;
+  aiCoachTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+function buildSmartTeamAuditAndBrief(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  teamMembersCount?: number;
+  promoters?: Array<{ fullName: string; jobTitle: string; cvReady: boolean }>;
+  survivalRunwayMonths?: number;
+  monthlySurvivalBurn?: number;
+  unassignedHatsCount?: number;
+  year1Fte?: number;
+  year3Fte?: number;
+  equityVestingPlanned?: boolean;
+}): GenerateTeamAuditAndBriefResult {
+  const planTitle = params.planTitle || 'the startup';
+  const country = params.hqCountryCode || 'IE';
+  const isSolo = (params.teamMembersCount || 1) <= 1;
+  const runwayMonths = params.survivalRunwayMonths || 6;
+  const isGrantHeavy = country === 'IE' || country === 'GB';
+
+  const blindSpots: GenerateTeamAuditAndBriefResult['blindSpots'] = [];
+
+  if (isSolo) {
+    blindSpots.push({
+      id: 'tb-solo-single-point',
+      title: 'Solo Founder Execution Bottleneck & Key-Person Risk',
+      category: 'SINGLE_POINT_OF_FAILURE_OR_BURNOUT',
+      severity: 'CRITICAL',
+      whyItMatters:
+        'Grant bodies (LEO & Innovate UK) and early investors scrutinize single-founder ventures for execution bottlenecks, key-person illness risks, and burnout across conflicting business functions.',
+      recommendedActionOrFix:
+        'Formalize a vetted Advisory Board (2–3 industry leaders) or fractional specialists for Finance & Tech Build to demonstrate resilient operational backup.',
+    });
+  } else {
+    blindSpots.push({
+      id: 'tb-deadlock-governance',
+      title: 'Co-Founder Decision Deadlock & Equity Deadlock Risk',
+      category: 'DECISION_DEADLOCK_OR_GOVERNANCE_SPLIT',
+      severity: 'IMPORTANT',
+      whyItMatters:
+        'Equal 50/50 equity splits with informal voting rules frequently lead to catastrophic governance paralysis if founders disagree on pivots, fundraising, or hiring.',
+      recommendedActionOrFix:
+        'Establish a formal Founders Agreement with designated tie-breaking mechanisms (e.g. Lead Founder casting vote on operational strategy, independent advisor mediation on exits).',
+    });
+  }
+
+  blindSpots.push({
+    id: 'tb-equity-vesting-cliff',
+    title: 'Absence of 4-Year Equity Vesting with a 1-Year Cliff',
+    category: 'EQUITY_VESTING_OR_DEAD_EQUITY_RISK',
+    severity: 'CRITICAL',
+    whyItMatters:
+      'If any co-founder or sweat-equity contributor departs within the first 12 months without reverse-vesting, they retain their full equity stake as "dead equity", rendering the company uninvestable for future institutional rounds.',
+    recommendedActionOrFix:
+      'Adopt a standard 4-year vesting schedule with a 12-month cliff and strict bad-leaver share buyback rights before incorporating or issuing shares.',
+  });
+
+  if (runwayMonths < 6) {
+    blindSpots.push({
+      id: 'tb-runway-grant-drawdown-gap',
+      title: 'Personal Survival Cash Runway vs. Grant Reimbursement Lag',
+      category: 'SURVIVAL_RUNWAY_VS_GRANT_DRAWDOWN_GAP',
+      severity: 'IMPORTANT',
+      whyItMatters:
+        'Government grants (IE LEO Feasibility/Priming and UK Innovate UK) pay retrospectively in arrears against audited receipts. A survival runway below 6 months creates acute cash-flow stress before the first grant claim drawdown clears.',
+      recommendedActionOrFix:
+        'Line up a bridging facility (such as a UK Start Up Loan, founder director loan, or personal savings cushion) to cover the 60-to-90-day lag between invoice expenditure and grant claim payout.',
+    });
+  }
+
+  blindSpots.push({
+    id: 'tb-sweat-equity-tax-ip',
+    title: 'Sweat Equity Tax Valuation & Immediate IP Assignment',
+    category: 'SWEAT_EQUITY_TAX_AND_IP_ASSIGNMENT',
+    severity: 'IMPORTANT',
+    whyItMatters:
+      'Providing shares in exchange for unpaid sweat equity without upfront Section 431 elections (UK) or formal intellectual property assignment agreements leaves code and brand ownership with the individual rather than the company.',
+    recommendedActionOrFix:
+      'Execute a bilateral Intellectual Property Assignment Agreement and ensure all early share issuances are formally registered prior to commercial launch.',
+  });
+
+  const leadName = params.promoters?.[0]?.fullName || 'The Founding Promoter';
+  const leadTitle = params.promoters?.[0]?.jobTitle || 'Founder & CEO';
+
+  const executiveTeamNarrative = `${planTitle} is led by ${leadName} (${leadTitle}), bringing specialized domain insight and operational leadership to the venture. The executive structure is architected to satisfy the rigorous technical merit, management track record, and execution capability benchmarks required under ${
+    country === 'IE' ? 'Irish Local Enterprise Office (LEO Appendix D) & Enterprise Ireland' : 'UK Innovate UK (Question 8 Team Capability) & British Business Bank Start Up Loans'
+  }. Operational and strategic responsibilities are demarcated across dedicated functional domains (Vision, Product Build, Commercialization, Operations, and Finance), ensuring single-point accountability while eliminating operational bottlenecks.`;
+
+  const governanceNarrative = `Corporate governance and founder alignment are anchored by a formal Founders Charter and reverse-vesting framework. Founder and sweat equity allocations are subject to a standard 4-year vesting schedule with a mandatory 12-month cliff, safeguarding the cap table against dead equity. Deadlock resolution mechanisms, commercial veto thresholds, and intellectual property assignment covenants ensure uncompromised business continuity and institutional investor diligence readiness.`;
+
+  const hiringNarrative = `The headcount expansion roadmap scales pragmatically from ${params.year1Fte || 1.5} FTEs in Year 1 to ${params.year3Fte || 4.0} FTEs by Year 3, balancing agile freelance contracting during MVP validation with selective PAYE hires as revenue milestones are unlocked. Grant-eligible technical and R&D roles are ring-fenced to leverage non-dilutive salary support (${
+    country === 'IE' ? 'LEO Priming 50% salary grants & EI R&D tax credits' : 'Innovate UK eligible staff costs & HMRC R&D tax relief'
+  }), minimizing initial cash burn while accelerating execution.`;
+
+  return {
+    allowed: true,
+    blindSpots,
+    executiveTeamCapabilityNarrative: executiveTeamNarrative,
+    governanceAndVestingNarrative: governanceNarrative,
+    talentRetentionAndHiringNarrative: hiringNarrative,
+    aiCoachTip:
+      'LEO and Innovate UK assessors reward founder self-awareness. Having clear governance, vesting, and advisory backup converts perceived team risks into institutional strengths.',
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generateTeamAuditAndBriefViaRouter(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  teamMembersCount?: number;
+  promoters?: Array<{ fullName: string; jobTitle: string; cvReady: boolean }>;
+  survivalRunwayMonths?: number;
+  monthlySurvivalBurn?: number;
+  unassignedHatsCount?: number;
+  year1Fte?: number;
+  year3Fte?: number;
+  equityVestingPlanned?: boolean;
+}): Promise<GenerateTeamAuditAndBriefResult> {
+  const fallbackResult = buildSmartTeamAuditAndBrief(params);
+  const country = params.hqCountryCode || 'IE';
+  const countryLabel =
+    country === 'IE'
+      ? 'Ireland (LEO Appendix D & Enterprise Ireland)'
+      : 'United Kingdom (Innovate UK Q8 & Start Up Loans Tab 1)';
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_F_TEAM_AUDIT_BRIEF',
+    'You are a senior venture partner, governance advisor, and grant assessor evaluating startup management capability and executive risks.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: authCtx.activeApiKey });
+      const prompt = `Conduct a comprehensive, constructive Team, Governance & Blind-Spot Audit for ${sanitizePromptInput(
+        params.planTitle || 'Startup',
+        100
+      )} in ${countryLabel}.
+Industry: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+Founding Team Count: ${params.teamMembersCount || 1}
+Survival Cash Runway: ${params.survivalRunwayMonths || 6} months (Monthly Burn: €/£${params.monthlySurvivalBurn || 2000})
+Year 1 to 3 FTEs: ${params.year1Fte || 1.5} to ${params.year3Fte || 4} FTEs
+
+TASK:
+1. Synthesize 4 actionable, constructive Blind-Spot Review cards ("Things to Consider") covering:
+   - Single-point of failure / burnout or decision deadlock
+   - Equity vesting and dead equity risk (4-year vesting / 1-year cliff)
+   - Survival cash runway vs grant reimbursement lag (LEO/Innovate UK pay in arrears)
+   - Sweat equity tax valuation, IP assignment, and corporate governance
+2. Synthesize 3 concise, investor- and grant-ready narrative blocks:
+   - executiveTeamCapabilityNarrative (LEO Appendix D / Innovate UK Q8 capability summary, 120-160 words)
+   - governanceAndVestingNarrative (Deadlock prevention, vesting cliff, IP assignment, 90-120 words)
+   - talentRetentionAndHiringNarrative (Headcount scaling, grant salary offset, retention, 90-120 words)
+3. Provide a high-leverage 2-sentence Assessor Coaching Tip.
+
+Return strictly valid JSON with this schema:
+{
+  "blindSpots": [
+    {
+      "id": "string-unique-id",
+      "title": "string headline",
+      "category": "SINGLE_POINT_OF_FAILURE_OR_BURNOUT" | "EQUITY_VESTING_OR_DEAD_EQUITY_RISK" | "SURVIVAL_RUNWAY_VS_GRANT_DRAWDOWN_GAP" | "DECISION_DEADLOCK_OR_GOVERNANCE_SPLIT" | "PAYROLL_TAX_AND_EMPLOYMENT_LAW_COMPLIANCE" | "SWEAT_EQUITY_TAX_AND_IP_ASSIGNMENT" | "OTHER",
+      "severity": "CRITICAL" | "IMPORTANT" | "WATCH",
+      "whyItMatters": "string explanation",
+      "recommendedActionOrFix": "string actionable solution"
+    }
+  ],
+  "executiveTeamCapabilityNarrative": "string",
+  "governanceAndVestingNarrative": "string",
+  "talentRetentionAndHiringNarrative": "string",
+  "aiCoachTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.25,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          blindSpots?: GenerateTeamAuditAndBriefResult['blindSpots'];
+          executiveTeamCapabilityNarrative?: string;
+          governanceAndVestingNarrative?: string;
+          talentRetentionAndHiringNarrative?: string;
+          aiCoachTip?: string;
+        };
+
+        if (parsed.blindSpots && parsed.executiveTeamCapabilityNarrative) {
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            promptKey: 'MOD_F_TEAM_AUDIT_BRIEF',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 800,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 600,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            blindSpots: parsed.blindSpots.map((b, i) => ({
+              id: b.id || `tb-ai-${i + 1}`,
+              title: b.title || 'Team Consideration',
+              category: b.category || 'SINGLE_POINT_OF_FAILURE_OR_BURNOUT',
+              severity: b.severity || 'IMPORTANT',
+              whyItMatters: b.whyItMatters || '',
+              recommendedActionOrFix: b.recommendedActionOrFix || '',
+            })),
+            executiveTeamCapabilityNarrative: parsed.executiveTeamCapabilityNarrative.trim(),
+            governanceAndVestingNarrative: parsed.governanceAndVestingNarrative?.trim() || fallbackResult.governanceAndVestingNarrative,
+            talentRetentionAndHiringNarrative: parsed.talentRetentionAndHiringNarrative?.trim() || fallbackResult.talentRetentionAndHiringNarrative,
+            aiCoachTip: parsed.aiCoachTip?.trim() || fallbackResult.aiCoachTip,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Error in generateTeamAuditAndBriefViaRouter:', err);
+    }
+  }
+
+  return fallbackResult;
+}
+
+
 
 
 

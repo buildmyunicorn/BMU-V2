@@ -2122,7 +2122,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 1: Target Customers &amp; Selling Markets
                   </h2>
                   {moduleBReadinessSteps[0]?.isComplete ? (
@@ -2877,7 +2877,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 2: Competitors &amp; Current Habits
                   </h2>
                   {moduleBReadinessSteps[1]?.isComplete ? (
@@ -3535,7 +3535,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 3: Plain-English Market Sizing ({countryPack.defaultCurrency})
                   </h2>
                   {moduleBReadinessSteps[2]?.isComplete ? (
@@ -3598,7 +3598,7 @@ export function ModuleBWorkspace({
                   </Badge>
                 )}
               </div>
-              <CardDescription className="mt-1">
+              <CardDescription className="mt-1 text-xs text-slate-600">
                 Skip the fake &ldquo;1% of a $50 Billion global industry&rdquo; guessing game. Answer 3 simple questions per customer group and we&apos;ll calculate your Year 1–2 Revenue Goal, Reachable Market, and Wider Long-Term Market automatically in {countryPack.defaultCurrency}.
               </CardDescription>
             </div>
@@ -4480,7 +4480,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 4: Competitive Edge &amp; Stand Out
                   </h2>
                   {moduleBReadinessSteps[3]?.isComplete ? (
@@ -5191,7 +5191,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 5: Market Blind-Spot Review
                   </h2>
                   {moduleBReadinessSteps[4]?.isComplete ? (
@@ -5406,7 +5406,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Market &amp; Customer Validation Brief (Executive Summary)
                   </h2>
                   <Badge

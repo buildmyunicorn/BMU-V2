@@ -1202,7 +1202,7 @@ export const ADAPTIVE_STEP2_CONFIG_BY_TRACK: Record<
     bridgePromptPlaceholder:
       'e.g., Founders enter via our free Module A hook or redeem an AppSumo/University code directly on our web domain—so we own 100% of verified user emails and workspace data.',
     whyChannelFitsLabel:
-      '5. Why This Channel Mix Protects Your Early Traction & Module G Margins:',
+      '5. Why This Channel Mix Protects Your Early Traction & Module H Margins:',
     whyChannelFitsPlaceholder:
       'e.g., Direct Web Stripe checkout (~2.9% fee) preserves 97% gross margin on core passes, while AppSumo LTD and university cohort licences give us immediate distribution without burning cash on cold Meta/Google ads.',
   },
@@ -4404,6 +4404,8 @@ export function ModuleDWorkspace({
   const [newScopeItemNote, setNewScopeItemNote] = useState('');
   const [showClearScopeBoardConfirm, setShowClearScopeBoardConfirm] =
     useState(false);
+  const [showGuardrailWhyCard, setShowGuardrailWhyCard] = useState(false);
+  const [showFeeExplainer, setShowFeeExplainer] = useState(false);
 
   // Custom item form state for Step 4 Build-vs-Buy & Smart Cost Card Creator
   const [newBvbTitle, setNewBvbTitle] = useState('');
@@ -5161,7 +5163,7 @@ export function ModuleDWorkspace({
         );
       } else {
         setSaveBanner(
-          `Step 2 (Own vs. Rent Channels & ${step2Data.estimatedBlendedFeePercent}% Blended Fee) saved! Module G Pricing will automatically pull this fee.`
+          `Step 2 (Own vs. Rent Channels & ${step2Data.estimatedBlendedFeePercent}% Blended Fee) saved! Module H Pricing will automatically pull this fee.`
         );
       }
     } finally {
@@ -5344,30 +5346,6 @@ export function ModuleDWorkspace({
     setNewScopeItemTitle('');
     setNewScopeItemNote('');
     setNewScopeItemOtherCategory('');
-  };
-
-  const handleQuickAddChip = (chip: {
-    title: string;
-    bucket: ScopeBucketType;
-    categoryTag: string;
-    effortImpact: ScopeItemEffortType;
-    rationaleOrNote: string;
-  }) => {
-    if (isVaultReadonly) return;
-    const alreadyExists = step3Data.items.some(
-      (it) => it.title.toLowerCase() === chip.title.toLowerCase()
-    );
-    if (alreadyExists) return;
-    const nextItems = [
-      ...step3Data.items,
-      {
-        id: `chip-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        ...chip,
-      },
-    ];
-    const nextStep3 = syncStep3NarrativesAndRuleFromItems(nextItems, step3Data);
-    setStep3Data(nextStep3);
-    persistStep3ScopeFilter(nextStep3);
   };
 
   const handleAiGenerateStep3 = async () => {
@@ -6447,7 +6425,7 @@ export function ModuleDWorkspace({
           blendedFee >= 15 || combinedPerUnitCogs > 15 ? 'IMPORTANT' : 'WATCH',
         whyItMatters: `Selling via ${step2Data.primaryChannel.replace(/_/g, ' ')} carries an estimated ${blendedFee}% blended platform/payment take-rate plus ${formatPlanCurrency(combinedPerUnitCogs, plan.baseCurrency)}/unit direct COGS and ${formatPlanCurrency(combinedMonthlyStack, plan.baseCurrency)}/mo fixed tools.`,
         recommendedActionOrFix:
-          'Verify in Module G (Revenue & Unit Economics) that your entry price leaves >=60% gross margin after platform fees, packaging/API costs, and customer acquisition.',
+          'Verify in Module H (Revenue & Unit Economics) that your entry price leaves >=60% gross margin after platform fees, packaging/API costs, and customer acquisition.',
         founderMitigationNote: '',
         isResolved: false,
       },
@@ -6849,7 +6827,7 @@ export function ModuleDWorkspace({
       `- **Blended Platform/Payment Fee:** ${step2Data.estimatedBlendedFeePercent}% (You keep ${netRevenueKeptPercent}% Net Revenue before COGS)`,
       `- **V1 Delivery & Fulfillment Model:** ${deliveryModelLabel}`,
       `- **Rent-to-Own Customer Bridge Strategy:** ${step2Data.rentToOwnBridgeStrategy || '—'}`,
-      `- **Estimated Cost Structure (Synced to Module G):** ${formatPlanCurrency(
+      `- **Estimated Cost Structure (Synced to Module H):** ${formatPlanCurrency(
         combinedOneOff,
         plan.baseCurrency
       )} once-off | ${formatPlanCurrency(
@@ -7758,7 +7736,7 @@ export function ModuleDWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 1: Product Track & V1 Format
                   </h2>
                   {moduleDReadinessSteps[0]?.isComplete ? (
@@ -8555,7 +8533,7 @@ export function ModuleDWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 2: Own vs. Rent Sales Channels
                   </h2>
                   {moduleDReadinessSteps[1]?.isComplete ? (
@@ -8664,7 +8642,7 @@ export function ModuleDWorkspace({
                     only <strong>~2.9%</strong> and give you{' '}
                     <strong>100% customer ownership</strong>. Your blended fee %
                     here automatically flows into{' '}
-                    <strong>Module G (Pricing &amp; Unit Economics)</strong> so
+                    <strong>Module H (Pricing &amp; Unit Economics)</strong> so
                     you never underprice your product.
                   </p>
                 </div>
@@ -9167,12 +9145,51 @@ export function ModuleDWorkspace({
                       </div>
 
                       {/* Manual Override / Synced Input */}
-                      <div className="pt-1">
-                        <label className="block text-xs font-semibold text-slate-700">
-                          Blended Platform &amp; Payment Processing Fee %
-                          (Synced to Module G Pricing):
-                        </label>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-bold text-slate-900">
+                              Average Platform &amp; Payment Fee %:
+                            </label>
+                            <Badge
+                              variant="outline"
+                              className="border-indigo-200 bg-white text-[10px] text-indigo-700"
+                            >
+                              Auto-Calculated • Editable
+                            </Badge>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowFeeExplainer((prev) => !prev)}
+                            className="h-6 px-2 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900"
+                          >
+                            <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                            {showFeeExplainer ? 'Hide Explanation' : 'What is this?'}
+                          </Button>
+                        </div>
+
+                        <p className="text-[11px] leading-relaxed text-slate-600">
+                          The average percentage taken from each sale by payment gateways (e.g. Stripe, credit cards) and sales channels (e.g. Shopify, Amazon, App Stores). Auto-calculated from your channels above; adjust if you have custom rates.
+                        </p>
+
+                        {showFeeExplainer && (
+                          <div className="rounded-lg border border-indigo-200 bg-white p-3 text-[11px] text-slate-700 space-y-1.5 shadow-2xs">
+                            <div className="font-bold text-indigo-950 flex items-center gap-1.5">
+                              <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                              Why do we calculate an average &ldquo;Blended&rdquo; Fee?
+                            </div>
+                            <p className="text-slate-600 leading-relaxed">
+                              When you sell through multiple channels (for example, 75% on your direct website via Stripe at ~2.9% and 25% on an App Store or marketplace at 15%), each channel takes a different transaction fee.
+                            </p>
+                            <p className="text-slate-600 leading-relaxed">
+                              Your <strong>blended fee</strong> is simply the weighted average percentage deducted before money reaches your bank. We pass this into <strong>Module H: Revenue &amp; Pricing</strong> so your pricing leaves healthy profit margins and you aren&apos;t surprised by transaction fees.
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
                           <input
                             type="number"
                             step="0.1"
@@ -9192,9 +9209,12 @@ export function ModuleDWorkspace({
                             className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
                           />
                           <span className="text-xs font-semibold text-slate-600">
-                            % of gross sales goes to combined platform &amp;
-                            card fees
+                            % average transaction cut across all sales channels
                           </span>
+                        </div>
+
+                        <div className="text-[10px] text-slate-500">
+                          ✨ <em>Automatically feeds into Module H (Revenue &amp; Pricing) to calculate your true Pocket Profit per order.</em>
                         </div>
                       </div>
                     </div>
@@ -9207,7 +9227,7 @@ export function ModuleDWorkspace({
                             Live Pocket Revenue Preview
                           </span>
                           <Badge className="bg-emerald-600 text-[10px] text-white">
-                            Auto-Synced to Module G
+                            Auto-Synced to Module H
                           </Badge>
                         </div>
                         <p className="mt-1.5 text-xs text-slate-600">
@@ -9288,7 +9308,7 @@ export function ModuleDWorkspace({
 
                       <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
                         *Net revenue before direct product, timber/materials, or
-                        cloud hosting costs (which are deducted in Module G:
+                        cloud hosting costs (which are deducted in Module H:
                         Pocket Profit Unit Economics).
                       </p>
                     </div>
@@ -9595,7 +9615,7 @@ export function ModuleDWorkspace({
                   className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
                 >
                   Auto-Feeds {step2Data.estimatedBlendedFeePercent}% Fee to
-                  Module G
+                  Module H Pricing
                 </Badge>
               </div>
             </CardHeader>
@@ -9699,7 +9719,7 @@ export function ModuleDWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 3: Ruthless V1 Scope Filter
                   </h2>
                   {moduleDReadinessSteps[2]?.isComplete ? (
@@ -10374,29 +10394,13 @@ export function ModuleDWorkspace({
                     </div>
                   </div>
 
-                  {/* Quick-Add Suggestions + Custom Scope Item Creator */}
+                  {/* Custom Scope Item Creator */}
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Plus className="h-4 w-4 text-indigo-600" />
                       <div className="text-xs font-bold text-slate-900">
-                        ➕ Add a Custom {activeStep3TrackConfig.itemNounSingular}{' '}
-                        or Click a Track Suggestion
+                        Add a Custom {activeStep3TrackConfig.itemNounSingular}
                       </div>
-                      {activeStep3TrackConfig.quickAddChips.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {activeStep3TrackConfig.quickAddChips.map((chip) => (
-                            <button
-                              key={chip.title}
-                              type="button"
-                              disabled={isVaultReadonly}
-                              onClick={() => handleQuickAddChip(chip)}
-                              className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
-                            >
-                              <Plus className="h-3 w-3" />
-                              {chip.title}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
 
                     <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-12">
@@ -10542,14 +10546,14 @@ export function ModuleDWorkspace({
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <CardTitle className="text-base font-bold text-slate-900">
-                    2. Your Non-Negotiable Version 1 Scope Discipline Rule
+                    2. Your Non-Negotiable Version 1 Scope Discipline &amp; Guardrail Rules
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-600">
-                    Automatically updates from what you place in{' '}
+                    Combines your launch gate deliverables from{' '}
                     <strong className="text-emerald-700">
                       MUST-HAVE FOR V1
                     </strong>{' '}
-                    above, plus your chosen V1 guardrail rule.
+                    above with your core scope guardrail rule to prevent feature creep before launch.
                   </CardDescription>
                 </div>
                 <Badge
@@ -10637,9 +10641,68 @@ export function ModuleDWorkspace({
                 );
               })()}
 
-              <div className="text-xs font-bold text-slate-800">
-                Select Your Supporting Version 1 Scope Guardrail Principle:
+              <div className="space-y-1.5 pt-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                    <span className="text-xs font-bold text-slate-900">
+                      Select Your Version 1 Scope Guardrail (Rule to Stop Feature Creep):
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowGuardrailWhyCard((prev) => !prev)}
+                    className="h-6 px-2 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900"
+                  >
+                    <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                    {showGuardrailWhyCard ? 'Hide Explanation' : 'What is a Scope Guardrail?'}
+                  </Button>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-600">
+                  A <strong>Scope Guardrail</strong> is your team&apos;s non-negotiable operational boundary that protects your time, dev budget, and cash runway. Choose the core principle your team and developers must commit to before launch to avoid building unnecessary features before Day 1 validation:
+                </p>
               </div>
+
+              {showGuardrailWhyCard && (
+                <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-white to-indigo-50/40 p-4 text-xs text-slate-700 shadow-2xs">
+                  <div className="flex items-center gap-2 font-bold text-indigo-950">
+                    <Sparkles className="h-4 w-4 text-indigo-600" />
+                    <span>Why Choose a Version 1 Scope Guardrail?</span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                    Most startups fail not because Version 1 was too simple, but because founders try to build Year-2 complexity on Day 1. Establishing a strict scope guardrail gives you three critical advantages:
+                  </p>
+                  <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    <div className="rounded-lg border border-indigo-100 bg-white/90 p-3 shadow-2xs">
+                      <div className="font-bold text-indigo-950">
+                        🛡️ 1. Stops Feature Creep
+                      </div>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        Gives your team a firm mandate to say <em>&ldquo;no&rdquo;</em> to distractions (like native apps, custom integrations, or excess SKUs) until paying customers validate the core workflow.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-indigo-100 bg-white/90 p-3 shadow-2xs">
+                      <div className="font-bold text-indigo-950">
+                        💰 2. Protects Dev &amp; Build Budgets
+                      </div>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        Keeps external agencies, freelancers, and manufacturers bound to an immovable boundary so quotes don&apos;t spiral out of control.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-indigo-100 bg-white/90 p-3 shadow-2xs">
+                      <div className="font-bold text-indigo-950">
+                        📋 3. Grant &amp; Investor Credibility
+                      </div>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        Grant assessors (LEO, Enterprise Ireland, Innovate UK) favor founders who demonstrate tight technical discipline and won&apos;t burn grant funding on premature scale.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 {activeStep3TrackConfig.disciplineRuleOptions.map((opt) => {
                   const isSelected =
@@ -10675,7 +10738,10 @@ export function ModuleDWorkspace({
                           {opt.tag}
                         </Badge>
                         {isSelected && (
-                          <CheckCircle2 className="h-4 w-4 text-indigo-600" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
+                            Active Guardrail
+                          </span>
                         )}
                       </div>
                       <div className="mt-2 text-xs font-bold text-slate-900">
@@ -10690,10 +10756,16 @@ export function ModuleDWorkspace({
               </div>
 
               {step3Data.scopeDisciplineRule === 'OTHER' && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5">
-                  <label className="mb-1.5 block text-xs font-bold text-indigo-950">
-                    Describe Your Custom Version 1 Scope Discipline Rule:
-                  </label>
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                    <label className="text-xs font-bold text-indigo-950">
+                      Describe Your Custom Version 1 Scope Guardrail Rule:
+                    </label>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-600">
+                    Define the single, non-negotiable boundary rule your team or developers must follow during Version 1 to prevent scope creep.
+                  </p>
                   <input
                     type="text"
                     disabled={isVaultReadonly}
@@ -10705,8 +10777,8 @@ export function ModuleDWorkspace({
                       }))
                     }
                     onBlur={() => persistStep3ScopeFilter(step3Data)}
-                    placeholder="e.g., Maximum 3 SKUs in Year 1; all custom requests must exceed €1,000 minimum order value..."
-                    className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    placeholder="e.g., Maximum 3 SKUs in Year 1; all custom feature requests require €1,000+ customer pre-commitment..."
+                    className="mt-2 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
                   />
                 </div>
               )}
@@ -11025,7 +11097,7 @@ export function ModuleDWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 4: Make/Build vs. Buy Matrix & Smart Costs
                   </h2>
                   {moduleDReadinessSteps[3]?.isComplete ? (
@@ -12171,7 +12243,7 @@ export function ModuleDWorkspace({
                   variant="outline"
                   className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
                 >
-                  Feeds Module G Unit Economics, Module I Overheads &amp; Module
+                  Feeds Module H Unit Economics, Module J Overheads &amp; Module
                   K Grant Technical Case
                 </Badge>
               </div>
@@ -12317,7 +12389,7 @@ export function ModuleDWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 5: Work Packages (WP1–WP4) & System Flow
                   </h2>
                   {moduleDReadinessSteps[4]?.isComplete ? (
@@ -13717,7 +13789,7 @@ export function ModuleDWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Product, Scope &amp; Work Package Brief (Executive Summary)
                   </h2>
                   <Badge
@@ -13944,7 +14016,7 @@ export function ModuleDWorkspace({
                     COGS ({formatPlanCurrency(step4PerUnitTotal + step5PerUnitTotal, plan.baseCurrency)}
                     /unit) Margin Check.&rdquo; <br />
                     <strong>Founder Mitigation Note:</strong> &ldquo;We will
-                    price our entry tier in Module G to maintain &gt;68% gross
+                    price our entry tier in Module H to maintain &gt;68% gross
                     margin after platform take-rates and include a QR insert in
                     every order to migrate repeat buyers to our 0%-commission
                     direct store.&rdquo;
@@ -14694,7 +14766,7 @@ export function ModuleDWorkspace({
                       variant="outline"
                       className="border-emerald-300 bg-emerald-50 text-emerald-800"
                     >
-                      Feeds Module E, Module G &amp; Module K Grant Compiler
+                      Feeds Module E, Module H &amp; Module K Grant Compiler
                     </Badge>
                   </div>
                   <CardTitle className="mt-1.5 text-sm font-bold text-slate-900 sm:text-base">
@@ -14902,7 +14974,7 @@ export function ModuleDWorkspace({
                       /unit
                     </div>
                     <div className="mt-0.5 text-[10px] text-slate-500">
-                      Synced directly to Module G (Pricing &amp; Pocket Profit)
+                      Synced directly to Module H (Pricing &amp; Pocket Profit)
                     </div>
                   </div>
                 </div>

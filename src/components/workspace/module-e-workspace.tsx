@@ -4400,7 +4400,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 1: Day in the Life of an Order
                   </h2>
                   {moduleEReadinessSteps[0]?.isComplete ? (
@@ -5519,7 +5519,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 2: Premises, Equipment & 3 Quotes
                   </h2>
                   {moduleEReadinessSteps[1]?.isComplete ? (
@@ -7450,7 +7450,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 3: 4-Category Risk Register
                   </h2>
                   {moduleEReadinessSteps[2]?.isComplete ? (
@@ -8767,7 +8767,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 4: Support, Returns, Warranty & QC SOP
                   </h2>
                   {moduleEReadinessSteps[3]?.isComplete ? (
@@ -10098,7 +10098,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 5: Permits, Compliance & Insurance Matcher
                   </h2>
                   {moduleEReadinessSteps[4]?.isComplete ? (
@@ -11775,7 +11775,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Operations, Equipment &amp; Risk Brief (Executive Summary)
                   </h2>
                   <Badge

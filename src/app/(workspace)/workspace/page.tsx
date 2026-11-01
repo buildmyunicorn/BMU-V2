@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -148,6 +148,11 @@ import {
   type SavedMasterDocumentData,
   type SavedGrantEligibilityCheck,
   type PromoterProfilesStep1Data,
+  type RoleMatrixStep2Data,
+  type SurvivalBudgetStep3Data,
+  type CoFounderAlignmentStep4Data,
+  type HiringPlanStep5Data,
+  type TeamBlindSpotAuditBriefData,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -221,6 +226,15 @@ import {
   generateModuleEPermitsAndInsuranceWithAiAction,
   generateModuleEBlindSpotAuditWithAiAction,
 } from '@/app/actions/module-e';
+import {
+  saveModuleFStep1PromoterProfilesAction,
+  saveModuleFStep2RoleMatrixAction,
+  saveModuleFStep3SurvivalBudgetAction,
+  saveModuleFStep4AlignmentAction,
+  saveModuleFStep5HiringPlanAction,
+  saveModuleFStep6BlindSpotAuditAction,
+  parkModuleFOpenQuestionAction,
+} from '@/app/actions/module-f';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
 import { ModuleDWorkspace } from '@/components/workspace/module-d-workspace';
@@ -356,6 +370,92 @@ const MODULES_LIST: Array<{
   },
 ];
 
+function resolveModuleFromParam(
+  param?: string | null
+): ModuleCode | null {
+  if (!param) return null;
+  const clean = param.trim().toUpperCase();
+  const validCodes: ModuleCode[] = [
+    'MOD_A_IDEATION',
+    'MOD_B_MARKET',
+    'MOD_C_SURVEYS_FEEDBACK',
+    'MOD_D_PRODUCT_BUILD',
+    'MOD_E_OPERATIONS',
+    'MOD_F_COFOUNDER_TEAM',
+    'MOD_G_LAUNCHPAD',
+    'MOD_H_REVENUE',
+    'MOD_I_MARKETING',
+    'MOD_J_FINANCE',
+    'MOD_K_GRANTS_FUNDING',
+    'MOD_L_BUSINESS_PLAN',
+  ];
+  if (validCodes.includes(clean as ModuleCode)) {
+    return clean as ModuleCode;
+  }
+  const aliases: Record<string, ModuleCode> = {
+    A: 'MOD_A_IDEATION',
+    MOD_A: 'MOD_A_IDEATION',
+    IDEATION: 'MOD_A_IDEATION',
+    B: 'MOD_B_MARKET',
+    MOD_B: 'MOD_B_MARKET',
+    MARKET: 'MOD_B_MARKET',
+    C: 'MOD_C_SURVEYS_FEEDBACK',
+    MOD_C: 'MOD_C_SURVEYS_FEEDBACK',
+    SURVEYS: 'MOD_C_SURVEYS_FEEDBACK',
+    FEEDBACK: 'MOD_C_SURVEYS_FEEDBACK',
+    D: 'MOD_D_PRODUCT_BUILD',
+    MOD_D: 'MOD_D_PRODUCT_BUILD',
+    PRODUCT: 'MOD_D_PRODUCT_BUILD',
+    BUILD: 'MOD_D_PRODUCT_BUILD',
+    E: 'MOD_E_OPERATIONS',
+    MOD_E: 'MOD_E_OPERATIONS',
+    OPERATIONS: 'MOD_E_OPERATIONS',
+    F: 'MOD_F_COFOUNDER_TEAM',
+    MOD_F: 'MOD_F_COFOUNDER_TEAM',
+    TEAM: 'MOD_F_COFOUNDER_TEAM',
+    COFOUNDER: 'MOD_F_COFOUNDER_TEAM',
+    G: 'MOD_G_LAUNCHPAD',
+    MOD_G: 'MOD_G_LAUNCHPAD',
+    LAUNCHPAD: 'MOD_G_LAUNCHPAD',
+    H: 'MOD_H_REVENUE',
+    MOD_H: 'MOD_H_REVENUE',
+    REVENUE: 'MOD_H_REVENUE',
+    PRICING: 'MOD_H_REVENUE',
+    I: 'MOD_I_MARKETING',
+    MOD_I: 'MOD_I_MARKETING',
+    MARKETING: 'MOD_I_MARKETING',
+    J: 'MOD_J_FINANCE',
+    MOD_J: 'MOD_J_FINANCE',
+    FINANCE: 'MOD_J_FINANCE',
+    K: 'MOD_K_GRANTS_FUNDING',
+    MOD_K: 'MOD_K_GRANTS_FUNDING',
+    GRANTS: 'MOD_K_GRANTS_FUNDING',
+    FUNDING: 'MOD_K_GRANTS_FUNDING',
+    L: 'MOD_L_BUSINESS_PLAN',
+    MOD_L: 'MOD_L_BUSINESS_PLAN',
+    PLAN: 'MOD_L_BUSINESS_PLAN',
+    BUSINESS_PLAN: 'MOD_L_BUSINESS_PLAN',
+  };
+  return aliases[clean] || null;
+}
+
+function resolveModuleFromStep(step?: string | null): ModuleCode | null {
+  if (!step) return null;
+  if (step.startsWith('MOD_L')) return 'MOD_L_BUSINESS_PLAN';
+  if (step.startsWith('MOD_K')) return 'MOD_K_GRANTS_FUNDING';
+  if (step.startsWith('MOD_J')) return 'MOD_J_FINANCE';
+  if (step.startsWith('MOD_I')) return 'MOD_I_MARKETING';
+  if (step.startsWith('MOD_H')) return 'MOD_H_REVENUE';
+  if (step.startsWith('MOD_G')) return 'MOD_G_LAUNCHPAD';
+  if (step.startsWith('MOD_F')) return 'MOD_F_COFOUNDER_TEAM';
+  if (step.startsWith('MOD_E')) return 'MOD_E_OPERATIONS';
+  if (step.startsWith('MOD_D')) return 'MOD_D_PRODUCT_BUILD';
+  if (step.startsWith('MOD_C')) return 'MOD_C_SURVEYS_FEEDBACK';
+  if (step.startsWith('MOD_B')) return 'MOD_B_MARKET';
+  if (step.startsWith('MOD_A')) return 'MOD_A_IDEATION';
+  return null;
+}
+
 export default function WorkspacePage() {
   const router = useRouter();
   const [session, setSession] = useState<BmuLocalSession>(() =>
@@ -382,6 +482,8 @@ export default function WorkspacePage() {
   const [activeModule, setActiveModule] =
     useState<ModuleCode>('MOD_A_IDEATION');
   const [isMasterDocumentOpen, setIsMasterDocumentOpen] = useState(false);
+  const [hasHydratedLocation, setHasHydratedLocation] = useState(false);
+  const hasHydratedLocationRef = useRef(false);
   const [pendingModuleAfterUnlock, setPendingModuleAfterUnlock] =
     useState<ModuleCode | null>(null);
   const [planDropdownOpen, setPlanDropdownOpen] = useState(false);
@@ -488,15 +590,64 @@ export default function WorkspacePage() {
       );
       setThingsToConsider(activePlan.thingsToConsider || []);
       setOpenQuestions(activePlan.openQuestions || []);
-      if (activePlan.currentModuleStep?.startsWith('MOD_E')) {
-        setActiveModule('MOD_E_OPERATIONS');
-      } else if (activePlan.currentModuleStep?.startsWith('MOD_D')) {
-        setActiveModule('MOD_D_PRODUCT_BUILD');
-      } else if (activePlan.currentModuleStep?.startsWith('MOD_C')) {
-        setActiveModule('MOD_C_SURVEYS_FEEDBACK');
-      } else if (activePlan.currentModuleStep?.startsWith('MOD_B')) {
-        setActiveModule('MOD_B_MARKET');
+      // Resolve initial module / view:
+      // Priority 1: URL search params (?view=master_doc or ?module=MOD_...)
+      // Priority 2: localStorage (plan-scoped or global)
+      // Priority 3: activePlan.currentModuleStep
+      let resolvedMasterDoc = false;
+      let resolvedInitialMod: ModuleCode | null = null;
+
+      if (typeof window !== 'undefined') {
+        const searchParams = new URLSearchParams(window.location.search);
+        const viewParam = searchParams.get('view');
+        const moduleParam = searchParams.get('module');
+
+        if (
+          viewParam === 'master_doc' ||
+          moduleParam === 'master_doc' ||
+          moduleParam === 'MOD_L_BUSINESS_PLAN'
+        ) {
+          resolvedMasterDoc = true;
+        } else if (moduleParam) {
+          const fromParam = resolveModuleFromParam(moduleParam);
+          if (fromParam) {
+            resolvedInitialMod = fromParam;
+          }
+        }
+
+        if (!resolvedMasterDoc && !resolvedInitialMod) {
+          const storedView =
+            localStorage.getItem(`spf_active_view_${activePlan.id}`) ||
+            localStorage.getItem('spf_last_active_view');
+          if (storedView === 'master_doc') {
+            resolvedMasterDoc = true;
+          } else {
+            const storedModule =
+              localStorage.getItem(`spf_active_module_${activePlan.id}`) ||
+              localStorage.getItem('spf_last_active_module');
+            const fromStorage = resolveModuleFromParam(storedModule);
+            if (fromStorage) {
+              resolvedInitialMod = fromStorage;
+            }
+          }
+        }
       }
+
+      if (!resolvedMasterDoc && !resolvedInitialMod) {
+        resolvedInitialMod =
+          resolveModuleFromStep(activePlan.currentModuleStep) ||
+          'MOD_A_IDEATION';
+      }
+
+      if (resolvedMasterDoc) {
+        setIsMasterDocumentOpen(true);
+      } else if (resolvedInitialMod) {
+        setIsMasterDocumentOpen(false);
+        setActiveModule(resolvedInitialMod);
+      }
+
+      hasHydratedLocationRef.current = true;
+      setHasHydratedLocation(true);
     }
 
     getCurrentCloudSessionAction()
@@ -652,14 +803,62 @@ export default function WorkspacePage() {
                     }
                   : undefined;
 
+              const mergedModuleFData =
+                localPlan.moduleFData || dbPlan.moduleFData
+                  ? {
+                      ...(dbPlan.moduleFData || {}),
+                      ...(localPlan.moduleFData || {}),
+                      promoterProfiles: pickNewerBySavedAt(
+                        localPlan.moduleFData?.promoterProfiles,
+                        dbPlan.moduleFData?.promoterProfiles
+                      ),
+                      step2RoleMatrixData: pickNewerBySavedAt(
+                        localPlan.moduleFData?.step2RoleMatrixData,
+                        dbPlan.moduleFData?.step2RoleMatrixData
+                      ),
+                      step3SurvivalBudgetData: pickNewerBySavedAt(
+                        localPlan.moduleFData?.step3SurvivalBudgetData,
+                        dbPlan.moduleFData?.step3SurvivalBudgetData
+                      ),
+                      step4AlignmentData: pickNewerBySavedAt(
+                        localPlan.moduleFData?.step4AlignmentData,
+                        dbPlan.moduleFData?.step4AlignmentData
+                      ),
+                      step5HiringPlanData: pickNewerBySavedAt(
+                        localPlan.moduleFData?.step5HiringPlanData,
+                        dbPlan.moduleFData?.step5HiringPlanData
+                      ),
+                      step6BlindSpotAuditData: pickNewerBySavedAt(
+                        localPlan.moduleFData?.step6BlindSpotAuditData,
+                        dbPlan.moduleFData?.step6BlindSpotAuditData
+                      ),
+                      completionPercentage:
+                        localPlan.moduleFData?.completionPercentage ??
+                        dbPlan.moduleFData?.completionPercentage,
+                      thingsToConsider:
+                        dbPlan.moduleFData?.thingsToConsider ||
+                        localPlan.moduleFData?.thingsToConsider,
+                      lastSavedAt:
+                        pickNewerBySavedAt(
+                          localPlan.moduleFData,
+                          dbPlan.moduleFData
+                        )?.lastSavedAt ||
+                        localPlan.moduleFData?.lastSavedAt ||
+                        dbPlan.moduleFData?.lastSavedAt,
+                    }
+                  : undefined;
+
               const resolvedCurrentStep =
-                localPlan.currentModuleStep?.startsWith('MOD_E') &&
-                !dbPlan.currentModuleStep?.startsWith('MOD_E')
+                localPlan.currentModuleStep?.startsWith('MOD_F') &&
+                !dbPlan.currentModuleStep?.startsWith('MOD_F')
                   ? localPlan.currentModuleStep
-                  : localPlan.currentModuleStep?.startsWith('MOD_D') &&
-                      !dbPlan.currentModuleStep?.startsWith('MOD_D')
+                  : localPlan.currentModuleStep?.startsWith('MOD_E') &&
+                      !dbPlan.currentModuleStep?.startsWith('MOD_E')
                     ? localPlan.currentModuleStep
-                    : dbPlan.currentModuleStep || localPlan.currentModuleStep;
+                    : localPlan.currentModuleStep?.startsWith('MOD_D') &&
+                        !dbPlan.currentModuleStep?.startsWith('MOD_D')
+                      ? localPlan.currentModuleStep
+                      : dbPlan.currentModuleStep || localPlan.currentModuleStep;
 
               return {
                 ...localPlan,
@@ -678,6 +877,7 @@ export default function WorkspacePage() {
                     : dbPlan.moduleCData || localPlan.moduleCData,
                 moduleDData: mergedModuleDData,
                 moduleEData: mergedModuleEData,
+                moduleFData: mergedModuleFData,
                 masterDocumentData: pickNewerBySavedAt(
                   localPlan.masterDocumentData,
                   dbPlan.masterDocumentData
@@ -715,14 +915,19 @@ export default function WorkspacePage() {
             }
             setThingsToConsider(dbPlan.thingsToConsider || []);
             setOpenQuestions(dbPlan.openQuestions || []);
-            if (dbPlan.currentModuleStep?.startsWith('MOD_E')) {
-              setActiveModule('MOD_E_OPERATIONS');
-            } else if (dbPlan.currentModuleStep?.startsWith('MOD_D')) {
-              setActiveModule('MOD_D_PRODUCT_BUILD');
-            } else if (dbPlan.currentModuleStep?.startsWith('MOD_C')) {
-              setActiveModule('MOD_C_SURVEYS_FEEDBACK');
-            } else if (dbPlan.currentModuleStep?.startsWith('MOD_B')) {
-              setActiveModule('MOD_B_MARKET');
+            // Only fall back to cloud currentModuleStep if location wasn't already hydrated from URL/storage
+            if (!hasHydratedLocationRef.current) {
+              const cloudFromStep = resolveModuleFromStep(
+                dbPlan.currentModuleStep
+              );
+              if (cloudFromStep) {
+                if (cloudFromStep === 'MOD_L_BUSINESS_PLAN') {
+                  setIsMasterDocumentOpen(true);
+                } else {
+                  setIsMasterDocumentOpen(false);
+                  setActiveModule(cloudFromStep);
+                }
+              }
             }
           }
         }
@@ -730,6 +935,81 @@ export default function WorkspacePage() {
       .catch(() => {
         setCloudDbConnected(false);
       });
+  }, []);
+
+  // Keep URL search params and localStorage strictly in sync with the active module and view
+  useEffect(() => {
+    if (!hasHydratedLocation) return;
+    if (typeof window === 'undefined') return;
+
+    const url = new URL(window.location.href);
+    if (isMasterDocumentOpen) {
+      url.searchParams.delete('module');
+      url.searchParams.set('view', 'master_doc');
+    } else {
+      url.searchParams.delete('view');
+      url.searchParams.set('module', activeModule);
+    }
+
+    if (url.search !== window.location.search) {
+      window.history.replaceState(null, '', url.toString());
+    }
+
+    try {
+      const activePlanId = session?.activePlanId;
+      if (isMasterDocumentOpen) {
+        localStorage.setItem('spf_last_active_view', 'master_doc');
+        if (activePlanId) {
+          localStorage.setItem(`spf_active_view_${activePlanId}`, 'master_doc');
+        }
+      } else {
+        localStorage.removeItem('spf_last_active_view');
+        localStorage.setItem('spf_last_active_module', activeModule);
+        if (activePlanId) {
+          localStorage.removeItem(`spf_active_view_${activePlanId}`);
+          localStorage.setItem(
+            `spf_active_module_${activePlanId}`,
+            activeModule
+          );
+        }
+      }
+    } catch {
+      // Storage quota / private mode fallback
+    }
+  }, [
+    hasHydratedLocation,
+    activeModule,
+    isMasterDocumentOpen,
+    session?.activePlanId,
+  ]);
+
+  // Handle browser Back / Forward navigation smoothly
+  useEffect(() => {
+    const handlePopState = () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const viewParam = searchParams.get('view');
+      const moduleParam = searchParams.get('module');
+
+      if (
+        viewParam === 'master_doc' ||
+        moduleParam === 'master_doc' ||
+        moduleParam === 'MOD_L_BUSINESS_PLAN'
+      ) {
+        setIsMasterDocumentOpen(true);
+      } else if (moduleParam) {
+        const resolved = resolveModuleFromParam(moduleParam);
+        if (resolved) {
+          setIsMasterDocumentOpen(false);
+          setActiveModule(resolved);
+        }
+      } else {
+        setIsMasterDocumentOpen(false);
+        setActiveModule('MOD_A_IDEATION');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   useEffect(() => {
@@ -919,6 +1199,34 @@ export default function WorkspacePage() {
     setThingsToConsider(found.thingsToConsider || []);
     setOpenQuestions(found.openQuestions || []);
     setPlanDropdownOpen(false);
+
+    if (typeof window !== 'undefined') {
+      const storedPlanView = localStorage.getItem(
+        `spf_active_view_${found.id}`
+      );
+      if (storedPlanView === 'master_doc') {
+        setIsMasterDocumentOpen(true);
+      } else {
+        const storedPlanModule = localStorage.getItem(
+          `spf_active_module_${found.id}`
+        );
+        const resolvedStored = resolveModuleFromParam(storedPlanModule);
+        if (resolvedStored) {
+          setIsMasterDocumentOpen(false);
+          setActiveModule(resolvedStored);
+        } else {
+          const fromStep = resolveModuleFromStep(found.currentModuleStep);
+          if (fromStep) {
+            if (fromStep === 'MOD_L_BUSINESS_PLAN') {
+              setIsMasterDocumentOpen(true);
+            } else {
+              setIsMasterDocumentOpen(false);
+              setActiveModule(fromStep);
+            }
+          }
+        }
+      }
+    }
   }
 
   async function handleParkSpecificQuestion(questionText: string) {
@@ -3677,6 +3985,100 @@ export default function WorkspacePage() {
         ? 10
         : 0;
 
+  const savedModFStep1 = currentPlan.moduleFData?.promoterProfiles;
+  const savedModFStep2 = currentPlan.moduleFData?.step2RoleMatrixData;
+  const savedModFStep3 = currentPlan.moduleFData?.step3SurvivalBudgetData;
+  const savedModFStep4 = currentPlan.moduleFData?.step4AlignmentData;
+  const savedModFStep5 = currentPlan.moduleFData?.step5HiringPlanData;
+  const savedModFStep6 = currentPlan.moduleFData?.step6BlindSpotAuditData;
+
+  const step1ModFScore = savedModFStep1
+    ? (savedModFStep1.teamMembers && savedModFStep1.teamMembers.length >= 1) ||
+      Boolean(savedModFStep1.teamStructurePosture)
+      ? savedModFStep1.teamMembers &&
+        savedModFStep1.teamMembers.length >= 1 &&
+        savedModFStep1.teamMembers.every(
+          (m) => m.fullName?.trim() && m.jobTitle?.trim()
+        )
+        ? 20
+        : 10
+      : 0
+    : 0;
+
+  const step2ModFScore = savedModFStep2
+    ? savedModFStep2.hatAssignments &&
+      savedModFStep2.hatAssignments.some(
+        (h) => h.primaryOwnerMemberId && h.primaryOwnerMemberId !== 'UNASSIGNED'
+      )
+      ? savedModFStep2.hatAssignments.filter(
+          (h) =>
+            h.primaryOwnerMemberId && h.primaryOwnerMemberId !== 'UNASSIGNED'
+        ).length === 7
+        ? 20
+        : 12
+      : 0
+    : 0;
+
+  const step3ModFScore = savedModFStep3
+    ? savedModFStep3.founderBudgets && savedModFStep3.founderBudgets.length > 0
+      ? savedModFStep3.founderBudgets.some(
+          (b) =>
+            (b.housingAndUtilities || 0) +
+              (b.groceriesAndEssentials || 0) +
+              (b.transportAndCommute || 0) >
+            0
+        )
+        ? 20
+        : 12
+      : 0
+    : 0;
+
+  const step4ModFScore = savedModFStep4
+    ? savedModFStep4.responses && savedModFStep4.responses.length > 0
+      ? savedModFStep4.responses.some(
+          (r) => Object.keys(r.answers || {}).length >= 12
+        ) || savedModFStep4.isRevealed
+        ? 20
+        : 12
+      : 0
+    : 0;
+
+  const step5ModFScore = savedModFStep5
+    ? savedModFStep5.roles && savedModFStep5.roles.length > 0
+      ? Boolean(savedModFStep5.hiringPosture) &&
+        savedModFStep5.roles.every((r) => r.title?.trim().length > 0)
+        ? 20
+        : 12
+      : 0
+    : 0;
+
+  const step6ModFScore = savedModFStep6
+    ? savedModFStep6.executiveTeamCapabilityNarrative?.trim().length > 20 ||
+      Boolean(savedModFStep6.readinessConfidence) ||
+      (savedModFStep6.blindSpots && savedModFStep6.blindSpots.length > 0) ||
+      (currentPlan.moduleFData?.thingsToConsider?.length ?? 0) > 0
+      ? 20
+      : 0
+    : 0;
+
+  const totalModFScore =
+    step1ModFScore +
+    step2ModFScore +
+    step3ModFScore +
+    step4ModFScore +
+    step5ModFScore +
+    step6ModFScore;
+
+  const moduleFProgressPercent =
+    currentPlan.moduleFData?.completionPercentage &&
+    currentPlan.moduleFData.completionPercentage > totalModFScore
+      ? currentPlan.moduleFData.completionPercentage
+      : totalModFScore > 0
+        ? Math.min(100, totalModFScore)
+        : activeModule === 'MOD_F_COFOUNDER_TEAM'
+          ? 10
+          : 0;
+
   const masterDocChapterPills: Array<{
     short: string;
     code: ModuleCode;
@@ -3695,6 +4097,7 @@ export default function WorkspacePage() {
       progress: moduleDProgressPercent,
     },
     { short: 'E', code: 'MOD_E_OPERATIONS', progress: moduleEProgressPercent },
+    { short: 'F', code: 'MOD_F_COFOUNDER_TEAM', progress: moduleFProgressPercent },
   ];
   const syncedChaptersCount = masterDocChapterPills.filter(
     (c) => c.progress > 0
@@ -4056,7 +4459,7 @@ export default function WorkspacePage() {
                 ))}
               </div>
               <span className="text-[10px] font-semibold text-indigo-200">
-                {syncedChaptersCount}/5 Chapters • {overallSyncedProgressPercent}%
+                {syncedChaptersCount}/{masterDocChapterPills.length} Chapters • {overallSyncedProgressPercent}%
               </span>
             </div>
 
@@ -4157,7 +4560,9 @@ export default function WorkspacePage() {
                             ? moduleDProgressPercent
                             : mod.code === 'MOD_E_OPERATIONS'
                               ? moduleEProgressPercent
-                              : mod.progress;
+                              : mod.code === 'MOD_F_COFOUNDER_TEAM'
+                                ? moduleFProgressPercent
+                                : mod.progress;
 
                   return (
                     <button
@@ -4411,6 +4816,10 @@ export default function WorkspacePage() {
                       moduleFData: {
                         ...(p.moduleFData || {}),
                         promoterProfiles,
+                        completionPercentage: Math.max(
+                          p.moduleFData?.completionPercentage || 0,
+                          progress
+                        ),
                         lastSavedAt: new Date().toISOString(),
                       },
                     };
@@ -4421,6 +4830,12 @@ export default function WorkspacePage() {
                   };
                   saveBmuSession(updatedSession);
                   return updatedSession;
+                });
+
+                await saveModuleFStep1PromoterProfilesAction({
+                  planId: currentPlan.id,
+                  promoterProfiles,
+                  completionPercentage: progress,
                 });
               }}
               onSaveStep2RoleMatrix={async (step2RoleMatrixData, progress = 40) => {
@@ -4433,6 +4848,10 @@ export default function WorkspacePage() {
                       moduleFData: {
                         ...(p.moduleFData || {}),
                         step2RoleMatrixData,
+                        completionPercentage: Math.max(
+                          p.moduleFData?.completionPercentage || 0,
+                          progress
+                        ),
                         lastSavedAt: new Date().toISOString(),
                       },
                     };
@@ -4444,12 +4863,158 @@ export default function WorkspacePage() {
                   saveBmuSession(updatedSession);
                   return updatedSession;
                 });
+
+                await saveModuleFStep2RoleMatrixAction({
+                  planId: currentPlan.id,
+                  roleMatrix: step2RoleMatrixData,
+                  completionPercentage: progress,
+                });
+              }}
+              onSaveStep3SurvivalBudget={async (step3SurvivalBudgetData, progress = 60) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_F_STEP_3',
+                      moduleFData: {
+                        ...(p.moduleFData || {}),
+                        step3SurvivalBudgetData,
+                        completionPercentage: Math.max(
+                          p.moduleFData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+
+                await saveModuleFStep3SurvivalBudgetAction({
+                  planId: currentPlan.id,
+                  survivalBudget: step3SurvivalBudgetData,
+                  completionPercentage: progress,
+                });
+              }}
+              onSaveStep4Alignment={async (step4AlignmentData, progress = 80) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_F_STEP_4',
+                      moduleFData: {
+                        ...(p.moduleFData || {}),
+                        step4AlignmentData,
+                        completionPercentage: Math.max(
+                          p.moduleFData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+
+                await saveModuleFStep4AlignmentAction({
+                  planId: currentPlan.id,
+                  step4AlignmentData,
+                  completionPercentage: progress,
+                });
+              }}
+              onSaveStep5HiringPlan={async (step5HiringPlanData, progress = 90) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_F_STEP_5',
+                      moduleFData: {
+                        ...(p.moduleFData || {}),
+                        step5HiringPlanData,
+                        completionPercentage: Math.max(
+                          p.moduleFData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+
+                await saveModuleFStep5HiringPlanAction({
+                  planId: currentPlan.id,
+                  hiringPlan: step5HiringPlanData,
+                  completionPercentage: progress,
+                });
+              }}
+              onSaveBriefOverview={async (step6BlindSpotAuditData, progress = 100) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_F_STEP_6',
+                      moduleFData: {
+                        ...(p.moduleFData || {}),
+                        step6BlindSpotAuditData,
+                        completionPercentage: Math.max(
+                          p.moduleFData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+
+                await saveModuleFStep6BlindSpotAuditAction({
+                  planId: currentPlan.id,
+                  blindSpotAudit: step6BlindSpotAuditData,
+                  thingsToConsider: step6BlindSpotAuditData.blindSpots.map((b) => ({
+                    id: b.id,
+                    title: b.title,
+                    category: b.category,
+                    explanation: b.whyItMatters,
+                    suggestedAction: b.recommendedActionOrFix,
+                    severity: b.severity === 'CRITICAL' ? 'WARNING' : 'INFO',
+                  })),
+                  completionPercentage: progress,
+                });
               }}
               userId={session.user.id}
               userName={session.user.name}
               userEmail={session.user.email}
               onParkOpenQuestion={(question) => {
                 handleParkSpecificQuestion(question);
+                parkModuleFOpenQuestionAction({
+                  planId: currentPlan.id,
+                  questionText: question,
+                });
               }}
               onBackToModuleE={() => setActiveModule('MOD_E_OPERATIONS')}
               onContinueToModuleG={() => {
@@ -4848,7 +5413,7 @@ export default function WorkspacePage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h2 className="truncate text-sm font-bold text-slate-900">
+                          <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                             Step 1: Tell us your idea in your own words
                           </h2>
                           {moduleAReadinessSteps[0]?.isComplete ? (
@@ -5180,7 +5745,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                         Step 2: Your 1-Page Concept Canvas
                       </h2>
                       {moduleAReadinessSteps[1]?.isComplete ? (
@@ -5487,7 +6052,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                         Step 3: Your Personal &ldquo;Why&rdquo; &amp; Ambition
                       </h2>
                       {moduleAReadinessSteps[2]?.isComplete ? (
@@ -5850,7 +6415,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                         Step 4: Your Team &amp; Starting Budget
                       </h2>
                       {moduleAReadinessSteps[3]?.isComplete ? (
@@ -6325,7 +6890,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                         Step 5: Founder Fit &amp; Reality Check
                       </h2>
                       {moduleAReadinessSteps[4]?.isComplete ? (
@@ -6993,7 +7558,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                         Step 6: Blind-Spot Review (&ldquo;Things to Consider&rdquo;)
                       </h2>
                       {moduleAReadinessSteps[5]?.isComplete ? (
@@ -7274,7 +7839,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                         Startup Overview &amp; Summary Brief
                       </h2>
                       {completedReadinessCount === totalReadinessStepsCount ? (

@@ -1451,13 +1451,211 @@ export interface RoleMatrixStep2Data {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type SurvivalBudgetPresetType =
+  | 'LEAN_SOLO'
+  | 'SHARED_HOUSEHOLD'
+  | 'FAMILY_MORTGAGE'
+  | 'CUSTOM';
+
+export interface FounderSurvivalBudgetItem {
+  memberId: string;
+  memberName: string;
+  presetUsed: SurvivalBudgetPresetType;
+  // The 6 Essential Core Buckets (monthly in base currency)
+  housingAndUtilities: number; // Rent/Mortgage, Council/Property Tax, Utilities, Broadband
+  groceriesAndEssentials: number; // Food, household consumables, personal care
+  transportAndCommute: number; // Fuel, car insurance, road tax, public transit
+  debtAndLoanCommitments: number; // Credit card mins, car finance, student/personal loans
+  dependentsAndFamily: number; // Childcare, school/family essentials, medical
+  incomeOffsetCushion: number; // Partner contribution, part-time earnings, passive income
+  // Savings & Runway
+  personalSavingsBuffer: number; // Liquid cash reserves allocated to personal living runway
+  targetSalaryDrawingsDate?: string; // Optional target date when company must begin paying full salary
+  notes?: string;
+}
+
+export interface SurvivalBudgetStep3Data {
+  founderBudgets: FounderSurvivalBudgetItem[];
+  currencyCode: string; // e.g. 'EUR', 'GBP'
+  lastSavedAt?: string;
+  aiCoachTip?: string;
+}
+
+// ----------------------------------------------------------------------------
+// Step 4: 20 Awkward Co-Founder Questions & The Founder Prenup Engine
+// ----------------------------------------------------------------------------
+
+export type AwkwardQuestionKey =
+  | 'Q1'
+  | 'Q2'
+  | 'Q3'
+  | 'Q4'
+  | 'Q5'
+  | 'Q6'
+  | 'Q7'
+  | 'Q8'
+  | 'Q9'
+  | 'Q10'
+  | 'Q11'
+  | 'Q12'
+  | 'Q13'
+  | 'Q14'
+  | 'Q15'
+  | 'Q16'
+  | 'Q17'
+  | 'Q18'
+  | 'Q19'
+  | 'Q20';
+
+export type AwkwardQuestionCategory =
+  | 'TIME_COMMITMENT'
+  | 'MONEY_SALARIES'
+  | 'ROLES_AUTHORITY'
+  | 'EQUITY_VESTING'
+  | 'VISION_EXIT';
+
+export interface AwkwardQuestionAnswerItem {
+  questionKey: AwkwardQuestionKey;
+  selectedOption: string; // matches option value, or 'OTHER'
+  otherText?: string;
+  privateNote?: string;
+}
+
+export interface FounderAlignmentResponseItem {
+  memberId: string;
+  memberName: string;
+  answers: Record<string, AwkwardQuestionAnswerItem>; // key is AwkwardQuestionKey
+  completedAt?: string;
+}
+
+export interface CoFounderAlignmentStep4Data {
+  responses: FounderAlignmentResponseItem[];
+  isRevealed: boolean;
+  notes?: string;
+  lastSavedAt?: string;
+  aiCoachTip?: string;
+}
+
+// ----------------------------------------------------------------------------
+// Step 5: 3-Year Job Creation Plan, Headcount Roadmap & Compensation Models
+// ----------------------------------------------------------------------------
+
+export type HiringPostureType =
+  | 'CONTRACTOR_LEAN_FIRST'
+  | 'CORE_TECH_SWEAT_EQUITY'
+  | 'BALANCED_PAYE_HIRING'
+  | 'SALES_OPS_LED'
+  | 'OTHER';
+
+export type RoleDepartmentType =
+  | 'ENGINEERING_PRODUCT'
+  | 'SALES_MARKETING'
+  | 'OPERATIONS_SUPPORT'
+  | 'LEADERSHIP_GA'
+  | 'OTHER';
+
+export type EmploymentModeType =
+  | 'FULL_TIME'
+  | 'PART_TIME'
+  | 'CONTRACTOR_RETAINER';
+
+export type CompensationModelType =
+  | 'FULL_CASH'
+  | 'PURE_SWEAT_EQUITY'
+  | 'HYBRID_CASH_EQUITY'
+  | 'ADVISORY_EQUITY';
+
+export interface PlannedRoleItem {
+  id: string;
+  title: string;
+  department: RoleDepartmentType;
+  otherDepartmentText?: string;
+  employmentMode: EmploymentModeType; // FULL_TIME (1.0 FTE), PART_TIME (0.5 FTE), CONTRACTOR_RETAINER (0.0 FTE)
+  yearScheduled: 1 | 2 | 3;
+  targetQuarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  compensationModel: CompensationModelType;
+  // Cash compensation
+  grossAnnualSalary: number; // in base currency (€ or £)
+  isGrantReimbursableEligible?: boolean; // LEO / Innovate UK candidate
+  isRdTaxCreditEligible?: boolean; // R&D relief candidate
+  // Sweat equity details
+  equityGrantPercent?: number; // e.g. 2.5%
+  vestingYears?: number; // default 4
+  cliffMonths?: number; // default 12
+  sweatEquityMilestoneConditions?: string; // e.g. "Converts to €50k cash on Seed round"
+  notes?: string;
+}
+
+export interface HiringPlanStep5Data {
+  hiringPosture: HiringPostureType;
+  otherHiringPostureText?: string;
+  roles: PlannedRoleItem[];
+  contractorBudgetYear1: number; // monthly or annual freelance budget
+  contractorBudgetYear2: number;
+  contractorBudgetYear3: number;
+  executiveHiringStrategyNarrative?: string;
+  lastSavedAt?: string;
+  aiCoachTip?: string;
+}
+
+// ----------------------------------------------------------------------------
+// Overview / Final Brief: Team, Governance & Hiring Brief (Blind-Spot Audit)
+// ----------------------------------------------------------------------------
+
+export type TeamBlindSpotCategoryType =
+  | 'SINGLE_POINT_OF_FAILURE_OR_BURNOUT'
+  | 'EQUITY_VESTING_OR_DEAD_EQUITY_RISK'
+  | 'SURVIVAL_RUNWAY_VS_GRANT_DRAWDOWN_GAP'
+  | 'DECISION_DEADLOCK_OR_GOVERNANCE_SPLIT'
+  | 'PAYROLL_TAX_AND_EMPLOYMENT_LAW_COMPLIANCE'
+  | 'SWEAT_EQUITY_TAX_AND_IP_ASSIGNMENT'
+  | 'OTHER';
+
+export type TeamBlindSpotSeverityType =
+  | 'WATCH'
+  | 'IMPORTANT'
+  | 'CRITICAL';
+
+export type TeamReadinessConfidenceType =
+  | 'READY_FOR_GRANT_AUDIT_AND_LEO_APP_D'
+  | 'NEEDS_COFOUNDER_ALIGNMENT_OR_VESTING_SIGN_OFF'
+  | 'NEEDS_RUNWAY_EXTENSION_OR_SALARY_BRIDGE'
+  | 'NEEDS_KEY_HIRE_OR_ADVISORY_BOARD_APPOINTMENT'
+  | 'OTHER';
+
+export interface TeamBlindSpotItem {
+  id: string;
+  title: string;
+  category: TeamBlindSpotCategoryType;
+  otherCategoryText?: string;
+  severity: TeamBlindSpotSeverityType;
+  whyItMatters: string;
+  recommendedActionOrFix: string;
+  founderMitigationNote?: string;
+  isResolved?: boolean;
+  isCustom?: boolean;
+}
+
+export interface TeamBlindSpotAuditBriefData {
+  blindSpots: TeamBlindSpotItem[];
+  readinessConfidence: TeamReadinessConfidenceType | '';
+  otherReadinessConfidenceText?: string;
+  executiveTeamCapabilityNarrative: string; // Tailored for IE LEO Appendix D & UK Innovate UK Team Capability
+  governanceAndVestingNarrative: string;
+  talentRetentionAndHiringNarrative: string;
+  aiCoachTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
 export interface SavedModuleFData {
   promoterProfiles?: PromoterProfilesStep1Data;
   step2RoleMatrixData?: RoleMatrixStep2Data;
-  step3SurvivalBudgetData?: any;
-  step4AlignmentData?: any;
-  step5HiringPlanData?: any;
-  step6BlindSpotAuditData?: any;
+  step3SurvivalBudgetData?: SurvivalBudgetStep3Data;
+  step4AlignmentData?: CoFounderAlignmentStep4Data;
+  step5HiringPlanData?: HiringPlanStep5Data;
+  step6BlindSpotAuditData?: TeamBlindSpotAuditBriefData;
+  completionPercentage?: number;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;
 }

@@ -49,6 +49,7 @@ import {
   type SavedModuleCData,
   type SavedModuleDData,
   type SavedModuleEData,
+  type SavedModuleFData,
   type SavedMasterDocumentData,
   type SavedValidationSurvey,
   type SavedSurveyResponse,
@@ -138,6 +139,7 @@ async function buildSessionFromDbUser(
     const modC = modRows.find((m) => m.moduleCode === 'MOD_C_SURVEYS_FEEDBACK');
     const modD = modRows.find((m) => m.moduleCode === 'MOD_D_PRODUCT_BUILD');
     const modE = modRows.find((m) => m.moduleCode === 'MOD_E_OPERATIONS');
+    const modF = modRows.find((m) => m.moduleCode === 'MOD_F_COFOUNDER_TEAM');
     const modK = modRows.find(
       (m) =>
         m.moduleCode === 'MOD_L_BUSINESS_PLAN' ||
@@ -166,6 +168,7 @@ async function buildSessionFromDbUser(
     const modCInputs = (modC?.structuredInputsJsonb ?? {}) as SavedModuleCData;
     const modDInputs = (modD?.structuredInputsJsonb ?? {}) as SavedModuleDData;
     const modEInputs = (modE?.structuredInputsJsonb ?? {}) as SavedModuleEData;
+    const modFInputs = (modF?.structuredInputsJsonb ?? {}) as SavedModuleFData;
     const modKInputs = (modK?.structuredInputsJsonb ?? {}) as {
       masterDocumentData?: SavedMasterDocumentData;
     };
@@ -442,6 +445,16 @@ async function buildSessionFromDbUser(
             thingsToConsider: Array.isArray(modE.aiThingsToConsiderJsonb)
               ? modE.aiThingsToConsiderJsonb
               : modEInputs.thingsToConsider,
+          }
+        : undefined,
+      moduleFData: modF
+        ? {
+            ...modFInputs,
+            completionPercentage:
+              modF.completionPercentage ?? modFInputs.completionPercentage,
+            thingsToConsider: Array.isArray(modF.aiThingsToConsiderJsonb)
+              ? modF.aiThingsToConsiderJsonb
+              : modFInputs.thingsToConsider,
           }
         : undefined,
       masterDocumentData:

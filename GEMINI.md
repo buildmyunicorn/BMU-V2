@@ -82,30 +82,53 @@
    * Floating drawers/modals (like `Ask Preflight AI`) must use `left-3 right-3 bottom-3 sm:left-auto sm:right-5 sm:bottom-5 sm:w-96` so they never overflow a `375px` screen.
 
 ## 6. Module Step & Final Overview Brief Architecture Standard (Mandatory for All Modules A–L)
-Every module workspace component (`src/components/workspace/module-*-workspace.tsx`) **must** be built from the start using the unified **Collapsible Step + Final Overview Brief** standard established in Modules A, B, D, and E:
-1. **Collapsible Step Accordion State (`openStep`):**
-   * Manage `const [openStep, setOpenStep] = useState<number | 'ALL'>(...)` initialized automatically to the first incomplete step (or the final Overview step if all core steps are complete).
-   * Include an **`Expand All Steps` / `Focus Step-by-Step`** toggle button in the top dark-indigo module header card alongside the module progress indicator (`{completedCoreStepsCount} of {N} Core Steps Ready`) and the step navigation strip.
-2. **Core Steps (`Steps 1..N`) — Collapsed vs. Expanded Card Formatting:**
-   * **Collapsed State (`openStep !== 'ALL' && openStep !== stepNum`):**
-     * Outer container: `group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm`
-     * Header layout: `flex items-center justify-between gap-3` with left content wrapped in `flex min-w-0 flex-1 items-center gap-3` (`truncate` on title and 1-line summary) and right action wrapped in `ml-3 flex shrink-0 items-center gap-2`.
-     * Dynamic circle icon: `bg-emerald-600 text-white` with `<Check className="h-4 w-4" />` + `<Badge variant="success">Completed</Badge>` when complete; `bg-indigo-600 text-white` with step number + `<Badge variant="outline">In Progress</Badge>` when incomplete.
-     * Right action button: `shrink-0` ghost button displaying `Edit Step` + `<ChevronDown className="ml-1 h-3.5 w-3.5" />`.
-   * **Expanded State (`openStep === 'ALL' || openStep === stepNum`):**
-     * Outer container: `rounded-xl border border-slate-200 bg-white p-6 shadow-xs`
-     * Header layout: `flex items-start justify-between gap-4 border-b border-slate-100 pb-4` with matching dynamic emerald check / indigo step number circle, title, status badge, plain-English description, and a `shrink-0` **`Collapse Step`** button (`<ChevronUp className="ml-1 h-3.5 w-3.5" />`) in the top-right when `openStep !== 'ALL'`.
-     * Bottom step toolbar: Clean action bar with AI helpers (`Wand2` / `Sparkles`), `Save` button, and `Next Step` button (`ArrowRight`) that advances `openStep` and smoothly scrolls to the next step.
-3. **No-Wrap Button & Header Alignment Invariant:**
-   * Always wrap header text/titles in `min-w-0 flex-1` and apply `shrink-0` to all badges and action buttons (`Edit Step`, `Collapse Step`, `Open Overview`, `Why Are We Asking This?`, `Show Me an Example`) so buttons never wrap awkwardly across screen sizes.
-4. **Final Step = Module Overview & Executive Summary Brief Step:**
-   * The final step of every module **must** be formatted as an **Overview / Executive Summary Brief** step (labeled `step: 'Overview'` in the top navigation strip, e.g., *Concept Brief*, *Market & Validation Brief*, *Product & Scope Brief*, *Operations & Risk Brief*):
-     * **Collapsed Overview Card:** Uses `<FileText className="h-4 w-4" />` inside the circle badge (`bg-emerald-600 text-white` when all core sections are ready, else `bg-indigo-600 text-white`), displays the module brief title + `{completedCoreCount}/{N} Sections Ready` badge, and uses an **`Open Overview`** (`ChevronDown`) button on the right.
-     * **Expanded Overview Card:** Uses `rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm` with `<FileText className="h-3.5 w-3.5" />` in the header, `{completedCoreCount}/{N} Sections Ready` badge, and `Collapse Step` (`ChevronUp`).
-     * **Inside the Expanded Overview Step:**
-       1. **Module Readiness Checklist Grid:** Displays cards for each core step (`Steps 1..N`) with emerald/amber `<CheckCircle2 />` indicators and live 1-line summaries synced to the founder's answers.
-       2. **Constructive "Things to Consider" Blind-Spot Review & 1-Page Executive Brief:** Interactive blind-spot audit cards, executive summary preview, and 1-click Copy Markdown / Download HTML / Print to PDF export actions.
-       3. **Dark Footer Conversion / Handoff CTA Bar:** A `bg-slate-900 px-4 py-3.5 text-white rounded-xl` bar at the very bottom that saves the module and transitions cleanly into the next module.
+Every module workspace component (`src/components/workspace/module-*-workspace.tsx`) **must** be built from the start using the unified **Collapsible Step + Final Overview Brief** standard established across Modules A–F. This guarantees 100% visual harmony, consistent typography hierarchy, and reliable responsiveness:
+
+### 1. Typography & Sizing Invariants Across All Steps (Strict Standard)
+- **Top Header Module Card:**
+  - Main Title: `<h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">`
+  - Subtitle: `<p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">`
+  - Step strip button title: `<span className="font-semibold text-white/90 text-xs">` + `<div className="mt-0.5 truncate text-[11px] text-indigo-100/80">`
+- **Collapsed Step State (`openStep !== 'ALL' && openStep !== stepNum`):**
+  - **Outer Container:** `group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm`
+  - **Dynamic Step Icon:** `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold` (or `rounded-full`). Completed: `bg-emerald-600 text-white` with `<Check className="h-4 w-4" />`. In Progress: `bg-indigo-600 text-white` with `{stepNum}`.
+  - **Step Title:** `<h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">` (14px font, bold, slate-900, with indigo hover transition). **Never use `text-xs` or `text-base` for collapsed titles.**
+  - **Step Subtitle / Summary:** `<p className="mt-0.5 truncate text-xs text-slate-500">` (12px font, slate-500, with `mt-0.5` spacing). **Never use `text-[11px]` for step summaries.**
+  - **Badges:** `shrink-0 text-[10px] font-medium`. Completed: `bg-emerald-100 text-emerald-800 border-emerald-300`. In Progress: `variant="outline" className="border-slate-300 text-slate-600"`.
+  - **Action Button:** `<Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">` with `Edit Step` (or `Open Overview`) + `<ChevronDown className="ml-1 h-3.5 w-3.5" />`.
+- **Expanded Step State (`openStep === 'ALL' || openStep === stepNum`):**
+  - **Outer Container:** `rounded-xl border border-slate-200 bg-white p-6 shadow-xs` (or `<Card className="rounded-xl border border-slate-200 bg-white shadow-xs">` with `<CardHeader className="border-b border-slate-100 pb-4">`).
+  - **Header Layout:** `flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4` with left content in `flex items-start gap-3 min-w-0 flex-1`.
+  - **Dynamic Step Icon:** Matching `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold`.
+  - **Step Title:** `<CardTitle className="text-base font-bold text-slate-900">` or `<h2 className="text-base font-bold text-slate-900">` (16px font, bold, slate-900). **Never use `text-sm` or `sm:text-lg` for expanded titles.**
+  - **Step Description:** `<CardDescription className="mt-1 text-xs text-slate-600">` or `<p className="mt-1 text-xs text-slate-600">` (12px font, slate-600, `mt-1`).
+  - **Badges:** `shrink-0 text-[10px] font-medium`.
+  - **Collapse Button:** `<Button size="sm" variant="ghost" onClick={() => setOpenStep(0)} className="text-xs text-slate-500 hover:bg-slate-100">` with `Collapse Step` + `<ChevronUp className="ml-1 h-3.5 w-3.5" />`.
+  - **Bottom Step Toolbar:** Clean flex action bar with AI helpers (`Wand2` / `Sparkles`), `Save` button, and `Next Step` button (`ArrowRight`) that advances `openStep` and scrolls smoothly to the next step.
+
+### 2. Collapsible Step Accordion State (`openStep`):
+- Manage `const [openStep, setOpenStep] = useState<number | 'ALL'>(...)` initialized automatically to the first incomplete step (or the final Overview step if all core steps are complete).
+- Include an **`Expand All Steps` / `Focus Step-by-Step`** toggle button in the top dark-indigo module header card alongside the module progress indicator (`{completedCoreStepsCount} of {N} Core Steps Ready`) and the step navigation strip.
+
+### 3. No-Wrap Button & Header Alignment Invariant:
+- Always wrap header text/titles in `min-w-0 flex-1` and apply `shrink-0` to all badges and action buttons (`Edit Step`, `Collapse Step`, `Open Overview`, `Why Are We Asking This?`, `Show Me an Example`) so buttons never wrap awkwardly across screen sizes.
+
+### 4. Final Step = Module Overview & Executive Summary Brief Step:
+The final step of every module **must** be formatted as an **Overview / Executive Summary Brief** step (labeled `step: 'Overview'` in the top navigation strip, e.g., *Concept Brief*, *Market & Validation Brief*, *Product & Scope Brief*, *Operations & Risk Brief*, *Team & Governance Brief*):
+- **Collapsed Overview Card:**
+  - Outer container: `group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm`
+  - Icon: `<FileText className="h-4 w-4" />` inside `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold` (`bg-emerald-600 text-white` when all core sections ready, else `bg-indigo-600 text-white`).
+  - Title: `<h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">{ModuleName} Brief</h2>`
+  - Badges: `text-[10px] shrink-0` showing `{completedCoreCount}/{N} Sections Ready`.
+  - Summary: `<p className="mt-0.5 truncate text-xs text-slate-500">`
+  - Action: `<Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"><span>Open Overview</span><ChevronDown className="ml-1 h-3.5 w-3.5" /></Button>`
+- **Expanded Overview Card:**
+  - Outer container: `rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm`
+  - Header: `<CardTitle className="text-base font-bold text-slate-900">` + `<Badge className="text-[10px] shrink-0">` + `<CardDescription className="mt-1 text-xs text-slate-600">` + `Collapse Step` button.
+  - **Inside Expanded Overview:**
+    1. **Module Readiness Checklist Grid:** Cards for each core step (`Steps 1..N`) with emerald/amber `<CheckCircle2 />` indicators and live 1-line summaries synced to user answers.
+    2. **Constructive "Things to Consider" Blind-Spot Review & 1-Page Executive Brief:** Interactive blind-spot audit cards, executive summary preview, and 1-click Copy Markdown / Download HTML / Print to PDF export actions.
+    3. **Dark Footer Conversion / Handoff CTA Bar:** A `bg-slate-900 px-4 py-3.5 text-white rounded-xl` bar at the bottom with a primary button to advance directly to the next module.
 
 ## 7. Verification Loop Inside Antigravity
 * After editing any schema, server action, or component, always run `npx tsc --noEmit` to verify zero TypeScript errors across the monorepo before finishing a task.

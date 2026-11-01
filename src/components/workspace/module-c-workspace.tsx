@@ -694,10 +694,6 @@ export function ModuleCWorkspace({
   const [activeViewTab, setActiveViewTab] = useState<
     'BUILDER' | 'OUTREACH' | 'INSIGHTS' | 'AUDIENCE_BOOST'
   >('BUILDER');
-  // State for audience boost interest modal/feedback
-  const [boostWaitlistSubmitted, setBoostWaitlistSubmitted] = useState<boolean>(false);
-  const [selectedBoostTier, setSelectedBoostTier] = useState<string>('TIER_100');
-  const [boostTargetPersonaNotes, setBoostTargetPersonaNotes] = useState<string>('');
   // Active channel inside 'OUTREACH' tab
   const [selectedOutreachChannel, setSelectedOutreachChannel] =
     useState<OutreachChannelType>('LINKEDIN_DM');
@@ -2577,7 +2573,7 @@ export function ModuleCWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 1: Customer Validation Surveys
                   </h2>
                   {isStep1Complete ? (
@@ -2602,7 +2598,7 @@ export function ModuleCWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="shrink-0 text-xs font-semibold text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
                 Edit Step
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -4241,35 +4237,35 @@ export function ModuleCWorkspace({
               </div>
             </div>
 
-            {/* Fast-Track Response Booster Promo Card */}
-            <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 p-4 shadow-xs">
+            {/* Fast-Track Response Booster Informational Note */}
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-2xs">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xs">
-                    <Flame className="h-5 w-5" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                    <Flame className="h-4 w-4" />
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-amber-900">
-                        Zero Time for Cold DMs?
+                      <span className="text-xs font-bold text-slate-900">
+                        Need statistically significant validation for a grant or angel deck?
                       </span>
-                      <Badge className="border-amber-300 bg-amber-100 text-[10px] font-bold text-amber-900">
-                        ⚡ Founder Panel Boost
+                      <Badge variant="outline" className="text-[10px] text-amber-800 border-amber-300 bg-amber-50">
+                        Optional Service
                       </Badge>
                     </div>
-                    <p className="mt-0.5 text-xs text-slate-700">
-                      Need 50 to 250+ targeted responses for LEO / Innovate UK validation or your pitch deck? We can source verified B2B/B2C respondents in your exact niche.
+                    <p className="mt-0.5 text-xs text-slate-600">
+                      If you don&apos;t have time for cold outreach, targeted verified response panels (50–250 respondents) will be available soon.
                     </p>
                   </div>
                 </div>
                 <Button
                   type="button"
+                  variant="outline"
                   size="sm"
                   onClick={() => setActiveViewTab('AUDIENCE_BOOST')}
-                  className="shrink-0 bg-gradient-to-r from-amber-600 to-orange-600 text-xs font-bold text-white shadow-xs hover:from-amber-700 hover:to-orange-700"
+                  className="shrink-0 border-slate-300 text-xs font-semibold text-slate-700 hover:bg-white"
                 >
-                  <Flame className="mr-1.5 h-3.5 w-3.5" />
-                  Explore Guaranteed Responses
+                  View Details &amp; Packaging
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -4927,10 +4923,10 @@ export function ModuleCWorkspace({
                   size="sm"
                   variant="outline"
                   onClick={() => setActiveViewTab('AUDIENCE_BOOST')}
-                  className="border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                  className="border-slate-200 text-xs text-slate-700 hover:bg-slate-50"
                 >
                   <Flame className="h-3.5 w-3.5 text-amber-600" />
-                  Get 50–250 Guaranteed Responses
+                  Learn About Targeted Responses
                 </Button>
               </div>
             </div>
@@ -5706,14 +5702,7 @@ export function ModuleCWorkspace({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {/* Tier 1: Starter */}
-              <div
-                onClick={() => setSelectedBoostTier('TIER_50')}
-                className={`relative cursor-pointer rounded-2xl border p-5 transition-all ${
-                  selectedBoostTier === 'TIER_50'
-                    ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/20 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
+              <div className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
                 <div className="flex items-start justify-between">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -5751,16 +5740,9 @@ export function ModuleCWorkspace({
               </div>
 
               {/* Tier 2: Most Popular */}
-              <div
-                onClick={() => setSelectedBoostTier('TIER_100')}
-                className={`relative cursor-pointer rounded-2xl border p-5 transition-all ${
-                  selectedBoostTier === 'TIER_100'
-                    ? 'border-amber-600 bg-amber-50/50 ring-2 ring-amber-600/30 shadow-md'
-                    : 'border-amber-300 bg-white hover:border-amber-400'
-                }`}
-              >
+              <div className="relative rounded-2xl border border-amber-300 bg-amber-50/20 p-5 shadow-xs">
                 <div className="absolute -top-3 right-4">
-                  <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-[10px] font-bold text-white shadow-2xs">
+                  <Badge className="bg-amber-600 text-[10px] font-bold text-white shadow-2xs">
                     ⭐ Recommended for Grants
                   </Badge>
                 </div>
@@ -5801,14 +5783,7 @@ export function ModuleCWorkspace({
               </div>
 
               {/* Tier 3: Deep Dive */}
-              <div
-                onClick={() => setSelectedBoostTier('TIER_250')}
-                className={`relative cursor-pointer rounded-2xl border p-5 transition-all ${
-                  selectedBoostTier === 'TIER_250'
-                    ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/20 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
+              <div className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
                 <div className="flex items-start justify-between">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -5847,56 +5822,16 @@ export function ModuleCWorkspace({
             </div>
           </div>
 
-          {/* Interest Registration / Quote Request Card */}
-          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50/60 via-white to-amber-50/40 shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold text-slate-900">
-                Join the Private Panel Beta &amp; Request Audience Feasibility Quote
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-600">
-                Tell us your target audience profile. We&apos;ll calculate custom feasibility and notify you as soon as the panel engine is live for your sector.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {boostWaitlistSubmitted ? (
-                <div className="flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                  <div className="text-xs">
-                    <strong>You&apos;re on the early access priority list!</strong> We&apos;ve logged your niche audience criteria for {plan.title}. We&apos;ll notify you directly when respondent sourcing opens.
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">
-                      Who is your ideal respondent? (Job title, sector, company size, or consumer trait):
-                    </label>
-                    <Input
-                      value={boostTargetPersonaNotes}
-                      onChange={(e) => setBoostTargetPersonaNotes(e.target.value)}
-                      placeholder="e.g., Dental clinic practice managers in Ireland & UK, or parents with toddlers aged 1-4"
-                      className="bg-white text-xs"
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                    <div className="text-[11px] text-slate-500">
-                      🔒 No payment taken today • 25% early access discount guaranteed
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setBoostWaitlistSubmitted(true)}
-                      className="bg-gradient-to-r from-amber-600 to-orange-600 text-xs font-bold text-white shadow-xs hover:from-amber-700 hover:to-orange-700"
-                    >
-                      <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                      Register Interest for {selectedBoostTier === 'TIER_50' ? '50 Responses' : selectedBoostTier === 'TIER_250' ? '250 Responses' : '100 Responses'}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Non-intrusive Trust & Neutral Status Note */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-xs text-slate-600">
+            <div className="flex items-center gap-2 font-bold text-slate-800">
+              <ShieldCheck className="h-4 w-4 text-indigo-600" />
+              Optional Founder Resource
+            </div>
+            <p className="mt-1">
+              You do not need to purchase responses to complete your validation. The tools in tabs 1, 2, and 3 are 100% free and ready to support organic outreach, 1-on-1 interviews, and team surveys. This panel service is an optional convenience currently in development for founders needing rapid statistical datasets.
+            </p>
+          </div>
         </div>
       )}
 
@@ -5924,9 +5859,9 @@ export function ModuleCWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 2: 1-on-1 Customer Discovery Interviews
-                  </span>
+                  </h2>
                   <Badge
                     variant={isStep2Complete ? 'success' : 'outline'}
                     className="shrink-0 text-[10px]"
@@ -5954,7 +5889,7 @@ export function ModuleCWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="shrink-0 text-xs font-semibold text-indigo-700 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
                 Edit Step
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -5983,7 +5918,7 @@ export function ModuleCWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                  <h2 className="text-base font-bold text-slate-900">
                     Step 2: 1-on-1 Customer Discovery Interviews
                   </h2>
                   <Badge
@@ -6742,7 +6677,7 @@ export function ModuleCWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 3: Constructive &ldquo;Things to Consider&rdquo; (Blind-Spot Review)
                   </h2>
                   {isStep3Complete ? (
@@ -6767,7 +6702,7 @@ export function ModuleCWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="shrink-0 text-xs font-semibold text-indigo-700 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
                 Edit Step
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -6792,7 +6727,7 @@ export function ModuleCWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                  <h2 className="text-base font-bold text-slate-900">
                     Step 3: Constructive &ldquo;Things to Consider&rdquo; (Blind-Spot Review)
                   </h2>
                   {isStep3Complete ? (
@@ -7003,9 +6938,9 @@ export function ModuleCWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Customer Validation &amp; Interview Brief (Executive Summary)
-                  </span>
+                  </h2>
                   <Badge
                     variant={
                       completedCoreStepsCount === 3 ? 'success' : 'secondary'
@@ -7027,7 +6962,7 @@ export function ModuleCWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="shrink-0 text-xs font-semibold text-indigo-700 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
                 Open Overview
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
