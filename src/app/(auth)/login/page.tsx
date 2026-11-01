@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import {
   getDefaultDemoSession,
   loadBmuSessionForEmail,
+  recoverAllRealPlansFromBrowserStorage,
   saveBmuSession,
   type BmuLocalSession,
 } from '@/lib/auth/session-store';
@@ -95,13 +96,18 @@ export default function LoginPage() {
         return;
       }
 
-      // Offline / local fallback: restore per-email cached session if present
+      // Offline / local fallback: restore per-email cached session or any recovered real plans
       const cachedForEmail = loadBmuSessionForEmail(email);
       if (cachedForEmail && cachedForEmail.plans.length > 0) {
         saveBmuSession(cachedForEmail);
       } else {
         const base = getDefaultDemoSession();
         base.user.email = email.trim();
+        const recoveredPlans = recoverAllRealPlansFromBrowserStorage();
+        if (recoveredPlans.length > 0) {
+          base.plans = recoveredPlans;
+          base.activePlanId = recoveredPlans[0].id;
+        }
         saveBmuSession(base);
       }
       router.push('/workspace');
@@ -113,6 +119,11 @@ export default function LoginPage() {
         const base = getDefaultDemoSession();
         if (email.trim()) {
           base.user.email = email.trim();
+        }
+        const recoveredPlans = recoverAllRealPlansFromBrowserStorage();
+        if (recoveredPlans.length > 0) {
+          base.plans = recoveredPlans;
+          base.activePlanId = recoveredPlans[0].id;
         }
         saveBmuSession(base);
       }
@@ -139,7 +150,16 @@ export default function LoginPage() {
         router.push('/workspace');
         return;
       }
-      loginWithDevPersona('FREE');
+      const base = getDefaultDemoSession();
+      base.user.name = 'Thomas Walsh';
+      base.user.email = 'thomaswalsh@google.com';
+      const recoveredPlans = recoverAllRealPlansFromBrowserStorage();
+      if (recoveredPlans.length > 0) {
+        base.plans = recoveredPlans;
+        base.activePlanId = recoveredPlans[0].id;
+      }
+      saveBmuSession(base);
+      router.push('/workspace');
     } catch {
       const cached = loadBmuSessionForEmail('thomaswalsh@google.com');
       if (cached && cached.plans.length > 0) {
@@ -147,7 +167,16 @@ export default function LoginPage() {
         router.push('/workspace');
         return;
       }
-      loginWithDevPersona('FREE');
+      const base = getDefaultDemoSession();
+      base.user.name = 'Thomas Walsh';
+      base.user.email = 'thomaswalsh@google.com';
+      const recoveredPlans = recoverAllRealPlansFromBrowserStorage();
+      if (recoveredPlans.length > 0) {
+        base.plans = recoveredPlans;
+        base.activePlanId = recoveredPlans[0].id;
+      }
+      saveBmuSession(base);
+      router.push('/workspace');
     } finally {
       setIsSubmitting(false);
     }

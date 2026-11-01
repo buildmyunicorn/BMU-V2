@@ -1752,8 +1752,21 @@ export interface SalesAssumptionsStep4Data {
   expectedConversionRatePercent: number; // e.g. 3%
   expectedMonthlyChurnOrRepeatPercent: number; // e.g. 4% churn or 30% repeat
   teamMonthlyCapacityCap: number; // e.g. max 100 clients before hiring
+  capacityFeasibilityStatus?: 'CAPACITY_SURPLUS' | 'CAPACITY_DEFICIT' | 'ALIGNED';
+  requiredMonthlyLeads?: number;
   writtenAssumptionsNarrative: string;
+  assessorTip?: string;
   lastSavedAt?: string;
+}
+
+export interface RevenueBlindSpotAuditStep5Data {
+  blindSpots: BlindSpotItem[];
+  revenueReadinessConfidence: 'READY_FOR_COMMERCIAL_LAUNCH' | 'PRICING_TESTING_RECOMMENDED' | 'WORKING_CAPITAL_GAP_WARNING' | 'NEEDS_CAPACITY_EXPANSION' | 'OTHER' | '';
+  otherReadinessConfidenceText?: string;
+  executiveCommercialSummaryNarrative: string;
+  aiAssessorTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
 export interface SavedModuleHData {
@@ -1761,6 +1774,7 @@ export interface SavedModuleHData {
   step2PricingTiers?: PricingTiersStep2Data;
   step3BreakevenCalculator?: BreakevenCalculatorStep3Data;
   step4SalesAssumptions?: SalesAssumptionsStep4Data;
+  step5RevenueBrief?: RevenueBlindSpotAuditStep5Data;
   completionPercentage?: number;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;
@@ -1851,6 +1865,236 @@ const PER_USER_STORAGE_PREFIX = 'spf_v2_session_by_email_v1::';
 const LEGACY_PER_USER_STORAGE_PREFIX = 'bmu_v2_session_by_email_v1::';
 const PUBLIC_SURVEYS_REGISTRY_KEY = 'spf_v2_public_surveys_registry_v1';
 const LEGACY_PUBLIC_SURVEYS_REGISTRY_KEY = 'bmu_v2_public_surveys_registry_v1';
+const REAL_PLANS_VAULT_KEY = 'spf_v2_real_founder_plans_vault_v1';
+
+export function isSyntheticPersonaPlan(
+  plan?: Partial<ActiveStartupPlan> | null
+): boolean {
+  if (!plan?.id) return false;
+  return plan.id.startsWith('plan-persona-');
+}
+
+export function hasRealFounderContent(
+  plan?: Partial<ActiveStartupPlan> | null
+): boolean {
+  if (!plan || isSyntheticPersonaPlan(plan)) return false;
+  if (plan.brainDumpText && plan.brainDumpText.trim().length > 0) return true;
+  if (
+    plan.title &&
+    plan.title.trim().length > 0 &&
+    plan.title.trim() !== 'My Startup Plan'
+  ) {
+    return true;
+  }
+  if (plan.oneLinerSummary && plan.oneLinerSummary.trim().length > 0) {
+    return true;
+  }
+  if (
+    plan.conceptCanvas?.coreProblem ||
+    plan.conceptCanvas?.proposedSolution ||
+    plan.conceptCanvas?.targetCustomer
+  ) {
+    return true;
+  }
+  if (plan.founderMotivation?.twelveMonthSuccessVision?.trim()) return true;
+  if (
+    plan.moduleBData ||
+    plan.moduleCData ||
+    plan.moduleDData ||
+    plan.moduleEData ||
+    plan.moduleFData ||
+    plan.moduleHData ||
+    plan.masterDocumentData
+  ) {
+    return true;
+  }
+  if (Array.isArray(plan.openQuestions) && plan.openQuestions.length > 0) {
+    return true;
+  }
+  return false;
+}
+
+function scorePlanRichness(plan: ActiveStartupPlan): number {
+  if (isSyntheticPersonaPlan(plan)) return -1;
+  let score = 0;
+  if (plan.title && plan.title !== 'My Startup Plan') score += 10;
+  if (plan.brainDumpText?.trim()) score += 15 + Math.min(plan.brainDumpText.length, 500) / 50;
+  if (plan.oneLinerSummary?.trim()) score += 5;
+  if (plan.conceptCanvas?.coreProblem) score += 15;
+  if (plan.founderMotivation?.twelveMonthSuccessVision) score += 10;
+  if (plan.teamAndBudget) score += 5;
+  if (plan.founderRealityCheck) score += 5;
+  if (plan.grantEligibilityCheck) score += 10;
+  if (plan.moduleBData) score += 20;
+  if (plan.moduleCData?.surveys?.length) score += 25;
+  if (plan.moduleDData) score += 20;
+  if (plan.moduleEData) score += 20;
+  if (plan.moduleFData) score += 20;
+  if (plan.moduleHData) score += 20;
+  if (plan.masterDocumentData) score += 20;
+  return score;
+}
+
+function backupRealPlansToVault(plans: ActiveStartupPlan[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const realCandidates = (plans || []).filter((p) =>
+      hasRealFounderContent(p)
+    );
+    if (realCandidates.length === 0) return;
+
+    const rawVault = window.localStorage.getItem(REAL_PLANS_VAULT_KEY);
+    const existingVault: ActiveStartupPlan[] = rawVault
+      ? JSON.parse(rawVault)
+      : [];
+    const byId = new Map<string, ActiveStartupPlan>();
+
+    for (const existing of existingVault) {
+      if (existing?.id && !isSyntheticPersonaPlan(existing)) {
+        byId.set(existing.id, existing);
+      }
+    }
+    for (const candidate of realCandidates) {
+      const prev = byId.get(candidate.id);
+      if (!prev || scorePlanRichness(candidate) >= scorePlanRichness(prev)) {
+        byId.set(candidate.id, candidate);
+      }
+    }
+
+    window.localStorage.setItem(
+      REAL_PLANS_VAULT_KEY,
+      JSON.stringify(Array.from(byId.values()))
+    );
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+export function recoverAllRealPlansFromBrowserStorage(): ActiveStartupPlan[] {
+  if (typeof window === 'undefined') return [];
+  const byId = new Map<string, ActiveStartupPlan>();
+
+  const considerPlans = (plans?: ActiveStartupPlan[]) => {
+    if (!Array.isArray(plans)) return;
+    for (const p of plans) {
+      if (!p?.id || isSyntheticPersonaPlan(p)) continue;
+      if (!hasRealFounderContent(p)) continue;
+      const existing = byId.get(p.id);
+      if (!existing || scorePlanRichness(p) >= scorePlanRichness(existing)) {
+        byId.set(p.id, p);
+      }
+    }
+  };
+
+  try {
+    const rawVault = window.localStorage.getItem(REAL_PLANS_VAULT_KEY);
+    if (rawVault) {
+      considerPlans(JSON.parse(rawVault) as ActiveStartupPlan[]);
+    }
+  } catch {
+    // Ignore parse error
+  }
+
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (!key) continue;
+      if (
+        key === STORAGE_KEY ||
+        key === LEGACY_STORAGE_KEY ||
+        key.startsWith(PER_USER_STORAGE_PREFIX) ||
+        key.startsWith(LEGACY_PER_USER_STORAGE_PREFIX)
+      ) {
+        try {
+          const raw = window.localStorage.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw) as BmuLocalSession;
+          considerPlans(parsed?.plans);
+        } catch {
+          // Ignore malformed entry
+        }
+      }
+    }
+  } catch {
+    // Ignore storage enumeration errors
+  }
+
+  const recovered = Array.from(byId.values()).sort(
+    (a, b) => scorePlanRichness(b) - scorePlanRichness(a)
+  );
+  return recovered;
+}
+
+function isPersonaPreviewUrlActive(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('persona_preview') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeAndRestoreRealPlansInSession(
+  session: BmuLocalSession,
+  allowPersonaPreview: boolean
+): BmuLocalSession {
+  const rawPlans = Array.isArray(session.plans) ? session.plans : [];
+  const recoveredRealPlans = recoverAllRealPlansFromBrowserStorage();
+
+  // Merge non-persona plans from session with recovered real plans from browser storage
+  const realById = new Map<string, ActiveStartupPlan>();
+  for (const p of rawPlans) {
+    if (p?.id && !isSyntheticPersonaPlan(p)) {
+      realById.set(p.id, p);
+    }
+  }
+  for (const rec of recoveredRealPlans) {
+    const existing = realById.get(rec.id);
+    if (!existing || scorePlanRichness(rec) > scorePlanRichness(existing)) {
+      realById.set(rec.id, rec);
+    }
+  }
+
+  let realPlans = Array.from(realById.values());
+  const populatedRealPlans = realPlans.filter((p) => hasRealFounderContent(p));
+  if (populatedRealPlans.length > 0) {
+    // Drop blank default placeholder if user has real populated plan(s)
+    realPlans = [
+      ...populatedRealPlans,
+      ...realPlans.filter(
+        (p) => !hasRealFounderContent(p) && p.id !== 'plan-greencart-1'
+      ),
+    ];
+  }
+
+  if (allowPersonaPreview) {
+    const personaPlans = rawPlans.filter((p) => isSyntheticPersonaPlan(p));
+    const combined = [...personaPlans, ...realPlans];
+    return {
+      ...session,
+      plans: combined.length > 0 ? combined : getDefaultDemoSession().plans,
+      activePlanId:
+        session.activePlanId ||
+        combined[0]?.id ||
+        'plan-greencart-1',
+    };
+  }
+
+  const finalPlans =
+    realPlans.length > 0 ? realPlans : getDefaultDemoSession().plans;
+  const currentActiveIsReal = finalPlans.some(
+    (p) => p.id === session.activePlanId && !isSyntheticPersonaPlan(p)
+  );
+
+  return {
+    ...session,
+    plans: finalPlans,
+    activePlanId: currentActiveIsReal
+      ? session.activePlanId
+      : finalPlans[0]?.id || 'plan-greencart-1',
+  };
+}
 
 function getPerUserStorageKey(email: string): string {
   return `${PER_USER_STORAGE_PREFIX}${email.trim().toLowerCase()}`;
@@ -1875,7 +2119,7 @@ export function loadBmuSessionForEmail(email: string): BmuLocalSession | null {
       if (activeRaw) {
         const activeParsed = JSON.parse(activeRaw) as BmuLocalSession;
         if (activeParsed?.user?.email?.trim().toLowerCase() === cleanEmail) {
-          return activeParsed;
+          return sanitizeAndRestoreRealPlansInSession(activeParsed, false);
         }
       }
       return null;
@@ -1901,7 +2145,7 @@ export function loadBmuSessionForEmail(email: string): BmuLocalSession | null {
         };
       });
     }
-    return parsed;
+    return sanitizeAndRestoreRealPlansInSession(parsed, false);
   } catch {
     return null;
   }
@@ -1983,7 +2227,8 @@ export function loadBmuSession(): BmuLocalSession {
       window.localStorage.getItem(STORAGE_KEY) ||
       window.localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) {
-      return getDefaultDemoSession();
+      const fallback = getDefaultDemoSession();
+      return sanitizeAndRestoreRealPlansInSession(fallback, false);
     }
     const parsed = JSON.parse(raw) as BmuLocalSession;
     if (parsed.entitlement.accessExpiresAt) {
@@ -2006,7 +2251,39 @@ export function loadBmuSession(): BmuLocalSession {
         };
       });
     }
-    return parsed;
+    const allowPersonaPreview = isPersonaPreviewUrlActive();
+    const restored = sanitizeAndRestoreRealPlansInSession(
+      parsed,
+      allowPersonaPreview
+    );
+    // Persist the cleaned/restored session if a synthetic persona plan was stripped
+    if (
+      !allowPersonaPreview &&
+      (parsed.activePlanId !== restored.activePlanId ||
+        (parsed.plans || []).length !== restored.plans.length)
+    ) {
+      saveBmuSession(restored);
+    }
+    return restored;
+  } catch {
+    return getDefaultDemoSession();
+  }
+}
+
+export function exitPersonaPreviewAndRestoreRealPlans(): BmuLocalSession {
+  if (typeof window === 'undefined') {
+    return getDefaultDemoSession();
+  }
+  try {
+    const raw =
+      window.localStorage.getItem(STORAGE_KEY) ||
+      window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    const base = raw
+      ? (JSON.parse(raw) as BmuLocalSession)
+      : getDefaultDemoSession();
+    const restored = sanitizeAndRestoreRealPlansInSession(base, false);
+    saveBmuSession(restored);
+    return restored;
   } catch {
     return getDefaultDemoSession();
   }
@@ -2014,6 +2291,23 @@ export function loadBmuSession(): BmuLocalSession {
 
 export function saveBmuSession(session: BmuLocalSession): void {
   if (typeof window === 'undefined') return;
+
+  // Before overwriting STORAGE_KEY, always preserve any real founder plans currently in STORAGE_KEY or incoming session
+  try {
+    const existingRaw =
+      window.localStorage.getItem(STORAGE_KEY) ||
+      window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (existingRaw) {
+      const existingParsed = JSON.parse(existingRaw) as BmuLocalSession;
+      if (Array.isArray(existingParsed?.plans)) {
+        backupRealPlansToVault(existingParsed.plans);
+      }
+    }
+  } catch {
+    // Ignore parse issues
+  }
+  backupRealPlansToVault(session.plans || []);
+
   const cleanedSession: BmuLocalSession = {
     ...session,
     entitlement: {
@@ -2046,14 +2340,28 @@ export function saveBmuSession(session: BmuLocalSession): void {
       cleanEmail !== 'founder@buildmyunicorn.com'
     ) {
       const perUserKey = getPerUserStorageKey(cleanEmail);
+      // Never pollute a user's per-email account vault with synthetic test persona plans
+      const realUserPlans = cleanedSession.plans.filter(
+        (p) => !isSyntheticPersonaPlan(p)
+      );
       const isBlankDemoFallback =
         cleanedSession.user.id === 'user-default-1' &&
-        cleanedSession.plans.length === 1 &&
-        cleanedSession.plans[0]?.id === 'plan-greencart-1' &&
-        !cleanedSession.plans[0]?.brainDumpText;
+        realUserPlans.length === 1 &&
+        realUserPlans[0]?.id === 'plan-greencart-1' &&
+        !realUserPlans[0]?.brainDumpText;
 
-      if (!isBlankDemoFallback) {
-        window.localStorage.setItem(perUserKey, JSON.stringify(cleanedSession));
+      if (!isBlankDemoFallback && realUserPlans.length > 0) {
+        const realActiveId = realUserPlans.some(
+          (p) => p.id === cleanedSession.activePlanId
+        )
+          ? cleanedSession.activePlanId
+          : realUserPlans[0].id;
+        const perUserSession: BmuLocalSession = {
+          ...cleanedSession,
+          plans: realUserPlans,
+          activePlanId: realActiveId,
+        };
+        window.localStorage.setItem(perUserKey, JSON.stringify(perUserSession));
       }
     }
   } catch {

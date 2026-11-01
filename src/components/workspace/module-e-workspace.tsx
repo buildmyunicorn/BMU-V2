@@ -4784,8 +4784,11 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               <div className="space-y-2.5 border-t border-slate-100 pt-4">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
-                  1B. Customer Order-to-Delivery Turnaround Target (SLA)
+                  1B. Promised Delivery &amp; Reply Speed — Order-to-Delivery Turnaround Target (SLA)
                 </label>
+                <p className="text-xs text-slate-500">
+                  SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem.
+                </p>
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {TURNAROUND_SLA_OPTIONS.map((opt) => {
                     const isSelected = step1Data.turnaroundSla === opt.value;
@@ -5201,7 +5204,7 @@ export function ModuleEWorkspace({
 
                     <div className="rounded-xl border border-slate-200 bg-white p-3">
                       <div className="text-[10px] font-bold uppercase text-slate-500">
-                        Direct Delivery Cost (COGS) / Order
+                        Direct Cost to Make &amp; Deliver 1 Sale (COGS)
                       </div>
                       <div className="mt-1 text-base font-extrabold text-emerald-700 sm:text-lg">
                         {formatPlanCurrency(
@@ -5209,6 +5212,9 @@ export function ModuleEWorkspace({
                           plan.baseCurrency
                         )}
                       </div>
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        COGS (Cost of Goods Sold) is what it directly costs you in raw materials, packaging, postage, or server usage every single time you sell one unit.
+                      </p>
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-white p-3">
@@ -6066,7 +6072,7 @@ export function ModuleEWorkspace({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
                   <div className="text-[11px] font-semibold text-slate-500">
-                    Total Capex Schedule (New Cash Outlay)
+                    Big Equipment &amp; Upfront Purchases (CapEx)
                   </div>
                   <div className="mt-1 flex items-baseline gap-2">
                     <span className="text-lg font-extrabold text-slate-900">
@@ -6091,6 +6097,9 @@ export function ModuleEWorkspace({
                     </strong>{' '}
                     (Synced to Module I)
                   </div>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    CapEx (Capital Expenditure) means physical equipment or machinery you buy that lasts several years (like commercial ovens, vans, or lab hardware).
+                  </p>
                 </div>
 
                 {selectedCountry === 'IE' ? (
@@ -7768,13 +7777,13 @@ export function ModuleEWorkspace({
                       </div>
                       <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
-                          3. Linked to Module D Work Packages (WP1..n)
+                          3. Linked to Build Phases &amp; Milestones (Step-by-Step Plan) — Work Packages (WP1..n)
                         </div>
                         <p className="mt-1 leading-relaxed text-slate-600">
                           Linking each risk to a named owner and Work Package
                           (e.g., WP1 Engineering / Production, WP3 Go-to-Market)
                           compiles directly into your 2-page Risk Register
-                          Appendix in Module K.
+                          Appendix in Module K. In plain terms, a Work Package simply means grouping your build plan into numbered phases (e.g. Phase 1: Prototype, Phase 2: Testing, Phase 3: Launch).
                         </p>
                       </div>
                     </div>
@@ -9006,7 +9015,7 @@ export function ModuleEWorkspace({
                       Close
                     </button>
                   </div>
-                  <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                  <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="rounded-lg border border-indigo-200/80 bg-white p-2.5">
                       <p className="font-semibold text-slate-900">
                         1. Protecting Unit Pocket Profit (Module G)
@@ -9564,7 +9573,7 @@ export function ModuleEWorkspace({
               </div>
 
               {/* Quantitative Return / Remake & Warranty Inputs */}
-              <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-800">
                     Estimated Return / Refund / Remake Rate (%)
@@ -11104,7 +11113,7 @@ export function ModuleEWorkspace({
                 </div>
 
                 {selectedCountry === 'IE' ? (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {[
                       {
                         providerName:
@@ -11184,7 +11193,7 @@ export function ModuleEWorkspace({
                     ))}
                   </div>
                 ) : selectedCountry === 'GB' ? (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {[
                       {
                         providerName:

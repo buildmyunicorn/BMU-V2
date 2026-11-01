@@ -78,6 +78,8 @@ import {
   saveBmuSession,
   getDefaultDemoSession,
   deduplicateSurveyResponses,
+  isSyntheticPersonaPlan,
+  exitPersonaPreviewAndRestoreRealPlans,
   type BmuLocalSession,
   type SavedConceptCanvas,
   type SavedFounderMotivation,
@@ -505,7 +507,7 @@ export default function WorkspacePage() {
   );
 
   // Module A Step Accordion / Dropdown View State (0 = all collapsed, 1..7, or 'ALL')
-  const [openModAStep, setOpenModAStep] = useState<number | 'ALL'>(0);
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
 
   // Deep-link cross-module navigation targeting (step number + element id highlight)
   const [moduleNavTarget, setModuleNavTarget] = useState<{
@@ -877,6 +879,10 @@ export default function WorkspacePage() {
                         localPlan.moduleHData?.step4SalesAssumptions,
                         dbPlan.moduleHData?.step4SalesAssumptions
                       ),
+                      step5RevenueBrief: pickNewerBySavedAt(
+                        localPlan.moduleHData?.step5RevenueBrief,
+                        dbPlan.moduleHData?.step5RevenueBrief
+                      ),
                       completionPercentage:
                         localPlan.moduleHData?.completionPercentage ??
                         dbPlan.moduleHData?.completionPercentage,
@@ -1062,8 +1068,8 @@ export default function WorkspacePage() {
   }, []);
 
   useEffect(() => {
-    if (!isGrantCheckerSupportedForCountry(selectedCountry) && openModAStep === 8) {
-      setOpenModAStep(7);
+    if (!isGrantCheckerSupportedForCountry(selectedCountry) && openStep === 8) {
+      setOpenStep(7);
     }
     setGrantEligibilityCheck((prev) => {
       if (selectedCountry === 'IE' && prev.regionalLocationTier.startsWith('GB_')) {
@@ -1074,7 +1080,7 @@ export default function WorkspacePage() {
       }
       return prev;
     });
-  }, [selectedCountry, openModAStep]);
+  }, [selectedCountry, openStep]);
 
   const currentPlan =
     session.plans.find((p) => p.id === session.activePlanId) ||
@@ -1242,8 +1248,8 @@ export default function WorkspacePage() {
           exportPotential: found.exportPotential,
         })
     );
-    if (!isGrantCheckerSupportedForCountry(found.hqCountryCode) && openModAStep === 8) {
-      setOpenModAStep(7);
+    if (!isGrantCheckerSupportedForCountry(found.hqCountryCode) && openStep === 8) {
+      setOpenStep(7);
     }
     setThingsToConsider(found.thingsToConsider || []);
     setOpenQuestions(found.openQuestions || []);
@@ -4128,6 +4134,79 @@ export default function WorkspacePage() {
           ? 10
           : 0;
 
+  // Module H Progress Calculation (Steps 1–5)
+  const savedModHStep1 = currentPlan.moduleHData?.step1RevenueModel;
+  const savedModHStep2 = currentPlan.moduleHData?.step2PricingTiers;
+  const savedModHStep3 = currentPlan.moduleHData?.step3BreakevenCalculator;
+  const savedModHStep4 = currentPlan.moduleHData?.step4SalesAssumptions;
+  const savedModHStep5 = currentPlan.moduleHData?.step5RevenueBrief;
+
+  const step1ModHScore = savedModHStep1
+    ? Boolean(savedModHStep1.revenueModelVehicle) &&
+      Boolean(savedModHStep1.offeringStructure) &&
+      Boolean(savedModHStep1.valueMetric?.trim())
+      ? 20
+      : 10
+    : 0;
+
+  const step2ModHScore = savedModHStep2
+    ? savedModHStep2.tiers && savedModHStep2.tiers.length > 0
+      ? savedModHStep2.tiers.some((t) => (t.priceNetOfTax ?? 0) > 0 || (t.priceGross ?? 0) > 0 || t.name?.trim().length > 0)
+        ? 20
+        : 10
+      : 0
+    : 0;
+
+  const step3ModHScore = savedModHStep3
+    ? Boolean(
+        (savedModHStep3.activePriceSlider ?? 0) > 0 ||
+        (savedModHStep3.activeCustomerSlider ?? 0) > 0 ||
+        (savedModHStep3.yearTargets && savedModHStep3.yearTargets.length > 0) ||
+        (savedModHStep3.breakevenNarrative?.trim().length ?? 0) > 10
+      )
+      ? 20
+      : 10
+    : 0;
+
+  const step4ModHScore = savedModHStep4
+    ? Boolean(
+        (savedModHStep4.expectedConversionRatePercent ?? 0) > 0 ||
+        (savedModHStep4.salesCycleDays ?? 0) > 0 ||
+        (savedModHStep4.teamMonthlyCapacityCap ?? 0) > 0 ||
+        (savedModHStep4.writtenAssumptionsNarrative?.trim().length ?? 0) > 10
+      )
+      ? 20
+      : 10
+    : 0;
+
+  const step5ModHScore = savedModHStep5
+    ? Boolean(
+        (savedModHStep5.executiveCommercialSummaryNarrative?.trim().length ?? 0) > 20 ||
+        savedModHStep5.revenueReadinessConfidence ||
+        (savedModHStep5.blindSpots && savedModHStep5.blindSpots.length > 0) ||
+        (currentPlan.moduleHData?.thingsToConsider?.length ?? 0) > 0
+      )
+      ? 20
+      : 0
+    : 0;
+
+  const totalModHScore =
+    step1ModHScore +
+    step2ModHScore +
+    step3ModHScore +
+    step4ModHScore +
+    step5ModHScore;
+
+  const moduleHProgressPercent =
+    currentPlan.moduleHData?.completionPercentage &&
+    currentPlan.moduleHData.completionPercentage > totalModHScore
+      ? currentPlan.moduleHData.completionPercentage
+      : totalModHScore > 0
+        ? Math.min(100, totalModHScore)
+        : activeModule === 'MOD_H_REVENUE'
+          ? 10
+          : 0;
+
   const masterDocChapterPills: Array<{
     short: string;
     code: ModuleCode;
@@ -4232,6 +4311,48 @@ export default function WorkspacePage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+      {isSyntheticPersonaPlan(currentPlan) && (
+        <div className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-950">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Badge className="bg-amber-600 text-[10px] text-white">
+                Persona Sandbox Preview
+              </Badge>
+              <span>
+                You are previewing synthetic persona{' '}
+                <strong>{currentPlan.title}</strong>. Your real startup plan is
+                safely preserved in your vault.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                onClick={() => {
+                  const restored = exitPersonaPreviewAndRestoreRealPlans();
+                  setSession(restored);
+                  const realPlan =
+                    restored.plans.find(
+                      (p) => p.id === restored.activePlanId
+                    ) || restored.plans[0];
+                  if (realPlan) {
+                    handleSelectPlan(realPlan.id);
+                  }
+                  router.replace('/workspace');
+                }}
+                className="h-7 bg-amber-900 px-3 text-xs font-semibold text-white hover:bg-amber-800"
+              >
+                Exit Sandbox &amp; Restore My Real Plan
+              </Button>
+              <Link
+                href="/admin?tab=persona-lab"
+                className="rounded-md border border-amber-400 bg-white px-2.5 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100"
+              >
+                Back to Persona Lab
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Clean Production Top Navigation Bar */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4 sm:px-6 sm:py-3.5">
@@ -4613,7 +4734,9 @@ export default function WorkspacePage() {
                               ? moduleEProgressPercent
                               : mod.code === 'MOD_F_COFOUNDER_TEAM'
                                 ? moduleFProgressPercent
-                                : mod.progress;
+                                : mod.code === 'MOD_H_REVENUE'
+                                  ? moduleHProgressPercent
+                                  : mod.progress;
 
                   return (
                     <button
@@ -5201,6 +5324,59 @@ export default function WorkspacePage() {
                   return updatedSession;
                 });
               }}
+              onSaveStep4SalesAssumptions={async (step4Data, progress = 85) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_H_STEP_4_SALES_ASSUMPTIONS',
+                      moduleHData: {
+                        ...(p.moduleHData || {}),
+                        step4SalesAssumptions: step4Data,
+                        completionPercentage: Math.max(
+                          p.moduleHData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep5RevenueBrief={async (step5Data, thingsToConsider, progress = 100) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_H_STEP_5_REVENUE_BRIEF',
+                      moduleHData: {
+                        ...(p.moduleHData || {}),
+                        step5RevenueBrief: step5Data,
+                        thingsToConsider: thingsToConsider ?? p.moduleHData?.thingsToConsider,
+                        completionPercentage: Math.max(
+                          p.moduleHData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
               onBackToModuleG={() => setActiveModule('MOD_G_LAUNCHPAD')}
               onNavigateToModule={(modCode, targetStep, highlightId) => {
                 const access = canAccessModule(activeEntitlement, modCode);
@@ -5450,12 +5626,12 @@ export default function WorkspacePage() {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        setOpenModAStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
+                        setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
                       }
                       className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                     >
-                      {openModAStep === 'ALL'
-                        ? 'Collapse All Steps'
+                      {openStep === 'ALL'
+                        ? 'Focus Step-by-Step'
                         : 'Expand All Steps'}
                     </Button>
                   </div>
@@ -5545,17 +5721,17 @@ export default function WorkspacePage() {
                   ].map((item, idx, arr) => {
                     const firstIncompleteIdx = arr.findIndex((s) => !s.done);
                     const isStepOpen =
-                      openModAStep === 'ALL'
+                      openStep === 'ALL'
                         ? (firstIncompleteIdx === -1
                             ? idx === arr.length - 1
                             : idx === firstIncompleteIdx)
-                        : openModAStep === item.stepNum;
+                        : openStep === item.stepNum;
                     return (
                       <button
                         key={item.step}
                         type="button"
                         onClick={() => {
-                          setOpenModAStep(item.stepNum);
+                          setOpenStep(item.stepNum);
                           setTimeout(() => {
                             const el = document.getElementById(item.targetId);
                             if (el) {
@@ -5592,10 +5768,10 @@ export default function WorkspacePage() {
               </div>
 
               {/* STEP 1: RAW IDEA BRAIN DUMP CARD */}
-              {openModAStep !== 'ALL' && openModAStep !== 1 ? (
+              {openStep !== 'ALL' && openStep !== 1 ? (
                 <div
                   id="mod-a-step-1"
-                  onClick={() => setOpenModAStep(1)}
+                  onClick={() => setOpenStep(1)}
                   className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -5678,14 +5854,14 @@ export default function WorkspacePage() {
                       </p>
                     </div>
 
-                    {openModAStep !== 'ALL' && (
+                    {openStep !== 'ALL' && (
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setOpenModAStep(0);
+                          setOpenStep(0);
                         }}
                         className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                       >
@@ -5901,7 +6077,7 @@ export default function WorkspacePage() {
                             disabled={isSavingCanvas}
                             onClick={() => {
                               handleSaveCanvasEdits();
-                              setOpenModAStep(2);
+                              setOpenStep(2);
                               setTimeout(() => {
                                 const el = document.getElementById('mod-a-step-2');
                                 if (el)
@@ -5924,10 +6100,10 @@ export default function WorkspacePage() {
               )}
 
           {/* STEP 2: FLESH OUT YOUR IDEA (USER-TYPED 5-BLOCK CONCEPT CANVAS + AI TIDY UP) */}
-          {openModAStep !== 'ALL' && openModAStep !== 2 ? (
+          {openStep !== 'ALL' && openStep !== 2 ? (
             <div
               id="mod-a-step-2"
-              onClick={() => setOpenModAStep(2)}
+              onClick={() => setOpenStep(2)}
               className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
@@ -6012,14 +6188,14 @@ export default function WorkspacePage() {
                   </p>
                 </div>
 
-                {openModAStep !== 'ALL' && (
+                {openStep !== 'ALL' && (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenModAStep(0);
+                      setOpenStep(0);
                     }}
                     className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                   >
@@ -6056,14 +6232,14 @@ export default function WorkspacePage() {
                     />
                   </div>
 
-                  {/* Box 2: Target Customer */}
+                  {/* Box 2: Target Customer / First Core Customer Group */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div>
                       <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                        2. Who feels this pain most? (Target Customer)
+                        2. Your First Core Customer Group (Who buys first?)
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        Who is the very first type of customer you want to help in {countryPack.countryName}?
+                        Who is the very first type of customer you want to help in {countryPack.countryName}? (A &ldquo;Beachhead&rdquo; simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
                       </p>
                     </div>
                     <textarea
@@ -6088,7 +6264,7 @@ export default function WorkspacePage() {
                         3. How does your product fix it? (The Solution)
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        In plain English, what does your product or service actually do?
+                        In plain English, what does your product or service actually do? Promised Delivery &amp; Reply Speed — (SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem.)
                       </p>
                     </div>
                     <textarea
@@ -6208,7 +6384,7 @@ export default function WorkspacePage() {
                         disabled={isSavingCanvas}
                         onClick={() => {
                           handleSaveCanvasEdits();
-                          setOpenModAStep(3);
+                          setOpenStep(3);
                           setTimeout(() => {
                             const el = document.getElementById('mod-a-step-3');
                             if (el)
@@ -6231,10 +6407,10 @@ export default function WorkspacePage() {
           )}
 
           {/* STEP 3: YOUR PERSONAL "WHY" & AMBITION (FOUNDER MOTIVATION) */}
-          {openModAStep !== 'ALL' && openModAStep !== 3 ? (
+          {openStep !== 'ALL' && openStep !== 3 ? (
             <div
               id="mod-a-step-3"
-              onClick={() => setOpenModAStep(3)}
+              onClick={() => setOpenStep(3)}
               className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
@@ -6315,14 +6491,14 @@ export default function WorkspacePage() {
                   </p>
                 </div>
 
-                {openModAStep !== 'ALL' && (
+                {openStep !== 'ALL' && (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenModAStep(0);
+                      setOpenStep(0);
                     }}
                     className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                   >
@@ -6571,7 +6747,7 @@ export default function WorkspacePage() {
                         disabled={isSavingCanvas}
                         onClick={() => {
                           handleSaveCanvasEdits();
-                          setOpenModAStep(4);
+                          setOpenStep(4);
                           setTimeout(() => {
                             const el = document.getElementById('mod-a-step-4');
                             if (el)
@@ -6594,10 +6770,10 @@ export default function WorkspacePage() {
           )}
 
           {/* STEP 4: YOUR TEAM & STARTING BUDGET (DAY-1 RESOURCES) */}
-          {openModAStep !== 'ALL' && openModAStep !== 4 ? (
+          {openStep !== 'ALL' && openStep !== 4 ? (
             <div
               id="mod-a-step-4"
-              onClick={() => setOpenModAStep(4)}
+              onClick={() => setOpenStep(4)}
               className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
@@ -6678,14 +6854,14 @@ export default function WorkspacePage() {
                   </p>
                 </div>
 
-                {openModAStep !== 'ALL' && (
+                {openStep !== 'ALL' && (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenModAStep(0);
+                      setOpenStep(0);
                     }}
                     className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                   >
@@ -6800,6 +6976,19 @@ export default function WorkspacePage() {
                     />
                   </div>
                 )}
+
+                {/* Micro-Coaching: Earning Co-Founder Shares Over Time (Reverse Vesting & Cliff) */}
+                <div className="mt-2.5 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 text-xs text-indigo-950">
+                  <div className="flex items-start gap-2">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <div>
+                      <span className="font-semibold text-indigo-900">
+                        Earning Co-Founder Shares Over Time (Protects Everyone If Someone Leaves Early)
+                      </span>{' '}
+                      — (Vesting means co-founders earn their shares month-by-month over 3–4 years (with a 12-month trial &ldquo;cliff&rdquo;) so nobody walks away after 3 months owning 50% of the company.)
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* 2. In-House Skill Coverage Check */}
@@ -7046,7 +7235,7 @@ export default function WorkspacePage() {
                       disabled={isSavingCanvas}
                       onClick={() => {
                         handleSaveCanvasEdits();
-                        setOpenModAStep(5);
+                        setOpenStep(5);
                         setTimeout(() => {
                           const el = document.getElementById('mod-a-step-5');
                           if (el)
@@ -7069,10 +7258,10 @@ export default function WorkspacePage() {
           )}
 
           {/* STEP 5: FOUNDER FIT, DEALBREAKERS & REALITY CHECK */}
-          {openModAStep !== 'ALL' && openModAStep !== 5 ? (
+          {openStep !== 'ALL' && openStep !== 5 ? (
             <div
               id="mod-a-step-5"
-              onClick={() => setOpenModAStep(5)}
+              onClick={() => setOpenStep(5)}
               className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
@@ -7153,14 +7342,14 @@ export default function WorkspacePage() {
                   </p>
                 </div>
 
-                {openModAStep !== 'ALL' && (
+                {openStep !== 'ALL' && (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenModAStep(0);
+                      setOpenStep(0);
                     }}
                     className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                   >
@@ -7376,7 +7565,7 @@ export default function WorkspacePage() {
                       },
                       {
                         id: 'NO_WEEKEND_SUPPORT' as FounderDealbreakerType,
-                        label: '🚫 No weekend 24/7 emergencies',
+                        label: '🚫 No weekend 24/7 emergencies (Promised Delivery & Reply Speed)',
                       },
                       {
                         id: 'OTHER' as FounderDealbreakerType,
@@ -7438,6 +7627,19 @@ export default function WorkspacePage() {
                     />
                   </div>
                 )}
+
+                {/* Micro-Coaching: Promised Delivery & Reply Speed (SLA) */}
+                <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-700">
+                  <div className="flex items-start gap-2">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <div>
+                      <span className="font-semibold text-slate-900">
+                        Promised Delivery &amp; Reply Speed
+                      </span>{' '}
+                      — (SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem.)
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* 4. Ownership, Grants & Control Trade-Off */}
@@ -7466,7 +7668,7 @@ export default function WorkspacePage() {
                         emoji: '🤝',
                         title: 'Co-Founder Partnership',
                         subtitle:
-                          'Share equity with the right partner so I don’t carry the whole load alone.',
+                          'Share equity with the right partner so I don’t carry the whole load alone. Earning Co-Founder Shares Over Time (Protects Everyone If Someone Leaves Early) — (Vesting means co-founders earn their shares month-by-month over 3–4 years (with a 12-month trial "cliff") so nobody walks away after 3 months owning 50% of the company.)',
                       },
                       {
                         id: 'RAISE_INVESTMENT' as GrowthTradeoffPreference,
@@ -7714,7 +7916,7 @@ export default function WorkspacePage() {
                       disabled={isSavingCanvas}
                       onClick={() => {
                         handleSaveCanvasEdits();
-                        setOpenModAStep(6);
+                        setOpenStep(6);
                         setTimeout(() => {
                           const el = document.getElementById('mod-a-step-6');
                           if (el)
@@ -7737,10 +7939,10 @@ export default function WorkspacePage() {
           )}
 
           {/* STEP 6: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARD */}
-          {openModAStep !== 'ALL' && openModAStep !== 6 ? (
+          {openStep !== 'ALL' && openStep !== 6 ? (
             <div
               id="mod-a-step-6"
-              onClick={() => setOpenModAStep(6)}
+              onClick={() => setOpenStep(6)}
               className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/50 via-white to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-400 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
@@ -7821,14 +8023,14 @@ export default function WorkspacePage() {
                   </p>
                 </div>
 
-                {openModAStep !== 'ALL' && (
+                {openStep !== 'ALL' && (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenModAStep(0);
+                      setOpenStep(0);
                     }}
                     className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                   >
@@ -7924,7 +8126,7 @@ export default function WorkspacePage() {
                     <Button
                       size="sm"
                       onClick={() => {
-                        setOpenModAStep(7);
+                        setOpenStep(7);
                         setTimeout(() => {
                           const el = document.getElementById('mod-a-step-7');
                           if (el)
@@ -7953,10 +8155,10 @@ export default function WorkspacePage() {
           {/* ========================================================= */}
           {isGrantCheckerSupported && (
             <ModuleAGrantCheckerStep
-              isOpen={openModAStep === 'ALL' || openModAStep === 7}
-              isAllExpanded={openModAStep === 'ALL'}
-              onExpandStep={() => setOpenModAStep(7)}
-              onCollapseStep={() => setOpenModAStep(6)}
+              isOpen={openStep === 'ALL' || openStep === 7}
+              isAllExpanded={openStep === 'ALL'}
+              onExpandStep={() => setOpenStep(7)}
+              onCollapseStep={() => setOpenStep(6)}
               hqCountryCode={selectedCountry}
               planTitle={currentPlan.title}
               industryCategory={currentPlan.industryCategory}
@@ -7974,7 +8176,7 @@ export default function WorkspacePage() {
               isRunningAiAdvisor={isRunningGrantAdvisor}
               onParkOpenQuestion={handleParkSpecificQuestion}
               onContinueToBrief={() => {
-                setOpenModAStep(8);
+                setOpenStep(8);
                 setTimeout(() => {
                   const el = document.getElementById('mod-a-step-8');
                   if (el) {
@@ -8022,10 +8224,10 @@ export default function WorkspacePage() {
           {/* ========================================================= */}
           {/* STARTUP OVERVIEW & SUMMARY BRIEF (LIVE DOCUMENT)          */}
           {/* ========================================================= */}
-          {openModAStep !== 'ALL' && openModAStep !== briefStepNumber ? (
+          {openStep !== 'ALL' && openStep !== briefStepNumber ? (
             <div
               id={briefStepId}
-              onClick={() => setOpenModAStep(briefStepNumber)}
+              onClick={() => setOpenStep(briefStepNumber)}
               className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
@@ -8125,14 +8327,14 @@ export default function WorkspacePage() {
                       ? 'Hide Document Preview'
                       : 'Show Document Preview'}
                   </Button>
-                  {openModAStep !== 'ALL' && (
+                  {openStep !== 'ALL' && (
                     <Button
                       type="button"
                       size="sm"
                       variant="ghost"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setOpenModAStep(0);
+                        setOpenStep(0);
                       }}
                       className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                     >
@@ -8494,7 +8696,7 @@ export default function WorkspacePage() {
                               size="sm"
                               variant="outline"
                               onClick={() => {
-                                setOpenModAStep(7);
+                                setOpenStep(7);
                                 setTimeout(() => {
                                   const el = document.getElementById('mod-a-step-7');
                                   if (el) {
@@ -8784,7 +8986,7 @@ export default function WorkspacePage() {
               {activeModule === 'MOD_A_IDEATION'
                 ? 'Want me to suggest a sharper way to quantify your customer pain point or park a pricing question for later?'
                 : activeModule === 'MOD_B_MARKET'
-                  ? 'Focus on a narrow, reachable Beachhead buyer first—and don’t forget to include the "Do Nothing / Spreadsheets" status quo in your competitor list!'
+                  ? 'Focus on your First Core Customer Group (Who buys first?) — (A "Beachhead" simply means the very first specific group of customers you focus on winning before expanding to everyone else.)—and don’t forget to include the "Do Nothing / Spreadsheets" status quo in your competitor list!'
                   : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
                     ? 'Keep your survey & interview questions focused on past behaviour and real workarounds ("The Mom Test") rather than asking if people like your idea.'
                     : 'Choose the Product Track that matches what your buyer actually receives so every downstream question stays 100% relevant to your business model.'}

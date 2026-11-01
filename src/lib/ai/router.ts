@@ -11068,6 +11068,416 @@ Return strictly valid JSON:
   return fallback;
 }
 
+// -----------------------------------------------------------------------------
+// MODULE H (STEP 4): SALES VELOCITY, CAPACITY & ASSUMPTIONS GENERATOR
+// -----------------------------------------------------------------------------
+
+export interface GenerateSalesAssumptionsNarrativeResult {
+  allowed: boolean;
+  narrative: string;
+  assessorTip?: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer' | 'unauthorized';
+}
+
+function buildSmartSalesAssumptionsNarrative(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  currencySymbol?: string;
+  salesMotion?: string;
+  salesCycleDays?: number;
+  conversionRatePercent?: number;
+  breakevenMonthlyUnits?: number;
+  requiredMonthlyLeads?: number;
+  monthlyCapacityCap?: number;
+  capacityFeasibilityStatus?: string;
+  retentionMetricLabel?: string;
+  retentionPercent?: number;
+  primaryChannel?: string;
+  beachheadCustomer?: string;
+}): GenerateSalesAssumptionsNarrativeResult {
+  const isIE = (params.hqCountryCode || 'IE') === 'IE';
+  const agencyName = isIE ? 'LEO / Enterprise Ireland' : 'Innovate UK / Start Up Loans';
+  const units = params.breakevenMonthlyUnits ?? 35;
+  const conv = params.conversionRatePercent ?? 2.5;
+  const cycle = params.salesCycleDays ?? 14;
+  const leads = params.requiredMonthlyLeads ?? Math.ceil(units / (conv / 100));
+  const dailyLeads = Math.max(1, Math.ceil(leads / 30));
+  const cap = params.monthlyCapacityCap ?? 45;
+  const motion = params.salesMotion || 'SELF_SERVE_WEB';
+  const channel = params.primaryChannel || 'Direct Web';
+  const customer = params.beachheadCustomer || 'early-adopter target customers';
+
+  const motionLabel =
+    motion === 'SELF_SERVE_WEB'
+      ? 'frictionless digital self-serve checkout'
+      : motion === 'INSIDE_SALES_DEMO'
+      ? 'product demo and consultative discovery calls'
+      : motion === 'ENTERPRISE_RFP'
+      ? 'formal commercial proposals and tender assessments'
+      : motion === 'RETAIL_MARKETPLACE'
+      ? 'marketplace storefront listing and direct order fulfillment'
+      : 'direct client engagements';
+
+  const p1 = `Commercial Acquisition & Conversion Mechanics: Customer conversion is executed via ${motionLabel} anchored on ${channel}. To secure the Year 1 breakeven volume of ${units.toLocaleString()} paying customers/orders per month, the financial plan operates on a conservative blended conversion rate of ${conv}%. This requires generating approximately ${leads.toLocaleString()} qualified pipeline prospects/visitors per month (~${dailyLeads} per day). Given the defined beachhead persona (${customer}), this acquisition velocity represents an attainable top-of-funnel operational target.`;
+
+  const p2 = `Pipeline Velocity & Revenue Realization Lag: The average sales cycle from initial prospect touchpoint to contract settlement is calibrated at ${cycle} days. This sales velocity directly accounts for buyer evaluation friction and payment processing schedules. Working capital reserves and grant funding bridge this realization cycle to insulate operational cashflow against initial conversion delays.`;
+
+  const p3 = `Operational Delivery Capacity & Scalability: Team operational capacity is currently capped at ${cap.toLocaleString()} units/orders per month under existing founder allocations and production protocols. Comparing this ceiling against the required breakeven volume of ${units.toLocaleString()} units demonstrates that the venture can achieve cashflow profitability ${
+    cap >= units
+      ? `comfortably within existing capacity (with a protective buffer of ${(cap - units).toLocaleString()} units/month before requiring new operational hires)`
+      : `with scheduled capacity expansion and team onboarding planned in early Year 1`
+  }, maintaining robust delivery standards and meeting ${agencyName} commercial viability requirements.`;
+
+  return {
+    allowed: true,
+    narrative: `${p1}\n\n${p2}\n\n${p3}`,
+    assessorTip: isIE
+      ? 'LEO assessors will evaluate whether your conversion rate assumptions are grounded in real-world benchmark data rather than optimistic speculation.'
+      : 'Innovate UK evaluators verify that your required daily lead volume aligns with your marketing budget and team operational bandwidth.',
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export interface GenerateModuleHRevenueBriefResult {
+  allowed: boolean;
+  reason?: string;
+  blindSpots: BlindSpotItem[];
+  revenueReadinessConfidence: 'READY_FOR_COMMERCIAL_LAUNCH' | 'PRICING_TESTING_RECOMMENDED' | 'WORKING_CAPITAL_GAP_WARNING' | 'NEEDS_CAPACITY_EXPANSION' | 'OTHER';
+  executiveCommercialSummaryNarrative: string;
+  assessorTip?: string;
+  creditsUsedAfter?: number;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+function buildSmartRevenueBriefFallback(params: {
+  planTitle?: string;
+  revenueModelVehicle?: string;
+  blendedAveragePrice?: number;
+  currencySymbol?: string;
+  pocketProfitPerSale?: number;
+  contributionMarginPercent?: number;
+  yr1BreakevenUnits?: number;
+  monthlyFixedNut?: number;
+  salesMotion?: string;
+  monthlyCapacity?: number;
+  hqCountryCode?: SupportedCountryCode;
+}): {
+  blindSpots: BlindSpotItem[];
+  revenueReadinessConfidence: 'READY_FOR_COMMERCIAL_LAUNCH' | 'PRICING_TESTING_RECOMMENDED' | 'WORKING_CAPITAL_GAP_WARNING' | 'NEEDS_CAPACITY_EXPANSION' | 'OTHER';
+  executiveCommercialSummaryNarrative: string;
+  assessorTip: string;
+} {
+  const isIE = params.hqCountryCode !== 'GB';
+  const sym = params.currencySymbol || (isIE ? '€' : '£');
+  const price = params.blendedAveragePrice || 49;
+  const profit = params.pocketProfitPerSale || 38;
+  const margin = params.contributionMarginPercent || 78;
+  const nut = params.monthlyFixedNut || 3200;
+  const breakeven = params.yr1BreakevenUnits || 85;
+  const cap = params.monthlyCapacity || 120;
+  const hasSurplus = cap >= breakeven;
+
+  const blindSpots: BlindSpotItem[] = [
+    {
+      id: 'bs-rev-margin',
+      title: margin < 65 ? 'Tight Contribution Margin Buffer' : 'Margin Resiliency & Price Elasticity',
+      category: 'COMMERCIAL_PRICING',
+      severity: margin < 65 ? 'CRITICAL' : 'WARNING',
+      explanation: `With a ${margin}% contribution margin (${sym}${profit} net pocket profit per sale), unexpected increases in platform gateway charges, merchant processing fees, or direct COGS could compress your operational cushion.`,
+      suggestedAction: `Stress-test a 10-15% increase in variable fulfillment fees. Ensure your premium tier or volume add-ons provide an accretive gross margin above 80% to protect net cash flow.`,
+    },
+    {
+      id: 'bs-rev-cashflow-gap',
+      title: 'Debtor Settlement Lag vs. Monthly Payroll Nut',
+      category: 'WORKING_CAPITAL',
+      severity: 'WARNING',
+      explanation: `Your monthly fixed baseline commitments total ${sym}${nut.toLocaleString()}. Payment gateway settlement delays (3-7 days for online, or 30-60 days for invoicing) create a working capital timing trough before incoming debtor cash clears.`,
+      suggestedAction: `Maintain a minimum 2-3 month cash buffer or secure non-dilutive grant reimbursement timing (such as LEO Feasibility/Priming or Innovate UK Smart Grant advances) to prevent cash-starvation during peak customer delivery.`,
+    },
+    {
+      id: 'bs-rev-capacity-ceiling',
+      title: hasSurplus ? 'Delivery Capacity Buffer Confirmed' : 'Capacity Bottleneck Under Breakeven Target',
+      category: 'OPERATIONAL_CAPACITY',
+      severity: hasSurplus ? 'INFO' : 'CRITICAL',
+      explanation: hasSurplus
+        ? `Your current operational delivery capacity (${cap.toLocaleString()} units/mo) safely accommodates the Year 1 breakeven requirement (${breakeven.toLocaleString()} units/mo), leaving a healthy operational surplus buffer.`
+        : `Your monthly delivery capacity of ${cap.toLocaleString()} units is currently below the ${breakeven.toLocaleString()} units required to hit operational breakeven, indicating a founder burnout or under-resourcing risk.`,
+      suggestedAction: hasSurplus
+        ? `Preserve product quality by monitoring turnaround times as sales volume scales past 75% of your current delivery ceiling.`
+        : `Schedule additional operational headcount or automate fulfillment workflows (Module E) before initiating aggressive acquisition marketing in Module I.`,
+    },
+    {
+      id: 'bs-rev-vat-threshold',
+      title: isIE ? 'Irish Revenue VAT Threshold Proximity (€42.5k / €85k)' : 'HMRC UK VAT Registration Threshold (£90,000)',
+      category: 'STATUTORY_COMPLIANCE',
+      severity: 'WARNING',
+      explanation: isIE
+        ? `Reaching Year 1 commercial targets will quickly approach Irish VAT registration thresholds (€42,500 for services, €85,000 for physical goods). Pricing must anticipate 23% or 13.5% VAT liabilities.`
+        : `Annualizing your breakeven revenue puts you within range of the UK £90,000 rolling 12-month VAT threshold, which immediately introduces a 20% standard VAT deduction on gross customer receipts.`,
+      suggestedAction: `Verify whether your headline prices to consumers are gross (VAT-inclusive) or net of tax to prevent an unexpected 20-23% reduction in pocket contribution upon statutory registration.`,
+    },
+  ];
+
+  const p1 = `Commercial Revenue Architecture: The commercial model is structured around a verified ${
+    params.revenueModelVehicle || 'recurring subscription / unit sales'
+  } monetization strategy delivering an average blended net realization of ${sym}${price.toLocaleString()}. Deducting platform processing fees, gateway deductions, and direct delivery COGS leaves a net pocket contribution of ${sym}${profit.toLocaleString()} per transaction (${margin}% contribution margin).`;
+
+  const p2 = `Breakeven Math & Financial Viability: Total baseline fixed overheads and scheduled founder survival commitments require ${sym}${nut.toLocaleString()} per month in Year 1. To cover this nut and reach cashflow breakeven, the business must transact ${breakeven.toLocaleString()} customer units monthly, generating ${sym}${(
+    breakeven * price
+  ).toLocaleString()} in gross monthly commercial revenue.`;
+
+  const p3 = `Operational Delivery & Conversion Feasibility: Current operational bandwidth supports up to ${cap.toLocaleString()} deliveries per month. Comparing this ceiling against the ${breakeven.toLocaleString()} breakeven requirement demonstrates ${
+    hasSurplus
+      ? `a comfortable operational surplus buffer, confirming that the business can scale into commercial profitability without immediate operational breakdown`
+      : `that early operational capacity expansion will be essential as acquisition ramps up`
+  }. Combined with realistic pipeline conversion assumptions, this structure satisfies the strict commercial viability criteria required by ${
+    isIE ? 'LEO and Enterprise Ireland' : 'Innovate UK and British Business Bank'
+  } evaluators.`;
+
+  return {
+    blindSpots,
+    revenueReadinessConfidence: hasSurplus && margin >= 65 ? 'READY_FOR_COMMERCIAL_LAUNCH' : 'PRICING_TESTING_RECOMMENDED',
+    executiveCommercialSummaryNarrative: `${p1}\n\n${p2}\n\n${p3}`,
+    assessorTip: isIE
+      ? 'LEO evaluation committees prioritize ventures demonstrating a clear contribution margin buffer (>65%) that can absorb early marketing inefficiencies and debtor collection lags.'
+      : 'Innovate UK and Start Up Loans assessors look for proof that your breakeven unit count does not exceed the realistic operational delivery bandwidth of your current team.',
+  };
+}
+
+/**
+ * AI Assessor Mode: Generates Module H Step 5 Executive Commercial Brief & Blind-Spot Audit.
+ */
+export async function generateModuleHRevenueBriefViaRouter(params: {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  currencySymbol: string;
+  revenueModelVehicle: string;
+  blendedAveragePrice: number;
+  pocketProfitPerSale: number;
+  contributionMarginPercent: number;
+  yr1BreakevenUnits: number;
+  monthlyFixedNut: number;
+  salesMotion: string;
+  monthlyCapacity: number;
+  currentBlindSpots?: BlindSpotItem[];
+}): Promise<GenerateModuleHRevenueBriefResult> {
+  const fallback = buildSmartRevenueBriefFallback(params);
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_H_REVENUE_BRIEF',
+    'You are a senior venture underwriter and government grant evaluator specializing in startup unit economics, contribution margin viability, and operational capacity verification.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const isIE = params.hqCountryCode !== 'GB';
+      const prompt = `You are a Senior Commercial Auditor and Grant Evaluation Specialist for ${
+        isIE ? 'Enterprise Ireland & Local Enterprise Offices (LEO)' : 'Innovate UK & British Business Bank Start Up Loans'
+      }.
+Review the following early-stage startup commercial architecture:
+
+Plan: "${sanitizePromptInput(params.planTitle, 100)}" (${params.industryCategory || 'Startup'})
+HQ Location: ${params.hqCountryCode} | Currency: ${params.currencySymbol}
+Monetization Vehicle: ${params.revenueModelVehicle}
+Blended Average Price: ${params.currencySymbol}${params.blendedAveragePrice}
+Net Pocket Profit per Sale: ${params.currencySymbol}${params.pocketProfitPerSale} (${params.contributionMarginPercent}% margin)
+Monthly Baseline Fixed Commitment (Nut): ${params.currencySymbol}${params.monthlyFixedNut}
+Year 1 Monthly Breakeven Target: ${params.yr1BreakevenUnits} units/mo
+Primary Sales Motion: ${params.salesMotion}
+Team Monthly Delivery Capacity: ${params.monthlyCapacity} units/mo
+
+Tasks:
+1. Provide a rigorous, constructive 3-paragraph "Executive Commercial Summary Narrative" defending:
+   - Paragraph 1: Monetization mechanics, gross-to-net realization, and pocket contribution margin.
+   - Paragraph 2: Breakeven feasibility against baseline overheads and founder survival commitments.
+   - Paragraph 3: Operational delivery bandwidth feasibility and defense for grant/loan committee evaluators.
+2. Generate 4 constructive Blind-Spot Review items (JSON array with id, title, category, severity="CRITICAL"|"WARNING"|"INFO", explanation, suggestedAction).
+3. Set revenueReadinessConfidence to one of: "READY_FOR_COMMERCIAL_LAUNCH", "PRICING_TESTING_RECOMMENDED", "WORKING_CAPITAL_GAP_WARNING", "NEEDS_CAPACITY_EXPANSION".
+4. Provide a 1-sentence assessorTip highlighting what a grant evaluator will check first.
+
+Return strictly JSON:
+{
+  "executiveCommercialSummaryNarrative": "string (180-240 words in 3 paragraphs separated by \\n\\n)",
+  "blindSpots": [
+    {
+      "id": "bs-1",
+      "title": "string",
+      "category": "COMMERCIAL_PRICING",
+      "severity": "CRITICAL" | "WARNING" | "INFO",
+      "explanation": "string",
+      "suggestedAction": "string"
+    }
+  ],
+  "revenueReadinessConfidence": "READY_FOR_COMMERCIAL_LAUNCH" | "PRICING_TESTING_RECOMMENDED" | "WORKING_CAPITAL_GAP_WARNING" | "NEEDS_CAPACITY_EXPANSION",
+  "assessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          executiveCommercialSummaryNarrative?: string;
+          blindSpots?: BlindSpotItem[];
+          revenueReadinessConfidence?: 'READY_FOR_COMMERCIAL_LAUNCH' | 'PRICING_TESTING_RECOMMENDED' | 'WORKING_CAPITAL_GAP_WARNING' | 'NEEDS_CAPACITY_EXPANSION';
+          assessorTip?: string;
+        };
+
+        if (parsed.executiveCommercialSummaryNarrative) {
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            promptKey: 'MOD_H_REVENUE_BRIEF',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 750,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 550,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            blindSpots: parsed.blindSpots?.length ? parsed.blindSpots : fallback.blindSpots,
+            revenueReadinessConfidence: parsed.revenueReadinessConfidence || fallback.revenueReadinessConfidence,
+            executiveCommercialSummaryNarrative: parsed.executiveCommercialSummaryNarrative.trim(),
+            assessorTip: parsed.assessorTip?.trim() || fallback.assessorTip,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Error in generateModuleHRevenueBriefViaRouter:', err);
+    }
+  }
+
+  return {
+    allowed: true,
+    ...fallback,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generateSalesAssumptionsNarrativeViaRouter(params: {
+  planId?: string;
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  currencySymbol?: string;
+  salesMotion?: string;
+  salesCycleDays?: number;
+  conversionRatePercent?: number;
+  breakevenMonthlyUnits?: number;
+  requiredMonthlyLeads?: number;
+  monthlyCapacityCap?: number;
+  capacityFeasibilityStatus?: string;
+  retentionMetricLabel?: string;
+  retentionPercent?: number;
+  primaryChannel?: string;
+  beachheadCustomer?: string;
+}): Promise<GenerateSalesAssumptionsNarrativeResult> {
+  const fallback = buildSmartSalesAssumptionsNarrative(params);
+  const country = params.hqCountryCode || 'IE';
+  const countryLabel =
+    country === 'IE'
+      ? 'Ireland (Local Enterprise Office LEO & Enterprise Ireland Appraisal Panels)'
+      : 'United Kingdom (Innovate UK Grant Assessors & British Business Bank Start Up Loans Credit Underwriters)';
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_H_SALES_ASSUMPTIONS',
+    'You are a senior venture underwriter, commercial loan assessor, and government grant evaluator specializing in sales funnels, pipeline conversion velocity, and operational capacity verification.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `Write a rigorous, professional 3-paragraph Written Sales Assumptions & Capacity Justification for ${sanitizePromptInput(
+        params.planTitle || 'Startup',
+        100
+      )} in ${countryLabel}.
+This narrative will be placed directly in the Grant Application / Bank Credit Paper evaluating customer acquisition feasibility, pipeline velocity, and operational capacity limits.
+
+COMMERCIAL FIGURES & FUNNEL METRICS:
+- Industry Category: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+- Primary Sales Motion: ${params.salesMotion || 'SELF_SERVE_WEB'} via ${params.primaryChannel || 'Direct Web'}
+- Required Breakeven Volume: ${params.breakevenMonthlyUnits ?? 35} paying sales/clients per month
+- Expected Conversion Rate: ${params.conversionRatePercent ?? 2.5}%
+- Required Monthly Qualified Leads/Traffic: ${params.requiredMonthlyLeads ?? 1400} per month (~${Math.ceil((params.requiredMonthlyLeads || 1400) / 30)} per day)
+- Lead-to-Close Sales Cycle Velocity: ${params.salesCycleDays ?? 14} days
+- Monthly Operational Delivery Capacity: ${params.monthlyCapacityCap ?? 45} orders/clients per month
+- Capacity Feasibility Status: ${params.capacityFeasibilityStatus || 'CAPACITY_SURPLUS'}
+- Customer Retention / Repeat Purchase: ${params.retentionPercent ?? 5}% ${params.retentionMetricLabel || 'monthly churn'}
+- Beachhead Customer Persona: ${sanitizePromptInput(params.beachheadCustomer || 'Target segment', 120)}
+
+REQUIREMENTS:
+1. Paragraph 1 (Acquisition & Conversion Math): Explain the sales motion, defend why the ${params.conversionRatePercent}% conversion rate is realistic, and articulate the required monthly lead pipeline (${params.requiredMonthlyLeads} prospects/month) needed to hit the ${params.breakevenMonthlyUnits} monthly breakeven target.
+2. Paragraph 2 (Velocity & Realization Lag): Address the ${params.salesCycleDays}-day sales cycle lag, explaining customer decision-making timing and how cashflow timing is safeguarded during market ramp.
+3. Paragraph 3 (Capacity vs. Breakeven Solvency): Compare the breakeven requirement (${params.breakevenMonthlyUnits}/month) against the operational capacity cap (${params.monthlyCapacityCap}/month), proving that the venture will not suffer service bottlenecks or quality degradation prior to reaching profitability.
+4. Tone: Commercial, grounded, analytical, and defensible. Avoid generic fluff. Length: 160-220 words.
+5. Provide a 1-sentence tactical Assessor Tip for the founder when defending these assumptions in an evaluation interview.
+
+Return strictly valid JSON:
+{
+  "narrative": "string (160-220 words in 3 structured paragraphs)",
+  "assessorTip": "string (1 concise sentence)"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          narrative?: string;
+          assessorTip?: string;
+        };
+
+        if (parsed.narrative) {
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            promptKey: 'MOD_H_SALES_ASSUMPTIONS',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 650,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 400,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            narrative: parsed.narrative.trim(),
+            assessorTip: parsed.assessorTip?.trim() || fallback.assessorTip,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Error in generateSalesAssumptionsNarrativeViaRouter:', err);
+    }
+  }
+
+  return fallback;
+}
+
+
+
 
 
 

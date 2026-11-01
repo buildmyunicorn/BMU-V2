@@ -65,9 +65,15 @@ function extractModuleSliceFromMainWorkspace(
   if (idx === -1) return '';
   // For Module A, grab the main Module A rendering region
   if (moduleCode === 'MOD_A_IDEATION') {
-    const modAStart = mainWorkspaceContent.indexOf("activeModule === 'MOD_A_IDEATION'");
-    if (modAStart !== -1) {
-      return mainWorkspaceContent.slice(modAStart, modAStart + 180000);
+    const modAStart = mainWorkspaceContent.indexOf('{/* Module A Top Header Banner');
+    const fallbackStart = mainWorkspaceContent.indexOf("activeModule === 'MOD_A_IDEATION'");
+    const start = modAStart !== -1 ? modAStart : fallbackStart;
+    if (start !== -1) {
+      const endIdx = mainWorkspaceContent.indexOf('{/* LAYER 2: SLIDE-OUT "ASK PREFLIGHT AI"', start);
+      if (endIdx !== -1) {
+        return mainWorkspaceContent.slice(start, endIdx);
+      }
+      return mainWorkspaceContent.slice(start, start + 180000);
     }
   }
   return mainWorkspaceContent.slice(Math.max(0, idx - 500), idx + 35000);
@@ -231,15 +237,19 @@ export async function runPersonaPlatformAuditAction(input: {
     for (const rule of JARGON_LEXICON_RULES) {
       if (!rule.flaggedAtLevels.includes(comprehension.id)) continue;
 
-      const regex = new RegExp(rule.termPattern, 'i');
+      const patternStr = rule.termPattern.includes('/')
+        ? rule.termPattern.replace(/\//g, '\\/')
+        : `\\b${rule.termPattern}\\b`;
+      const regex = new RegExp(patternStr, 'i');
       if (regex.test(analyzedContent)) {
-        // Check if plain-English helper or tooltip is already right next to it
+        // Check if plain-English helper or tooltip is already right next to it or replaces it
         const hasPlainExplanationNearby =
-          analyzedContent.toLowerCase().includes('plain english') ||
+          analyzedContent.includes(rule.plainEnglishReplacement) ||
+          analyzedContent.includes(rule.inlineTooltipExplanation) ||
           analyzedContent.toLowerCase().includes('simply means') ||
           analyzedContent.toLowerCase().includes('in plain terms');
 
-        if (!hasPlainExplanationNearby || comprehension.id === 'L1_EVERYDAY') {
+        if (!hasPlainExplanationNearby) {
           flaggedJargonSet.add(rule.displayTerm);
           moduleFindings.push({
             id: `${modMeta.code}-jargon-${rule.termPattern.toLowerCase().replace(/[^a-z0-9]/g, '')}`,

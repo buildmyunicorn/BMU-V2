@@ -517,7 +517,7 @@ export function ModuleGWorkspace({
               {/* State A: Already Have This */}
               {data.step1.state === 'ALREADY_HAVE' ? (
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-4 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-slate-700">Legal Entity Type</Label>
                       <select
@@ -590,7 +590,7 @@ export function ModuleGWorkspace({
                     <p className="text-xs text-slate-600 leading-relaxed">
                       For software, tech and high-potential startups in Ireland and the UK, a <strong>Private Limited Company (LTD)</strong> is virtually required before signing commercial contracts, granting employee equity, or applying for State Grants (LEO Priming / Enterprise Ireland PSSF / Innovate UK).
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
                       <div className="rounded-lg border border-slate-200 bg-white p-2.5">
                         <div className="text-[11px] font-bold text-slate-800">Direct Cost</div>
                         <div className="text-xs text-slate-600">€50 (CRO Core, IE) / £50 (Companies House, UK)</div>
@@ -964,7 +964,7 @@ export function ModuleGWorkspace({
 
               {data.step3.state === 'ALREADY_HAVE' ? (
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-4 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-1.5 sm:col-span-2">
                       <Label className="text-xs font-semibold text-slate-700">Banking Provider</Label>
                       <select
@@ -1560,6 +1560,14 @@ export function ModuleGWorkspace({
                       />
                       <span>Standard Mutual Non-Disclosure Agreement (NDA)</span>
                     </label>
+                  </div>
+
+                  {/* Micro-Coaching: Customer Service & Promised Reply Speed (SLA) */}
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[11px] text-slate-600">
+                    <span className="font-semibold text-slate-800">
+                      Promised Delivery &amp; Reply Speed (SLA):
+                    </span>{' '}
+                    SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem. You can outline your support speed policy in your customer terms.
                   </div>
                 </div>
 

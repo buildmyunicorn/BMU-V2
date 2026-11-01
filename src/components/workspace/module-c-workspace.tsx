@@ -1750,7 +1750,7 @@ export function ModuleCWorkspace({
         date: new Date(now).toISOString().slice(0, 10),
         channel: 'PHONE_CALL',
         rawNotes: `10-min phone call. Said the idea sounds super cool and modern, and she'd "definitely check it out when it launches," but admitted she only deals with ${shortProblemRef} once a quarter and just uses a free template.`,
-        keyTakeaway: `Polite compliments ("sounds super cool"), but only encounters the problem once a quarter and uses a free template—not our high-urgency beachhead.`,
+        keyTakeaway: `Polite compliments ("sounds super cool"), but only encounters the problem once a quarter and uses a free template—not our high-urgency first core customer group (a "Beachhead" simply means the very first specific group of customers you focus on winning before expanding to everyone else).`,
         verbatimQuote: `Your app sounds really slick and I'd definitely take a look when you launch, though for me it only comes up once every few months.`,
         workaroundAndSpend: `Free template once a quarter (€0 spend).`,
         painScore1To5: 2,
@@ -2803,7 +2803,7 @@ export function ModuleCWorkspace({
                     </div>
 
                     {/* 4 Mini Metrics Strip */}
-                    <div className="grid grid-cols-3 gap-2 pt-1 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-xl border border-slate-200/80 bg-white px-2.5 py-2 text-center">
                         <div className="text-sm font-extrabold text-slate-900">
                           {s.questions.length}
@@ -3399,13 +3399,16 @@ export function ModuleCWorkspace({
                   <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
                     <div className="rounded-lg bg-slate-50 px-2.5 py-1.5">
                       <span className="font-semibold text-slate-500">
-                        Beachhead Persona (Mod A/B):{' '}
+                        First Core Customer Group / Beachhead (Mod A/B):{' '}
                       </span>
                       <span className="font-bold text-slate-800">
                         {plan.moduleBData?.beachhead?.beachheadSegment ||
                           plan.conceptCanvas?.targetCustomer ||
                           'Target customer from Module A'}
                       </span>
+                      <p className="mt-0.5 text-[10px] text-slate-400">
+                        (A &quot;Beachhead&quot; simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
+                      </p>
                     </div>
                     <div className="rounded-lg bg-slate-50 px-2.5 py-1.5">
                       <span className="font-semibold text-slate-500">
@@ -4680,7 +4683,7 @@ export function ModuleCWorkspace({
                     </div>
 
                     {/* Download & Print Buttons */}
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       <Button
                         type="button"
                         variant="outline"
@@ -4793,7 +4796,7 @@ export function ModuleCWorkspace({
           </div>
 
           {/* 4 KPI Summary Cards */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Card
               onClick={() => setActiveInsightsSubTab('QUESTIONS')}
               className="cursor-pointer border-slate-200 shadow-2xs transition-colors hover:border-indigo-300"
@@ -5633,7 +5636,7 @@ export function ModuleCWorkspace({
             </div>
 
             {/* How It Works 3-Step Strip */}
-            <div className="mt-6 grid grid-cols-1 gap-3 border-t border-amber-200/80 pt-4 sm:grid-cols-3">
+            <div className="mt-6 grid grid-cols-1 gap-3 border-t border-amber-200/80 pt-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
                   1
@@ -6305,7 +6308,7 @@ export function ModuleCWorkspace({
             {/* Modal Scrollable Body */}
             <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
               {/* Row 1: Name/Role, Email, Date */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700">
                     Person Name &amp; Role *

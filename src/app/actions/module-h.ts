@@ -13,6 +13,7 @@ import type {
   PricingTiersStep2Data,
   BreakevenCalculatorStep3Data,
   SalesAssumptionsStep4Data,
+  RevenueBlindSpotAuditStep5Data,
   SavedModuleHData,
   SavedModuleFData,
 } from '@/lib/auth/session-store';
@@ -23,6 +24,10 @@ import {
   type GeneratePricingStrategyJustificationResult,
   generateBreakevenAssessorNarrativeViaRouter,
   type GenerateBreakevenAssessorNarrativeResult,
+  generateSalesAssumptionsNarrativeViaRouter,
+  type GenerateSalesAssumptionsNarrativeResult,
+  generateModuleHRevenueBriefViaRouter,
+  type GenerateModuleHRevenueBriefResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -680,6 +685,355 @@ export async function generateBreakevenAssessorNarrativeAction(input: {
     exportFocusRegions: input.exportFocusRegions,
     unfairAdvantage,
     beachheadCustomer,
+  });
+}
+
+/**
+ * Persists Module H Step 4 (Sales Velocity, Capacity & Written Assumptions) to `plan_modules_data`.
+ */
+export async function saveModuleHStep4SalesAssumptionsAction(input: {
+  planId: string;
+  salesAssumptions: SalesAssumptionsStep4Data;
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean; error?: string }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false, error: 'Unauthorized plan access' };
+  }
+
+  try {
+    await ensureModuleHEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_H_REVENUE')
+        )
+      )
+      .limit(1);
+
+    const nowIso = new Date().toISOString();
+    const cleanStep4: SalesAssumptionsStep4Data = {
+      ...input.salesAssumptions,
+      lastSavedAt: nowIso,
+    };
+
+    const currentJson: Record<string, unknown> =
+      existingMod.length > 0 &&
+      typeof existingMod[0].structuredInputsJsonb === 'object' &&
+      existingMod[0].structuredInputsJsonb !== null
+        ? (existingMod[0].structuredInputsJsonb as Record<string, unknown>)
+        : {};
+
+    const updatedJson: Record<string, unknown> = {
+      ...currentJson,
+      step4SalesAssumptions: cleanStep4,
+      lastSavedAt: nowIso,
+    };
+
+    const newCompletion = Math.max(
+      existingMod[0]?.completionPercentage || 0,
+      input.completionPercentage ?? 80
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedJson,
+          completionPercentage: newCompletion,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(planModulesData.planId, input.planId),
+            eq(planModulesData.moduleCode, 'MOD_H_REVENUE')
+          )
+        );
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_H_REVENUE',
+        structuredInputsJsonb: updatedJson,
+        completionPercentage: newCompletion,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_H_STEP_4_SALES_ASSUMPTIONS',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.error('Error saving Module H Step 4:', err);
+    return {
+      ok: false,
+      persistedToCloudSql: false,
+      error: err instanceof Error ? err.message : 'Database error',
+    };
+  }
+}
+
+/**
+ * AI Assessor Mode: Generates a 3-paragraph commercial conversion, velocity lag,
+ * and delivery capacity defense for grant and bank loan assessors.
+ */
+export async function generateSalesAssumptionsNarrativeAction(input: {
+  planId: string;
+  salesMotion?: string;
+  salesCycleDays?: number;
+  conversionRatePercent?: number;
+  breakevenMonthlyUnits?: number;
+  requiredMonthlyLeads?: number;
+  monthlyCapacityCap?: number;
+  capacityFeasibilityStatus?: string;
+  retentionMetricLabel?: string;
+  retentionPercent?: number;
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  primaryChannel?: string;
+  beachheadCustomer?: string;
+}): Promise<GenerateSalesAssumptionsNarrativeResult> {
+  let planTitle = input.planTitle || 'Startup Plan';
+  let industryCategory = input.industryCategory || 'Technology';
+  let hqCountryCode: SupportedCountryCode = input.hqCountryCode || 'IE';
+  let beachheadCustomer = input.beachheadCustomer || '';
+  let primaryChannel = input.primaryChannel || 'Direct Web';
+
+  if (UUID_REGEX.test(input.planId)) {
+    try {
+      const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+      if (authCheck.authorized) {
+        const planRows = await db
+          .select()
+          .from(startupPlans)
+          .where(eq(startupPlans.id, input.planId))
+          .limit(1);
+
+        if (planRows.length > 0) {
+          planTitle = planRows[0].title || planTitle;
+          industryCategory = planRows[0].industryCategory || industryCategory;
+          hqCountryCode = (planRows[0].hqCountryCode as SupportedCountryCode) || hqCountryCode;
+        }
+
+        const modRows = await db
+          .select()
+          .from(planModulesData)
+          .where(eq(planModulesData.planId, input.planId));
+
+        // Module B context (Beachhead persona)
+        const modB = modRows.find((m) => m.moduleCode === 'MOD_B_MARKET');
+        if (modB?.structuredInputsJsonb) {
+          const bData = modB.structuredInputsJsonb as Record<string, any>;
+          beachheadCustomer =
+            bData.step1BeachheadPersona?.personaTitle ||
+            bData.step1BeachheadPersona?.demographicsSummary ||
+            bData.beachhead?.beachheadSegment ||
+            beachheadCustomer;
+        }
+
+        // Module D context (Channel matrix)
+        const modD = modRows.find((m) => m.moduleCode === 'MOD_D_PRODUCT_BUILD');
+        if (modD?.structuredInputsJsonb) {
+          const dData = modD.structuredInputsJsonb as Record<string, any>;
+          if (dData.channelMatrix?.primaryChannel) {
+            primaryChannel = dData.channelMatrix.primaryChannel;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Non-fatal context gathering warning for sales assumptions AI:', e);
+    }
+  }
+
+  return await generateSalesAssumptionsNarrativeViaRouter({
+    planTitle,
+    industryCategory,
+    hqCountryCode,
+    salesMotion: input.salesMotion,
+    salesCycleDays: input.salesCycleDays,
+    conversionRatePercent: input.conversionRatePercent,
+    breakevenMonthlyUnits: input.breakevenMonthlyUnits,
+    requiredMonthlyLeads: input.requiredMonthlyLeads,
+    monthlyCapacityCap: input.monthlyCapacityCap,
+    capacityFeasibilityStatus: input.capacityFeasibilityStatus,
+    retentionMetricLabel: input.retentionMetricLabel,
+    retentionPercent: input.retentionPercent,
+    primaryChannel,
+    beachheadCustomer,
+  });
+}
+
+/**
+ * Persists Module H Step 5 (Revenue & Breakeven Executive Brief & Blind Spots) to `plan_modules_data`.
+ */
+export async function saveModuleHStep5RevenueBriefAction(input: {
+  planId: string;
+  revenueBrief: RevenueBlindSpotAuditStep5Data;
+  thingsToConsider?: BlindSpotItem[];
+  completionPercentage?: number;
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean; error?: string }> {
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  if (!authCheck.authorized) {
+    return { ok: false, persistedToCloudSql: false, error: 'Unauthorized plan access' };
+  }
+
+  try {
+    await ensureModuleHEnumInPostgres();
+
+    const existingMod = await db
+      .select()
+      .from(planModulesData)
+      .where(
+        and(
+          eq(planModulesData.planId, input.planId),
+          eq(planModulesData.moduleCode, 'MOD_H_REVENUE')
+        )
+      )
+      .limit(1);
+
+    const nowIso = new Date().toISOString();
+    const cleanStep5: RevenueBlindSpotAuditStep5Data = {
+      ...input.revenueBrief,
+      lastSavedAt: nowIso,
+    };
+
+    const currentJson: Record<string, unknown> =
+      existingMod.length > 0 &&
+      typeof existingMod[0].structuredInputsJsonb === 'object' &&
+      existingMod[0].structuredInputsJsonb !== null
+        ? (existingMod[0].structuredInputsJsonb as Record<string, unknown>)
+        : {};
+
+    const updatedJson: Record<string, unknown> = {
+      ...currentJson,
+      step5RevenueBrief: cleanStep5,
+      lastSavedAt: nowIso,
+    };
+
+    const nextProgress = Math.max(
+      existingMod[0]?.completionPercentage || 0,
+      input.completionPercentage ?? 100
+    );
+
+    if (existingMod.length > 0) {
+      await db
+        .update(planModulesData)
+        .set({
+          structuredInputsJsonb: updatedJson,
+          aiThingsToConsiderJsonb: input.thingsToConsider ?? input.revenueBrief.blindSpots,
+          completionPercentage: nextProgress,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(planModulesData.planId, input.planId),
+            eq(planModulesData.moduleCode, 'MOD_H_REVENUE')
+          )
+        );
+    } else {
+      await db.insert(planModulesData).values({
+        planId: input.planId,
+        moduleCode: 'MOD_H_REVENUE',
+        structuredInputsJsonb: updatedJson,
+        aiThingsToConsiderJsonb: input.thingsToConsider ?? input.revenueBrief.blindSpots,
+        completionPercentage: nextProgress,
+      });
+    }
+
+    await db
+      .update(startupPlans)
+      .set({
+        currentModuleStep: 'MOD_H_STEP_5_REVENUE_BRIEF',
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.error('Error saving Module H Step 5:', err);
+    return {
+      ok: false,
+      persistedToCloudSql: false,
+      error: err instanceof Error ? err.message : 'Database error',
+    };
+  }
+}
+
+/**
+ * AI Assessor Mode: Generates Module H Step 5 Executive Commercial Brief and Blind-Spot Audit.
+ */
+export async function generateModuleHRevenueBriefAction(input: {
+  planId: string;
+  currencySymbol: string;
+  revenueModelVehicle: string;
+  blendedAveragePrice: number;
+  pocketProfitPerSale: number;
+  contributionMarginPercent: number;
+  yr1BreakevenUnits: number;
+  monthlyFixedNut: number;
+  salesMotion: string;
+  monthlyCapacity: number;
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+}): Promise<GenerateModuleHRevenueBriefResult> {
+  let planTitle = input.planTitle || 'Startup Venture';
+  let industryCategory = input.industryCategory || 'Startup';
+  let hqCountryCode: SupportedCountryCode = input.hqCountryCode || 'IE';
+
+  if (UUID_REGEX.test(input.planId)) {
+    try {
+      const [planRow] = await db
+        .select({
+          title: startupPlans.title,
+          industryCategory: startupPlans.industryCategory,
+          hqCountryCode: startupPlans.hqCountryCode,
+        })
+        .from(startupPlans)
+        .where(eq(startupPlans.id, input.planId))
+        .limit(1);
+
+      if (planRow) {
+        planTitle = planRow.title || planTitle;
+        industryCategory = planRow.industryCategory || industryCategory;
+        hqCountryCode = (planRow.hqCountryCode as SupportedCountryCode) || hqCountryCode;
+      }
+    } catch (e) {
+      console.warn('Non-fatal context gathering warning for Module H Brief AI:', e);
+    }
+  }
+
+  return await generateModuleHRevenueBriefViaRouter({
+    planId: input.planId,
+    planTitle,
+    industryCategory,
+    hqCountryCode,
+    currencySymbol: input.currencySymbol,
+    revenueModelVehicle: input.revenueModelVehicle,
+    blendedAveragePrice: input.blendedAveragePrice,
+    pocketProfitPerSale: input.pocketProfitPerSale,
+    contributionMarginPercent: input.contributionMarginPercent,
+    yr1BreakevenUnits: input.yr1BreakevenUnits,
+    monthlyFixedNut: input.monthlyFixedNut,
+    salesMotion: input.salesMotion,
+    monthlyCapacity: input.monthlyCapacity,
   });
 }
 

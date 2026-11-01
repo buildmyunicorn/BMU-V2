@@ -2228,14 +2228,16 @@ export function ModuleBWorkspace({
                 I&apos;m Stuck
               </Button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowJargonTooltip(!showJargonTooltip)}
-              className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
-            >
-              <Info className="h-3 w-3" />
-              What is a &ldquo;Beachhead Customer / Segment&rdquo;?
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowJargonTooltip(!showJargonTooltip)}
+                className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+              >
+                <Info className="h-3 w-3 text-indigo-600 shrink-0" />
+                <span>Your First Core Customer Group (Who buys first?) — Beachhead Jargon</span>
+              </button>
+            </div>
           </div>
 
           <CardContent className="space-y-6 px-0 pb-0 pt-4">
@@ -2245,10 +2247,10 @@ export function ModuleBWorkspace({
             <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3.5 text-xs text-slate-700 shadow-xs">
               <div className="font-bold text-indigo-950 flex items-center gap-1.5">
                 <Info className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                📖 Plain-English Guide: Beachhead Customer / Segment
+                📖 Plain-English Guide: Your First Core Customer Group (Who buys first?) — Beachhead Customer / Segment
               </div>
               <p className="mt-1 leading-relaxed">
-                A <strong>&ldquo;Beachhead&rdquo;</strong> simply means the very first specific group of customers you focus on winning before expanding to everyone else.
+                Your First Core Customer Group (Who buys first?) — (A <strong>&ldquo;Beachhead&rdquo;</strong> simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
                 With limited time and budget, you cannot market to the whole
                 world on Day 1. Starting with the{' '}
                 <strong>specific group of customers who feel the problem most urgently</strong>{' '}
@@ -2325,7 +2327,7 @@ export function ModuleBWorkspace({
                   Close
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                   <label className="mb-1 block font-semibold text-violet-900">
                     1. Who loses the most money or time over this?
@@ -3291,7 +3293,7 @@ export function ModuleBWorkspace({
                       </button>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <div>
                         <label className="mb-1 block text-[11px] font-semibold text-slate-600">
                           Competitor or Alternative Name
@@ -4729,8 +4731,14 @@ export function ModuleBWorkspace({
                     <th className="px-2 py-2.5 text-center">
                       💷 Value for Money
                     </th>
-                    <th className="px-2 py-2.5 text-center">
+                    <th
+                      className="px-2 py-2.5 text-center"
+                      title="Promised Delivery &amp; Reply Speed — (SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem.)"
+                    >
                       ⚡ Speed / Time Saved
+                      <span className="block text-[9px] font-normal text-slate-400">
+                        Delivery Speed (SLA)
+                      </span>
                     </th>
                     <th className="px-2 py-2.5 text-center">
                       🎯 Ease of Use
@@ -5611,7 +5619,7 @@ export function ModuleBWorkspace({
                   <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div className="rounded-xl border border-slate-200 p-3">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        First Priority Customer Group (Beachhead)
+                        First Priority Customer Group (Who buys first? — Beachhead)
                       </div>
                       <p className="mt-1 leading-relaxed text-slate-800">
                         {beachheadSegment.trim() || 'Not yet specified.'}
@@ -5713,7 +5721,7 @@ export function ModuleBWorkspace({
                     3. Bottom-Up Market Sizing ({countryPack.defaultCurrency} —
                     Step 3)
                   </div>
-                  <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3">
                       <div className="text-[10px] font-bold uppercase text-indigo-700">
                         1. Year 1–2 Revenue Goal (SOM)

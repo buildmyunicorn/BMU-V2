@@ -1188,9 +1188,9 @@ export const AWKWARD_QUESTIONS_CONFIG: AwkwardQuestionDef[] = [
     key: 'Q14',
     number: 14,
     category: 'EQUITY_VESTING',
-    title: 'Reverse Vesting Schedule & The 1-Year Cliff',
+    title: 'Earning Co-Founder Shares Over Time (Protects Everyone If Someone Leaves Early) — Reverse Vesting & Cliff',
     subtitle: 'Do all founders agree to a standard 4-year reverse vesting schedule with a mandatory 1-year cliff?',
-    contextWhy: 'If a co-founder leaves after 4 months with 50% of the company on the cap table forever, your startup is completely un-fundable and dead in the water.',
+    contextWhy: 'Vesting means co-founders earn their shares month-by-month over 3–4 years (with a 12-month trial "cliff") so nobody walks away after 3 months owning 50% of the company. If a co-founder leaves after 4 months with 50% of the company on the cap table forever, your startup is completely un-fundable and dead in the water.',
     options: [
       {
         value: 'STANDARD_4YR_1YR_CLIFF',
@@ -4232,7 +4232,7 @@ export function ModuleFWorkspace({
                         )}
 
                         {/* Row 2: Job Title + LinkedIn Link + Email */}
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           <div>
                             <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                               Job Title / Role in Startup
@@ -6339,7 +6339,7 @@ export function ModuleFWorkspace({
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {/* Metric 1: Monthly Survival Need */}
                         <div className="rounded-lg bg-white/10 p-3 backdrop-blur-xs border border-white/10">
                           <span className="text-[10px] uppercase font-semibold text-indigo-200 block">
@@ -7007,7 +7007,7 @@ export function ModuleFWorkspace({
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <div className="rounded-lg bg-white/10 p-3 backdrop-blur-xs border border-white/10">
                         <span className="text-[10px] uppercase font-semibold text-indigo-200 block">
                           Solo Boundary Posture
@@ -7606,7 +7606,7 @@ export function ModuleFWorkspace({
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] text-emerald-900">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-[11px] text-emerald-900">
                     <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
                       <strong>Year 1: 2.0 FTEs</strong>
                       <p className="mt-1 text-slate-600">
@@ -8073,7 +8073,7 @@ export function ModuleFWorkspace({
                                     <Label className="text-[11px] font-bold text-slate-700">
                                       Compensation Architecture
                                     </Label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
                                       {COMPENSATION_MODEL_OPTIONS.map((c) => (
                                         <button
                                           key={c.value}
@@ -8362,7 +8362,7 @@ export function ModuleFWorkspace({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {/* Year 1 Card */}
                   <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/60 via-white to-slate-50 p-4 space-y-2">
                     <div className="flex items-center justify-between">

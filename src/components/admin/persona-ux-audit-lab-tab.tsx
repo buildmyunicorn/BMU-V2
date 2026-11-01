@@ -37,7 +37,11 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { ModuleCode } from '@/lib/entitlements';
-import { loadBmuSession, saveBmuSession } from '@/lib/auth/session-store';
+import {
+  loadBmuSession,
+  saveBmuSession,
+  exitPersonaPreviewAndRestoreRealPlans,
+} from '@/lib/auth/session-store';
 import type {
   SupportModuleScope,
   SupportTicketPriority,
@@ -239,13 +243,25 @@ export function PersonaUxAuditLabTab({
     saveBmuSession(updatedSession);
     onNotify(
       'success',
-      `Seeded "${seededPlan.title}" in ${activeComprehension.shortBadge} voice. Opening Workspace...`
+      `Seeded "${seededPlan.title}" in isolated Persona Sandbox (${activeComprehension.shortBadge}). Your real plan remains untouched.`
     );
 
     const destination = targetModule
-      ? `/workspace?module=${targetModule}`
-      : '/workspace';
+      ? `/workspace?persona_preview=1&module=${targetModule}`
+      : '/workspace?persona_preview=1';
     router.push(destination);
+  }
+
+  function handleRestoreRealFounderPlan() {
+    const restored = exitPersonaPreviewAndRestoreRealPlans();
+    const activeReal =
+      restored.plans.find((p) => p.id === restored.activePlanId) ||
+      restored.plans[0];
+    onNotify(
+      'success',
+      `Restored your real startup plan ("${activeReal?.title || 'My Startup Plan'}") and removed synthetic test persona plans.`
+    );
+    router.push('/workspace');
   }
 
   async function handleLogFindingToBugTracker(finding: PersonaAuditFinding) {
@@ -319,7 +335,15 @@ export function PersonaUxAuditLabTab({
               className="bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-500"
             >
               <Play className="mr-1.5 h-3.5 w-3.5" />
-              Seed &amp; Open {activePersona.name.split(' ')[0]}’s Plan in Workspace
+              Preview {activePersona.name.split(' ')[0]}’s Sandbox in Workspace
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRestoreRealFounderPlan}
+              className="border-amber-400/50 bg-amber-500/20 text-xs font-semibold text-amber-100 hover:bg-amber-500/30"
+            >
+              Restore My Real Plan
             </Button>
             <Button
               size="sm"

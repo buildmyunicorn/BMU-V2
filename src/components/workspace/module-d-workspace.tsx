@@ -2674,11 +2674,12 @@ const ADAPTIVE_STEP3_CONFIG_BY_TRACK: Record<
     ],
     quickAddChips: [
       {
-        title: '5-Day Turnaround SLA & 1-Round Revision Boundary',
+        title: '5-Day Promised Delivery & Reply Speed (SLA) & 1-Round Revision Boundary',
         bucket: 'MUST_HAVE_V1',
         categoryTag: 'Productized Offer',
         effortImpact: 'LOW',
-        rationaleOrNote: 'Prevents endless client revision loops.',
+        rationaleOrNote:
+          'Prevents endless client revision loops. SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem.',
       },
     ],
     refusePromptLabel:
@@ -6486,14 +6487,14 @@ export function ModuleDWorkspace({
         title: isIe
           ? 'Ireland LEO / Enterprise Ireland 3-Quote Procurement & IP Ownership Audit Trail'
           : isUk
-            ? 'UK Innovate UK / SEIS Subcontractor Justification & UK IP Vesting'
+            ? 'UK Innovate UK / SEIS Subcontractor Justification & UK IP Ownership (Vesting)'
             : 'External Contractor IP Assignment & Cost Documentation Trail',
         category: 'GRANT_COMPLIANCE_IP',
         severity: combinedOneOffCapex >= 3000 ? 'CRITICAL' : 'IMPORTANT',
         whyItMatters: isIe
           ? `Irish LEO Feasibility/Priming and Enterprise Ireland evaluators require 3 independent written quotes for external consultancy/tooling items (${formatPlanCurrency(combinedOneOffCapex, plan.baseCurrency)} estimated once-off budget) and strict IP assignment to the Irish LTD.`
           : isUk
-            ? 'Innovate UK Smart Grant and HMRC SEIS/EIS assessors scrutinize subcontractor spend and require clear proof that foreground IP vests in the UK company.'
+            ? 'Innovate UK Smart Grant and HMRC SEIS/EIS assessors scrutinize subcontractor spend and require clear proof that foreground IP vests in the UK company. Vesting means co-founders and companies secure and earn full ownership over time to protect everyone.'
             : 'Investors and grant bodies require clean IP assignment agreements from every freelance developer, designer, or formulator before funding.',
         recommendedActionOrFix: isIe
           ? 'Collect 3 comparable supplier quotes on company letterhead before commissioning external WP2/WP3 work and include an explicit IP assignment clause.'
@@ -7368,7 +7369,8 @@ export function ModuleDWorkspace({
     }
 
     <h2>5. Work Package Milestone Schedule (WP1–WP${step5Data.workPackages.length || 4})</h2>
-    <table>
+    <div class="overflow-x-auto">
+    <table class="w-full min-w-[600px]">
       <thead>
         <tr>
           <th>WP</th>
@@ -7400,6 +7402,7 @@ export function ModuleDWorkspace({
         }
       </tbody>
     </table>
+    </div>
 
     <h2>6. Constructive &ldquo;Things to Consider&rdquo; &amp; Founder Mitigations (${step6Data.blindSpots.length})</h2>
     <div class="card">
@@ -8455,7 +8458,7 @@ export function ModuleDWorkspace({
               </div>
             </CardHeader>
             <CardContent className="space-y-3 text-xs text-slate-700">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-slate-200 bg-white p-3">
                   <div className="text-[10px] font-bold uppercase text-slate-400">
                     Selected Product Track
@@ -9650,7 +9653,7 @@ export function ModuleDWorkspace({
               </div>
             </CardHeader>
             <CardContent className="space-y-3 text-xs text-slate-700">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-slate-200 bg-white p-3">
                   <div className="text-[10px] font-bold uppercase text-slate-400">
                     Primary Channel ({step2Data.primaryChannelSharePercent}%)
@@ -9876,7 +9879,7 @@ export function ModuleDWorkspace({
               </div>
 
               {showWhyCard && (
-                <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-indigo-100 bg-white/95 p-3.5 text-xs text-slate-700 sm:grid-cols-3">
+                <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-indigo-100 bg-white/95 p-3.5 text-xs text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <div className="font-bold text-indigo-950">
                       🎯 Why Ruthless V1 Scope Matters
@@ -10704,7 +10707,7 @@ export function ModuleDWorkspace({
                   <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
                     Most startups fail not because Version 1 was too simple, but because founders try to build Year-2 complexity on Day 1. Establishing a strict scope guardrail gives you three critical advantages:
                   </p>
-                  <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                  <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="rounded-lg border border-indigo-100 bg-white/90 p-3 shadow-2xs">
                       <div className="font-bold text-indigo-950">
                         🛡️ 1. Stops Feature Creep
@@ -11010,7 +11013,7 @@ export function ModuleDWorkspace({
               </div>
             </CardHeader>
             <CardContent className="space-y-3 text-xs text-slate-700">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-emerald-200 bg-white p-3">
                   <div className="text-[10px] font-bold uppercase text-emerald-700">
                     Day-1 V1 Core (
@@ -11384,7 +11387,7 @@ export function ModuleDWorkspace({
               {/* =========================================================== */}
               {/* LIVE COST & IP SUMMARY BAR                                  */}
               {/* =========================================================== */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
                     In-House Secret Sauce IP
@@ -12279,7 +12282,7 @@ export function ModuleDWorkspace({
               </div>
             </CardHeader>
             <CardContent className="space-y-3 text-xs text-slate-700">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-emerald-200 bg-white p-3">
                   <div className="text-[10px] font-bold uppercase text-emerald-700">
                     Tier 1: In-House Secret Sauce (
@@ -12468,7 +12471,7 @@ export function ModuleDWorkspace({
                   )}
                 </span>
                 <h2 className="text-base font-bold text-slate-900">
-                  Step 5: Work Packages (WP1–WP4) & System Flow
+                  Step 5: Build Phases &amp; Milestones (Work Packages WP1–WP4) &amp; System Flow
                 </h2>
                 <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
                   Step 5 of 6
@@ -12484,7 +12487,7 @@ export function ModuleDWorkspace({
                 )}
               </div>
               <p className="mt-1 text-xs text-slate-600">
-                Structure your execution roadmap into formal grant-ready work packages with clear deliverable proof and derisking gates.
+                Grants like Innovate UK and LEO ask you to group your build plan into numbered &quot;Work Packages&quot; (e.g. Phase 1: Recipe/Prototype, Phase 2: Safety Testing, Phase 3: Launch).
               </p>
             </div>
 
@@ -12678,7 +12681,7 @@ export function ModuleDWorkspace({
 
             <CardContent className="space-y-4">
               {/* LIVE SMART COST & GRANT ELIGIBILITY ROLL-UP BAR */}
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">
                     Monthly Recurring Run-Rate
@@ -12696,7 +12699,7 @@ export function ModuleDWorkspace({
 
                 <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-amber-900">
-                    Once-Off Prototype / Build CapEx
+                    Big Equipment &amp; Upfront Purchases (CapEx)
                   </div>
                   <div className="mt-1 text-lg font-bold text-amber-950">
                     {formatPlanCurrency(step5OneOffTotal, plan.baseCurrency)}
@@ -12705,8 +12708,8 @@ export function ModuleDWorkspace({
                       once-off
                     </span>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-amber-900/80">
-                    Tooling, raw materials, certifications &amp; setup.
+                  <p className="mt-0.5 text-[10px] text-amber-900/80">
+                    CapEx (Capital Expenditure) means physical equipment or machinery you buy that lasts several years (like commercial ovens, vans, or lab hardware).
                   </p>
                 </div>
 
@@ -12911,7 +12914,7 @@ export function ModuleDWorkspace({
                 {(newWpTimeline === 'OTHER' ||
                   newWpExecutionMode === 'OTHER' ||
                   newWpCostModel === 'OTHER') && (
-                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {newWpTimeline === 'OTHER' && (
                       <input
                         type="text"
@@ -14853,10 +14856,13 @@ export function ModuleDWorkspace({
                   </span>
                 </div>
                 <div className="mt-1 text-slate-800">
-                  <strong>Target Customer:</strong>{' '}
+                  <strong>Your First Core Customer Group (Who buys first?):</strong>{' '}
                   {plan.moduleBData?.beachhead?.beachheadSegment ||
                     plan.conceptCanvas?.targetCustomer ||
-                    'Early adopters in beachhead market'}{' '}
+                    'Early adopters in first core customer market'}{' '}
+                  <span className="text-[11px] text-slate-500">
+                    — (A &quot;Beachhead&quot; simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
+                  </span>{' '}
                   • <strong>#1 Validated Pain Point:</strong>{' '}
                   <span className="italic">
                     &ldquo;
@@ -14914,7 +14920,7 @@ export function ModuleDWorkspace({
                   1. Product Vehicle, Own vs. Rent Distribution &amp; Unit
                   Economics (Steps 1–2 &amp; 4–5)
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                       Step 1 • Track, Format &amp; V1 Approach
@@ -14996,7 +15002,7 @@ export function ModuleDWorkspace({
                       /mo
                     </div>
                     <div className="mt-0.5 text-[11px] font-semibold text-emerald-700">
-                      Direct Variable Unit COGS:{' '}
+                      Direct Cost to Make &amp; Deliver 1 Sale (COGS):{' '}
                       {formatPlanCurrency(
                         step4PerUnitTotal + step5PerUnitTotal,
                         plan.baseCurrency
@@ -15004,7 +15010,7 @@ export function ModuleDWorkspace({
                       /unit
                     </div>
                     <div className="mt-0.5 text-[10px] text-slate-500">
-                      Synced directly to Module H (Pricing &amp; Pocket Profit)
+                      COGS (Cost of Goods Sold) is what it directly costs you in raw materials, packaging, postage, or server usage every single time you sell one unit.
                     </div>
                   </div>
                 </div>
@@ -15024,7 +15030,7 @@ export function ModuleDWorkspace({
                 <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-700">
                   2. Ruthless 3-Bucket V1 Scope Filter (Step 3)
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
                     <div className="text-[10px] font-bold uppercase text-emerald-800">
                       🟢 Day-1 V1 Core — Launch Now (
@@ -15112,7 +15118,7 @@ export function ModuleDWorkspace({
                   3. 3-Tier &ldquo;Build vs. Buy&rdquo; &amp; Core IP
                   (&ldquo;Secret Sauce&rdquo;) Matrix (Step 4)
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="rounded-xl border border-emerald-200 bg-white p-3">
                     <div className="text-[10px] font-bold uppercase text-emerald-800">
                       Tier 1 • Custom Build / Core IP (

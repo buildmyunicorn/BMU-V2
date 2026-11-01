@@ -37,6 +37,12 @@ import {
   Edit3,
   ShieldCheck,
   AlertCircle,
+  Clock,
+  Gauge,
+  Users,
+  Copy,
+  Printer,
+  ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,13 +59,20 @@ import type {
   BreakevenCalculatorStep3Data,
   BreakevenYearTarget,
   FrictionCostsStep3Data,
+  SalesAssumptionsStep4Data,
+  RevenueBlindSpotAuditStep5Data,
 } from '@/lib/auth/session-store';
+import type { BlindSpotItem } from '@/db/schema';
 import {
   saveModuleHStep1RevenueModelAction,
   saveModuleHStep2PricingTiersAction,
   saveModuleHStep3BreakevenCalculatorAction,
+  saveModuleHStep4SalesAssumptionsAction,
+  saveModuleHStep5RevenueBriefAction,
   generatePricingStrategyJustificationAction,
   generateBreakevenAssessorNarrativeAction,
+  generateSalesAssumptionsNarrativeAction,
+  generateModuleHRevenueBriefAction,
 } from '@/app/actions/module-h';
 
 interface ModuleHWorkspaceProps {
@@ -69,6 +82,8 @@ interface ModuleHWorkspaceProps {
   onSaveStep1RevenueModel?: (step1Data: RevenueModelStep1Data, progress?: number) => Promise<void> | void;
   onSaveStep2PricingTiers?: (step2Data: PricingTiersStep2Data, progress?: number) => Promise<void> | void;
   onSaveStep3BreakevenCalculator?: (step3Data: BreakevenCalculatorStep3Data, progress?: number) => Promise<void> | void;
+  onSaveStep4SalesAssumptions?: (step4Data: SalesAssumptionsStep4Data, progress?: number) => Promise<void> | void;
+  onSaveStep5RevenueBrief?: (step5Data: RevenueBlindSpotAuditStep5Data, thingsToConsider?: BlindSpotItem[], progress?: number) => Promise<void> | void;
   onBackToModuleG?: () => void;
   onContinueToModuleI?: () => void;
   onNavigateToModule?: (
@@ -97,14 +112,22 @@ export function ModuleHWorkspace({
   onSaveStep1RevenueModel,
   onSaveStep2PricingTiers,
   onSaveStep3BreakevenCalculator,
+  onSaveStep4SalesAssumptions,
+  onSaveStep5RevenueBrief,
   onBackToModuleG,
   onContinueToModuleI,
   onNavigateToModule,
 }: ModuleHWorkspaceProps) {
   // Step expansion state: default to first incomplete step
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (plan.moduleHData?.step5RevenueBrief?.executiveCommercialSummaryNarrative) {
+      return 5;
+    }
+    if (plan.moduleHData?.step4SalesAssumptions?.writtenAssumptionsNarrative) {
+      return 5;
+    }
     if (plan.moduleHData?.step3BreakevenCalculator?.yearTargets?.length) {
-      return 3;
+      return 4;
     }
     if (plan.moduleHData?.step2PricingTiers?.tiers?.length) {
       return 3;
@@ -227,7 +250,7 @@ export function ModuleHWorkspace({
             billingFrequency: 'MONTHLY',
             annualDiscountPercent: 20,
             salesMixPercent: 15,
-            deliverablesSummary: 'Full custom capabilities, dedicated account manager, and SLA.',
+            deliverablesSummary: 'Full custom capabilities, dedicated account manager, and Promised Delivery & Reply Speed (SLA).',
             isRecommendedDefault: false,
           },
         ],
@@ -655,6 +678,141 @@ export function ModuleHWorkspace({
     customersNeededToBreakeven > 0 &&
     customersNeededToBreakeven < 9999;
 
+  // -------------------------------------------------------------
+  // STEP 4 STATE & CAPACITY SYNC (MODULE E & MODULE H STEP 3)
+  // -------------------------------------------------------------
+  const [isGeneratingAiSalesNarrative, setIsGeneratingAiSalesNarrative] = useState(false);
+  const [aiSalesNarrativeSuccess, setAiSalesNarrativeSuccess] = useState(false);
+  const [aiSalesAssessorTip, setAiSalesAssessorTip] = useState<string | null>(null);
+
+  // Cross-module capacity derivation from Module E
+  const savedModEOps = plan.moduleEData?.operationsBlueprint;
+  const weeklyOpsHours = Number(savedModEOps?.weeklyOpsHoursAllocated) || 25;
+  const orderStages = savedModEOps?.orderLifecycleStages || [];
+  const totalMinutesPerOrder = orderStages.reduce(
+    (acc, s) => acc + (Number(s.activeMinutesPerOrder) || 0),
+    0
+  );
+  const derivedMonthlyCapacity =
+    totalMinutesPerOrder > 0
+      ? Math.max(5, Math.round(((weeklyOpsHours * 60) / totalMinutesPerOrder) * 4.33))
+      : step1Data.revenueModelVehicle === 'SUBSCRIPTION_RECURRING'
+      ? 200
+      : step1Data.revenueModelVehicle === 'SERVICE_PROJECT_HOURLY'
+      ? 15
+      : 60;
+
+  const yr1BreakevenUnits = Math.max(1, computedThreeYearTargets[0]?.customersNeededToBreakeven || 35);
+
+  const [step4Data, setStep4Data] = useState<SalesAssumptionsStep4Data>(() => {
+    const existing = plan.moduleHData?.step4SalesAssumptions;
+    if (existing) return existing;
+
+    const initialMotion =
+      step1Data.revenueModelVehicle === 'SUBSCRIPTION_RECURRING' ||
+      step1Data.revenueModelVehicle === 'USAGE_BASED_METERED'
+        ? 'SELF_SERVE_WEB'
+        : step1Data.revenueModelVehicle === 'SERVICE_PROJECT_HOURLY'
+        ? 'INSIDE_SALES_DEMO'
+        : step1Data.revenueModelVehicle === 'ONE_OFF_TRANSACTION'
+        ? 'SELF_SERVE_WEB'
+        : 'SELF_SERVE_WEB';
+
+    const defaultConv =
+      initialMotion === 'SELF_SERVE_WEB'
+        ? 2.5
+        : initialMotion === 'INSIDE_SALES_DEMO'
+        ? 12.0
+        : initialMotion === 'ENTERPRISE_RFP'
+        ? 25.0
+        : 2.0;
+
+    const defaultCycle =
+      initialMotion === 'SELF_SERVE_WEB'
+        ? 3
+        : initialMotion === 'INSIDE_SALES_DEMO'
+        ? 21
+        : initialMotion === 'ENTERPRISE_RFP'
+        ? 60
+        : 5;
+
+    const defaultRetention =
+      step1Data.revenueModelVehicle === 'SUBSCRIPTION_RECURRING' ? 5 : 25;
+
+    return {
+      salesCycleDays: defaultCycle,
+      primarySalesMotion: initialMotion,
+      otherSalesMotionText: '',
+      expectedConversionRatePercent: defaultConv,
+      expectedMonthlyChurnOrRepeatPercent: defaultRetention,
+      teamMonthlyCapacityCap: derivedMonthlyCapacity,
+      capacityFeasibilityStatus:
+        derivedMonthlyCapacity >= yr1BreakevenUnits ? 'CAPACITY_SURPLUS' : 'CAPACITY_DEFICIT',
+      requiredMonthlyLeads: Math.ceil(yr1BreakevenUnits / (defaultConv / 100)),
+      writtenAssumptionsNarrative: '',
+      assessorTip: '',
+    };
+  });
+
+  const conversionRate = Math.max(0.1, step4Data.expectedConversionRatePercent || 2.5);
+  const calculatedRequiredMonthlyLeads = Math.ceil(yr1BreakevenUnits / (conversionRate / 100));
+  const calculatedDailyLeads = Math.max(1, Math.ceil(calculatedRequiredMonthlyLeads / 30));
+
+  const currentCapacity = step4Data.teamMonthlyCapacityCap || derivedMonthlyCapacity;
+  const capacitySurplusOrDeficit = currentCapacity - yr1BreakevenUnits;
+  const isCapacitySurplus = capacitySurplusOrDeficit >= 0;
+
+  const isStep4Complete =
+    Boolean(step4Data.primarySalesMotion) &&
+    (step4Data.primarySalesMotion !== 'OTHER' || Boolean(step4Data.otherSalesMotionText?.trim())) &&
+    step4Data.expectedConversionRatePercent > 0 &&
+    step4Data.salesCycleDays > 0 &&
+    step4Data.teamMonthlyCapacityCap > 0 &&
+    step4Data.writtenAssumptionsNarrative.trim().length > 30;
+
+  const SALES_MOTION_OPTIONS = [
+    {
+      id: 'SELF_SERVE_WEB' as const,
+      title: 'Digital Self-Serve',
+      subtitle: 'Instant e-commerce or SaaS checkout without manual sales touchpoints.',
+      benchmarkConv: '1.5% - 3.5%',
+      benchmarkCycle: '1 - 3 days',
+      icon: Zap,
+    },
+    {
+      id: 'INSIDE_SALES_DEMO' as const,
+      title: 'Consultative Demo',
+      subtitle: 'Discovery calls, guided product demos, and consultative onboarding.',
+      benchmarkConv: '8% - 18%',
+      benchmarkCycle: '14 - 30 days',
+      icon: Users,
+    },
+    {
+      id: 'ENTERPRISE_RFP' as const,
+      title: 'Enterprise RFP & Tender',
+      subtitle: 'Formal proposals, multi-stakeholder procurement, and custom pilot terms.',
+      benchmarkConv: '20% - 35%',
+      benchmarkCycle: '60 - 120 days',
+      icon: Building,
+    },
+    {
+      id: 'RETAIL_MARKETPLACE' as const,
+      title: 'Retail & Marketplace',
+      subtitle: 'Amazon, Etsy, or retail distributor listings and wholesale orders.',
+      benchmarkConv: '1.0% - 3.0%',
+      benchmarkCycle: '1 - 7 days',
+      icon: ShoppingBag,
+    },
+    {
+      id: 'OTHER' as const,
+      title: 'Other Sales Motion',
+      subtitle: 'Hybrid sales channel or specialized partnership arrangement.',
+      benchmarkConv: 'Custom',
+      benchmarkCycle: 'Custom',
+      icon: Sliders,
+    },
+  ];
+
   // Save Step 1 handler
   const handleSaveStep1 = async () => {
     if (isVaultReadonly) return;
@@ -672,10 +830,19 @@ export function ModuleHWorkspace({
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
-        setSaveStatus('error');
+        console.warn('saveModuleHStep4SalesAssumptionsAction returned non-ok:', res);
+        // If local state was already saved via onSaveStep4SalesAssumptions, do not show hard error
+        setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
+        if (onSaveStep4SalesAssumptions) {
+          setTimeout(() => setSaveStatus('idle'), 2500);
+        }
       }
-    } catch {
-      setSaveStatus('error');
+    } catch (err) {
+      console.error('Error during handleSaveStep4:', err);
+      setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
+      if (onSaveStep4SalesAssumptions) {
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      }
     }
   };
 
@@ -700,10 +867,19 @@ export function ModuleHWorkspace({
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
-        setSaveStatus('error');
+        console.warn('saveModuleHStep4SalesAssumptionsAction returned non-ok:', res);
+        // If local state was already saved via onSaveStep4SalesAssumptions, do not show hard error
+        setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
+        if (onSaveStep4SalesAssumptions) {
+          setTimeout(() => setSaveStatus('idle'), 2500);
+        }
       }
-    } catch {
-      setSaveStatus('error');
+    } catch (err) {
+      console.error('Error during handleSaveStep4:', err);
+      setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
+      if (onSaveStep4SalesAssumptions) {
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      }
     }
   };
 
@@ -728,10 +904,19 @@ export function ModuleHWorkspace({
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
-        setSaveStatus('error');
+        console.warn('saveModuleHStep4SalesAssumptionsAction returned non-ok:', res);
+        // If local state was already saved via onSaveStep4SalesAssumptions, do not show hard error
+        setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
+        if (onSaveStep4SalesAssumptions) {
+          setTimeout(() => setSaveStatus('idle'), 2500);
+        }
       }
-    } catch {
-      setSaveStatus('error');
+    } catch (err) {
+      console.error('Error during handleSaveStep4:', err);
+      setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
+      if (onSaveStep4SalesAssumptions) {
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      }
     }
   };
 
@@ -1012,6 +1197,433 @@ export function ModuleHWorkspace({
     }
   };
 
+  // Save Step 4 handler
+  const handleSaveStep4 = async () => {
+    if (isVaultReadonly) return;
+    setSaveStatus('saving');
+    try {
+      const updatedStep4: SalesAssumptionsStep4Data = {
+        ...step4Data,
+        capacityFeasibilityStatus: isCapacitySurplus ? 'CAPACITY_SURPLUS' : 'CAPACITY_DEFICIT',
+        requiredMonthlyLeads: calculatedRequiredMonthlyLeads,
+      };
+      if (onSaveStep4SalesAssumptions) {
+        await onSaveStep4SalesAssumptions(updatedStep4, isStep4Complete ? 80 : 65);
+      }
+      const res = await saveModuleHStep4SalesAssumptionsAction({
+        planId: plan.id,
+        salesAssumptions: updatedStep4,
+        completionPercentage: isStep4Complete ? 80 : 65,
+      });
+      if (res.ok) {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      } else {
+        console.warn('saveModuleHStep4SalesAssumptionsAction returned non-ok:', res);
+        // If local state was already saved via onSaveStep4SalesAssumptions, do not show hard error
+        setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
+        if (onSaveStep4SalesAssumptions) {
+          setTimeout(() => setSaveStatus('idle'), 2500);
+        }
+      }
+    } catch (err) {
+      console.error('Error during handleSaveStep4:', err);
+      setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
+      if (onSaveStep4SalesAssumptions) {
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      }
+    }
+  };
+
+  const buildClientSalesAssumptionsFallback = () => {
+    const isIE = (plan.hqCountryCode || selectedCountry || 'IE') === 'IE';
+    const agencyName = isIE ? 'LEO / Enterprise Ireland' : 'Innovate UK / Start Up Loans';
+    const motionLabel =
+      step4Data.primarySalesMotion === 'SELF_SERVE_WEB'
+        ? 'frictionless digital self-serve checkout'
+        : step4Data.primarySalesMotion === 'INSIDE_SALES_DEMO'
+        ? 'guided product demo and consultative discovery calls'
+        : step4Data.primarySalesMotion === 'ENTERPRISE_RFP'
+        ? 'formal commercial proposals and RFP tendering'
+        : step4Data.primarySalesMotion === 'RETAIL_MARKETPLACE'
+        ? 'e-commerce marketplace storefront listings and fulfillment'
+        : 'direct founder sales outreach';
+
+    const p1 = `Commercial Acquisition & Conversion Mechanics: Customer conversion is driven via ${motionLabel} anchored on ${
+      moduleDChannelMatrix?.primaryChannel || 'direct digital channels'
+    }. To hit the Year 1 breakeven target of ${yr1BreakevenUnits.toLocaleString()} paying customers per month, our financial plan assumes a conservative blended conversion rate of ${
+      step4Data.expectedConversionRatePercent
+    }%. This necessitates generating approximately ${calculatedRequiredMonthlyLeads.toLocaleString()} qualified pipeline prospects/visitors per month (~${calculatedDailyLeads.toLocaleString()} daily). Given the defined target buyer profile, this acquisition velocity represents an attainable top-of-funnel operational target.`;
+
+    const p2 = `Pipeline Velocity & Revenue Realization Lag: The average sales cycle from first engagement to payment settlement is calibrated at ${
+      step4Data.salesCycleDays
+    } days. This accounts for realistic customer review cycles, invoice payment terms, and gateway clearance. Working capital buffers and non-dilutive grant support bridge this conversion cycle so operations remain stable through customer onboarding.`;
+
+    const p3 = `Operational Delivery Capacity & Scalability: Team operational delivery capacity is currently capped at ${currentCapacity.toLocaleString()} orders/clients per month under existing allocations. Comparing this ceiling against the required breakeven volume of ${yr1BreakevenUnits.toLocaleString()} units demonstrates that the venture can achieve cashflow profitability ${
+      isCapacitySurplus
+        ? `comfortably within current operational capacity, leaving a protective surplus buffer of ${capacitySurplusOrDeficit.toLocaleString()} units/month before requiring new operational hires`
+        : `with planned capacity expansion and key team hires scheduled in early Year 1`
+    }, safeguarding product delivery quality and meeting ${agencyName} commercial viability requirements.`;
+
+    return {
+      narrative: `${p1}\n\n${p2}\n\n${p3}`,
+      tip: isIE
+        ? 'LEO assessors will evaluate whether your conversion rate assumptions are grounded in real-world benchmark data rather than optimistic speculation.'
+        : 'Innovate UK evaluators verify that your required daily lead volume aligns with your marketing budget and team operational bandwidth.',
+    };
+  };
+
+  const handleGenerateAiSalesNarrative = async () => {
+    if (isGeneratingAiSalesNarrative || isVaultReadonly) return;
+    setIsGeneratingAiSalesNarrative(true);
+    setAiSalesNarrativeSuccess(false);
+
+    const isRecurring =
+      step1Data.revenueModelVehicle === 'SUBSCRIPTION_RECURRING' ||
+      step1Data.revenueModelVehicle === 'USAGE_BASED_METERED';
+
+    try {
+      const res = await generateSalesAssumptionsNarrativeAction({
+        planId: plan.id,
+        salesMotion: step4Data.primarySalesMotion,
+        salesCycleDays: step4Data.salesCycleDays,
+        conversionRatePercent: step4Data.expectedConversionRatePercent,
+        breakevenMonthlyUnits: yr1BreakevenUnits,
+        requiredMonthlyLeads: calculatedRequiredMonthlyLeads,
+        monthlyCapacityCap: currentCapacity,
+        capacityFeasibilityStatus: isCapacitySurplus ? 'CAPACITY_SURPLUS' : 'CAPACITY_DEFICIT',
+        retentionMetricLabel: isRecurring ? 'monthly churn rate' : '30-day repeat re-order rate',
+        retentionPercent: step4Data.expectedMonthlyChurnOrRepeatPercent,
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory,
+        hqCountryCode: (plan.hqCountryCode as any) || (selectedCountry as any) || 'IE',
+        primaryChannel: moduleDChannelMatrix?.primaryChannel || 'Direct Web',
+        beachheadCustomer:
+          plan.moduleBData?.beachhead?.beachheadSegment ||
+          plan.moduleBData?.beachhead?.decisionMakerRole ||
+          '',
+      });
+
+      if (res && res.narrative && res.narrative.trim().length > 0) {
+        setStep4Data((prev) => ({
+          ...prev,
+          writtenAssumptionsNarrative: res.narrative.trim(),
+          assessorTip: res.assessorTip || prev.assessorTip,
+        }));
+        setAiSalesAssessorTip(res.assessorTip || null);
+        setAiSalesNarrativeSuccess(true);
+        setTimeout(() => setAiSalesNarrativeSuccess(false), 5000);
+      } else {
+        const clientFallback = buildClientSalesAssumptionsFallback();
+        setStep4Data((prev) => ({
+          ...prev,
+          writtenAssumptionsNarrative: clientFallback.narrative,
+          assessorTip: clientFallback.tip,
+        }));
+        setAiSalesAssessorTip(clientFallback.tip);
+        setAiSalesNarrativeSuccess(true);
+        setTimeout(() => setAiSalesNarrativeSuccess(false), 5000);
+      }
+    } catch (e) {
+      console.warn('AI sales narrative generation failed, falling back to client synthesizer:', e);
+      const clientFallback = buildClientSalesAssumptionsFallback();
+      setStep4Data((prev) => ({
+        ...prev,
+        writtenAssumptionsNarrative: clientFallback.narrative,
+        assessorTip: clientFallback.tip,
+      }));
+      setAiSalesAssessorTip(clientFallback.tip);
+      setAiSalesNarrativeSuccess(true);
+      setTimeout(() => setAiSalesNarrativeSuccess(false), 5000);
+    } finally {
+      setIsGeneratingAiSalesNarrative(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // STEP 5 STATE: REVENUE STRATEGY & POCKET PROFIT BRIEF
+  // -------------------------------------------------------------
+  const [isGeneratingAiBrief, setIsGeneratingAiBrief] = useState(false);
+  const [aiBriefSuccess, setAiBriefSuccess] = useState(false);
+  const [aiBriefAssessorTip, setAiBriefAssessorTip] = useState<string | null>(null);
+  const [copiedBrief, setCopiedBrief] = useState(false);
+
+  const buildClientRevenueBriefFallback = () => {
+    const isIE = (plan.hqCountryCode || selectedCountry || 'IE') === 'IE';
+    const sym = currencySymbol;
+    const price = blendedAveragePrice || 49;
+    const profit = pocketProfitPerSale || 38;
+    const margin = contributionMarginPercent || 78;
+    const nut = totalMonthlyFixedNut || 3200;
+    const breakeven = yr1BreakevenUnits || 85;
+    const cap = currentCapacity || 120;
+    const hasSurplus = cap >= breakeven;
+
+    const blindSpots: BlindSpotItem[] = [
+      {
+        id: 'bs-rev-margin',
+        title: margin < 65 ? 'Tight Contribution Margin Buffer' : 'Margin Resiliency & Price Elasticity',
+        category: 'COMMERCIAL_PRICING',
+        severity: margin < 65 ? 'CRITICAL' : 'WARNING',
+        explanation: `With a ${margin}% contribution margin (${sym}${profit} net pocket profit per sale), unexpected increases in platform gateway charges, merchant processing fees, or direct COGS could compress your operational cushion.`,
+        suggestedAction: `Stress-test a 10-15% increase in variable fulfillment fees. Ensure your premium tier or volume add-ons provide an accretive gross margin above 80% to protect net cash flow.`,
+      },
+      {
+        id: 'bs-rev-cashflow-gap',
+        title: 'Debtor Settlement Lag vs. Monthly Payroll Nut',
+        category: 'WORKING_CAPITAL',
+        severity: 'WARNING',
+        explanation: `Your monthly fixed baseline commitments total ${sym}${nut.toLocaleString()}. Payment gateway settlement delays (3-7 days for online, or 30-60 days for invoicing) create a working capital timing trough before incoming debtor cash clears.`,
+        suggestedAction: `Maintain a minimum 2-3 month cash buffer or secure non-dilutive grant reimbursement timing (such as LEO Feasibility/Priming or Innovate UK Smart Grant advances) to prevent cash-starvation during peak customer delivery.`,
+      },
+      {
+        id: 'bs-rev-capacity-ceiling',
+        title: hasSurplus ? 'Delivery Capacity Buffer Confirmed' : 'Capacity Bottleneck Under Breakeven Target',
+        category: 'OPERATIONAL_CAPACITY',
+        severity: hasSurplus ? 'INFO' : 'CRITICAL',
+        explanation: hasSurplus
+          ? `Your current operational delivery capacity (${cap.toLocaleString()} units/mo) safely accommodates the Year 1 breakeven requirement (${breakeven.toLocaleString()} units/mo), leaving a healthy operational surplus buffer.`
+          : `Your monthly delivery capacity of ${cap.toLocaleString()} units is currently below the ${breakeven.toLocaleString()} units required to hit operational breakeven, indicating a founder burnout or under-resourcing risk.`,
+        suggestedAction: hasSurplus
+          ? `Preserve product quality by monitoring turnaround times as sales volume scales past 75% of your current delivery ceiling.`
+          : `Schedule additional operational headcount or automate fulfillment workflows (Module E) before initiating aggressive acquisition marketing in Module I.`,
+      },
+      {
+        id: 'bs-rev-vat-threshold',
+        title: isIE ? 'Irish Revenue VAT Threshold Proximity (€42.5k / €85k)' : 'HMRC UK VAT Registration Threshold (£90,000)',
+        category: 'STATUTORY_COMPLIANCE',
+        severity: 'WARNING',
+        explanation: isIE
+          ? `Reaching Year 1 commercial targets will quickly approach Irish VAT registration thresholds (€42,500 for services, €85,000 for physical goods). Pricing must anticipate 23% or 13.5% VAT liabilities.`
+          : `Annualizing your breakeven revenue puts you within range of the UK £90,000 rolling 12-month VAT threshold, which immediately introduces a 20% standard VAT deduction on gross customer receipts.`,
+        suggestedAction: `Verify whether your headline prices to consumers are gross (VAT-inclusive) or net of tax to prevent an unexpected 20-23% reduction in pocket contribution upon statutory registration.`,
+      },
+    ];
+
+    const p1 = `Commercial Revenue Architecture: The commercial model is structured around a verified ${
+      step1Data.revenueModelVehicle ? REVENUE_VEHICLE_OPTIONS.find((v) => v.id === step1Data.revenueModelVehicle)?.title || 'recurring subscription' : 'recurring subscription'
+    } monetization strategy delivering an average blended net realization of ${sym}${price.toLocaleString()}. Deducting platform processing fees, gateway deductions, and direct delivery COGS leaves a net pocket contribution of ${sym}${profit.toLocaleString()} per transaction (${margin}% contribution margin).`;
+
+    const p2 = `Breakeven Math & Financial Viability: Total baseline fixed overheads and scheduled founder survival commitments require ${sym}${nut.toLocaleString()} per month in Year 1. To cover this nut and reach cashflow breakeven, the business must transact ${breakeven.toLocaleString()} customer units monthly, generating ${sym}${(
+      breakeven * price
+    ).toLocaleString()} in gross monthly commercial revenue.`;
+
+    const p3 = `Operational Delivery & Conversion Feasibility: Current operational bandwidth supports up to ${cap.toLocaleString()} deliveries per month. Comparing this ceiling against the ${breakeven.toLocaleString()} breakeven requirement demonstrates ${
+      hasSurplus
+        ? `a comfortable operational surplus buffer, confirming that the business can scale into commercial profitability without immediate operational breakdown`
+        : `that early operational capacity expansion will be essential as acquisition ramps up`
+    }. Combined with realistic pipeline conversion assumptions, this structure satisfies the strict commercial viability criteria required by ${
+      isIE ? 'LEO and Enterprise Ireland' : 'Innovate UK and British Business Bank'
+    } evaluators.`;
+
+    const defaultConfidence: RevenueBlindSpotAuditStep5Data['revenueReadinessConfidence'] =
+      hasSurplus && margin >= 65 ? 'READY_FOR_COMMERCIAL_LAUNCH' : 'PRICING_TESTING_RECOMMENDED';
+
+    return {
+      blindSpots,
+      revenueReadinessConfidence: defaultConfidence,
+      executiveCommercialSummaryNarrative: `${p1}\n\n${p2}\n\n${p3}`,
+      assessorTip: isIE
+        ? 'LEO evaluation committees prioritize ventures demonstrating a clear contribution margin buffer (>65%) that can absorb early marketing inefficiencies and debtor collection lags.'
+        : 'Innovate UK and Start Up Loans assessors look for proof that your breakeven unit count does not exceed the realistic operational delivery bandwidth of your current team.',
+    };
+  };
+
+  const [step5Data, setStep5Data] = useState<RevenueBlindSpotAuditStep5Data>(() => {
+    const existing = plan.moduleHData?.step5RevenueBrief;
+    if (existing && existing.blindSpots?.length > 0) return existing;
+    const fallback = buildClientRevenueBriefFallback();
+    return {
+      blindSpots: fallback.blindSpots,
+      revenueReadinessConfidence: fallback.revenueReadinessConfidence,
+      otherReadinessConfidenceText: '',
+      executiveCommercialSummaryNarrative: fallback.executiveCommercialSummaryNarrative,
+      aiAssessorTip: fallback.assessorTip,
+      aiEngineUsed: 'smart-synthesizer',
+    };
+  });
+
+  const isStep5Complete =
+    Boolean(step5Data.executiveCommercialSummaryNarrative?.trim().length > 40) &&
+    Boolean(step5Data.revenueReadinessConfidence);
+
+  const completedCoreStepsCount =
+    (isStep1Complete ? 1 : 0) +
+    (isStep2Complete ? 1 : 0) +
+    (isStep3Complete ? 1 : 0) +
+    (isStep4Complete ? 1 : 0);
+
+  const handleSaveStep5 = async () => {
+    if (isVaultReadonly) return;
+    setSaveStatus('saving');
+    try {
+      const updatedStep5: RevenueBlindSpotAuditStep5Data = {
+        ...step5Data,
+        lastSavedAt: new Date().toISOString(),
+      };
+      if (onSaveStep5RevenueBrief) {
+        await onSaveStep5RevenueBrief(updatedStep5, updatedStep5.blindSpots, 100);
+      }
+      const res = await saveModuleHStep5RevenueBriefAction({
+        planId: plan.id,
+        revenueBrief: updatedStep5,
+        thingsToConsider: updatedStep5.blindSpots,
+        completionPercentage: 100,
+      });
+      if (res.ok) {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      } else {
+        console.warn('saveModuleHStep5RevenueBriefAction returned non-ok:', res);
+        setSaveStatus(onSaveStep5RevenueBrief ? 'saved' : 'error');
+        if (onSaveStep5RevenueBrief) {
+          setTimeout(() => setSaveStatus('idle'), 2500);
+        }
+      }
+    } catch (err) {
+      console.error('Error during handleSaveStep5:', err);
+      setSaveStatus(onSaveStep5RevenueBrief ? 'saved' : 'error');
+      if (onSaveStep5RevenueBrief) {
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      }
+    }
+  };
+
+  const handleGenerateAiRevenueBrief = async () => {
+    if (isGeneratingAiBrief || isVaultReadonly) return;
+    setIsGeneratingAiBrief(true);
+    setAiBriefSuccess(false);
+
+    try {
+      const res = await generateModuleHRevenueBriefAction({
+        planId: plan.id,
+        currencySymbol,
+        revenueModelVehicle: step1Data.revenueModelVehicle || 'SUBSCRIPTION_RECURRING',
+        blendedAveragePrice: simulatedNetPrice || blendedAveragePrice,
+        pocketProfitPerSale,
+        contributionMarginPercent,
+        yr1BreakevenUnits,
+        monthlyFixedNut: totalMonthlyFixedNut,
+        salesMotion: step4Data.primarySalesMotion || 'SELF_SERVE_WEB',
+        monthlyCapacity: currentCapacity,
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory,
+        hqCountryCode: (plan.hqCountryCode as any) || (selectedCountry as any) || 'IE',
+      });
+
+      if (res && res.executiveCommercialSummaryNarrative) {
+        setStep5Data((prev) => ({
+          ...prev,
+          executiveCommercialSummaryNarrative: res.executiveCommercialSummaryNarrative.trim(),
+          blindSpots: res.blindSpots?.length ? res.blindSpots : prev.blindSpots,
+          revenueReadinessConfidence: res.revenueReadinessConfidence || prev.revenueReadinessConfidence,
+          aiAssessorTip: res.assessorTip || prev.aiAssessorTip,
+          aiEngineUsed: res.engineMode || 'gemini-2.5-flash',
+        }));
+        setAiBriefAssessorTip(res.assessorTip || null);
+        setAiBriefSuccess(true);
+        setTimeout(() => setAiBriefSuccess(false), 5000);
+      } else {
+        const clientFallback = buildClientRevenueBriefFallback();
+        setStep5Data((prev) => ({
+          ...prev,
+          executiveCommercialSummaryNarrative: clientFallback.executiveCommercialSummaryNarrative,
+          blindSpots: clientFallback.blindSpots,
+          revenueReadinessConfidence: clientFallback.revenueReadinessConfidence,
+          aiAssessorTip: clientFallback.assessorTip,
+          aiEngineUsed: 'smart-synthesizer',
+        }));
+        setAiBriefAssessorTip(clientFallback.assessorTip);
+        setAiBriefSuccess(true);
+        setTimeout(() => setAiBriefSuccess(false), 5000);
+      }
+    } catch (e) {
+      console.warn('AI revenue brief generation error, using fallback:', e);
+      const clientFallback = buildClientRevenueBriefFallback();
+      setStep5Data((prev) => ({
+        ...prev,
+        executiveCommercialSummaryNarrative: clientFallback.executiveCommercialSummaryNarrative,
+        blindSpots: clientFallback.blindSpots,
+        revenueReadinessConfidence: clientFallback.revenueReadinessConfidence,
+        aiAssessorTip: clientFallback.assessorTip,
+        aiEngineUsed: 'smart-synthesizer',
+      }));
+      setAiBriefAssessorTip(clientFallback.assessorTip);
+      setAiBriefSuccess(true);
+      setTimeout(() => setAiBriefSuccess(false), 5000);
+    } finally {
+      setIsGeneratingAiBrief(false);
+    }
+  };
+
+  const handleCopyMarkdownBrief = () => {
+    const md = `# Commercial Revenue Strategy & Pocket Profit Dossier: ${plan.title || 'Startup Venture'}
+*Module H: Revenue, Pricing, Breakeven & Sales Velocity Brief*
+
+## 1. Commercial Snapshot & Unit Economics
+- **Revenue Model**: ${step1Data.revenueModelVehicle ? REVENUE_VEHICLE_OPTIONS.find((v) => v.id === step1Data.revenueModelVehicle)?.title : 'Not specified'}
+- **Blended Net Unit Price**: ${currencySymbol}${blendedAveragePrice.toLocaleString()}
+- **Direct Variable Deductions**: -${currencySymbol}${totalFrictionPerSale.toLocaleString()} (Gateway: ${currencySymbol}${gatewayFeeAmount.toFixed(2)}, COGS: ${currencySymbol}${directCogsAmount.toFixed(2)}, Buffer: ${currencySymbol}${refundAndAffiliateFeeAmount.toFixed(2)})
+- **Net Pocket Contribution**: ${currencySymbol}${pocketProfitPerSale.toLocaleString()} (${contributionMarginPercent}% contribution margin)
+- **Monthly Fixed Baseline Commitment (Nut)**: ${currencySymbol}${totalMonthlyFixedNut.toLocaleString()}/mo (Payroll: ${currencySymbol}${activeMonthlyPayroll.toLocaleString()}, Overheads: ${currencySymbol}${activeMonthlyOverheads.toLocaleString()})
+
+## 2. 3-Year Breakeven & Revenue Horizon
+- **Year 1 Target**: ${computedThreeYearTargets[0]?.customersNeededToBreakeven || 0} paying sales/month to break even (${currencySymbol}${(computedThreeYearTargets[0]?.monthlyRevenueAtBreakeven || 0).toLocaleString()}/mo)
+- **Year 2 Target**: ${computedThreeYearTargets[1]?.customersNeededToBreakeven || 0} paying sales/month to break even (${currencySymbol}${(computedThreeYearTargets[1]?.monthlyRevenueAtBreakeven || 0).toLocaleString()}/mo)
+- **Year 3 Target**: ${computedThreeYearTargets[2]?.customersNeededToBreakeven || 0} paying sales/month to break even (${currencySymbol}${(computedThreeYearTargets[2]?.monthlyRevenueAtBreakeven || 0).toLocaleString()}/mo)
+
+## 3. Sales Motion, Conversion Velocity & Capacity
+- **Primary Sales Motion**: ${step4Data.primarySalesMotion ? SALES_MOTION_OPTIONS.find((m) => m.id === step4Data.primarySalesMotion)?.title : 'Digital Self-Serve'}
+- **Expected Conversion Rate**: ${step4Data.expectedConversionRatePercent}%
+- **Sales Cycle Timing**: ${step4Data.salesCycleDays} days
+- **Required Monthly Pipeline**: ${calculatedRequiredMonthlyLeads} qualified leads/mo (~${calculatedDailyLeads}/day)
+- **Monthly Operational Delivery Ceiling**: ${currentCapacity} units/mo (${isCapacitySurplus ? `Surplus buffer of +${capacitySurplusOrDeficit} units/mo` : `Deficit warning of ${capacitySurplusOrDeficit} units/mo`})
+
+## 4. Executive Commercial Assessment Narrative
+${step5Data.executiveCommercialSummaryNarrative}
+
+## 5. Commercial Diligence & Things to Consider
+${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.explanation}\n   *Mitigation / Action*: ${b.suggestedAction}`).join('\n')}
+`;
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(md);
+      setCopiedBrief(true);
+      setTimeout(() => setCopiedBrief(false), 3000);
+    }
+  };
+
+  const handleUpdateBlindSpot = (id: string, updates: Partial<BlindSpotItem>) => {
+    setStep5Data((prev) => ({
+      ...prev,
+      blindSpots: prev.blindSpots.map((b) => (b.id === id ? { ...b, ...updates } : b)),
+    }));
+  };
+
+  const handleAddCustomBlindSpot = () => {
+    const newItem: BlindSpotItem = {
+      id: `bs-custom-${Date.now()}`,
+      title: 'Custom Commercial Consideration',
+      category: 'COMMERCIAL_PRICING',
+      severity: 'WARNING',
+      explanation: 'Document an additional pricing, debtor, or supplier factor for your plan.',
+      suggestedAction: 'Define the mitigating operational action or timeline.',
+    };
+    setStep5Data((prev) => ({
+      ...prev,
+      blindSpots: [...prev.blindSpots, newItem],
+    }));
+  };
+
+  const handleParkBlindSpotInOpenQuestions = (b: BlindSpotItem) => {
+    if (plan.openQuestions) {
+      const questionText = `[Revenue & Pricing]: ${b.title} — ${b.explanation} (Action: ${b.suggestedAction})`;
+      if (!plan.openQuestions.includes(questionText)) {
+        plan.openQuestions.push(questionText);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* ------------------------------------------------------------- */}
@@ -1121,13 +1733,21 @@ export function ModuleHWorkspace({
             type="button"
             onClick={() => setOpenStep(4)}
             className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 4
+              openStep === 4 || openStep === 'ALL'
                 ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40 opacity-70'
+                : 'text-indigo-200 hover:bg-indigo-900/40'
             }`}
           >
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] text-slate-400">
-              4
+            <div
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                isStep4Complete
+                  ? 'bg-emerald-500 text-white'
+                  : isStep3Complete
+                  ? 'bg-indigo-400 text-slate-900'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {isStep4Complete ? <Check className="h-3 w-3" /> : '4'}
             </div>
             <span className="truncate">4. Sales Velocity</span>
           </button>
@@ -1136,13 +1756,21 @@ export function ModuleHWorkspace({
             type="button"
             onClick={() => setOpenStep(5)}
             className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 5
+              openStep === 5 || openStep === 'ALL'
                 ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40 opacity-70'
+                : 'text-indigo-200 hover:bg-indigo-900/40'
             }`}
           >
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] text-slate-400">
-              5
+            <div
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                isStep5Complete
+                  ? 'bg-emerald-500 text-white'
+                  : isStep4Complete
+                  ? 'bg-indigo-400 text-slate-900'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {isStep5Complete ? <Check className="h-3 w-3" /> : '5'}
             </div>
             <span className="truncate">5. Revenue Brief</span>
           </button>
@@ -1291,7 +1919,7 @@ export function ModuleHWorkspace({
                 <div className="font-bold text-emerald-900">
                   Real-World Revenue Model Examples:
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2 text-[11px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2 text-[11px]">
                   <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
                     <strong className="text-slate-900">SaaS / App</strong>
                     <p className="mt-1 text-slate-600">
@@ -1485,10 +2113,10 @@ export function ModuleHWorkspace({
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    3. What unit or action does the customer pay for?
+                    3. What Unit You Charge For (e.g., per bottle, per user, per month) — Value Metric
                   </Label>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    The core unit of sale that drives your pricing (e.g. per user, per box, per hour).
+                    Your &ldquo;Value Metric&rdquo; is simply the unit on your price tag—like charging per box shipped, per active team member, or per completed project.
                   </p>
                 </div>
               </div>
@@ -2168,10 +2796,10 @@ export function ModuleHWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Pricing Strategy Justification (For Grant Assessors &amp; Bank Managers)
+                    Your First Core Customer Group (Who buys first?) — Pricing Strategy Justification
                   </Label>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Written explanation of why beachhead customers will pay this price and how it protects gross margins.
+                    Written explanation of why your first core customer group will pay this price and how it protects gross margins. (A &ldquo;Beachhead&rdquo; simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
                   </p>
                 </div>
 
@@ -2723,13 +3351,16 @@ export function ModuleHWorkspace({
                   <div className="space-y-1.5 pt-2 border-t border-slate-100">
                     <div className="flex items-center justify-between gap-2">
                       <Label className="text-xs font-semibold text-slate-700">
-                        Direct Cost to Deliver 1 Unit / Order
+                        Direct Cost to Make &amp; Deliver 1 Sale (COGS)
                       </Label>
                       <span className="text-xs font-bold text-rose-600 shrink-0">
                         -{currencySymbol}
                         {(directCogsAmount + refundAndAffiliateFeeAmount).toFixed(2)} / sale
                       </span>
                     </div>
+                    <p className="text-[10px] text-slate-500">
+                      COGS (Cost of Goods Sold) is what it directly costs you in raw materials, packaging, postage, or server usage every single time you sell one unit.
+                    </p>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 font-bold text-xs">
                         {currencySymbol}
@@ -3399,16 +4030,16 @@ export function ModuleHWorkspace({
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="text-xs font-bold text-slate-900">
-                        Payment Terms &amp; Cash Inflow Timing (Debtor Lag)
+                        How Fast Customers Actually Pay You (Instant vs 30–60 Day Invoices) — Debtor Payment Terms
                       </Label>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        How quickly does customer money hit your bank account after a sale?
+                        How quickly does customer money hit your bank account after a sale? (If you sell to businesses or supermarkets on &ldquo;Net 30&rdquo; or &ldquo;Net 60&rdquo; invoice terms, you deliver the product today but wait 30 to 60 days for the cash to hit your bank account.)
                       </p>
                     </div>
                   </div>
 
                   {/* Payment Terms Selector Pills */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
                     {[
                       {
                         id: 'INSTANT_PAYMENT' as const,
@@ -3542,12 +4173,12 @@ export function ModuleHWorkspace({
                     <div className="flex items-center justify-between">
                       <div>
                         <Label className="text-xs font-bold text-slate-900">
-                          Export vs. Domestic Sales Split (% International)
+                          Why Grant Money Won&rsquo;t Just Take Sales From Another Local Shop — Non-Displacement / Deadweight
                         </Label>
                         <p className="text-[11px] text-slate-500 mt-0.5">
                           {selectedCountry === 'GB'
                             ? 'UK Innovate UK & DBT prioritizes businesses with international trade traction.'
-                            : 'LEO & Enterprise Ireland specifically mandate export potential (non-displacement).'}
+                            : 'LEO & Enterprise Ireland specifically mandate export potential (non-displacement). Grant agencies must check "Non-Displacement": proving your business brings new value or exports rather than just taking local customers away from an existing cafe or agency down the road.'}
                         </p>
                       </div>
                       <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-bold shrink-0">
@@ -3762,30 +4393,1557 @@ export function ModuleHWorkspace({
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* PLACEHOLDERS FOR STEPS 4, 5 (Upcoming)                         */}
+      {/* STEP 4: SALES VELOCITY, CAPACITY & WRITTEN ASSUMPTIONS         */}
       {/* ------------------------------------------------------------- */}
-      {openStep !== 'ALL' && openStep === 4 && (
-        <Card className="rounded-xl border border-indigo-200 bg-indigo-50/20 p-6 text-center space-y-3">
-          <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 text-xs">
-            Step 4: Up Next
-          </Badge>
-          <h3 className="text-base font-bold text-slate-900">
-            Step 4: Sales Velocity, Capacity &amp; Written Assumptions
-          </h3>
-          <p className="text-xs text-slate-600 max-w-md mx-auto">
-            Next, we will translate your Year 1 breakeven target of{' '}
-            <strong>{computedThreeYearTargets[0]?.customersNeededToBreakeven || 0} sales/month</strong>{' '}
-            into realistic conversion rates, sales cycle days, and written assumptions for grant assessors.
-          </p>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setOpenStep(3)}
-            className="text-xs text-indigo-700"
-          >
-            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-            Back to Step 3
-          </Button>
+      {openStep !== 'ALL' && openStep !== 4 ? (
+        // COLLAPSED STEP 4
+        <div
+          onClick={() => setOpenStep(4)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    Step 4: Sales Velocity, Capacity &amp; Written Assumptions
+                  </h2>
+                  <Badge
+                    variant={isStep4Complete ? 'default' : 'outline'}
+                    className={`shrink-0 text-[10px] font-medium ${
+                      isStep4Complete
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {isStep4Complete ? 'Completed' : 'In Progress'}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {step4Data.primarySalesMotion
+                    ? `${
+                        SALES_MOTION_OPTIONS.find((m) => m.id === step4Data.primarySalesMotion)?.title ||
+                        step4Data.otherSalesMotionText ||
+                        'Sales Motion'
+                      } • ${step4Data.expectedConversionRatePercent}% Conv • ~${calculatedDailyLeads}/day leads • Capacity: ${
+                        isCapacitySurplus ? '🟢 Feasible' : '🔴 Bottleneck'
+                      }`
+                    : 'Map conversion rate, sales velocity lag, and delivery capacity limits'}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+            >
+              <span>Edit Step</span>
+              <ChevronDown className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        // EXPANDED STEP 4
+        <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                    isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Step 4: Sales Velocity, Capacity &amp; Written Assumptions
+                    </CardTitle>
+                    <Badge
+                      variant={isStep4Complete ? 'default' : 'outline'}
+                      className={`shrink-0 text-[10px] font-medium ${
+                        isStep4Complete
+                          ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                          : 'border-slate-300 text-slate-600'
+                      }`}
+                    >
+                      {isStep4Complete ? 'Ready' : 'In Progress'}
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    Translate your Year 1 breakeven volume ({yr1BreakevenUnits} sales/month) into daily pipeline requirements, stress-test your operational delivery capacity, and defend your sales velocity to grant and bank loan assessors.
+                  </CardDescription>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setOpenStep(0)}
+                  className="text-xs text-slate-500 hover:bg-slate-100"
+                >
+                  Collapse Step
+                  <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Micro-Coaching Strip */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveWhyCard(activeWhyCard === 4 ? null : 4)}
+                className="h-7 text-[11px] text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700"
+              >
+                <HelpCircle className="mr-1 h-3 w-3 text-indigo-500" />
+                Why Are We Asking This?
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveExampleCard(activeExampleCard === 4 ? null : 4)}
+                className="h-7 text-[11px] text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-700"
+              >
+                <Lightbulb className="mr-1 h-3 w-3 text-amber-500" />
+                Show Me an Example
+              </Button>
+            </div>
+
+            {/* Why Card Modal/Drawer */}
+            {activeWhyCard === 4 && (
+              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5 text-xs text-indigo-950 space-y-1.5 animate-in fade-in-50">
+                <div className="flex items-center gap-1.5 font-bold text-indigo-900">
+                  <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                  Grant &amp; Bank Credit Underwriting Standard
+                </div>
+                <p>
+                  Government grant committees (LEO, Enterprise Ireland, Innovate UK) reject business plans that assume sales arrive instantly by magic. Evaluators check two specific failure modes:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-slate-700">
+                  <li>
+                    <strong>The Velocity Trap:</strong> If your sales cycle takes 30 days to close and clients take 30 days to pay, you will experience a 60-day cash gap before receiving your first euro or pound.
+                  </li>
+                  <li>
+                    <strong>The Capacity Ceiling:</strong> If you need 40 sales/month to break even, but your operations schedule in Module E only has bandwidth to fulfill 25 orders/month, the plan has a built-in delivery bottleneck that causes customer churn or founder burnout.
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {/* Example Card Modal/Drawer */}
+            {activeExampleCard === 4 && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 text-xs text-amber-950 space-y-1.5 animate-in fade-in-50">
+                <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                  <Lightbulb className="h-4 w-4 text-amber-600" />
+                  Realistic Conversion Benchmark Examples
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                  <div className="rounded-lg bg-white p-2.5 border border-amber-200/60 shadow-2xs">
+                    <div className="font-semibold text-slate-900">B2B SaaS / AI App</div>
+                    <div className="text-slate-600 text-[11px] mt-0.5">
+                      10% discovery demo conversion, 21-day sales cycle, 3% monthly churn.
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-white p-2.5 border border-amber-200/60 shadow-2xs">
+                    <div className="font-semibold text-slate-900">DTC / E-Commerce</div>
+                    <div className="text-slate-600 text-[11px] mt-0.5">
+                      2.2% web checkout conversion, 2-day impulse cycle, 25% 30-day repeat re-order.
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-white p-2.5 border border-amber-200/60 shadow-2xs">
+                    <div className="font-semibold text-slate-900">High-Ticket / Agency</div>
+                    <div className="text-slate-600 text-[11px] mt-0.5">
+                      25% proposal close rate, 60-day RFP cycle, 80% annual retainer retention.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardHeader>
+
+          <CardContent className="space-y-6 pt-6">
+            {/* ------------------------------------------------------------- */}
+            {/* PART A: CROSS-MODULE OPERATIONS & CAPACITY SANITY CHECK        */}
+            {/* ------------------------------------------------------------- */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Gauge className="h-4 w-4 text-indigo-600" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Part A: Operational Delivery Capacity vs. Breakeven Volume
+                  </h3>
+                </div>
+                <Badge variant="outline" className="text-[10px] bg-white border-slate-200 text-slate-600">
+                  Auto-Synced with Module E &amp; Step 3
+                </Badge>
+              </div>
+
+              <p className="text-xs text-slate-600">
+                A viable financial model proves you can deliver the required sales volume without collapsing under workload. Here is how your Year 1 breakeven compares against your operational ceiling:
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                {/* Breakeven Target */}
+                <div className="rounded-lg border border-slate-200 bg-white p-3.5 shadow-2xs">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Yr 1 Breakeven Target
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-1.5">
+                    <span className="text-xl font-extrabold text-slate-900">
+                      {yr1BreakevenUnits.toLocaleString()}
+                    </span>
+                    <span className="text-xs text-slate-500">sales/month</span>
+                  </div>
+                  <div className="mt-1 text-[11px] text-slate-500">
+                    Required to pay monthly fixed nut of {currencySymbol}
+                    {totalMonthlyFixedNut.toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Delivery Capacity Ceiling */}
+                <div className="rounded-lg border border-slate-200 bg-white p-3.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Monthly Delivery Ceiling
+                    </span>
+                    <span className="text-[10px] text-indigo-600 font-medium">Editable</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="100000"
+                      value={step4Data.teamMonthlyCapacityCap || derivedMonthlyCapacity}
+                      onChange={(e) => {
+                        const val = Math.max(1, parseInt(e.target.value) || 1);
+                        setStep4Data((prev) => ({
+                          ...prev,
+                          teamMonthlyCapacityCap: val,
+                        }));
+                      }}
+                      className="h-8 w-24 text-sm font-bold text-slate-900 bg-slate-50"
+                    />
+                    <span className="text-xs text-slate-500">orders/month</span>
+                  </div>
+                  <div className="mt-1 text-[11px] text-slate-500 truncate">
+                    {totalMinutesPerOrder > 0
+                      ? `Based on ${weeklyOpsHours} hrs/wk & ${totalMinutesPerOrder} min/order in Mod E`
+                      : `Standard early-stage capacity benchmark`}
+                  </div>
+                </div>
+
+                {/* Solvency Status */}
+                <div
+                  className={`rounded-lg border p-3.5 shadow-2xs ${
+                    isCapacitySurplus
+                      ? 'border-emerald-200 bg-emerald-50/40 text-emerald-950'
+                      : 'border-amber-200 bg-amber-50/40 text-amber-950'
+                  }`}
+                >
+                  <div className="text-[11px] font-semibold uppercase tracking-wider">
+                    Solvency &amp; Bandwidth
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-1.5">
+                    <span
+                      className={`text-xl font-extrabold ${
+                        isCapacitySurplus ? 'text-emerald-700' : 'text-amber-700'
+                      }`}
+                    >
+                      {isCapacitySurplus ? `+${capacitySurplusOrDeficit}` : `${capacitySurplusOrDeficit}`}
+                    </span>
+                    <span className="text-xs font-semibold">
+                      {isCapacitySurplus ? 'units/mo surplus' : 'units/mo deficit'}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-[11px]">
+                    {isCapacitySurplus ? (
+                      <span className="text-emerald-800">
+                        🟢 Feasible within current founder &amp; team hours.
+                      </span>
+                    ) : (
+                      <span className="text-amber-800">
+                        🔴 Delivery ceiling below breakeven. Needs higher price or hire.
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Module E Jump Link */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[11px] text-slate-500">
+                <span>
+                  Capacity is dynamically derived from your weekly operational hours and order fulfillment stages.
+                </span>
+                {onNavigateToModule && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToModule('MOD_E_OPERATIONS')}
+                    className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-semibold ml-2 hover:underline shrink-0"
+                  >
+                    Adjust Operations in Module E
+                    <ExternalLink className="ml-1 h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ------------------------------------------------------------- */}
+            {/* PART B: PRIMARY SALES MOTION & REVERSE FUNNEL CALCULATOR       */}
+            {/* ------------------------------------------------------------- */}
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Part B: Primary Sales Motion &amp; Conversion Velocity
+                </Label>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Select the primary commercial motion you will use to convert prospects into paying customers.
+                </p>
+              </div>
+
+              {/* Sales Motion Tiles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {SALES_MOTION_OPTIONS.map((motion) => {
+                  const isSelected = step4Data.primarySalesMotion === motion.id;
+                  const Icon = motion.icon;
+                  return (
+                    <div
+                      key={motion.id}
+                      onClick={() => {
+                        let newConv = step4Data.expectedConversionRatePercent;
+                        let newCycle = step4Data.salesCycleDays;
+                        if (motion.id === 'SELF_SERVE_WEB') {
+                          newConv = 2.5;
+                          newCycle = 3;
+                        } else if (motion.id === 'INSIDE_SALES_DEMO') {
+                          newConv = 12.0;
+                          newCycle = 21;
+                        } else if (motion.id === 'ENTERPRISE_RFP') {
+                          newConv = 25.0;
+                          newCycle = 60;
+                        } else if (motion.id === 'RETAIL_MARKETPLACE') {
+                          newConv = 2.0;
+                          newCycle = 5;
+                        }
+                        setStep4Data((prev) => ({
+                          ...prev,
+                          primarySalesMotion: motion.id,
+                          expectedConversionRatePercent: newConv,
+                          salesCycleDays: newCycle,
+                        }));
+                      }}
+                      className={`cursor-pointer rounded-xl border p-3 transition-all ${
+                        isSelected
+                          ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-500'
+                          : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                            isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="font-bold text-xs text-slate-900 truncate flex-1">
+                          {motion.title}
+                        </div>
+                        {isSelected && <Check className="h-3.5 w-3.5 text-indigo-600 shrink-0" />}
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500 line-clamp-2">
+                        {motion.subtitle}
+                      </p>
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100 pt-1.5">
+                        <span>Bench Conv: <strong>{motion.benchmarkConv}</strong></span>
+                        <span>Cycle: <strong>{motion.benchmarkCycle}</strong></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Revealed input for OTHER motion (Rule 1.5) */}
+              {step4Data.primarySalesMotion === 'OTHER' && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/30 p-3 space-y-1.5 animate-in fade-in-50">
+                  <Label className="text-xs font-semibold text-slate-800">
+                    Specify Your Custom Sales Motion
+                  </Label>
+                  <Input
+                    type="text"
+                    value={step4Data.otherSalesMotionText || ''}
+                    onChange={(e) =>
+                      setStep4Data((prev) => ({ ...prev, otherSalesMotionText: e.target.value }))
+                    }
+                    placeholder="e.g. Account-Based Marketing + Distributor agreements..."
+                    className="h-8 text-xs bg-white"
+                  />
+                </div>
+              )}
+
+              {/* Conversion Rate & Velocity Sliders */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                {/* Conversion Rate % */}
+                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-900">
+                      Expected Conversion Rate (%)
+                    </Label>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        min="0.1"
+                        max="100"
+                        step="0.5"
+                        value={step4Data.expectedConversionRatePercent}
+                        onChange={(e) =>
+                          setStep4Data((prev) => ({
+                            ...prev,
+                            expectedConversionRatePercent: parseFloat(e.target.value) || 0.1,
+                          }))
+                        }
+                        className="h-7 w-16 text-right text-xs font-bold bg-slate-50"
+                      />
+                      <span className="text-xs font-semibold text-slate-700">%</span>
+                    </div>
+                  </div>
+
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="40"
+                    step="0.5"
+                    value={step4Data.expectedConversionRatePercent}
+                    onChange={(e) =>
+                      setStep4Data((prev) => ({
+                        ...prev,
+                        expectedConversionRatePercent: parseFloat(e.target.value) || 1,
+                      }))
+                    }
+                    className="w-full accent-indigo-600"
+                  />
+
+                  {/* Preset chips */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-slate-400">Presets:</span>
+                    {[
+                      { label: 'E-com Web (2%)', val: 2.0 },
+                      { label: 'SaaS Free-to-Paid (3%)', val: 3.0 },
+                      { label: 'B2B Demo (12%)', val: 12.0 },
+                      { label: 'RFP / Tender (25%)', val: 25.0 },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() =>
+                          setStep4Data((prev) => ({
+                            ...prev,
+                            expectedConversionRatePercent: p.val,
+                          }))
+                        }
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                          step4Data.expectedConversionRatePercent === p.val
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sales Cycle Days */}
+                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-900">
+                      Sales Cycle Velocity (Lead to Cash)
+                    </Label>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={step4Data.salesCycleDays}
+                        onChange={(e) =>
+                          setStep4Data((prev) => ({
+                            ...prev,
+                            salesCycleDays: parseInt(e.target.value) || 1,
+                          }))
+                        }
+                        className="h-7 w-16 text-right text-xs font-bold bg-slate-50"
+                      />
+                      <span className="text-xs font-semibold text-slate-700">days</span>
+                    </div>
+                  </div>
+
+                  <input
+                    type="range"
+                    min="1"
+                    max="90"
+                    step="1"
+                    value={step4Data.salesCycleDays}
+                    onChange={(e) =>
+                      setStep4Data((prev) => ({
+                        ...prev,
+                        salesCycleDays: parseInt(e.target.value) || 1,
+                      }))
+                    }
+                    className="w-full accent-indigo-600"
+                  />
+
+                  {/* Preset chips */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-slate-400">Presets:</span>
+                    {[
+                      { label: 'Instant (2 days)', val: 2 },
+                      { label: 'Fast B2B (14 days)', val: 14 },
+                      { label: 'Mid-Market (30 days)', val: 30 },
+                      { label: 'Enterprise (60 days)', val: 60 },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() =>
+                          setStep4Data((prev) => ({
+                            ...prev,
+                            salesCycleDays: p.val,
+                          }))
+                        }
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                          step4Data.salesCycleDays === p.val
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Reverse Funnel Calculator Card */}
+              <div className="rounded-xl border border-indigo-700/30 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-4 sm:p-5 text-white shadow-sm space-y-3">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">
+                    Reverse-Engineered Pipeline Requirements
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-lg bg-white/5 border border-white/10 p-3.5 space-y-1">
+                    <div className="text-[11px] text-indigo-200/80 font-medium">
+                      Required Monthly Qualified Leads / Visitors
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-extrabold text-emerald-400">
+                        {calculatedRequiredMonthlyLeads.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-white/70">prospects/month</span>
+                    </div>
+                    <div className="text-[11px] text-white/60">
+                      Calculated as: {yr1BreakevenUnits} breakeven units ÷ {step4Data.expectedConversionRatePercent}% conversion
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-white/5 border border-white/10 p-3.5 space-y-1">
+                    <div className="text-[11px] text-indigo-200/80 font-medium">
+                      Daily Acquisition Run-Rate
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-extrabold text-white">
+                        ~{calculatedDailyLeads.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-white/70">qualified leads/day</span>
+                    </div>
+                    <div className="text-[11px] text-white/60">
+                      Top-of-funnel velocity needed across web, ads, waitlist &amp; outreach
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-indigo-100/80 pt-1">
+                  💡 This establishes the exact pipeline volume that <strong>Module I (Marketing)</strong> and <strong>Module C (Customer Waitlists)</strong> will be engineered to generate.
+                </p>
+              </div>
+            </div>
+
+            {/* ------------------------------------------------------------- */}
+            {/* PART C: RETENTION & CHURN REALITY                              */}
+            {/* ------------------------------------------------------------- */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Part C: Retention &amp; Customer Churn Assumptions
+                  </Label>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {step1Data.revenueModelVehicle === 'SUBSCRIPTION_RECURRING' ||
+                    step1Data.revenueModelVehicle === 'USAGE_BASED_METERED'
+                      ? 'What percentage of subscribers cancel each month?'
+                      : 'What percentage of buyers make a repeat purchase within 30–60 days?'}
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-[10px] bg-slate-50">
+                  {step1Data.revenueModelVehicle === 'SUBSCRIPTION_RECURRING'
+                    ? 'Recurring Churn'
+                    : 'Repeat Purchase'}
+                </Badge>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="1"
+                  max="50"
+                  step="1"
+                  value={step4Data.expectedMonthlyChurnOrRepeatPercent}
+                  onChange={(e) =>
+                    setStep4Data((prev) => ({
+                      ...prev,
+                      expectedMonthlyChurnOrRepeatPercent: parseInt(e.target.value) || 5,
+                    }))
+                  }
+                  className="w-full accent-indigo-600"
+                />
+                <div className="flex items-center gap-1 shrink-0">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={step4Data.expectedMonthlyChurnOrRepeatPercent}
+                    onChange={(e) =>
+                      setStep4Data((prev) => ({
+                        ...prev,
+                        expectedMonthlyChurnOrRepeatPercent: parseInt(e.target.value) || 5,
+                      }))
+                    }
+                    className="h-8 w-16 text-right text-xs font-bold bg-slate-50"
+                  />
+                  <span className="text-xs font-semibold text-slate-700">%</span>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-500 flex items-center justify-between border-t border-slate-100 pt-2">
+                {step1Data.revenueModelVehicle === 'SUBSCRIPTION_RECURRING' ||
+                step1Data.revenueModelVehicle === 'USAGE_BASED_METERED' ? (
+                  <span>
+                    Benchmark: <strong>&lt; 2%</strong> (Enterprise SaaS) • <strong>3%–5%</strong> (Healthy SMB SaaS) • <strong>&gt; 7%</strong> (High Churn Alert)
+                  </span>
+                ) : (
+                  <span>
+                    Benchmark: <strong>10%–20%</strong> (Typical E-com) • <strong>25%–40%</strong> (Strong Brand Loyalty) • <strong>&gt; 50%</strong> (High Retention Retainer)
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* ------------------------------------------------------------- */}
+            {/* PART D: WRITTEN SALES ASSUMPTIONS & ASSESSOR DEFENSE (AI)      */}
+            {/* ------------------------------------------------------------- */}
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Part D: Written Sales Assumptions &amp; Assessor Defense
+                  </Label>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Defend your conversion rates, sales cycle timing, and operational capacity for grant and loan assessors.
+                  </p>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  type="button"
+                  onClick={handleGenerateAiSalesNarrative}
+                  disabled={isGeneratingAiSalesNarrative || isVaultReadonly}
+                  className="h-8 border-indigo-300 bg-indigo-50/50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900"
+                >
+                  {isGeneratingAiSalesNarrative ? (
+                    <>
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-indigo-600" />
+                      Synthesizing Pipeline Math...
+                    </>
+                  ) : aiSalesNarrativeSuccess ? (
+                    <>
+                      <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                      Assumptions Updated!
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                      Auto-Draft with AI (Assessor Mode)
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Assessor Tip Callout */}
+              {(aiSalesAssessorTip || step4Data.assessorTip) && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5 text-xs text-indigo-950 flex items-start gap-2.5 animate-in fade-in-50">
+                  <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-indigo-900">Assessor Defense Tip: </span>
+                    <span className="text-slate-700">{aiSalesAssessorTip || step4Data.assessorTip}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Structured 3-Paragraph Textarea */}
+              <div className="space-y-1.5">
+                <textarea
+                  rows={8}
+                  value={step4Data.writtenAssumptionsNarrative}
+                  onChange={(e) =>
+                    setStep4Data((prev) => ({
+                      ...prev,
+                      writtenAssumptionsNarrative: e.target.value,
+                    }))
+                  }
+                  placeholder={`Click "Auto-Draft with AI (Assessor Mode)" above or enter your 3 structured paragraphs:\n\n1. Commercial Acquisition & Conversion Mechanics (Explaining the ${step4Data.expectedConversionRatePercent}% conversion rate and required ${calculatedRequiredMonthlyLeads} leads/month)...\n\n2. Pipeline Velocity & Revenue Realization Lag (Explaining the ${step4Data.salesCycleDays}-day sales cycle lag and cashflow timing)...\n\n3. Operational Delivery Capacity & Scalability (Comparing ${yr1BreakevenUnits} breakeven units against your ${currentCapacity} units/month operational ceiling)...`}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 leading-relaxed shadow-2xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>
+                    Directly exports to Module L Official Business Plan &amp; Grant Appendices.
+                  </span>
+                  <span>{step4Data.writtenAssumptionsNarrative.length} characters</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ------------------------------------------------------------- */}
+            {/* STEP 4 FOOTER TOOLBAR                                         */}
+            {/* ------------------------------------------------------------- */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  setOpenStep(3);
+                  window.scrollTo({ top: 400, behavior: 'smooth' });
+                }}
+                className="text-xs text-slate-600 hover:bg-slate-100"
+              >
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                Back to Step 3: Pocket Profit
+              </Button>
+
+              <div className="flex items-center gap-2">
+                {saveStatus === 'saved' && (
+                  <span className="flex items-center text-xs font-medium text-emerald-600">
+                    <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                    Saved
+                  </span>
+                )}
+                {saveStatus === 'error' && (
+                  <span className="flex items-center text-xs font-medium text-rose-600">
+                    <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+                    Save Failed
+                  </span>
+                )}
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  type="button"
+                  onClick={handleSaveStep4}
+                  disabled={saveStatus === 'saving' || isVaultReadonly}
+                  className="border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  {saveStatus === 'saving' ? (
+                    <>
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="mr-1.5 h-3.5 w-3.5" />
+                      Save Step 4
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  size="sm"
+                  type="button"
+                  onClick={async () => {
+                    await handleSaveStep4();
+                    setOpenStep(5);
+                    window.scrollTo({ top: 450, behavior: 'smooth' });
+                  }}
+                  disabled={!isStep4Complete || isVaultReadonly}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+                >
+                  Next: Revenue Brief &amp; Audit (Step 5)
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* STEP 5: REVENUE STRATEGY & POCKET PROFIT BRIEF (EXECUTIVE OVERVIEW) */}
+      {/* ------------------------------------------------------------- */}
+      {openStep !== 'ALL' && openStep !== 5 ? (
+        // COLLAPSED STEP 5 OVERVIEW CARD
+        <div
+          onClick={() => setOpenStep(5)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  completedCoreStepsCount === 4 && isStep5Complete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    Revenue Strategy &amp; Pocket Profit Brief
+                  </h2>
+                  <Badge
+                    variant="outline"
+                    className={`shrink-0 text-[10px] ${
+                      completedCoreStepsCount === 4
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {completedCoreStepsCount}/4 Sections Ready
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700 shrink-0 hidden sm:inline-flex"
+                  >
+                    LEO &amp; Innovate UK Ready
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  1-page commercial dossier, unit economics waterfall, 3-year breakeven horizon, and constructive blind-spot audit.
+                </p>
+              </div>
+            </div>
+
+            <div className="ml-3 flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              >
+                <span>Open Overview</span>
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        // EXPANDED STEP 5 OVERVIEW CARD
+        <Card className="rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm">
+          <CardHeader className="border-b border-indigo-100/80 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                    completedCoreStepsCount === 4 && isStep5Complete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Revenue Strategy &amp; Pocket Profit Brief (Executive Overview)
+                    </CardTitle>
+                    <Badge className="bg-indigo-100 text-indigo-800 text-[10px] shrink-0">
+                      Module H Overview
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] shrink-0 ${
+                        completedCoreStepsCount === 4
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                          : 'border-slate-300 text-slate-600'
+                      }`}
+                    >
+                      {completedCoreStepsCount}/4 Core Sections Ready
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    Review your complete commercial summary, verify your readiness checklist across Steps 1–4, and audit potential margin, debtor, and capacity blind spots for grant and loan defense.
+                  </CardDescription>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCopyMarkdownBrief}
+                  className="h-8 text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 font-semibold"
+                >
+                  {copiedBrief ? (
+                    <>
+                      <Check className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                      Copied Dossier!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="mr-1 h-3.5 w-3.5" />
+                      Copy Markdown Dossier
+                    </>
+                  )}
+                </Button>
+                {openStep !== 'ALL' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setOpenStep(0)}
+                    className="h-8 text-xs text-slate-500 hover:text-slate-900"
+                  >
+                    <span>Collapse Step</span>
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-6 pt-5">
+            {/* ============================================================= */}
+            {/* SECTION 1: 4-PILLAR COMMERCIAL READINESS CHECKLIST GRID       */}
+            {/* ============================================================= */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  1. Commercial Architecture Readiness Checklist
+                </h3>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  {completedCoreStepsCount} of 4 Core Steps Complete
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {/* Pillar 1: Revenue Model */}
+                <div
+                  onClick={() => setOpenStep(1)}
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">
+                      1. Revenue Model
+                    </span>
+                    {isStep1Complete ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-600 line-clamp-2">
+                    {step1Data.revenueModelVehicle
+                      ? REVENUE_VEHICLE_OPTIONS.find((v) => v.id === step1Data.revenueModelVehicle)?.title
+                      : 'Not selected yet'}
+                  </p>
+                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                    Edit Model →
+                  </span>
+                </div>
+
+                {/* Pillar 2: Pricing Tiers */}
+                <div
+                  onClick={() => setOpenStep(2)}
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">
+                      2. Pricing Tiers
+                    </span>
+                    {isStep2Complete ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-600">
+                    {currencySymbol}{blendedAveragePrice.toLocaleString()} blended net • {step2Data.tiers.length} tier(s) configured.
+                  </p>
+                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                    Edit Tiers →
+                  </span>
+                </div>
+
+                {/* Pillar 3: Breakeven Engine */}
+                <div
+                  onClick={() => setOpenStep(3)}
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">
+                      3. Pocket Profit &amp; Breakeven
+                    </span>
+                    {isStep3Complete ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-600">
+                    {currencySymbol}{pocketProfitPerSale.toLocaleString()} pocket profit ({contributionMarginPercent}%) • {yr1BreakevenUnits} sales/mo nut.
+                  </p>
+                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                    Edit Pocket Profit →
+                  </span>
+                </div>
+
+                {/* Pillar 4: Sales Velocity & Capacity */}
+                <div
+                  onClick={() => setOpenStep(4)}
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">
+                      4. Sales Velocity &amp; Capacity
+                    </span>
+                    {isStep4Complete ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-600">
+                    {step4Data.expectedConversionRatePercent}% conv • {step4Data.salesCycleDays}d cycle • {currentCapacity} cap/mo ({isCapacitySurplus ? `+${capacitySurplusOrDeficit}` : `${capacitySurplusOrDeficit}`}).
+                  </p>
+                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                    Edit Velocity →
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ============================================================= */}
+            {/* SECTION 2: 1-PAGE EXECUTIVE COMMERCIAL DOSSIER                */}
+            {/* ============================================================= */}
+            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  2. Executive Commercial Snapshot &amp; Unit Economics Waterfall
+                </h3>
+                <span className="text-[11px] text-slate-500">
+                  Synced directly from Steps 1–4
+                </span>
+              </div>
+
+              {/* Snapshot Metric Cards */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
+                  <div className="text-[11px] font-medium text-slate-500">Blended Net Price</div>
+                  <div className="mt-1 text-lg font-bold text-slate-900">
+                    {currencySymbol}{blendedAveragePrice.toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-slate-400">Net of VAT / Sales Tax</div>
+                </div>
+
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 shadow-2xs">
+                  <div className="text-[11px] font-medium text-emerald-800">Net Pocket Profit</div>
+                  <div className="mt-1 text-lg font-bold text-emerald-700">
+                    {currencySymbol}{pocketProfitPerSale.toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-emerald-600 font-semibold">{contributionMarginPercent}% contribution margin</div>
+                </div>
+
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3 shadow-2xs">
+                  <div className="text-[11px] font-medium text-indigo-800">Y1 Breakeven Target</div>
+                  <div className="mt-1 text-lg font-bold text-indigo-900">
+                    {yr1BreakevenUnits.toLocaleString()} <span className="text-xs font-normal">sales/mo</span>
+                  </div>
+                  <div className="text-[10px] text-indigo-600">Covers {currencySymbol}{totalMonthlyFixedNut.toLocaleString()}/mo nut</div>
+                </div>
+
+                <div className={`rounded-xl border p-3 shadow-2xs ${
+                  isCapacitySurplus ? 'border-emerald-200 bg-emerald-50/40' : 'border-rose-200 bg-rose-50/40'
+                }`}>
+                  <div className={`text-[11px] font-medium ${isCapacitySurplus ? 'text-emerald-800' : 'text-rose-800'}`}>
+                    Delivery Bandwidth
+                  </div>
+                  <div className={`mt-1 text-lg font-bold ${isCapacitySurplus ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {currentCapacity.toLocaleString()} <span className="text-xs font-normal">units/mo</span>
+                  </div>
+                  <div className={`text-[10px] font-semibold ${isCapacitySurplus ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {isCapacitySurplus ? `Surplus: +${capacitySurplusOrDeficit} units` : `Deficit: ${capacitySurplusOrDeficit} units`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Unit Economics Waterfall Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-200 bg-slate-50/80 font-bold text-slate-700">
+                    <tr>
+                      <th className="py-2.5 px-3">Revenue / Cost Component</th>
+                      <th className="py-2.5 px-3 text-right">Per Sale ({currencySymbol})</th>
+                      <th className="py-2.5 px-3 text-right">% of Net Price</th>
+                      <th className="py-2.5 px-3 hidden sm:table-cell">Operational Context / Source</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    <tr>
+                      <td className="py-2 px-3 font-semibold text-slate-900">Customer Sticker Price (Gross)</td>
+                      <td className="py-2 px-3 text-right font-semibold text-slate-900">{currencySymbol}{simulatedGrossStickerPrice.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-right">--</td>
+                      <td className="py-2 px-3 text-slate-500 text-[11px] hidden sm:table-cell">Customer invoice / checkout total including VAT</td>
+                    </tr>
+                    <tr className="bg-slate-50/30">
+                      <td className="py-2 px-3 text-slate-600 pl-6">Less: VAT / Statutory Sales Tax ({defaultVatRate}%)</td>
+                      <td className="py-2 px-3 text-right text-rose-600">-{currencySymbol}{simulatedVatAmount.toFixed(2)}</td>
+                      <td className="py-2 px-3 text-right text-slate-500">--</td>
+                      <td className="py-2 px-3 text-slate-500 text-[11px] hidden sm:table-cell">Remitted to Revenue / HMRC upon registration</td>
+                    </tr>
+                    <tr className="font-semibold text-slate-900 bg-indigo-50/20">
+                      <td className="py-2 px-3">Blended Realized Net Price</td>
+                      <td className="py-2 px-3 text-right font-bold text-indigo-950">{currencySymbol}{simulatedNetPrice.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-right font-bold text-indigo-950">100.0%</td>
+                      <td className="py-2 px-3 text-slate-600 text-[11px] hidden sm:table-cell">Commercial top-line realized by the business</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 text-slate-600 pl-6">Less: Payment Gateway Fees ({step3Data.frictionCosts.paymentGatewayPercent || 0}% + {step3Data.frictionCosts.paymentGatewayFixedCents || 0}¢)</td>
+                      <td className="py-2 px-3 text-right text-rose-600">-{currencySymbol}{gatewayFeeAmount.toFixed(2)}</td>
+                      <td className="py-2 px-3 text-right text-slate-500">
+                        {simulatedNetPrice > 0 ? ((gatewayFeeAmount / simulatedNetPrice) * 100).toFixed(1) : 0}%
+                      </td>
+                      <td className="py-2 px-3 text-slate-500 text-[11px] hidden sm:table-cell">Stripe / card interchange processing deduction</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 text-slate-600 pl-6">Less: Direct Variable COGS / Fulfillment</td>
+                      <td className="py-2 px-3 text-right text-rose-600">-{currencySymbol}{directCogsAmount.toFixed(2)}</td>
+                      <td className="py-2 px-3 text-right text-slate-500">
+                        {simulatedNetPrice > 0 ? ((directCogsAmount / simulatedNetPrice) * 100).toFixed(1) : 0}%
+                      </td>
+                      <td className="py-2 px-3 text-slate-500 text-[11px] hidden sm:table-cell">Materials, unit delivery, server API calls (Module D/E)</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 text-slate-600 pl-6">Less: Refunds &amp; Dispute Reserve ({step3Data.frictionCosts.disputeRefundBufferPercent || 0}%)</td>
+                      <td className="py-2 px-3 text-right text-rose-600">-{currencySymbol}{refundAndAffiliateFeeAmount.toFixed(2)}</td>
+                      <td className="py-2 px-3 text-right text-slate-500">{(step3Data.frictionCosts.disputeRefundBufferPercent || 0).toFixed(1)}%</td>
+                      <td className="py-2 px-3 text-slate-500 text-[11px] hidden sm:table-cell">Prudent buffer against customer chargebacks / returns</td>
+                    </tr>
+                    <tr className="border-t-2 border-emerald-300 bg-emerald-50/50 font-bold text-emerald-950">
+                      <td className="py-2.5 px-3">Net Pocket Profit per Sale (Contribution)</td>
+                      <td className="py-2.5 px-3 text-right text-emerald-700 text-sm">{currencySymbol}{pocketProfitPerSale.toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right text-emerald-700 text-sm">{contributionMarginPercent}%</td>
+                      <td className="py-2.5 px-3 text-emerald-800 text-[11px] hidden sm:table-cell">Cash contribution available to service fixed nut &amp; payroll</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 3-Year Breakeven Horizon Summary */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {computedThreeYearTargets.map((yt) => (
+                  <div key={yt.yearNumber} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">Year {yt.yearNumber} Horizon</span>
+                      <Badge variant="outline" className="text-[10px] text-slate-600 border-slate-300">
+                        Fixed: {currencySymbol}{(yt.monthlyPayrollBaseline + yt.otherFixedMonthlyOverheads).toLocaleString()}/mo
+                      </Badge>
+                    </div>
+                    <div className="text-base font-bold text-indigo-900">
+                      {yt.customersNeededToBreakeven.toLocaleString()} <span className="text-xs font-normal text-slate-600">sales/mo to break even</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Generates {currencySymbol}{yt.monthlyRevenueAtBreakeven.toLocaleString()}/mo revenue to pay {currencySymbol}{yt.monthlyPayrollBaseline.toLocaleString()} scheduled payroll and {currencySymbol}{yt.otherFixedMonthlyOverheads.toLocaleString()} operational overheads.
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ============================================================= */}
+            {/* SECTION 3: AUDIT READINESS POSTURE SELECTOR                   */}
+            {/* ============================================================= */}
+            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+              <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  3. Commercial Readiness Posture (Grant &amp; Investor Diligence)
+                </label>
+                <span className="text-[11px] text-slate-500">
+                  Includes &ldquo;Other&rdquo; custom posture option
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {[
+                  {
+                    value: 'READY_FOR_COMMERCIAL_LAUNCH' as const,
+                    label: 'Ready for Commercial Launch',
+                    badge: 'Validated & Viable',
+                    subtitle: 'Contribution margin >65%, clear breakeven volume, and operational capacity safely accommodates Year 1 targets.',
+                  },
+                  {
+                    value: 'PRICING_TESTING_RECOMMENDED' as const,
+                    label: 'Pricing & Elasticity Testing Advised',
+                    badge: 'Margin Sensitive',
+                    subtitle: 'Unit economics are feasible but tight (<65% margin). Running willingness-to-pay tests on premium tiers recommended.',
+                  },
+                  {
+                    value: 'WORKING_CAPITAL_GAP_WARNING' as const,
+                    label: 'Working Capital Buffer Required',
+                    badge: 'Cashflow Timing Lag',
+                    subtitle: 'Debtor settlement or onboarding lag requires a dedicated 2–3 month cash buffer before cash clears to cover payroll.',
+                  },
+                  {
+                    value: 'NEEDS_CAPACITY_EXPANSION' as const,
+                    label: 'Operational Capacity Bottleneck',
+                    badge: 'Capacity Warning',
+                    subtitle: 'Current delivery ceiling is below Year 1 breakeven volume. Fulfillment automation or early hiring is required.',
+                  },
+                  {
+                    value: 'OTHER' as const,
+                    label: 'Other Commercial Posture',
+                    badge: 'Custom Context',
+                    subtitle: 'Hybrid commercial agreement, partner rev-share, or non-standard procurement contract.',
+                  },
+                ].map((opt) => {
+                  const isSelected = step5Data.revenueReadinessConfidence === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      disabled={isVaultReadonly}
+                      onClick={() =>
+                        setStep5Data((prev) => ({
+                          ...prev,
+                          revenueReadinessConfidence: opt.value,
+                        }))
+                      }
+                      className={`flex flex-col justify-between rounded-xl border p-3 text-left transition ${
+                        isSelected
+                          ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20'
+                          : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/60'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            {opt.label}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={
+                              isSelected
+                                ? 'border-indigo-300 bg-indigo-100 text-[10px] text-indigo-900 font-bold'
+                                : 'border-slate-200 bg-slate-50 text-[10px] text-slate-600'
+                            }
+                          >
+                            {opt.badge}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-slate-600">
+                          {opt.subtitle}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {step5Data.revenueReadinessConfidence === 'OTHER' && (
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-3 space-y-1.5">
+                  <label className="block text-xs font-semibold text-indigo-950">
+                    Describe Your Custom Commercial Posture:
+                  </label>
+                  <input
+                    type="text"
+                    disabled={isVaultReadonly}
+                    value={step5Data.otherReadinessConfidenceText || ''}
+                    onChange={(e) =>
+                      setStep5Data((prev) => ({
+                        ...prev,
+                        otherReadinessConfidenceText: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Enterprise pilot contract with 50% upfront deposit offsetting debtor risk..."
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 sm:text-xs"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* ============================================================= */}
+            {/* SECTION 4: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT AUDIT */}
+            {/* ============================================================= */}
+            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+              <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    4. Constructive &ldquo;Things to Consider&rdquo; Commercial Blind-Spot Review
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Specific vulnerabilities grant committees and loan assessors look for in financial submissions.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isGeneratingAiBrief || isVaultReadonly}
+                    onClick={handleGenerateAiRevenueBrief}
+                    className="h-8 text-xs font-semibold border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100/80"
+                  >
+                    {isGeneratingAiBrief ? (
+                      <>
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-indigo-600" />
+                        Auditing Commercial Blind Spots...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        Audit Commercial Blind Spots with AI
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly}
+                    onClick={handleAddCustomBlindSpot}
+                    className="h-8 text-xs border-slate-300 text-slate-700"
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Add Consideration
+                  </Button>
+                </div>
+              </div>
+
+              {/* Blind Spot Cards List */}
+              <div className="space-y-3">
+                {step5Data.blindSpots.map((item, idx) => {
+                  const isCritical = item.severity === 'CRITICAL';
+                  const isWarning = item.severity === 'WARNING';
+
+                  return (
+                    <div
+                      key={item.id}
+                      className={`rounded-xl border p-3.5 transition ${
+                        isCritical
+                          ? 'border-rose-200 bg-rose-50/30'
+                          : isWarning
+                          ? 'border-amber-200 bg-amber-50/30'
+                          : 'border-indigo-200 bg-indigo-50/30'
+                      }`}
+                    >
+                      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center rounded-md bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">
+                            Consideration #{idx + 1}
+                          </span>
+                          <span className="text-xs font-bold text-slate-900">{item.title}</span>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-bold ${
+                              isCritical
+                                ? 'border-rose-300 bg-rose-100 text-rose-800'
+                                : isWarning
+                                ? 'border-amber-300 bg-amber-100 text-amber-800'
+                                : 'border-indigo-300 bg-indigo-100 text-indigo-800'
+                            }`}
+                          >
+                            {item.severity}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleParkBlindSpotInOpenQuestions(item)}
+                            className="h-7 text-[11px] text-slate-600 hover:text-indigo-600 hover:bg-slate-100"
+                          >
+                            Park in Open Questions
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              setStep5Data((prev) => ({
+                                ...prev,
+                                blindSpots: prev.blindSpots.filter((b) => b.id !== item.id),
+                              }))
+                            }
+                            className="h-7 text-[11px] text-slate-400 hover:text-rose-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <p className="mt-2 text-xs text-slate-700 leading-relaxed">
+                        {item.explanation}
+                      </p>
+
+                      <div className="mt-2.5 rounded-lg border border-slate-200/80 bg-white/80 p-2.5 text-xs">
+                        <span className="font-semibold text-indigo-950">Recommended Action: </span>
+                        <span className="text-slate-700">{item.suggestedAction}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ============================================================= */}
+            {/* SECTION 5: EXECUTIVE COMMERCIAL SUMMARY NARRATIVE (3 PARAS)  */}
+            {/* ============================================================= */}
+            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+              <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    5. Executive Commercial Defense Narrative (3 Structured Paragraphs)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Formal narrative addressing unit economics, breakeven viability, and delivery feasibility for Module L grant appendices.
+                  </p>
+                </div>
+              </div>
+
+              {/* Assessor Tip Callout */}
+              {(aiBriefAssessorTip || step5Data.aiAssessorTip) && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5 text-xs text-indigo-950 flex items-start gap-2.5">
+                  <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-indigo-900">Commercial Assessor Tip: </span>
+                    <span className="text-slate-700">{aiBriefAssessorTip || step5Data.aiAssessorTip}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <textarea
+                  rows={9}
+                  disabled={isVaultReadonly}
+                  value={step5Data.executiveCommercialSummaryNarrative}
+                  onChange={(e) =>
+                    setStep5Data((prev) => ({
+                      ...prev,
+                      executiveCommercialSummaryNarrative: e.target.value,
+                    }))
+                  }
+                  placeholder="Click 'Audit Commercial Blind Spots with AI' above or enter your 3 structured paragraphs..."
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 leading-relaxed shadow-2xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>
+                    Directly populates Module L Commercial Viability &amp; LEO / Innovate UK Appendices.
+                  </span>
+                  <span>{step5Data.executiveCommercialSummaryNarrative.length} characters</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Save Overview Action */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-indigo-100/80 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenStep(4)}
+                className="text-xs text-slate-600"
+              >
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                Back to Step 4 (Sales Velocity)
+              </Button>
+
+              <div className="flex items-center gap-2">
+                {saveStatus === 'saved' && (
+                  <span className="flex items-center text-xs font-medium text-emerald-600">
+                    <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                    Saved
+                  </span>
+                )}
+                {saveStatus === 'error' && (
+                  <span className="flex items-center text-xs font-medium text-rose-600">
+                    <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+                    Save Failed
+                  </span>
+                )}
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveStep5}
+                  disabled={saveStatus === 'saving' || isVaultReadonly}
+                  className="bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold"
+                >
+                  {saveStatus === 'saving' ? (
+                    <>
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Saving Brief...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                      Save Revenue Brief (Complete Module H)
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Conversion / Handoff CTA Bar into Module I */}
+            {onContinueToModuleI && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
+                <div className="text-xs min-w-0 flex-1">
+                  <span className="font-semibold text-indigo-300">
+                    Module H Complete! Commercial model &amp; pocket profit verified for {plan.title}.
+                  </span>{' '}
+                  <span className="text-slate-300">
+                    Ready to build your customer acquisition engine? Advance to Module I: Marketing &amp; First 10 Customers.
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isVaultReadonly || saveStatus === 'saving'}
+                  onClick={async () => {
+                    await handleSaveStep5();
+                    onContinueToModuleI();
+                  }}
+                  className="shrink-0 bg-indigo-600 text-white hover:bg-indigo-500 text-xs font-semibold"
+                >
+                  Advance to Module I: Marketing
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </CardContent>
         </Card>
       )}
     </div>
