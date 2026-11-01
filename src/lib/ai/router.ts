@@ -10885,6 +10885,190 @@ Return strictly valid JSON:
   return fallback;
 }
 
+// -----------------------------------------------------------------------------
+// MODULE H (STEP 3): BREAKEVEN & WORKING CAPITAL ASSESSOR NARRATIVE GENERATOR
+// -----------------------------------------------------------------------------
+
+export interface GenerateBreakevenAssessorNarrativeResult {
+  allowed: boolean;
+  narrative: string;
+  assessorTip?: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer' | 'unauthorized';
+}
+
+function buildSmartBreakevenAssessorNarrative(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  currencySymbol?: string;
+  blendedAveragePrice?: number;
+  pocketProfit?: number;
+  pocketProfitMarginPercent?: number;
+  monthlyFixedOverhead?: number;
+  survivalMonthlyBudget?: number;
+  targetMonthlyBreakevenCustomers?: number;
+  paymentTerms?: string;
+  workingCapitalBuffer?: number;
+  exportSalesPercent?: number;
+  exportFocusRegions?: string;
+}): GenerateBreakevenAssessorNarrativeResult {
+  const sym = params.currencySymbol || '€';
+  const country = params.hqCountryCode || 'IE';
+  const isIE = country === 'IE';
+  const price = params.blendedAveragePrice ?? 49;
+  const profit = params.pocketProfit ?? 42;
+  const margin = params.pocketProfitMarginPercent ?? 85;
+  const fixed = params.monthlyFixedOverhead ?? 1500;
+  const survival = params.survivalMonthlyBudget ?? 2500;
+  const totalBurn = fixed + survival;
+  const breakeven = params.targetMonthlyBreakevenCustomers ?? Math.max(1, Math.ceil(totalBurn / (profit || 1)));
+  const terms = params.paymentTerms || 'INSTANT_CARD';
+  const buffer = params.workingCapitalBuffer ?? (terms === 'NET_60' ? Math.round(totalBurn * 2.5) : terms === 'NET_30' ? Math.round(totalBurn * 1.5) : 0);
+  const exportPct = params.exportSalesPercent ?? 0;
+  const exportDest = params.exportFocusRegions || (isIE ? 'UK, EU & North America' : 'EU, US & International');
+
+  const termsLabel =
+    terms === 'NET_60'
+      ? 'Net 60 Days invoicing'
+      : terms === 'NET_30'
+      ? 'Net 30 Days invoicing'
+      : terms === 'NET_14'
+      ? 'Net 14 Days terms'
+      : terms === 'OTHER'
+      ? 'custom commercial settlement terms'
+      : 'instant digital checkout / card payment (zero debtor delay)';
+
+  const agencyName = isIE ? 'LEO / Enterprise Ireland' : 'Innovate UK / British Business Bank';
+
+  const p1 = `Operating Viability & Breakeven Threshold: ${params.planTitle || 'The venture'} maintains a baseline monthly fixed operational commitment of ${sym}${fixed.toLocaleString()}/month and a founder living survival allocation of ${sym}${survival.toLocaleString()}/month, representing a total fixed break-even threshold of ${sym}${totalBurn.toLocaleString()}/month. At a blended net unit price of ${sym}${price.toLocaleString()} delivering ${sym}${profit.toLocaleString()} in net pocket contribution (${margin}% pocket margin after direct cost of goods, transaction fees, and fulfilment overheads), full commercial cash-flow breakeven is attained at exactly ${breakeven.toLocaleString()} active sales/subscribers per month.`;
+
+  const p2 = `Working Capital & Receivables Management: Revenue collection is structured under ${termsLabel}.${
+    buffer > 0
+      ? ` To protect ongoing solvency against debtor collection lags, the venture incorporates an explicit working capital buffer of ${sym}${buffer.toLocaleString()} (${terms === 'NET_60' ? '2.5×' : '1.5×'} monthly fixed expenditure) funded prior to invoice settlement.`
+      : ' Immediate funds capture minimizes cash conversion latency and eliminates debtor realization risk during early operations.'
+  }`;
+
+  const p3 = `Export Orientation & Economic Additionality: The commercial model projects ${exportPct}% of revenue derived from international markets (${exportDest}), satisfying ${agencyName} eligibility criteria for tradeable services/products with minimal domestic market displacement and substantial regional economic value-add.`;
+
+  return {
+    allowed: true,
+    narrative: `${p1}\n\n${p2}\n\n${p3}`,
+    assessorTip: isIE
+      ? 'LEO evaluation committees prioritize your ability to explain how you survive month-to-month until the debtor cash actually clears your Irish bank account.'
+      : 'Innovate UK and Start Up Loans assessors look closely for evidence that your breakeven unit volumes are realistic given your sales cycle and working capital runway.',
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generateBreakevenAssessorNarrativeViaRouter(params: {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  currencySymbol?: string;
+  blendedAveragePrice?: number;
+  pocketProfit?: number;
+  pocketProfitMarginPercent?: number;
+  monthlyFixedOverhead?: number;
+  survivalMonthlyBudget?: number;
+  targetMonthlyBreakevenCustomers?: number;
+  paymentTerms?: string;
+  workingCapitalBuffer?: number;
+  exportSalesPercent?: number;
+  exportFocusRegions?: string;
+  unfairAdvantage?: string;
+  beachheadCustomer?: string;
+}): Promise<GenerateBreakevenAssessorNarrativeResult> {
+  const fallback = buildSmartBreakevenAssessorNarrative(params);
+  const country = params.hqCountryCode || 'IE';
+  const countryLabel =
+    country === 'IE'
+      ? 'Ireland (Local Enterprise Office LEO & Enterprise Ireland Grant Committees)'
+      : 'United Kingdom (Innovate UK Grant Assessors & British Business Bank Start Up Loans Credit Underwriters)';
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_H_BREAKEVEN_NARRATIVE',
+    'You are a senior government grant committee evaluator, credit risk officer, and venture underwriter specializing in startup breakeven analysis, cash flow timing, and working capital solvency.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `Write a rigorous, professional 3-paragraph Breakeven, Working Capital & Export Justification for ${sanitizePromptInput(
+        params.planTitle || 'Startup',
+        100
+      )} in ${countryLabel}.
+This narrative will be placed directly in the Grant Application / Bank Credit Paper evaluating commercial viability, debtor cash conversion risk, and export additionality.
+
+COMMERCIAL FIGURES & METRICS:
+- Industry Category: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+- Blended Net Selling Price: ${params.currencySymbol || '€'}${params.blendedAveragePrice ?? 49}
+- Net Pocket Profit Per Sale: ${params.currencySymbol || '€'}${params.pocketProfit ?? 42} (Contribution Margin: ${params.pocketProfitMarginPercent ?? 85}%)
+- Monthly Fixed Overheads: ${params.currencySymbol || '€'}${params.monthlyFixedOverhead ?? 1500}/month
+- Founder Survival Allocation / Scheduled Payroll: ${params.currencySymbol || '€'}${params.survivalMonthlyBudget ?? 2500}/month
+- Total Required Monthly Cash Inflow: ${params.currencySymbol || '€'}${((params.monthlyFixedOverhead || 0) + (params.survivalMonthlyBudget || 0)).toLocaleString()}/month
+- Target Monthly Breakeven Volume: ${params.targetMonthlyBreakevenCustomers ?? 100} paying units/customers per month
+- Payment Terms & Debtor Lag: ${params.paymentTerms || 'INSTANT_CARD'} (Required Working Capital Buffer: ${params.currencySymbol || '€'}${params.workingCapitalBuffer || 0})
+- Export Sales Split: ${params.exportSalesPercent ?? 0}% from outside domestic market (Target Export Regions: ${sanitizePromptInput(params.exportFocusRegions || 'UK / EU / North America', 120)})
+- Beachhead Persona: ${sanitizePromptInput(params.beachheadCustomer || 'Target segment', 120)}
+
+REQUIREMENTS:
+1. Paragraph 1 (Breakeven Mechanics): Formally articulate the breakeven point (${params.targetMonthlyBreakevenCustomers} units/month to cover ${params.currencySymbol || '€'}${((params.monthlyFixedOverhead || 0) + (params.survivalMonthlyBudget || 0)).toLocaleString()}/mo), referencing the unit contribution margin (${params.pocketProfitMarginPercent}%) and explaining why this customer volume is conservative and attainable.
+2. Paragraph 2 (Cash Lag & Working Capital Buffer): Address payment settlement terms (${params.paymentTerms}), explain debtor realization timing, and detail how working capital reserves (${params.currencySymbol || '€'}${params.workingCapitalBuffer || 0}) protect cash solvency while waiting for payments to settle.
+3. Paragraph 3 (Export Additionality & Economic Justification): State the ${params.exportSalesPercent}% international revenue strategy, highlight regional economic additionality and non-displacement of domestic competitors (critical for Irish LEO/EI and UK Innovate UK approvals).
+4. Tone: Rigorous, sober, commercial, and defensible. Avoid vague hype. Length: 160-230 words.
+5. Provide a 1-sentence tactical Assessor Tip for the founder when defending this section during appraisal interviews.
+
+Return strictly valid JSON:
+{
+  "narrative": "string (160-230 words in 3 structured paragraphs)",
+  "assessorTip": "string (1 concise sentence)"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text) as {
+          narrative?: string;
+          assessorTip?: string;
+        };
+
+        if (parsed.narrative) {
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            promptKey: 'MOD_H_BREAKEVEN_NARRATIVE',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 650,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 400,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            narrative: parsed.narrative.trim(),
+            assessorTip: parsed.assessorTip?.trim() || fallback.assessorTip,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Error in generateBreakevenAssessorNarrativeViaRouter:', err);
+    }
+  }
+
+  return fallback;
+}
+
+
 
 
 

@@ -275,6 +275,8 @@ export interface ModuleEWorkspaceProps {
   onBackToModuleD: () => void;
   onContinueToModuleF?: () => void;
   whiteLabelEnabled?: boolean;
+  initialStep?: number;
+  highlightTarget?: string;
 }
 
 const FULFILLMENT_MODE_OPTIONS: Array<{
@@ -2276,6 +2278,8 @@ export function ModuleEWorkspace({
   onParkOpenQuestion,
   onBackToModuleD,
   onContinueToModuleF,
+  initialStep,
+  highlightTarget,
 }: ModuleEWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
   const inheritedTrack: ProductTrackType =
@@ -2291,6 +2295,11 @@ export function ModuleEWorkspace({
   const [activeTab, setActiveTab] = useState<
     'STEP_1' | 'STEP_2' | 'STEP_3' | 'STEP_4' | 'STEP_5' | 'STEP_6'
   >(() => {
+    if (initialStep === 2) return 'STEP_2';
+    if (initialStep === 3) return 'STEP_3';
+    if (initialStep === 4) return 'STEP_4';
+    if (initialStep === 5) return 'STEP_5';
+    if (initialStep === 6) return 'STEP_6';
     if (plan.currentModuleStep === 'MOD_E_STEP_6') return 'STEP_6';
     if (plan.currentModuleStep === 'MOD_E_STEP_5') return 'STEP_5';
     if (plan.currentModuleStep === 'MOD_E_STEP_4') return 'STEP_4';
@@ -2300,7 +2309,31 @@ export function ModuleEWorkspace({
   });
 
   // Step Accordion View State: 0 = all collapsed by default, 1..6, or 'ALL'
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 6) {
+      return initialStep;
+    }
+    return 0;
+  });
+
+  // Handle deep-link scrolling and highlight
+  useEffect(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 6) {
+      setOpenStep(initialStep);
+      setActiveTab(`STEP_${initialStep}` as any);
+      setTimeout(() => {
+        const targetId = highlightTarget || `module-e-step-${initialStep}`;
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('attention-highlight');
+          void el.offsetWidth;
+          el.classList.add('attention-highlight');
+          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+        }
+      }, 250);
+    }
+  }, [initialStep, highlightTarget]);
 
   useEffect(() => {
     if (plan.currentModuleStep === 'MOD_E_STEP_6') {
@@ -6368,7 +6401,7 @@ export function ModuleEWorkspace({
                     />
                   </div>
 
-                  <div>
+                  <div id="target-mod-e-premises-cost" className="rounded-xl p-2.5 transition-all scroll-mt-28">
                     <label className="mb-1 block text-xs font-bold text-slate-800">
                       Monthly Premises / Rent / Utilities ({plan.baseCurrency}/mo)
                     </label>

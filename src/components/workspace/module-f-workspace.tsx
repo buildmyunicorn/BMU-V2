@@ -142,6 +142,8 @@ export interface ModuleFWorkspaceProps {
   onParkOpenQuestion?: (questionText: string) => void;
   onBackToModuleE?: () => void;
   onContinueToModuleG?: () => void;
+  initialStep?: number;
+  highlightTarget?: string;
 }
 
 export const TEAM_STRUCTURE_POSTURE_OPTIONS: Array<{
@@ -1955,9 +1957,34 @@ export function ModuleFWorkspace({
   onParkOpenQuestion,
   onBackToModuleE,
   onContinueToModuleG,
+  initialStep,
+  highlightTarget,
 }: ModuleFWorkspaceProps) {
   // Step Accordion View State: 0 = all collapsed by default, 1..6, or 'ALL'
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 6) {
+      return initialStep;
+    }
+    return 0;
+  });
+
+  // Handle deep-link scrolling and highlight
+  useEffect(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 6) {
+      setOpenStep(initialStep);
+      setTimeout(() => {
+        const targetId = highlightTarget || `module-f-step-${initialStep}`;
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('attention-highlight');
+          void el.offsetWidth;
+          el.classList.add('attention-highlight');
+          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+        }
+      }, 250);
+    }
+  }, [initialStep, highlightTarget]);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
 
   // Micro-coaching popovers
@@ -5876,7 +5903,10 @@ export function ModuleFWorkspace({
                     </div>
 
                     {/* 2. The 6 Essential Living Cost Scrollers */}
-                    <div className="space-y-4 pt-3 border-t border-slate-100">
+                    <div
+                      id="target-mod-f-survival-budget"
+                      className="space-y-4 pt-3 border-t border-slate-100 rounded-xl p-2.5 transition-all scroll-mt-28"
+                    >
                       <div>
                         <h3 className="text-xs font-bold text-slate-900">
                           2. Essential Living Outgoings &amp; Offset Cushion (Monthly)

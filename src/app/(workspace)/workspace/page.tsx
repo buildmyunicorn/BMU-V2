@@ -507,6 +507,12 @@ export default function WorkspacePage() {
   // Module A Step Accordion / Dropdown View State (0 = all collapsed, 1..7, or 'ALL')
   const [openModAStep, setOpenModAStep] = useState<number | 'ALL'>(0);
 
+  // Deep-link cross-module navigation targeting (step number + element id highlight)
+  const [moduleNavTarget, setModuleNavTarget] = useState<{
+    step?: number;
+    highlightTarget?: string;
+  } | null>(null);
+
   // Module A Step 2, Step 3, Step 4 & Step 5 Live State
   const [conceptCanvas, setConceptCanvas] = useState<SavedConceptCanvas | null>(
     null
@@ -5064,6 +5070,8 @@ export default function WorkspacePage() {
                 });
               }}
               onBackToModuleE={() => setActiveModule('MOD_E_OPERATIONS')}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
               onContinueToModuleG={() => {
                 const access = canAccessModule(
                   activeEntitlement,
@@ -5194,6 +5202,19 @@ export default function WorkspacePage() {
                 });
               }}
               onBackToModuleG={() => setActiveModule('MOD_G_LAUNCHPAD')}
+              onNavigateToModule={(modCode, targetStep, highlightId) => {
+                const access = canAccessModule(activeEntitlement, modCode);
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock(modCode);
+                  setPaywallModalFeature(access.reason || 'This module requires an upgraded plan.');
+                  return;
+                }
+                setModuleNavTarget(
+                  targetStep ? { step: targetStep, highlightTarget: highlightId } : null
+                );
+                setActiveModule(modCode);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               onContinueToModuleI={() => {
                 const access = canAccessModule(
                   activeEntitlement,
@@ -5252,6 +5273,8 @@ export default function WorkspacePage() {
                 handleGenerateModuleEBlindSpotAuditWithAi
               }
               userId={session.user.id}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
               onParkOpenQuestion={handleParkModuleEQuestion}
               onBackToModuleD={() => setActiveModule('MOD_D_PRODUCT_BUILD')}
               onContinueToModuleF={() => {
@@ -5307,6 +5330,8 @@ export default function WorkspacePage() {
                 handleGenerateModuleDBlindSpotAuditWithAi
               }
               onParkOpenQuestion={handleParkModuleDQuestion}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
               onBackToModuleC={() => setActiveModule('MOD_C_SURVEYS_FEEDBACK')}
               onContinueToModuleE={() => {
                 setActiveModule('MOD_E_OPERATIONS');

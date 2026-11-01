@@ -232,6 +232,8 @@ export interface ModuleDWorkspaceProps {
   onBackToModuleC: () => void;
   onContinueToModuleE?: () => void;
   whiteLabelEnabled?: boolean;
+  initialStep?: number;
+  highlightTarget?: string;
 }
 
 export function detectRecommendedProductTrack(
@@ -4349,12 +4351,19 @@ export function ModuleDWorkspace({
   onBackToModuleC,
   onContinueToModuleE,
   whiteLabelEnabled,
+  initialStep,
+  highlightTarget,
 }: ModuleDWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
 
   const [activeTab, setActiveTab] = useState<
     'STEP_1' | 'STEP_2' | 'STEP_3' | 'STEP_4' | 'STEP_5' | 'STEP_6'
   >(() => {
+    if (initialStep === 2) return 'STEP_2';
+    if (initialStep === 3) return 'STEP_3';
+    if (initialStep === 4) return 'STEP_4';
+    if (initialStep === 5) return 'STEP_5';
+    if (initialStep === 6) return 'STEP_6';
     if (plan.currentModuleStep === 'MOD_D_STEP_6') return 'STEP_6';
     if (plan.currentModuleStep === 'MOD_D_STEP_5') return 'STEP_5';
     if (plan.currentModuleStep === 'MOD_D_STEP_4') return 'STEP_4';
@@ -4364,7 +4373,31 @@ export function ModuleDWorkspace({
   });
 
   // Step Accordion View State: 0 = all collapsed by default, 1..6, or 'ALL'
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 6) {
+      return initialStep;
+    }
+    return 0;
+  });
+
+  // Handle deep-link scrolling and highlight
+  useEffect(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 6) {
+      setOpenStep(initialStep);
+      setActiveTab(`STEP_${initialStep}` as any);
+      setTimeout(() => {
+        const targetId = highlightTarget || `module-d-step-${initialStep}`;
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('attention-highlight');
+          void el.offsetWidth; // trigger reflow
+          el.classList.add('attention-highlight');
+          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+        }
+      }, 250);
+    }
+  }, [initialStep, highlightTarget]);
   const [showModuleDBriefPreview, setShowModuleDBriefPreview] = useState(true);
 
   const [showWhyCard, setShowWhyCard] = useState(true);
@@ -9139,7 +9172,10 @@ export function ModuleDWorkspace({
                       </div>
 
                       {/* Manual Override / Synced Input */}
-                      <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-2">
+                      <div
+                        id="target-mod-d-blended-fee"
+                        className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-2 scroll-mt-28 transition-all"
+                      >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <label className="text-xs font-bold text-slate-900">

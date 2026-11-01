@@ -831,6 +831,7 @@ export function ModuleBWorkspace({
   const [showExamples, setShowExamples] = useState(false);
   const [showImStuck, setShowImStuck] = useState(false);
   const [showJargonTooltip, setShowJargonTooltip] = useState(false);
+  const [showBeachheadTooltip, setShowBeachheadTooltip] = useState(false);
 
   // "I'm Stuck" 3-mini-question builder states
   const [stuckWho, setStuckWho] = useState('');
@@ -1650,11 +1651,11 @@ export function ModuleBWorkspace({
   const moduleBReadinessSteps = [
     {
       stepNumber: 1,
-      label: 'Target Customers & Markets',
+      label: 'Your First Core Customer Group & Markets',
       isComplete: beachheadSegment.trim().length > 10,
       summary:
         beachheadSegment.trim() ||
-        'Define your first priority customer group in Step 1',
+        'Define your first priority core customer group (beachhead) in Step 1',
     },
     {
       stepNumber: 2,
@@ -1854,7 +1855,7 @@ export function ModuleBWorkspace({
     );
     setIsSaving(false);
     setSaveBanner(
-      `✅ Saved Step 1 (Target Customers & Selling Markets: ${targetMarkets.join(', ')})!`
+      `✅ Saved Step 1 (First Customer Group & Selling Markets: ${targetMarkets.join(', ')})!`
     );
   }
 
@@ -1995,7 +1996,7 @@ export function ModuleBWorkspace({
           {[
             {
               step: 'Step 1',
-              title: 'Customers & Target Markets',
+              title: 'First Customer Group & Markets',
               targetId: 'module-b-step-1',
               stepNum: 1,
               done: moduleBReadinessSteps[0]?.isComplete ?? false,
@@ -2123,7 +2124,7 @@ export function ModuleBWorkspace({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
-                    Step 1: Target Customers &amp; Selling Markets
+                    Step 1: Your First Core Customer Group &amp; Selling Markets
                   </h2>
                   {moduleBReadinessSteps[0]?.isComplete ? (
                     <Badge variant="success" className="shrink-0 text-[10px]">
@@ -2171,12 +2172,12 @@ export function ModuleBWorkspace({
                   )}
                 </span>
                 <h2 className="text-base font-bold text-slate-900">
-                  Step 1: Who Are Your Customers &amp; Where Are You Selling?
+                  Step 1: Your First Core Customer Group &amp; Where Are You Selling?
                 </h2>
                 <Badge variant="success" className="shrink-0">Step 1 of 5</Badge>
               </div>
               <p className="mt-1 text-xs text-slate-600">
-                Define who will buy from you (especially the first group you want to win) and which countries you plan to sell in.
+                Define who will buy from you (your first core customer group or &ldquo;beachhead&rdquo;) and which countries you plan to sell in.
               </p>
             </div>
 
@@ -2233,7 +2234,7 @@ export function ModuleBWorkspace({
               className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
             >
               <Info className="h-3 w-3" />
-              Why start with a specific customer group?
+              What is a &ldquo;Beachhead Customer / Segment&rdquo;?
             </button>
           </div>
 
@@ -2242,10 +2243,12 @@ export function ModuleBWorkspace({
           {/* Inline Helpful Tip */}
           {showJargonTooltip && (
             <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3.5 text-xs text-slate-700 shadow-xs">
-              <div className="font-bold text-indigo-950">
-                📖 Quick Tip: Why Focus on Your First Customers?
+              <div className="font-bold text-indigo-950 flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                📖 Plain-English Guide: Beachhead Customer / Segment
               </div>
               <p className="mt-1 leading-relaxed">
+                A <strong>&ldquo;Beachhead&rdquo;</strong> simply means the very first specific group of customers you focus on winning before expanding to everyone else.
                 With limited time and budget, you cannot market to the whole
                 world on Day 1. Starting with the{' '}
                 <strong>specific group of customers who feel the problem most urgently</strong>{' '}
@@ -2295,7 +2298,7 @@ export function ModuleBWorkspace({
                 </div>
                 <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
                   <span className="font-bold text-emerald-800">
-                    ✅ Clear First Target Customers:
+                    ✅ Clear First Target Customers (Beachhead):
                   </span>
                   <p className="mt-1 text-slate-700">
                     &ldquo;{industryExamples.strongBeachhead}&rdquo;
@@ -2462,12 +2465,23 @@ export function ModuleBWorkspace({
           {/* 2. Target Customer Description */}
           <div>
             <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-              <label
-                htmlFor="beachhead-segment-input"
-                className="text-xs font-bold uppercase tracking-wider text-slate-600"
-              >
-                2. Describe Your Target Customers (And Who You Will Sell To First)
-              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <label
+                  htmlFor="beachhead-segment-input"
+                  className="text-xs font-bold uppercase tracking-wider text-slate-700"
+                >
+                  2. Your First Core Customer Group (Who buys first?)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowBeachheadTooltip((prev) => !prev)}
+                  className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  title='A "Beachhead" simply means the very first specific group of customers you focus on winning before expanding to everyone else.'
+                >
+                  <Info className="h-3 w-3 text-indigo-600 shrink-0" />
+                  <span>Jargon: &ldquo;Beachhead Customer / Segment&rdquo;</span>
+                </button>
+              </div>
               {plan.conceptCanvas?.targetCustomer && (
                 <button
                   type="button"
@@ -2484,13 +2498,32 @@ export function ModuleBWorkspace({
                 </button>
               )}
             </div>
+
+            <p className="mb-2 text-xs leading-relaxed text-slate-600">
+              Your First Core Customer Group (Who buys first?) — (A &ldquo;Beachhead&rdquo; simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
+            </p>
+
+            {showBeachheadTooltip && (
+              <div className="mb-3 rounded-xl border border-indigo-200 bg-indigo-50/90 p-3 text-xs text-indigo-950">
+                <div className="flex items-center gap-1.5 font-bold text-indigo-900">
+                  <Info className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                  Plain-English Breakdown: What is a Beachhead Customer / Segment?
+                </div>
+                <p className="mt-1 leading-relaxed">
+                  In startup terminology, your <strong>&ldquo;Beachhead&rdquo;</strong> is the very first specific group of customers you focus on winning before expanding to everyone else.
+                  For a B2B SaaS or AI app, trying to sell to &ldquo;all businesses&rdquo; leads to vague marketing and slow sales.
+                  By focusing on one tightly defined initial group (e.g., &ldquo;B2B law firms with 5–20 staff in London using Clio&rdquo;), you can tailor your messaging, get your first paying users quickly, and build the cashflow and case studies needed to expand.
+                </p>
+              </div>
+            )}
+
             <textarea
               id="beachhead-segment-input"
               rows={3}
               disabled={isVaultReadonly}
               value={beachheadSegment}
               onChange={(e) => setBeachheadSegment(e.target.value)}
-              placeholder="Describe who your customers are and which group you will reach out to first..."
+              placeholder="Describe your first core customer group (who will buy from you first?)..."
               className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-hidden focus:ring-2 focus:ring-indigo-600/20 disabled:bg-slate-100"
             />
             <p className="mt-1 text-[11px] text-slate-500">
@@ -2821,7 +2854,7 @@ export function ModuleBWorkspace({
                 ) : (
                   <>
                     <Save className="h-4 w-4" />
-                    Save Step 1 (Customers &amp; Markets)
+                    Save Step 1 (First Customer Group &amp; Markets)
                   </>
                 )}
               </Button>
@@ -5573,12 +5606,12 @@ export function ModuleBWorkspace({
                 {/* Section 1: Target Customers & Buying Triggers */}
                 <div className="pb-5">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                    1. Target Customers &amp; Buying Triggers (Step 1)
+                    1. First Customer Group &amp; Buying Triggers (Step 1)
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div className="rounded-xl border border-slate-200 p-3">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        First Priority Customer Group
+                        First Priority Customer Group (Beachhead)
                       </div>
                       <p className="mt-1 leading-relaxed text-slate-800">
                         {beachheadSegment.trim() || 'Not yet specified.'}

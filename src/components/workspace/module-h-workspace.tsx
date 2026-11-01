@@ -33,6 +33,10 @@ import {
   Target,
   Wand2,
   RefreshCw,
+  ExternalLink,
+  Edit3,
+  ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +59,7 @@ import {
   saveModuleHStep2PricingTiersAction,
   saveModuleHStep3BreakevenCalculatorAction,
   generatePricingStrategyJustificationAction,
+  generateBreakevenAssessorNarrativeAction,
 } from '@/app/actions/module-h';
 
 interface ModuleHWorkspaceProps {
@@ -66,6 +71,23 @@ interface ModuleHWorkspaceProps {
   onSaveStep3BreakevenCalculator?: (step3Data: BreakevenCalculatorStep3Data, progress?: number) => Promise<void> | void;
   onBackToModuleG?: () => void;
   onContinueToModuleI?: () => void;
+  onNavigateToModule?: (
+    moduleCode:
+      | 'MOD_A_IDEATION'
+      | 'MOD_B_MARKET'
+      | 'MOD_C_SURVEYS_FEEDBACK'
+      | 'MOD_D_PRODUCT_BUILD'
+      | 'MOD_E_OPERATIONS'
+      | 'MOD_F_COFOUNDER_TEAM'
+      | 'MOD_G_LAUNCHPAD'
+      | 'MOD_H_REVENUE'
+      | 'MOD_I_MARKETING'
+      | 'MOD_J_FINANCE'
+      | 'MOD_K_GRANTS_FUNDING'
+      | 'MOD_L_BUSINESS_PLAN',
+    targetStep?: number,
+    highlightId?: string
+  ) => void;
 }
 
 export function ModuleHWorkspace({
@@ -77,6 +99,7 @@ export function ModuleHWorkspace({
   onSaveStep3BreakevenCalculator,
   onBackToModuleG,
   onContinueToModuleI,
+  onNavigateToModule,
 }: ModuleHWorkspaceProps) {
   // Step expansion state: default to first incomplete step
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
@@ -98,6 +121,9 @@ export function ModuleHWorkspace({
   const [isGeneratingAiJustification, setIsGeneratingAiJustification] = useState(false);
   const [aiJustificationSuccess, setAiJustificationSuccess] = useState(false);
   const [aiAssessorTip, setAiAssessorTip] = useState<string | null>(null);
+  const [isGeneratingAiBreakevenNarrative, setIsGeneratingAiBreakevenNarrative] = useState(false);
+  const [aiBreakevenNarrativeSuccess, setAiBreakevenNarrativeSuccess] = useState(false);
+  const [aiBreakevenAssessorTip, setAiBreakevenAssessorTip] = useState<string | null>(null);
 
   // Derive initial currency and vehicle from plan context
   const defaultCurrency =
@@ -251,6 +277,32 @@ export function ModuleHWorkspace({
     0
   );
 
+  // Blended average gross sticker price (including VAT/tax) across tiers
+  const calculateBlendedGrossAverage = (tiers: PricingTierItem[]): number => {
+    if (tiers.length === 0) return 0;
+    const totalMix = tiers.reduce((sum, t) => sum + (Number(t.salesMixPercent) || 0), 0);
+    const getGrossForTier = (t: PricingTierItem) => {
+      const taxRate = t.taxRatePercent ?? defaultVatRate;
+      if (t.priceGross !== undefined && t.priceGross > 0) return t.priceGross;
+      if (t.priceNetOfTax > 0) {
+        return Math.round(t.priceNetOfTax * (1 + taxRate / 100) * 100) / 100;
+      }
+      return 0;
+    };
+    if (totalMix === 0) return getGrossForTier(tiers[0]);
+    const weightedSum = tiers.reduce(
+      (sum, t) => sum + getGrossForTier(t) * (Number(t.salesMixPercent) || 0),
+      0
+    );
+    return Math.round((weightedSum / totalMix) * 100) / 100;
+  };
+
+  const blendedAverageGrossPrice = calculateBlendedGrossAverage(step2Data.tiers);
+  const blendedEffectiveTaxRate =
+    blendedAveragePrice > 0
+      ? Math.round(((blendedAverageGrossPrice - blendedAveragePrice) / blendedAveragePrice) * 1000) / 10
+      : defaultVatRate;
+
   // -------------------------------------------------------------
   // STEP 3 STATE: POCKET PROFIT & 3-YEAR BREAKEVEN ENGINE
   // -------------------------------------------------------------
@@ -323,6 +375,9 @@ export function ModuleHWorkspace({
     const existing = plan.moduleHData?.step3BreakevenCalculator;
     if (existing && existing.yearTargets?.length === 3) {
       return {
+        paymentTerms: 'INSTANT_PAYMENT',
+        exportSalesPercent: 30,
+        exportFocusRegions: selectedCountry === 'IE' ? 'UK, EU, US' : 'EU, US, IE',
         ...existing,
         activePriceSlider: existing.activePriceSlider || blendedAveragePrice || 49,
       };
@@ -333,6 +388,10 @@ export function ModuleHWorkspace({
       selectedSimulationYear: 1,
       activePriceSlider: initialPrice,
       activeCustomerSlider: 150,
+      paymentTerms: 'INSTANT_PAYMENT',
+      otherPaymentTermsText: '',
+      exportSalesPercent: 30,
+      exportFocusRegions: selectedCountry === 'IE' ? 'UK, EU, US' : 'EU, US, IE',
       frictionCosts: {
         paymentGatewayPercent: defaultGatewayPercent,
         paymentGatewayFixedCents: 25,
@@ -383,6 +442,12 @@ export function ModuleHWorkspace({
     step3Data.isSandboxActive && step3Data.activePriceSlider > 0
       ? step3Data.activePriceSlider
       : blendedAveragePrice || 49;
+
+  // Effective VAT / Sales Tax per sale based on simulatedNetPrice
+  const simulatedVatAmount =
+    Math.round(simulatedNetPrice * (blendedEffectiveTaxRate / 100) * 100) / 100;
+  const simulatedGrossStickerPrice =
+    Math.round((simulatedNetPrice + simulatedVatAmount) * 100) / 100;
 
   // Per-sale friction deductions
   const gatewayFeeAmount =
@@ -786,6 +851,17 @@ export function ModuleHWorkspace({
         currencySymbol,
         revenueModelVehicle: step1Data.revenueModelVehicle,
         tiersSummary,
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory,
+        hqCountryCode: (plan.hqCountryCode as any) || (selectedCountry as any) || 'IE',
+        beachheadCustomer:
+          plan.moduleBData?.beachhead?.beachheadSegment ||
+          plan.moduleBData?.beachhead?.decisionMakerRole ||
+          '',
+        unfairAdvantage:
+          plan.conceptCanvas?.unfairAdvantage ||
+          plan.brainDumpText ||
+          '',
       });
 
       if (res && res.pricingStrategyNotes) {
@@ -803,6 +879,136 @@ export function ModuleHWorkspace({
       console.error('Error generating AI pricing justification:', e);
     } finally {
       setIsGeneratingAiJustification(false);
+    }
+  };
+
+  const buildClientBreakevenFallback = () => {
+    const isIE = selectedCountry !== 'GB';
+    const sym = currencySymbol;
+    const price = simulatedNetPrice || 49;
+    const profit = pocketProfitPerSale || 42;
+    const margin = contributionMarginPercent || 85;
+    const fixed = activeMonthlyOverheads || 1500;
+    const survival = activeMonthlyPayroll || 2500;
+    const totalBurn = fixed + survival;
+    const breakeven = customersNeededToBreakeven || 100;
+    const terms = step3Data.paymentTerms || 'INSTANT_PAYMENT';
+    const buffer =
+      terms === 'NET_60_DAYS'
+        ? Math.round(totalBurn * 2.5)
+        : terms === 'NET_30_DAYS'
+        ? Math.round(totalBurn * 1.5)
+        : 0;
+    const exportPct = step3Data.exportSalesPercent ?? 30;
+    const exportDest =
+      step3Data.exportFocusRegions ||
+      (isIE ? 'UK, EU & North America' : 'EU, US & International');
+
+    const termsLabel =
+      terms === 'NET_60_DAYS'
+        ? 'Net 60 Days invoicing'
+        : terms === 'NET_30_DAYS'
+        ? 'Net 30 Days invoicing'
+        : terms === 'NET_14_DAYS'
+        ? 'Net 14 Days terms'
+        : terms === 'OTHER'
+        ? 'custom commercial settlement terms'
+        : 'instant digital checkout / card payment (zero debtor delay)';
+
+    const agencyName = isIE ? 'LEO / Enterprise Ireland' : 'Innovate UK / British Business Bank';
+
+    const p1 = `Operating Viability & Breakeven Threshold: ${plan.title || 'The venture'} maintains a baseline monthly fixed operational commitment of ${sym}${fixed.toLocaleString()}/month and a founder living survival allocation of ${sym}${survival.toLocaleString()}/month, representing a total fixed break-even threshold of ${sym}${totalBurn.toLocaleString()}/month. At a blended net unit price of ${sym}${price.toLocaleString()} delivering ${sym}${profit.toLocaleString()} in net pocket contribution (${margin}% pocket margin after direct cost of goods, transaction fees, and fulfilment overheads), full commercial cash-flow breakeven is attained at exactly ${breakeven.toLocaleString()} active sales/subscribers per month.`;
+
+    const p2 = `Working Capital & Receivables Management: Revenue collection is structured under ${termsLabel}.${
+      buffer > 0
+        ? ` To protect ongoing solvency against debtor collection lags, the venture incorporates an explicit working capital buffer of ${sym}${buffer.toLocaleString()} (${terms === 'NET_60_DAYS' ? '2.5×' : '1.5×'} monthly fixed expenditure) funded prior to invoice settlement.`
+        : ' Immediate funds capture minimizes cash conversion latency and eliminates debtor realization risk during early operations.'
+    }`;
+
+    const p3 = `Export Orientation & Economic Additionality: The commercial model projects ${exportPct}% of revenue derived from international markets (${exportDest}), satisfying ${agencyName} eligibility criteria for tradeable services/products with minimal domestic market displacement and substantial regional economic value-add.`;
+
+    return `${p1}\n\n${p2}\n\n${p3}`;
+  };
+
+  const handleGenerateAiBreakevenNarrative = async () => {
+    if (isGeneratingAiBreakevenNarrative || isVaultReadonly) return;
+    setIsGeneratingAiBreakevenNarrative(true);
+    setAiBreakevenNarrativeSuccess(false);
+
+    try {
+      const workingCapitalBuffer =
+        step3Data.paymentTerms === 'NET_60_DAYS'
+          ? Math.round(totalMonthlyFixedNut * 2.5)
+          : step3Data.paymentTerms === 'NET_30_DAYS'
+          ? Math.round(totalMonthlyFixedNut * 1.5)
+          : 0;
+
+      const res = await generateBreakevenAssessorNarrativeAction({
+        planId: plan.id,
+        currencySymbol,
+        blendedAveragePrice: simulatedNetPrice,
+        pocketProfit: pocketProfitPerSale,
+        pocketProfitMarginPercent: contributionMarginPercent,
+        monthlyFixedOverhead: activeMonthlyOverheads,
+        survivalMonthlyBudget: activeMonthlyPayroll,
+        targetMonthlyBreakevenCustomers: customersNeededToBreakeven,
+        paymentTerms: step3Data.paymentTerms || 'INSTANT_PAYMENT',
+        workingCapitalBuffer,
+        exportSalesPercent: step3Data.exportSalesPercent ?? 30,
+        exportFocusRegions: step3Data.exportFocusRegions || '',
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory,
+        hqCountryCode: (plan.hqCountryCode as any) || (selectedCountry as any) || 'IE',
+        beachheadCustomer:
+          plan.moduleBData?.beachhead?.beachheadSegment ||
+          plan.moduleBData?.beachhead?.decisionMakerRole ||
+          '',
+        unfairAdvantage:
+          plan.conceptCanvas?.unfairAdvantage ||
+          plan.brainDumpText ||
+          '',
+      });
+
+      if (res && res.narrative && res.narrative.trim()) {
+        setStep3Data((prev) => ({
+          ...prev,
+          breakevenNarrative: res.narrative,
+        }));
+        if (res.assessorTip) {
+          setAiBreakevenAssessorTip(res.assessorTip);
+        }
+        setAiBreakevenNarrativeSuccess(true);
+        setTimeout(() => setAiBreakevenNarrativeSuccess(false), 5000);
+      } else {
+        const fallbackText = buildClientBreakevenFallback();
+        setStep3Data((prev) => ({
+          ...prev,
+          breakevenNarrative: fallbackText,
+        }));
+        setAiBreakevenAssessorTip(
+          selectedCountry === 'GB'
+            ? 'Innovate UK and Start Up Loans assessors look closely for evidence that your breakeven unit volumes are realistic given your sales cycle and working capital runway.'
+            : 'LEO evaluation committees prioritize your ability to explain how you survive month-to-month until the debtor cash actually clears your Irish bank account.'
+        );
+        setAiBreakevenNarrativeSuccess(true);
+        setTimeout(() => setAiBreakevenNarrativeSuccess(false), 5000);
+      }
+    } catch (e) {
+      console.error('Error generating AI breakeven narrative:', e);
+      const fallbackText = buildClientBreakevenFallback();
+      setStep3Data((prev) => ({
+        ...prev,
+        breakevenNarrative: fallbackText,
+      }));
+      setAiBreakevenAssessorTip(
+        selectedCountry === 'GB'
+          ? 'Innovate UK and Start Up Loans assessors look closely for evidence that your breakeven unit volumes are realistic given your sales cycle and working capital runway.'
+          : 'LEO evaluation committees prioritize your ability to explain how you survive month-to-month until the debtor cash actually clears your Irish bank account.'
+      );
+      setAiBreakevenNarrativeSuccess(true);
+      setTimeout(() => setAiBreakevenNarrativeSuccess(false), 5000);
+    } finally {
+      setIsGeneratingAiBreakevenNarrative(false);
     }
   };
 
@@ -1645,7 +1851,7 @@ export function ModuleHWorkspace({
 
           <CardContent className="pt-6 space-y-6">
             {/* TIER CARDS GRID */}
-            <div className="space-y-4">
+            <div id="target-mod-h-pricing-tiers" className="space-y-4 rounded-xl p-2 transition-all scroll-mt-28">
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -2233,21 +2439,181 @@ export function ModuleHWorkspace({
               </div>
             )}
 
-            {/* CROSS-MODULE SYNC BANNER (MOD D + MOD F) */}
-            <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 flex flex-wrap items-center justify-between gap-2 text-xs text-indigo-950">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-600" />
-                <span className="truncate">
-                  <strong>Auto-Pulled Across Platform:</strong> Net Price ({currencySymbol}
-                  {blendedAveragePrice}) from <strong>Step 2</strong> • Platform Fee (
-                  {step3Data.frictionCosts.paymentGatewayPercent}%) from <strong>Module D</strong> •
-                  Wages &amp; Survival Budget ({currencySymbol}
-                  {canonicalHiringPayroll.y1Mo.toLocaleString()}/mo Y1) from <strong>Module F</strong>.
-                </span>
+            {/* CROSS-MODULE SYNC & SOURCE FIGURES TILE */}
+            <div className="mt-4 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-slate-50 to-indigo-50/60 p-4 text-xs text-indigo-950 space-y-3 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-600 text-white">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                      Where Did These Figures Come From? (Live Platform Data)
+                    </span>
+                    <p className="text-[11px] text-slate-500">
+                      Your breakeven targets are calculated from your real inputs across earlier modules. Click any source below to inspect or edit.
+                    </p>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] shrink-0">
+                  Live Synced
+                </Badge>
               </div>
-              <Badge className="bg-white text-indigo-700 border-indigo-200 text-[10px] shrink-0">
-                Live Connected
-              </Badge>
+
+              {/* 4 Connected Source Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                {/* 1. Net Price */}
+                <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 text-[10px] font-semibold uppercase text-slate-500">
+                      <span>1. Net Customer Price</span>
+                      <span className="text-indigo-600 font-bold">Step 2</span>
+                    </div>
+                    <div className="text-base font-bold text-slate-900 mt-1">
+                      {currencySymbol}{blendedAveragePrice.toFixed(2)}
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      Blended net price (after VAT/tax) across your pricing tiers.
+                    </p>
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenStep(2);
+                        setTimeout(() => {
+                          const el = document.getElementById('target-mod-h-pricing-tiers');
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            el.classList.remove('attention-highlight');
+                            void el.offsetWidth;
+                            el.classList.add('attention-highlight');
+                            setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+                          }
+                        }, 200);
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                      <span>Edit in Step 2</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Platform & Channel Fees */}
+                <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 text-[10px] font-semibold uppercase text-slate-500">
+                      <span>2. Platform Fee %</span>
+                      <span className="text-indigo-600 font-bold">Mod D Step 2</span>
+                    </div>
+                    <div className="text-base font-bold text-slate-900 mt-1">
+                      {step3Data.frictionCosts.paymentGatewayPercent}%
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      {hasModuleDChannelData
+                        ? `Pulled from your ${moduleDChannelMatrix?.primaryChannel || 'primary'} channel split.`
+                        : 'Default blended card payment processing rate (Stripe/Bank).'}
+                    </p>
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-100">
+                    {onNavigateToModule ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onNavigateToModule(
+                            'MOD_D_PRODUCT_BUILD',
+                            2,
+                            'target-mod-d-blended-fee'
+                          )
+                        }
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        <span>Edit in Module D</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-slate-400">Configured in Module D</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Premises & Overheads */}
+                <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 text-[10px] font-semibold uppercase text-slate-500">
+                      <span>3. Fixed Overheads</span>
+                      <span className="text-indigo-600 font-bold">Module E</span>
+                    </div>
+                    <div className="text-base font-bold text-slate-900 mt-1">
+                      {currencySymbol}{defaultFixedOverheads.toLocaleString()}
+                      <span className="text-xs font-normal text-slate-500">/mo</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      Monthly rent, software stack, bookkeeping, and statutory startup insurance.
+                    </p>
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-100">
+                    {onNavigateToModule ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onNavigateToModule(
+                            'MOD_E_OPERATIONS',
+                            2,
+                            'target-mod-e-premises-cost'
+                          )
+                        }
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        <span>Edit in Module E</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-slate-400">Configured in Module E</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Founder Wages & Team Payroll */}
+                <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 text-[10px] font-semibold uppercase text-slate-500">
+                      <span>4. Founder &amp; Team Wages</span>
+                      <span className="text-indigo-600 font-bold">Module F</span>
+                    </div>
+                    <div className="text-base font-bold text-slate-900 mt-1">
+                      {currencySymbol}{canonicalHiringPayroll.y1Mo.toLocaleString()}
+                      <span className="text-xs font-normal text-slate-500">/mo (Y1)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      {canonicalHiringPayroll.hasModFRoles
+                        ? 'From your Module F hiring plan + taxes + founder survival draw.'
+                        : 'From your personal survival budget in Module F Step 3.'}
+                    </p>
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-100">
+                    {onNavigateToModule ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onNavigateToModule(
+                            'MOD_F_COFOUNDER_TEAM',
+                            3,
+                            'target-mod-f-survival-budget'
+                          )
+                        }
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        <span>Edit in Module F</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-slate-400">Configured in Module F</span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </CardHeader>
 
@@ -2405,10 +2771,37 @@ export function ModuleHWorkspace({
                       </Badge>
                     </div>
 
-                    {/* Line 1: Net Price */}
+                    {/* Line 0: Gross Sticker Price (What customer pays) */}
                     <div className="flex items-center justify-between text-xs py-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-slate-800">
+                          Customer Sticker Price (Inc. Tax)
+                        </span>
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 border-slate-300 text-slate-600">
+                          Checkout
+                        </Badge>
+                      </div>
+                      <span className="font-bold text-slate-900">
+                        {currencySymbol}
+                        {simulatedGrossStickerPrice.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Line 0.5: VAT / Sales Tax Handed Over */}
+                    <div className="flex items-center justify-between text-xs py-1 border-t border-slate-200/50">
+                      <span className="text-slate-600">
+                        Minus {blendedEffectiveTaxRate}% VAT / Sales Tax (to {selectedCountry === 'GB' ? 'HMRC' : 'Revenue'})
+                      </span>
+                      <span className="font-semibold text-amber-700">
+                        -{currencySymbol}
+                        {simulatedVatAmount.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Line 1: Net Price */}
+                    <div className="flex items-center justify-between text-xs py-1 border-t border-slate-200/50">
                       <span className="font-medium text-slate-700">
-                        Net Price in Bank (Ex-VAT from Step 2)
+                        Net Price Landing in Bank (Ex-VAT)
                       </span>
                       <span className="font-bold text-slate-900">
                         {currencySymbol}
@@ -2895,7 +3288,7 @@ export function ModuleHWorkspace({
 
               {/* 3-Year Breakeven Comparison Table */}
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                <table className="w-full min-w-[600px] text-left text-xs">
+                <table className="w-full min-w-[700px] text-left text-xs">
                   <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-600">
                     <tr>
                       <th className="py-2.5 px-3.5">Horizon</th>
@@ -2903,12 +3296,19 @@ export function ModuleHWorkspace({
                       <th className="py-2.5 px-3.5">Other Fixed Bills</th>
                       <th className="py-2.5 px-3.5">Total Monthly Nut</th>
                       <th className="py-2.5 px-3.5 text-indigo-700">Breakeven Sales / Mo</th>
-                      <th className="py-2.5 px-3.5 text-emerald-700">Breakeven Turnover / Mo</th>
+                      <th className="py-2.5 px-3.5 text-emerald-700">Net Turnover / Mo</th>
+                      <th className="py-2.5 px-3.5 text-slate-800">Gross Sales (Inc. VAT)</th>
+                      <th className="py-2.5 px-3.5 text-amber-700">VAT Paid ({blendedEffectiveTaxRate}%)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {computedThreeYearTargets.map((yr) => {
                       const isCurr = yr.yearNumber === activeSimYear;
+                      const netMonthlyTurnover = yr.monthlyRevenueAtBreakeven;
+                      const vatMonthlyCollected =
+                        Math.round(netMonthlyTurnover * (blendedEffectiveTaxRate / 100));
+                      const grossMonthlySales = netMonthlyTurnover + vatMonthlyCollected;
+
                       return (
                         <tr
                           key={yr.yearNumber}
@@ -2950,7 +3350,15 @@ export function ModuleHWorkspace({
                           </td>
                           <td className="py-2.5 px-3.5 font-bold text-emerald-700">
                             {currencySymbol}
-                            {yr.monthlyRevenueAtBreakeven.toLocaleString()}/mo
+                            {netMonthlyTurnover.toLocaleString()}/mo
+                          </td>
+                          <td className="py-2.5 px-3.5 font-bold text-slate-900">
+                            {currencySymbol}
+                            {grossMonthlySales.toLocaleString()}/mo
+                          </td>
+                          <td className="py-2.5 px-3.5 font-semibold text-amber-700">
+                            {currencySymbol}
+                            {vatMonthlyCollected.toLocaleString()}/mo
                           </td>
                         </tr>
                       );
@@ -2958,6 +3366,349 @@ export function ModuleHWorkspace({
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* PART E: GRANT ASSESSOR CALIBRATION (PAYMENT TERMS & EXPORT) */}
+            {/* ========================================================= */}
+            <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/50 via-white to-slate-50 p-4.5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-xs">
+                    <ShieldCheck className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                        4. Grant Assessor &amp; Working Capital Calibration ({selectedCountry === 'GB' ? 'UK Innovate UK / Start Up Loans' : 'Ireland LEO / Enterprise Ireland'})
+                      </Label>
+                      <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[9px] px-1.5 py-0 font-semibold">
+                        Grant Audit Proof
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Grant evaluation committees scrutinize two critical assumptions: debtor cash-inflow timing and export potential.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Section 1: Debtor Days / Cash Timing Lag */}
+                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-xs font-bold text-slate-900">
+                        Payment Terms &amp; Cash Inflow Timing (Debtor Lag)
+                      </Label>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        How quickly does customer money hit your bank account after a sale?
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Payment Terms Selector Pills */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {[
+                      {
+                        id: 'INSTANT_PAYMENT' as const,
+                        label: 'Instant / Card',
+                        desc: 'Stripe, checkout, 2-day payout',
+                        badge: 'Zero Lag',
+                      },
+                      {
+                        id: 'NET_14_DAYS' as const,
+                        label: 'Net 14 Days',
+                        desc: 'B2B small business invoice',
+                        badge: '2 Wk Lag',
+                      },
+                      {
+                        id: 'NET_30_DAYS' as const,
+                        label: 'Net 30 Days',
+                        desc: 'Standard commercial invoice',
+                        badge: '1 Mo Lag',
+                      },
+                      {
+                        id: 'NET_60_DAYS' as const,
+                        label: 'Net 60 Days',
+                        desc: 'Enterprise & retail chains',
+                        badge: '2 Mo Lag',
+                      },
+                    ].map((term) => {
+                      const isSelected = (step3Data.paymentTerms || 'INSTANT_PAYMENT') === term.id;
+                      return (
+                        <button
+                          key={term.id}
+                          type="button"
+                          onClick={() =>
+                            setStep3Data((prev) => ({
+                              ...prev,
+                              paymentTerms: term.id,
+                            }))
+                          }
+                          disabled={isVaultReadonly}
+                          className={`rounded-lg p-2.5 text-left border transition-all ${
+                            isSelected
+                              ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500/20'
+                              : 'border-slate-200 hover:border-slate-300 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span
+                              className={`text-xs font-bold ${
+                                isSelected ? 'text-indigo-950' : 'text-slate-800'
+                              }`}
+                            >
+                              {term.label}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-1 leading-snug line-clamp-2">
+                            {term.desc}
+                          </p>
+                          <span
+                            className={`inline-block mt-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {term.badge}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* "Other" Option (Edge-Case Protection Rule) */}
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setStep3Data((prev) => ({
+                          ...prev,
+                          paymentTerms: 'OTHER',
+                        }))
+                      }
+                      className={`text-xs font-medium px-2.5 py-1 rounded-md border transition-all ${
+                        step3Data.paymentTerms === 'OTHER'
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-bold'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      + Other Custom Payment Terms
+                    </button>
+                    {step3Data.paymentTerms === 'OTHER' && (
+                      <div className="mt-2">
+                        <Input
+                          value={step3Data.otherPaymentTermsText || ''}
+                          onChange={(e) =>
+                            setStep3Data((prev) => ({
+                              ...prev,
+                              otherPaymentTermsText: e.target.value,
+                            }))
+                          }
+                          placeholder="e.g. 50% upfront deposit on contract signing, 50% on client milestone delivery"
+                          className="text-base sm:text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Working Capital Assessor Alert */}
+                  {(step3Data.paymentTerms === 'NET_30_DAYS' ||
+                    step3Data.paymentTerms === 'NET_60_DAYS') && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 flex items-start gap-2 text-xs text-amber-950">
+                      <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-[11px] leading-relaxed">
+                        <strong>Grant Working Capital Notice:</strong> Because customers pay on{' '}
+                        {step3Data.paymentTerms === 'NET_30_DAYS' ? '30-day' : '60-day'} credit, your
+                        business requires at least{' '}
+                        <strong>
+                          {currencySymbol}
+                          {(
+                            totalMonthlyFixedNut *
+                            (step3Data.paymentTerms === 'NET_30_DAYS' ? 1.5 : 2.5)
+                          ).toLocaleString()}
+                        </strong>{' '}
+                        in working capital buffer or grant aid to cover monthly wages and rent while waiting for invoices to clear.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Domestic vs Export Sales Split % */}
+                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-xs font-bold text-slate-900">
+                          Export vs. Domestic Sales Split (% International)
+                        </Label>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {selectedCountry === 'GB'
+                            ? 'UK Innovate UK & DBT prioritizes businesses with international trade traction.'
+                            : 'LEO & Enterprise Ireland specifically mandate export potential (non-displacement).'}
+                        </p>
+                      </div>
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-bold shrink-0">
+                        {step3Data.exportSalesPercent ?? 30}% Export
+                      </Badge>
+                    </div>
+
+                    {/* Export Slider */}
+                    <div className="space-y-1.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+                        <span>
+                          Domestic ({selectedCountry === 'GB' ? 'UK' : 'Ireland'}):{' '}
+                          <strong className="text-slate-900">
+                            {100 - (step3Data.exportSalesPercent ?? 30)}%
+                          </strong>
+                        </span>
+                        <span className="text-emerald-700 font-bold">
+                          Export (International): {step3Data.exportSalesPercent ?? 30}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={step3Data.exportSalesPercent ?? 30}
+                        onChange={(e) => {
+                          const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                          setStep3Data((prev) => ({
+                            ...prev,
+                            exportSalesPercent: val,
+                          }));
+                        }}
+                        disabled={isVaultReadonly}
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-400">
+                        <span>0% (100% Domestic)</span>
+                        <span>50% Split</span>
+                        <span>100% (Global Pure-Play)</span>
+                      </div>
+                    </div>
+
+                    {/* Target Export Territories Input */}
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-semibold text-slate-700">
+                        Priority Export Markets / Jurisdictions:
+                      </Label>
+                      <Input
+                        value={step3Data.exportFocusRegions || ''}
+                        onChange={(e) =>
+                          setStep3Data((prev) => ({
+                            ...prev,
+                            exportFocusRegions: e.target.value,
+                          }))
+                        }
+                        placeholder={
+                          selectedCountry === 'GB'
+                            ? 'e.g. EU (Germany, France), United States, Ireland'
+                            : 'e.g. United Kingdom, Northern Ireland, United States, EU'
+                        }
+                        className="text-base sm:text-xs"
+                      />
+                      <p className="text-[10px] text-slate-500">
+                        Included in Module L Appendix grant exports for assessors.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Assessor Rule Check Banner */}
+                  {(step3Data.exportSalesPercent ?? 30) < 20 ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 flex items-start gap-2 text-xs text-amber-950">
+                      <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-[11px] leading-relaxed">
+                        <strong>LEO &amp; EI Warning:</strong> Enterprise Ireland and LEO Priming grants generally require demonstrable export capability (typically 20%+ within 2–3 years) to avoid domestic market displacement.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2.5 flex items-center gap-2 text-xs text-emerald-950">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span className="text-[11px]">
+                        <strong>Grant Assessor Check Passed:</strong> High-potential export focus ({step3Data.exportSalesPercent}%) fulfills Enterprise Ireland HPSU &amp; Innovate UK international growth criteria.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* --------------------------------------------------------- */}
+            {/* PART F: BREAKEVEN & WORKING CAPITAL ASSESSOR NARRATIVE     */}
+            {/* --------------------------------------------------------- */}
+            <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/20 to-violet-50/20 p-4.5 space-y-3.5 shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                      Grant &amp; Bank Assessor Defense: Written Viability Narrative
+                    </Label>
+                    <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[9px] px-1.5 py-0 font-semibold shrink-0">
+                      LEO / Innovate UK Ready
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    A formal commercial narrative synthesizing your monthly burn, unit margin, debtor lag, and export additionality for Module L.
+                  </p>
+                </div>
+
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={handleGenerateAiBreakevenNarrative}
+                  disabled={isGeneratingAiBreakevenNarrative || isVaultReadonly}
+                  className="h-8 text-xs font-semibold border-indigo-300 bg-white hover:bg-indigo-50 text-indigo-700 shadow-2xs gap-1.5 shrink-0"
+                >
+                  {isGeneratingAiBreakevenNarrative ? (
+                    <>
+                      <Wand2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+                      <span>Synthesizing Assessor Defense...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                      <span>Auto-Generate with AI (Grant Assessor Mode)</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {aiBreakevenNarrativeSuccess && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-2.5 flex items-center gap-2 text-xs text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Successfully generated written assessor justification combining your pocket margin, monthly fixed burn, payment terms, and export strategy!
+                  </span>
+                </div>
+              )}
+
+              {aiBreakevenAssessorTip && (
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-2.5 flex items-start gap-2 text-xs text-indigo-950">
+                  <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <p className="text-[11px] leading-relaxed">
+                    <strong>Grant Assessor Coaching Tip:</strong> {aiBreakevenAssessorTip}
+                  </p>
+                </div>
+              )}
+
+              <textarea
+                rows={4}
+                value={step3Data.breakevenNarrative || ''}
+                onChange={(e) =>
+                  setStep3Data((prev) => ({
+                    ...prev,
+                    breakevenNarrative: e.target.value,
+                  }))
+                }
+                placeholder="Explain how your venture survives operationally until customer cash clears, why your breakeven unit targets are conservative, and how your export split satisfies grant criteria (or click 'Auto-Generate with AI' above to compose automatically)..."
+                className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-none leading-relaxed bg-white"
+              />
             </div>
 
             {/* Bottom Step 3 Action Bar */}

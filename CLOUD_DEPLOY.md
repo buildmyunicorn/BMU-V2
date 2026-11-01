@@ -35,8 +35,8 @@ gcloud auth login
 
 # 2. Create and activate a configuration for startuppreflight
 gcloud config configurations create startuppreflight
+gcloud config set account tom@startuppreflight.com
 gcloud config set project startuppreflight
-gcloud config set compute/region europe-west1
 gcloud config set run/region europe-west1
 
 # 3. Enable Required Google Cloud APIs (including Vertex AI)
@@ -93,7 +93,9 @@ gcloud sql users create spf_db_user \
 
 ---
 
-## Step 4: Push the Drizzle Schema & Seed Data to Cloud SQL
+## Step 4: Push Drizzle Schema & Restore Existing Data to Cloud SQL
+
+Before migrating, your current data from the old project has already been exported to `backups/latest_backup.json` (via `npm run db:backup`).
 
 ```bash
 # 1. Get Cloud SQL Public IP and authorize your current Mac IP
@@ -105,13 +107,16 @@ gcloud sql instances patch spf-postgres \
   --project=startuppreflight \
   --quiet
 
-# 2. Point Drizzle to Cloud SQL and run schema migration and database seed
+# 2. Point Drizzle to the new Cloud SQL instance
 export DATABASE_URL="postgresql://spf_db_user:CHANGE_ME_SECURE_PASSWORD@$SQL_IP:5432/startuppreflight_prod"
 
+# 3. Create fresh table structures
 npm run db:push
-npm run db:seed
 
-# 3. (Optional) Remove your public IP once seeding is completed
+# 4. Restore your users, admin panel records, vouchers, entitlements & plans
+npm run db:restore
+
+# 5. Remove your public IP once migration is completed
 gcloud sql instances patch spf-postgres \
   --authorized-networks="" \
   --project=startuppreflight \

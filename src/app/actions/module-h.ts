@@ -21,6 +21,8 @@ import type { SupportedCountryCode } from '@/lib/localization';
 import {
   generatePricingStrategyJustificationViaRouter,
   type GeneratePricingStrategyJustificationResult,
+  generateBreakevenAssessorNarrativeViaRouter,
+  type GenerateBreakevenAssessorNarrativeResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -476,97 +478,97 @@ export async function generatePricingStrategyJustificationAction(input: {
   currencySymbol: string;
   revenueModelVehicle?: string;
   tiersSummary?: string;
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  beachheadCustomer?: string;
+  unfairAdvantage?: string;
 }): Promise<GeneratePricingStrategyJustificationResult> {
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
-  if (!authCheck.authorized) {
-    return {
-      allowed: false,
-      pricingStrategyNotes:
-        'Unauthorized plan access. Please refresh and log into your account.',
-      engineMode: 'smart-synthesizer',
-    };
-  }
-
   // Cross-module context aggregation from Cloud SQL / local Postgres
-  let planTitle = 'Startup Plan';
-  let industryCategory = 'Technology';
-  let hqCountryCode: SupportedCountryCode = 'IE';
+  let planTitle = input.planTitle || 'Startup Plan';
+  let industryCategory = input.industryCategory || 'Technology';
+  let hqCountryCode: SupportedCountryCode = input.hqCountryCode || 'IE';
   let primaryChannel = 'DIRECT_WEB_STRIPE';
   let estimatedBlendedFeePercent = 2.9;
-  let beachheadCustomer = '';
+  let beachheadCustomer = input.beachheadCustomer || '';
   let willingnessToPayInsights = '';
   let competitorPriceRange = '';
-  let unfairAdvantage = '';
+  let unfairAdvantage = input.unfairAdvantage || '';
 
-  try {
-    const planRows = await db
-      .select()
-      .from(startupPlans)
-      .where(eq(startupPlans.id, input.planId))
-      .limit(1);
+  if (UUID_REGEX.test(input.planId)) {
+    try {
+      const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+      if (authCheck.authorized) {
+        const planRows = await db
+          .select()
+          .from(startupPlans)
+          .where(eq(startupPlans.id, input.planId))
+          .limit(1);
 
-    if (planRows.length > 0) {
-      planTitle = planRows[0].title;
-      industryCategory = planRows[0].industryCategory || 'Technology';
-      hqCountryCode = (planRows[0].hqCountryCode as SupportedCountryCode) || 'IE';
-    }
+        if (planRows.length > 0) {
+          planTitle = planRows[0].title || planTitle;
+          industryCategory = planRows[0].industryCategory || industryCategory;
+          hqCountryCode = (planRows[0].hqCountryCode as SupportedCountryCode) || hqCountryCode;
+        }
 
-    const modRows = await db
-      .select()
-      .from(planModulesData)
-      .where(eq(planModulesData.planId, input.planId));
+        const modRows = await db
+          .select()
+          .from(planModulesData)
+          .where(eq(planModulesData.planId, input.planId));
 
-    // Module A context (Concept & Unfair Advantage)
-    const modA = modRows.find((m) => m.moduleCode === 'MOD_A_IDEATION');
-    if (modA?.structuredInputsJsonb) {
-      const aData = modA.structuredInputsJsonb as Record<string, any>;
-      unfairAdvantage =
-        aData.conceptCanvas?.unfairAdvantage ||
-        aData.brainDumpText ||
-        '';
-    }
+        // Module A context (Concept & Unfair Advantage)
+        const modA = modRows.find((m) => m.moduleCode === 'MOD_A_IDEATION');
+        if (modA?.structuredInputsJsonb) {
+          const aData = modA.structuredInputsJsonb as Record<string, any>;
+          unfairAdvantage =
+            aData.conceptCanvas?.unfairAdvantage ||
+            aData.brainDumpText ||
+            unfairAdvantage;
+        }
 
-    // Module B context (Beachhead persona & competitor positioning)
-    const modB = modRows.find((m) => m.moduleCode === 'MOD_B_MARKET');
-    if (modB?.structuredInputsJsonb) {
-      const bData = modB.structuredInputsJsonb as Record<string, any>;
-      beachheadCustomer =
-        bData.step1BeachheadPersona?.personaTitle ||
-        bData.step1BeachheadPersona?.demographicsSummary ||
-        '';
-      if (bData.step2CompetitorScout?.competitors?.length) {
-        const comps = bData.step2CompetitorScout.competitors
-          .slice(0, 3)
-          .map((c: any) => `${c.name} (${c.pricingSummary || 'Standard pricing'})`)
-          .join(', ');
-        competitorPriceRange = comps;
+        // Module B context (Beachhead persona & competitor positioning)
+        const modB = modRows.find((m) => m.moduleCode === 'MOD_B_MARKET');
+        if (modB?.structuredInputsJsonb) {
+          const bData = modB.structuredInputsJsonb as Record<string, any>;
+          beachheadCustomer =
+            bData.step1BeachheadPersona?.personaTitle ||
+            bData.step1BeachheadPersona?.demographicsSummary ||
+            beachheadCustomer;
+          if (bData.step2CompetitorScout?.competitors?.length) {
+            const comps = bData.step2CompetitorScout.competitors
+              .slice(0, 3)
+              .map((c: any) => `${c.name} (${c.pricingSummary || 'Standard pricing'})`)
+              .join(', ');
+            competitorPriceRange = comps;
+          }
+        }
+
+        // Module C context (Willingness-to-pay & customer feedback)
+        const modC = modRows.find((m) => m.moduleCode === 'MOD_C_SURVEYS_FEEDBACK');
+        if (modC?.structuredInputsJsonb) {
+          const cData = modC.structuredInputsJsonb as Record<string, any>;
+          if (cData.surveys?.[0]?.aiInsightsSummary) {
+            willingnessToPayInsights =
+              cData.surveys[0].aiInsightsSummary.commercialViabilityAssessment ||
+              cData.surveys[0].aiInsightsSummary.executiveValidationSummary ||
+              '';
+          }
+        }
+
+        // Module D context (Channel matrix & platform fees)
+        const modD = modRows.find((m) => m.moduleCode === 'MOD_D_PRODUCT_BUILD');
+        if (modD?.structuredInputsJsonb) {
+          const dData = modD.structuredInputsJsonb as Record<string, any>;
+          if (dData.channelMatrix) {
+            primaryChannel = dData.channelMatrix.primaryChannel || primaryChannel;
+            estimatedBlendedFeePercent =
+              dData.channelMatrix.estimatedBlendedFeePercent ?? estimatedBlendedFeePercent;
+          }
+        }
       }
+    } catch (e) {
+      console.warn('Non-fatal context gathering warning for pricing justification AI:', e);
     }
-
-    // Module C context (Willingness-to-pay & customer feedback)
-    const modC = modRows.find((m) => m.moduleCode === 'MOD_C_SURVEYS_FEEDBACK');
-    if (modC?.structuredInputsJsonb) {
-      const cData = modC.structuredInputsJsonb as Record<string, any>;
-      if (cData.surveys?.[0]?.aiInsightsSummary) {
-        willingnessToPayInsights =
-          cData.surveys[0].aiInsightsSummary.commercialViabilityAssessment ||
-          cData.surveys[0].aiInsightsSummary.executiveValidationSummary ||
-          '';
-      }
-    }
-
-    // Module D context (Channel matrix & platform fees)
-    const modD = modRows.find((m) => m.moduleCode === 'MOD_D_PRODUCT_BUILD');
-    if (modD?.structuredInputsJsonb) {
-      const dData = modD.structuredInputsJsonb as Record<string, any>;
-      if (dData.channelMatrix) {
-        primaryChannel = dData.channelMatrix.primaryChannel || primaryChannel;
-        estimatedBlendedFeePercent =
-          dData.channelMatrix.estimatedBlendedFeePercent ?? estimatedBlendedFeePercent;
-      }
-    }
-  } catch (e) {
-    console.warn('Non-fatal context gathering warning for pricing justification AI:', e);
   }
 
   return await generatePricingStrategyJustificationViaRouter({
@@ -585,4 +587,100 @@ export async function generatePricingStrategyJustificationAction(input: {
     unfairAdvantage,
   });
 }
+
+/**
+ * AI Assessor Mode: Generates a 3-paragraph commercial breakeven, working capital buffer,
+ * and export additionality justification for grant and bank loan assessors.
+ */
+export async function generateBreakevenAssessorNarrativeAction(input: {
+  planId: string;
+  currencySymbol?: string;
+  blendedAveragePrice?: number;
+  pocketProfit?: number;
+  pocketProfitMarginPercent?: number;
+  monthlyFixedOverhead?: number;
+  survivalMonthlyBudget?: number;
+  targetMonthlyBreakevenCustomers?: number;
+  paymentTerms?: string;
+  workingCapitalBuffer?: number;
+  exportSalesPercent?: number;
+  exportFocusRegions?: string;
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  unfairAdvantage?: string;
+  beachheadCustomer?: string;
+}): Promise<GenerateBreakevenAssessorNarrativeResult> {
+  let planTitle = input.planTitle || 'Startup Plan';
+  let industryCategory = input.industryCategory || 'Technology';
+  let hqCountryCode: SupportedCountryCode = input.hqCountryCode || 'IE';
+  let unfairAdvantage = input.unfairAdvantage || '';
+  let beachheadCustomer = input.beachheadCustomer || '';
+
+  if (UUID_REGEX.test(input.planId)) {
+    try {
+      const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+      if (authCheck.authorized) {
+        const planRows = await db
+          .select()
+          .from(startupPlans)
+          .where(eq(startupPlans.id, input.planId))
+          .limit(1);
+
+        if (planRows.length > 0) {
+          planTitle = planRows[0].title || planTitle;
+          industryCategory = planRows[0].industryCategory || industryCategory;
+          hqCountryCode = (planRows[0].hqCountryCode as SupportedCountryCode) || hqCountryCode;
+        }
+
+        const modRows = await db
+          .select()
+          .from(planModulesData)
+          .where(eq(planModulesData.planId, input.planId));
+
+        // Module A context
+        const modA = modRows.find((m) => m.moduleCode === 'MOD_A_IDEATION');
+        if (modA?.structuredInputsJsonb) {
+          const aData = modA.structuredInputsJsonb as Record<string, any>;
+          unfairAdvantage =
+            aData.conceptCanvas?.unfairAdvantage ||
+            aData.brainDumpText ||
+            unfairAdvantage;
+        }
+
+        // Module B context
+        const modB = modRows.find((m) => m.moduleCode === 'MOD_B_MARKET');
+        if (modB?.structuredInputsJsonb) {
+          const bData = modB.structuredInputsJsonb as Record<string, any>;
+          beachheadCustomer =
+            bData.step1BeachheadPersona?.personaTitle ||
+            bData.step1BeachheadPersona?.demographicsSummary ||
+            beachheadCustomer;
+        }
+      }
+    } catch (e) {
+      console.warn('Non-fatal context gathering warning for breakeven narrative AI:', e);
+    }
+  }
+
+  return await generateBreakevenAssessorNarrativeViaRouter({
+    planTitle,
+    industryCategory,
+    hqCountryCode,
+    currencySymbol: input.currencySymbol,
+    blendedAveragePrice: input.blendedAveragePrice,
+    pocketProfit: input.pocketProfit,
+    pocketProfitMarginPercent: input.pocketProfitMarginPercent,
+    monthlyFixedOverhead: input.monthlyFixedOverhead,
+    survivalMonthlyBudget: input.survivalMonthlyBudget,
+    targetMonthlyBreakevenCustomers: input.targetMonthlyBreakevenCustomers,
+    paymentTerms: input.paymentTerms,
+    workingCapitalBuffer: input.workingCapitalBuffer,
+    exportSalesPercent: input.exportSalesPercent,
+    exportFocusRegions: input.exportFocusRegions,
+    unfairAdvantage,
+    beachheadCustomer,
+  });
+}
+
 

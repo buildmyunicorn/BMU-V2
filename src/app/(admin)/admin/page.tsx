@@ -81,6 +81,7 @@ import {
   type SupportModuleScope,
 } from '@/lib/support-tracker-store';
 import { SupportBugTrackerTab } from '@/components/admin/support-bug-tracker-tab';
+import { PersonaUxAuditLabTab } from '@/components/admin/persona-ux-audit-lab-tab';
 
 type StatusFilterTab =
   | 'ALL_ACTIVE'
@@ -387,7 +388,7 @@ export default function AdminDashboardPage() {
     SupportTicketRecord[]
   >([]);
   const [activeAdminSection, setActiveAdminSection] = useState<
-    'ACCOUNTS_AND_WAITLIST' | 'SUPPORT_AND_BUGS'
+    'ACCOUNTS_AND_WAITLIST' | 'SUPPORT_AND_BUGS' | 'PERSONA_UX_LAB'
   >('ACCOUNTS_AND_WAITLIST');
   const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(false);
   const [adminEmail, setAdminEmail] = useState<string>('');
@@ -666,6 +667,8 @@ export default function AdminDashboardPage() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('tab') === 'support') {
         setActiveAdminSection('SUPPORT_AND_BUGS');
+      } else if (params.get('tab') === 'persona-lab') {
+        setActiveAdminSection('PERSONA_UX_LAB');
       }
     }
     fetchUsers();
@@ -1214,12 +1217,36 @@ export default function AdminDashboardPage() {
                 Open
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveAdminSection('PERSONA_UX_LAB')}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeAdminSection === 'PERSONA_UX_LAB'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>Persona &amp; UX Audit Lab</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeAdminSection === 'PERSONA_UX_LAB'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-emerald-100 text-emerald-800'
+                }`}
+              >
+                L1–L4 • 3 Screens
+              </span>
+            </button>
           </div>
 
           <span className="hidden pr-2 text-xs text-slate-400 md:inline">
             {activeAdminSection === 'SUPPORT_AND_BUGS'
               ? 'QA Bug Backlog, UX Improvements & Phase 2 Founder Support Hub'
-              : 'Manage Founder Tiers, Lifetime Access & Early-Access Leads'}
+              : activeAdminSection === 'PERSONA_UX_LAB'
+                ? 'Synthetic Founder Personas, L1–L4 Literacy Lever, Mobile/Tablet/Laptop & Fix Prompt Generator'
+                : 'Manage Founder Tiers, Lifetime Access & Early-Access Leads'}
           </span>
         </div>
 
@@ -1230,6 +1257,11 @@ export default function AdminDashboardPage() {
             onCreateTicket={handleCreateSupportTicket}
             onUpdateTicket={handleUpdateSupportTicket}
             onDeleteTicket={handleDeleteSupportTicket}
+            onNotify={(type, text) => setBannerMessage({ type, text })}
+          />
+        ) : activeAdminSection === 'PERSONA_UX_LAB' ? (
+          <PersonaUxAuditLabTab
+            onCreateSupportTicket={handleCreateSupportTicket}
             onNotify={(type, text) => setBannerMessage({ type, text })}
           />
         ) : (

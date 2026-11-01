@@ -1725,6 +1725,8 @@ export interface BreakevenYearTarget {
   monthlyPocketProfitAtTarget: number;
 }
 
+export type DebtorPaymentTerms = 'INSTANT_PAYMENT' | 'NET_14_DAYS' | 'NET_30_DAYS' | 'NET_60_DAYS' | 'OTHER';
+
 export interface BreakevenCalculatorStep3Data {
   selectedSimulationYear: 1 | 2 | 3;
   activePriceSlider: number;
@@ -1734,6 +1736,12 @@ export interface BreakevenCalculatorStep3Data {
   sandboxMonthlyPayrollOverride?: number;
   sandboxNotes?: string;
   yearTargets: BreakevenYearTarget[];
+  // Grant Assessor Calibration & Working Capital Fields
+  paymentTerms?: DebtorPaymentTerms;
+  otherPaymentTermsText?: string;
+  exportSalesPercent?: number; // 0 to 100%
+  exportFocusRegions?: string; // e.g. "UK, EU, US"
+  breakevenNarrative?: string; // Written assessor justification for breakeven viability & cashflow
   lastSavedAt?: string;
 }
 
