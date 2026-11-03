@@ -61,7 +61,7 @@ export default function RegisterPage() {
       !voucherCode.trim().toUpperCase().startsWith('BMU-')
     ) {
       setErrorMsg(
-        'Voucher codes must start with SUMO- (AppSumo) or SPF- (University/LEO Cohort).'
+        'Please enter a valid Institutional Cohort or Partner Voucher code.'
       );
       return;
     }
@@ -170,8 +170,8 @@ export default function RegisterPage() {
                 <Badge variant="outline">Step 1 of 2</Badge>
               </div>
               <CardDescription>
-                Start free on Module A, or enter an AppSumo / University Cohort
-                code below.
+                Start free on Module A, or enter an Institutional Cohort /
+                Partner code below.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -248,7 +248,7 @@ export default function RegisterPage() {
                   />
                 </div>
 
-                {/* Optional AppSumo / Cohort Code Accordion */}
+                {/* Optional Partner / Cohort Code Accordion */}
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
                   <button
                     type="button"
@@ -257,7 +257,7 @@ export default function RegisterPage() {
                   >
                     <span className="flex items-center gap-1.5">
                       <Ticket className="h-4 w-4 text-amber-600" />
-                      Have an AppSumo Voucher or University/LEO Cohort Code?
+                      Have a University/LEO Cohort or Partner Voucher Code?
                     </span>
                     <ChevronDown
                       className={`h-4 w-4 transition-transform ${

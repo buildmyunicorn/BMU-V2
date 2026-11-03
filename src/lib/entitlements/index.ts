@@ -179,7 +179,7 @@ export function canAccessModule(
     return {
       allowed: false,
       reason:
-        'Module A (Ideation) is free forever. Upgrade to a 6-Month Launch Pass or redeem an AppSumo/Cohort code to unlock Modules B–I, Hosted Customer Surveys & Waitlist, Product Build Architecture, Financial Builder, and Grant Matcher.',
+        'Module A (Ideation) is free forever. Upgrade to a 6-Month Launch Pass or redeem a Cohort/Partner voucher code to unlock Modules B–L, Hosted Customer Surveys & Waitlist, Product Build Architecture, Financial Builder, and Grant Matcher.',
       upgradeRequired: 'SIX_MONTH_SOLO',
     };
   }
@@ -209,7 +209,7 @@ export function canCreateStartupPlan(
       return {
         allowed: false,
         reason:
-          'Free accounts include 1 Startup Plan. Upgrade to the Co-Founder & Pivot Pass or stack a 2nd AppSumo code to manage up to 3 Startup Plans and use Clone & Pivot.',
+          'Free accounts include 1 Startup Plan. Upgrade to the Co-Founder & Pivot Pass to manage up to 3 Startup Plans and use Clone & Pivot.',
         upgradeRequired: 'SIX_MONTH_COFOUNDER',
         currentLimit: entitlement.maxStartupPlans,
       };
@@ -258,7 +258,9 @@ export function canInviteCollaborator(
     return {
       allowed: false,
       reason:
-        'Solo plans include 1 founder seat. Upgrade to the Co-Founder & Pivot Pass (or stack a 2nd AppSumo code) to invite up to 3 Co-Founders and unlock the Blind-Reveal Co-Founder Alignment Interview.',
+        entitlement.planType === 'APPSUMO_LTD'
+          ? 'AppSumo Tier 1 includes 1 founder seat. Stack a 2nd AppSumo code to invite up to 3 Co-Founders and unlock the Blind-Reveal Co-Founder Alignment Interview.'
+          : 'Solo plans include 1 founder seat. Upgrade to the Co-Founder & Pivot Pass to invite up to 3 Co-Founders and unlock the Blind-Reveal Co-Founder Alignment Interview.',
       upgradeRequired:
         entitlement.planType === 'APPSUMO_LTD'
           ? 'APPSUMO_STACK'
@@ -325,7 +327,9 @@ export function canConsumeAiCredits(
       useByok: false,
       remainingCredits: Math.max(0, remaining),
       reason:
-        'You have used all of your monthly Preflight AI Credits. Stack an additional AppSumo code, add a $10 Credit Top-Up, or connect your own Gemini API key (BYOK on Tier 3).',
+        entitlement.planType === 'APPSUMO_LTD'
+          ? 'You have used all of your monthly Preflight AI Credits. Stack an additional AppSumo code or connect your own Gemini API key (BYOK on Tier 3).'
+          : 'You have used all of your monthly Preflight AI Credits. Upgrade your pass tier to increase your monthly AI allowance.',
       upgradeRequired:
         entitlement.planType === 'APPSUMO_LTD'
           ? 'APPSUMO_STACK'
@@ -374,7 +378,9 @@ export function checkFeatureEntitlement(
         return {
           allowed: false,
           reason:
-            'The Multi-Plan Idea Comparator requires a Multi-Plan tier (Co-Founder Pass or AppSumo Tier 2+).',
+            entitlement.planType === 'APPSUMO_LTD'
+              ? 'The Multi-Plan Idea Comparator requires AppSumo Tier 2+ (2+ Stacked Codes).'
+              : 'The Multi-Plan Idea Comparator requires a Multi-Plan tier (Co-Founder & Pivot Pass).',
           upgradeRequired:
             entitlement.planType === 'APPSUMO_LTD'
               ? 'APPSUMO_STACK'
@@ -395,8 +401,13 @@ export function checkFeatureEntitlement(
         return {
           allowed: false,
           reason:
-            'Removing the "Powered by Startup Preflight" watermark requires AppSumo Tier 3 (3+ Stacked Codes).',
-          upgradeRequired: 'APPSUMO_STACK',
+            entitlement.planType === 'APPSUMO_LTD'
+              ? 'Removing the "Powered by Startup Preflight" watermark requires AppSumo Tier 3 (3+ Stacked Codes).'
+              : 'Removing the "Powered by Startup Preflight" watermark requires an Agency / White-Label tier.',
+          upgradeRequired:
+            entitlement.planType === 'APPSUMO_LTD'
+              ? 'APPSUMO_STACK'
+              : 'SIX_MONTH_COFOUNDER',
         };
       }
       return { allowed: true };
@@ -409,8 +420,13 @@ export function checkFeatureEntitlement(
         return {
           allowed: false,
           reason:
-            'Bring Your Own API Key (BYOK) is unlocked on AppSumo Tier 3 (3+ Stacked Codes).',
-          upgradeRequired: 'APPSUMO_STACK',
+            entitlement.planType === 'APPSUMO_LTD'
+              ? 'Bring Your Own API Key (BYOK) is unlocked on AppSumo Tier 3 (3+ Stacked Codes).'
+              : 'Bring Your Own API Key (BYOK) requires an Enterprise / Advisor tier.',
+          upgradeRequired:
+            entitlement.planType === 'APPSUMO_LTD'
+              ? 'APPSUMO_STACK'
+              : 'SIX_MONTH_COFOUNDER',
         };
       }
       return { allowed: true };

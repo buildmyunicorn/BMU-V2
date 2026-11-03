@@ -40,6 +40,13 @@ export const voucherSourceEnum = pgEnum('voucher_source', [
   'APPSUMO',
   'COHORT',
   'PROMO',
+  'PARTNER',
+]);
+
+export const voucherRewardTypeEnum = pgEnum('voucher_reward_type', [
+  'APPSUMO_LTD',
+  'PASS_SOLO',
+  'PASS_COFOUNDER',
 ]);
 
 export const voucherStatusEnum = pgEnum('voucher_status', [
@@ -180,15 +187,18 @@ export const userEntitlements = pgTable('user_entitlements', {
 
 export const vouchers = pgTable('vouchers', {
   id: uuid('id').defaultRandom().primaryKey(),
-  code: text('code').notNull().unique(), // e.g., 'SUMO-BMU-8842-991A'
+  code: text('code').notNull().unique(), // e.g., 'SUMO-BMU-8842-991A' or 'PRTN-7B2K-9X4M'
   batchName: text('batch_name').notNull(), // e.g., 'AppSumo_Launch_Batch_1'
   source: voucherSourceEnum('source').default('APPSUMO').notNull(),
+  rewardType: voucherRewardTypeEnum('reward_type').default('APPSUMO_LTD').notNull(),
+  durationMonths: integer('duration_months').default(6), // For PASS_SOLO / PASS_COFOUNDER; null for APPSUMO_LTD
   status: voucherStatusEnum('status').default('UNCLAIMED').notNull(),
   redeemedByUserId: uuid('redeemed_by_user_id').references(() => users.id, {
     onDelete: 'set null',
   }),
   redeemedAt: timestamp('redeemed_at'),
   revokedAt: timestamp('revoked_at'),
+  notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -643,6 +653,25 @@ export const supportTickets = pgTable('support_tickets', {
   adminNotes: text('admin_notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ==========================================
+// 7D. SYSTEM EMAIL LOGS & AUDIT TRAIL (Resend Transactional Audit)
+// ==========================================
+export const emailLogs = pgTable('email_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  recipient: text('recipient').notNull(),
+  template: text('template').notNull(), // 'WELCOME_FOUNDER' | 'PASSWORD_RESET' | 'VOUCHER_REDEEMED' | 'COFOUNDER_INVITE' | etc.
+  subject: text('subject').notNull(),
+  status: text('status').default('PENDING').notNull(), // 'PENDING' | 'SENT' | 'DELIVERED' | 'BOUNCED' | 'FAILED' | 'MOCK_DEV'
+  resendId: text('resend_id'),
+  fromEmail: text('from_email').notNull(),
+  replyTo: text('reply_to'),
+  metadataJson: jsonb('metadata_json').$type<Record<string, unknown>>().default({}),
+  errorMessage: text('error_message'),
+  openedAt: timestamp('opened_at'),
+  deliveredAt: timestamp('delivered_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // ==========================================

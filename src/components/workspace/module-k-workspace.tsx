@@ -22,13 +22,22 @@ import type {
   ActiveStartupPlan,
   ModuleKStep1AuditSavedData,
   ModuleKStep2CapitalStackSavedData,
+  ModuleKStep3ReimbursementBridgeSavedData,
+  ModuleKStep4TaxReliefSavedData,
+  ModuleKStep5FundingBriefSavedData,
 } from '@/lib/auth/session-store';
 import type { BlindSpotItem } from '@/db/schema';
 import { ModuleKGrantAuditStep } from '@/components/workspace/module-k-grant-audit-step';
 import { ModuleKCapitalStackStep } from '@/components/workspace/module-k-capital-stack-step';
+import { ModuleKReimbursementBridgeStep } from '@/components/workspace/module-k-reimbursement-bridge-step';
+import { ModuleKTaxReliefStep } from '@/components/workspace/module-k-tax-relief-step';
+import { ModuleKFundingBriefStep } from '@/components/workspace/module-k-funding-brief-step';
 import {
   saveModuleKStep1AuditAction,
   saveModuleKStep2CapitalStackAction,
+  saveModuleKStep3ReimbursementBridgeAction,
+  saveModuleKStep4TaxReliefAction,
+  saveModuleKStep5FundingBriefAction,
 } from '@/app/actions/module-k';
 
 export interface ModuleKWorkspaceProps {
@@ -41,6 +50,18 @@ export interface ModuleKWorkspaceProps {
   ) => Promise<void> | void;
   onSaveStep2CapitalStack?: (
     step2Data: ModuleKStep2CapitalStackSavedData,
+    progress?: number
+  ) => Promise<void> | void;
+  onSaveStep3Bridge?: (
+    step3Data: ModuleKStep3ReimbursementBridgeSavedData,
+    progress?: number
+  ) => Promise<void> | void;
+  onSaveStep4TaxRelief?: (
+    step4Data: ModuleKStep4TaxReliefSavedData,
+    progress?: number
+  ) => Promise<void> | void;
+  onSaveStep5Brief?: (
+    step5Data: ModuleKStep5FundingBriefSavedData,
     progress?: number
   ) => Promise<void> | void;
   onBackToModuleJ?: () => void;
@@ -72,10 +93,13 @@ export function ModuleKWorkspace({
   isVaultReadonly,
   onSaveStep1Audit,
   onSaveStep2CapitalStack,
+  onSaveStep3Bridge,
+  onSaveStep4TaxRelief,
+  onSaveStep5Brief,
   onBackToModuleJ,
   onContinueToModuleL,
   onNavigateToModule,
-  initialStep = 1,
+  initialStep = 0,
   highlightTarget,
 }: ModuleKWorkspaceProps) {
   const [openStep, setOpenStep] = useState<number | 'ALL'>(initialStep);
@@ -86,130 +110,151 @@ export function ModuleKWorkspace({
 
   const isStep1Complete = !!plan.moduleKData?.step1Audit?.lastAuditedAt;
   const isStep2Complete = !!plan.moduleKData?.step2CapitalStack?.lastSavedAt;
+  const isStep3Complete = !!plan.moduleKData?.step3ReimbursementBridge?.lastSavedAt;
+  const isStep4Complete = !!plan.moduleKData?.step4TaxRelief?.lastSavedAt;
+  const isStep5Complete = !!plan.moduleKData?.step5FundingBrief?.lastSavedAt;
+
+  const completedCoreStepsCount =
+    (isStep1Complete ? 1 : 0) +
+    (isStep2Complete ? 1 : 0) +
+    (isStep3Complete ? 1 : 0) +
+    (isStep4Complete ? 1 : 0) +
+    (isStep5Complete ? 1 : 0);
 
   return (
     <div className="space-y-6">
       {/* ========================================================================= */}
-      {/* 1. TOP HEADER MODULE CARD                                                 */}
+      {/* 1. TOP HEADER MODULE CARD (Strict GEMINI.md Baseline Standard)            */}
       {/* ========================================================================= */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-900 via-teal-900 to-indigo-950 p-6 text-white shadow-lg sm:p-8">
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30 text-[11px] font-bold uppercase tracking-wider">
+      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1.5 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100 text-[10px] shrink-0">
                 Module K • Flagship Standalone #3
               </Badge>
-              <Badge variant="outline" className="border-white/20 bg-white/10 text-white text-[11px]">
+              <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
+                <Sparkles className="mr-1 h-3 w-3" />
                 {countryFlag} {countryName} Grants &amp; Tax Relief Hub
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Non-Dilutive Grants, Loans &amp; Investor Tax Relief Hub
+              Module K: Non-Dilutive Grants, Loans &amp; Investor Tax Relief Hub
             </h1>
-            <p className="max-w-2xl text-xs text-emerald-100/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
               Cross-examine your startup plan against official assessor underwriting criteria, match non-dilutive government capital, and bridge grant cashflow timing lag.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {onBackToModuleJ && (
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex items-center gap-2">
+              {onBackToModuleJ && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onBackToModuleJ}
+                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  Back to Module J
+                </Button>
+              )}
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
-                onClick={onBackToModuleJ}
-                className="border-white/20 bg-white/10 text-xs font-semibold text-white hover:bg-white/20"
+                onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))}
+                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
-                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                Back to Module J
+                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
               </Button>
-            )}
+            </div>
+            <div className="text-right text-[11px] text-indigo-200">
+              Module K Progress:{' '}
+              <strong className="text-white">
+                {Math.round((completedCoreStepsCount / 5) * 100)}%
+              </strong>{' '}
+              ({completedCoreStepsCount} of 5 Steps Ready)
+            </div>
           </div>
         </div>
 
-        {/* Step Navigation Strip */}
-        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4 text-xs">
-          <button
-            type="button"
-            onClick={() => setOpenStep(1)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 font-medium transition-all ${
-              openStep === 1
-                ? 'bg-white/20 text-white font-bold shadow-xs'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span
-              className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${
-                isStep1Complete ? 'bg-emerald-500' : 'bg-white/20'
-              }`}
-            >
-              {isStep1Complete ? '✓' : '1'}
-            </span>
-            <span>Step 1: Grant Audit &amp; Checklist</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(2)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 font-medium transition-all ${
-              openStep === 2
-                ? 'bg-white/20 text-white font-bold shadow-xs'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span
-              className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${
-                isStep2Complete ? 'bg-emerald-500' : 'bg-white/20'
-              }`}
-            >
-              {isStep2Complete ? '✓' : '2'}
-            </span>
-            <span>Step 2: Capital Stack</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(3)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 font-medium transition-all ${
-              openStep === 3
-                ? 'bg-white/20 text-white font-bold shadow-xs'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[10px] font-bold text-white">
-              3
-            </span>
-            <span>Step 3: Reimbursement Bridge</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(4)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 font-medium transition-all ${
-              openStep === 4
-                ? 'bg-white/20 text-white font-bold shadow-xs'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[10px] font-bold text-white">
-              4
-            </span>
-            <span>Step 4: Angel Tax Relief</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(5)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 font-medium transition-all ${
-              openStep === 5
-                ? 'bg-white/20 text-white font-bold shadow-xs'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[10px] font-bold text-white">
-              5
-            </span>
-            <span>Step 5: Funding Brief</span>
-          </button>
+        {/* Step Navigation Strip (Tile Grid Standard) */}
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+          {[
+            {
+              step: 'Step 1',
+              title: '1. Grant Audit & Checklist',
+              done: isStep1Complete,
+              targetId: 'module-k-step-1',
+              stepNum: 1,
+            },
+            {
+              step: 'Step 2',
+              title: '2. Capital Stack & Blend',
+              done: isStep2Complete,
+              targetId: 'module-k-step-2',
+              stepNum: 2,
+            },
+            {
+              step: 'Step 3',
+              title: '3. Reimbursement Bridge',
+              done: isStep3Complete,
+              targetId: 'module-k-step-3',
+              stepNum: 3,
+            },
+            {
+              step: 'Step 4',
+              title: '4. Angel Tax Relief',
+              done: isStep4Complete,
+              targetId: 'module-k-step-4',
+              stepNum: 4,
+            },
+            {
+              step: 'Overview',
+              title: 'Funding Overview Brief',
+              done: isStep5Complete,
+              targetId: 'module-k-step-5',
+              stepNum: 5,
+            },
+          ].map((item, idx, arr) => {
+            const firstIncompleteIdx = arr.findIndex((s) => !s.done);
+            const isStepOpen =
+              openStep === 'ALL'
+                ? (firstIncompleteIdx === -1 ? idx === arr.length - 1 : idx === firstIncompleteIdx)
+                : openStep === item.stepNum;
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => {
+                  setOpenStep(item.stepNum);
+                  setTimeout(() => {
+                    const el = document.getElementById(item.targetId);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 40);
+                }}
+                className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
+                  isStepOpen
+                    ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
+                    : item.done
+                      ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
+                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                }`}
+              >
+                <div className="flex items-center justify-between font-bold">
+                  <span>{item.step}</span>
+                  {item.done ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-300" />
+                  ) : isStepOpen ? (
+                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  ) : null}
+                </div>
+                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -423,69 +468,346 @@ export function ModuleKWorkspace({
         )}
       </div>
 
-      {/* Placeholder previews for Steps 3 to 5 */}
-      {[3, 4, 5].map((stepNum) => {
-        const stepTitles: Record<number, { title: string; subtitle: string }> = {
-          2: {
-            title: 'Step 2: Capital Stack & Skin-in-the-Game Blend',
-            subtitle:
-              'Balance non-dilutive grants, founder equity match, and government-backed loans against your Module J Cashflow Gap.',
-          },
-          3: {
-            title: 'Step 3: Grant Reimbursement Timing Bridge (Cashflow Survival)',
-            subtitle:
-              'Map the 60–120 day delay between paying invoices and receiving grant reimbursement to prevent insolvency.',
-          },
-          4: {
-            title: 'Step 4: Investor Tax Relief & Angel Catalyst (SEIS/EIS & SURE/EII)',
-            subtitle:
-              'Activate 50% income tax relief to close angel rounds and claim PAYE cash refunds from prior employment.',
-          },
-          5: {
-            title: 'Step 5: Executive Funding Strategy Brief & Assessor Audit',
-            subtitle:
-              'Generate an assessor-ready summary brief and pre-flight contradiction audit ready for Module L.',
-          },
-        };
-
-        const info = stepTitles[stepNum];
-
-        return (
+      {/* ========================================================================= */}
+      {/* 4. STEP 3: GRANT REIMBURSEMENT TIMING BRIDGE                              */}
+      {/* ========================================================================= */}
+      <div id="module-k-step-3" className="scroll-mt-24">
+        {openStep !== 'ALL' && openStep !== 3 ? (
+          // Collapsed Step 3 Card
           <div
-            key={stepNum}
-            onClick={() => setOpenStep(stepNum)}
+            onClick={() => setOpenStep(3)}
             className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500">
-                  {stepNum}
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                    isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
                 </div>
                 <div className="min-w-0">
                   <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
-                    {info.title}
+                    Step 3: Grant Reimbursement Timing Bridge (Cashflow Survival)
                   </h2>
-                  <p className="mt-0.5 truncate text-xs text-slate-500">{info.subtitle}</p>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">
+                    Map the 60–120 day arrears reimbursement lag to secure liquid working capital and avoid insolvency.
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className="border-slate-300 text-slate-500 text-[10px]">
-                  Upcoming Step
+                <Badge
+                  variant="outline"
+                  className={
+                    isStep3Complete
+                      ? 'border-emerald-300 bg-emerald-100 text-emerald-800 text-[10px]'
+                      : 'border-slate-300 text-slate-600 text-[10px]'
+                  }
+                >
+                  {isStep3Complete ? 'Bridged' : 'In Progress'}
                 </Badge>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-slate-500 group-hover:bg-slate-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
                 >
-                  Preview
+                  {isStep3Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
           </div>
-        );
-      })}
+        ) : (
+          // Expanded Step 3 Card
+          <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                    3
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Step 3: Grant Reimbursement Timing Bridge (Cashflow Survival)
+                    </CardTitle>
+                    <CardDescription className="mt-1 text-xs text-slate-600">
+                      Government grants are paid strictly in arrears. Prove to assessors that you have sufficient liquid capital to pay supplier invoices upfront before claim vouchers clear.
+                    </CardDescription>
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setOpenStep(0)}
+                  className="text-xs text-slate-500 hover:bg-slate-100"
+                >
+                  Collapse Step
+                  <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-6">
+              <ModuleKReimbursementBridgeStep
+                plan={plan}
+                isVaultReadonly={isVaultReadonly}
+                onSaveStep3={async (step3Data, progress) => {
+                  if (onSaveStep3Bridge) {
+                    await onSaveStep3Bridge(step3Data, progress);
+                  } else {
+                    await saveModuleKStep3ReimbursementBridgeAction({
+                      planId: plan.id,
+                      step3Bridge: step3Data,
+                      completionPercentage: progress,
+                    });
+                  }
+                }}
+                onBackToStep2={() => setOpenStep(2)}
+                onContinueToNextStep={() => setOpenStep(4)}
+              />
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 5. STEP 4: INVESTOR TAX RELIEF & ANGEL CATALYST (SEIS/EIS & SURE/EII)       */}
+      {/* ========================================================================= */}
+      <div id="module-k-step-4">
+        {openStep !== 'ALL' && openStep !== 4 ? (
+          <div
+            onClick={() => setOpenStep(4)}
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                    isStep4Complete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    Step 4: Investor Tax Relief &amp; Angel Catalyst (SEIS/EIS &amp; SURE/EII)
+                  </h2>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">
+                    {plan.moduleKData?.step4TaxRelief?.targetReliefRaiseAmount
+                      ? `Target round: ${plan.baseCurrency} ${plan.moduleKData.step4TaxRelief.targetReliefRaiseAmount.toLocaleString()} • Status: ${plan.moduleKData.step4TaxRelief.advanceAssuranceStatus.replace(/_/g, ' ')}`
+                      : 'Structure up to 50% income tax relief (UK SEIS/EIS) or 41% PAYE refunds (IE SURE) to de-risk equity investors.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {isStep4Complete ? (
+                  <Badge className="border-emerald-300 bg-emerald-100 text-emerald-800 text-[10px] shrink-0 font-medium">
+                    <Check className="mr-1 h-3 w-3" /> Relief Structured
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="border-slate-300 text-slate-600 text-[10px] shrink-0 font-medium">
+                    In Progress
+                  </Badge>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                >
+                  {isStep4Complete ? 'Edit Step' : 'Open Step'}
+                  <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                    4
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-base font-bold text-slate-900">
+                        Step 4: Investor Tax Relief &amp; Angel Catalyst (SEIS/EIS &amp; SURE/EII)
+                      </CardTitle>
+                      {isStep4Complete && (
+                        <Badge className="border-emerald-300 bg-emerald-100 text-emerald-800 text-[10px] shrink-0 font-medium">
+                          <Check className="mr-1 h-3 w-3" /> Relief Structured
+                        </Badge>
+                      )}
+                    </div>
+                    <CardDescription className="mt-1 text-xs text-slate-600">
+                      Structure state-backed angel incentives (UK HMRC SEIS/EIS 50% tax write-off or Irish Revenue SURE 41% PAYE refunds) to unlock private matching capital.
+                    </CardDescription>
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setOpenStep(0)}
+                  className="text-xs text-slate-500 hover:bg-slate-100"
+                >
+                  Collapse Step
+                  <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-6">
+              <ModuleKTaxReliefStep
+                plan={plan}
+                isVaultReadonly={isVaultReadonly}
+                onSaveStep4={async (step4Data, progress) => {
+                  if (onSaveStep4TaxRelief) {
+                    await onSaveStep4TaxRelief(step4Data, progress);
+                  } else {
+                    await saveModuleKStep4TaxReliefAction({
+                      planId: plan.id,
+                      step4TaxRelief: step4Data,
+                      completionPercentage: progress,
+                    });
+                  }
+                }}
+                onBackToStep3={() => setOpenStep(3)}
+                onContinueToNextStep={() => setOpenStep(5)}
+              />
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Module K Final Overview Brief & Phased Funding Roadmap */}
+      <div id="module-k-step-5" className="scroll-mt-24">
+        {openStep !== 'ALL' && openStep !== 5 ? (
+          <div
+            onClick={() => setOpenStep(5)}
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                    isStep5Complete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 text-white'
+                  }`}
+                >
+                  {isStep5Complete ? <Check className="h-4 w-4" /> : <Landmark className="h-4 w-4" />}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    Module K Final Overview Brief &amp; Phased Funding Strategy
+                  </h2>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">
+                    {isStep5Complete
+                      ? 'Phased grant application roadmap and executive funding brief compiled for Module L.'
+                      : 'Generate your phased grant application pipeline, assessor pre-flight audit, and 1-click dossier for Module L.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {isStep5Complete ? (
+                  <Badge className="border-emerald-300 bg-emerald-100 text-emerald-800 text-[10px] shrink-0 font-medium">
+                    <Check className="mr-1 h-3 w-3" /> Overview Ready
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="border-slate-300 text-slate-600 text-[10px] shrink-0 font-medium">
+                    Overview
+                  </Badge>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                >
+                  {isStep5Complete ? 'Review Overview' : 'Open Overview'}
+                  <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                      isStep5Complete
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 text-white'
+                    }`}
+                  >
+                    {isStep5Complete ? <Check className="h-4 w-4" /> : <Landmark className="h-4 w-4" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-base font-bold text-slate-900">
+                        Module K Final Overview Brief &amp; Phased Funding Strategy
+                      </CardTitle>
+                      {isStep5Complete && (
+                        <Badge className="border-emerald-300 bg-emerald-100 text-emerald-800 text-[10px] shrink-0 font-medium">
+                          <Check className="mr-1 h-3 w-3" /> Overview Ready
+                        </Badge>
+                      )}
+                    </div>
+                    <CardDescription className="mt-1 text-xs text-slate-600">
+                      Review your sequenced grant application roadmap (apply for Grant A, then Grant B, then Angel match), underwriter contradiction flags, and 1-click dossier export to Module L.
+                    </CardDescription>
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setOpenStep(0)}
+                  className="text-xs text-slate-500 hover:bg-slate-100"
+                >
+                  Collapse
+                  <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-6">
+              <ModuleKFundingBriefStep
+                plan={plan}
+                isVaultReadonly={isVaultReadonly}
+                onSaveStep5={async (step5Data, progress) => {
+                  if (onSaveStep5Brief) {
+                    await onSaveStep5Brief(step5Data, progress);
+                  } else {
+                    await saveModuleKStep5FundingBriefAction({
+                      planId: plan.id,
+                      step5FundingBrief: step5Data,
+                      completionPercentage: progress,
+                    });
+                  }
+                }}
+                onBackToStep4={() => setOpenStep(4)}
+                onContinueToModuleL={() => {
+                  if (onContinueToModuleL) {
+                    onContinueToModuleL();
+                  } else if (onNavigateToModule) {
+                    onNavigateToModule('MOD_L_BUSINESS_PLAN');
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

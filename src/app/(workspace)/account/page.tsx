@@ -786,7 +786,7 @@ export default function AccountPage() {
                       {planType.replace(/_/g, ' ')}
                     </div>
                     <p className="mt-1 text-[11px] text-slate-500">
-                      {entitlement?.stackedCodesCount
+                      {planType === 'APPSUMO_LTD' && entitlement?.stackedCodesCount
                         ? `${entitlement.stackedCodesCount} AppSumo code(s) stacked`
                         : 'Official founder pass'}
                     </p>
@@ -815,12 +815,16 @@ export default function AccountPage() {
                             month: 'short',
                             day: 'numeric',
                           })
-                        : 'Lifetime Access (LTD)'}
+                        : planType === 'APPSUMO_LTD'
+                          ? 'Lifetime Access (AppSumo)'
+                          : 'Free Module A Access'}
                     </div>
                     <p className="mt-1 text-[11px] text-slate-500">
                       {entitlement?.accessExpiresAt
                         ? 'Transitions to Read-Only Vault when expired.'
-                        : 'Active forever under lifetime license.'}
+                        : planType === 'APPSUMO_LTD'
+                          ? 'Active forever under lifetime voucher license.'
+                          : 'Upgrade to a 6-Month Pass to unlock Modules B–L.'}
                     </p>
                   </div>
                 </div>

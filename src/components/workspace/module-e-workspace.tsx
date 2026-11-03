@@ -2600,7 +2600,7 @@ export function ModuleEWorkspace({
           stageTitle: '1. Checkout / Voucher Redemption & Account Provisioning',
           ownerType: 'AUTOMATED_SYSTEM',
           whatHappensStepByStep:
-            'Founder purchases 6-Month Pass or redeems AppSumo/Cohort code; Stripe webhook updates user_entitlements and unlocks Modules A–K in <5 seconds.',
+            'Founder purchases 6-Month Pass or redeems an Institutional Cohort code; Stripe webhook updates user_entitlements and unlocks Modules A–L in <5 seconds.',
           toolsEquipmentOrSupplier:
             'Stripe Checkout + Better-Auth + PostgreSQL (Drizzle ORM)',
           activeMinutesPerOrder: 0,

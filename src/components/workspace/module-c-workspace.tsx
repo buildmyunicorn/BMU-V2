@@ -2366,59 +2366,56 @@ export function ModuleCWorkspace({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setOpenStep((prev) =>
-                  prev === 'ALL'
-                    ? !isStep1Complete
-                      ? 1
-                      : !isStep2Complete
-                        ? 2
-                        : 1
-                    : 'ALL'
-                )
-              }
-              className="shrink-0 border-indigo-300/50 bg-indigo-800/50 text-xs text-white hover:bg-indigo-700/60"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5 text-indigo-200" />
-              {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
-            </Button>
-            {openStep !== 0 && (
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setOpenStep(0)}
-                className="shrink-0 border-indigo-300/50 bg-indigo-950/60 text-xs text-indigo-100 hover:bg-indigo-800/60"
+                onClick={() =>
+                  setOpenStep((prev) =>
+                    prev === 'ALL'
+                      ? !isStep1Complete
+                        ? 1
+                        : !isStep2Complete
+                          ? 2
+                          : 1
+                      : 'ALL'
+                  )
+                }
+                className="shrink-0 border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
-                <ChevronUp className="h-3.5 w-3.5 text-indigo-200" />
-                Collapse All
+                <SlidersHorizontal className="h-3.5 w-3.5 text-indigo-200" />
+                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowWhyCard(!showWhyCard)}
-              className="shrink-0 border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
-            >
-              <HelpCircle className="h-3.5 w-3.5 text-indigo-200" />
-              {showWhyCard ? 'Hide Mom-Test Tips' : 'Why The Mom Test?'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowParkInput(!showParkInput)}
-              className="shrink-0 border-amber-400/40 bg-amber-500/20 text-xs text-amber-100 hover:bg-amber-500/30"
-            >
-              <BookmarkPlus className="h-3.5 w-3.5 text-amber-300" />
-              Park Open Question
-            </Button>
+              {openStep !== 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOpenStep(0)}
+                  className="shrink-0 border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                >
+                  <ChevronUp className="h-3.5 w-3.5 text-indigo-200" />
+                  Collapse All
+                </Button>
+              )}
+              {onBackToModuleB && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onBackToModuleB}
+                  className="shrink-0 border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                  Back to Module B
+                </Button>
+              )}
+            </div>
+            <div className="text-right text-[11px] text-indigo-200">
+              Module C Progress: <strong>{Math.round((completedCoreStepsCount / 3) * 100)}%</strong> ({completedCoreStepsCount} of 3 Core Steps Ready)
+            </div>
           </div>
         </div>
 

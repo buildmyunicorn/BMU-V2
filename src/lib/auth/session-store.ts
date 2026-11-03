@@ -2380,6 +2380,9 @@ export interface ModuleKStep1AuditSavedData {
   activeFilterTab: 'ALL' | 'NEEDS_ACTION' | 'PASSED';
   founderNotes: string;
   lastAuditedAt?: string;
+  aiAuditOverview?: string;
+  aiAssessorTip?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
 export type CapitalStackPresetType =
@@ -2424,12 +2427,86 @@ export interface ModuleKStep2CapitalStackSavedData {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+export type ReimbursementBridgeStrategyType =
+  | 'FOUNDER_DIRECTOR_LOAN_BUFFER'
+  | 'MICROFINANCE_OR_STARTUP_LOAN_BRIDGE'
+  | 'SUPPLIER_60_DAY_STAGGERED_TERMS'
+  | 'REVOLVING_CREDIT_LINE'
+  | 'OTHER';
+
+export interface ModuleKStep3ReimbursementBridgeSavedData {
+  grantEligibleVouchedBudget: number; // e.g. €40k–€80k total project cost
+  expectedGrantDrawdownAmount: number; // e.g. €20k–€40k (50%)
+  estimatedClaimTurnaroundWeeks: number; // e.g. 8–16 weeks (60–120 days)
+  bridgeStrategy: ReimbursementBridgeStrategyType;
+  otherBridgeStrategyText?: string;
+  minimumLiquidityBufferRequired: number; // Liquid cash required to pay invoices upfront
+  actualConfirmedBridgeLiquidity: number; // Founder cash + loans currently available
+  liquiditySafetySurplusOrDeficit: number; // confirmed - required
+  isAssessorLiquidityCompliant: boolean; // true if surplus >= 0
+  vendorPaymentTermsDays: 30 | 60 | 90;
+  bridgeRiskMitigationNarrative: string;
+  aiAssessorTip?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+  lastSavedAt?: string;
+}
+
+export type InvestorTaxReliefSchemeType =
+  // UK Schemes
+  | 'GB_SEIS_SEED_ENTERPRISE'
+  | 'GB_EIS_ENTERPRISE_INVESTMENT'
+  // Irish Schemes
+  | 'IE_SURE_FOUNDER_PAYE_REFUND'
+  | 'IE_EII_EMPLOYMENT_INVESTMENT_INCENTIVE'
+  | 'IE_SCIS_SMALL_COMPANY_INVESTMENT'
+  | 'OTHER';
+
+export interface ModuleKStep4TaxReliefSavedData {
+  primaryTaxScheme: InvestorTaxReliefSchemeType;
+  otherTaxSchemeText?: string;
+  targetReliefRaiseAmount: number; // e.g. £150,000 SEIS or €100,000 EII / SURE
+  investorReliefPercentage: number; // e.g. 50% for SEIS, 40-50% for EII, up to 41% for SURE
+  estimatedInvestorTaxSavings: number; // e.g. £75,000 tax back for investors
+  founderPriorEmploymentYearsForSure?: number; // 1 to 6 years for SURE
+  founderEstimatedPayeRefundForSure?: number; // e.g. up to €100k+
+  advanceAssuranceStatus: 'NOT_STARTED' | 'PREPARING_PACK' | 'SUBMITTED' | 'APPROVED';
+  grossAssetsWithinThreshold: boolean; // UK SEIS < £350k / IE EII micro cap
+  lessThan250Employees: boolean; // Statutory qualification
+  qualifyingTradeStatus: 'QUALIFYING' | 'EXCLUDED_TRADE_CHECK_REQUIRED';
+  taxCatalystPitchNarrative: string;
+  aiAssessorTip?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+  lastSavedAt?: string;
+}
+
+export interface GrantRoadmapPhaseItem {
+  phaseNumber: number; // 1, 2, 3...
+  grantOrFundingName: string;
+  agency: string;
+  amountFormatted: string;
+  timingTrigger: string; // e.g. "Immediate (Months 1–3) — Pre-Trading / MVP"
+  prerequisites: string; // e.g. "Company incorporated, 50% matching cash locked in bank"
+  unlocksNext: string; // e.g. "Validates prototype to unlock LEO Priming or Seed round"
+}
+
+export interface ModuleKStep5FundingBriefSavedData {
+  executiveSummary: string;
+  fundingRoadmap: GrantRoadmapPhaseItem[];
+  assessorReadinessScore: number; // 0 - 100%
+  underwriterContradictionFlags: string[];
+  recommendedActionChecklist: string[];
+  moduleLGrantMode: 'IE_LEO' | 'UK_INNOVATE_UK' | 'UK_START_UP_LOANS' | 'HMRC_SEIS' | 'STANDARD';
+  aiAssessorTip?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+  lastSavedAt?: string;
+}
+
 export interface SavedModuleKData {
   step1Audit?: ModuleKStep1AuditSavedData;
   step2CapitalStack?: ModuleKStep2CapitalStackSavedData;
-  step3ReimbursementBridge?: Record<string, unknown>;
-  step4TaxRelief?: Record<string, unknown>;
-  step5FundingBrief?: Record<string, unknown>;
+  step3ReimbursementBridge?: ModuleKStep3ReimbursementBridgeSavedData;
+  step4TaxRelief?: ModuleKStep4TaxReliefSavedData;
+  step5FundingBrief?: ModuleKStep5FundingBriefSavedData;
   completionPercentage?: number;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;

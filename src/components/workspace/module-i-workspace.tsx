@@ -2982,111 +2982,85 @@ export function ModuleIWorkspace({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))}
-              className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
-            >
-              {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
-            </Button>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex items-center gap-2">
+              {onBackToModuleH && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onBackToModuleH}
+                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  Back to Module H
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))}
+                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+              </Button>
+            </div>
+            <div className="text-right text-[11px] text-indigo-200">
+              Module I Progress:{' '}
+              <strong className="text-white">
+                {Math.round((completedCoreStepsCount / 4) * 100)}%
+              </strong>{' '}
+              ({completedCoreStepsCount} of 4 Core Steps Ready)
+            </div>
           </div>
         </div>
 
-        {/* Step Navigation Strip */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-2 border-t border-indigo-800/40 pt-4 text-xs">
-          <button
-            type="button"
-            onClick={() => setOpenStep(1)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 1 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isStep1Complete ? 'bg-emerald-500 text-white' : 'bg-indigo-400 text-slate-900'
-              }`}
-            >
-              {isStep1Complete ? <Check className="h-3 w-3" /> : '1'}
-            </div>
-            <span className="truncate">1. Brand Hook</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(2)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 2 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isStep2Complete ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {isStep2Complete ? <Check className="h-3 w-3" /> : '2'}
-            </div>
-            <span className="truncate">2. 4Ps &amp; Channels</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(3)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 3 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isStep3Complete ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {isStep3Complete ? <Check className="h-3 w-3" /> : '3'}
-            </div>
-            <span className="truncate">3. First 10 Playbook</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(4)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 4 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isStep4Complete ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {isStep4Complete ? <Check className="h-3 w-3" /> : '4'}
-            </div>
-            <span className="truncate">4. Budget &amp; CAC</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(5)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 5 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold bg-slate-800 text-slate-400">
-              5
-            </div>
-            <span className="truncate">5. Overview Brief</span>
-          </button>
+        {/* Step Navigation Strip (Tile Grid Standard) */}
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+          {[
+            { step: 'Step 1', title: '1. Brand Hook', done: isStep1Complete, targetId: 'module-i-step-1', stepNum: 1 },
+            { step: 'Step 2', title: '2. 4Ps & Channels', done: isStep2Complete, targetId: 'module-i-step-2', stepNum: 2 },
+            { step: 'Step 3', title: '3. First 10 Playbook', done: isStep3Complete, targetId: 'module-i-step-3', stepNum: 3 },
+            { step: 'Step 4', title: '4. Budget & CAC', done: isStep4Complete, targetId: 'module-i-step-4', stepNum: 4 },
+            { step: 'Overview', title: '5. Overview Brief', done: isStep5Complete, targetId: 'module-i-step-5', stepNum: 5 },
+          ].map((item, idx, arr) => {
+            const firstIncompleteIdx = arr.findIndex((s) => !s.done);
+            const isStepOpen =
+              openStep === 'ALL'
+                ? (firstIncompleteIdx === -1 ? idx === arr.length - 1 : idx === firstIncompleteIdx)
+                : openStep === item.stepNum;
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => {
+                  setOpenStep(item.stepNum);
+                  setTimeout(() => {
+                    const el = document.getElementById(item.targetId);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 40);
+                }}
+                className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
+                  isStepOpen
+                    ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
+                    : item.done
+                      ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
+                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                }`}
+              >
+                <div className="flex items-center justify-between font-bold">
+                  <span>{item.step}</span>
+                  {item.done ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-300" />
+                  ) : isStepOpen ? (
+                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  ) : null}
+                </div>
+                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

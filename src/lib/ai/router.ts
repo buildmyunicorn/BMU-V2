@@ -109,6 +109,7 @@ import type {
   MarketingGrantEligibilityStatus,
   MarketingBudgetLineItem,
   MarketingBudgetStep4Data,
+  GrantRoadmapPhaseItem,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -14190,3 +14191,713 @@ Return strictly JSON with:
 
 
 
+
+
+// ===========================================================================
+// Module K AI Generators (Step 1, Step 2, Step 3, Step 4, Step 5)
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Module K Step 1: Grant Audit Overview & Pre-Flight Roadmap
+// ---------------------------------------------------------------------------
+export interface GenerateModuleKStep1AuditOverviewParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  selectedGrantName: string;
+  selectedGrantAgency: string;
+  readinessScorePercent: number;
+  passedCount: number;
+  warningCount: number;
+  blockerCount: number;
+  criticalBlockers: string[];
+  warnings: string[];
+  passedHighlights: string[];
+  founderNotes?: string;
+}
+
+export interface GenerateModuleKStep1AuditOverviewResult {
+  allowed: boolean;
+  reason?: string;
+  auditOverview: string;
+  assessorStrategyTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleKStep1AuditOverviewViaRouter(
+  params: GenerateModuleKStep1AuditOverviewParams
+): Promise<GenerateModuleKStep1AuditOverviewResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const grantAgency = params.selectedGrantAgency || (isUK ? 'Innovate UK / Growth Hub' : 'Local Enterprise Office (LEO)');
+  
+  const fallbackOverview = `${params.planTitle} demonstrates a ${params.readinessScorePercent}% statutory alignment score with the ${params.selectedGrantName} criteria governed by ${grantAgency}. With ${params.passedCount} verified compliance gates, the project demonstrates strong structural eligibility. To guarantee underwriting sign-off, prior attention should be directed toward rectifying the ${params.blockerCount} blocking criteria and validating competitive export defensibility before submitting official vouching schedules.`;
+
+  const fallbackTip = isUK
+    ? `Innovate UK Assessor Insight: Applications are scored independently by 3–5 external technical assessors. Avoid high-level market fluff; highlight concrete technical de-risking milestones and measurable UK economic spillover.`
+    : `LEO Committee Rule: Local Enterprise Offices require verifiable matching funds in the business account and strict compliance with the 3-written-quotes procurement standard. Always pre-clear your application with your assigned Business Advisor prior to the evaluation panel deadline.`;
+
+  const fallback: GenerateModuleKStep1AuditOverviewResult = {
+    allowed: true,
+    auditOverview: fallbackOverview,
+    assessorStrategyTip: fallbackTip,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_K_GRANT_AUDIT',
+    'You are a senior public sector grant evaluator and commercial underwriter specializing in early-stage business grants.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a Senior Public Sector Grant Evaluator and Underwriting Assessor specializing in ${grantAgency} funding.
+Analyze the following grant audit profile for startup "${sanitizePromptInput(params.planTitle, 100)}":
+- Target Grant: ${sanitizePromptInput(params.selectedGrantName, 100)} (${grantAgency})
+- Jurisdiction: ${isUK ? 'United Kingdom' : 'Ireland'}
+- Industry: ${sanitizePromptInput(params.industryCategory || 'Startup', 100)}
+- Readiness Score: ${params.readinessScorePercent}% (${params.passedCount} passed, ${params.blockerCount} failed, ${params.warningCount} warnings)
+- Critical Blockers: ${params.criticalBlockers.join('; ') || 'None'}
+- Warnings: ${params.warnings.join('; ') || 'None'}
+- Passed Highlights: ${params.passedHighlights.join('; ') || 'Core criteria passed'}
+- Founder Notes: ${sanitizePromptInput(params.founderNotes || 'Standard pre-flight checklist verification', 200)}
+
+Synthesize an assessor-level evaluation overview in strict JSON format:
+{
+  "auditOverview": "2 sharp, constructive paragraphs evaluating the startup's statutory grant fit, highlighting readiness strengths and direct recommendations to overcome failed checkpoints.",
+  "assessorStrategyTip": "1 insider tip explaining how the specific committee evaluates risk and commercial merit."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const rawText = response.text || '';
+      const parsed = JSON.parse(rawText);
+
+      if (parsed && typeof parsed.auditOverview === 'string' && parsed.auditOverview.length > 40) {
+        return {
+          allowed: true,
+          auditOverview: parsed.auditOverview.trim(),
+          assessorStrategyTip:
+            typeof parsed.assessorStrategyTip === 'string' && parsed.assessorStrategyTip.trim().length > 15
+              ? parsed.assessorStrategyTip.trim()
+              : fallback.assessorStrategyTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn('[AI Router] Module K Step 1 Gemini call fallback:', err?.message || err);
+    }
+  }
+
+  return fallback;
+}
+
+// ---------------------------------------------------------------------------
+// Module K Step 2: Underwriter Strategy & Matching Funds Narrative
+// ---------------------------------------------------------------------------
+export interface GenerateModuleKCapitalStackNarrativeParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  targetGrantName: string;
+  targetGrantAgency: string;
+  totalTargetFundingGap: number;
+  totalGrants: number;
+  skinInTheGame: number;
+  totalLoans: number;
+  totalAngel: number;
+  currencySymbol: string;
+  grantMatchPercentage: number;
+  strategyPreset: string;
+  sourcesBreakdown: Array<{ label?: string; name?: string; amount: number; percentage: number }>;
+}
+
+export interface GenerateModuleKCapitalStackNarrativeResult {
+  allowed: boolean;
+  reason?: string;
+  narrative: string;
+  assessorStrategyTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleKCapitalStackNarrativeViaRouter(
+  params: GenerateModuleKCapitalStackNarrativeParams
+): Promise<GenerateModuleKCapitalStackNarrativeResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const grantAgency = params.targetGrantAgency || (isUK ? 'Innovate UK & British Business Bank' : 'Local Enterprise Office (LEO) & Enterprise Ireland');
+  
+  const fallbackNarrative = `${params.planTitle} has structured an optimized capital stack targeting ${params.currencySymbol}${params.totalTargetFundingGap.toLocaleString()} in early-stage runway, engineered to satisfy statutory ${grantAgency} match-funding criteria. The structure combines ${params.currencySymbol}${params.skinInTheGame.toLocaleString()} in confirmed founder equity skin-in-the-game alongside ${params.currencySymbol}${params.totalGrants.toLocaleString()} in non-dilutive grant facilities (${params.targetGrantName}) and ${params.currencySymbol}${params.totalLoans.toLocaleString()} in low-cost debt, achieving an institutional ${params.grantMatchPercentage}% matching compliance ratio without unnecessary equity dilution.`;
+
+  const fallbackTip = isUK
+    ? `Innovate UK Assessor Insight: Underwriters scrutinize whether matching capital is genuinely liquid and unencumbered. Never present soft investor promises as confirmed match funding without a signed Letter of Intent or bank statement.`
+    : `LEO Committee Rule: For Priming or Feasibility grants, your 50% matching funds must be provable via current business bank statements before the Grant Letter of Offer is formally ratified.`;
+
+  const fallback: GenerateModuleKCapitalStackNarrativeResult = {
+    allowed: true,
+    narrative: fallbackNarrative,
+    assessorStrategyTip: fallbackTip,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_K_CAPITAL_STACK',
+    'You are a senior startup capital structuring advisor and grant underwriting assessor.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a Senior Public Grant Evaluator and Startup Underwriter for ${grantAgency}.
+Analyze the capital stack allocation for startup "${sanitizePromptInput(params.planTitle, 100)}":
+- Total Funding Requirement: ${params.currencySymbol}${params.totalTargetFundingGap.toLocaleString()}
+- Founder Skin-In-The-Game Cash: ${params.currencySymbol}${params.skinInTheGame.toLocaleString()}
+- Non-Dilutive Public Grants: ${params.currencySymbol}${params.totalGrants.toLocaleString()} (${params.targetGrantName})
+- Debt & Government Soft Loans: ${params.currencySymbol}${params.totalLoans.toLocaleString()}
+- Angel / Private Equity: ${params.currencySymbol}${params.totalAngel.toLocaleString()}
+- Strategy Archetype: ${params.strategyPreset}
+- Grant Match Rate: ${params.grantMatchPercentage}%
+
+Write a formal underwriter strategy narrative and practical assessor tip in strict JSON format:
+{
+  "narrative": "2 sharp, institutional paragraphs detailing how this multi-tier capital stack de-risks public money, validates founder commitment, and ensures complete compliance with matching ratio rules.",
+  "assessorStrategyTip": "1 insider tip for convincing grant committee members that the startup will not run out of matching cash mid-project."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const rawText = response.text || '';
+      const parsed = JSON.parse(rawText);
+
+      if (parsed && typeof parsed.narrative === 'string' && parsed.narrative.length > 40) {
+        return {
+          allowed: true,
+          narrative: parsed.narrative.trim(),
+          assessorStrategyTip:
+            typeof parsed.assessorStrategyTip === 'string' && parsed.assessorStrategyTip.trim().length > 15
+              ? parsed.assessorStrategyTip.trim()
+              : fallback.assessorStrategyTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn('[AI Router] Module K Step 2 Gemini call fallback:', err?.message || err);
+    }
+  }
+
+  return fallback;
+}
+
+// ---------------------------------------------------------------------------
+// Module K Step 3: Grant Reimbursement Timing Bridge (Cashflow Survival)
+// ---------------------------------------------------------------------------
+export interface GenerateModuleKStep3ReimbursementBridgeParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  targetGrantName: string;
+  targetGrantAgency: string;
+  grantEligibleVouchedBudget: number;
+  expectedGrantDrawdownAmount: number;
+  estimatedClaimTurnaroundWeeks: number;
+  minimumLiquidityBufferRequired: number;
+  actualConfirmedBridgeLiquidity: number;
+  liquiditySafetySurplusOrDeficit: number;
+  bridgeStrategy: string;
+  vendorPaymentTermsDays: number;
+  currencySymbol: string;
+}
+
+export interface GenerateModuleKStep3ReimbursementBridgeResult {
+  allowed: boolean;
+  reason?: string;
+  narrative: string;
+  assessorStrategyTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleKStep3ReimbursementBridgeViaRouter(
+  params: GenerateModuleKStep3ReimbursementBridgeParams
+): Promise<GenerateModuleKStep3ReimbursementBridgeResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const grantAgency = params.targetGrantAgency || (isUK ? 'Innovate UK' : 'Local Enterprise Office (LEO) / Enterprise Ireland');
+  const surplusDeficitText =
+    params.liquiditySafetySurplusOrDeficit >= 0
+      ? `comfortably generates an unencumbered ${params.currencySymbol}${params.liquiditySafetySurplusOrDeficit.toLocaleString()} surplus buffer`
+      : `faces a ${params.currencySymbol}${Math.abs(params.liquiditySafetySurplusOrDeficit).toLocaleString()} liquidity trough`;
+
+  const fallbackNarrative = `${params.planTitle} has architected a cashflow bridge to protect operations against statutory ${grantAgency} in-arrears drawdown lag. Because grant claims require vouching 100% of invoices before funds disburse (an estimated ${params.estimatedClaimTurnaroundWeeks}-week float on ${params.currencySymbol}${params.grantEligibleVouchedBudget.toLocaleString()} of spend), the company deploys a ${params.bridgeStrategy.replace(/_/g, ' ')} strategy paired with ${params.vendorPaymentTermsDays}-day supplier terms. Backed by ${params.currencySymbol}${params.actualConfirmedBridgeLiquidity.toLocaleString()} in confirmed bridge liquidity, this plan ${surplusDeficitText}, insulating payroll from reimbursement turnaround friction.`;
+
+  const fallbackTip = isUK
+    ? `Innovate UK Claim Audit: Assessor committees verify that you can pay contractors and employees upfront before submitting quarterly Independent Accountant Reports (IAR). Never budget on grant funds arriving before invoices are paid.`
+    : `LEO Arrears Reality: LEO will not issue payment until you submit an original bank statement proving the funds physically cleared your account. Agreeing 60-day terms with key development agencies prevents cashflow paralysis.`;
+
+  const fallback: GenerateModuleKStep3ReimbursementBridgeResult = {
+    allowed: true,
+    narrative: fallbackNarrative,
+    assessorStrategyTip: fallbackTip,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_K_REIMBURSEMENT_BRIDGE',
+    'You are a senior public grant claims auditor and startup cashflow underwriting specialist.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a Senior Public Grant Finance Underwriter and Cashflow Risk Assessor for ${grantAgency}.
+Analyze the reimbursement lag bridge plan for startup "${sanitizePromptInput(params.planTitle, 100)}":
+- Target Grant Program: ${params.targetGrantName}
+- Total Vouched Milestone Budget: ${params.currencySymbol}${params.grantEligibleVouchedBudget.toLocaleString()}
+- Expected Grant Drawdown: ${params.currencySymbol}${params.expectedGrantDrawdownAmount.toLocaleString()}
+- Reimbursement Turnaround Lag: ${params.estimatedClaimTurnaroundWeeks} weeks (arrears claim review)
+- Minimum Liquidity Buffer Required: ${params.currencySymbol}${params.minimumLiquidityBufferRequired.toLocaleString()}
+- Confirmed Liquid Working Capital Buffer: ${params.currencySymbol}${params.actualConfirmedBridgeLiquidity.toLocaleString()}
+- Liquidity Safety Surplus/Deficit: ${params.currencySymbol}${params.liquiditySafetySurplusOrDeficit.toLocaleString()}
+- Primary Bridging Strategy: ${params.bridgeStrategy}
+- Vendor Payment Terms: ${params.vendorPaymentTermsDays} days
+
+Write a formal reimbursement bridge narrative and assessor tip in strict JSON format:
+{
+  "narrative": "2 sharp paragraphs demonstrating how the company manages the dangerous in-arrears cash gap without stalling development or failing supplier obligations.",
+  "assessorStrategyTip": "1 insider tip explaining how grant claim inspectors audit cleared payments and vouched expenditure."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const rawText = response.text || '';
+      const parsed = JSON.parse(rawText);
+
+      if (parsed && typeof parsed.narrative === 'string' && parsed.narrative.length > 40) {
+        return {
+          allowed: true,
+          narrative: parsed.narrative.trim(),
+          assessorStrategyTip:
+            typeof parsed.assessorStrategyTip === 'string' && parsed.assessorStrategyTip.trim().length > 15
+              ? parsed.assessorStrategyTip.trim()
+              : fallback.assessorStrategyTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn('[AI Router] Module K Step 3 Gemini call fallback:', err?.message || err);
+    }
+  }
+
+  return fallback;
+}
+
+// ---------------------------------------------------------------------------
+// Module K Step 4: Investor Tax Relief & Angel Catalyst (SEIS/EIS & SURE/EII)
+// ---------------------------------------------------------------------------
+export interface GenerateModuleKStep4TaxReliefParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  currencySymbol: string;
+  primaryTaxScheme: string;
+  targetReliefRaiseAmount: number;
+  investorReliefPercentage: number;
+  estimatedInvestorTaxSavings: number;
+  founderPriorEmploymentYearsForSure?: number;
+  founderEstimatedPayeRefundForSure?: number;
+  advanceAssuranceStatus: string;
+}
+
+export interface GenerateModuleKStep4TaxReliefResult {
+  allowed: boolean;
+  reason?: string;
+  narrative: string;
+  assessorStrategyTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleKStep4TaxReliefViaRouter(
+  params: GenerateModuleKStep4TaxReliefParams
+): Promise<GenerateModuleKStep4TaxReliefResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const taxAuthority = isUK ? 'HM Revenue & Customs (HMRC)' : 'Irish Revenue Commissioners';
+  const schemeName = params.primaryTaxScheme.replace(/_/g, ' ');
+
+  const fallbackNarrative = `${params.planTitle} leverages statutory ${schemeName} provisions under ${taxAuthority} guidelines to unlock private matching capital. By targeting ${params.currencySymbol}${params.targetReliefRaiseAmount.toLocaleString()} in qualified investment, angel backers receive up to ${params.investorReliefPercentage}% direct income tax relief (representing ${params.currencySymbol}${params.estimatedInvestorTaxSavings.toLocaleString()} in immediate tax write-offs). With Advance Assurance status classified as ${params.advanceAssuranceStatus.replace(/_/g, ' ')}, this structural incentive de-risks private co-investment to satisfy public grant matching obligations without predatory equity concessions.`;
+
+  const fallbackTip = isUK
+    ? `HMRC SEIS Golden Rule: UK angel syndicates will rarely commit to a term sheet without Advance Assurance in hand. Filing form SEIS(AA) with your business plan and pitch deck before opening the round cuts closing cycles by 6 to 8 weeks.`
+    : `Revenue SURE / EII Insight: Under the Startup Relief for Entrepreneurs (SURE), founders can reclaim up to 41% of PAYE paid across prior employment over the last 6 years as direct equity capital into their new company.`;
+
+  const fallback: GenerateModuleKStep4TaxReliefResult = {
+    allowed: true,
+    narrative: fallbackNarrative,
+    assessorStrategyTip: fallbackTip,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_K_TAX_RELIEF',
+    'You are a senior venture tax relief and early-stage startup incentive specialist.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a Senior Tax Incentives & Venture Financing Specialist for ${taxAuthority}.
+Analyze the investor tax relief structure for startup "${sanitizePromptInput(params.planTitle, 100)}":
+- Target Scheme: ${schemeName}
+- Jurisdiction: ${isUK ? 'United Kingdom' : 'Ireland'}
+- Target Investment: ${params.currencySymbol}${params.targetReliefRaiseAmount.toLocaleString()}
+- Relief Rate: ${params.investorReliefPercentage}% (${params.currencySymbol}${params.estimatedInvestorTaxSavings.toLocaleString()} investor tax write-off)
+- Advance Assurance / Clearance Status: ${params.advanceAssuranceStatus}
+${params.founderEstimatedPayeRefundForSure ? `- SURE Founder PAYE Refund Potential: ${params.currencySymbol}${params.founderEstimatedPayeRefundForSure.toLocaleString()}` : ''}
+
+Write a formal investor pitch narrative and insider underwriter tip in strict JSON format:
+{
+  "narrative": "2 sharp paragraphs articulating the value proposition for angels and grant committees, explaining how state tax relief de-risks the equity tranche.",
+  "assessorStrategyTip": "1 insider tip on securing tax assurance and avoiding excluded trade disqualification."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const rawText = response.text || '';
+      const parsed = JSON.parse(rawText);
+
+      if (parsed && typeof parsed.narrative === 'string' && parsed.narrative.length > 40) {
+        return {
+          allowed: true,
+          narrative: parsed.narrative.trim(),
+          assessorStrategyTip:
+            typeof parsed.assessorStrategyTip === 'string' && parsed.assessorStrategyTip.trim().length > 15
+              ? parsed.assessorStrategyTip.trim()
+              : fallback.assessorStrategyTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn('[AI Router] Module K Step 4 Gemini call fallback:', err?.message || err);
+    }
+  }
+
+  return fallback;
+}
+
+// ---------------------------------------------------------------------------
+// Module K Step 5: Executive Funding Strategy Brief & Assessor Pre-Flight Audit
+// ---------------------------------------------------------------------------
+export interface GenerateModuleKStep5FundingBriefParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency: string;
+  step1Audit?: {
+    selectedGrantKey: string;
+    overallAssessorReadinessScore: number;
+    activeProgramAudit?: {
+      passCount: number;
+      failCount: number;
+      warningCount: number;
+    };
+  };
+  step2CapitalStack?: {
+    totalTargetFundingGap: number;
+    skinInTheGameCash: number;
+    fundingSources: Array<{
+      sourceKey?: string;
+      label?: string;
+      amount?: number;
+      percentageOfGap?: number;
+    }>;
+  };
+  step3Bridge?: {
+    grantEligibleVouchedBudget: number;
+    expectedGrantDrawdownAmount: number;
+    estimatedClaimTurnaroundWeeks: number;
+    actualConfirmedBridgeLiquidity: number;
+    liquiditySafetySurplusOrDeficit: number;
+    bridgeStrategy: string;
+  };
+  step4TaxRelief?: {
+    primaryTaxScheme: string;
+    targetReliefRaiseAmount: number;
+    advanceAssuranceStatus: string;
+    estimatedInvestorTaxSavings: number;
+    founderEstimatedPayeRefundForSure?: number;
+  };
+}
+
+export interface GenerateModuleKStep5FundingBriefResult {
+  allowed: boolean;
+  reason?: string;
+  executiveSummary: string;
+  fundingRoadmap: GrantRoadmapPhaseItem[];
+  assessorReadinessScore: number;
+  underwriterContradictionFlags: string[];
+  recommendedActionChecklist: string[];
+  moduleLGrantMode: 'IE_LEO' | 'UK_INNOVATE_UK' | 'UK_START_UP_LOANS' | 'HMRC_SEIS' | 'STANDARD';
+  assessorStrategyTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleKStep5FundingBriefViaRouter(
+  params: GenerateModuleKStep5FundingBriefParams
+): Promise<GenerateModuleKStep5FundingBriefResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const grantAgency = isUK ? 'Innovate UK & British Business Bank' : 'Local Enterprise Office (LEO) & Enterprise Ireland';
+  const primaryGrant = params.step1Audit?.selectedGrantKey || (isUK ? 'Innovate UK Smart Grant' : 'LEO Feasibility Study Grant');
+  const totalGap = params.step2CapitalStack?.totalTargetFundingGap || 50000;
+  const skin = params.step2CapitalStack?.skinInTheGameCash || 15000;
+  const bridgeStrategy = params.step3Bridge?.bridgeStrategy?.replace(/_/g, ' ') || 'milestone staged payments and buffer';
+  const taxScheme = params.step4TaxRelief?.primaryTaxScheme?.replace(/_/g, ' ') || (isUK ? 'HMRC SEIS' : 'Revenue SURE / EII');
+
+  let defaultModuleLMode: 'IE_LEO' | 'UK_INNOVATE_UK' | 'UK_START_UP_LOANS' | 'HMRC_SEIS' | 'STANDARD' = isUK ? 'UK_INNOVATE_UK' : 'IE_LEO';
+  if (isUK) {
+    if (params.step1Audit?.selectedGrantKey === 'GB_BBB_START_UP_LOAN') {
+      defaultModuleLMode = 'UK_START_UP_LOANS';
+    } else if (params.step1Audit?.selectedGrantKey === 'GB_HMRC_SEIS_ASSURANCE' || params.step4TaxRelief?.advanceAssuranceStatus === 'PREPARING_PACK') {
+      defaultModuleLMode = 'HMRC_SEIS';
+    }
+  }
+
+  const fallbackSummary = `${params.planTitle} has assembled a synchronized non-dilutive capital stack engineered to satisfy statutory ${grantAgency} underwriting scrutiny. The project targets ${params.baseCurrency} ${totalGap.toLocaleString()} in total early-stage capitalization, pairing ${params.baseCurrency} ${skin.toLocaleString()} in verified founder skin-in-the-game equity with match-compliant public grant facilities (${primaryGrant.replace(/_/g, ' ')}). To safeguard operational solvency against standard 60-to-90-day arrears reimbursement claim lags, working capital is protected via ${bridgeStrategy}. In parallel, private matching liquidity is catalyzed through state-backed ${taxScheme} tax relief, creating an insulated, underwriter-credible funding architecture ready for formal submission.`;
+
+  const fallbackFlags: string[] = [];
+  if (params.step3Bridge && params.step3Bridge.liquiditySafetySurplusOrDeficit < 0) {
+    fallbackFlags.push(
+      `⚠️ Working Capital Deficit: Arrears float exposes a ${params.baseCurrency} ${Math.abs(params.step3Bridge.liquiditySafetySurplusOrDeficit).toLocaleString()} liquidity trough before grant drawdown dispatches.`
+    );
+  }
+  if (skin <= 0) {
+    fallbackFlags.push(
+      `⚠️ Zero Founder Equity Declared: Grant evaluators require verifiable evidence of founder financial commitment or matching cash.`
+    );
+  }
+  if (params.step4TaxRelief?.advanceAssuranceStatus === 'NOT_STARTED') {
+    fallbackFlags.push(
+      `💡 Advance Assurance Pending: Angel investors rarely pledge matching letters of intent without provisional statutory tax clearance.`
+    );
+  }
+  if (fallbackFlags.length === 0) {
+    fallbackFlags.push(
+      `✅ Capital Stack Coherence: Matched founder equity, public grant ratio, and reimbursement timing align with assessor expectations.`
+    );
+  }
+
+  const fallbackChecklist = [
+    `Collate 3 formal supplier quotes for all capital assets & dev line items (mandatory for voucher/grant claims).`,
+    `File pre-application enquiry with your regional development executive (${isUK ? 'Innovate UK KTN / Growth Hub' : 'Local Enterprise Office Business Advisor'}).`,
+    `Submit formal Advance Assurance or tax relief certification pack to lock in private co-funding interest.`,
+    `Verify bank mandate has separate earmarked ledger line for the mandatory matching funds ratio.`,
+  ];
+
+  const fallbackRoadmap: GrantRoadmapPhaseItem[] = isUK
+    ? [
+        {
+          phaseNumber: 1,
+          grantOrFundingName: 'British Business Bank Start Up Loan',
+          agency: 'British Business Bank',
+          amountFormatted: `Up to ${params.baseCurrency} 25,000 (per founder)`,
+          timingTrigger: 'Immediate (Months 1–3) — Pre-Trading / MVP Stage',
+          prerequisites: 'Credit check, personal survival budget, and business plan outline.',
+          unlocksNext: 'Injects unencumbered working capital to build MVP and self-fund early customer acquisition.',
+        },
+        {
+          phaseNumber: 2,
+          grantOrFundingName: 'Innovate UK Smart Grant / Growth Hub Match',
+          agency: 'Innovate UK / Regional Growth Hub',
+          amountFormatted: `${params.baseCurrency} 50,000 – ${params.baseCurrency} 250,000 (70% co-funded)`,
+          timingTrigger: 'Months 4–9 — Post-MVP Commercial Validation',
+          prerequisites: 'Prototype proof of concept, Freedom to Operate (FTO), and 30% matching cash.',
+          unlocksNext: 'Funds deep technical R&D and work packages (WP1–WP4) without founder dilution.',
+        },
+        {
+          phaseNumber: 3,
+          grantOrFundingName: 'HMRC SEIS Advance Assurance & Angel Syndicate',
+          agency: 'HM Revenue & Customs (HMRC)',
+          amountFormatted: `Up to ${params.baseCurrency} 250,000 (50% Investor Tax Relief)`,
+          timingTrigger: 'Months 9–15 — Seed Commercial Scale-Up',
+          prerequisites: 'HMRC Advance Assurance approval, gross assets < £350k, qualifying trading activity.',
+          unlocksNext: 'Catalyzes private angel capital with 50% tax write-offs to bridge into Series A.',
+        },
+      ]
+    : [
+        {
+          phaseNumber: 1,
+          grantOrFundingName: 'LEO Feasibility Study Grant / Grow Digital Voucher',
+          agency: 'Local Enterprise Office (LEO Ireland)',
+          amountFormatted: `Up to ${params.baseCurrency} 15,000 (Feasibility) + ${params.baseCurrency} 5,000 (Digital)`,
+          timingTrigger: 'Immediate (Months 1–3) — Concept & Prototype Validation',
+          prerequisites: 'CRO company registration, tax clearance certificate, 50% founder matching cash.',
+          unlocksNext: 'De-risks prototype and market viability to qualify for LEO Priming or Enterprise Ireland.',
+        },
+        {
+          phaseNumber: 2,
+          grantOrFundingName: 'LEO Priming Grant',
+          agency: 'Local Enterprise Office (LEO Ireland)',
+          amountFormatted: `Up to ${params.baseCurrency} 80,000 (50% match, max €150k in Gaeltacht/BMW)`,
+          timingTrigger: 'Months 4–12 — Early Commercial Trading & Hiring',
+          prerequisites: 'Trading under 18 months, internationally traded or high-potential service, 3 supplier quotes.',
+          unlocksNext: 'Subsidizes first 2–4 full-time PAYE hires, marketing expansion, and capital expenditure.',
+        },
+        {
+          phaseNumber: 3,
+          grantOrFundingName: 'Enterprise Ireland Pre-Seed Start Fund (PSSF) / Revenue SURE',
+          agency: 'Enterprise Ireland / Irish Revenue Commissioners',
+          amountFormatted: `${params.baseCurrency} 50,000 – ${params.baseCurrency} 100,000 (CLN) + PAYE Refund`,
+          timingTrigger: 'Months 12–24 — Export Scaling & Seed Acceleration',
+          prerequisites: 'HPSU export commitment, 10+ jobs target within 3 years, founder prior PAYE history.',
+          unlocksNext: 'Institutional-grade validation unlocking follow-on Seed VC and European Horizon grants.',
+        },
+      ];
+
+  const fallbackTip = `Evaluator Golden Rule: Grant committees never fund ideas—they fund specific, time-bounded work packages executed by credible operators. Follow the phased roadmap sequentially: Phase 1 validates the concept, Phase 2 scales operations and jobs, and Phase 3 unlocks institutional matching capital.`;
+
+  const fallback: GenerateModuleKStep5FundingBriefResult = {
+    allowed: true,
+    executiveSummary: fallbackSummary,
+    fundingRoadmap: fallbackRoadmap,
+    assessorReadinessScore: Math.min(95, Math.max(50, (params.step1Audit?.overallAssessorReadinessScore || 70) + (skin > 0 ? 10 : 0))),
+    underwriterContradictionFlags: fallbackFlags,
+    recommendedActionChecklist: fallbackChecklist,
+    moduleLGrantMode: defaultModuleLMode,
+    assessorStrategyTip: fallbackTip,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_K_FUNDING_BRIEF',
+    'You are a senior investment committee director and public grant assessor evaluating early-stage venture funding briefs.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a Senior Public Grant Evaluator, Commercial Bank Underwriter, and Startup Financing Specialist for ${grantAgency}.
+Analyze the following founder funding strategy across public grants, matched founder equity, reimbursement bridge timing, and investor tax relief:
+
+STARTUP CONTEXT:
+- Company Name: "${sanitizePromptInput(params.planTitle, 100)}"
+- Target Jurisdiction: ${isUK ? 'United Kingdom (Innovate UK / BBB / HMRC)' : 'Ireland (LEO / Enterprise Ireland / Revenue)'}
+- Sector: ${sanitizePromptInput(params.industryCategory || 'Technology / Commercial Innovation', 100)}
+- Target Funding Gap: ${params.baseCurrency} ${totalGap.toLocaleString()}
+- Founder Skin-In-The-Game Cash: ${params.baseCurrency} ${skin.toLocaleString()}
+- Primary Grant Track: ${primaryGrant}
+- Working Capital Bridge Strategy: ${bridgeStrategy}
+- Reimbursement Liquidity Surplus/Deficit: ${params.step3Bridge?.liquiditySafetySurplusOrDeficit ?? 'Balanced'}
+- Tax Relief Vehicle: ${taxScheme} (Advance Assurance: ${params.step4TaxRelief?.advanceAssuranceStatus || 'Not Started'})
+
+Generate an assessor-grade funding strategy brief, phased grant application roadmap, and pre-flight contradiction audit. Return strictly a JSON object with:
+{
+  "executiveSummary": "A razor-sharp 2-paragraph executive synthesis of the complete funding strategy, detailing how non-dilutive public grants, founder skin, and private capital combine without dilution or arrears insolvency.",
+  "fundingRoadmap": [
+    {
+      "phaseNumber": 1,
+      "grantOrFundingName": "Name of initial grant or vehicle",
+      "agency": "Grant agency",
+      "amountFormatted": "Amount formatted with currency",
+      "timingTrigger": "When to apply (e.g. Immediate / Months 1-3)",
+      "prerequisites": "Key prerequisite checklist before applying",
+      "unlocksNext": "What milestone this unlocks for the next phase"
+    }
+  ],
+  "assessorReadinessScore": 85,
+  "underwriterContradictionFlags": ["string array of 2-4 specific evaluator red flags or green lights"],
+  "recommendedActionChecklist": ["string array of 4 actionable pre-submission milestones"],
+  "moduleLGrantMode": "IE_LEO",
+  "assessorStrategyTip": "A high-impact insider tip explaining how the committee weighs cashflow versus narrative merit."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const rawText = response.text || '';
+      const parsed = JSON.parse(rawText);
+
+      if (parsed && typeof parsed.executiveSummary === 'string' && parsed.executiveSummary.length > 50) {
+        let roadmap = fallback.fundingRoadmap;
+        if (Array.isArray(parsed.fundingRoadmap) && parsed.fundingRoadmap.length > 0) {
+          roadmap = parsed.fundingRoadmap.map((item: any, idx: number) => ({
+            phaseNumber: typeof item.phaseNumber === 'number' ? item.phaseNumber : idx + 1,
+            grantOrFundingName: String(item.grantOrFundingName || `Phase ${idx + 1} Grant`).trim(),
+            agency: String(item.agency || grantAgency).trim(),
+            amountFormatted: String(item.amountFormatted || `${params.baseCurrency} 25,000`).trim(),
+            timingTrigger: String(item.timingTrigger || `Phase ${idx + 1}`).trim(),
+            prerequisites: String(item.prerequisites || 'Statutory compliance and matching funds').trim(),
+            unlocksNext: String(item.unlocksNext || 'Unlocks follow-on scale-up').trim(),
+          }));
+        }
+
+        return {
+          allowed: true,
+          executiveSummary: parsed.executiveSummary.trim(),
+          fundingRoadmap: roadmap,
+          assessorReadinessScore:
+            typeof parsed.assessorReadinessScore === 'number'
+              ? Math.min(100, Math.max(0, parsed.assessorReadinessScore))
+              : fallback.assessorReadinessScore,
+          underwriterContradictionFlags: Array.isArray(parsed.underwriterContradictionFlags) && parsed.underwriterContradictionFlags.length > 0
+            ? parsed.underwriterContradictionFlags.map((s: any) => String(s).trim())
+            : fallback.underwriterContradictionFlags,
+          recommendedActionChecklist: Array.isArray(parsed.recommendedActionChecklist) && parsed.recommendedActionChecklist.length > 0
+            ? parsed.recommendedActionChecklist.map((s: any) => String(s).trim())
+            : fallback.recommendedActionChecklist,
+          moduleLGrantMode:
+            ['IE_LEO', 'UK_INNOVATE_UK', 'UK_START_UP_LOANS', 'HMRC_SEIS', 'STANDARD'].includes(parsed.moduleLGrantMode)
+              ? parsed.moduleLGrantMode
+              : fallback.moduleLGrantMode,
+          assessorStrategyTip:
+            typeof parsed.assessorStrategyTip === 'string' && parsed.assessorStrategyTip.trim().length > 15
+              ? parsed.assessorStrategyTip.trim()
+              : fallback.assessorStrategyTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn('[AI Router] Module K Step 5 Funding Brief Gemini call fallback:', err?.message || err);
+    }
+  }
+
+  return fallback;
+}

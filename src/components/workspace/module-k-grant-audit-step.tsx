@@ -39,6 +39,7 @@ import {
   type EvaluatedGrantProgramAudit,
   type GrantAuditCheckpoint,
 } from '@/lib/grants/module-k-grant-audit';
+import { generateModuleKStep1AuditOverviewAction } from '@/app/actions/module-k';
 
 export interface ModuleKGrantAuditStepProps {
   plan: ActiveStartupPlan;
@@ -90,6 +91,13 @@ export function ModuleKGrantAuditStep({
   const [founderNotes, setFounderNotes] = useState<string>(
     plan.moduleKData?.step1Audit?.founderNotes || ''
   );
+  const [aiAuditOverview, setAiAuditOverview] = useState<string>(
+    plan.moduleKData?.step1Audit?.aiAuditOverview || ''
+  );
+  const [aiAssessorTip, setAiAssessorTip] = useState<string | null>(
+    plan.moduleKData?.step1Audit?.aiAssessorTip || null
+  );
+  const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Active evaluation audit for the selected grant
@@ -110,6 +118,51 @@ export function ModuleKGrantAuditStep({
     return activeAudit.checkpoints;
   }, [activeAudit, filterTab]);
 
+  const handleGenerateAiOverview = async () => {
+    if (isVaultReadonly || isGeneratingAi) return;
+    setIsGeneratingAi(true);
+    try {
+      const blockers = activeAudit.checkpoints
+        .filter((c) => c.status === 'FAIL')
+        .map((c) => `${c.title}: ${c.assessorRuleDescription}`);
+      const warnings = activeAudit.checkpoints
+        .filter((c) => c.status === 'WARNING')
+        .map((c) => `${c.title}: ${c.assessorRuleDescription}`);
+      const passedHighlights = activeAudit.checkpoints
+        .filter((c) => c.status === 'PASS')
+        .slice(0, 3)
+        .map((c) => c.title);
+
+      const res = await generateModuleKStep1AuditOverviewAction({
+        planId: plan.id,
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory || 'Startup',
+        hqCountryCode: (plan.hqCountryCode as any) || 'IE',
+        selectedGrantName: activeAudit.programDefinition.name,
+        selectedGrantAgency: activeAudit.programDefinition.agency,
+        readinessScorePercent: activeAudit.readinessScorePercent,
+        passedCount: activeAudit.passCount,
+        warningCount: activeAudit.warningCount,
+        blockerCount: activeAudit.failCount,
+        criticalBlockers: blockers,
+        warnings,
+        passedHighlights,
+        founderNotes,
+      });
+
+      if (res?.auditOverview) {
+        setAiAuditOverview(res.auditOverview);
+        if (res.assessorStrategyTip) {
+          setAiAssessorTip(res.assessorStrategyTip);
+        }
+      }
+    } catch (err) {
+      console.error('[Module K] AI audit overview failed:', err);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
   const handleSaveAudit = async () => {
     if (isVaultReadonly) return;
     setIsSaving(true);
@@ -121,6 +174,8 @@ export function ModuleKGrantAuditStep({
         stackedFundingRoadmapSelected: false,
         activeFilterTab: filterTab,
         founderNotes,
+        aiAuditOverview,
+        aiAssessorTip: aiAssessorTip || undefined,
       };
       if (onSaveStep1) {
         await onSaveStep1(payload, 25);
@@ -153,6 +208,17 @@ export function ModuleKGrantAuditStep({
         >
           <Lightbulb className="mr-1 h-3.5 w-3.5" />
           Show Me an Assessor Example
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={handleGenerateAiOverview}
+          disabled={isGeneratingAi || isVaultReadonly}
+          className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+        >
+          <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+          {isGeneratingAi ? 'Synthesizing Audit with AI...' : 'Generate AI Audit Overview'}
         </Button>
       </div>
 
@@ -513,7 +579,52 @@ export function ModuleKGrantAuditStep({
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. FOUNDER NOTES & CUSTOM CONTEXT                                         */}
+      {/* 4. AI AUDIT OVERVIEW & PRE-FLIGHT ROADMAP                                  */}
+      {/* ========================================================================= */}
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <label className="text-xs font-bold text-slate-800">
+              Executive Grant Audit Overview &amp; Pre-Flight Roadmap
+            </label>
+            <p className="text-[11px] text-slate-500">
+              Assessor-grade diagnostic synthesizing your venture's strengths, critical compliance blockers, and remediation priority.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleGenerateAiOverview}
+            disabled={isGeneratingAi || isVaultReadonly}
+            className="h-7 border-violet-200 bg-violet-50 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+          >
+            <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+            {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Audit Overview'}
+          </Button>
+        </div>
+
+        <textarea
+          value={aiAuditOverview}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAiAuditOverview(e.target.value)}
+          placeholder={`e.g., Based on our cross-platform pre-flight audit for ${activeAudit.programDefinition.name}, ${plan.title} achieves a strong ${activeAudit.readinessScorePercent}% readiness score. The venture satisfies foundational export and entity requirements. However, 3 formal supplier quotes must be gathered in Module E prior to application submission to prevent automatic desk rejection...`}
+          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+          disabled={isVaultReadonly}
+        />
+
+        {aiAssessorTip && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200/80 bg-amber-50/70 p-3 text-[11px] text-amber-900">
+            <Info className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-semibold text-amber-950">Grant Assessor Committee Tip:</span>
+              <p className="leading-relaxed text-amber-900/90">{aiAssessorTip}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 5. FOUNDER NOTES & CUSTOM CONTEXT                                         */}
       {/* ========================================================================= */}
       <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
         <label className="text-xs font-bold text-slate-800">
@@ -532,7 +643,7 @@ export function ModuleKGrantAuditStep({
       </div>
 
       {/* ========================================================================= */}
-      {/* 5. BOTTOM TOOLBAR: SAVE & NEXT STEP                                       */}
+      {/* 6. BOTTOM TOOLBAR: SAVE & NEXT STEP                                       */}
       {/* ========================================================================= */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
         <div className="text-xs text-slate-500">

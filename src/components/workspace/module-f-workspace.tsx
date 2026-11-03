@@ -3403,16 +3403,16 @@ export function ModuleFWorkspace({
       {/* ========================================================================= */}
       {/* 1. TOP DARK-INDIGO MODULE HEADER CARD & 6-STEP ACCORDION NAVIGATION STRIP */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-indigo-900/60 bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 p-5 text-white shadow-xl sm:p-7">
+      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="rounded-md bg-indigo-500/20 px-2 py-0.5 text-[11px] font-bold tracking-wider text-indigo-300 uppercase">
-                Module F • Team, Survival Budget & Co-Founder Fit
-              </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
+                Module F • Team, Survival Budget &amp; Co-Founder Fit
+              </Badge>
               <Badge
                 variant="outline"
-                className="border-indigo-400/30 text-[10px] text-indigo-200"
+                className="border-indigo-400/30 bg-white/10 text-[10px] text-indigo-200"
               >
                 Flagship Standalone #2
               </Badge>

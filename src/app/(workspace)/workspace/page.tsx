@@ -6124,6 +6124,84 @@ export default function WorkspacePage() {
                   return updatedSession;
                 });
               }}
+              onSaveStep3Bridge={async (step3Data, progress = 65) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_K_STEP_3_REIMBURSEMENT_BRIDGE',
+                      moduleKData: {
+                        ...(p.moduleKData || {}),
+                        step3ReimbursementBridge: step3Data,
+                        completionPercentage: Math.max(
+                          p.moduleKData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep4TaxRelief={async (step4Data, progress = 85) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_K_STEP_4_TAX_RELIEF',
+                      moduleKData: {
+                        ...(p.moduleKData || {}),
+                        step4TaxRelief: step4Data,
+                        completionPercentage: Math.max(
+                          p.moduleKData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep5Brief={async (step5Data, progress = 100) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_K_STEP_5_FUNDING_BRIEF',
+                      moduleKData: {
+                        ...(p.moduleKData || {}),
+                        step5FundingBrief: step5Data,
+                        completionPercentage: Math.max(
+                          p.moduleKData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
               onBackToModuleJ={() => {
                 navigateToModuleWithHistory('MOD_J_FINANCE', 5, 'module-j-step-5');
               }}
@@ -6375,20 +6453,29 @@ export default function WorkspacePage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
-                      }
-                      className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
-                    >
-                      {openStep === 'ALL'
-                        ? 'Focus Step-by-Step'
-                        : 'Expand All Steps'}
-                    </Button>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
+                        }
+                        className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                      >
+                        {openStep === 'ALL'
+                          ? 'Focus Step-by-Step'
+                          : 'Expand All Steps'}
+                      </Button>
+                    </div>
+                    <div className="text-right text-[11px] text-indigo-200">
+                      Module A Progress:{' '}
+                      <strong className="text-white">
+                        {moduleAProgressPercent}%
+                      </strong>{' '}
+                      ({completedReadinessCount} of {totalReadinessStepsCount} Core Steps Ready)
+                    </div>
                   </div>
                 </div>
 
@@ -9940,11 +10027,17 @@ export default function WorkspacePage() {
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-center justify-between font-bold text-slate-900">
-                  <span>Have an AppSumo or Cohort Voucher?</span>
+                  <span>
+                    {activeEntitlement.planType === 'APPSUMO_LTD'
+                      ? 'Stack Another AppSumo Voucher?'
+                      : 'Have a Cohort or Partner Voucher?'}
+                  </span>
                   <Ticket className="h-4 w-4 text-amber-600" />
                 </div>
                 <p className="mt-1 text-slate-600 text-[11px]">
-                  Already have an institutional or AppSumo voucher code?
+                  {activeEntitlement.planType === 'APPSUMO_LTD'
+                    ? 'Stack an additional AppSumo code to unlock more Startup Plans, team seats, and AI credits.'
+                    : 'Already have a university, accelerator, or partner voucher code?'}
                 </p>
                 <div className="mt-2 flex items-center gap-2">
                   <Link href="/redeem" className="flex-1">

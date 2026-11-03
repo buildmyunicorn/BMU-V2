@@ -1639,19 +1639,20 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
       {/* ------------------------------------------------------------- */}
       {/* TOP HEADER MODULE CARD                                        */}
       {/* ------------------------------------------------------------- */}
-      <div className="rounded-2xl border border-indigo-700/20 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-md">
+      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1 min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-indigo-500/20 text-indigo-200 border-indigo-400/30 text-xs font-semibold">
-                Module H: Revenue &amp; Pricing
+          <div className="space-y-1.5 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100 text-[10px] shrink-0">
+                Module H • Pricing &amp; Breakeven Engine
               </Badge>
-              <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-400/30 text-[10px]">
-                3-Year Breakeven &amp; Pocket Profit
+              <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
+                <Sparkles className="mr-1 h-3 w-3" />
+                {completedCoreStepsCount} of 4 Core Steps Ready
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Pricing Architect &amp; Pocket Profit Engine
+              Module H: Pricing Architect &amp; Pocket Profit Engine
             </h1>
             <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
               How you get paid, what your profit looks like after Stripe fees and product costs,
@@ -1659,131 +1660,117 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setOpenStep(openStep === 'ALL' ? 1 : 'ALL')}
-              className="border-indigo-400/30 bg-indigo-900/40 text-xs text-indigo-100 hover:bg-indigo-800/60"
-            >
-              <Sliders className="mr-1.5 h-3.5 w-3.5" />
-              {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
-            </Button>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setOpenStep(openStep === 'ALL' ? 1 : 'ALL')}
+                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                <Sliders className="mr-1.5 h-3.5 w-3.5" />
+                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+              </Button>
+              {onBackToModuleG && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onBackToModuleG}
+                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  Back to Module G
+                </Button>
+              )}
+            </div>
+            <div className="text-right text-[11px] text-indigo-200">
+              Module H Progress: <strong>{Math.round((completedCoreStepsCount / 4) * 100)}%</strong> ({completedCoreStepsCount} of 4 Core Steps Ready)
+            </div>
           </div>
         </div>
 
-        {/* Step Navigation Strip */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-2 border-t border-indigo-800/40 pt-4 text-xs">
-          <button
-            type="button"
-            onClick={() => setOpenStep(1)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 1 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isStep1Complete ? 'bg-emerald-500 text-white' : 'bg-indigo-400 text-slate-900'
-              }`}
-            >
-              {isStep1Complete ? <Check className="h-3 w-3" /> : '1'}
-            </div>
-            <span className="truncate">1. Revenue Model</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(2)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 2 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isStep2Complete
-                  ? 'bg-emerald-500 text-white'
-                  : isStep1Complete
-                  ? 'bg-indigo-400 text-slate-900'
-                  : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {isStep2Complete ? <Check className="h-3 w-3" /> : '2'}
-            </div>
-            <span className="truncate">2. Pricing Tiers</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(3)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 3 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isStep3Complete
-                  ? 'bg-emerald-500 text-white'
-                  : isStep2Complete
-                  ? 'bg-indigo-400 text-slate-900'
-                  : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {isStep3Complete ? <Check className="h-3 w-3" /> : '3'}
-            </div>
-            <span className="truncate">3. Breakeven Engine</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(4)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 4 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isStep4Complete
-                  ? 'bg-emerald-500 text-white'
-                  : isStep3Complete
-                  ? 'bg-indigo-400 text-slate-900'
-                  : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {isStep4Complete ? <Check className="h-3 w-3" /> : '4'}
-            </div>
-            <span className="truncate">4. Sales Velocity</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setOpenStep(5)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              openStep === 5 || openStep === 'ALL'
-                ? 'bg-indigo-500/30 text-white font-semibold'
-                : 'text-indigo-200 hover:bg-indigo-900/40'
-            }`}
-          >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isStep5Complete
-                  ? 'bg-emerald-500 text-white'
-                  : isStep4Complete
-                  ? 'bg-indigo-400 text-slate-900'
-                  : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {isStep5Complete ? <Check className="h-3 w-3" /> : '5'}
-            </div>
-            <span className="truncate">5. Revenue Brief</span>
-          </button>
+        {/* Step Navigation Strip (Tile Grid matching Modules A, B, C, D, E, F, G) */}
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+          {[
+            {
+              step: 'Step 1',
+              title: 'Revenue Model',
+              targetId: 'module-h-step-1',
+              stepNum: 1,
+              done: isStep1Complete,
+            },
+            {
+              step: 'Step 2',
+              title: 'Pricing Tiers',
+              targetId: 'module-h-step-2',
+              stepNum: 2,
+              done: isStep2Complete,
+            },
+            {
+              step: 'Step 3',
+              title: 'Breakeven Engine',
+              targetId: 'module-h-step-3',
+              stepNum: 3,
+              done: isStep3Complete,
+            },
+            {
+              step: 'Step 4',
+              title: 'Sales Velocity',
+              targetId: 'module-h-step-4',
+              stepNum: 4,
+              done: isStep4Complete,
+            },
+            {
+              step: 'Overview',
+              title: 'Revenue Brief',
+              targetId: 'module-h-step-5',
+              stepNum: 5,
+              done: isStep5Complete,
+            },
+          ].map((item, idx, arr) => {
+            const firstIncompleteIdx = arr.findIndex((s) => !s.done);
+            const isStepOpen =
+              openStep === 'ALL'
+                ? (firstIncompleteIdx === -1
+                    ? idx === arr.length - 1
+                    : idx === firstIncompleteIdx)
+                : openStep === item.stepNum;
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => {
+                  setOpenStep(item.stepNum);
+                  setTimeout(() => {
+                    const el = document.getElementById(item.targetId);
+                    if (el) {
+                      el.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      });
+                    }
+                  }, 40);
+                }}
+                className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
+                  isStepOpen
+                    ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
+                    : item.done
+                      ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
+                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                }`}
+              >
+                <div className="flex items-center justify-between font-bold">
+                  <span>{item.step}</span>
+                  {item.done ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-300" />
+                  ) : isStepOpen ? (
+                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  ) : null}
+                </div>
+                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

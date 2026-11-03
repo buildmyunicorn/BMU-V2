@@ -3847,48 +3847,57 @@ export function ModuleJWorkspace({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {onBackToModuleI && (
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {onBackToModuleI && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onBackToModuleI}
+                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  Back to Module I
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={onBackToModuleI}
+                onClick={() => handleExportSpreadsheet('XLS')}
+                className="border-emerald-400/40 bg-emerald-500/20 text-xs text-emerald-100 hover:bg-emerald-500/30"
+              >
+                <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
+                Export Excel (.xls)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleExportSpreadsheet('CSV')}
                 className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
-                <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-                Back to Module I
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                Google Sheets / Drive (.csv)
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleExportSpreadsheet('XLS')}
-              className="border-emerald-400/40 bg-emerald-500/20 text-xs text-emerald-100 hover:bg-emerald-500/30"
-            >
-              <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
-              Export Excel (.xls)
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleExportSpreadsheet('CSV')}
-              className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
-            >
-              <Download className="mr-1.5 h-3.5 w-3.5" />
-              Google Sheets / Drive (.csv)
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))}
-              className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
-            >
-              {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))}
+                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+              </Button>
+            </div>
+            <div className="text-right text-[11px] text-indigo-200">
+              Module J Progress:{' '}
+              <strong className="text-white">
+                {Math.round((completedCoreStepsCount / 4) * 100)}%
+              </strong>{' '}
+              ({completedCoreStepsCount} of 4 Core Steps Ready)
+            </div>
           </div>
         </div>
 
@@ -3936,71 +3945,81 @@ export function ModuleJWorkspace({
           </div>
         </div>
 
-        {/* 5-Step Navigation Strip (Strict GEMINI.md Rule 6.1 Typography) */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-2 border-t border-indigo-800/40 pt-4 text-xs">
+        {/* Step Navigation Strip (Tile Grid Standard) */}
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
           {[
             {
-              num: 1,
+              step: 'Step 1',
               title: '1. Bills & Tax Auto-Pilot',
-              sub: `${currencySymbol}${step1Metrics.totalMonthlyBurnY1.toLocaleString()}/mo burn`,
               done: isStep1Complete,
+              targetId: 'module-j-step-1',
+              stepNum: 1,
             },
             {
-              num: 2,
+              step: 'Step 2',
               title: '2. Payment Timing & Cash',
-              sub: `${step2Metrics.effectiveDebtorDays}d lag • ${step2Metrics.year1CashCollectionEfficiencyPercent}% Y1 cash`,
               done: isStep2Complete,
+              targetId: 'module-j-step-2',
+              stepNum: 2,
             },
             {
-              num: 3,
+              step: 'Step 3',
               title: '3. 36-Mo Cash Trough',
-              sub: `M${step3Metrics.operatingCashTroughMonth} trough • ${currencySymbol}${step3Metrics.recommendedCapitalRaise.toLocaleString()} target`,
               done: isStep3Complete,
+              targetId: 'module-j-step-3',
+              stepNum: 3,
             },
             {
-              num: 4,
+              step: 'Step 4',
               title: '4. 3-Yr P&L & Stress Test',
-              sub: `Y3 Sales ${currencySymbol}${step4Metrics.pnlYears[2].grossTurnoverExVat.toLocaleString()} • ${step4Metrics.pnlYears[2].grossMarginPercent}% GM`,
               done: isStep4Complete,
+              targetId: 'module-j-step-4',
+              stepNum: 4,
             },
             {
-              num: 5,
+              step: 'Overview',
               title: '5. Overview Brief',
-              sub: `${completedCoreStepsCount}/4 sections • Audit & export`,
               done: isStep5Complete,
+              targetId: 'module-j-step-5',
+              stepNum: 5,
             },
-          ].map((s) => (
-            <button
-              key={s.num}
-              type="button"
-              onClick={() => setOpenStep(s.num)}
-              className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-                openStep === s.num || openStep === 'ALL'
-                  ? 'bg-indigo-500/30 text-white font-semibold'
-                  : 'text-indigo-200 hover:bg-indigo-900/40'
-              }`}
-            >
-              <div
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                  s.done
-                    ? 'bg-emerald-500 text-white'
-                    : openStep === s.num
-                    ? 'bg-indigo-400 text-slate-900'
-                    : 'bg-slate-800 text-slate-400'
+          ].map((item, idx, arr) => {
+            const firstIncompleteIdx = arr.findIndex((s) => !s.done);
+            const isStepOpen =
+              openStep === 'ALL'
+                ? (firstIncompleteIdx === -1 ? idx === arr.length - 1 : idx === firstIncompleteIdx)
+                : openStep === item.stepNum;
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => {
+                  setOpenStep(item.stepNum);
+                  setTimeout(() => {
+                    const el = document.getElementById(item.targetId);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 40);
+                }}
+                className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
+                  isStepOpen
+                    ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
+                    : item.done
+                      ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
+                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
                 }`}
               >
-                {s.done ? <Check className="h-3 w-3" /> : s.num}
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="font-semibold text-white/90 text-xs block truncate">
-                  {s.title}
-                </span>
-                <div className="mt-0.5 truncate text-[11px] text-indigo-100/80">
-                  {s.sub}
+                <div className="flex items-center justify-between font-bold">
+                  <span>{item.step}</span>
+                  {item.done ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-300" />
+                  ) : isStepOpen ? (
+                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  ) : null}
                 </div>
-              </div>
-            </button>
-          ))}
+                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

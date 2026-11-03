@@ -62,6 +62,8 @@ import {
   type SurveyOutreachTemplates,
   type SavedCustomerInterviewLog,
 } from '@/lib/auth/session-store';
+import { sendSystemEmail } from '@/lib/email/send';
+import { EMAIL_DEFAULTS } from '@/lib/email/resend';
 
 export interface AuthActionResult {
   ok: boolean;
@@ -701,6 +703,32 @@ export async function registerFounderAction(input: {
     await setServerSessionCookie({
       userId: createdUser.id,
       email: createdUser.email,
+    });
+
+    // Fire asynchronous Welcome Email via Resend without blocking registration
+    sendSystemEmail({
+      to: createdUser.email,
+      template: 'WELCOME_FOUNDER',
+      subject: 'Welcome to Startup Preflight — Your Founder Workspace is Ready',
+      props: {
+        founderName: createdUser.name || undefined,
+        loginEmail: createdUser.email,
+        loginUrl: `${EMAIL_DEFAULTS.appUrl}/workspace`,
+        tierName: cleanCode.startsWith('SUMO-')
+          ? 'AppSumo Lifetime Edition'
+          : cohortId
+            ? 'Cohort Partner Pass'
+            : '6-Month Founder Pass',
+        hqCountry: 'IE',
+      },
+      metadata: {
+        userId: createdUser.id,
+        trigger: 'REGISTRATION',
+        cohortId: cohortId,
+        inviteCode: cleanCode || undefined,
+      },
+    }).catch((emailErr) => {
+      console.error('[SPF Email] Failed to send welcome email upon registration:', emailErr);
     });
 
     const session = await buildSessionFromDbUser(createdUser);

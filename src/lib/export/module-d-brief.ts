@@ -139,7 +139,7 @@ export const LAUNCH_TIMELINE_LABELS: Record<V1LaunchTimelineType, string> = {
 
 export const SALES_CHANNEL_LABELS: Record<SalesChannelOptionType, string> = {
   DIRECT_WEB_STRIPE: 'Direct Web Checkout (Stripe / Paddle / LemonSqueezy)',
-  LTD_LAUNCH_MARKETPLACE: 'Launch / Lifetime Deal Marketplace (AppSumo / ProductHunt)',
+  LTD_LAUNCH_MARKETPLACE: 'Software Launch Directories & Partner Bundles (ProductHunt / G2)',
   B2B_INSTITUTIONAL_INVOICE: 'Direct B2B / University / Enterprise Annual Invoice',
   APP_STORE_PLUGIN_MARKETPLACE: 'Apple / Google App Store or Ecosystem Marketplace',
   ETSY_MARKETPLACE: 'Etsy Marketplace (Handmade & Gift Buyers)',

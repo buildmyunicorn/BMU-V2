@@ -82,6 +82,13 @@ import {
 } from '@/lib/support-tracker-store';
 import { SupportBugTrackerTab } from '@/components/admin/support-bug-tracker-tab';
 import { PersonaUxAuditLabTab } from '@/components/admin/persona-ux-audit-lab-tab';
+import { VouchersCohortsStudioTab } from '@/components/admin/vouchers-cohorts-studio-tab';
+import { SystemEmailsStudioTab } from '@/components/admin/system-emails-studio-tab';
+import {
+  listAdminVouchersAndCohortsAction,
+  type AdminVoucherSummary,
+  type AdminCohortSummary,
+} from '@/app/actions/admin-vouchers';
 
 type StatusFilterTab =
   | 'ALL_ACTIVE'
@@ -387,8 +394,27 @@ export default function AdminDashboardPage() {
   const [supportTicketsList, setSupportTicketsList] = useState<
     SupportTicketRecord[]
   >([]);
+  const [vouchersList, setVouchersList] = useState<AdminVoucherSummary[]>([]);
+  const [cohortsList, setCohortsList] = useState<AdminCohortSummary[]>([]);
+  const [voucherStats, setVoucherStats] = useState<{
+    totalVouchers: number;
+    unclaimedVouchers: number;
+    redeemedVouchers: number;
+    refundedVouchers: number;
+    totalCohorts: number;
+  }>({
+    totalVouchers: 0,
+    unclaimedVouchers: 0,
+    redeemedVouchers: 0,
+    refundedVouchers: 0,
+    totalCohorts: 0,
+  });
   const [activeAdminSection, setActiveAdminSection] = useState<
-    'ACCOUNTS_AND_WAITLIST' | 'SUPPORT_AND_BUGS' | 'PERSONA_UX_LAB'
+    | 'ACCOUNTS_AND_WAITLIST'
+    | 'VOUCHERS_AND_COHORTS'
+    | 'SYSTEM_EMAILS'
+    | 'SUPPORT_AND_BUGS'
+    | 'PERSONA_UX_LAB'
   >('ACCOUNTS_AND_WAITLIST');
   const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(false);
   const [adminEmail, setAdminEmail] = useState<string>('');
@@ -422,10 +448,11 @@ export default function AdminDashboardPage() {
   async function fetchUsers() {
     setIsLoading(true);
     try {
-      const [res, waitlistRes, supportRes] = await Promise.all([
+      const [res, waitlistRes, supportRes, voucherRes] = await Promise.all([
         listAdminUsersAction(),
         listEarlyAccessWaitlistAction(),
         listSupportTicketsAction(),
+        listAdminVouchersAndCohortsAction(),
       ]);
       if (!res.authenticated) {
         router.replace('/admin/login');
@@ -476,6 +503,13 @@ export default function AdminDashboardPage() {
       );
       setSupportTicketsList(mergedTickets);
       saveLocalSupportTickets(mergedTickets);
+
+      // Set vouchers and cohorts
+      if (voucherRes.ok) {
+        setVouchersList(voucherRes.vouchers);
+        setCohortsList(voucherRes.cohorts);
+        setVoucherStats(voucherRes.stats);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -669,6 +703,8 @@ export default function AdminDashboardPage() {
         setActiveAdminSection('SUPPORT_AND_BUGS');
       } else if (params.get('tab') === 'persona-lab') {
         setActiveAdminSection('PERSONA_UX_LAB');
+      } else if (params.get('tab') === 'vouchers') {
+        setActiveAdminSection('VOUCHERS_AND_COHORTS');
       }
     }
     fetchUsers();
@@ -1193,6 +1229,50 @@ export default function AdminDashboardPage() {
 
             <button
               type="button"
+              onClick={() => setActiveAdminSection('VOUCHERS_AND_COHORTS')}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeAdminSection === 'VOUCHERS_AND_COHORTS'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Crown className="h-4 w-4" />
+              <span>Vouchers &amp; Cohorts Studio</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeAdminSection === 'VOUCHERS_AND_COHORTS'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                {voucherStats.totalVouchers} codes
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveAdminSection('SYSTEM_EMAILS')}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeAdminSection === 'SYSTEM_EMAILS'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Mail className="h-4 w-4" />
+              <span>Emails &amp; Resend</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeAdminSection === 'SYSTEM_EMAILS'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-indigo-100 text-indigo-800'
+                }`}
+              >
+                Resend
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveAdminSection('SUPPORT_AND_BUGS')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
                 activeAdminSection === 'SUPPORT_AND_BUGS'
@@ -1246,11 +1326,36 @@ export default function AdminDashboardPage() {
               ? 'QA Bug Backlog, UX Improvements & Phase 2 Founder Support Hub'
               : activeAdminSection === 'PERSONA_UX_LAB'
                 ? 'Synthetic Founder Personas, L1–L4 Literacy Lever, Mobile/Tablet/Laptop & Fix Prompt Generator'
-                : 'Manage Founder Tiers, Lifetime Access & Early-Access Leads'}
+                : activeAdminSection === 'VOUCHERS_AND_COHORTS'
+                  ? 'Batch Generator, CSV Exports, Lifetime & Time-Limited Passes, Safe Refund Downgrades'
+                  : 'Manage Founder Tiers, Lifetime Access & Early-Access Leads'}
           </span>
         </div>
 
-        {activeAdminSection === 'SUPPORT_AND_BUGS' ? (
+        {activeAdminSection === 'VOUCHERS_AND_COHORTS' ? (
+          <VouchersCohortsStudioTab
+            vouchers={vouchersList}
+            cohorts={cohortsList}
+            stats={voucherStats}
+            onRefresh={fetchUsers}
+            onNotify={(type, text) =>
+              setBannerMessage({
+                type: type === 'error' ? 'warning' : 'success',
+                text,
+              })
+            }
+          />
+        ) : activeAdminSection === 'SYSTEM_EMAILS' ? (
+          <SystemEmailsStudioTab
+            adminEmail={adminEmail}
+            onNotify={(type, text) =>
+              setBannerMessage({
+                type: type === 'error' ? 'warning' : 'success',
+                text,
+              })
+            }
+          />
+        ) : activeAdminSection === 'SUPPORT_AND_BUGS' ? (
           <SupportBugTrackerTab
             tickets={supportTicketsList}
             adminEmail={adminEmail}

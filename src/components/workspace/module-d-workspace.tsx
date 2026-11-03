@@ -1132,10 +1132,10 @@ export const ADAPTIVE_STEP2_CONFIG_BY_TRACK: Record<
       },
       {
         value: 'LTD_LAUNCH_MARKETPLACE',
-        label: 'Launch / Lifetime Deal Marketplace (AppSumo / ProductHunt)',
+        label: 'Software Launch Directories & Partner Bundles (ProductHunt / G2)',
         ownershipBadge: 'Rented Marketplace Traffic',
-        typicalFeePercent: 65.0,
-        feeBreakdownText: '~60%–70% marketplace commission on launch deal revenue',
+        typicalFeePercent: 25.0,
+        feeBreakdownText: '~15%–30% affiliate / partner commission on launch deal revenue',
         payoutSpeed: 'Net 30–60 Days',
         subtitle:
           'Great for getting your first 200–500 loud software testers and verified reviews quickly without spending cash on paid ads.',
@@ -1189,7 +1189,7 @@ export const ADAPTIVE_STEP2_CONFIG_BY_TRACK: Record<
         label: 'Self-Serve Web Checkout + Voucher / Cohort Code Redemption',
         tag: 'Recommended for SaaS + B2B',
         subtitle:
-          'Supports instant self-serve Stripe upgrades plus 1-click redemption for AppSumo LTD or University Cohort codes.',
+          'Supports instant self-serve Stripe upgrades plus 1-click redemption for Partner or University Cohort codes.',
       },
       {
         value: 'FOUNDER_CONCIERGE_SETUP_CALL',
@@ -1208,11 +1208,11 @@ export const ADAPTIVE_STEP2_CONFIG_BY_TRACK: Record<
     bridgePromptLabel:
       '4. Your "Rent-to-Own" Audience Bridge (How You Own 100% of Customer Emails & Upgrade Paths):',
     bridgePromptPlaceholder:
-      'e.g., Founders enter via our free Module A hook or redeem an AppSumo/University code directly on our web domain—so we own 100% of verified user emails and workspace data.',
+      'e.g., Founders enter via our free Module A hook or redeem a Partner/University code directly on our web domain—so we own 100% of verified user emails and workspace data.',
     whyChannelFitsLabel:
       '5. Why This Channel Mix Protects Your Early Traction & Module H Margins:',
     whyChannelFitsPlaceholder:
-      'e.g., Direct Web Stripe checkout (~2.9% fee) preserves 97% gross margin on core passes, while AppSumo LTD and university cohort licences give us immediate distribution without burning cash on cold Meta/Google ads.',
+      'e.g., Direct Web Stripe checkout (~2.9% fee) preserves 97% gross margin on core passes, while ProductHunt launches and university cohort licences give us immediate distribution without burning cash on cold Meta/Google ads.',
   },
 
   PHYSICAL_PRODUCT_ECOM: {
@@ -2041,7 +2041,7 @@ const ADAPTIVE_STEP3_CONFIG_BY_TRACK: Record<
         categoryTag: 'Billing & Security Core',
         effortImpact: 'LOW',
         rationaleOrNote:
-          'Enables Day-1 revenue collection (6-Month Pass, AppSumo LTD & Cohort Codes) while protecting cloud margins.',
+          'Enables Day-1 revenue collection (6-Month Pass & Institutional Cohort Codes) while protecting cloud margins.',
       },
       {
         id: 'saas-v1-4',
@@ -4927,9 +4927,9 @@ export function ModuleDWorkspace({
         deliveryFulfillmentModel: 'HYBRID_SELF_SERVE_PLUS_COHORT_CODE',
         otherDeliveryFulfillmentText: '',
         rentToOwnBridgeStrategy:
-          'Founders enter via our free Module A hook or redeem an AppSumo LTD / University Cohort voucher code directly on startuppreflight.com—so we own 100% of user emails, workspace data, and upgrade paths with zero mobile app store tax.',
+          'Founders enter via our free Module A hook or redeem an Institutional Partner / University Cohort voucher code directly on startuppreflight.com—so we own 100% of user emails, workspace data, and upgrade paths with zero mobile app store tax.',
         channelWhyItFitsNotes:
-          'Direct Web Checkout via Stripe (~2.9% fee) preserves 97% gross margin on 6-Month Passes, while AppSumo LTD and Irish LEO / UK University cohort licences give us rapid initial user volume and reviews without burning cash on cold ads.',
+          'Direct Web Checkout via Stripe (~2.9% fee) preserves 97% gross margin on 6-Month Passes, while ProductHunt launches and Irish LEO / UK University cohort licences give us rapid initial user volume and reviews without burning cash on cold ads.',
         lastSavedAt: nowIso,
       };
       const nextS3: ScopeFilterStep3Data = {
@@ -4939,7 +4939,7 @@ export function ModuleDWorkspace({
         whatWeRefuseToBuildInV1Narrative:
           'In Version 1, we strictly refuse to build native iOS/Android mobile apps, live Xero/QuickBooks accounting syncs, or custom enterprise SAML SSO. Every engineering hour is focused on the core browser workspace, customer validation surveys, and official IE/UK grant exports.',
         whyThisLeanV1WinsFasterNarrative:
-          'Keeping Version 1 locked to 4 core web capabilities lets us ship in weeks, convert 6-Month Pass and AppSumo/Cohort customers immediately, and protect cloud AI margins with our 500 calls/day circuit breaker.',
+          'Keeping Version 1 locked to 4 core web capabilities lets us ship in weeks, convert 6-Month Pass and Institutional Cohort customers immediately, and protect cloud AI margins with our 500 calls/day circuit breaker.',
         lastSavedAt: nowIso,
       };
       setStep1Data(nextS1);
@@ -8136,7 +8136,7 @@ export function ModuleDWorkspace({
                     </div>
                     <p>
                       Third-party marketplaces (like{' '}
-                      <strong>Amazon FBA, Etsy, Apple App Store, or AppSumo</strong>)
+                      <strong>Amazon FBA, Etsy, Apple App Store, or G2/Partner Marketplaces</strong>)
                       are fantastic for <em>renting</em> ready-to-buy discovery,
                       but they charge <strong>10.5% to 65%</strong> in commissions
                       and often hide customer emails. Direct channels (like your own{' '}
@@ -8941,7 +8941,7 @@ export function ModuleDWorkspace({
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-600">
                     How do you ensure you own the long-term customer
-                    relationship (even when using Amazon, Etsy, AppSumo, or
+                    relationship (even when using Amazon, Etsy, app stores, or
                     partners)?
                   </CardDescription>
                 </div>

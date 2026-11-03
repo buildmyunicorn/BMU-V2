@@ -31,6 +31,7 @@ import {
   type ModuleKStep2CapitalStackSavedData,
 } from '@/lib/auth/session-store';
 import { SUPPORTED_GRANT_PROGRAMS } from '@/lib/grants/module-k-grant-audit';
+import { generateModuleKCapitalStackNarrativeAction } from '@/app/actions/module-k';
 
 export interface ModuleKCapitalStackStepProps {
   plan: ActiveStartupPlan;
@@ -123,6 +124,9 @@ export function ModuleKCapitalStackStep({
     existingStep2?.fundingStrategyNarrative || ''
   );
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
+  const [aiAssessorTip, setAiAssessorTip] = useState<string | null>(null);
+  const [aiEngineUsed, setAiEngineUsed] = useState<string | null>(null);
 
   // Synchronize totals & metrics
   const totalAllocated = useMemo(() => {
@@ -290,6 +294,51 @@ export function ModuleKCapitalStackStep({
     }
   };
 
+  const handleGenerateAiNarrative = async () => {
+    if (isVaultReadonly || isGeneratingAi) return;
+    setIsGeneratingAi(true);
+    try {
+      const breakdown = fundingSources.map((s) => ({
+        label: s.label,
+        amount: Number(s.amount) || 0,
+        percentage:
+          totalTargetFundingGap > 0
+            ? Math.round(((Number(s.amount) || 0) / totalTargetFundingGap) * 100)
+            : 0,
+      }));
+
+      const res = await generateModuleKCapitalStackNarrativeAction({
+        planId: plan.id,
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory || 'Startup',
+        hqCountryCode: (plan.hqCountryCode as any) || 'IE',
+        targetGrantName: targetGrantDef?.name || 'Primary State Grant',
+        targetGrantAgency: targetGrantDef?.agency || 'State Enterprise Agency',
+        totalTargetFundingGap,
+        totalGrants,
+        skinInTheGame,
+        totalLoans,
+        totalAngel,
+        currencySymbol,
+        grantMatchPercentage: targetGrantDef?.matchRatePercent || 50,
+        strategyPreset: activePreset,
+        sourcesBreakdown: breakdown,
+      });
+
+      if (res?.narrative) {
+        setFundingStrategyNarrative(res.narrative);
+        if (res.assessorStrategyTip) {
+          setAiAssessorTip(res.assessorStrategyTip);
+        }
+        setAiEngineUsed(res.engineMode || 'gemini-2.5-flash');
+      }
+    } catch (err) {
+      console.error('[Module K] AI narrative generation failed:', err);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
   const handleSaveStep2 = async () => {
     if (isVaultReadonly) return;
     setIsSaving(true);
@@ -339,6 +388,17 @@ export function ModuleKCapitalStackStep({
         >
           <Lightbulb className="mr-1 h-3.5 w-3.5" />
           Show Me an Assessor Example
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={handleGenerateAiNarrative}
+          disabled={isGeneratingAi || isVaultReadonly}
+          className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+        >
+          <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+          {isGeneratingAi ? 'Synthesizing with AI...' : 'Auto-Generate Narrative with AI'}
         </Button>
       </div>
 
@@ -655,20 +715,46 @@ export function ModuleKCapitalStackStep({
       {/* ========================================================================= */}
       {/* 4. WRITTEN STRATEGY & ASSESSOR EXPLANATION                                 */}
       {/* ========================================================================= */}
-      <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
-        <label className="text-xs font-bold text-slate-800">
-          Underwriter Strategy &amp; Matching Funds Narrative
-        </label>
-        <p className="text-[11px] text-slate-500">
-          This narrative feeds directly into Module L Appendix A &amp; B, explaining to grant assessors how your co-funding capital will be drawn down safely without cashflow defaults.
-        </p>
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <label className="text-xs font-bold text-slate-800">
+              Underwriter Strategy &amp; Matching Funds Narrative
+            </label>
+            <p className="text-[11px] text-slate-500">
+              Feeds directly into Module L Appendices A &amp; B, explaining to grant assessors how your co-funding capital will be drawn down safely without cashflow defaults.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleGenerateAiNarrative}
+            disabled={isGeneratingAi || isVaultReadonly}
+            className="h-7 border-violet-200 bg-violet-50 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+          >
+            <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+            {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Narrative with AI'}
+          </Button>
+        </div>
+
         <textarea
           value={fundingStrategyNarrative}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFundingStrategyNarrative(e.target.value)}
           placeholder={`e.g., The total project development cost of ${currencySymbol}${totalTargetFundingGap.toLocaleString()} will be co-funded via ${targetGrantDef?.name || 'LEO Priming Grant'} (${currencySymbol}${totalGrants.toLocaleString()}), backed by ${currencySymbol}${skinInTheGame.toLocaleString()} in committed founder personal savings and an approved government-backed loan. Bank statements evidencing matching funds are attached.`}
-          className="flex min-h-[75px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
           disabled={isVaultReadonly}
         />
+
+        {aiAssessorTip && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200/80 bg-amber-50/70 p-3 text-[11px] text-amber-900">
+            <Info className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-semibold text-amber-950">Grant Underwriter Insider Tip:</span>
+              <p className="leading-relaxed text-amber-900/90">{aiAssessorTip}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}
