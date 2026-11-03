@@ -488,7 +488,7 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
               <p className="text-[11px] text-slate-400 mt-1">
                 Emails are sent from{' '}
                 <span className="font-mono text-slate-600">
-                  Startup Preflight &lt;system@startuppreflight.com&gt;
+                  Startup Preflight &lt;noreply@startuppreflight.com&gt;
                 </span>
                 .
               </p>

@@ -11,10 +11,10 @@ export const EMAIL_DEFAULTS = {
   // Verified domain on Resend
   from:
     process.env.EMAIL_FROM_SYSTEM ||
-    'Startup Preflight <system@startuppreflight.com>',
+    'Startup Preflight <noreply@startuppreflight.com>',
   notificationsFrom:
     process.env.EMAIL_FROM_NOTIFICATIONS ||
-    'Startup Preflight <notifications@startuppreflight.com>',
+    'Startup Preflight <noreply@startuppreflight.com>',
   replyTo: process.env.EMAIL_REPLY_TO || 'support@startuppreflight.com',
   companyName: 'Startup Preflight',
   supportUrl: 'https://startuppreflight.com/admin',

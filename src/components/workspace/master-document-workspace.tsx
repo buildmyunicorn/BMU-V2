@@ -352,6 +352,16 @@ export function MasterDocumentWorkspace({
             <Button
               type="button"
               size="sm"
+              variant="outline"
+              onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
+              className="border-emerald-400/50 bg-emerald-500/20 text-xs font-bold text-emerald-100 hover:bg-emerald-500/30"
+            >
+              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-300" />
+              Open Official Compiler (Mod L)
+            </Button>
+            <Button
+              type="button"
+              size="sm"
               onClick={handlePrintPdf}
               className="bg-white text-xs font-bold text-indigo-950 hover:bg-indigo-50"
             >

@@ -14901,3 +14901,208 @@ Generate an assessor-grade funding strategy brief, phased grant application road
 
   return fallback;
 }
+
+// ============================================================================
+// MODULE L STEP 1: COMPILER MODE & ASSESSOR MANDATE CALIBRATOR
+// ============================================================================
+
+export interface GenerateModuleLStep1MandateParams {
+  planId?: string;
+  planTitle: string;
+  oneLinerSummary?: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency: string;
+  compilerMode:
+    | 'IE_LEO_OFFICIAL_FORM'
+    | 'UK_INNOVATE_UK_9Q'
+    | 'UK_START_UP_LOANS_WORKBOOK'
+    | 'INVESTOR_SEIS_EIS_EII_PACK'
+    | 'STANDARD_COMMERCIAL_PLAN'
+    | 'OTHER';
+  otherCompilerModeText?: string;
+  targetAgencyOrCommitteeName: string;
+  targetFundingAskAmount: number;
+  exportPotential?: string;
+}
+
+export interface GenerateModuleLStep1MandateResult {
+  allowed: boolean;
+  reason?: string;
+  compilerMandateNotes: string;
+  assessorStrategyTip: string;
+  recommendedNarrativeTone:
+    | 'EVIDENCE_LED_ASSESSOR'
+    | 'UNDERWRITER_CONSERVATIVE'
+    | 'VENTURE_GROWTH_THESIS'
+    | 'PLAIN_ENGLISH_OPERATOR';
+  recommendedSubmissionObjective:
+    | 'NON_DILUTIVE_CAPITAL_GRANT'
+    | 'GOVERNMENT_LOAN_APPROVAL'
+    | 'TAX_RELIEF_CLEARANCE_AND_SEED'
+    | 'BANK_OR_COMMERCIAL_PARTNERSHIP';
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleLStep1MandateViaRouter(
+  params: GenerateModuleLStep1MandateParams
+): Promise<GenerateModuleLStep1MandateResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const modeLabel =
+    params.compilerMode === 'IE_LEO_OFFICIAL_FORM'
+      ? 'Ireland LEO & Enterprise Ireland Official Application Form + Appendices A–F'
+      : params.compilerMode === 'UK_INNOVATE_UK_9Q'
+        ? 'UK Innovate UK 9-Question IFS Assessment Mode + 2-Page PDF Appendices'
+        : params.compilerMode === 'UK_START_UP_LOANS_WORKBOOK'
+          ? 'UK British Business Bank Start Up Loans 4-Part Workbook + Survival Budget'
+          : params.compilerMode === 'INVESTOR_SEIS_EIS_EII_PACK'
+            ? 'HMRC SEIS/EIS Advance Assurance & Irish EII Seed Investor Pack'
+            : params.compilerMode === 'OTHER'
+              ? params.otherCompilerModeText || 'Custom Committee Submission Dossier'
+              : 'Standard 10-Chapter Commercial Business Plan';
+
+  const defaultTone =
+    params.compilerMode === 'UK_START_UP_LOANS_WORKBOOK'
+      ? 'UNDERWRITER_CONSERVATIVE'
+      : params.compilerMode === 'INVESTOR_SEIS_EIS_EII_PACK'
+        ? 'VENTURE_GROWTH_THESIS'
+        : params.compilerMode === 'STANDARD_COMMERCIAL_PLAN'
+          ? 'PLAIN_ENGLISH_OPERATOR'
+          : 'EVIDENCE_LED_ASSESSOR';
+
+  const defaultObjective =
+    params.compilerMode === 'UK_START_UP_LOANS_WORKBOOK'
+      ? 'GOVERNMENT_LOAN_APPROVAL'
+      : params.compilerMode === 'INVESTOR_SEIS_EIS_EII_PACK'
+        ? 'TAX_RELIEF_CLEARANCE_AND_SEED'
+        : params.compilerMode === 'STANDARD_COMMERCIAL_PLAN'
+          ? 'BANK_OR_COMMERCIAL_PARTNERSHIP'
+          : 'NON_DILUTIVE_CAPITAL_GRANT';
+
+  const fallback: GenerateModuleLStep1MandateResult = {
+    allowed: true,
+    compilerMandateNotes:
+      params.compilerMode === 'IE_LEO_OFFICIAL_FORM'
+        ? `Compile "${params.planTitle}" strictly for the ${params.targetAgencyOrCommitteeName || 'Local Enterprise Office / Enterprise Ireland'} Evaluation & Approvals Committee (${params.baseCurrency} ${params.targetFundingAskAmount.toLocaleString()} ask). Emphasize international export potential, zero domestic deadweight/displacement, verified Mom-Test customer validation from Module C, 3-quote procurement compliance from Modules D & E, and 3-year job creation linked to Module F & J.`
+        : params.compilerMode === 'UK_INNOVATE_UK_9Q'
+          ? `Compile "${params.planTitle}" strictly for the ${params.targetAgencyOrCommitteeName || 'Innovate UK IFS'} 5-Assessor Panel (${params.baseCurrency} ${params.targetFundingAskAmount.toLocaleString()} ask). Enforce strict 400-word limits across all 9 scored questions, foreground technical step-change innovation and freedom-to-operate, link Work Packages (WP1..n) directly to itemised eligible R&D costs, and attach the 4-category Risk Register appendix.`
+          : params.compilerMode === 'UK_START_UP_LOANS_WORKBOOK'
+            ? `Compile "${params.planTitle}" for the ${params.targetAgencyOrCommitteeName || 'British Business Bank Start Up Loans'} Delivery Partner underwriter (${params.baseCurrency} ${params.targetFundingAskAmount.toLocaleString()} facility). Prioritize Personal Survival Budget coverage from Module F, conservative DSO/working capital assumptions from Module J, verified First 10 Customers acquisition pipeline from Module I, and clear monthly debt-service coverage.`
+            : params.compilerMode === 'INVESTOR_SEIS_EIS_EII_PACK'
+              ? `Compile "${params.planTitle}" for ${params.targetAgencyOrCommitteeName || (isUK ? 'HMRC SEIS/EIS Advance Assurance & Angel Syndicate' : 'Irish Revenue EII / HBAN Angel Syndicate')} (${params.baseCurrency} ${params.targetFundingAskAmount.toLocaleString()} round). Foreground statutory Qualifying Trade compliance, the Risk-to-Capital condition (genuine growth & development vs. capital preservation), unit economics breakeven from Module H, and clear milestone-driven use of funds.`
+              : `Compile "${params.planTitle}" into an executive-ready ${modeLabel} for ${params.targetAgencyOrCommitteeName || 'Commercial Underwriting & Board Review'} (${params.baseCurrency} ${params.targetFundingAskAmount.toLocaleString()} target). Anchor every claim in verified customer evidence, bottom-up unit economics, and 36-month cashflow resilience.`,
+    assessorStrategyTip:
+      params.compilerMode === 'IE_LEO_OFFICIAL_FORM'
+        ? 'LEO Evaluation Committees score Commercial Viability, Export Potential, and Job Creation highest. Any claim of market demand must reference your primary survey/interview telemetry from Module C and your 3-quote supplier schedule from Module E.'
+        : params.compilerMode === 'UK_INNOVATE_UK_9Q'
+          ? 'Innovate UK uses 5 independent assessors who spend ~45 minutes per application. Never exceed 400 words per question, and ensure Question 9 (Costs & Value for Money) reconciles to the penny with your Module D Work Packages and Module K Capital Stack.'
+          : params.compilerMode === 'UK_START_UP_LOANS_WORKBOOK'
+            ? 'Start Up Loan underwriters reject applications primarily when the Personal Survival Budget leaves a personal household deficit or when Month 1–6 sales assumptions lack named customer channels.'
+            : params.compilerMode === 'INVESTOR_SEIS_EIS_EII_PACK'
+              ? 'HMRC SEIS/EIS caseworkers reject speculative applications that lack named prospective angel investors or fail to prove that capital is genuinely at risk for long-term growth and headcount expansion.'
+              : 'Commercial underwriters look for internal consistency between your pricing (Module H), customer acquisition budget (Module I), and 36-month cashflow trough (Module J).',
+    recommendedNarrativeTone: defaultTone,
+    recommendedSubmissionObjective: defaultObjective,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_L_STEP1_MANDATE',
+    'You are a Principal Grant Evaluator and Investment Committee Chair calibrating an official business plan and grant compiler mandate.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a Principal Grant Assessor and Underwriting Committee Chair.
+Calibrate the official compilation mandate and evaluator strategy tip for the following startup plan:
+- Startup Title: "${sanitizePromptInput(params.planTitle, 100)}"
+- Summary: "${sanitizePromptInput(params.oneLinerSummary || '', 220)}"
+- Industry: "${sanitizePromptInput(params.industryCategory || 'Technology / Innovation', 80)}"
+- HQ Country: ${params.hqCountryCode} (${params.baseCurrency})
+- Selected Compilation Mode: ${modeLabel}
+- Target Committee / Agency: "${sanitizePromptInput(params.targetAgencyOrCommitteeName, 120)}"
+- Target Ask / Facility Amount: ${params.baseCurrency} ${params.targetFundingAskAmount.toLocaleString()}
+
+Return strictly a JSON object with:
+{
+  "compilerMandateNotes": "A concise, authoritative 3-4 sentence compilation instruction brief explaining what the compiler must foreground (e.g. non-displacement, export potential, 3-quote compliance, survival budget, or 400-word rubric discipline) to score 80%+ with this specific committee.",
+  "assessorStrategyTip": "A sharp 2-sentence insider tip explaining the #1 reason this specific committee approves or rejects submissions.",
+  "recommendedNarrativeTone": "EVIDENCE_LED_ASSESSOR",
+  "recommendedSubmissionObjective": "NON_DILUTIVE_CAPITAL_GRANT"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const rawText = response.text?.trim() || '';
+      if (rawText) {
+        const parsed = JSON.parse(rawText);
+        if (
+          parsed &&
+          typeof parsed.compilerMandateNotes === 'string' &&
+          parsed.compilerMandateNotes.trim().length > 30
+        ) {
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_L_STEP1_MANDATE',
+            modelUsed: 'gemini-2.5-flash',
+            inputTokens: response.usageMetadata?.promptTokenCount || 260,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 210,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          const validTones = new Set([
+            'EVIDENCE_LED_ASSESSOR',
+            'UNDERWRITER_CONSERVATIVE',
+            'VENTURE_GROWTH_THESIS',
+            'PLAIN_ENGLISH_OPERATOR',
+          ]);
+          const validObjectives = new Set([
+            'NON_DILUTIVE_CAPITAL_GRANT',
+            'GOVERNMENT_LOAN_APPROVAL',
+            'TAX_RELIEF_CLEARANCE_AND_SEED',
+            'BANK_OR_COMMERCIAL_PARTNERSHIP',
+          ]);
+
+          return {
+            allowed: true,
+            compilerMandateNotes: parsed.compilerMandateNotes.trim(),
+            assessorStrategyTip:
+              typeof parsed.assessorStrategyTip === 'string' &&
+              parsed.assessorStrategyTip.trim().length > 15
+                ? parsed.assessorStrategyTip.trim()
+                : fallback.assessorStrategyTip,
+            recommendedNarrativeTone: validTones.has(
+              String(parsed.recommendedNarrativeTone)
+            )
+              ? parsed.recommendedNarrativeTone
+              : fallback.recommendedNarrativeTone,
+            recommendedSubmissionObjective: validObjectives.has(
+              String(parsed.recommendedSubmissionObjective)
+            )
+              ? parsed.recommendedSubmissionObjective
+              : fallback.recommendedSubmissionObjective,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn(
+        '[AI Router] Module L Step 1 Mandate Gemini call fallback:',
+        err?.message || err
+      );
+    }
+  }
+
+  return fallback;
+}

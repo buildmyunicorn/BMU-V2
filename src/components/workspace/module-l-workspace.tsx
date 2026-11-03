@@ -1,0 +1,573 @@
+'use client';
+
+import React, { useState } from 'react';
+import {
+  FileText,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  ArrowLeft,
+  ArrowRight,
+  ShieldCheck,
+  BookOpen,
+  Layers,
+  CheckCircle2,
+  AlertTriangle,
+  HelpCircle,
+  Lightbulb,
+  X,
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { formatPlanCurrency } from '@/lib/localization';
+import type {
+  ActiveStartupPlan,
+  ModuleLStep1ModeSavedData,
+  ModuleLStep2ContradictionAuditSavedData,
+  ModuleLStep3NarrativeCompilerSavedData,
+  ModuleLStep4AppendicesSavedData,
+  ModuleLStep5SubmissionBriefSavedData,
+} from '@/lib/auth/session-store';
+import {
+  ModuleLModeSelectorStep,
+  MODULE_L_COMPILER_MODES,
+} from '@/components/workspace/module-l-mode-selector-step';
+
+export interface ModuleLWorkspaceProps {
+  plan: ActiveStartupPlan;
+  selectedCountry?: string;
+  isVaultReadonly?: boolean;
+  onSaveStep1Mode?: (
+    step1Data: ModuleLStep1ModeSavedData,
+    progress?: number
+  ) => Promise<void> | void;
+  onSaveStep2Audit?: (
+    step2Data: ModuleLStep2ContradictionAuditSavedData,
+    progress?: number
+  ) => Promise<void> | void;
+  onSaveStep3Compiler?: (
+    step3Data: ModuleLStep3NarrativeCompilerSavedData,
+    progress?: number
+  ) => Promise<void> | void;
+  onSaveStep4Appendices?: (
+    step4Data: ModuleLStep4AppendicesSavedData,
+    progress?: number
+  ) => Promise<void> | void;
+  onSaveStep5Brief?: (
+    step5Data: ModuleLStep5SubmissionBriefSavedData,
+    progress?: number
+  ) => Promise<void> | void;
+  onParkQuestionInSession?: (questionText: string) => void;
+  onBackToModuleK?: () => void;
+  onOpenMasterBlueprint?: () => void;
+  onNavigateToModule?: (
+    moduleCode:
+      | 'MOD_A_IDEATION'
+      | 'MOD_B_MARKET'
+      | 'MOD_C_SURVEYS_FEEDBACK'
+      | 'MOD_D_PRODUCT_BUILD'
+      | 'MOD_E_OPERATIONS'
+      | 'MOD_F_COFOUNDER_TEAM'
+      | 'MOD_G_LAUNCHPAD'
+      | 'MOD_H_REVENUE'
+      | 'MOD_I_MARKETING'
+      | 'MOD_J_FINANCE'
+      | 'MOD_K_GRANTS_FUNDING'
+      | 'MOD_L_BUSINESS_PLAN',
+    targetStep?: number,
+    highlightId?: string
+  ) => void;
+  initialStep?: number;
+}
+
+export function ModuleLWorkspace({
+  plan,
+  isVaultReadonly = false,
+  onSaveStep1Mode,
+  onParkQuestionInSession,
+  onBackToModuleK,
+  onOpenMasterBlueprint,
+  onNavigateToModule,
+  initialStep,
+}: ModuleLWorkspaceProps) {
+  const isStep1Complete = Boolean(plan.moduleLData?.step1Mode?.lastSavedAt);
+  const isStep2Complete = Boolean(plan.moduleLData?.step2Audit?.lastSavedAt);
+  const isStep3Complete = Boolean(plan.moduleLData?.step3Compiler?.lastSavedAt);
+  const isStep4Complete = Boolean(plan.moduleLData?.step4Appendices?.lastSavedAt);
+  const isStep5Complete = Boolean(plan.moduleLData?.step5DossierBrief?.lastSavedAt);
+
+  const defaultOpenStep =
+    initialStep ??
+    (!isStep1Complete
+      ? 1
+      : !isStep2Complete
+        ? 2
+        : !isStep3Complete
+          ? 3
+          : !isStep4Complete
+            ? 4
+            : 5);
+
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(defaultOpenStep);
+
+  const isUK = plan.hqCountryCode === 'GB';
+  const countryFlag = isUK ? '🇬🇧' : plan.hqCountryCode === 'IE' ? '🇮🇪' : '🌍';
+  const countryName = isUK
+    ? 'United Kingdom'
+    : plan.hqCountryCode === 'IE'
+      ? 'Ireland'
+      : plan.hqCountryCode;
+  const currency = plan.baseCurrency || (isUK ? 'GBP' : 'EUR');
+
+  const completedCoreStepsCount =
+    (isStep1Complete ? 1 : 0) +
+    (isStep2Complete ? 1 : 0) +
+    (isStep3Complete ? 1 : 0) +
+    (isStep4Complete ? 1 : 0) +
+    (isStep5Complete ? 1 : 0);
+
+  const activeCompilerMode =
+    plan.moduleLData?.step1Mode?.compilerMode ||
+    (plan.hqCountryCode === 'IE'
+      ? 'IE_LEO_OFFICIAL_FORM'
+      : plan.hqCountryCode === 'GB'
+        ? 'UK_INNOVATE_UK_9Q'
+        : 'STANDARD_COMMERCIAL_PLAN');
+
+  const activeCatalogItem =
+    MODULE_L_COMPILER_MODES.find((m) => m.mode === activeCompilerMode) ||
+    MODULE_L_COMPILER_MODES[0];
+
+  function scrollToStep(stepNum: number, targetId: string) {
+    setOpenStep(stepNum);
+    setTimeout(() => {
+      const el = document.getElementById(targetId);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 40);
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* ========================================================================= */}
+      {/* 1. TOP HEADER MODULE CARD (Strict GEMINI.md Section 6.1 Standard)         */}
+      {/* ========================================================================= */}
+      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1.5 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100 text-[10px] shrink-0">
+                Module L • Capstone Official Compiler
+              </Badge>
+              <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
+                <Sparkles className="mr-1 h-3 w-3" />
+                {countryFlag} {countryName} Grant &amp; Business Plan Compiler
+              </Badge>
+              <Badge className="border-violet-400/30 bg-violet-500/20 text-violet-100 text-[10px] shrink-0">
+                {activeCatalogItem.badge}
+              </Badge>
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+              Module L: Interactive Business Plan &amp; Official Grant Compiler
+            </h1>
+            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+              Transform your verified answers across Modules A–K into committee-ready IE LEO forms, UK Innovate UK 9-Question applications, Start Up Loan workbooks, or SEIS/EIS/EII investor packs with Appendices A–F.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {onBackToModuleK && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onBackToModuleK}
+                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  Back to Module K
+                </Button>
+              )}
+              {onOpenMasterBlueprint && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onOpenMasterBlueprint}
+                  className="border-emerald-400/50 bg-emerald-500/20 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/30"
+                >
+                  <BookOpen className="mr-1.5 h-3.5 w-3.5 text-emerald-300" />
+                  View Master Blueprint
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
+                }
+                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+              </Button>
+            </div>
+            <div className="text-right text-[11px] text-indigo-200">
+              Module L Progress:{' '}
+              <strong className="text-white">
+                {Math.round((completedCoreStepsCount / 5) * 100)}%
+              </strong>{' '}
+              ({completedCoreStepsCount} of 5 Steps Ready)
+            </div>
+          </div>
+        </div>
+
+        {/* Step Navigation Strip (Tile Grid Standard) */}
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+          {[
+            {
+              step: 'Step 1',
+              title: '1. Compiler Mode & Rubric',
+              done: isStep1Complete,
+              targetId: 'module-l-step-1',
+              stepNum: 1,
+            },
+            {
+              step: 'Step 2',
+              title: '2. Pre-Flight Grant Audit',
+              done: isStep2Complete,
+              targetId: 'module-l-step-2',
+              stepNum: 2,
+            },
+            {
+              step: 'Step 3',
+              title: '3. Section Narrative Compiler',
+              done: isStep3Complete,
+              targetId: 'module-l-step-3',
+              stepNum: 3,
+            },
+            {
+              step: 'Step 4',
+              title: '4. Appendices A–F Binder',
+              done: isStep4Complete,
+              targetId: 'module-l-step-4',
+              stepNum: 4,
+            },
+            {
+              step: 'Overview',
+              title: 'Submission Dossier Brief',
+              done: isStep5Complete,
+              targetId: 'module-l-step-5',
+              stepNum: 5,
+            },
+          ].map((item, idx, arr) => {
+            const firstIncompleteIdx = arr.findIndex((s) => !s.done);
+            const isStepOpen =
+              openStep === 'ALL'
+                ? firstIncompleteIdx === -1
+                  ? idx === arr.length - 1
+                  : idx === firstIncompleteIdx
+                : openStep === item.stepNum;
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => scrollToStep(item.stepNum, item.targetId)}
+                className={`rounded-xl border px-3 py-2 text-left text-xs transition-all hover:border-white/50 hover:bg-white/15 ${
+                  isStepOpen
+                    ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
+                    : item.done
+                      ? 'border-emerald-400/50 bg-emerald-500/20 text-white'
+                      : 'border-indigo-700/60 bg-indigo-950/40 text-indigo-200'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="font-semibold text-white/90 text-xs">
+                    {item.step}
+                  </span>
+                  {item.done ? (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-400/25 px-1.5 py-0.5 text-[10px] font-bold text-emerald-200">
+                      <Check className="h-2.5 w-2.5" /> Ready
+                    </span>
+                  ) : isStepOpen ? (
+                    <span className="inline-flex items-center rounded-full bg-amber-400/25 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
+                      Open
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-indigo-300">Pending</span>
+                  )}
+                </div>
+                <div className="mt-0.5 truncate text-[11px] text-indigo-100/80">
+                  {item.title}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* STEP 1: COMPILER MODE, TARGET COMMITTEE & SCORING RUBRIC                  */}
+      {/* ========================================================================= */}
+      <ModuleLModeSelectorStep
+        plan={plan}
+        isOpen={openStep === 'ALL' || openStep === 1}
+        onOpenStep={() => setOpenStep(1)}
+        onToggleCollapse={() => setOpenStep(0)}
+        isVaultReadonly={isVaultReadonly}
+        onSaveStep1={async (step1Data, progress = 20) => {
+          await onSaveStep1Mode?.(step1Data, progress);
+        }}
+        onAdvanceToStep2={() => scrollToStep(2, 'module-l-step-2')}
+        onParkQuestionInSession={onParkQuestionInSession}
+      />
+
+      {/* ========================================================================= */}
+      {/* STEP 2: PRE-FLIGHT CONTRADICTION & GRANT AUDIT (Collapsed / Preview)      */}
+      {/* ========================================================================= */}
+      {openStep !== 'ALL' && openStep !== 2 ? (
+        <div
+          id="module-l-step-2"
+          onClick={() => setOpenStep(2)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  isStep2Complete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    2. Cross-Module Contradiction &amp; Grant Audit (Pre-Flight Gatekeeper)
+                  </h2>
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
+                  >
+                    {isStep2Complete ? 'Audit Complete' : 'Next Up'}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  Reconciles pricing vs. survey WTP, headcount vs. payroll, cashflow trough vs. capital stack, and 3-quote compliance across Modules A–K.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+            >
+              {isStep2Complete ? 'Edit Step' : 'Open Step'}
+              <ChevronDown className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Card
+          id="module-l-step-2"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs"
+        >
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  2
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      2. Cross-Module Contradiction &amp; Grant Audit (Pre-Flight Gatekeeper)
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                    >
+                      Synced to {activeCatalogItem.badge}
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    Automated cross-examination of your numbers and narratives across Modules A–K before compiling your final submission sections.
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setOpenStep(0)}
+                className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
+              >
+                Collapse Step
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-slate-700">
+              <p className="font-bold text-slate-900">
+                Step 1 Mode Locked: {activeCatalogItem.title}
+              </p>
+              <p className="mt-1">
+                Ready to build out the full Step 2 Cross-Module Contradiction &amp; Pre-Flight Audit engine next!
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ========================================================================= */}
+      {/* STEP 3: SECTION-BY-SECTION NARRATIVE COMPILER (Collapsed / Preview)       */}
+      {/* ========================================================================= */}
+      <div
+        id="module-l-step-3"
+        onClick={() => setOpenStep(openStep === 3 ? 0 : 3)}
+        className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                isStep3Complete
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-indigo-600 text-white'
+              }`}
+            >
+              {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  3. Interactive Section-by-Section Narrative &amp; Question Compiler
+                </h2>
+                <Badge
+                  variant="outline"
+                  className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
+                >
+                  {activeCatalogItem.sectionStructureLabel}
+                </Badge>
+              </div>
+              <p className="mt-0.5 truncate text-xs text-slate-500">
+                Auto-assembles your official application responses from Modules A–K with live word-limit gauges, scoring rubrics, and inline AI calibration.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+          >
+            {isStep3Complete ? 'Edit Step' : 'Open Step'}
+            <ChevronDown className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* STEP 4: MANDATORY APPENDICES A–F EVIDENCE BINDER (Collapsed / Preview)    */}
+      {/* ========================================================================= */}
+      <div
+        id="module-l-step-4"
+        onClick={() => setOpenStep(openStep === 4 ? 0 : 4)}
+        className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                isStep4Complete
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-indigo-600 text-white'
+              }`}
+            >
+              {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  4. Mandatory Appendices &amp; Verifiable Proof Binder (Appendices A–F)
+                </h2>
+                <Badge
+                  variant="outline"
+                  className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
+                >
+                  Appendices A–F
+                </Badge>
+              </div>
+              <p className="mt-0.5 truncate text-xs text-slate-500">
+                Attaches Promoter CVs (App A), 36-Month Financials (App B), Work Packages &amp; 3-Quotes (App C), Survey Proof (App D), Risk Register (App E) &amp; Statutory Setup (App F).
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+          >
+            {isStep4Complete ? 'Edit Step' : 'Open Step'}
+            <ChevronDown className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* STEP 5 (OVERVIEW): OFFICIAL SUBMISSION DOSSIER BRIEF (Strict Section 6.4) */}
+      {/* ========================================================================= */}
+      <div
+        id="module-l-step-5"
+        onClick={() => setOpenStep(openStep === 5 ? 0 : 5)}
+        className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                isStep5Complete
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-indigo-600 text-white'
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  Official Submission Dossier &amp; Executive Brief
+                </h2>
+                <Badge
+                  variant="outline"
+                  className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                >
+                  {completedCoreStepsCount}/5 Sections Ready
+                </Badge>
+              </div>
+              <p className="mt-0.5 truncate text-xs text-slate-500">
+                Final committee submission checklist, Things to Consider review, and 1-click PDF / Standalone HTML / Markdown dossier export.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+          >
+            <span>{isStep5Complete ? 'Open Overview' : 'Review Overview'}</span>
+            <ChevronDown className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

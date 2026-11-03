@@ -2555,6 +2555,163 @@ export interface SavedMasterDocumentData {
   aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
 }
 
+// ============================================================================
+// MODULE L (INTERACTIVE BUSINESS PLAN & OFFICIAL GRANT COMPILER) TYPES
+// ============================================================================
+
+export type ModuleLCompilerModeType =
+  | 'IE_LEO_OFFICIAL_FORM'
+  | 'UK_INNOVATE_UK_9Q'
+  | 'UK_START_UP_LOANS_WORKBOOK'
+  | 'INVESTOR_SEIS_EIS_EII_PACK'
+  | 'STANDARD_COMMERCIAL_PLAN'
+  | 'OTHER';
+
+export type ModuleLNarrativeToneType =
+  | 'EVIDENCE_LED_ASSESSOR'
+  | 'UNDERWRITER_CONSERVATIVE'
+  | 'VENTURE_GROWTH_THESIS'
+  | 'PLAIN_ENGLISH_OPERATOR'
+  | 'OTHER';
+
+export type ModuleLSubmissionObjectiveType =
+  | 'NON_DILUTIVE_CAPITAL_GRANT'
+  | 'GOVERNMENT_LOAN_APPROVAL'
+  | 'TAX_RELIEF_CLEARANCE_AND_SEED'
+  | 'BANK_OR_COMMERCIAL_PARTNERSHIP'
+  | 'OTHER';
+
+export type ModuleLSubmissionWindowType =
+  | 'IMMEDIATE_THIS_MONTH'
+  | 'NEXT_30_TO_60_DAYS'
+  | 'UPCOMING_QUARTER_COHORT'
+  | 'INTERNAL_BOARD_ALIGNMENT'
+  | 'OTHER';
+
+export interface ModuleLStep1ModeSavedData {
+  compilerMode: ModuleLCompilerModeType;
+  otherCompilerModeText?: string;
+  narrativeTone: ModuleLNarrativeToneType;
+  otherNarrativeToneText?: string;
+  submissionObjective: ModuleLSubmissionObjectiveType;
+  otherSubmissionObjectiveText?: string;
+  submissionWindow: ModuleLSubmissionWindowType;
+  otherSubmissionWindowText?: string;
+  targetAgencyOrCommitteeName: string;
+  targetFundingAskAmount: number;
+  includeAppendicesBinder: boolean;
+  strictWordCountEnforcement: boolean;
+  compilerMandateNotes: string;
+  aiAssessorTip?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+  lastSavedAt?: string;
+}
+
+export interface ModuleLContradictionAuditItem {
+  id: string;
+  category:
+    | 'PRICING_VS_VALIDATION'
+    | 'PAYROLL_VS_HEADCOUNT'
+    | 'CASHFLOW_VS_CAPITAL_STACK'
+    | 'PROCUREMENT_ELIGIBILITY'
+    | 'STATUTORY_AND_IP'
+    | 'EXPORT_AND_DISPLACEMENT';
+  title: string;
+  status: 'PASSED' | 'WARNING' | 'CRITICAL';
+  detail: string;
+  assessorImpact: string;
+  targetModuleCode:
+    | 'MOD_A_IDEATION'
+    | 'MOD_B_MARKET'
+    | 'MOD_C_SURVEYS_FEEDBACK'
+    | 'MOD_D_PRODUCT_BUILD'
+    | 'MOD_E_OPERATIONS'
+    | 'MOD_F_COFOUNDER_TEAM'
+    | 'MOD_G_LAUNCHPAD'
+    | 'MOD_H_REVENUE'
+    | 'MOD_I_MARKETING'
+    | 'MOD_J_FINANCE'
+    | 'MOD_K_GRANTS_FUNDING';
+  targetStep?: number;
+  resolvedOrAcknowledged?: boolean;
+}
+
+export interface ModuleLStep2ContradictionAuditSavedData {
+  overallAuditScore: number;
+  auditItems: ModuleLContradictionAuditItem[];
+  acknowledgedItemIds: string[];
+  preFlightDefenseSummary: string;
+  aiAssessorTip?: string;
+  aiEngineUsed?: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'smart-synthesizer';
+  lastAuditedAt?: string;
+  lastSavedAt?: string;
+}
+
+export interface ModuleLCompiledSectionItem {
+  id: string;
+  sectionNumber: number;
+  title: string;
+  assessorQuestionPrompt: string;
+  scoringWeightPercent: number;
+  wordLimit: number;
+  sourceModules: string[];
+  compiledResponseText: string;
+  isCustomEdited?: boolean;
+}
+
+export interface ModuleLStep3NarrativeCompilerSavedData {
+  modeCompiledFor: ModuleLCompilerModeType;
+  sections: ModuleLCompiledSectionItem[];
+  executiveHookStatement: string;
+  aiAssessorTip?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+  lastSavedAt?: string;
+}
+
+export interface ModuleLAppendixBinderItem {
+  code: 'APPENDIX_A' | 'APPENDIX_B' | 'APPENDIX_C' | 'APPENDIX_D' | 'APPENDIX_E' | 'APPENDIX_F';
+  title: string;
+  included: boolean;
+  readinessStatus: 'VERIFIED_READY' | 'PARTIAL_DATA' | 'MISSING_ACTION_REQUIRED';
+  sourceModuleCode:
+    | 'MOD_C_SURVEYS_FEEDBACK'
+    | 'MOD_D_PRODUCT_BUILD'
+    | 'MOD_E_OPERATIONS'
+    | 'MOD_F_COFOUNDER_TEAM'
+    | 'MOD_G_LAUNCHPAD'
+    | 'MOD_J_FINANCE'
+    | 'MOD_K_GRANTS_FUNDING';
+  signOffNote: string;
+}
+
+export interface ModuleLStep4AppendicesSavedData {
+  appendices: ModuleLAppendixBinderItem[];
+  declarationConfirmed: boolean;
+  signatoryName: string;
+  signatoryTitle: string;
+  lastSavedAt?: string;
+}
+
+export interface ModuleLStep5SubmissionBriefSavedData {
+  executiveDossierSummary: string;
+  committeeReadinessScore: number;
+  finalSubmissionChecklist: string[];
+  aiAssessorTip?: string;
+  aiEngineUsed?: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'smart-synthesizer';
+  lastSavedAt?: string;
+}
+
+export interface SavedModuleLData {
+  step1Mode?: ModuleLStep1ModeSavedData;
+  step2Audit?: ModuleLStep2ContradictionAuditSavedData;
+  step3Compiler?: ModuleLStep3NarrativeCompilerSavedData;
+  step4Appendices?: ModuleLStep4AppendicesSavedData;
+  step5DossierBrief?: ModuleLStep5SubmissionBriefSavedData;
+  completionPercentage?: number;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
 export interface ActiveStartupPlan {
   id: string;
   title: string;
@@ -2583,6 +2740,7 @@ export interface ActiveStartupPlan {
   moduleIData?: SavedModuleIData;
   moduleJData?: SavedModuleJData;
   moduleKData?: SavedModuleKData;
+  moduleLData?: SavedModuleLData;
   masterDocumentData?: SavedMasterDocumentData;
   openQuestions: string[];
 }

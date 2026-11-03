@@ -53,6 +53,9 @@ import {
   type SavedModuleGData,
   type SavedModuleHData,
   type SavedModuleIData,
+  type SavedModuleJData,
+  type SavedModuleKData,
+  type SavedModuleLData,
   type SavedMasterDocumentData,
   type SavedValidationSurvey,
   type SavedSurveyResponse,
@@ -148,7 +151,11 @@ async function buildSessionFromDbUser(
     const modG = modRows.find((m) => m.moduleCode === 'MOD_G_LAUNCHPAD');
     const modH = modRows.find((m) => m.moduleCode === 'MOD_H_REVENUE');
     const modI = modRows.find((m) => m.moduleCode === 'MOD_I_MARKETING');
-    const modK = modRows.find(
+    const modJ = modRows.find((m) => m.moduleCode === 'MOD_J_FINANCE');
+    const modKGrants = modRows.find(
+      (m) => m.moduleCode === 'MOD_K_GRANTS_FUNDING'
+    );
+    const modL = modRows.find(
       (m) =>
         m.moduleCode === 'MOD_L_BUSINESS_PLAN' ||
         (m.moduleCode as string) === 'MOD_K_BUSINESS_PLAN'
@@ -180,7 +187,10 @@ async function buildSessionFromDbUser(
     const modGInputs = (modG?.structuredInputsJsonb ?? {}) as SavedModuleGData;
     const modHInputs = (modH?.structuredInputsJsonb ?? {}) as SavedModuleHData;
     const modIInputs = (modI?.structuredInputsJsonb ?? {}) as SavedModuleIData;
-    const modKInputs = (modK?.structuredInputsJsonb ?? {}) as {
+    const modJInputs = (modJ?.structuredInputsJsonb ?? {}) as SavedModuleJData;
+    const modKGrantsInputs = (modKGrants?.structuredInputsJsonb ??
+      {}) as SavedModuleKData;
+    const modLInputs = (modL?.structuredInputsJsonb ?? {}) as SavedModuleLData & {
       masterDocumentData?: SavedMasterDocumentData;
     };
 
@@ -498,8 +508,44 @@ async function buildSessionFromDbUser(
               : modIInputs.thingsToConsider,
           }
         : undefined,
+      moduleJData: modJ
+        ? {
+            ...modJInputs,
+            completionPercentage:
+              modJ.completionPercentage ?? modJInputs.completionPercentage,
+            thingsToConsider: Array.isArray(modJ.aiThingsToConsiderJsonb)
+              ? modJ.aiThingsToConsiderJsonb
+              : modJInputs.thingsToConsider,
+          }
+        : undefined,
+      moduleKData: modKGrants
+        ? {
+            ...modKGrantsInputs,
+            completionPercentage:
+              modKGrants.completionPercentage ??
+              modKGrantsInputs.completionPercentage,
+            thingsToConsider: Array.isArray(modKGrants.aiThingsToConsiderJsonb)
+              ? modKGrants.aiThingsToConsiderJsonb
+              : modKGrantsInputs.thingsToConsider,
+          }
+        : undefined,
+      moduleLData: modL
+        ? {
+            step1Mode: modLInputs.step1Mode,
+            step2Audit: modLInputs.step2Audit,
+            step3Compiler: modLInputs.step3Compiler,
+            step4Appendices: modLInputs.step4Appendices,
+            step5DossierBrief: modLInputs.step5DossierBrief,
+            completionPercentage:
+              modL.completionPercentage ?? modLInputs.completionPercentage,
+            thingsToConsider: Array.isArray(modL.aiThingsToConsiderJsonb)
+              ? modL.aiThingsToConsiderJsonb
+              : modLInputs.thingsToConsider,
+            lastSavedAt: modLInputs.lastSavedAt,
+          }
+        : undefined,
       masterDocumentData:
-        modKInputs.masterDocumentData || structuredInputs.masterDocumentData,
+        modLInputs.masterDocumentData || structuredInputs.masterDocumentData,
       openQuestions: questionRows.map((q) => q.questionText),
     });
   }

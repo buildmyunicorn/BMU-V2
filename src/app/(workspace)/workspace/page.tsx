@@ -250,6 +250,8 @@ import { ModuleHWorkspace } from '@/components/workspace/module-h-workspace';
 import { ModuleIWorkspace } from '@/components/workspace/module-i-workspace';
 import { ModuleJWorkspace } from '@/components/workspace/module-j-workspace';
 import { ModuleKWorkspace } from '@/components/workspace/module-k-workspace';
+import { ModuleLWorkspace } from '@/components/workspace/module-l-workspace';
+import { saveModuleLStep1ModeAction } from '@/app/actions/module-l';
 import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
 import { LocalBugCaptureWidget } from '@/components/workspace/local-bug-capture-widget';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
@@ -624,8 +626,7 @@ export default function WorkspacePage() {
 
         if (
           viewParam === 'master_doc' ||
-          moduleParam === 'master_doc' ||
-          moduleParam === 'MOD_L_BUSINESS_PLAN'
+          moduleParam === 'master_doc'
         ) {
           resolvedMasterDoc = true;
         } else if (moduleParam) {
@@ -1065,12 +1066,8 @@ export default function WorkspacePage() {
                 dbPlan.currentModuleStep
               );
               if (cloudFromStep) {
-                if (cloudFromStep === 'MOD_L_BUSINESS_PLAN') {
-                  setIsMasterDocumentOpen(true);
-                } else {
-                  setIsMasterDocumentOpen(false);
-                  setActiveModule(cloudFromStep);
-                }
+                setIsMasterDocumentOpen(false);
+                setActiveModule(cloudFromStep);
               }
             }
           }
@@ -1149,8 +1146,7 @@ export default function WorkspacePage() {
 
       if (
         viewParam === 'master_doc' ||
-        moduleParam === 'master_doc' ||
-        moduleParam === 'MOD_L_BUSINESS_PLAN'
+        moduleParam === 'master_doc'
       ) {
         setIsMasterDocumentOpen(true);
         setModuleNavTarget(null);
@@ -1412,12 +1408,8 @@ export default function WorkspacePage() {
         } else {
           const fromStep = resolveModuleFromStep(found.currentModuleStep);
           if (fromStep) {
-            if (fromStep === 'MOD_L_BUSINESS_PLAN') {
-              setIsMasterDocumentOpen(true);
-            } else {
-              setIsMasterDocumentOpen(false);
-              setActiveModule(fromStep);
-            }
+            setIsMasterDocumentOpen(false);
+            setActiveModule(fromStep);
           }
         }
       }
@@ -4990,19 +4982,15 @@ export default function WorkspacePage() {
                                       ? moduleJProgressPercent
                                       : mod.code === 'MOD_K_GRANTS_FUNDING'
                                         ? (currentPlan.moduleKData?.completionPercentage || (activeModule === 'MOD_K_GRANTS_FUNDING' ? 15 : 0))
-                                        : mod.progress;
+                                        : mod.code === 'MOD_L_BUSINESS_PLAN'
+                                          ? (currentPlan.moduleLData?.completionPercentage || (activeModule === 'MOD_L_BUSINESS_PLAN' ? 20 : 0))
+                                          : mod.progress;
 
                   return (
                     <button
                       key={mod.code}
                       type="button"
                       onClick={() => {
-                        if (mod.code === 'MOD_L_BUSINESS_PLAN') {
-                          setIsMasterDocumentOpen(true);
-                          setMobileSidebarOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                          return;
-                        }
                         if (!access.allowed) {
                           setPendingModuleAfterUnlock(mod.code);
                           setPaywallModalFeature(
@@ -5021,7 +5009,8 @@ export default function WorkspacePage() {
                           mod.code === 'MOD_H_REVENUE' ||
                           mod.code === 'MOD_I_MARKETING' ||
                           mod.code === 'MOD_J_FINANCE' ||
-                          mod.code === 'MOD_K_GRANTS_FUNDING'
+                          mod.code === 'MOD_K_GRANTS_FUNDING' ||
+                          mod.code === 'MOD_L_BUSINESS_PLAN'
                         ) {
                           setMobileSidebarOpen(false);
                           navigateToModuleWithHistory(mod.code);
@@ -6218,6 +6207,75 @@ export default function WorkspacePage() {
                   return;
                 }
                 navigateToModuleWithHistory('MOD_L_BUSINESS_PLAN');
+              }}
+              onNavigateToModule={(modCode, targetStep, highlightId) => {
+                const access = canAccessModule(activeEntitlement, modCode);
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock(modCode);
+                  setPaywallModalFeature(
+                    access.reason || 'This module requires an upgraded plan.'
+                  );
+                  return;
+                }
+                navigateToModuleWithHistory(modCode, targetStep, highlightId);
+              }}
+            />
+          ) : activeModule === 'MOD_L_BUSINESS_PLAN' ? (
+            <ModuleLWorkspace
+              key={`mod-l-${currentPlan.id}`}
+              plan={{
+                ...currentPlan,
+                hqCountryCode: selectedCountry,
+                brainDumpText,
+                conceptCanvas: effectiveCanvas,
+                founderMotivation,
+                teamAndBudget,
+                founderRealityCheck,
+                thingsToConsider: liveThingsToConsider,
+                openQuestions,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              initialStep={moduleNavTarget?.step}
+              onSaveStep1Mode={async (step1Data, progress = 20) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_L_STEP_1_MODE',
+                      moduleLData: {
+                        ...(p.moduleLData || {}),
+                        step1Mode: step1Data,
+                        completionPercentage: Math.max(
+                          p.moduleLData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+
+                await saveModuleLStep1ModeAction({
+                  planId: currentPlan.id,
+                  step1Mode: step1Data,
+                  completionPercentage: progress,
+                });
+              }}
+              onParkQuestionInSession={handleParkSpecificQuestion}
+              onBackToModuleK={() => {
+                navigateToModuleWithHistory('MOD_K_GRANTS_FUNDING', 5, 'module-k-step-5');
+              }}
+              onOpenMasterBlueprint={() => {
+                setIsMasterDocumentOpen(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               onNavigateToModule={(modCode, targetStep, highlightId) => {
                 const access = canAccessModule(activeEntitlement, modCode);
