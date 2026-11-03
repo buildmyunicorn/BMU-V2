@@ -96,6 +96,19 @@ import type {
   OperationsBlindSpotSeverityType,
   OperationsReadinessConfidenceType,
   OperationsBlindSpotItem,
+  First10AcquisitionArchetype,
+  First10ProspectItem,
+  First10PilotOffer,
+  First10OutreachScripts,
+  First10FollowUpCadence,
+  First10ObjectionBusters,
+  First10LetterOfIntent,
+  First10PlaybookStep3Data,
+  BudgetGoalPreset,
+  MarketingBudgetBucketType,
+  MarketingGrantEligibilityStatus,
+  MarketingBudgetLineItem,
+  MarketingBudgetStep4Data,
 } from '@/lib/auth/session-store';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 
@@ -11477,13 +11490,2032 @@ Return strictly valid JSON:
 }
 
 
+// ============================================================================
+// MODULE I: BRAND POSITIONING & 3-SECOND HOOK (MOD_I_POSITIONING)
+// ============================================================================
 
+export interface GenerateModuleIPositioningParams {
+  planId?: string;
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  oneLinerSummary?: string;
+  problemStatement?: string;
+  solutionStatement?: string;
+  uvpStatement?: string;
+  targetCustomer?: string;
+  beachheadPersona?: string;
+  competitiveWedge?: string;
+  preferredTone?: string;
+}
 
+export interface GenerateModuleIPositioningResult {
+  allowed: boolean;
+  elevatorHook140: string;
+  positioningFormula: {
+    targetCustomer: string;
+    customerProblem: string;
+    solutionCategory: string;
+    primaryBenefit: string;
+    competitiveWedge: string;
+  };
+  suggestedToneOfVoice:
+    | 'AUTHORITATIVE_TRUSTED'
+    | 'APPROACHABLE_FRIENDLY'
+    | 'PLAYFUL_BOLD'
+    | 'TECHNICAL_TRANSPARENT'
+    | 'PREMIUM_CURATED'
+    | 'OTHER';
+  otherToneOfVoiceText?: string;
+  toneOfVoiceBoundary: {
+    weAre: string;
+    weAreNever: string;
+  };
+  corePillars: [string, string, string];
+  assessorTip?: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer' | 'unauthorized';
+}
 
+function buildSmartPositioningFallback(
+  params: GenerateModuleIPositioningParams
+): GenerateModuleIPositioningResult {
+  const title = params.planTitle?.trim() || 'Our Venture';
+  const category = params.industryCategory || 'B2B SaaS / AI App';
+  const customer =
+    params.beachheadPersona?.trim() ||
+    params.targetCustomer?.trim() ||
+    'early-stage founders and modern operators';
+  const problem =
+    params.problemStatement?.trim() ||
+    'time-consuming manual processes and fragmented guesswork';
+  const solution =
+    params.solutionStatement?.trim() ||
+    params.oneLinerSummary?.trim() ||
+    'an intelligent end-to-end workflow platform';
+  const wedge =
+    params.competitiveWedge?.trim() ||
+    'generic templates and disconnected spreadsheets with automated validation';
 
+  let defaultTone: GenerateModuleIPositioningResult['suggestedToneOfVoice'] =
+    'AUTHORITATIVE_TRUSTED';
+  let weAre = 'Authoritative, evidence-backed, and practical';
+  let weAreNever = 'Bureaucratic, dry, or full of unnecessary jargon';
 
+  if (category.includes('Consumer') || category.includes('Social')) {
+    defaultTone = 'PLAYFUL_BOLD';
+    weAre = 'Energetic, refreshing, and relatable';
+    weAreNever = 'Stuffy, corporate, or dull';
+  } else if (category.includes('Hardware') || category.includes('DeepTech') || category.includes('API')) {
+    defaultTone = 'TECHNICAL_TRANSPARENT';
+    weAre = 'Precise, engineering-led, and no-fluff';
+    weAreNever = 'Marketing-hyped or hand-wavy';
+  } else if (category.includes('Service') || category.includes('Consulting')) {
+    defaultTone = 'APPROACHABLE_FRIENDLY';
+    weAre = 'Empathetic, clear, and action-oriented';
+    weAreNever = 'Condescending or overwhelming';
+  }
 
+  // Create crisp <= 140 char elevator hook
+  let hook = `${title} helps ${customer} overcome ${problem.slice(0, 40)} with ${solution.slice(0, 40)}.`;
+  if (hook.length > 138) {
+    hook = hook.slice(0, 137).trim() + '...';
+  }
 
+  const pCustomer = customer.startsWith('For') ? customer.replace(/^For\s+/i, '') : customer;
+  const pBenefit = params.uvpStatement?.trim() || `streamlining execution and accelerating measurable outcomes`;
 
+  return {
+    allowed: true,
+    elevatorHook140: hook,
+    positioningFormula: {
+      targetCustomer: pCustomer,
+      customerProblem: problem,
+      solutionCategory: solution,
+      primaryBenefit: pBenefit,
+      competitiveWedge: wedge,
+    },
+    suggestedToneOfVoice: defaultTone,
+    toneOfVoiceBoundary: {
+      weAre,
+      weAreNever,
+    },
+    corePillars: [
+      'Radical Efficiency & Speed',
+      'Defensible & Trustworthy Proof',
+      'Zero-Friction Founder Experience',
+    ],
+    assessorTip:
+      'Grant panels and investors look for consistency: ensure the target customer named here matches your Module B beachhead persona verbatim.',
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generateModuleIPositioningViaRouter(
+  params: GenerateModuleIPositioningParams
+): Promise<GenerateModuleIPositioningResult> {
+  const fallback = buildSmartPositioningFallback(params);
+  const isIE = (params.hqCountryCode || 'IE') !== 'GB';
+  const countryContext = isIE
+    ? 'Ireland (Local Enterprise Office / Enterprise Ireland commercial panel)'
+    : 'United Kingdom (Innovate UK & British Business Bank Start Up Loans committee)';
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_I_POSITIONING',
+    'You are an elite startup brand strategist, product marketer, and grant appraisal expert who crafts razor-sharp positioning, 140-character elevator hooks, and defensible value propositions.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `Develop a world-class Brand Positioning & Value Proposition architecture for ${sanitizePromptInput(
+        params.planTitle || 'Startup',
+        100
+      )} in ${countryContext}.
+
+CONTEXT & FOUNDER DATA:
+- Industry Category: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+- One-Liner Summary: ${sanitizePromptInput(params.oneLinerSummary || '', 200)}
+- Problem Statement: ${sanitizePromptInput(params.problemStatement || '', 250)}
+- Solution Concept: ${sanitizePromptInput(params.solutionStatement || '', 250)}
+- Unique Value Prop: ${sanitizePromptInput(params.uvpStatement || '', 250)}
+- Beachhead Persona (Mod B): ${sanitizePromptInput(params.beachheadPersona || params.targetCustomer || '', 200)}
+- Competitive Wedge (Mod B): ${sanitizePromptInput(params.competitiveWedge || '', 200)}
+- Preferred Tone: ${params.preferredTone || fallback.suggestedToneOfVoice}
+
+TASK REQUIREMENTS:
+1. Elevator Hook (STRICT: MAXIMUM 140 CHARACTERS): A punchy, memorably clear one-sentence hook designed for a landing page H1, Twitter bio, or elevator intro. It MUST be <= 140 characters.
+2. Classic Positioning Statement (Geoffrey Moore formula):
+   - targetCustomer: "For [specific target customer persona]..."
+   - customerProblem: "...who [core urgent pain point or frustration]..."
+   - solutionCategory: "...[Company Name] is a [clear product vehicle / category]..."
+   - primaryBenefit: "...that [single primary transformative outcome/benefit]..."
+   - competitiveWedge: "...unlike [status quo or alternative competitors], we [unfair advantage / unique capability]..."
+3. Tone of Voice:
+   - Select one matching: AUTHORITATIVE_TRUSTED, APPROACHABLE_FRIENDLY, PLAYFUL_BOLD, TECHNICAL_TRANSPARENT, PREMIUM_CURATED.
+   - Tone Boundaries ("We are [X] but never [Y]"): Give concrete 1-line guidance on brand voice guardrails.
+4. Core Brand Pillars: Exactly 3 crisp, memorable pillars (3-6 words each) that anchor all marketing collateral and website sections.
+5. Assessor Tip: 1 sentence advice for presenting this positioning during a commercial panel or grant interview.
+
+Return strictly valid JSON:
+{
+  "elevatorHook140": "string (max 140 chars)",
+  "positioningFormula": {
+    "targetCustomer": "string",
+    "customerProblem": "string",
+    "solutionCategory": "string",
+    "primaryBenefit": "string",
+    "competitiveWedge": "string"
+  },
+  "suggestedToneOfVoice": "AUTHORITATIVE_TRUSTED" | "APPROACHABLE_FRIENDLY" | "PLAYFUL_BOLD" | "TECHNICAL_TRANSPARENT" | "PREMIUM_CURATED",
+  "toneOfVoiceBoundary": {
+    "weAre": "string",
+    "weAreNever": "string"
+  },
+  "corePillars": ["string", "string", "string"],
+  "assessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          maxOutputTokens: 1024,
+          temperature: 0.3,
+        },
+      });
+
+      const text = response.text?.trim() || '';
+      if (text) {
+        const parsed = JSON.parse(text);
+        let hook = String(parsed.elevatorHook140 || fallback.elevatorHook140).trim();
+        if (hook.length > 140) {
+          hook = hook.slice(0, 137).trim() + '...';
+        }
+
+        const validTones = [
+          'AUTHORITATIVE_TRUSTED',
+          'APPROACHABLE_FRIENDLY',
+          'PLAYFUL_BOLD',
+          'TECHNICAL_TRANSPARENT',
+          'PREMIUM_CURATED',
+        ];
+        const tone = validTones.includes(parsed.suggestedToneOfVoice)
+          ? parsed.suggestedToneOfVoice
+          : fallback.suggestedToneOfVoice;
+
+        const pillars: [string, string, string] = Array.isArray(parsed.corePillars) &&
+          parsed.corePillars.length >= 3
+            ? [
+                String(parsed.corePillars[0]).trim(),
+                String(parsed.corePillars[1]).trim(),
+                String(parsed.corePillars[2]).trim(),
+              ]
+            : fallback.corePillars;
+
+        await recordGeminiUsageAndIncrementCredits({
+          verifiedUserId: authCtx.verifiedUserId,
+          promptKey: 'MOD_I_POSITIONING',
+          modelUsed: 'gemini-2.5-flash',
+          inputTokens: response.usageMetadata?.promptTokenCount || 600,
+          outputTokens: response.usageMetadata?.candidatesTokenCount || 400,
+          usedByokKey: authCtx.usedByokKey,
+          fallbackCreditsUsed: authCtx.currentCreditsUsed,
+        });
+
+        return {
+          allowed: true,
+          elevatorHook140: hook,
+          positioningFormula: {
+            targetCustomer:
+              parsed.positioningFormula?.targetCustomer?.trim() ||
+              fallback.positioningFormula.targetCustomer,
+            customerProblem:
+              parsed.positioningFormula?.customerProblem?.trim() ||
+              fallback.positioningFormula.customerProblem,
+            solutionCategory:
+              parsed.positioningFormula?.solutionCategory?.trim() ||
+              fallback.positioningFormula.solutionCategory,
+            primaryBenefit:
+              parsed.positioningFormula?.primaryBenefit?.trim() ||
+              fallback.positioningFormula.primaryBenefit,
+            competitiveWedge:
+              parsed.positioningFormula?.competitiveWedge?.trim() ||
+              fallback.positioningFormula.competitiveWedge,
+          },
+          suggestedToneOfVoice: tone,
+          toneOfVoiceBoundary: {
+            weAre:
+              parsed.toneOfVoiceBoundary?.weAre?.trim() ||
+              fallback.toneOfVoiceBoundary.weAre,
+            weAreNever:
+              parsed.toneOfVoiceBoundary?.weAreNever?.trim() ||
+              fallback.toneOfVoiceBoundary.weAreNever,
+          },
+          corePillars: pillars,
+          assessorTip: parsed.assessorTip?.trim() || fallback.assessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err) {
+      console.error('Error in generateModuleIPositioningViaRouter:', err);
+    }
+  }
+
+  return fallback;
+}
+
+// --- MODULE I STEP 2: THE MODERN 4PS STRATEGY & CHANNEL DISTRIBUTION MATRIX ---
+
+export interface GenerateModuleIFourPsParams {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  baseCurrency?: string;
+  elevatorHook140?: string;
+  targetCustomer?: string;
+  customerProblem?: string;
+  solutionCategory?: string;
+  primaryBenefit?: string;
+  competitiveWedge?: string;
+  pricingVehicleFromModH?: string;
+  blendedAveragePriceFromModH?: number;
+  productVehicleFromModD?: string;
+  headlinePricePointInput?: string;
+}
+
+export interface GenerateModuleIFourPsResult {
+  allowed: boolean;
+  reason?: string;
+  productP1: {
+    packagingType:
+      | 'DIGITAL_SAAS_CLOUD'
+      | 'PHYSICAL_D2C_PRODUCT'
+      | 'HIGH_TOUCH_SERVICE'
+      | 'MARKETPLACE_PLATFORM'
+      | 'HYBRID_HARDWARE_SOFTWARE'
+      | 'OTHER';
+    otherPackagingTypeText?: string;
+    coreDeliverableSummary: string;
+    perceivedValueDriver: string;
+  };
+  priceP2: {
+    pricingStance:
+      | 'VALUE_BASED_PREMIUM'
+      | 'COMPETITIVE_PARITY'
+      | 'PENETRATION_LOSS_LEADER'
+      | 'FREEMIUM_EXPAND'
+      | 'TIERED_FLAT_SUBSCRIPTION'
+      | 'USAGE_BASED_METERED'
+      | 'OTHER';
+    otherPricingStanceText?: string;
+    headlinePricePoint: string;
+    priceJustification: string;
+    paymentTermsOrFrictionReducer: string;
+  };
+  placeP3: {
+    primaryChannel:
+      | 'DIRECT_WEB_SELF_SERVE'
+      | 'OUTBOUND_DIRECT_SALES'
+      | 'MARKETPLACE_APPSTORE'
+      | 'PARTNER_RESELLER_NETWORK'
+      | 'EVENTS_RETAIL_COMMUNITY'
+      | 'OTHER';
+    otherPrimaryChannelText?: string;
+    secondaryChannels: string[];
+    customerJourneyFrictionPoint: string;
+    frictionMitigationPlan: string;
+  };
+  promotionP4: {
+    primaryAcquisitionEngine:
+      | 'FOUNDER_LED_ORGANIC'
+      | 'OUTBOUND_ACCOUNT_BASED'
+      | 'SEARCH_INTENT_SEO'
+      | 'PAID_PERFORMANCE_ADS'
+      | 'COMMUNITY_PARTNERSHIP'
+      | 'OTHER';
+    otherAcquisitionEngineText?: string;
+    beachheadChannelTactics: string;
+    primarySocialHub: string;
+    contentOrCampaignHook: string;
+  };
+  strategicRationale: string;
+  grantAssessorTip?: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer' | 'unauthorized';
+}
+
+export function buildSmartFourPsFallback(
+  params: GenerateModuleIFourPsParams
+): GenerateModuleIFourPsResult {
+  const title = params.planTitle?.trim() || 'Our Venture';
+  const category = (params.industryCategory || 'B2B SaaS / AI App').toLowerCase();
+  const customer = params.targetCustomer?.trim() || 'target decision-makers';
+  const problem = params.customerProblem?.trim() || 'costly manual bottlenecks and inefficiencies';
+  const benefit = params.primaryBenefit?.trim() || 'measurably faster execution and reduced operational overhead';
+  const wedge = params.competitiveWedge?.trim() || 'faster time-to-value without legacy lock-in';
+  const currSym = params.baseCurrency === 'GBP' ? '£' : params.baseCurrency === 'USD' ? '$' : '€';
+  const avgPrice = params.blendedAveragePriceFromModH || 79;
+  const resolvedPricePoint = params.headlinePricePointInput?.trim()
+    ? params.headlinePricePointInput.trim()
+    : null;
+
+  const isB2bOrTech =
+    category.includes('saas') ||
+    category.includes('b2b') ||
+    category.includes('tech') ||
+    category.includes('ai') ||
+    category.includes('fintech') ||
+    category.includes('software');
+
+  const isPhysicalOrD2c =
+    category.includes('food') ||
+    category.includes('beverage') ||
+    category.includes('retail') ||
+    category.includes('ecommerce') ||
+    category.includes('hardware') ||
+    category.includes('consumer');
+
+  if (isPhysicalOrD2c) {
+    return {
+      allowed: true,
+      productP1: {
+        packagingType: 'PHYSICAL_D2C_PRODUCT',
+        coreDeliverableSummary: `${title} delivered in premium, sustainable protective packaging with verified batch traceability and quick-start onboarding insert.`,
+        perceivedValueDriver: `Uncompromising artisanal ingredient quality, 100% recyclable unboxing aesthetic, and transparent sourcing proof.`,
+      },
+      priceP2: {
+        pricingStance: 'VALUE_BASED_PREMIUM',
+        headlinePricePoint:
+          resolvedPricePoint ||
+          `${currSym}${avgPrice > 0 ? avgPrice : 38} per order / subscription box`,
+        priceJustification: `Positioned in the accessible premium tier — superior quality and health credentials justify a 15–20% premium over generic supermarket alternatives.`,
+        paymentTermsOrFrictionReducer: `First-order 100% satisfaction taste guarantee with 1-click subscription pause/cancellation anytime.`,
+      },
+      placeP3: {
+        primaryChannel: 'DIRECT_WEB_SELF_SERVE',
+        secondaryChannels: ['EVENTS_RETAIL_COMMUNITY', 'PARTNER_RESELLER_NETWORK'],
+        customerJourneyFrictionPoint: `First-time hesitation regarding taste, delivery speed, and commitment to a recurring order.`,
+        frictionMitigationPlan: `Low-barrier starter trial pack with free local delivery and social proof testimonials from early waitlist testers.`,
+      },
+      promotionP4: {
+        primaryAcquisitionEngine: 'FOUNDER_LED_ORGANIC',
+        beachheadChannelTactics: `Behind-the-scenes founder storytelling on Instagram/TikTok detailing the sourcing journey, paired with local weekend food festival sampling booths.`,
+        primarySocialHub: 'Instagram',
+        contentOrCampaignHook: `Why standard supermarket alternatives cut corners on ingredients — and the exact recipe behind our first batch.`,
+      },
+      strategicRationale: `Direct-to-consumer digital channels maximize gross margins while direct physical sampling builds authentic word-of-mouth advocates.`,
+      grantAssessorTip: `LEO and grant evaluators favor physical brands that demonstrate defensible margins (>60% gross) and clear domestic-to-export supply-chain capability.`,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  // Default to B2B SaaS / High-Growth Digital Service
+  return {
+    allowed: true,
+    productP1: {
+      packagingType: isB2bOrTech ? 'DIGITAL_SAAS_CLOUD' : 'HIGH_TOUCH_SERVICE',
+      coreDeliverableSummary: `Self-serve cloud platform access for ${customer} featuring automated data ingestion, pre-configured workflow templates, and exportable executive summaries.`,
+      perceivedValueDriver: `Sub-5 minute initial setup, zero code or IT integration required, and dedicated async onboarding guidance from product experts.`,
+    },
+    priceP2: {
+      pricingStance: 'VALUE_BASED_PREMIUM',
+      headlinePricePoint:
+        resolvedPricePoint ||
+        `${currSym}${avgPrice > 0 ? avgPrice : 89}/month (or ${currSym}${Math.round((avgPrice > 0 ? avgPrice : 89) * 10)}/year upfront)`,
+      priceJustification: `Priced at less than 10% of the quantifiable monthly cost of ${problem}, delivering an immediate ROI within the first 30 days of implementation.`,
+      paymentTermsOrFrictionReducer: `14-day full feature trial (no credit card required) plus 30-day money-back implementation guarantee.`,
+    },
+    placeP3: {
+      primaryChannel: isB2bOrTech ? 'DIRECT_WEB_SELF_SERVE' : 'OUTBOUND_DIRECT_SALES',
+      secondaryChannels: ['OUTBOUND_DIRECT_SALES', 'PARTNER_RESELLER_NETWORK'],
+      customerJourneyFrictionPoint: `Prospective users hesitating during onboarding when asked to import or connect their own proprietary data.`,
+      frictionMitigationPlan: `Interactive pre-populated demo sandbox and 1-click sample data generator so users see instant value before uploading real files.`,
+    },
+    promotionP4: {
+      primaryAcquisitionEngine: 'FOUNDER_LED_ORGANIC',
+      beachheadChannelTactics: `Founder-led tactical teardowns on LinkedIn twice weekly analyzing common pitfalls in the industry, followed by high-touch 1-on-1 direct messaging to engage interested commenters.`,
+      primarySocialHub: 'LinkedIn',
+      contentOrCampaignHook: `The 3 costliest mistakes ${customer} make when tackling ${problem} — and the lightweight playbook that solves it.`,
+    },
+    strategicRationale: `Focusing on a single high-trust beachhead channel (founder-led authority) avoids premature ad spend while generating high-intent feedback loops directly with early adopters.`,
+    grantAssessorTip: `Grant evaluators at LEO and Innovate UK check whether your customer acquisition channel matches your customer's natural procurement habits. B2B software must show direct access to real buyers.`,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generateModuleIFourPsViaRouter(
+  params: GenerateModuleIFourPsParams
+): Promise<GenerateModuleIFourPsResult> {
+  const fallback = buildSmartFourPsFallback(params);
+  const isIE = (params.hqCountryCode || 'IE') !== 'GB';
+  const countryContext = isIE
+    ? 'Ireland (Local Enterprise Office / Enterprise Ireland commercial validation panel)'
+    : 'United Kingdom (Innovate UK & British Business Bank Start Up Loans assessment committee)';
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_I_FOUR_PS',
+    'You are a senior Chief Marketing Officer (CMO), Go-To-Market (GTM) strategist, and startup grant appraisal specialist who builds disciplined, defensible Modern 4Ps marketing plans.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `Synthesize a rigorous, practical Modern 4Ps Strategy (Product, Price, Place, Promotion) for ${sanitizePromptInput(
+        params.planTitle || 'Startup',
+        100
+      )} in ${countryContext}.
+
+CONTEXT ABOUT THE VENTURE:
+- Industry Category: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+- 140-Character Hook: ${sanitizePromptInput(params.elevatorHook140 || '', 200)}
+- Target Customer / Beachhead: ${sanitizePromptInput(params.targetCustomer || '', 150)}
+- Customer Core Problem: ${sanitizePromptInput(params.customerProblem || '', 200)}
+- Proposed Solution: ${sanitizePromptInput(params.solutionCategory || '', 200)}
+- Primary Benefit: ${sanitizePromptInput(params.primaryBenefit || '', 200)}
+- Competitive Wedge: ${sanitizePromptInput(params.competitiveWedge || '', 200)}
+- Module H Pricing Context: ${sanitizePromptInput(params.pricingVehicleFromModH || '', 100)}, Blended Price: ${params.baseCurrency || 'EUR'} ${params.blendedAveragePriceFromModH || 79}
+${params.headlinePricePointInput ? `- Upstream Headline Price Anchor (Priority): ${sanitizePromptInput(params.headlinePricePointInput, 100)}` : ''}
+- Module D Product Vehicle: ${sanitizePromptInput(params.productVehicleFromModD || '', 100)}
+
+INSTRUCTIONS:
+Generate a cohesive Modern 4Ps strategy tailored specifically to early-stage execution (0 to 100 customers):
+1. Product (P1): Packaging type, exact core deliverable summary, perceived value driver that turns software/product into an irresistible purchase.
+2. Price (P2): Strategic pricing stance, specific headline price point (align with Upstream Headline Price Anchor if provided), rock-solid price justification against customer inaction, payment terms/friction reducer (free trial, money back, net 30).
+3. Place / Distribution (P3): Single primary distribution vehicle, secondary channels, exact friction point where buyers get stuck, tactical friction mitigation plan.
+4. Promotion (P4): Single primary acquisition engine to master first (founder-led organic, outbound account-based, search SEO, paid ads, or community/partnership), step-by-step beachhead channel tactics, primary social hub (e.g. LinkedIn, Instagram, TikTok, X), and first content or campaign headline hook.
+5. Strategic Rationale: 2 concise sentences explaining why this 4Ps combination minimizes founder burn and accelerates conversion.
+6. Grant Assessor Tip: 1-sentence tip on how grant appraisers (LEO / Innovate UK) will evaluate this marketing mix.
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "productP1": {
+    "packagingType": "DIGITAL_SAAS_CLOUD" | "PHYSICAL_D2C_PRODUCT" | "HIGH_TOUCH_SERVICE" | "MARKETPLACE_PLATFORM" | "HYBRID_HARDWARE_SOFTWARE" | "OTHER",
+    "otherPackagingTypeText": string or null,
+    "coreDeliverableSummary": string,
+    "perceivedValueDriver": string
+  },
+  "priceP2": {
+    "pricingStance": "VALUE_BASED_PREMIUM" | "COMPETITIVE_PARITY" | "PENETRATION_LOSS_LEADER" | "FREEMIUM_EXPAND" | "TIERED_FLAT_SUBSCRIPTION" | "USAGE_BASED_METERED" | "OTHER",
+    "otherPricingStanceText": string or null,
+    "headlinePricePoint": string,
+    "priceJustification": string,
+    "paymentTermsOrFrictionReducer": string
+  },
+  "placeP3": {
+    "primaryChannel": "DIRECT_WEB_SELF_SERVE" | "OUTBOUND_DIRECT_SALES" | "MARKETPLACE_APPSTORE" | "PARTNER_RESELLER_NETWORK" | "EVENTS_RETAIL_COMMUNITY" | "OTHER",
+    "otherPrimaryChannelText": string or null,
+    "secondaryChannels": string[],
+    "customerJourneyFrictionPoint": string,
+    "frictionMitigationPlan": string
+  },
+  "promotionP4": {
+    "primaryAcquisitionEngine": "FOUNDER_LED_ORGANIC" | "OUTBOUND_ACCOUNT_BASED" | "SEARCH_INTENT_SEO" | "PAID_PERFORMANCE_ADS" | "COMMUNITY_PARTNERSHIP" | "OTHER",
+    "otherAcquisitionEngineText": string or null,
+    "beachheadChannelTactics": string,
+    "primarySocialHub": string,
+    "contentOrCampaignHook": string
+  },
+  "strategicRationale": string,
+  "grantAssessorTip": string
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          temperature: 0.25,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const responseText = response.text;
+      if (responseText) {
+        const parsed = JSON.parse(responseText);
+
+        const packaging = [
+          'DIGITAL_SAAS_CLOUD',
+          'PHYSICAL_D2C_PRODUCT',
+          'HIGH_TOUCH_SERVICE',
+          'MARKETPLACE_PLATFORM',
+          'HYBRID_HARDWARE_SOFTWARE',
+          'OTHER',
+        ].includes(parsed.productP1?.packagingType)
+          ? parsed.productP1.packagingType
+          : fallback.productP1.packagingType;
+
+        const stance = [
+          'VALUE_BASED_PREMIUM',
+          'COMPETITIVE_PARITY',
+          'PENETRATION_LOSS_LEADER',
+          'FREEMIUM_EXPAND',
+          'TIERED_FLAT_SUBSCRIPTION',
+          'USAGE_BASED_METERED',
+          'OTHER',
+        ].includes(parsed.priceP2?.pricingStance)
+          ? parsed.priceP2.pricingStance
+          : fallback.priceP2.pricingStance;
+
+        const channel = [
+          'DIRECT_WEB_SELF_SERVE',
+          'OUTBOUND_DIRECT_SALES',
+          'MARKETPLACE_APPSTORE',
+          'PARTNER_RESELLER_NETWORK',
+          'EVENTS_RETAIL_COMMUNITY',
+          'OTHER',
+        ].includes(parsed.placeP3?.primaryChannel)
+          ? parsed.placeP3.primaryChannel
+          : fallback.placeP3.primaryChannel;
+
+        const engine = [
+          'FOUNDER_LED_ORGANIC',
+          'OUTBOUND_ACCOUNT_BASED',
+          'SEARCH_INTENT_SEO',
+          'PAID_PERFORMANCE_ADS',
+          'COMMUNITY_PARTNERSHIP',
+          'OTHER',
+        ].includes(parsed.promotionP4?.primaryAcquisitionEngine)
+          ? parsed.promotionP4.primaryAcquisitionEngine
+          : fallback.promotionP4.primaryAcquisitionEngine;
+
+        return {
+          allowed: true,
+          productP1: {
+            packagingType: packaging,
+            otherPackagingTypeText: parsed.productP1?.otherPackagingTypeText?.trim() || undefined,
+            coreDeliverableSummary:
+              parsed.productP1?.coreDeliverableSummary?.trim() ||
+              fallback.productP1.coreDeliverableSummary,
+            perceivedValueDriver:
+              parsed.productP1?.perceivedValueDriver?.trim() ||
+              fallback.productP1.perceivedValueDriver,
+          },
+          priceP2: {
+            pricingStance: stance,
+            otherPricingStanceText: parsed.priceP2?.otherPricingStanceText?.trim() || undefined,
+            headlinePricePoint:
+              parsed.priceP2?.headlinePricePoint?.trim() ||
+              fallback.priceP2.headlinePricePoint,
+            priceJustification:
+              parsed.priceP2?.priceJustification?.trim() ||
+              fallback.priceP2.priceJustification,
+            paymentTermsOrFrictionReducer:
+              parsed.priceP2?.paymentTermsOrFrictionReducer?.trim() ||
+              fallback.priceP2.paymentTermsOrFrictionReducer,
+          },
+          placeP3: {
+            primaryChannel: channel,
+            otherPrimaryChannelText: parsed.placeP3?.otherPrimaryChannelText?.trim() || undefined,
+            secondaryChannels: Array.isArray(parsed.placeP3?.secondaryChannels)
+              ? parsed.placeP3.secondaryChannels
+              : fallback.placeP3.secondaryChannels,
+            customerJourneyFrictionPoint:
+              parsed.placeP3?.customerJourneyFrictionPoint?.trim() ||
+              fallback.placeP3.customerJourneyFrictionPoint,
+            frictionMitigationPlan:
+              parsed.placeP3?.frictionMitigationPlan?.trim() ||
+              fallback.placeP3.frictionMitigationPlan,
+          },
+          promotionP4: {
+            primaryAcquisitionEngine: engine,
+            otherAcquisitionEngineText: parsed.promotionP4?.otherAcquisitionEngineText?.trim() || undefined,
+            beachheadChannelTactics:
+              parsed.promotionP4?.beachheadChannelTactics?.trim() ||
+              fallback.promotionP4.beachheadChannelTactics,
+            primarySocialHub:
+              parsed.promotionP4?.primarySocialHub?.trim() ||
+              fallback.promotionP4.primarySocialHub,
+            contentOrCampaignHook:
+              parsed.promotionP4?.contentOrCampaignHook?.trim() ||
+              fallback.promotionP4.contentOrCampaignHook,
+          },
+          strategicRationale:
+            parsed.strategicRationale?.trim() || fallback.strategicRationale,
+          grantAssessorTip:
+            parsed.grantAssessorTip?.trim() || fallback.grantAssessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err) {
+      console.error('Error in generateModuleIFourPsViaRouter:', err);
+    }
+  }
+
+  return fallback;
+}
+
+// ============================================================================
+// MODULE I — STEP 3: FIRST 10 CUSTOMERS PLAYBOOK & LOI GENERATOR
+// ============================================================================
+
+export interface GenerateModuleIFirst10Params {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  baseCurrency?: string;
+  elevatorHook140?: string;
+  targetCustomer?: string;
+  customerProblem?: string;
+  solutionCategory?: string;
+  primaryBenefit?: string;
+  competitiveWedge?: string;
+  headlinePricePoint?: string;
+  packagingType?: string;
+  preferredArchetype?: First10AcquisitionArchetype;
+}
+
+export interface GenerateModuleIFirst10Result {
+  allowed: boolean;
+  reason?: string;
+  acquisitionArchetype: First10AcquisitionArchetype;
+  pilotOffer: First10PilotOffer;
+  targetPipeline: First10ProspectItem[];
+  outreachScripts: First10OutreachScripts;
+  followUpCadence: First10FollowUpCadence;
+  objectionBusters: First10ObjectionBusters;
+  letterOfIntent: First10LetterOfIntent;
+  grantAssessorTip?: string;
+  engineMode?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export function generateLetterOfIntentMarkdown(params: {
+  startupName: string;
+  targetCompanyName: string;
+  targetContactName: string;
+  pilotDurationWeeks: number;
+  pilotPricePoint: string;
+  primarySuccessKpi: string;
+  customTermsText?: string;
+  hqCountryCode?: string;
+  baseCurrency?: string;
+}): string {
+  const startup = params.startupName?.trim() || 'Our Startup';
+  const company = params.targetCompanyName?.trim() || '[Prospective Customer Company]';
+  const contact = params.targetContactName?.trim() || '[Decision Maker Name / Title]';
+  const duration = params.pilotDurationWeeks || 4;
+  const price = params.pilotPricePoint?.trim() || 'Agreed Preferential Early Adopter Rate';
+  const kpi =
+    params.primarySuccessKpi?.trim() ||
+    'Measurable reduction in operational turnaround time and overhead cost';
+  const jurisdictionText =
+    params.hqCountryCode === 'GB'
+      ? 'recognized under UK commercial standards (aligned with Innovate UK / British Business Bank customer validation benchmarks)'
+      : 'recognized under Irish commercial standards (aligned with Enterprise Ireland & LEO Feasibility/Priming validation benchmarks)';
+  const extra = params.customTermsText?.trim()
+    ? `\n\n### 5. Specific Pilot Governance & Addenda\n${params.customTermsText.trim()}`
+    : '';
+
+  return `# NON-BINDING EARLY ADOPTER LETTER OF INTENT (LOI)
+
+**Date:** ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}  
+**Between:** **${startup}** ("Solution Provider")  
+**And:** **${company}** ("Prospective Customer")  
+**Key Executive Contact:** ${contact}  
+
+---
+
+### 1. Purpose & Mutual Strategic Intent
+This non-binding Letter of Intent confirms that **${company}** intends to participate as an early design partner in the evaluation pilot program of **${startup}**. The primary purpose of this evaluation is to test and validate whether the solution effectively delivers the following operational outcome:
+> **"${kpi}"**
+
+### 2. Pilot Scope & Governance
+- **Duration:** ${duration} weeks commencing upon mutual deployment and access provisioning.
+- **Dedicated Founder Guidance:** Solution Provider will provide direct async and weekly review support to ensure seamless onboarding and rapid time-to-value.
+- **Feedback & Evaluation:** Prospective Customer agrees to provide regular operational feedback and evaluate system performance against the agreed success metric.
+
+### 3. Commercial Terms Upon Milestone Success
+Should the solution successfully satisfy the primary success criteria outlined in Section 1 during the pilot window, **${company}** intends in good faith to transition into a standard commercial agreement at the preferential founding rate of:
+> **${price}**
+
+### 4. Non-Binding Nature & Confidentiality
+This document constitutes an expression of serious commercial interest and mutual good faith, ${jurisdictionText}. It does not create legal or financial liability for either party prior to the formal execution of a definitive commercial agreement. Both parties agree to treat proprietary insights exchanged during the pilot as confidential.
+
+---
+
+**Confirmed in Good Faith & Principle:**
+
+**For ${company}:**  
+Name / Title: ___________________________  
+Signature: _______________________________  
+Date: ___________________________________  
+
+**For ${startup}:**  
+Founder / Executive: _____________________  
+Signature: _______________________________  
+Date: ___________________________________  
+${extra}`;
+}
+
+export function buildSmartFirst10Fallback(
+  params: GenerateModuleIFirst10Params
+): GenerateModuleIFirst10Result {
+  const title = params.planTitle?.trim() || 'Our Venture';
+  const category = (params.industryCategory || 'B2B SaaS / AI App').toLowerCase();
+  const customer = params.targetCustomer?.trim() || 'target decision-makers';
+  const problem = params.customerProblem?.trim() || 'costly manual operational friction';
+  const benefit = params.primaryBenefit?.trim() || 'faster time-to-value and reduced operating costs';
+  const pricePoint = params.headlinePricePoint?.trim() || '€49 / month';
+
+  const isPhysicalOrD2c =
+    category.includes('food') ||
+    category.includes('beverage') ||
+    category.includes('retail') ||
+    category.includes('ecommerce') ||
+    category.includes('hardware') ||
+    category.includes('consumer');
+
+  const archetype: First10AcquisitionArchetype =
+    params.preferredArchetype ||
+    (isPhysicalOrD2c ? 'COMMUNITY_ADVISORY_COUNCIL' : 'ACCOUNT_BASED_SNIPER');
+
+  if (isPhysicalOrD2c) {
+    const kpi = `Consistent 4.5+ star sensory feedback and at least 3 repeat batch reorders across initial pilot retailers`;
+    const loi = {
+      targetCompanyName: 'Local Specialty Retailer / Partner',
+      targetContactName: 'Store Manager / Head Buyer',
+      pilotDurationWeeks: 4,
+      pilotPricePoint: `${pricePoint} (Wholesale Introductory Rate)`,
+      primarySuccessKpi: kpi,
+      generatedLoiMarkdown: generateLetterOfIntentMarkdown({
+        startupName: title,
+        targetCompanyName: 'Local Specialty Retailer / Partner',
+        targetContactName: 'Store Manager / Head Buyer',
+        pilotDurationWeeks: 4,
+        pilotPricePoint: `${pricePoint} (Wholesale Introductory Rate)`,
+        primarySuccessKpi: kpi,
+      }),
+    };
+
+    return {
+      allowed: true,
+      acquisitionArchetype: archetype,
+      pilotOffer: {
+        pilotStructure: `First-batch sampling box at 50% discount with zero wholesale minimum order quantity for 30 days.`,
+        quidProQuoFounderAsk: `60-second raw unboxing/taste-test video review + permission to feature your store logo on our launch page.`,
+        riskReversal: `100% sell-through guarantee: If unsold within 30 days, we buy back all remaining stock with zero hassle.`,
+      },
+      targetPipeline: [
+        {
+          id: 'lead-1',
+          companyOrPersona: 'Artisan Food Hall & Specialty Deli',
+          decisionMakerTitle: 'Lead Merchandiser / Owner',
+          triggerEventOrAngle: `Prioritizing regional, high-margin craft products with sustainable packaging.`,
+          status: 'TO_CONTACT',
+          source: 'MANUAL',
+        },
+        {
+          id: 'lead-2',
+          companyOrPersona: 'Boutique Coffee Roaster & Cafe',
+          decisionMakerTitle: 'Founder / Operations Lead',
+          triggerEventOrAngle: `Looking for unique artisan items to elevate customer basket size at checkout.`,
+          status: 'TO_CONTACT',
+          source: 'MANUAL',
+        },
+        {
+          id: 'lead-3',
+          companyOrPersona: 'Local Fitness & Wellness Community Hub',
+          decisionMakerTitle: 'General Manager',
+          triggerEventOrAngle: `Members demand clean, transparent ingredients; ideal captive early audience.`,
+          status: 'TO_CONTACT',
+          source: 'MANUAL',
+        },
+        {
+          id: 'lead-4',
+          companyOrPersona: 'Independent High-End Grocer',
+          decisionMakerTitle: 'Category Purchasing Manager',
+          triggerEventOrAngle: `Stocking premium domestic alternatives to mainstream legacy brands.`,
+          status: 'TO_CONTACT',
+          source: 'MANUAL',
+        },
+        {
+          id: 'lead-5',
+          companyOrPersona: 'Corporate Gifting / Hamper Curator',
+          decisionMakerTitle: 'Creative Director',
+          triggerEventOrAngle: `Seeking standout local products for high-end quarterly corporate hampers.`,
+          status: 'TO_CONTACT',
+          source: 'MANUAL',
+        },
+      ],
+      outreachScripts: {
+        advisoryScript: `Hi [First Name],\n\nI’ve admired how you curate products at [Store/Cafe] — your recent selection of local brands really stood out.\n\nI’m the founder of ${title}, and we’ve spent the last 6 months perfecting ${benefit}. Before our wider rollout, I’d love to drop off a complimentary sample box for you and your team to taste test and get your honest feedback.\n\nNo sales pitch at all — just looking for guidance from experienced curators. Could I drop by for 5 minutes this Thursday?\n\nWarmly,\n[Founder Name]`,
+        sniperScript: `Hi [First Name],\n\nNoticed how popular your premium shelf items have been with local customers.\n\nWe created ${title} to address the growing demand for clean-label, high-margin alternatives. We’re offering 5 local partners a guaranteed zero-risk pilot pack (50% off wholesale, zero minimum order, and full buyback if unsold in 30 days).\n\nWould you be open to tasting a sample batch this week?\n\nBest,\n[Founder Name]`,
+        foundingCohortScript: `Hi [First Name],\n\nWe’re hand-picking 10 founding retail partners in [Region] to showcase ${title} ahead of our national launch.\n\nAs a founding partner, you receive priority stock allocations, permanent introductory wholesale pricing (${pricePoint}), and featured promotion across our launch marketing.\n\nWould you like to review the pilot agreement?\n\nWarmly,\n[Founder Name]`,
+      },
+      followUpCadence: {
+        day1Icebreaker: `Initial sample delivery or personalized message sent with product credentials and tasting notes.`,
+        day4Bump: `Hi [First Name], hope you and the team enjoyed the sample box! Did you get a chance to try it? Would love your honest impression whenever you have a second.`,
+        day8MicroQuestion: `Hi [First Name], quick question: are you currently looking to expand your local artisan shelf offerings for the upcoming season, or is your supplier roster completely full? Either way, appreciate your time!`,
+        day14Breakup: `Hi [First Name], assuming you’re swamped right now, I’ll hold off on following up so I don't clutter your inbox. If you ever want to stock our first batch, our door is always open. Wishing [Store Name] a fantastic quarter!`,
+      },
+      objectionBusters: {
+        vendorRisk: `We hold verified food safety certifications and maintain domestic production reserves, so your stock replenishment is guaranteed within 48 hours.`,
+        statusQuoInertia: `We provide complete POS counter displays and free promotional sampling packs, so it takes zero extra staff effort to start selling on day one.`,
+        featureGap: `We are launching with our core hero flavor first to maximize inventory turnover, and our pilot partners get first access to upcoming seasonal releases.`,
+      },
+      letterOfIntent: loi,
+      grantAssessorTip: `LEO and grant bodies look for verified commercial pull. Attaching 2-3 signed retail LOIs proves genuine domestic market traction and export potential.`,
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  // Default: B2B SaaS, Professional Service, or High-Growth Platform
+  const kpi = `Measurable reduction of at least 25% in time spent on ${problem}, verified by weekly operational metrics`;
+  const loi = {
+    targetCompanyName: '[Target Company / Beta Partner]',
+    targetContactName: '[Decision Maker Name / Title]',
+    pilotDurationWeeks: 4,
+    pilotPricePoint: `${pricePoint} (Founding Partner Rate)`,
+    primarySuccessKpi: kpi,
+    generatedLoiMarkdown: generateLetterOfIntentMarkdown({
+      startupName: title,
+      targetCompanyName: '[Target Company / Beta Partner]',
+      targetContactName: '[Decision Maker Name / Title]',
+      pilotDurationWeeks: 4,
+      pilotPricePoint: `${pricePoint} (Founding Partner Rate)`,
+      primarySuccessKpi: kpi,
+    }),
+  };
+
+  return {
+    allowed: true,
+    acquisitionArchetype: archetype,
+    pilotOffer: {
+      pilotStructure: `Founding Design Partner 50% discount (${pricePoint}) guaranteed for life during a structured 30-day proof-of-concept pilot.`,
+      quidProQuoFounderAsk: `Weekly 20-minute async/live feedback sprint + written case study and logo rights upon achieving the agreed success KPI.`,
+      riskReversal: `100% money-back guarantee, done-for-you onboarding setup handled personally by the founder, and full data export anytime with zero lock-in.`,
+    },
+    targetPipeline: [
+      {
+        id: 'lead-1',
+        companyOrPersona: 'Mid-Market Regional Operator (50–200 staff)',
+        decisionMakerTitle: 'Head of Operations / Managing Director',
+        triggerEventOrAngle: `Struggles with ${problem}; actively hiring administrative headcount to handle workflow backlog.`,
+        status: 'TO_CONTACT',
+        source: 'MANUAL',
+      },
+      {
+        id: 'lead-2',
+        companyOrPersona: 'Boutique Advisory & Consulting Practice',
+        decisionMakerTitle: 'Senior Partner / Practice Lead',
+        triggerEventOrAngle: `Vocal on LinkedIn about legacy software frustration; eager for modern agile tooling that saves billable hours.`,
+        status: 'TO_CONTACT',
+        source: 'MANUAL',
+      },
+      {
+        id: 'lead-3',
+        companyOrPersona: 'Fast-Growing Seed / Series-A Scaleup',
+        decisionMakerTitle: 'VP of Product / Growth',
+        triggerEventOrAngle: `Needs ${benefit} to hit expansion KPIs without inflating operational fixed costs.`,
+        status: 'TO_CONTACT',
+        source: 'MANUAL',
+      },
+      {
+        id: 'lead-4',
+        companyOrPersona: 'Independent Sector Specialist / Contractor',
+        decisionMakerTitle: 'Founder & Principal Consultant',
+        triggerEventOrAngle: `Can test the platform across multiple client accounts and act as a high-authority referral advocate.`,
+        status: 'TO_CONTACT',
+        source: 'MANUAL',
+      },
+      {
+        id: 'lead-5',
+        companyOrPersona: 'Warm Professional Rolodex Contact',
+        decisionMakerTitle: 'Director of Technology / Systems',
+        triggerEventOrAngle: `High-trust relationship from previous career; ideal benchmark test for the very first v1 pilot deployment.`,
+        status: 'TO_CONTACT',
+        source: 'MANUAL',
+      },
+    ],
+    outreachScripts: {
+      advisoryScript: `Hi [First Name],\n\nI’ve been following your work at [Company] — loved your recent insights on [Industry Trend].\n\nI’m the founder of ${title}. We’re building a dedicated platform to help ${customer} eliminate ${problem}. Since you lead operations in this space daily, I’d love to get your raw perspective on whether our approach solves the real bottleneck.\n\nNot selling anything at all — just looking for feedback from respected operators before our launch. Would you be open to a 15-minute Zoom or coffee next Tuesday?\n\nBest,\n[Founder Name]`,
+      sniperScript: `Hi [First Name],\n\nNoticed [Company] has been expanding rapidly over the past few quarters.\n\nI took 5 minutes to audit how teams in your sector usually handle ${problem}, and recorded a concise 90-second Loom showing a 25% efficiency leak you might have right now: [Link]\n\nWe engineered ${title} specifically to fix this bottleneck. Would a 10-minute walkthrough be worth your time this Thursday?\n\nBest,\n[Founder Name]`,
+      foundingCohortScript: `Hi [First Name],\n\nWe are accepting exactly 10 Founding Design Partners for ${title} ahead of our general release.\n\nAs a founding partner, you receive direct weekly founder onboarding, custom workflow priority, and a permanently locked-in 50% lifetime rate (${pricePoint}), in exchange for evaluating the system and sharing honest feedback.\n\nGiven [Company]’s focus on ${benefit}, I thought you’d be an ideal fit. Would you like to review the 1-page pilot brief?\n\nBest,\n[Founder Name]`,
+    },
+    followUpCadence: {
+      day1Icebreaker: `Initial personalized outreach sent with specific trigger event and value-add insight (Loom or workflow teardown).`,
+      day4Bump: `Hi [First Name], just floating this back to the top of your inbox. Thought you might find this 1-page breakdown on tackling ${problem} useful for [Company]: [Link]. Let me know if you'd like to chat!`,
+      day8MicroQuestion: `Hi [First Name], quick question: is streamlining ${problem} an active priority for [Company] this quarter, or are you entirely satisfied with your current process? Either way, appreciate your time!`,
+      day14Breakup: `Hi [First Name], I haven’t heard back so I’ll assume this isn’t a priority right now. I’ll close your file so I don't clutter your inbox. If your priorities change down the road, my door is always open. Wishing you and [Company] all the best!`,
+    },
+    objectionBusters: {
+      vendorRisk: `We are fully funded with zero technical debt, all your operational data is 100% exportable in open standard formats anytime, and during the pilot you have direct 24/7 WhatsApp/mobile access to the founding team.`,
+      statusQuoInertia: `You don’t need to rip-and-replace anything. We handle 100% of the initial onboarding setup and run side-by-side with your existing workflow for 14 days so you experience zero operational downtime.`,
+      featureGap: `As one of our first 10 design partners, your exact operational workflow dictates our product roadmap. Instead of waiting months on a generic corporate support queue, your required feature goes straight into our active sprint.`,
+    },
+    letterOfIntent: loi,
+    grantAssessorTip: `LEO and Innovate UK panels reward founders who demonstrate direct access to target buyers. Including signed LOIs in your appendix elevates commercial feasibility scoring dramatically.`,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generateModuleIFirst10ViaRouter(
+  params: GenerateModuleIFirst10Params
+): Promise<GenerateModuleIFirst10Result> {
+  const fallback = buildSmartFirst10Fallback(params);
+  const isIE = (params.hqCountryCode || 'IE') !== 'GB';
+  const countryContext = isIE
+    ? 'Ireland (Local Enterprise Office / Enterprise Ireland commercial panel)'
+    : 'United Kingdom (Innovate UK & British Business Bank assessment panel)';
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_I_FIRST_10',
+    'You are a senior Chief Commercial Officer (CCO), B2B sales strategist, and startup grant appraisal specialist who builds disciplined, tactical First 10 Customer playbooks.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `Synthesize an actionable, high-conversion "First 10 Customers Playbook" for ${sanitizePromptInput(
+        params.planTitle || 'Startup',
+        100
+      )} in ${countryContext}.
+
+VENTURE CONTEXT:
+- Industry Category: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+- 140-Character Hook: ${sanitizePromptInput(params.elevatorHook140 || '', 200)}
+- Target Customer / Beachhead: ${sanitizePromptInput(params.targetCustomer || '', 150)}
+- Customer Core Problem: ${sanitizePromptInput(params.customerProblem || '', 200)}
+- Proposed Solution: ${sanitizePromptInput(params.solutionCategory || '', 200)}
+- Primary Benefit: ${sanitizePromptInput(params.primaryBenefit || '', 200)}
+- Competitive Wedge: ${sanitizePromptInput(params.competitiveWedge || '', 200)}
+- Headline Price Anchor: ${sanitizePromptInput(params.headlinePricePoint || '€49 / month', 100)}
+
+INSTRUCTIONS:
+1. Acquisition Archetype: Pick the most realistic channel archetype (WARM_NETWORK_ROLODEX, ACCOUNT_BASED_SNIPER, COMMUNITY_ADVISORY_COUNCIL, MANUAL_CONCIERGE_PILOT, EXCLUSIVE_FOUNDING_COHORT).
+2. Pilot Offer: Define an irresistible pilot structure, explicit founder quid-pro-quo ask (testimonials, feedback), and total risk reversal.
+3. Target Pipeline: Provide 5 realistic named prospect profiles / archetypes with specific trigger events and wedge angles.
+4. 3 Outreach Scripts: (a) Warm Advisory Approach, (b) Value-first Sniper Teardown, (c) 10-Seat Founding Cohort invitation.
+5. 4-Touch Follow-Up Cadence: Day 1 Icebreaker, Day 4 Value Bump, Day 8 Micro-Question, Day 14 Polite Breakup Email.
+6. Top 3 Early-Stage Objection Busters: Specific rebuttals for (a) Vendor stability/longevity risk, (b) Status quo/inertia, (c) Missing feature X.
+7. Letter of Intent (LOI) Terms: Specific success KPI and pilot terms.
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "acquisitionArchetype": "WARM_NETWORK_ROLODEX" | "ACCOUNT_BASED_SNIPER" | "COMMUNITY_ADVISORY_COUNCIL" | "MANUAL_CONCIERGE_PILOT" | "EXCLUSIVE_FOUNDING_COHORT",
+  "pilotOffer": {
+    "pilotStructure": "string",
+    "quidProQuoFounderAsk": "string",
+    "riskReversal": "string"
+  },
+  "targetPipeline": [
+    {
+      "id": "string",
+      "companyOrPersona": "string",
+      "decisionMakerTitle": "string",
+      "triggerEventOrAngle": "string",
+      "status": "TO_CONTACT",
+      "source": "MANUAL"
+    }
+  ],
+  "outreachScripts": {
+    "advisoryScript": "string",
+    "sniperScript": "string",
+    "foundingCohortScript": "string"
+  },
+  "followUpCadence": {
+    "day1Icebreaker": "string",
+    "day4Bump": "string",
+    "day8MicroQuestion": "string",
+    "day14Breakup": "string"
+  },
+  "objectionBusters": {
+    "vendorRisk": "string",
+    "statusQuoInertia": "string",
+    "featureGap": "string"
+  },
+  "letterOfIntent": {
+    "targetCompanyName": "string",
+    "targetContactName": "string",
+    "pilotDurationWeeks": 4,
+    "pilotPricePoint": "string",
+    "primarySuccessKpi": "string"
+  },
+  "grantAssessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          maxOutputTokens: 2048,
+        },
+      });
+
+      const text = response.text?.trim() || '';
+      if (text) {
+        const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+
+        const targetCompanyName =
+          parsed.letterOfIntent?.targetCompanyName?.trim() ||
+          fallback.letterOfIntent.targetCompanyName;
+        const targetContactName =
+          parsed.letterOfIntent?.targetContactName?.trim() ||
+          fallback.letterOfIntent.targetContactName;
+        const pilotDurationWeeks =
+          typeof parsed.letterOfIntent?.pilotDurationWeeks === 'number'
+            ? parsed.letterOfIntent.pilotDurationWeeks
+            : 4;
+        const pilotPricePoint =
+          parsed.letterOfIntent?.pilotPricePoint?.trim() ||
+          params.headlinePricePoint ||
+          fallback.letterOfIntent.pilotPricePoint;
+        const primarySuccessKpi =
+          parsed.letterOfIntent?.primarySuccessKpi?.trim() ||
+          fallback.letterOfIntent.primarySuccessKpi;
+
+        const generatedLoi = generateLetterOfIntentMarkdown({
+          startupName: params.planTitle || 'Our Venture',
+          targetCompanyName,
+          targetContactName,
+          pilotDurationWeeks,
+          pilotPricePoint,
+          primarySuccessKpi,
+        });
+
+        return {
+          allowed: true,
+          acquisitionArchetype:
+            parsed.acquisitionArchetype || fallback.acquisitionArchetype,
+          pilotOffer: {
+            pilotStructure:
+              parsed.pilotOffer?.pilotStructure?.trim() ||
+              fallback.pilotOffer.pilotStructure,
+            quidProQuoFounderAsk:
+              parsed.pilotOffer?.quidProQuoFounderAsk?.trim() ||
+              fallback.pilotOffer.quidProQuoFounderAsk,
+            riskReversal:
+              parsed.pilotOffer?.riskReversal?.trim() ||
+              fallback.pilotOffer.riskReversal,
+          },
+          targetPipeline:
+            Array.isArray(parsed.targetPipeline) && parsed.targetPipeline.length > 0
+              ? parsed.targetPipeline.map((item: any, idx: number) => ({
+                  id: `prospect-${idx + 1}-${Date.now()}`,
+                  companyOrPersona:
+                    item.companyOrPersona?.trim() ||
+                    `Target Prospect Profile #${idx + 1}`,
+                  decisionMakerTitle:
+                    item.decisionMakerTitle?.trim() || 'Decision Maker',
+                  triggerEventOrAngle:
+                    item.triggerEventOrAngle?.trim() ||
+                    'High-priority operational pain point',
+                  status: 'TO_CONTACT' as const,
+                  source: 'MANUAL' as const,
+                }))
+              : fallback.targetPipeline,
+          outreachScripts: {
+            advisoryScript:
+              parsed.outreachScripts?.advisoryScript?.trim() ||
+              fallback.outreachScripts.advisoryScript,
+            sniperScript:
+              parsed.outreachScripts?.sniperScript?.trim() ||
+              fallback.outreachScripts.sniperScript,
+            foundingCohortScript:
+              parsed.outreachScripts?.foundingCohortScript?.trim() ||
+              fallback.outreachScripts.foundingCohortScript,
+          },
+          followUpCadence: {
+            day1Icebreaker:
+              parsed.followUpCadence?.day1Icebreaker?.trim() ||
+              fallback.followUpCadence.day1Icebreaker,
+            day4Bump:
+              parsed.followUpCadence?.day4Bump?.trim() ||
+              fallback.followUpCadence.day4Bump,
+            day8MicroQuestion:
+              parsed.followUpCadence?.day8MicroQuestion?.trim() ||
+              fallback.followUpCadence.day8MicroQuestion,
+            day14Breakup:
+              parsed.followUpCadence?.day14Breakup?.trim() ||
+              fallback.followUpCadence.day14Breakup,
+          },
+          objectionBusters: {
+            vendorRisk:
+              parsed.objectionBusters?.vendorRisk?.trim() ||
+              fallback.objectionBusters.vendorRisk,
+            statusQuoInertia:
+              parsed.objectionBusters?.statusQuoInertia?.trim() ||
+              fallback.objectionBusters.statusQuoInertia,
+            featureGap:
+              parsed.objectionBusters?.featureGap?.trim() ||
+              fallback.objectionBusters.featureGap,
+          },
+          letterOfIntent: {
+            targetCompanyName,
+            targetContactName,
+            pilotDurationWeeks,
+            pilotPricePoint,
+            primarySuccessKpi,
+            generatedLoiMarkdown: generatedLoi,
+          },
+          grantAssessorTip:
+            parsed.grantAssessorTip?.trim() || fallback.grantAssessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err) {
+      console.error('Error in generateModuleIFirst10ViaRouter:', err);
+    }
+  }
+
+  return fallback;
+}
+
+// ============================================================================
+// MODULE I — SECTION 3.6: DYNAMIC OBJECTION BUSTERS & AI REBUTTALS
+// ============================================================================
+
+export interface GenerateModuleIObjectionBustersParams {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  baseCurrency?: string;
+  elevatorHook140?: string;
+  targetCustomer?: string;
+  customerProblem?: string;
+  solutionCategory?: string;
+  primaryBenefit?: string;
+  competitiveWedge?: string;
+  headlinePricePoint?: string;
+  productVehicle?: string;
+  mainCompetitors?: string;
+  surveyFeedbackSummary?: string;
+  // If targeted single rebuttal request:
+  singleTarget?: 1 | 2 | 3;
+  targetObjectionTitle?: string;
+  targetObjectionQuote?: string;
+  existingVendorRisk?: string;
+  existingStatusQuoInertia?: string;
+  existingFeatureGap?: string;
+}
+
+export interface GenerateModuleIObjectionBustersResult {
+  allowed: boolean;
+  reason?: string;
+  objectionBusters: First10ObjectionBusters;
+  engineMode?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export function buildSmartObjectionBustersFallback(
+  params: GenerateModuleIObjectionBustersParams
+): First10ObjectionBusters {
+  const cat = (params.industryCategory || '').toLowerCase();
+  const vehicle = (params.productVehicle || '').toLowerCase();
+  const price = params.headlinePricePoint || '€49 / month';
+  const customer = params.targetCustomer || 'ideal target customer';
+  const problem = params.customerProblem || 'operational workflow delays';
+  const benefit = params.primaryBenefit || 'measurable time and cost savings';
+  const startup = params.planTitle || 'Our Startup';
+
+  // Sector-tailored defaults
+  let obj1Title = 'Vendor Longevity & Business Continuity Risk';
+  let obj1Quote = `"You're an early-stage startup with a small team. What happens if you run out of runway or stop maintaining this software next year?"`;
+  let obj1Rebuttal = `We are fully self-sufficient with zero technical debt, and we provide complete data portability with 1-click automated exports in open standard formats (JSON/CSV) anytime. If we ever sunset, your data and workflows remain 100% yours. Furthermore, during the pilot you have direct phone and WhatsApp access to our founding engineering team with a 2-hour response guarantee.`;
+
+  let obj2Title = 'Status Quo Inertia & Team Retraining Friction';
+  let obj2Quote = `"Our existing routine isn't perfect, but everyone on the team knows it and we don't have hours to learn another tool right now."`;
+  let obj2Rebuttal = `We do not ask you to switch your entire stack on Day 1. We handle 100% of the initial onboarding setup, data import, and configuration for you in under 30 minutes. You can run us side-by-side with your existing routine for 30 days — if it doesn't save ${customer} at least 5 hours in Month 1, there is zero obligation.`;
+
+  let obj3Title = 'Missing Feature Gap & Incumbent Comparison';
+  let obj3Quote = `"We really like the concept, but we cannot adopt until you integrate seamlessly with our existing toolstack and reporting workflows."`;
+  let obj3Rebuttal = `As one of our first 10 design partners, your exact operational workflow dictates our product roadmap. Instead of waiting months on a generic corporate support queue, your required integration goes straight into our active development sprint and is shipped directly to your account within 3 weeks.`;
+
+  if (cat.includes('e-commerce') || cat.includes('physical product') || cat.includes('food') || cat.includes('drink') || vehicle.includes('physical')) {
+    obj1Title = 'Brand Credibility & Product Quality Consistency';
+    obj1Quote = `"We haven't heard of ${startup} before. How do we know the quality, taste, and consistency match what our customers demand?"`;
+    obj1Rebuttal = `We provide complimentary evaluation samples so your team can test and verify quality firsthand, backed by an unconditional 100% replacement or refund guarantee on your first order.`;
+
+    obj2Title = 'Contracted Incumbent Suppliers & Minimum Order Quantities';
+    obj2Quote = `"We already have established supplier contracts and payment terms; introducing a new vendor creates supply chain complexity."`;
+    obj2Rebuttal = `We offer ultra-low introductory minimum order quantities (MOQs) with net-30 terms, allowing you to run a low-risk test run alongside your primary supplier without contract penalties or cashflow strain.`;
+
+    obj3Title = 'Shelf Margin & Price Point Justification';
+    obj3Quote = `"At ${price}, this carries a higher unit cost than mass-market alternatives; can we justify the shelf margin?"`;
+    obj3Rebuttal = `Our product targets higher basket spend and repeat purchase velocity. Initial pilot telemetry indicates a 20%+ faster turnover, delivering greater net cash profit per square foot or customer interaction.`;
+  } else if (cat.includes('medtech') || cat.includes('health') || cat.includes('hardware') || cat.includes('deeptech')) {
+    obj1Title = 'Regulatory, GDPR & Compliance Security';
+    obj1Quote = `"You're an unproven early startup. How do we ensure your device and architecture comply with strict regulatory, ISO, and data privacy standards?"`;
+    obj1Rebuttal = `Our architecture is built on verified, compliant reference standards with end-to-end audit logging. During the pilot phase, our technical and regulatory lead provides full compliance documentation and testing dossiers for your internal audit team.`;
+
+    obj2Title = 'Clinical & Operational Workflow Disruption';
+    obj2Quote = `"Our staff is already operating at peak capacity; integrating an unverified system will cause operational bottlenecks."`;
+    obj2Rebuttal = `We engineer non-invasive pilot sandboxes that run in parallel with zero disruption to active workflows. Our technical team handles 100% of the calibration and monitoring on-site or via dedicated concierge support.`;
+
+    obj3Title = 'Hardware Lead Times & Reliability Under Scale';
+    obj3Quote = `"What happens if component shortages or scaling delays hit your manufacturing run?"`;
+    obj3Rebuttal = `We maintain dual-sourced component inventory reserves for all pilot units and provide full warranty replacement guarantees with pre-provisioned hot-spare units.`;
+  } else if (cat.includes('service') || cat.includes('agency') || cat.includes('consulting')) {
+    obj1Title = 'Team Capacity & Boutique Bandwidth Risk';
+    obj1Quote = `"As a boutique startup, will senior partners actually execute our account, or will we get passed off to junior staff once signed?"`;
+    obj1Rebuttal = `Your pilot engagement is personally delivered and led directly by our founders. We contractually cap our client roster at 5 active accounts to ensure uninterrupted attention and senior execution.`;
+
+    obj2Title = 'Proof of ROI vs Internal In-House Execution';
+    obj2Quote = `"We could theoretically hire a contractor or keep this in-house rather than paying an external retainer."`;
+    obj2Rebuttal = `In-house hiring carries substantial recruitment overhead and a 3-to-6 month learning curve. We deliver immediate specialist execution from Day 1 at less than half the fully loaded cost of a single full-time hire.`;
+
+    obj3Title = 'Deliverable Milestones & Accountability';
+    obj3Quote = `"What guarantee do we have that the deliverables will achieve our actual commercial objectives?"`;
+    obj3Rebuttal = `Our pilot is milestone-gated: 50% of our commercial fee is tied directly to hitting the mutually agreed KPI benchmarks, reversing your financial risk.`;
+  } else if (cat.includes('marketplace') || vehicle.includes('marketplace')) {
+    obj1Title = 'Chicken-and-Egg Platform Liquidity';
+    obj1Quote = `"Why should we list or participate when your network is brand new with few active counterparties?"`;
+    obj1Rebuttal = `For our founding cohort, we provide guaranteed matchmaking concierge services: our team manually sources, vets, and connects qualified counterparties so you see immediate transaction velocity from Day 1.`;
+
+    obj2Title = 'Transaction Trust & Dispute Protection';
+    obj2Quote = `"What happens if a counterparty defaults or delivers substandard work?"`;
+    obj2Rebuttal = `Every founding transaction is protected by our zero-liability escrow and buyer protection policy, with founder-level dispute mediation resolved within 24 hours.`;
+
+    obj3Title = 'Commission / Take-Rate Long-Term Lock';
+    obj3Quote = `"Once we build our business on your platform, will you hike platform fees?"`;
+    obj3Rebuttal = `As an early adopter, your preferential commission rate is permanently grandfathered in writing for the lifetime of your account.`;
+  }
+
+  // Handle single targeted rebuttal generation fallback
+  if (params.singleTarget === 1 && params.targetObjectionQuote) {
+    obj1Title = params.targetObjectionTitle || obj1Title;
+    obj1Quote = params.targetObjectionQuote;
+    obj1Rebuttal = `We acknowledge that risk directly: During our pilot phase, we eliminate your financial and operational exposure with full data portability, zero long-term lock-in, and founder-level concierge support that guarantees your workflow is completely de-risked.`;
+  } else if (params.singleTarget === 2 && params.targetObjectionQuote) {
+    obj2Title = params.targetObjectionTitle || obj2Title;
+    obj2Quote = params.targetObjectionQuote;
+    obj2Rebuttal = `You don't have to rip and replace anything. We handle the entire migration and setup in under 30 minutes, running in parallel with your current routine for 30 days so you prove the ${benefit} with zero disruption to daily operations.`;
+  } else if (params.singleTarget === 3 && params.targetObjectionQuote) {
+    obj3Title = params.targetObjectionTitle || obj3Title;
+    obj3Quote = params.targetObjectionQuote;
+    obj3Rebuttal = `As an early design partner, your direct input shapes our milestone sprints. We can integrate that capability directly into our active release cycle, giving your team custom workflow advantages that legacy incumbents would take 18 months to deliver.`;
+  }
+
+  return {
+    objection1Title: obj1Title,
+    objection1Quote: obj1Quote,
+    vendorRisk: params.singleTarget === 1 ? obj1Rebuttal : (params.existingVendorRisk?.trim() || obj1Rebuttal),
+    objection2Title: obj2Title,
+    objection2Quote: obj2Quote,
+    statusQuoInertia: params.singleTarget === 2 ? obj2Rebuttal : (params.existingStatusQuoInertia?.trim() || obj2Rebuttal),
+    objection3Title: obj3Title,
+    objection3Quote: obj3Quote,
+    featureGap: params.singleTarget === 3 ? obj3Rebuttal : (params.existingFeatureGap?.trim() || obj3Rebuttal),
+  };
+}
+
+export async function generateModuleIObjectionBustersViaRouter(
+  params: GenerateModuleIObjectionBustersParams
+): Promise<GenerateModuleIObjectionBustersResult> {
+  const fallback = buildSmartObjectionBustersFallback(params);
+  const isIE = (params.hqCountryCode || 'IE') !== 'GB';
+  const countryContext = isIE
+    ? 'Ireland (Local Enterprise Office & Enterprise Ireland commercial evaluation)'
+    : 'United Kingdom (Innovate UK & British Business Bank commercial evaluation)';
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_I_OBJECTION_BUSTERS',
+    'You are an elite B2B and startup commercial sales strategist, objection-handling coach, and enterprise buyer psychology specialist.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      let prompt = '';
+
+      if (params.singleTarget && params.targetObjectionQuote) {
+        prompt = `Generate a high-converting, persuasive rebuttal for a specific prospective customer objection for ${sanitizePromptInput(
+          params.planTitle || 'Startup',
+          100
+        )} in ${countryContext}.
+
+VENTURE CONTEXT:
+- Industry Category: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+- Product Vehicle / Format: ${sanitizePromptInput(params.productVehicle || 'Software / Digital', 100)}
+- Beachhead Customer Persona: ${sanitizePromptInput(params.targetCustomer || 'Target Buyer', 150)}
+- Customer Core Problem: ${sanitizePromptInput(params.customerProblem || 'Operational friction', 200)}
+- Proposed Solution: ${sanitizePromptInput(params.solutionCategory || 'Dedicated Platform', 200)}
+- Primary Benefit / Value Prop: ${sanitizePromptInput(params.primaryBenefit || 'Time and cost savings', 200)}
+- Competitive Wedge / Differentiator: ${sanitizePromptInput(params.competitiveWedge || '', 200)}
+- Main Competitors / Incumbents: ${sanitizePromptInput(params.mainCompetitors || 'Spreadsheets / Legacy vendors', 150)}
+- Headline Price Anchor: ${sanitizePromptInput(params.headlinePricePoint || '€49 / month', 100)}
+
+SPECIFIC OBJECTION TO CRUSH:
+- Objection Category: ${sanitizePromptInput(params.targetObjectionTitle || 'Customer Hesitation', 100)}
+- Customer Friction / Objection Quote: "${sanitizePromptInput(params.targetObjectionQuote, 300)}"
+
+INSTRUCTIONS:
+1. Write a direct, empathetic, and persuasive counter-rebuttal in the founder's voice (2 to 4 sentences).
+2. De-risk the decision completely (e.g. money-back guarantee, side-by-side run, zero lock-in, data export, white-glove migration, direct founder cell/Slack access).
+3. Do NOT be defensive; acknowledge the validity of the concern and present a concrete proof mechanism.
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "rebuttal": "string (the punchy, high-converting rebuttal script)"
+}`;
+      } else {
+        prompt = `Synthesize 3 realistic, highly specific customer friction objections and persuasive founder rebuttals for ${sanitizePromptInput(
+          params.planTitle || 'Startup',
+          100
+        )} in ${countryContext}.
+
+VENTURE CONTEXT:
+- Industry Category: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+- Product Vehicle / Format: ${sanitizePromptInput(params.productVehicle || 'Software / Digital', 100)}
+- Beachhead Customer Persona: ${sanitizePromptInput(params.targetCustomer || 'Target Buyer', 150)}
+- Customer Core Problem: ${sanitizePromptInput(params.customerProblem || 'Operational friction', 200)}
+- Proposed Solution: ${sanitizePromptInput(params.solutionCategory || 'Dedicated Platform', 200)}
+- Primary Benefit / Value Prop: ${sanitizePromptInput(params.primaryBenefit || 'Time and cost savings', 200)}
+- Competitive Wedge / Differentiator: ${sanitizePromptInput(params.competitiveWedge || '', 200)}
+- Main Competitors / Incumbents: ${sanitizePromptInput(params.mainCompetitors || 'Spreadsheets / Legacy vendors', 150)}
+- Headline Price Anchor: ${sanitizePromptInput(params.headlinePricePoint || '€49 / month', 100)}
+
+INSTRUCTIONS:
+Generate 3 distinct, hyper-relevant friction points tailored to THIS exact startup:
+1. Friction #1: Trust, Risk & Credibility (e.g. startup longevity, data privacy, brand trust, compliance, or manufacturing reliability).
+2. Friction #2: Status Quo & Switching Inertia (e.g. incumbent contract, team retraining, setup effort, doing nothing).
+3. Friction #3: Price, Gaps & Value Proof (e.g. price vs perceived ROI, missing feature X, integration with legacy tools).
+
+For each objection:
+- "title": A concise category label (e.g., "Vendor Longevity Risk" or "Shelf Margin vs Incumbents")
+- "quote": A raw, realistic 1-sentence quote in the prospect's exact voice expressing their doubt
+- "rebuttal": A 2-to-4 sentence tactical rebuttal from the founder that validates the concern and reverses the risk
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "objection1Title": "string",
+  "objection1Quote": "string",
+  "vendorRisk": "string (rebuttal for objection 1)",
+  "objection2Title": "string",
+  "objection2Quote": "string",
+  "statusQuoInertia": "string (rebuttal for objection 2)",
+  "objection3Title": "string",
+  "objection3Quote": "string",
+  "featureGap": "string (rebuttal for objection 3)"
+}`;
+      }
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          maxOutputTokens: 2048,
+        },
+      });
+
+      const text = response.text?.trim() || '';
+      if (text) {
+        const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+
+        if (params.singleTarget && parsed.rebuttal) {
+          const updated = { ...fallback };
+          if (params.singleTarget === 1) updated.vendorRisk = parsed.rebuttal.trim();
+          if (params.singleTarget === 2) updated.statusQuoInertia = parsed.rebuttal.trim();
+          if (params.singleTarget === 3) updated.featureGap = parsed.rebuttal.trim();
+          return {
+            allowed: true,
+            objectionBusters: updated,
+            engineMode: 'gemini-2.5-flash',
+          };
+        }
+
+        return {
+          allowed: true,
+          objectionBusters: {
+            objection1Title:
+              parsed.objection1Title?.trim() || fallback.objection1Title,
+            objection1Quote:
+              parsed.objection1Quote?.trim() || fallback.objection1Quote,
+            vendorRisk:
+              parsed.vendorRisk?.trim() || fallback.vendorRisk,
+            objection2Title:
+              parsed.objection2Title?.trim() || fallback.objection2Title,
+            objection2Quote:
+              parsed.objection2Quote?.trim() || fallback.objection2Quote,
+            statusQuoInertia:
+              parsed.statusQuoInertia?.trim() || fallback.statusQuoInertia,
+            objection3Title:
+              parsed.objection3Title?.trim() || fallback.objection3Title,
+            objection3Quote:
+              parsed.objection3Quote?.trim() || fallback.objection3Quote,
+            featureGap:
+              parsed.featureGap?.trim() || fallback.featureGap,
+          },
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err) {
+      console.error('Error in generateModuleIObjectionBustersViaRouter:', err);
+    }
+  }
+
+  return {
+    allowed: true,
+    objectionBusters: fallback,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+// ============================================================================
+// MODULE I — STEP 4: REVERSE-ENGINEERED MARKETING BUDGET & CAC SIMULATOR
+// ============================================================================
+
+export interface GenerateModuleIBudgetParams {
+  planTitle?: string;
+  industryCategory?: string;
+  hqCountryCode?: SupportedCountryCode;
+  baseCurrency?: string;
+  targetCustomer?: string;
+  customerProblem?: string;
+  primaryBenefit?: string;
+  primaryAcquisitionEngine?: string;
+  primaryChannel?: string;
+  breakevenCustomersCount?: number;
+  targetMonthlyNewCustomers?: number;
+  netPricePerCustomer?: number;
+  pocketProfitPerCustomer?: number;
+  leadToCustomerConversionPercent?: number;
+  visitorToLeadConversionPercent?: number;
+  paidTrafficSharePercent?: number;
+  estimatedCostPerClickOrTouch?: number;
+}
+
+export interface GenerateModuleIBudgetResult {
+  allowed: boolean;
+  leadToCustomerConversionPercent: number;
+  visitorToLeadConversionPercent: number;
+  paidTrafficSharePercent: number;
+  estimatedCostPerClickOrTouch: number;
+  averageCustomerRetentionMonths: number;
+  budgetLineItems: MarketingBudgetLineItem[];
+  cacAndBudgetNarrative: string;
+  grantAssessorTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+function buildSmartMarketingBudgetFallback(
+  params: GenerateModuleIBudgetParams
+): GenerateModuleIBudgetResult {
+  const isIE = (params.hqCountryCode || 'IE') !== 'GB';
+  const currencySymbol = params.baseCurrency === 'GBP' ? '£' : params.baseCurrency === 'USD' ? '$' : '€';
+  const cat = (params.industryCategory || '').toLowerCase();
+  const isDtcOrPhysical = cat.includes('e-commerce') || cat.includes('food') || cat.includes('brick');
+  const isHardwareOrDeepTech = cat.includes('hardware') || cat.includes('medtech');
+  const isService = cat.includes('service') || cat.includes('agency');
+
+  const targetCustomers = Math.max(1, params.targetMonthlyNewCustomers || params.breakevenCustomersCount || 25);
+  const pocketProfit = Math.max(15, params.pocketProfitPerCustomer || (params.netPricePerCustomer ? Math.round(params.netPricePerCustomer * 0.78) : 65));
+
+  const leadConv = params.leadToCustomerConversionPercent || (isService ? 12 : isDtcOrPhysical ? 3.5 : 5);
+  const visitorConv = params.visitorToLeadConversionPercent || (isService ? 6 : isDtcOrPhysical ? 3.0 : 4);
+  const paidShare = params.paidTrafficSharePercent ?? (isDtcOrPhysical ? 50 : isService ? 20 : 35);
+  const cpc = params.estimatedCostPerClickOrTouch || (isHardwareOrDeepTech ? 3.2 : isDtcOrPhysical ? 1.1 : 2.1);
+  const retentionMonths = isDtcOrPhysical ? 8 : isService ? 12 : 18;
+
+  // Calculate implied paid ad budget so line items align realistically
+  const requiredLeads = Math.ceil(targetCustomers / (leadConv / 100));
+  const requiredTouches = Math.ceil(requiredLeads / (visitorConv / 100));
+  const paidTouches = Math.ceil(requiredTouches * (paidShare / 100));
+  const impliedAdSpend = Math.max(150, Math.round((paidTouches * cpc) / 10) * 10);
+
+  const lineItems: MarketingBudgetLineItem[] = [
+    {
+      id: 'mkt_item_1',
+      bucket: 'PAID_MEDIA_ADS',
+      channelOrToolName: isDtcOrPhysical
+        ? 'High-Intent Search & Meta Retargeting Campaigns'
+        : 'Targeted Search Intent & LinkedIn Sniper Ads',
+      monthlySpend: impliedAdSpend,
+      grantEligibilityStatus: 'INELIGIBLE_ONGOING_AD_SPEND',
+      notes: `Drives ${paidTouches.toLocaleString()} targeted monthly clicks at ~${currencySymbol}${cpc.toFixed(2)} CPC (${paidShare}% of top-of-funnel volume). Funded from working capital / revenue, not grant drawdown.`,
+    },
+    {
+      id: 'mkt_item_2',
+      bucket: 'GROWTH_STACK_TOOLS',
+      channelOrToolName: 'Outbound Enrichment, CRM & Email Sequencer Stack',
+      monthlySpend: isService ? 95 : 140,
+      grantEligibilityStatus: 'ELIGIBLE_CAPABILITY_OR_EXPORT',
+      notes: isIE
+        ? 'Supports founder-led outbound and conversion tracking. Eligible for LEO Grow Digital / Digital for Business support.'
+        : 'Powers structured pipeline tracking and automated lead nurturing.',
+    },
+    {
+      id: 'mkt_item_3',
+      bucket: 'CONTENT_EVENTS_PR',
+      channelOrToolName: isHardwareOrDeepTech
+        ? 'Industry Trade Show Demo Kit & Technical Whitepapers'
+        : isDtcOrPhysical
+        ? 'Product Sampling Boxes, Micro-Creator Seeding & POS Collateral'
+        : 'Industry Case Study Production & Niche Trade Event Presence',
+      monthlySpend: isHardwareOrDeepTech ? 350 : 220,
+      grantEligibilityStatus: 'ELIGIBLE_CAPABILITY_OR_EXPORT',
+      notes: isIE
+        ? 'Export market launch collateral and trade show participation frequently qualify under LEO Priming / Enterprise Ireland Market Discovery.'
+        : 'High-trust buyer enablement assets eligible under UK Start Up Loans working capital allocation.',
+    },
+  ];
+
+  const totalSpend = lineItems.reduce((acc, item) => acc + item.monthlySpend, 0);
+  const cashCac = Math.round(totalSpend / targetCustomers);
+  const ltv = Math.round(pocketProfit * retentionMonths);
+  const ltvCacRatio = cashCac > 0 ? (ltv / cashCac).toFixed(1) : '5.0';
+
+  const narrative = `To reliably acquire ${targetCustomers} new paying customers per month (aligned with our Module H breakeven target), our reverse-engineered funnel requires ${requiredLeads.toLocaleString()} qualified leads (${leadConv}% lead-to-sale conversion) generated from ${requiredTouches.toLocaleString()} targeted top-of-funnel visits/outreach touches (${visitorConv}% visitor-to-lead conversion). By blending ${100 - paidShare}% founder-led sweat equity (outbound sniper outreach and organic authority) with ${paidShare}% paid customer acquisition (${currencySymbol}${totalSpend.toLocaleString()}/month total marketing budget), we achieve a disciplined Cash CAC of ${currencySymbol}${cashCac} against a Customer Lifetime Value (LTV) of ${currencySymbol}${ltv.toLocaleString()} (${ltvCacRatio}x LTV:CAC ratio), recovering acquisition costs in ${(cashCac / pocketProfit).toFixed(1)} months.`;
+
+  const grantTip = isIE
+    ? 'LEO & Enterprise Ireland Rule: Ongoing pay-per-click ad spend (Google/Meta/LinkedIn Ads) is strictly ineligible for grant reimbursement. Frame grant applications around trade show participation, export collateral, and digital CRM transformation, while funding ongoing ad spend from trading cashflow.'
+    : 'Innovate UK & British Business Bank Rule: Smart Grants do not fund routine commercial advertising, whereas British Business Bank Start Up Loans CAN be deployed toward initial customer acquisition and launch marketing working capital.';
+
+  return {
+    allowed: true,
+    leadToCustomerConversionPercent: leadConv,
+    visitorToLeadConversionPercent: visitorConv,
+    paidTrafficSharePercent: paidShare,
+    estimatedCostPerClickOrTouch: cpc,
+    averageCustomerRetentionMonths: retentionMonths,
+    budgetLineItems: lineItems,
+    cacAndBudgetNarrative: narrative,
+    grantAssessorTip: grantTip,
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generateModuleIBudgetViaRouter(
+  params: GenerateModuleIBudgetParams
+): Promise<GenerateModuleIBudgetResult> {
+  const fallback = buildSmartMarketingBudgetFallback(params);
+  const isIE = (params.hqCountryCode || 'IE') !== 'GB';
+  const countryContext = isIE
+    ? 'Ireland (Local Enterprise Office / Enterprise Ireland commercial appraisal)'
+    : 'United Kingdom (Innovate UK / British Business Bank Start Up Loans appraisal)';
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_I_BUDGET_CAC',
+    'You are a startup CFO and Performance Growth Architect who reverse-engineers realistic Customer Acquisition Cost (CAC), funnel conversion rates, and grant-compliant marketing budgets.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `Reverse-engineer a realistic, defensible Customer Acquisition Cost (CAC) funnel and 3-line Monthly Marketing Budget for ${sanitizePromptInput(
+        params.planTitle || 'Startup',
+        100
+      )} in ${countryContext}.
+
+VENTURE & UPSTREAM UNIT ECONOMICS CONTEXT:
+- Industry Category: ${sanitizePromptInput(params.industryCategory || 'Technology', 100)}
+- Target Customer Persona: ${sanitizePromptInput(params.targetCustomer || 'Target Buyer', 150)}
+- Core Problem Solved: ${sanitizePromptInput(params.customerProblem || 'Operational friction', 200)}
+- Primary Acquisition Engine (from Step 2): ${sanitizePromptInput(params.primaryAcquisitionEngine || 'FOUNDER_LED_ORGANIC', 80)}
+- Primary Distribution Channel (from Step 2): ${sanitizePromptInput(params.primaryChannel || 'DIRECT_WEB_SELF_SERVE', 80)}
+- Module H Breakeven Customer Count: ${params.breakevenCustomersCount || 25} customers
+- Target Monthly New Customers: ${params.targetMonthlyNewCustomers || params.breakevenCustomersCount || 25} customers/mo
+- Net Price Per Customer: ${params.baseCurrency || 'EUR'} ${params.netPricePerCustomer || 99}
+- Monthly Pocket Profit (Contribution Margin) Per Customer: ${params.baseCurrency || 'EUR'} ${params.pocketProfitPerCustomer || 75}
+
+INSTRUCTIONS:
+1. Recommend realistic conversion rates (leadToCustomerConversionPercent between 1.5 and 25, visitorToLeadConversionPercent between 1.5 and 15), paidTrafficSharePercent (between 10 and 75), estimatedCostPerClickOrTouch (in ${params.baseCurrency || 'EUR'}), and averageCustomerRetentionMonths (between 6 and 36).
+2. Create 3 concrete, startup-tailored monthly marketing budget line items across PAID_MEDIA_ADS, GROWTH_STACK_TOOLS, and CONTENT_EVENTS_PR. Flag each item's grantEligibilityStatus accurately ('INELIGIBLE_ONGOING_AD_SPEND' for recurring ad clicks vs 'ELIGIBLE_CAPABILITY_OR_EXPORT' or 'WORKING_CAPITAL_LOAN_ELIGIBLE').
+3. Write a crisp 3-sentence "cacAndBudgetNarrative" justifying the funnel math, CAC payback period, and LTV:CAC ratio for investors and grant assessors.
+4. Provide a 1-sentence "grantAssessorTip" on how ${isIE ? 'LEO / Enterprise Ireland' : 'Innovate UK / Start Up Loans'} assessors scrutinize marketing budgets.
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "leadToCustomerConversionPercent": number,
+  "visitorToLeadConversionPercent": number,
+  "paidTrafficSharePercent": number,
+  "estimatedCostPerClickOrTouch": number,
+  "averageCustomerRetentionMonths": number,
+  "budgetLineItems": [
+    {
+      "id": "string",
+      "bucket": "PAID_MEDIA_ADS" | "GROWTH_STACK_TOOLS" | "CONTENT_EVENTS_PR" | "OTHER",
+      "channelOrToolName": "string",
+      "monthlySpend": number,
+      "grantEligibilityStatus": "ELIGIBLE_CAPABILITY_OR_EXPORT" | "INELIGIBLE_ONGOING_AD_SPEND" | "WORKING_CAPITAL_LOAN_ELIGIBLE",
+      "notes": "string"
+    }
+  ],
+  "cacAndBudgetNarrative": "string",
+  "grantAssessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          temperature: 0.25,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const text = response.text?.trim() || '';
+      if (text) {
+        const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+
+        const validBuckets: MarketingBudgetBucketType[] = [
+          'PAID_MEDIA_ADS',
+          'GROWTH_STACK_TOOLS',
+          'CONTENT_EVENTS_PR',
+          'OTHER',
+        ];
+        const validStatuses: MarketingGrantEligibilityStatus[] = [
+          'ELIGIBLE_CAPABILITY_OR_EXPORT',
+          'INELIGIBLE_ONGOING_AD_SPEND',
+          'WORKING_CAPITAL_LOAN_ELIGIBLE',
+        ];
+
+        const parsedItems: MarketingBudgetLineItem[] =
+          Array.isArray(parsed.budgetLineItems) && parsed.budgetLineItems.length > 0
+            ? parsed.budgetLineItems.slice(0, 6).map((item: any, idx: number) => ({
+                id: item.id || `ai_mkt_item_${idx + 1}`,
+                bucket: validBuckets.includes(item.bucket) ? item.bucket : 'PAID_MEDIA_ADS',
+                channelOrToolName:
+                  typeof item.channelOrToolName === 'string' && item.channelOrToolName.trim()
+                    ? item.channelOrToolName.trim()
+                    : fallback.budgetLineItems[idx % fallback.budgetLineItems.length].channelOrToolName,
+                monthlySpend:
+                  typeof item.monthlySpend === 'number' && !isNaN(item.monthlySpend)
+                    ? Math.max(0, Math.round(item.monthlySpend))
+                    : 150,
+                grantEligibilityStatus: validStatuses.includes(item.grantEligibilityStatus)
+                  ? item.grantEligibilityStatus
+                  : 'INELIGIBLE_ONGOING_AD_SPEND',
+                notes:
+                  typeof item.notes === 'string' && item.notes.trim()
+                    ? item.notes.trim()
+                    : 'Targeted acquisition investment.',
+              }))
+            : fallback.budgetLineItems;
+
+        return {
+          allowed: true,
+          leadToCustomerConversionPercent:
+            typeof parsed.leadToCustomerConversionPercent === 'number'
+              ? Math.min(50, Math.max(0.5, parsed.leadToCustomerConversionPercent))
+              : fallback.leadToCustomerConversionPercent,
+          visitorToLeadConversionPercent:
+            typeof parsed.visitorToLeadConversionPercent === 'number'
+              ? Math.min(40, Math.max(0.5, parsed.visitorToLeadConversionPercent))
+              : fallback.visitorToLeadConversionPercent,
+          paidTrafficSharePercent:
+            typeof parsed.paidTrafficSharePercent === 'number'
+              ? Math.min(100, Math.max(0, Math.round(parsed.paidTrafficSharePercent)))
+              : fallback.paidTrafficSharePercent,
+          estimatedCostPerClickOrTouch:
+            typeof parsed.estimatedCostPerClickOrTouch === 'number'
+              ? Math.max(0.1, Number(parsed.estimatedCostPerClickOrTouch.toFixed(2)))
+              : fallback.estimatedCostPerClickOrTouch,
+          averageCustomerRetentionMonths:
+            typeof parsed.averageCustomerRetentionMonths === 'number'
+              ? Math.min(60, Math.max(1, Math.round(parsed.averageCustomerRetentionMonths)))
+              : fallback.averageCustomerRetentionMonths,
+          budgetLineItems: parsedItems,
+          cacAndBudgetNarrative:
+            typeof parsed.cacAndBudgetNarrative === 'string' && parsed.cacAndBudgetNarrative.trim()
+              ? parsed.cacAndBudgetNarrative.trim()
+              : fallback.cacAndBudgetNarrative,
+          grantAssessorTip:
+            typeof parsed.grantAssessorTip === 'string' && parsed.grantAssessorTip.trim()
+              ? parsed.grantAssessorTip.trim()
+              : fallback.grantAssessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err) {
+      console.error('Error in generateModuleIBudgetViaRouter:', err);
+    }
+  }
+
+  return fallback;
+}
+
+/**
+ * AI Assessor Mode: Generates Module I Step 5 Marketing & Customer Acquisition Brief & Blind-Spot Audit.
+ */
+export interface GenerateModuleIMarketingBriefParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: SupportedCountryCode;
+  currencySymbol: string;
+  positioningHeadline: string;
+  toneOfVoice: string;
+  targetCustomer: string;
+  primaryChannel: string;
+  primaryAcquisitionEngine: string;
+  pipelineProspectsCount: number;
+  targetMonthlyNewCustomers: number;
+  cashCac: number;
+  ltv: number;
+  ltvToCacRatio: number;
+  paidTrafficSharePercent: number;
+  paidAdsViabilityDecision: string;
+  totalMonthlyMarketingSpend: number;
+  weeklyFounderHours: number;
+  activeLtvModel: string;
+  isOptedOut?: boolean;
+  excludePaidAdsFromModuleJ?: boolean;
+  paidMediaSpend?: number;
+  firstOrderNetProfitAfterCac?: number;
+}
+
+export interface GenerateModuleIMarketingBriefResult {
+  allowed: boolean;
+  executiveMarketingSummaryNarrative: string;
+  blindSpots: BlindSpotItem[];
+  marketingReadinessConfidence:
+    | 'ORGANIC_FIRST_10_READY'
+    | 'SCALABLE_HYBRID_FUNNEL'
+    | 'BOOTSTRAPPED_ZERO_AD_SPEND'
+    | 'NEEDS_CONVERSION_TESTING'
+    | 'OTHER';
+  aiAssessorTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+function buildSmartMarketingBriefFallback(
+  params: GenerateModuleIMarketingBriefParams
+): GenerateModuleIMarketingBriefResult {
+  const isIE = params.hqCountryCode !== 'GB';
+  const isOptedOut =
+    params.isOptedOut === true ||
+    params.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE' ||
+    params.paidTrafficSharePercent === 0 ||
+    params.excludePaidAdsFromModuleJ === true ||
+    params.paidMediaSpend === 0 ||
+    (params.firstOrderNetProfitAfterCac !== undefined && params.firstOrderNetProfitAfterCac < 0);
+
+  const blindSpots: BlindSpotItem[] = [];
+
+  // Check 1: Paid Ads or Opt-Out Strategy
+  if (isOptedOut) {
+    blindSpots.push({
+      id: `bs-mkt-1-${Date.now()}`,
+      title: 'Zero Paid Ads Organic Reliance',
+      category: 'MARKET_VIABILITY',
+      severity: 'WARNING',
+      explanation: `With paid media opted out to protect trading margins, 100% of your top-of-funnel pipeline relies on direct founder outreach and organic conversion. If founder time is constrained by product build (Module D), customer acquisition velocity could stall.`,
+      suggestedAction: `Systematize your Step 3 outbound scripts and set up automated referral triggers with your first 10 customers to create compounding organic distribution.`,
+    });
+  } else if (params.ltvToCacRatio < 2.5) {
+    blindSpots.push({
+      id: `bs-mkt-1-${Date.now()}`,
+      title: 'Tight Acquisition Margin Cushion',
+      category: 'COMMERCIAL_PRICING',
+      severity: 'CRITICAL',
+      explanation: `Your projected LTV:CAC ratio (${params.ltvToCacRatio}x) provides limited margin for rising ad costs or unexpected churn. Any dip in conversion rate risks pushing customer acquisition into negative cashflow.`,
+      suggestedAction: `Increase lead-to-customer conversion via personalized demos, or increase single-order Pocket Profit in Module H by introducing an upfront onboarding package.`,
+    });
+  } else {
+    blindSpots.push({
+      id: `bs-mkt-1-${Date.now()}`,
+      title: 'Channel Concentration Risk',
+      category: 'MARKET_VIABILITY',
+      severity: 'INFO',
+      explanation: `Heavily focusing on ${params.primaryChannel} provides early velocity but makes customer acquisition vulnerable to algorithm shifts or platform fee increases.`,
+      suggestedAction: `Treat ${params.primaryChannel} as your wedge channel while building an owned email list and direct partner relationships as defensive moats.`,
+    });
+  }
+
+  // Check 2: Founder Hustle Bandwidth
+  if (params.weeklyFounderHours > 20) {
+    blindSpots.push({
+      id: `bs-mkt-2-${Date.now()}`,
+      title: 'Founder Time Allocation Bottleneck',
+      category: 'OPERATIONAL_CAPACITY',
+      severity: 'WARNING',
+      explanation: `Committing ~${params.weeklyFounderHours} hours/week to outbound marketing and lead qualification leaves narrow operational bandwidth for core product engineering and client delivery.`,
+      suggestedAction: `Delegate top-of-funnel lead discovery using lightweight SDR tools or asynchronous content to cap founder outreach at under 15 hours/week.`,
+    });
+  } else {
+    blindSpots.push({
+      id: `bs-mkt-2-${Date.now()}`,
+      title: 'Pipeline Lead Velocity Validation',
+      category: 'EXECUTION_READINESS',
+      severity: 'INFO',
+      explanation: `You currently have ${params.pipelineProspectsCount} target prospects staged in Step 3. Commercial credibility requires converting these initial warm contacts into signed Letters of Intent or active pilot users before expanding broad cold outreach.`,
+      suggestedAction: `Execute your Step 3 follow-up cadence to lock in your first 3 paid pilot agreements within the next 30 days.`,
+    });
+  }
+
+  // Check 3: Grant Assessor Ad-Spend Ineligibility
+  blindSpots.push({
+    id: `bs-mkt-3-${Date.now()}`,
+    title: isIE
+      ? 'LEO / Enterprise Ireland Ineligible Ad Clicks'
+      : 'Innovate UK & BBB Grant-Ineligible Advertising',
+    category: 'GRANT_COMPLIANCE',
+    severity: isOptedOut ? 'INFO' : 'WARNING',
+    explanation: isOptedOut
+      ? `Ongoing paid search or social media ad clicks are strictly ineligible for ${isIE ? 'LEO Feasibility / Priming grants' : 'Innovate UK / Start Up Loans funding'}. Your decision to exclude paid media preserves grant funds for eligible capabilities.`
+      : `${params.currencySymbol}${params.totalMonthlyMarketingSpend}/month in marketing is budgeted. Note that ongoing pay-per-click ad clicks cannot be claimed under ${isIE ? 'Enterprise Ireland / LEO' : 'Innovate UK'} vouchers; only website development, CRM tools, and export collateral qualify.`,
+    suggestedAction: `Ensure your Module J cashflow clearly segregates self-funded working capital from grant-funded digital capability and marketing consultancy investments.`,
+  });
+
+  const posture = isOptedOut
+    ? ('BOOTSTRAPPED_ZERO_AD_SPEND' as const)
+    : params.pipelineProspectsCount >= 5
+    ? ('ORGANIC_FIRST_10_READY' as const)
+    : params.ltvToCacRatio >= 3
+    ? ('SCALABLE_HYBRID_FUNNEL' as const)
+    : ('NEEDS_CONVERSION_TESTING' as const);
+
+  const optOutPara = isOptedOut
+    ? `Commercial Viability & Paid Ads Opt-Out Defense: After evaluating direct customer acquisition unit economics, the venture has formally opted out of paid advertising for Year 1. Paid performance clicks at current price points risk negative contribution margins and are strictly ineligible under grant co-funding guidelines (${isIE ? 'LEO Feasibility/Priming' : 'Innovate UK / Start Up Loans'}). Consequently, ongoing ad spend is 100% excluded from Module J financial overheads, preserving runway and protecting trading cashflow. Customer acquisition is driven entirely by founder-led organic outreach, high-intent pilot conversion, strategic partner integrations, and compounding customer referrals.`
+    : `By balancing ${100 - params.paidTrafficSharePercent}% founder sweat-equity with a disciplined ${params.paidTrafficSharePercent}% paid acquisition share (${params.currencySymbol}${params.totalMonthlyMarketingSpend}/mo budget), the venture targets a Cash CAC of ${params.currencySymbol}${params.cashCac} against a Customer Pocket-Profit LTV of ${params.currencySymbol}${params.ltv} (${params.ltvToCacRatio}x LTV:CAC), recovering customer acquisition investment rapidly.`;
+
+  const narrative = `Our go-to-market architecture positions "${sanitizePromptInput(params.planTitle, 80)}" directly at ${sanitizePromptInput(params.targetCustomer || 'our beachhead segment', 80)} using a distinct, high-clarity value proposition ("${sanitizePromptInput(params.positioningHeadline || 'Precision Solution', 120)}"). Distribution is centered on ${sanitizePromptInput(params.primaryChannel, 60)} driven by our ${sanitizePromptInput(params.primaryAcquisitionEngine, 60)} motion, designed to generate consistent top-of-funnel awareness without reliance on vanity marketing channels.\n\nImmediate commercial traction focuses on our First 10 Customers Playbook, backed by an active pipeline of ${params.pipelineProspectsCount} high-intent prospects and structured pilot agreements. Pre-closing customers via Letters of Intent and structured proof-of-concept terms de-risks demand assumptions, provides rapid product validation feedback, and validates early willingness-to-pay ahead of formal grant drawdown.\n\n${optOutPara} This reverse-engineered funnel comfortably supports our monthly target of ${params.targetMonthlyNewCustomers} new paying customers while keeping weekly founder marketing commitment manageable at ~${params.weeklyFounderHours} hours/week alongside product development.`;
+
+  return {
+    allowed: true,
+    executiveMarketingSummaryNarrative: narrative,
+    blindSpots,
+    marketingReadinessConfidence: posture,
+    aiAssessorTip: isIE
+      ? 'LEO & Enterprise Ireland assessors scrutinize customer acquisition channels to verify you have real named prospects rather than hypothetical "build it and they will come" assumptions.'
+      : 'Innovate UK & BBB evaluators prioritize startups with clear founder-led distribution playbooks and realistic CAC assumptions that do not depend on unvalidated venture ad spend.',
+    engineMode: 'smart-synthesizer',
+  };
+}
+
+export async function generateModuleIMarketingBriefViaRouter(
+  params: GenerateModuleIMarketingBriefParams
+): Promise<GenerateModuleIMarketingBriefResult> {
+  const fallback = buildSmartMarketingBriefFallback(params);
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_I_MARKETING_BRIEF',
+    'You are a senior venture go-to-market auditor and government grant evaluator specializing in startup customer acquisition, CAC/LTV unit economics, and pipeline validation.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const isIE = params.hqCountryCode !== 'GB';
+      const isOptedOut =
+        params.isOptedOut === true ||
+        params.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE' ||
+        params.paidTrafficSharePercent === 0 ||
+        params.excludePaidAdsFromModuleJ === true ||
+        params.paidMediaSpend === 0 ||
+        (params.firstOrderNetProfitAfterCac !== undefined && params.firstOrderNetProfitAfterCac < 0);
+
+      const prompt = `You are a Senior Go-To-Market Evaluator and Grant Assessor for ${
+        isIE ? 'Enterprise Ireland & Local Enterprise Offices (LEO)' : 'Innovate UK & British Business Bank Start Up Loans'
+      }.
+Review the following early-stage startup marketing and customer acquisition strategy:
+
+Venture: "${sanitizePromptInput(params.planTitle, 100)}" (${params.industryCategory || 'Startup'})
+HQ Location: ${params.hqCountryCode} | Base Currency: ${params.currencySymbol}
+Positioning Headline: "${sanitizePromptInput(params.positioningHeadline, 140)}"
+Tone of Voice: ${params.toneOfVoice}
+Target Beachhead Customer: ${params.targetCustomer}
+Primary Distribution Channel: ${params.primaryChannel}
+Primary Acquisition Engine: ${params.primaryAcquisitionEngine}
+Staged Pipeline Prospects: ${params.pipelineProspectsCount}
+Target Monthly Customers: ${params.targetMonthlyNewCustomers}
+Cash CAC: ${params.currencySymbol}${params.cashCac} | Pocket Profit LTV: ${params.currencySymbol}${params.ltv} (${params.ltvToCacRatio}x LTV:CAC)
+Paid Traffic Share: ${params.paidTrafficSharePercent}%
+Paid Advertising Decision: ${
+  isOptedOut
+    ? 'FORMALLY OPTED OUT OF PAID ADVERTISING (Negative/unviable unit economics; 100% organic/direct strategy; paid ads excluded from Module J overheads)'
+    : `${params.paidAdsViabilityDecision || 'ACTIVE'} (${params.paidTrafficSharePercent}% paid acquisition share)`
+}
+Total Monthly Marketing Budget: ${params.currencySymbol}${params.totalMonthlyMarketingSpend}/mo
+Weekly Founder Marketing Bandwidth: ${params.weeklyFounderHours} hrs/week
+LTV Purchase Model: ${params.activeLtvModel}
+
+CRITICAL ASSESSMENT REQUIREMENT FOR PAID ADVERTISING:
+${
+  isOptedOut
+    ? `IMPORTANT: The founders have explicitly evaluated paid advertising and FORMALLY OPTED OUT of paid advertising because paid customer acquisition produces negative or unviable unit economics at their current price point/margins. In Paragraph 3 of the narrative, you MUST explicitly state that paid advertising was tested/evaluated and intentionally rejected in favor of a 100% organic, founder-led outbound and partnership model, and that recurring paid ad media spend is deliberately excluded from Module J financial overheads to conserve cash and protect trading margins. Grant assessors view this disciplined opt-out very favorably.`
+    : `In Paragraph 3, evaluate the blended organic/paid acquisition mix, justifying the ${params.paidTrafficSharePercent}% paid acquisition share and Cash CAC vs LTV payback.`
+}
+
+Tasks:
+1. Provide a rigorous, compelling 3-paragraph "Executive Go-To-Market Summary Narrative" (180-260 words across 3 distinct paragraphs separated by \\n\\n):
+   - Paragraph 1: Brand positioning, value proposition hook, and primary distribution wedge.
+   - Paragraph 2: First 10 traction strategy, Letter of Intent conversion, and validation evidence.
+   - Paragraph 3: Funnel unit economics (CAC, LTV, payback) and commercial defense of the paid advertising strategy.${
+     isOptedOut
+       ? ' (MANDATORY: Explicitly state that paid advertising was evaluated and opted out to protect trading margins, highlighting that 100% organic acquisition is used and paid ads are excluded from financial overheads).'
+       : ''
+   }
+2. Generate 3 to 4 constructive Blind-Spot Review items (JSON array with id, title, category, severity="CRITICAL"|"WARNING"|"INFO", explanation, suggestedAction).${
+  isOptedOut
+    ? ' One of the blind spots must address how the startup will maintain lead velocity without paid ads through organic referrals and founder outreach.'
+    : ''
+}
+3. Set marketingReadinessConfidence to one of: "${isOptedOut ? 'BOOTSTRAPPED_ZERO_AD_SPEND' : 'ORGANIC_FIRST_10_READY'}", "SCALABLE_HYBRID_FUNNEL", "BOOTSTRAPPED_ZERO_AD_SPEND", "NEEDS_CONVERSION_TESTING", "OTHER".
+4. Provide a 1-sentence aiAssessorTip summarizing the #1 thing an assessor will inspect.
+
+Return strictly JSON:
+{
+  "executiveMarketingSummaryNarrative": "string (180-260 words in 3 paragraphs separated by \\n\\n)",
+  "blindSpots": [
+    {
+      "id": "bs-mkt-1",
+      "title": "string",
+      "category": "MARKET_VIABILITY" | "COMMERCIAL_PRICING" | "GRANT_COMPLIANCE" | "OPERATIONAL_CAPACITY",
+      "severity": "CRITICAL" | "WARNING" | "INFO",
+      "explanation": "string",
+      "suggestedAction": "string"
+    }
+  ],
+  "marketingReadinessConfidence": "ORGANIC_FIRST_10_READY" | "SCALABLE_HYBRID_FUNNEL" | "BOOTSTRAPPED_ZERO_AD_SPEND" | "NEEDS_CONVERSION_TESTING" | "OTHER",
+  "aiAssessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text ? response.text.trim() : '';
+      if (text) {
+        const parsed = JSON.parse(text);
+        const parsedBlindSpots: BlindSpotItem[] = Array.isArray(parsed.blindSpots)
+          ? parsed.blindSpots.map((item: any, idx: number) => ({
+              id: item.id || `bs-ai-${idx + 1}`,
+              title: item.title || 'Marketing Risk',
+              category: item.category || 'MARKET_VIABILITY',
+              severity: (item.severity === 'CRITICAL' || item.severity === 'WARNING' || item.severity === 'INFO') ? item.severity : 'WARNING',
+              explanation: item.explanation || '',
+              suggestedAction: item.suggestedAction || '',
+            }))
+          : fallback.blindSpots;
+
+        return {
+          allowed: true,
+          executiveMarketingSummaryNarrative:
+            typeof parsed.executiveMarketingSummaryNarrative === 'string' &&
+            parsed.executiveMarketingSummaryNarrative.trim().length > 40
+              ? parsed.executiveMarketingSummaryNarrative.trim()
+              : fallback.executiveMarketingSummaryNarrative,
+          blindSpots: parsedBlindSpots.length > 0 ? parsedBlindSpots : fallback.blindSpots,
+          marketingReadinessConfidence:
+            parsed.marketingReadinessConfidence || fallback.marketingReadinessConfidence,
+          aiAssessorTip:
+            typeof parsed.aiAssessorTip === 'string' && parsed.aiAssessorTip.trim()
+              ? parsed.aiAssessorTip.trim()
+              : fallback.aiAssessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn(
+        '[AI Router] Live Vertex/Gemini call unavailable (falling back to smart-synthesizer):',
+        err?.message || err
+      );
+    }
+  }
+
+  return fallback;
+}
 
 

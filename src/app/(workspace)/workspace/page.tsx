@@ -237,6 +237,7 @@ import {
   saveModuleFStep6BlindSpotAuditAction,
   parkModuleFOpenQuestionAction,
 } from '@/app/actions/module-f';
+import { saveModuleGLaunchpadDataAction } from '@/app/actions/module-g';
 import { ModuleBWorkspace } from '@/components/workspace/module-b-workspace';
 import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
 import { ModuleDWorkspace } from '@/components/workspace/module-d-workspace';
@@ -244,6 +245,7 @@ import { ModuleEWorkspace } from '@/components/workspace/module-e-workspace';
 import { ModuleFWorkspace } from '@/components/workspace/module-f-workspace';
 import { ModuleGWorkspace } from '@/components/workspace/module-g-workspace';
 import { ModuleHWorkspace } from '@/components/workspace/module-h-workspace';
+import { ModuleIWorkspace } from '@/components/workspace/module-i-workspace';
 import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
 import { LocalBugCaptureWidget } from '@/components/workspace/local-bug-capture-widget';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
@@ -622,6 +624,16 @@ export default function WorkspacePage() {
           const fromParam = resolveModuleFromParam(moduleParam);
           if (fromParam) {
             resolvedInitialMod = fromParam;
+            const stepParam = searchParams.get('step');
+            if (stepParam) {
+              const parsedStep = parseInt(stepParam, 10);
+              if (!isNaN(parsedStep) && parsedStep > 0) {
+                setModuleNavTarget({ step: parsedStep });
+                if (fromParam === 'MOD_A_IDEATION') {
+                  setOpenStep(parsedStep);
+                }
+              }
+            }
           }
         }
 
@@ -899,9 +911,76 @@ export default function WorkspacePage() {
                     }
                   : undefined;
 
+              const primaryModuleGData = pickNewerBySavedAt(
+                localPlan.moduleGData,
+                dbPlan.moduleGData
+              );
+              const mergedModuleGData = primaryModuleGData
+                ? {
+                    ...primaryModuleGData,
+                    completionPercentage:
+                      localPlan.moduleGData?.completionPercentage ??
+                      dbPlan.moduleGData?.completionPercentage,
+                    thingsToConsider:
+                      dbPlan.moduleGData?.thingsToConsider ||
+                      localPlan.moduleGData?.thingsToConsider,
+                    lastSavedAt:
+                      primaryModuleGData.lastSavedAt ||
+                      localPlan.moduleGData?.lastSavedAt ||
+                      dbPlan.moduleGData?.lastSavedAt,
+                  }
+                : undefined;
+
+              const mergedModuleIData =
+                localPlan.moduleIData || dbPlan.moduleIData
+                  ? {
+                      ...(dbPlan.moduleIData || {}),
+                      ...(localPlan.moduleIData || {}),
+                      step1Positioning: pickNewerBySavedAt(
+                        localPlan.moduleIData?.step1Positioning,
+                        dbPlan.moduleIData?.step1Positioning
+                      ),
+                      step2FourPs: pickNewerBySavedAt(
+                        localPlan.moduleIData?.step2FourPs,
+                        dbPlan.moduleIData?.step2FourPs
+                      ),
+                      step3First10: pickNewerBySavedAt(
+                        localPlan.moduleIData?.step3First10,
+                        dbPlan.moduleIData?.step3First10
+                      ),
+                      step4Budget: pickNewerBySavedAt(
+                        localPlan.moduleIData?.step4Budget,
+                        dbPlan.moduleIData?.step4Budget
+                      ),
+                      step5MarketingBrief: pickNewerBySavedAt(
+                        localPlan.moduleIData?.step5MarketingBrief,
+                        dbPlan.moduleIData?.step5MarketingBrief
+                      ),
+                      completionPercentage:
+                        localPlan.moduleIData?.completionPercentage ??
+                        dbPlan.moduleIData?.completionPercentage,
+                      thingsToConsider:
+                        dbPlan.moduleIData?.thingsToConsider ||
+                        localPlan.moduleIData?.thingsToConsider,
+                      lastSavedAt:
+                        pickNewerBySavedAt(
+                          localPlan.moduleIData,
+                          dbPlan.moduleIData
+                        )?.lastSavedAt ||
+                        localPlan.moduleIData?.lastSavedAt ||
+                        dbPlan.moduleIData?.lastSavedAt,
+                    }
+                  : undefined;
+
               const resolvedCurrentStep =
-                localPlan.currentModuleStep?.startsWith('MOD_H') &&
+                localPlan.currentModuleStep?.startsWith('MOD_I') &&
+                !dbPlan.currentModuleStep?.startsWith('MOD_I')
+                  ? localPlan.currentModuleStep
+                  : localPlan.currentModuleStep?.startsWith('MOD_H') &&
                 !dbPlan.currentModuleStep?.startsWith('MOD_H')
+                  ? localPlan.currentModuleStep
+                  : localPlan.currentModuleStep?.startsWith('MOD_G') &&
+                !dbPlan.currentModuleStep?.startsWith('MOD_G')
                   ? localPlan.currentModuleStep
                   : localPlan.currentModuleStep?.startsWith('MOD_F') &&
                 !dbPlan.currentModuleStep?.startsWith('MOD_F')
@@ -932,7 +1011,9 @@ export default function WorkspacePage() {
                 moduleDData: mergedModuleDData,
                 moduleEData: mergedModuleEData,
                 moduleFData: mergedModuleFData,
+                moduleGData: mergedModuleGData,
                 moduleHData: mergedModuleHData,
+                moduleIData: mergedModuleIData,
                 masterDocumentData: pickNewerBySavedAt(
                   localPlan.masterDocumentData,
                   dbPlan.masterDocumentData
@@ -1000,10 +1081,18 @@ export default function WorkspacePage() {
     const url = new URL(window.location.href);
     if (isMasterDocumentOpen) {
       url.searchParams.delete('module');
+      url.searchParams.delete('step');
       url.searchParams.set('view', 'master_doc');
     } else {
       url.searchParams.delete('view');
       url.searchParams.set('module', activeModule);
+      if (activeModule === 'MOD_A_IDEATION' && typeof openStep === 'number' && openStep > 0) {
+        url.searchParams.set('step', String(openStep));
+      } else if (moduleNavTarget?.step && moduleNavTarget.step > 0) {
+        url.searchParams.set('step', String(moduleNavTarget.step));
+      } else {
+        url.searchParams.delete('step');
+      }
     }
 
     if (url.search !== window.location.search) {
@@ -1034,16 +1123,21 @@ export default function WorkspacePage() {
   }, [
     hasHydratedLocation,
     activeModule,
+    openStep,
+    moduleNavTarget,
     isMasterDocumentOpen,
     session?.activePlanId,
   ]);
 
-  // Handle browser Back / Forward navigation smoothly
+  // Handle browser Back / Forward navigation smoothly with step restoration
   useEffect(() => {
     const handlePopState = () => {
       const searchParams = new URLSearchParams(window.location.search);
       const viewParam = searchParams.get('view');
       const moduleParam = searchParams.get('module');
+      const stepParam = searchParams.get('step');
+      const parsedStep = stepParam ? parseInt(stepParam, 10) : undefined;
+      const validStep = parsedStep && !isNaN(parsedStep) && parsedStep > 0 ? parsedStep : undefined;
 
       if (
         viewParam === 'master_doc' ||
@@ -1051,21 +1145,59 @@ export default function WorkspacePage() {
         moduleParam === 'MOD_L_BUSINESS_PLAN'
       ) {
         setIsMasterDocumentOpen(true);
+        setModuleNavTarget(null);
       } else if (moduleParam) {
         const resolved = resolveModuleFromParam(moduleParam);
         if (resolved) {
           setIsMasterDocumentOpen(false);
           setActiveModule(resolved);
+          if (validStep) {
+            setModuleNavTarget({ step: validStep });
+            if (resolved === 'MOD_A_IDEATION') {
+              setOpenStep(validStep);
+            }
+          } else {
+            setModuleNavTarget(null);
+            setOpenStep(0);
+          }
         }
       } else {
         setIsMasterDocumentOpen(false);
         setActiveModule('MOD_A_IDEATION');
+        if (validStep) {
+          setOpenStep(validStep);
+          setModuleNavTarget({ step: validStep });
+        } else {
+          setOpenStep(0);
+          setModuleNavTarget(null);
+        }
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  function navigateToModuleWithHistory(modCode: ModuleCode, stepNum?: number, highlightId?: string) {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('view');
+      url.searchParams.set('module', modCode);
+      if (stepNum && stepNum > 0) {
+        url.searchParams.set('step', String(stepNum));
+      } else {
+        url.searchParams.delete('step');
+      }
+      window.history.pushState(null, '', url.toString());
+    }
+    setIsMasterDocumentOpen(false);
+    setActiveModule(modCode);
+    if (modCode === 'MOD_A_IDEATION') {
+      setOpenStep(stepNum || 0);
+    }
+    setModuleNavTarget(stepNum ? { step: stepNum, highlightTarget: highlightId } : null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   useEffect(() => {
     if (!isGrantCheckerSupportedForCountry(selectedCountry) && openStep === 8) {
@@ -4207,6 +4339,28 @@ export default function WorkspacePage() {
           ? 10
           : 0;
 
+  // Module I Progress Calculation (Step 1)
+  const savedModIStep1 = currentPlan.moduleIData?.step1Positioning;
+  const step1ModIScore = savedModIStep1
+    ? Boolean(savedModIStep1.elevatorHook140?.trim()) &&
+      Boolean(savedModIStep1.positioningFormula?.targetCustomer?.trim()) &&
+      Boolean(savedModIStep1.positioningFormula?.customerProblem?.trim())
+      ? 25
+      : 15
+    : 0;
+
+  const totalModIScore = step1ModIScore;
+
+  const moduleIProgressPercent =
+    currentPlan.moduleIData?.completionPercentage &&
+    currentPlan.moduleIData.completionPercentage > totalModIScore
+      ? currentPlan.moduleIData.completionPercentage
+      : totalModIScore > 0
+        ? Math.min(100, totalModIScore)
+        : activeModule === 'MOD_I_MARKETING'
+          ? 10
+          : 0;
+
   const masterDocChapterPills: Array<{
     short: string;
     code: ModuleCode;
@@ -4671,12 +4825,20 @@ export default function WorkspacePage() {
                           ? 'D'
                           : activeModule === 'MOD_E_OPERATIONS'
                             ? 'E'
-                            : 'F'}
+                            : activeModule === 'MOD_F_COFOUNDER_TEAM'
+                              ? 'F'
+                              : activeModule === 'MOD_G_LAUNCHPAD'
+                                ? 'G'
+                                : activeModule === 'MOD_H_REVENUE'
+                                  ? 'H'
+                                  : activeModule === 'MOD_I_MARKETING'
+                                    ? 'I'
+                                    : 'A'}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-xs font-bold text-slate-900">
                   {isMasterDocumentOpen
-                    ? 'Living Master Document (Modules A–F)'
+                    ? 'Living Master Document (Modules A–L)'
                     : activeModule === 'MOD_A_IDEATION'
                       ? 'Module A: Ideation & Founder Fit'
                       : activeModule === 'MOD_B_MARKET'
@@ -4689,7 +4851,13 @@ export default function WorkspacePage() {
                               ? 'Module E: Operations & Fulfillment'
                               : activeModule === 'MOD_F_COFOUNDER_TEAM'
                                 ? 'Module F: Team, Survival Budget & Roles'
-                                : 'Module G: Getting Set Up (Launchpad & Operations)'}
+                                : activeModule === 'MOD_G_LAUNCHPAD'
+                                  ? 'Module G: Getting Set Up (Launchpad & Operations)'
+                                  : activeModule === 'MOD_H_REVENUE'
+                                    ? 'Module H: Pricing & Pocket Profit Breakeven'
+                                    : activeModule === 'MOD_I_MARKETING'
+                                      ? 'Module I: Marketing & First 10 Customers'
+                                      : 'Startup Preflight Workspace'}
                 </div>
                 <div className="text-[11px] text-indigo-700">
                   {mobileSidebarOpen
@@ -4736,7 +4904,9 @@ export default function WorkspacePage() {
                                 ? moduleFProgressPercent
                                 : mod.code === 'MOD_H_REVENUE'
                                   ? moduleHProgressPercent
-                                  : mod.progress;
+                                  : mod.code === 'MOD_I_MARKETING'
+                                    ? moduleIProgressPercent
+                                    : mod.progress;
 
                   return (
                     <button
@@ -4764,11 +4934,11 @@ export default function WorkspacePage() {
                           mod.code === 'MOD_E_OPERATIONS' ||
                           mod.code === 'MOD_F_COFOUNDER_TEAM' ||
                           mod.code === 'MOD_G_LAUNCHPAD' ||
-                          mod.code === 'MOD_H_REVENUE'
+                          mod.code === 'MOD_H_REVENUE' ||
+                          mod.code === 'MOD_I_MARKETING'
                         ) {
-                          setIsMasterDocumentOpen(false);
-                          setActiveModule(mod.code);
                           setMobileSidebarOpen(false);
+                          navigateToModuleWithHistory(mod.code);
                         }
                       }}
                       className={`group flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-all ${
@@ -4968,9 +5138,7 @@ export default function WorkspacePage() {
                   );
                   return;
                 }
-                setIsMasterDocumentOpen(false);
-                setActiveModule(modCode);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory(modCode);
               }}
             />
           ) : activeModule === 'MOD_F_COFOUNDER_TEAM' ? (
@@ -5192,7 +5360,9 @@ export default function WorkspacePage() {
                   questionText: question,
                 });
               }}
-              onBackToModuleE={() => setActiveModule('MOD_E_OPERATIONS')}
+              onBackToModuleE={() => {
+                navigateToModuleWithHistory('MOD_E_OPERATIONS', 6, 'module-e-step-6');
+              }}
               initialStep={moduleNavTarget?.step}
               highlightTarget={moduleNavTarget?.highlightTarget}
               onContinueToModuleG={() => {
@@ -5207,8 +5377,7 @@ export default function WorkspacePage() {
                   );
                   return;
                 }
-                setActiveModule('MOD_G_LAUNCHPAD');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory('MOD_G_LAUNCHPAD');
               }}
             />
           ) : activeModule === 'MOD_G_LAUNCHPAD' ? (
@@ -5220,7 +5389,67 @@ export default function WorkspacePage() {
               }}
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
-              onBackToModuleF={() => setActiveModule('MOD_F_COFOUNDER_TEAM')}
+              initialData={currentPlan.moduleGData}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
+              onSave={async (modGData) => {
+                const nowIso = new Date().toISOString();
+                const isS1 =
+                  modGData.step1.state === 'ALREADY_HAVE'
+                    ? !!modGData.step1.registeredEntityName.trim() && !!modGData.step1.registrationNumber.trim()
+                    : !!modGData.step1.targetFormationTimeline;
+                const isS2 =
+                  modGData.step2.state === 'ALREADY_HAVE'
+                    ? !!modGData.step2.primaryDomain.trim() && !!modGData.step2.officialBusinessEmail.trim()
+                    : !!modGData.step2.primaryDomain.trim() || !!modGData.step2.emailProvider;
+                const isS3 =
+                  modGData.step3.state === 'ALREADY_HAVE'
+                    ? !!modGData.step3.bankProvider && (modGData.step3.hasDedicatedIban || !!modGData.step3.ibanLast4.trim())
+                    : !!modGData.step3.targetOpeningTimeline;
+                const isS4 =
+                  modGData.step4.state === 'ALREADY_HAVE'
+                    ? !!modGData.step4.softwareChoice || modGData.step4.hasAccountant
+                    : !!modGData.step4.vatStatus;
+                const isS5 =
+                  modGData.step5.state === 'ALREADY_HAVE'
+                    ? modGData.step5.hasPublicLiability || modGData.step5.hasProfessionalIndemnity || !!modGData.step5.currentInsurerName.trim()
+                    : !!modGData.step5.targetCoverageTimeline;
+                const isS6 =
+                  modGData.step6.state === 'ALREADY_HAVE'
+                    ? modGData.step6.hasIpAssignmentSigned || modGData.step6.hasPrivacyPolicy
+                    : !!modGData.step6.legalAdvisorOrPlatform || modGData.step6.hasIpAssignmentSigned;
+                const doneCount = [isS1, isS2, isS3, isS4, isS5, isS6].filter(Boolean).length;
+                const completionPct = Math.round((doneCount / 6) * 100);
+
+                const savedPayload = {
+                  ...modGData,
+                  completionPercentage: completionPct,
+                  lastSavedAt: nowIso,
+                };
+
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_G_LAUNCHPAD',
+                      moduleGData: savedPayload,
+                    };
+                  });
+                  const next = { ...prev, plans: updatedPlans };
+                  saveBmuSession(next);
+                  return next;
+                });
+
+                await saveModuleGLaunchpadDataAction({
+                  planId: currentPlan.id,
+                  data: savedPayload,
+                  completionPercentage: completionPct,
+                });
+              }}
+              onBackToModuleF={() => {
+                navigateToModuleWithHistory('MOD_F_COFOUNDER_TEAM', 6, 'module-f-step-6');
+              }}
               onContinueToModuleH={() => {
                 const access = canAccessModule(
                   activeEntitlement,
@@ -5233,8 +5462,7 @@ export default function WorkspacePage() {
                   );
                   return;
                 }
-                setActiveModule('MOD_H_REVENUE');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory('MOD_H_REVENUE');
               }}
             />
           ) : activeModule === 'MOD_H_REVENUE' ? (
@@ -5377,7 +5605,11 @@ export default function WorkspacePage() {
                   return updatedSession;
                 });
               }}
-              onBackToModuleG={() => setActiveModule('MOD_G_LAUNCHPAD')}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
+              onBackToModuleG={() => {
+                navigateToModuleWithHistory('MOD_G_LAUNCHPAD', 7, 'mod-g-step-7');
+              }}
               onNavigateToModule={(modCode, targetStep, highlightId) => {
                 const access = canAccessModule(activeEntitlement, modCode);
                 if (!access.allowed) {
@@ -5385,11 +5617,7 @@ export default function WorkspacePage() {
                   setPaywallModalFeature(access.reason || 'This module requires an upgraded plan.');
                   return;
                 }
-                setModuleNavTarget(
-                  targetStep ? { step: targetStep, highlightTarget: highlightId } : null
-                );
-                setActiveModule(modCode);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory(modCode, targetStep, highlightId);
               }}
               onContinueToModuleI={() => {
                 const access = canAccessModule(
@@ -5403,8 +5631,178 @@ export default function WorkspacePage() {
                   );
                   return;
                 }
-                setActiveModule('MOD_I_MARKETING');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory('MOD_I_MARKETING');
+              }}
+            />
+          ) : activeModule === 'MOD_I_MARKETING' ? (
+            <ModuleIWorkspace
+              key={currentPlan.id}
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              onSaveStep1Positioning={async (step1Data, progress = 25) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_I_STEP_1_POSITIONING',
+                      moduleIData: {
+                        ...(p.moduleIData || {}),
+                        step1Positioning: step1Data,
+                        completionPercentage: Math.max(
+                          p.moduleIData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep2FourPs={async (step2Data, progress = 45) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_I_STEP_2_FOUR_PS',
+                      moduleIData: {
+                        ...(p.moduleIData || {}),
+                        step2FourPs: step2Data,
+                        completionPercentage: Math.max(
+                          p.moduleIData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep3First10={async (step3Data, progress = 65) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_I_STEP_3_FIRST_10',
+                      moduleIData: {
+                        ...(p.moduleIData || {}),
+                        step3First10: step3Data,
+                        completionPercentage: Math.max(
+                          p.moduleIData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep4Budget={async (step4Data, progress = 90) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_I_STEP_4_BUDGET',
+                      moduleIData: {
+                        ...(p.moduleIData || {}),
+                        step4Budget: step4Data,
+                        completionPercentage: Math.max(
+                          p.moduleIData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep5Brief={async (step5Data, progress = 100) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_I_STEP_5_BRIEF',
+                      moduleIData: {
+                        ...(p.moduleIData || {}),
+                        step5MarketingBrief: step5Data,
+                        thingsToConsider: step5Data.blindSpots,
+                        completionPercentage: Math.max(
+                          p.moduleIData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
+              onBackToModuleH={() => {
+                navigateToModuleWithHistory('MOD_H_REVENUE', 5, 'module-h-step-5');
+              }}
+              onContinueToModuleJ={() => {
+                const access = canAccessModule(
+                  activeEntitlement,
+                  'MOD_J_FINANCE'
+                );
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock('MOD_J_FINANCE');
+                  setPaywallModalFeature(
+                    `Module J: Financial Projections & Cashflow — ${access.reason}`
+                  );
+                  return;
+                }
+                navigateToModuleWithHistory('MOD_J_FINANCE');
+              }}
+              onNavigateToModule={(modCode, targetStep, highlightId) => {
+                const access = canAccessModule(activeEntitlement, modCode);
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock(modCode);
+                  setPaywallModalFeature(
+                    access.reason || 'This module requires an upgraded plan.'
+                  );
+                  return;
+                }
+                navigateToModuleWithHistory(modCode, targetStep, highlightId);
               }}
             />
           ) : activeModule === 'MOD_E_OPERATIONS' ? (
@@ -5452,7 +5850,9 @@ export default function WorkspacePage() {
               initialStep={moduleNavTarget?.step}
               highlightTarget={moduleNavTarget?.highlightTarget}
               onParkOpenQuestion={handleParkModuleEQuestion}
-              onBackToModuleD={() => setActiveModule('MOD_D_PRODUCT_BUILD')}
+              onBackToModuleD={() => {
+                navigateToModuleWithHistory('MOD_D_PRODUCT_BUILD', 6, 'module-d-step-6');
+              }}
               onContinueToModuleF={() => {
                 const access = canAccessModule(
                   activeEntitlement,
@@ -5465,11 +5865,10 @@ export default function WorkspacePage() {
                   );
                   return;
                 }
-                setActiveModule('MOD_F_COFOUNDER_TEAM');
                 setSynthesisBanner(
                   '✅ Module E Operations & Logistics Complete! Welcome to Module F (Co-Founder, Team & Roles).'
                 );
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory('MOD_F_COFOUNDER_TEAM');
               }}
             />
           ) : activeModule === 'MOD_D_PRODUCT_BUILD' ? (
@@ -5508,10 +5907,11 @@ export default function WorkspacePage() {
               onParkOpenQuestion={handleParkModuleDQuestion}
               initialStep={moduleNavTarget?.step}
               highlightTarget={moduleNavTarget?.highlightTarget}
-              onBackToModuleC={() => setActiveModule('MOD_C_SURVEYS_FEEDBACK')}
+              onBackToModuleC={() => {
+                navigateToModuleWithHistory('MOD_C_SURVEYS_FEEDBACK', 4, 'module-c-step-4');
+              }}
               onContinueToModuleE={() => {
-                setActiveModule('MOD_E_OPERATIONS');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory('MOD_E_OPERATIONS');
               }}
               whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
             />
@@ -5526,6 +5926,8 @@ export default function WorkspacePage() {
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               founderName={session.user.name}
               whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
               onSaveSurvey={handleSaveModuleCSurvey}
               onDeleteSurvey={handleDeleteModuleCSurvey}
               onSaveInterviewLogs={handleSaveModuleCInterviewLogs}
@@ -5538,7 +5940,9 @@ export default function WorkspacePage() {
               onSuggestNextQuestionWithAi={handleSuggestNextQuestionWithAi}
               onAnalyzeResultsWithAi={handleAnalyzeSurveyResultsWithAi}
               onParkQuestion={handleParkModuleBQuestion}
-              onBackToModuleB={() => setActiveModule('MOD_B_MARKET')}
+              onBackToModuleB={() => {
+                navigateToModuleWithHistory('MOD_B_MARKET', 5, 'module-b-step-5');
+              }}
               onContinueToModuleD={() => {
                 const access = canAccessModule(
                   activeEntitlement,
@@ -5551,11 +5955,10 @@ export default function WorkspacePage() {
                   );
                   return;
                 }
-                setActiveModule('MOD_D_PRODUCT_BUILD');
                 setSynthesisBanner(
                   '✅ Module C Customer Validation Surveys & Insights saved! Welcome to Module D (Step 1: Adaptive Product Vehicle).'
                 );
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory('MOD_D_PRODUCT_BUILD');
               }}
             />
           ) : activeModule === 'MOD_B_MARKET' ? (
@@ -5569,6 +5972,8 @@ export default function WorkspacePage() {
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               founderName={session.user.name}
               whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
               onSaveStep1Beachhead={handleSaveModuleBStep1}
               onSaveStep2Competitors={handleSaveModuleBStep2}
               onScoutCompetitorsWithAi={handleScoutModuleBCompetitors}
@@ -5580,7 +5985,9 @@ export default function WorkspacePage() {
               }
               onSaveStep5Complete={handleSaveModuleBStep5}
               onParkQuestion={handleParkModuleBQuestion}
-              onBackToModuleA={() => setActiveModule('MOD_A_IDEATION')}
+              onBackToModuleA={() => {
+                navigateToModuleWithHistory('MOD_A_IDEATION', 8, 'module-a-step-8');
+              }}
               onContinueToModuleC={() => {
                 const modCAccess = canAccessModule(
                   activeEntitlement,
@@ -5593,8 +6000,7 @@ export default function WorkspacePage() {
                   );
                   return;
                 }
-                setActiveModule('MOD_C_SURVEYS_FEEDBACK');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory('MOD_C_SURVEYS_FEEDBACK');
               }}
             />
           ) : (
@@ -8199,8 +8605,7 @@ export default function WorkspacePage() {
                   );
                   return;
                 }
-                setActiveModule('MOD_B_MARKET');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navigateToModuleWithHistory('MOD_B_MARKET');
               }}
               onOpenModuleJGrantsHub={() => {
                 const modKAccess = canAccessModule(
@@ -8899,8 +9304,7 @@ export default function WorkspacePage() {
                         );
                         return;
                       }
-                      setActiveModule('MOD_B_MARKET');
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                      navigateToModuleWithHistory('MOD_B_MARKET');
                     }}
                     className="bg-indigo-500 text-white hover:bg-indigo-400"
                   >

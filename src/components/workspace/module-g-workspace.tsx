@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useId } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import {
   ShieldCheck,
   Building2,
@@ -178,6 +178,8 @@ export interface ModuleGWorkspaceProps {
   onSave?: (data: ModuleGData) => Promise<void>;
   onBackToModuleF?: () => void;
   onContinueToModuleH?: () => void;
+  initialStep?: number;
+  highlightTarget?: string;
 }
 
 export function ModuleGWorkspace({
@@ -188,10 +190,49 @@ export function ModuleGWorkspace({
   onSave,
   onBackToModuleF,
   onContinueToModuleH,
+  initialStep,
+  highlightTarget,
 }: ModuleGWorkspaceProps) {
-  const [data, setData] = useState<ModuleGData>(initialData || getDefaultModuleGData());
+  const [data, setData] = useState<ModuleGData>(() => {
+    const defaults = getDefaultModuleGData();
+    if (!initialData) return defaults;
+    return {
+      ...defaults,
+      ...initialData,
+      step1: { ...defaults.step1, ...(initialData.step1 || {}) },
+      step2: { ...defaults.step2, ...(initialData.step2 || {}) },
+      step3: { ...defaults.step3, ...(initialData.step3 || {}) },
+      step4: { ...defaults.step4, ...(initialData.step4 || {}) },
+      step5: { ...defaults.step5, ...(initialData.step5 || {}) },
+      step6: { ...defaults.step6, ...(initialData.step6 || {}) },
+    };
+  });
+  const isFirstRenderRef = React.useRef(true);
   // Step Accordion View State: 0 = all collapsed by default, 1..7, or 'ALL'
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 7) {
+      return initialStep;
+    }
+    return 0;
+  });
+
+  // Handle deep-link scrolling and highlight
+  useEffect(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 7) {
+      setOpenStep(initialStep);
+      setTimeout(() => {
+        const targetId = highlightTarget || `mod-g-step-${initialStep}`;
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('attention-highlight');
+          void el.offsetWidth;
+          el.classList.add('attention-highlight');
+          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+        }
+      }, 250);
+    }
+  }, [initialStep, highlightTarget]);
   const [isCopiedBrief, setIsCopiedBrief] = useState(false);
 
   // Auto-detect country code normalize
@@ -250,6 +291,19 @@ export function ModuleGWorkspace({
   const completedCoreStepsCount = readinessChecks.filter((s) => s.done).length;
   // Calculate an Operations Readiness percentage (0 - 100%)
   const opsReadinessScore = Math.round((completedCoreStepsCount / 6) * 100);
+
+  // Auto-persist Module G Launchpad edits to session & Cloud SQL via parent onSave
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSave) return;
+    const timer = setTimeout(() => {
+      onSave(data);
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [data, isVaultReadonly, onSave]);
 
   const handleCopyOperationsBrief = () => {
     const brief = `### STARTUP PREFLIGHT — MODULE G: LAUNCHPAD & OPERATIONS BRIEF
@@ -1754,7 +1808,12 @@ export function ModuleGWorkspace({
               </div>
               <Button
                 size="sm"
-                onClick={onContinueToModuleH}
+                onClick={() => {
+                  if (!isVaultReadonly && onSave) {
+                    onSave(data);
+                  }
+                  onContinueToModuleH?.();
+                }}
                 className="bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shrink-0"
               >
                 <span>Continue to Module H</span>

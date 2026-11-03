@@ -3612,7 +3612,7 @@ export function ModuleFWorkspace({
                 size="sm"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                Edit Step
+                {step1Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -3639,9 +3639,9 @@ export function ModuleFWorkspace({
                       </CardTitle>
                       <Badge
                         variant={step1Complete ? 'default' : 'outline'}
-                        className={`text-[10px] shrink-0 ${
+                        className={`text-[10px] shrink-0 font-medium ${
                           step1Complete
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                            ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
                             : 'border-slate-300 text-slate-600'
                         }`}
                       >
@@ -3659,43 +3659,56 @@ export function ModuleFWorkspace({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
-                      setActiveWhyCard(activeWhyCard === 1 ? null : 1)
-                    }
-                    className="text-xs text-indigo-700 hover:bg-indigo-50"
-                  >
-                    <HelpCircle className="mr-1 h-3.5 w-3.5" />
-                    Why Are We Asking This?
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenStep(0);
                     }}
-                    className="text-xs text-slate-500 hover:bg-slate-100"
+                    className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                   >
-                    Collapse Step
+                    <span>Collapse Step</span>
                     <ChevronUp className="ml-1 h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
 
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setActiveWhyCard(activeWhyCard === 1 ? null : 1)
+                  }
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  Why Are We Asking This?
+                </Button>
+              </div>
+
               {/* "Why Are We Asking This?" Explainer */}
               {activeWhyCard === 1 && (
                 <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
-                  <div className="flex items-start gap-2">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-                    <div className="space-y-1">
-                      <p className="font-semibold text-indigo-900">
-                        Why Grant Assessors &amp; Investors Scrutinize Your Team:
-                      </p>
-                      <p className="text-indigo-900/90 leading-relaxed">
-                        Irish LEO application forms explicitly demand a <strong>minimum 150-word background narrative per promoter</strong> plus formal CVs attached to <strong>Appendix D</strong>. Similarly, UK Innovate UK Question 8 scores your <em>Team Capability to Deliver</em>. Capturing photos, verified LinkedIn links, and concrete past accomplishments proves credibility and de-risks execution before asking for public or private funding.
-                      </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <div className="space-y-1">
+                        <p className="font-semibold text-indigo-900">
+                          Why Grant Assessors &amp; Investors Scrutinize Your Team:
+                        </p>
+                        <p className="text-indigo-900/90 leading-relaxed">
+                          Irish LEO application forms explicitly demand a <strong>minimum 150-word background narrative per promoter</strong> plus formal CVs attached to <strong>Appendix D</strong>. Similarly, UK Innovate UK Question 8 scores your <em>Team Capability to Deliver</em>. Capturing photos, verified LinkedIn links, and concrete past accomplishments proves credibility and de-risks execution before asking for public or private funding.
+                        </p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveWhyCard(null)}
+                      className="shrink-0 text-indigo-400 hover:text-indigo-700 text-xs"
+                    >
+                      ✕
+                    </button>
                   </div>
                 </div>
               )}
@@ -4531,7 +4544,7 @@ export function ModuleFWorkspace({
                   size="sm"
                   className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
                 >
-                  Edit Step
+                  {step2Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -4557,9 +4570,9 @@ export function ModuleFWorkspace({
                       </CardTitle>
                       <Badge
                         variant={step2Complete ? 'default' : 'outline'}
-                        className={`text-[10px] shrink-0 ${
+                        className={`text-[10px] shrink-0 font-medium ${
                           step2Complete
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                            ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
                             : 'border-slate-300 text-slate-600'
                         }`}
                       >
@@ -4572,96 +4585,118 @@ export function ModuleFWorkspace({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setActiveWhyCard(activeWhyCard === 2 ? null : 2)
-                    }
-                    className="h-7 text-xs text-slate-500 hover:text-indigo-600"
-                  >
-                    <HelpCircle className="mr-1 h-3.5 w-3.5" />
-                    Why Are We Asking This?
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setActiveExampleCard(activeExampleCard === 2 ? null : 2)
-                    }
-                    className="h-7 text-xs text-slate-500 hover:text-indigo-600"
-                  >
-                    <Lightbulb className="mr-1 h-3.5 w-3.5 text-amber-500" />
-                    Show Me an Example
-                  </Button>
+                <div className="flex shrink-0 items-center gap-2">
                   {openStep !== 'ALL' && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => setOpenStep(0)}
-                      className="h-7 text-xs text-slate-500 hover:text-slate-800"
+                      className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                     >
-                      Collapse Step
+                      <span>Collapse Step</span>
                       <ChevronUp className="ml-1 h-3.5 w-3.5" />
                     </Button>
                   )}
                 </div>
               </div>
 
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setActiveWhyCard(activeWhyCard === 2 ? null : 2)
+                  }
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  Why Are We Asking This?
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setActiveExampleCard(activeExampleCard === 2 ? null : 2)
+                  }
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                  Show Me an Example
+                </Button>
+              </div>
+
               {/* Micro-Coaching: Why Are We Asking This? */}
               {activeWhyCard === 2 && (
                 <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-xs text-indigo-950">
-                  <div className="flex items-start gap-2.5">
-                    <Info className="h-4 w-4 shrink-0 text-indigo-600 mt-0.5" />
-                    <div className="space-y-1.5 leading-relaxed">
-                      <p className="font-bold text-indigo-900">
-                        Why Grant Assessors &amp; Investors Scrutinize the "7 Startup Hats":
-                      </p>
-                      <p>
-                        Early-stage startups do not fail from poor ideas; they fail from single points of failure and founder burnout. Assessors evaluating Irish LEO Feasibility/Priming Grants (Section 1) and UK Innovate UK Smart Grants (Question 8: Capabilities) look for clear functional ownership across 7 indispensable hats:
-                      </p>
-                      <ul className="list-disc pl-4 space-y-1 text-indigo-900/90">
-                        <li>
-                          <strong>Clear Primary Accountability:</strong> One single throat to choke for every critical area so nothing falls through the cracks.
-                        </li>
-                        <li>
-                          <strong>Business Continuity Redundancy:</strong> Having a designated backup owner protects the company if a founder falls ill or travels.
-                        </li>
-                        <li>
-                          <strong>Workload Health:</strong> A founder holding 6 or 7 hats is a major execution risk flag. Assessors want to see realistic weekly commitments and plans to recruit or outsource.
-                        </li>
-                      </ul>
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-start gap-2.5">
+                      <Info className="h-4 w-4 shrink-0 text-indigo-600 mt-0.5" />
+                      <div className="space-y-1.5 leading-relaxed">
+                        <p className="font-bold text-indigo-900">
+                          Why Grant Assessors &amp; Investors Scrutinize the "7 Startup Hats":
+                        </p>
+                        <p>
+                          Early-stage startups do not fail from poor ideas; they fail from single points of failure and founder burnout. Assessors evaluating Irish LEO Feasibility/Priming Grants (Section 1) and UK Innovate UK Smart Grants (Question 8: Capabilities) look for clear functional ownership across 7 indispensable hats:
+                        </p>
+                        <ul className="list-disc pl-4 space-y-1 text-indigo-900/90">
+                          <li>
+                            <strong>Clear Primary Accountability:</strong> One single throat to choke for every critical area so nothing falls through the cracks.
+                          </li>
+                          <li>
+                            <strong>Business Continuity Redundancy:</strong> Having a designated backup owner protects the company if a founder falls ill or travels.
+                          </li>
+                          <li>
+                            <strong>Workload Health:</strong> A founder holding 6 or 7 hats is a major execution risk flag. Assessors want to see realistic weekly commitments and plans to recruit or outsource.
+                          </li>
+                        </ul>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveWhyCard(null)}
+                      className="shrink-0 text-indigo-400 hover:text-indigo-700 text-xs"
+                    >
+                      ✕
+                    </button>
                   </div>
                 </div>
               )}
 
               {/* Micro-Coaching: Show Me an Example */}
               {activeExampleCard === 2 && (
-                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950">
-                  <div className="flex items-start gap-2.5">
-                    <Lightbulb className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-                    <div className="space-y-1.5 leading-relaxed">
-                      <p className="font-bold text-amber-900">
-                        High-Scoring Grant Example: 2-Founder Team + Advisory Board
-                      </p>
-                      <p>
-                        <strong>Founder 1 (CEO):</strong> Primary for Vision &amp; Fundraising (12h), Sales &amp; Commercial BD (15h), Customer Support (8h). Total: 35h/wk. Backup for Tech Build.
-                      </p>
-                      <p>
-                        <strong>Founder 2 (CTO):</strong> Primary for Product &amp; Tech Build (25h), Ops/Legal/Compliance (8h), Marketing/Growth (10h). Total: 43h/wk. Backup for Sales.
-                      </p>
-                      <p>
-                        <strong>Finance Hat:</strong> Co-owned with an Outsourced Fractional Bookkeeper/Accountant for VAT returns and LEO claim submission drawdowns (7h/wk).
-                      </p>
-                      <p>
-                        <strong>Advisory Board:</strong> Ex-VP Sales at SaaS scaleup (Monthly 60-min call) + Enterprise Ireland Commercial Mentor.
-                      </p>
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs text-emerald-950">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-start gap-2.5">
+                      <Lightbulb className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                      <div className="space-y-1.5 leading-relaxed">
+                        <p className="font-bold text-emerald-900">
+                          High-Scoring Grant Example: 2-Founder Team + Advisory Board
+                        </p>
+                        <p>
+                          <strong>Founder 1 (CEO):</strong> Primary for Vision &amp; Fundraising (12h), Sales &amp; Commercial BD (15h), Customer Support (8h). Total: 35h/wk. Backup for Tech Build.
+                        </p>
+                        <p>
+                          <strong>Founder 2 (CTO):</strong> Primary for Product &amp; Tech Build (25h), Ops/Legal/Compliance (8h), Marketing/Growth (10h). Total: 43h/wk. Backup for Sales.
+                        </p>
+                        <p>
+                          <strong>Finance Hat:</strong> Co-owned with an Outsourced Fractional Bookkeeper/Accountant for VAT returns and LEO claim submission drawdowns (7h/wk).
+                        </p>
+                        <p>
+                          <strong>Advisory Board:</strong> Ex-VP Sales at SaaS scaleup (Monthly 60-min call) + Enterprise Ireland Commercial Mentor.
+                        </p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveExampleCard(null)}
+                      className="shrink-0 text-emerald-500 hover:text-emerald-800 text-xs"
+                    >
+                      ✕
+                    </button>
                   </div>
                 </div>
               )}
@@ -5612,7 +5647,7 @@ export function ModuleFWorkspace({
                   size="sm"
                   className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
                 >
-                  Edit Step
+                  {step3Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -5640,9 +5675,9 @@ export function ModuleFWorkspace({
                       </CardTitle>
                       <Badge
                         variant={step3Complete ? 'default' : 'outline'}
-                        className={`text-[10px] shrink-0 ${
+                        className={`text-[10px] shrink-0 font-medium ${
                           step3Complete
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                            ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
                             : 'border-slate-300 text-slate-600'
                         }`}
                       >
@@ -5650,7 +5685,7 @@ export function ModuleFWorkspace({
                       </Badge>
                       <Badge
                         variant="outline"
-                        className="text-[10px] shrink-0 bg-slate-50 text-slate-600 border-slate-200"
+                        className="text-[10px] shrink-0 bg-slate-50 text-slate-600 border-slate-200 font-medium"
                       >
                         UK Start Up Loans Tab #2 &amp; IE LEO Section 1 Compliant
                       </Badge>
@@ -5661,22 +5696,24 @@ export function ModuleFWorkspace({
                   </div>
                 </div>
 
-                {openStep !== 'ALL' && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setOpenStep(null as any)}
-                    className="h-8 text-xs text-slate-500 hover:text-slate-900 shrink-0"
-                  >
-                    <span>Collapse Step</span>
-                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  {openStep !== 'ALL' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setOpenStep(0)}
+                      className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                    >
+                      <span>Collapse Step</span>
+                      <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              {/* 4-Layer Built-in Support: Micro-Coaching */}
-              <div className="mt-4 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="outline"
@@ -5684,9 +5721,9 @@ export function ModuleFWorkspace({
                   onClick={() =>
                     setActiveWhyCard((prev) => (prev === 3 ? null : 3))
                   }
-                  className="h-7 text-xs border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100"
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
                 >
-                  <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
                   Why Are We Asking This?
                 </Button>
                 <Button
@@ -5696,9 +5733,9 @@ export function ModuleFWorkspace({
                   onClick={() =>
                     setActiveExampleCard((prev) => (prev === 3 ? null : 3))
                   }
-                  className="h-7 text-xs border-slate-200 text-slate-700 hover:bg-slate-50"
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                 >
-                  <Eye className="mr-1 h-3.5 w-3.5 text-slate-500" />
+                  <Eye className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                   Show Underwriter Benchmarks
                 </Button>
               </div>
@@ -5706,49 +5743,60 @@ export function ModuleFWorkspace({
               {/* Collapsible "Why Are We Asking This" Box */}
               {activeWhyCard === 3 && (
                 <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
-                  <div className="flex items-center justify-between gap-2 font-bold mb-1">
-                    <span className="flex items-center gap-1.5">
-                      <Sparkles className="h-4 w-4 text-indigo-600" />
-                      Grant Assessor &amp; Loan Underwriter Reality Check:
-                    </span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <div className="space-y-1">
+                        <p className="font-bold text-indigo-900">
+                          Grant Assessor &amp; Loan Underwriter Reality Check:
+                        </p>
+                        <p className="leading-relaxed text-indigo-900/90">
+                          Underwriters at the <strong>British Business Bank (Start Up Loans)</strong> underwrite loans to you individually and require the <strong>Part 2 Personal Survival Budget</strong> to verify you can afford loan repayments. In Ireland, <strong>LEO Feasibility &amp; Priming Grants</strong> provide up to €15,000 per promoter in salary support — assessors review your personal drawings floor to verify you have sufficient runway to execute without abandoning the venture.
+                        </p>
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setActiveWhyCard(null)}
-                      className="text-indigo-400 hover:text-indigo-700 text-xs"
+                      className="shrink-0 text-indigo-400 hover:text-indigo-700 text-xs"
                     >
-                      Dismiss
+                      ✕
                     </button>
                   </div>
-                  <p className="leading-relaxed">
-                    Underwriters at the <strong>British Business Bank (Start Up Loans)</strong> underwrite loans to you individually and require the <strong>Part 2 Personal Survival Budget</strong> to verify you can afford loan repayments. In Ireland, <strong>LEO Feasibility &amp; Priming Grants</strong> provide up to €15,000 per promoter in salary support — assessors review your personal drawings floor to verify you have sufficient runway to execute without abandoning the venture.
-                  </p>
                 </div>
               )}
 
               {/* Collapsible Example Box */}
               {activeExampleCard === 3 && (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-800">
-                  <div className="flex items-center justify-between gap-2 font-bold mb-1">
-                    <span>Typical Founder Survival Benchmarks (UK &amp; Ireland):</span>
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs text-emerald-950">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <Eye className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <div className="space-y-1.5 leading-relaxed">
+                        <p className="font-bold text-emerald-900">
+                          Typical Founder Survival Benchmarks (UK &amp; Ireland):
+                        </p>
+                        <ul className="list-disc pl-4 space-y-1 text-emerald-900/90">
+                          <li>
+                            <strong>Lean Solo Founder:</strong> €1,300–€1,600 / £1,100–£1,400 monthly baseline (shared flat, public transit, lean grocery spend).
+                          </li>
+                          <li>
+                            <strong>Dual-Income Household:</strong> €1,900–€2,400 / £1,600–£2,000 monthly (partner covers half the rent/mortgage, modest buffer).
+                          </li>
+                          <li>
+                            <strong>Family / Mortgage:</strong> €2,800–€3,800 / £2,400–£3,200 monthly (mortgage, dependents/childcare, vehicle commitments).
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setActiveExampleCard(null)}
-                      className="text-slate-400 hover:text-slate-700 text-xs"
+                      className="shrink-0 text-emerald-500 hover:text-emerald-800 text-xs"
                     >
-                      Dismiss
+                      ✕
                     </button>
                   </div>
-                  <ul className="list-disc pl-4 space-y-1 text-slate-600">
-                    <li>
-                      <strong>Lean Solo Founder:</strong> €1,300–€1,600 / £1,100–£1,400 monthly baseline (shared flat, public transit, lean grocery spend).
-                    </li>
-                    <li>
-                      <strong>Dual-Income Household:</strong> €1,900–€2,400 / £1,600–£2,000 monthly (partner covers half the rent/mortgage, modest buffer).
-                    </li>
-                    <li>
-                      <strong>Family / Mortgage:</strong> €2,800–€3,800 / £2,400–£3,200 monthly (mortgage, dependents/childcare, vehicle commitments).
-                    </li>
-                  </ul>
                 </div>
               )}
             </CardHeader>
@@ -6540,7 +6588,7 @@ export function ModuleFWorkspace({
                   size="sm"
                   className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
                 >
-                  Edit Step
+                  {step4Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -6570,9 +6618,9 @@ export function ModuleFWorkspace({
                       </CardTitle>
                       <Badge
                         variant={step4Complete ? 'default' : 'outline'}
-                        className={`text-[10px] shrink-0 ${
+                        className={`text-[10px] shrink-0 font-medium ${
                           step4Complete
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                            ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
                             : 'border-slate-300 text-slate-600'
                         }`}
                       >
@@ -6580,7 +6628,7 @@ export function ModuleFWorkspace({
                       </Badge>
                       <Badge
                         variant="outline"
-                        className="text-[10px] shrink-0 bg-slate-50 text-slate-600 border-slate-200"
+                        className="text-[10px] shrink-0 bg-slate-50 text-slate-600 border-slate-200 font-medium"
                       >
                         {isSoloFounderMode
                           ? 'Solo Founder Charter & Screener'
@@ -6595,90 +6643,104 @@ export function ModuleFWorkspace({
                   </div>
                 </div>
 
-                {openStep !== 'ALL' && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setOpenStep(null as any)}
-                    className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
-                  >
-                    Collapse Step
-                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  {openStep !== 'ALL' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setOpenStep(0)}
+                      className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                    >
+                      <span>Collapse Step</span>
+                      <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              {/* Micro-Coaching Popovers */}
-              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100/80">
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() =>
                     setActiveWhyCard(activeWhyCard === 4 ? null : 4)
                   }
-                  className="h-7 text-xs text-indigo-600 hover:bg-indigo-50"
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
                 >
-                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-500" />
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
                   Why Are We Asking These 20 Questions?
-                  <ChevronDown
-                    className={`ml-1 h-3 w-3 transition-transform ${
-                      activeWhyCard === 4 ? 'rotate-180' : ''
-                    }`}
-                  />
                 </Button>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() =>
                     setActiveExampleCard(activeExampleCard === 4 ? null : 4)
                   }
-                  className="h-7 text-xs text-slate-600 hover:bg-slate-100"
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                 >
-                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-amber-500" />
+                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                   Harvard Dilemmas &amp; Fall-Out Realities
-                  <ChevronDown
-                    className={`ml-1 h-3 w-3 transition-transform ${
-                      activeExampleCard === 4 ? 'rotate-180' : ''
-                    }`}
-                  />
                 </Button>
               </div>
 
               {activeWhyCard === 4 && (
-                <div className="mt-2 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3 text-xs text-indigo-950">
-                  <div className="flex items-center gap-1.5 font-bold text-indigo-900 mb-1">
-                    <HeartHandshake className="h-4 w-4 text-indigo-600" />
-                    <span>Why The Founder Prenup Prevents Early Startup Death</span>
+                <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <HeartHandshake className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <div className="space-y-1">
+                        <p className="font-bold text-indigo-900">Why The Founder Prenup Prevents Early Startup Death</p>
+                        <p className="leading-relaxed text-indigo-900/90">
+                          Most founder breakups do not happen because of malice; they happen because of <strong>unspoken assumptions</strong>. One founder assumes a 50/50 split means equal sacrifice today, while the other founder is moonlighting. One assumes nobody takes a salary for 2 years, while the other faces a mortgage crunch in month 4. By answering these 20 specific, battle-tested scenarios upfront, you create complete psychological safety and an objective operating charter.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveWhyCard(null)}
+                      className="shrink-0 text-indigo-400 hover:text-indigo-700 text-xs"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <p className="leading-relaxed">
-                    Most founder breakups do not happen because of malice; they happen because of <strong>unspoken assumptions</strong>. One founder assumes a 50/50 split means equal sacrifice today, while the other founder is moonlighting. One assumes nobody takes a salary for 2 years, while the other faces a mortgage crunch in month 4. By answering these 20 specific, battle-tested scenarios upfront, you create complete psychological safety and an objective operating charter.
-                  </p>
                 </div>
               )}
 
               {activeExampleCard === 4 && (
-                <div className="mt-2 rounded-lg border border-amber-100 bg-amber-50/70 p-3 text-xs text-amber-950">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-900 mb-1">
-                    <Info className="h-4 w-4 text-amber-600" />
-                    <span>HBS Research &amp; The Top 4 Co-Founder Traps</span>
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs text-emerald-950">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <div className="space-y-1.5 leading-relaxed">
+                        <p className="font-bold text-emerald-900">HBS Research &amp; The Top 4 Co-Founder Traps</p>
+                        <ul className="list-disc list-inside space-y-1 text-emerald-900/90">
+                          <li>
+                            <strong>The Quick 50/50 Trap:</strong> 73% of teams split equity in under 1 day. Teams that spend over 1 week negotiating roles and vesting survive 2.5x longer.
+                          </li>
+                          <li>
+                            <strong>The Salary Shock:</strong> Differences in personal savings runway are the leading reason co-founders secretly accept corporate recruiter outreach.
+                          </li>
+                          <li>
+                            <strong>The Deadlock Void:</strong> Without a pre-agreed casting vote or domain tie-breaker, simple disputes freeze company bank accounts.
+                          </li>
+                          <li>
+                            <strong>The Absent Vesting Schedule:</strong> A founder leaves after 3 months with 40% of the cap table, rendering the company permanently un-fundable.
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveExampleCard(null)}
+                      className="shrink-0 text-emerald-500 hover:text-emerald-800 text-xs"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <ul className="list-disc list-inside space-y-1 text-amber-900 leading-relaxed">
-                    <li>
-                      <strong>The Quick 50/50 Trap:</strong> 73% of teams split equity in under 1 day. Teams that spend over 1 week negotiating roles and vesting survive 2.5x longer.
-                    </li>
-                    <li>
-                      <strong>The Salary Shock:</strong> Differences in personal savings runway are the leading reason co-founders secretly accept corporate recruiter outreach.
-                    </li>
-                    <li>
-                      <strong>The Deadlock Void:</strong> Without a pre-agreed casting vote or domain tie-breaker, simple disputes freeze company bank accounts.
-                    </li>
-                    <li>
-                      <strong>The Absent Vesting Schedule:</strong> A founder leaves after 3 months with 40% of the cap table, rendering the company permanently un-fundable.
-                    </li>
-                  </ul>
                 </div>
               )}
             </CardHeader>
@@ -7479,7 +7541,7 @@ export function ModuleFWorkspace({
                 size="sm"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                Edit Step
+                {step5Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -7506,9 +7568,9 @@ export function ModuleFWorkspace({
                       </CardTitle>
                       <Badge
                         variant={step5Complete ? 'default' : 'outline'}
-                        className={`text-[10px] shrink-0 ${
+                        className={`text-[10px] shrink-0 font-medium ${
                           step5Complete
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-300'
+                            ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
                             : 'border-slate-300 text-slate-600'
                         }`}
                       >
@@ -7521,46 +7583,51 @@ export function ModuleFWorkspace({
                   </div>
                 </div>
 
-                {openStep !== 'ALL' && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenStep(0);
-                    }}
-                    className="text-xs text-slate-500 hover:bg-slate-100"
-                  >
-                    Collapse Step
-                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  {openStep !== 'ALL' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenStep(0);
+                      }}
+                      className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                    >
+                      <span>Collapse Step</span>
+                      <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              {/* Micro-Coaching Strip */}
-              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
-                <button
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() =>
                     setActiveWhyCard(activeWhyCard === 5 ? null : 5)
                   }
-                  className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
                 >
-                  <HelpCircle className="h-3.5 w-3.5" />
-                  <span>Why Are We Asking This?</span>
-                </button>
-                <span className="text-slate-300">•</span>
-                <button
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  Why Are We Asking This?
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() =>
                     setActiveExampleCard(activeExampleCard === 5 ? null : 5)
                   }
-                  className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>Show Me an Example</span>
-                </button>
+                  <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                  Show Me an Example
+                </Button>
               </div>
 
               {/* Popover 1: Why Are We Asking This? */}
@@ -8690,16 +8757,21 @@ export function ModuleFWorkspace({
                     <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                       Team, Governance &amp; Hiring Brief
                     </h2>
-                    {completedModuleFCoreStepsCount === 5 ? (
-                      <Badge variant="success" className="shrink-0 text-[10px]">
-                        Ready to Export
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                        {completedModuleFCoreStepsCount}/5 Sections Ready
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700 shrink-0">
+                    <Badge
+                      variant={
+                        completedModuleFCoreStepsCount === 5
+                          ? 'default'
+                          : 'outline'
+                      }
+                      className={`shrink-0 text-[10px] font-medium ${
+                        completedModuleFCoreStepsCount === 5
+                          ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                          : 'border-slate-300 text-slate-600'
+                      }`}
+                    >
+                      {completedModuleFCoreStepsCount}/5 Sections Ready
+                    </Badge>
+                    <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700 shrink-0 font-medium">
                       LEO Appendix D &amp; Innovate UK Q8 Compliant
                     </Badge>
                   </div>
@@ -8715,7 +8787,7 @@ export function ModuleFWorkspace({
                   variant="ghost"
                   className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
                 >
-                  <span>Open Overview</span>
+                  <span>{completedModuleFCoreStepsCount === 5 ? 'Open Overview' : 'Review Overview'}</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -8740,12 +8812,20 @@ export function ModuleFWorkspace({
                       <CardTitle className="text-base font-bold text-slate-900">
                         Team, Governance &amp; Hiring Brief (Overview)
                       </CardTitle>
-                      <Badge className="bg-indigo-100 text-indigo-800 text-[10px] shrink-0">
+                      <Badge className="bg-indigo-100 text-indigo-800 text-[10px] shrink-0 font-medium">
                         Module F Overview
                       </Badge>
                       <Badge
-                        variant="outline"
-                        className="border-emerald-300 bg-emerald-50 text-emerald-800 text-[10px] shrink-0"
+                        variant={
+                          completedModuleFCoreStepsCount === 5
+                            ? 'default'
+                            : 'outline'
+                        }
+                        className={`text-[10px] shrink-0 font-medium ${
+                          completedModuleFCoreStepsCount === 5
+                            ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                            : 'border-slate-300 text-slate-600'
+                        }`}
                       >
                         {completedModuleFCoreStepsCount}/5 Core Sections Ready
                       </Badge>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Coins,
   TrendingUp,
@@ -103,6 +103,8 @@ interface ModuleHWorkspaceProps {
     targetStep?: number,
     highlightId?: string
   ) => void;
+  initialStep?: number;
+  highlightTarget?: string;
 }
 
 export function ModuleHWorkspace({
@@ -117,26 +119,34 @@ export function ModuleHWorkspace({
   onBackToModuleG,
   onContinueToModuleI,
   onNavigateToModule,
+  initialStep,
+  highlightTarget,
 }: ModuleHWorkspaceProps) {
-  // Step expansion state: default to first incomplete step
+  // Step expansion state: 0 = all collapsed by default, 1..5, or 'ALL'
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
-    if (plan.moduleHData?.step5RevenueBrief?.executiveCommercialSummaryNarrative) {
-      return 5;
+    if (initialStep && initialStep >= 1 && initialStep <= 5) {
+      return initialStep;
     }
-    if (plan.moduleHData?.step4SalesAssumptions?.writtenAssumptionsNarrative) {
-      return 5;
-    }
-    if (plan.moduleHData?.step3BreakevenCalculator?.yearTargets?.length) {
-      return 4;
-    }
-    if (plan.moduleHData?.step2PricingTiers?.tiers?.length) {
-      return 3;
-    }
-    if (plan.moduleHData?.step1RevenueModel?.revenueModelVehicle) {
-      return 2;
-    }
-    return 1;
+    return 0;
   });
+
+  // Handle deep-link scrolling and highlight
+  useEffect(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 5) {
+      setOpenStep(initialStep);
+      setTimeout(() => {
+        const targetId = highlightTarget || `module-h-step-${initialStep}`;
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('attention-highlight');
+          void el.offsetWidth;
+          el.classList.add('attention-highlight');
+          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+        }
+      }, 250);
+    }
+  }, [initialStep, highlightTarget]);
 
   const [activeWhyCard, setActiveWhyCard] = useState<number | null>(null);
   const [activeExampleCard, setActiveExampleCard] = useState<number | null>(null);
@@ -1783,6 +1793,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
       {openStep !== 'ALL' && openStep !== 1 ? (
         // COLLAPSED STEP 1
         <div
+          id="module-h-step-1"
           onClick={() => setOpenStep(1)}
           className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
         >
@@ -1812,7 +1823,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <div className="flex items-center gap-2 shrink-0">
               <Badge
                 variant={isStep1Complete ? 'default' : 'outline'}
-                className={`text-[10px] shrink-0 ${
+                className={`text-[10px] shrink-0 font-medium ${
                   isStep1Complete
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                     : 'border-slate-300 text-slate-600'
@@ -1825,7 +1836,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                Edit Step
+                {isStep1Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1833,7 +1844,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         </div>
       ) : (
         // EXPANDED STEP 1
-        <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+        <Card id="module-h-step-1" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs">
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -1844,20 +1855,20 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 >
                   {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <CardTitle className="text-base font-bold text-slate-900">
                       Step 1: How You Make Money (Revenue Model)
                     </CardTitle>
                     <Badge
                       variant={isStep1Complete ? 'default' : 'outline'}
-                      className={`text-[10px] shrink-0 ${
+                      className={`text-[10px] shrink-0 font-medium ${
                         isStep1Complete
                           ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                           : 'border-slate-300 text-slate-600'
                       }`}
                     >
-                      {isStep1Complete ? 'Ready' : 'In Progress'}
+                      {isStep1Complete ? 'Completed' : 'In Progress'}
                     </Badge>
                   </div>
                   <CardDescription className="mt-1 text-xs text-slate-600">
@@ -1866,78 +1877,111 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
               </div>
 
-              {openStep !== 'ALL' && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setOpenStep(0)}
-                  className="text-xs text-slate-500 hover:bg-slate-100"
-                >
-                  Collapse Step
-                  <ChevronUp className="ml-1 h-3.5 w-3.5" />
-                </Button>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {openStep !== 'ALL' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setOpenStep(0)}
+                    className="text-xs text-slate-500 hover:bg-slate-100"
+                  >
+                    Collapse Step
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
 
-            {/* Micro-Coaching Strip */}
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 text-xs">
-              <button
+            {/* 4-Layer Support Strip: Micro-Coaching & Examples */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 pt-2">
+              <Button
                 type="button"
-                onClick={() => setActiveWhyCard(activeWhyCard === 1 ? null : 1)}
-                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveWhyCard((prev) => (prev === 1 ? null : 1))}
+                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
               >
-                <HelpCircle className="h-3.5 w-3.5" />
-                <span>Why Are We Asking This?</span>
-              </button>
-              <span className="text-slate-300">•</span>
-              <button
+                <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                Why Are We Asking This?
+              </Button>
+              <Button
                 type="button"
-                onClick={() => setActiveExampleCard(activeExampleCard === 1 ? null : 1)}
-                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveExampleCard((prev) => (prev === 1 ? null : 1))}
+                className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Show Me an Example</span>
-              </button>
+                <Lightbulb className="mr-1 h-3.5 w-3.5" />
+                Show Me an Example
+              </Button>
             </div>
 
             {activeWhyCard === 1 && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950 space-y-1.5">
-                <div className="font-bold text-indigo-900">
-                  Why Grant Officers &amp; Banks Need This First:
+              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-indigo-950">
+                        Why Grant Officers &amp; Banks Need This First:
+                      </p>
+                      <p className="text-indigo-900/90 leading-relaxed">
+                        Every financial forecast depends on how you charge. A subscription business has
+                        predictable monthly recurring cashflow, while an ecommerce or agency business
+                        relies on repeat orders or continuous client acquisition. Setting this right ensures
+                        the Breakeven Engine in Step 3 applies the exact right fee and salary formulas.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveWhyCard(null)}
+                    className="text-indigo-500 hover:text-indigo-800 text-xs px-1"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <p className="text-indigo-900/90 leading-relaxed">
-                  Every financial forecast depends on how you charge. A subscription business has
-                  predictable monthly recurring cashflow, while an ecommerce or agency business
-                  relies on repeat orders or continuous client acquisition. Setting this right ensures
-                  the Breakeven Engine in Step 3 applies the exact right fee and salary formulas.
-                </p>
               </div>
             )}
 
             {activeExampleCard === 1 && (
-              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs text-emerald-950 space-y-1.5">
-                <div className="font-bold text-emerald-900">
-                  Real-World Revenue Model Examples:
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2 text-[11px]">
-                  <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
-                    <strong className="text-slate-900">SaaS / App</strong>
-                    <p className="mt-1 text-slate-600">
-                      €39/month per organization, billed annually with a 2-month free discount.
-                    </p>
+              <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-emerald-900">
+                        Real-World Revenue Model Examples:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2 text-[11px]">
+                        <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
+                          <strong className="text-slate-900">SaaS / App</strong>
+                          <p className="mt-1 text-slate-600">
+                            €39/month per organization, billed annually with a 2-month free discount.
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
+                          <strong className="text-slate-900">Physical Craft / Food</strong>
+                          <p className="mt-1 text-slate-600">
+                            €24 per unit wholesale or €48 DTC online, with 3-pack bundle incentives.
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
+                          <strong className="text-slate-900">Service / Agency</strong>
+                          <p className="mt-1 text-slate-600">
+                            €1,500 setup fee + €750/month ongoing maintenance &amp; priority SLA.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
-                    <strong className="text-slate-900">Physical Craft / Food</strong>
-                    <p className="mt-1 text-slate-600">
-                      €45 per flagship product box + optional €15 seasonal refill refills.
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
-                    <strong className="text-slate-900">Service / Agency</strong>
-                    <p className="mt-1 text-slate-600">
-                      €1,500/month ongoing retainer for 15 hours of design and marketing execution.
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveExampleCard(null)}
+                    className="text-emerald-500 hover:text-emerald-800 text-xs px-1"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             )}
@@ -2257,6 +2301,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
       {openStep !== 'ALL' && openStep !== 2 ? (
         // COLLAPSED STEP 2
         <div
+          id="module-h-step-2"
           onClick={() => setOpenStep(2)}
           className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
         >
@@ -2284,7 +2329,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <div className="flex items-center gap-2 shrink-0">
               <Badge
                 variant={isStep2Complete ? 'default' : 'outline'}
-                className={`text-[10px] shrink-0 ${
+                className={`text-[10px] shrink-0 font-medium ${
                   isStep2Complete
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                     : 'border-slate-300 text-slate-600'
@@ -2297,7 +2342,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                Edit Step
+                {isStep2Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -2305,7 +2350,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         </div>
       ) : (
         // EXPANDED STEP 2
-        <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+        <Card id="module-h-step-2" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs">
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -2316,20 +2361,20 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 >
                   {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <CardTitle className="text-base font-bold text-slate-900">
                       Step 2: Pricing Architecture &amp; Tier Designer
                     </CardTitle>
                     <Badge
                       variant={isStep2Complete ? 'default' : 'outline'}
-                      className={`text-[10px] shrink-0 ${
+                      className={`text-[10px] shrink-0 font-medium ${
                         isStep2Complete
                           ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                           : 'border-slate-300 text-slate-600'
                       }`}
                     >
-                      {isStep2Complete ? 'Ready' : 'In Progress'}
+                      {isStep2Complete ? 'Completed' : 'In Progress'}
                     </Badge>
                   </div>
                   <CardDescription className="mt-1 text-xs text-slate-600">
@@ -2341,65 +2386,97 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
               </div>
 
-              {openStep !== 'ALL' && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setOpenStep(0)}
-                  className="text-xs text-slate-500 hover:bg-slate-100"
-                >
-                  Collapse Step
-                  <ChevronUp className="ml-1 h-3.5 w-3.5" />
-                </Button>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {openStep !== 'ALL' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setOpenStep(0)}
+                    className="text-xs text-slate-500 hover:bg-slate-100"
+                  >
+                    Collapse Step
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
 
-            {/* Micro-Coaching Strip */}
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 text-xs">
-              <button
+            {/* 4-Layer Support Strip: Micro-Coaching & Examples */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 pt-2">
+              <Button
                 type="button"
-                onClick={() => setActiveWhyCard(activeWhyCard === 2 ? null : 2)}
-                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveWhyCard((prev) => (prev === 2 ? null : 2))}
+                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
               >
-                <HelpCircle className="h-3.5 w-3.5" />
-                <span>How We Calculate Net Revenue from Sticker Price</span>
-              </button>
-              <span className="text-slate-300">•</span>
-              <button
+                <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                Why Are We Asking This?
+              </Button>
+              <Button
                 type="button"
-                onClick={() => setActiveExampleCard(activeExampleCard === 2 ? null : 2)}
-                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveExampleCard((prev) => (prev === 2 ? null : 2))}
+                className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Show Me a 3-Tier Rule of Thumb</span>
-              </button>
+                <Lightbulb className="mr-1 h-3.5 w-3.5" />
+                Show Me an Example
+              </Button>
             </div>
 
             {activeWhyCard === 2 && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950 space-y-1.5">
-                <div className="font-bold text-indigo-900">
-                  How VAT Works &amp; Why We Split Sticker Price vs Net Bank Revenue:
+              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-indigo-950">
+                        How VAT Works &amp; Why We Split Sticker Price vs Net Bank Revenue:
+                      </p>
+                      <p className="text-indigo-900/90 leading-relaxed">
+                        Enter the total price your customer pays at checkout (e.g. €50 or £50 inc. VAT). 
+                        Because VAT / Sales Tax ({defaultVatRate}% in {selectedCountry === 'GB' ? 'the UK' : 'Ireland'}) 
+                        does not belong to your company—you collect it and pass it to {selectedCountry === 'GB' ? 'HMRC' : 'Revenue'}—we 
+                        automatically calculate the actual net turnover (~{currencySymbol}{(50 / (1 + defaultVatRate/100)).toFixed(2)}) 
+                        that lands in your business bank account. Grant agencies and bank lenders review your plan based on this net amount.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveWhyCard(null)}
+                    className="text-indigo-500 hover:text-indigo-800 text-xs px-1"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <p className="text-indigo-900/90 leading-relaxed">
-                  Enter the total price your customer pays at checkout (e.g. €50 or £50 inc. VAT). 
-                  Because VAT / Sales Tax ({defaultVatRate}% in {selectedCountry === 'GB' ? 'the UK' : 'Ireland'}) 
-                  does not belong to your company—you collect it and pass it to {selectedCountry === 'GB' ? 'HMRC' : 'Revenue'}—we 
-                  automatically calculate the actual net turnover (~{currencySymbol}{(50 / (1 + defaultVatRate/100)).toFixed(2)}) 
-                  that lands in your business bank account. Grant agencies and bank lenders review your plan based on this net amount.
-                </p>
               </div>
             )}
 
             {activeExampleCard === 2 && (
-              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs text-emerald-950 space-y-1.5">
-                <div className="font-bold text-emerald-900">
-                  The Classic 10x / 3-Tier Distribution:
+              <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-emerald-900">
+                        The Classic 10x / 3-Tier Distribution:
+                      </p>
+                      <p className="text-emerald-950/90 leading-relaxed">
+                        Most successful SaaS and product startups follow the <strong>20 / 60 / 20 rule</strong>:
+                        20% buy Entry (€29), 60% buy Core Flagship (€59), and 20% buy Enterprise (€149).
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveExampleCard(null)}
+                    className="text-emerald-500 hover:text-emerald-800 text-xs px-1"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <p className="text-emerald-950/90 leading-relaxed">
-                  Most successful SaaS and product startups follow the <strong>20 / 60 / 20 rule</strong>:
-                  20% buy Entry (€29), 60% buy Core Flagship (€59), and 20% buy Enterprise (€149).
-                  Having a higher-priced anchor makes the middle option feel like incredible value.
-                </p>
               </div>
             )}
 
@@ -2916,6 +2993,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
       {openStep !== 'ALL' && openStep !== 3 ? (
         // COLLAPSED STEP 3
         <div
+          id="module-h-step-3"
           onClick={() => setOpenStep(3)}
           className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
         >
@@ -2958,7 +3036,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                Edit Step
+                {isStep3Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -2966,7 +3044,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         </div>
       ) : (
         // EXPANDED STEP 3
-        <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+        <Card id="module-h-step-3" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs">
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -3001,69 +3079,102 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
               </div>
 
-              {openStep !== 'ALL' && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setOpenStep(0)}
-                  className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
-                >
-                  Collapse Step
-                  <ChevronUp className="ml-1 h-3.5 w-3.5" />
-                </Button>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {openStep !== 'ALL' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setOpenStep(0)}
+                    className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
+                  >
+                    Collapse Step
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
 
-            {/* Micro-Coaching Strip */}
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 text-xs">
-              <button
+            {/* 4-Layer Support Strip: Micro-Coaching & Examples */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 pt-2">
+              <Button
                 type="button"
-                onClick={() => setActiveWhyCard(activeWhyCard === 3 ? null : 3)}
-                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveWhyCard((prev) => (prev === 3 ? null : 3))}
+                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
               >
-                <HelpCircle className="h-3.5 w-3.5" />
-                <span>Why &ldquo;Pocket Profit&rdquo; Matters More Than Sticker Price</span>
-              </button>
-              <span className="text-slate-300">•</span>
-              <button
+                <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                Why Are We Asking This?
+              </Button>
+              <Button
                 type="button"
-                onClick={() => setActiveExampleCard(activeExampleCard === 3 ? null : 3)}
-                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveExampleCard((prev) => (prev === 3 ? null : 3))}
+                className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Show Me a Real Breakeven Example</span>
-              </button>
+                <Lightbulb className="mr-1 h-3.5 w-3.5" />
+                Show Me an Example
+              </Button>
             </div>
 
             {activeWhyCard === 3 && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950 space-y-1.5">
-                <div className="font-bold text-indigo-900">
-                  Why We Calculate &ldquo;Pocket Profit&rdquo; Before Fixed Bills:
+              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-indigo-950">
+                        Why We Calculate &ldquo;Pocket Profit&rdquo; Before Fixed Bills:
+                      </p>
+                      <p className="text-indigo-900/90 leading-relaxed">
+                        Every time you make a sale, card processors (like Stripe) or marketplaces (like Amazon or
+                        Apple) take a cut, and it costs you something to deliver that order (packaging, materials,
+                        or cloud servers). What is left over is your <strong>Pocket Profit</strong> (also called
+                        <em> Contribution Margin</em>). This is the actual cash available to pay your wages and
+                        fixed monthly bills.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveWhyCard(null)}
+                    className="text-indigo-500 hover:text-indigo-800 text-xs px-1"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <p className="text-indigo-900/90 leading-relaxed">
-                  Every time you make a sale, card processors (like Stripe) or marketplaces (like Amazon or
-                  Apple) take a cut, and it costs you something to deliver that order (packaging, materials,
-                  or cloud servers). What is left over is your <strong>Pocket Profit</strong> (also called
-                  <em> Contribution Margin</em>). This is the actual cash available to pay your wages and
-                  fixed monthly bills.
-                </p>
               </div>
             )}
 
             {activeExampleCard === 3 && (
-              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs text-emerald-950 space-y-1.5">
-                <div className="font-bold text-emerald-900">
-                  Plain-English Breakeven Example:
+              <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-emerald-900">
+                        Plain-English Breakeven Example:
+                      </p>
+                      <p className="text-emerald-950/90 leading-relaxed">
+                        Imagine you sell a subscription for <strong>{currencySymbol}50 net</strong>. Stripe takes{' '}
+                        <strong>{currencySymbol}1.25</strong> and cloud hosting/support costs{' '}
+                        <strong>{currencySymbol}3.75</strong> per user. That leaves{' '}
+                        <strong>{currencySymbol}45.00 Pocket Profit</strong> per customer. If your monthly founder
+                        wages and software bills total <strong>{currencySymbol}4,500/month</strong>, you need
+                        exactly <strong>100 paying customers</strong> ({currencySymbol}4,500 ÷ {currencySymbol}45)
+                        to break even. Customer #101 is pure profit!
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveExampleCard(null)}
+                    className="text-emerald-500 hover:text-emerald-800 text-xs px-1"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <p className="text-emerald-950/90 leading-relaxed">
-                  Imagine you sell a subscription for <strong>{currencySymbol}50 net</strong>. Stripe takes{' '}
-                  <strong>{currencySymbol}1.25</strong> and cloud hosting/support costs{' '}
-                  <strong>{currencySymbol}3.75</strong> per user. That leaves{' '}
-                  <strong>{currencySymbol}45.00 Pocket Profit</strong> per customer. If your monthly founder
-                  wages and software bills total <strong>{currencySymbol}4,500/month</strong>, you need
-                  exactly <strong>100 paying customers</strong> ({currencySymbol}4,500 ÷ {currencySymbol}45)
-                  to break even. Customer #101 is pure profit!
-                </p>
               </div>
             )}
 
@@ -4398,6 +4509,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
       {openStep !== 'ALL' && openStep !== 4 ? (
         // COLLAPSED STEP 4
         <div
+          id="module-h-step-4"
           onClick={() => setOpenStep(4)}
           className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
         >
@@ -4444,14 +4556,14 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               variant="ghost"
               className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
             >
-              <span>Edit Step</span>
+              {isStep4Complete ? 'Edit Step' : 'Open Step'}
               <ChevronDown className="ml-1 h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
       ) : (
         // EXPANDED STEP 4
-        <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
+        <Card id="module-h-step-4" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs">
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -4497,75 +4609,107 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               </div>
             </div>
 
-            {/* Micro-Coaching Strip */}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            {/* Dedicated 4-Layer Support Strip */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 pt-2">
               <Button
+                type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => setActiveWhyCard(activeWhyCard === 4 ? null : 4)}
-                className="h-7 text-[11px] text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700"
+                onClick={() => setActiveWhyCard((prev) => (prev === 4 ? null : 4))}
+                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
               >
-                <HelpCircle className="mr-1 h-3 w-3 text-indigo-500" />
+                <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
               </Button>
               <Button
+                type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => setActiveExampleCard(activeExampleCard === 4 ? null : 4)}
-                className="h-7 text-[11px] text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-700"
+                onClick={() => setActiveExampleCard((prev) => (prev === 4 ? null : 4))}
+                className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
               >
-                <Lightbulb className="mr-1 h-3 w-3 text-amber-500" />
+                <Lightbulb className="mr-1 h-3.5 w-3.5" />
                 Show Me an Example
               </Button>
             </div>
 
-            {/* Why Card Modal/Drawer */}
+            {/* Why Card Drawer */}
             {activeWhyCard === 4 && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5 text-xs text-indigo-950 space-y-1.5 animate-in fade-in-50">
-                <div className="flex items-center gap-1.5 font-bold text-indigo-900">
-                  <ShieldCheck className="h-4 w-4 text-indigo-600" />
-                  Grant &amp; Bank Credit Underwriting Standard
+              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-indigo-950">
+                        Grant &amp; Bank Credit Underwriting Standard
+                      </p>
+                      <p className="text-indigo-900/90 leading-relaxed">
+                        Government grant committees (LEO, Enterprise Ireland, Innovate UK) reject business plans that assume sales arrive instantly by magic. Evaluators check two specific failure modes:
+                      </p>
+                      <ul className="list-disc pl-5 space-y-1 text-slate-700">
+                        <li>
+                          <strong>The Velocity Trap:</strong> If your sales cycle takes 30 days to close and clients take 30 days to pay, you will experience a 60-day cash gap before receiving your first euro or pound.
+                        </li>
+                        <li>
+                          <strong>The Capacity Ceiling:</strong> If you need 40 sales/month to break even, but your operations schedule in Module E only has bandwidth to fulfill 25 orders/month, the plan has a built-in delivery bottleneck that causes customer churn or founder burnout.
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setActiveWhyCard(null)}
+                    className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50"
+                  >
+                    ✕
+                  </Button>
                 </div>
-                <p>
-                  Government grant committees (LEO, Enterprise Ireland, Innovate UK) reject business plans that assume sales arrive instantly by magic. Evaluators check two specific failure modes:
-                </p>
-                <ul className="list-disc pl-5 space-y-1 text-slate-700">
-                  <li>
-                    <strong>The Velocity Trap:</strong> If your sales cycle takes 30 days to close and clients take 30 days to pay, you will experience a 60-day cash gap before receiving your first euro or pound.
-                  </li>
-                  <li>
-                    <strong>The Capacity Ceiling:</strong> If you need 40 sales/month to break even, but your operations schedule in Module E only has bandwidth to fulfill 25 orders/month, the plan has a built-in delivery bottleneck that causes customer churn or founder burnout.
-                  </li>
-                </ul>
               </div>
             )}
 
-            {/* Example Card Modal/Drawer */}
+            {/* Example Card Drawer */}
             {activeExampleCard === 4 && (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 text-xs text-amber-950 space-y-1.5 animate-in fade-in-50">
-                <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                  <Lightbulb className="h-4 w-4 text-amber-600" />
-                  Realistic Conversion Benchmark Examples
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-                  <div className="rounded-lg bg-white p-2.5 border border-amber-200/60 shadow-2xs">
-                    <div className="font-semibold text-slate-900">B2B SaaS / AI App</div>
-                    <div className="text-slate-600 text-[11px] mt-0.5">
-                      10% discovery demo conversion, 21-day sales cycle, 3% monthly churn.
+              <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="space-y-2">
+                      <p className="font-semibold text-emerald-950">
+                        Realistic Conversion Benchmark Examples
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                        <div className="rounded-lg bg-white p-2.5 border border-emerald-200/60 shadow-2xs">
+                          <div className="font-semibold text-slate-900">B2B SaaS / AI App</div>
+                          <div className="text-slate-600 text-[11px] mt-0.5">
+                            10% discovery demo conversion, 21-day sales cycle, 3% monthly churn.
+                          </div>
+                        </div>
+                        <div className="rounded-lg bg-white p-2.5 border border-emerald-200/60 shadow-2xs">
+                          <div className="font-semibold text-slate-900">DTC / E-Commerce</div>
+                          <div className="text-slate-600 text-[11px] mt-0.5">
+                            2.2% web checkout conversion, 2-day impulse cycle, 25% 30-day repeat re-order.
+                          </div>
+                        </div>
+                        <div className="rounded-lg bg-white p-2.5 border border-emerald-200/60 shadow-2xs">
+                          <div className="font-semibold text-slate-900">High-Ticket / Agency</div>
+                          <div className="text-slate-600 text-[11px] mt-0.5">
+                            25% proposal close rate, 60-day RFP cycle, 80% annual retainer retention.
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="rounded-lg bg-white p-2.5 border border-amber-200/60 shadow-2xs">
-                    <div className="font-semibold text-slate-900">DTC / E-Commerce</div>
-                    <div className="text-slate-600 text-[11px] mt-0.5">
-                      2.2% web checkout conversion, 2-day impulse cycle, 25% 30-day repeat re-order.
-                    </div>
-                  </div>
-                  <div className="rounded-lg bg-white p-2.5 border border-amber-200/60 shadow-2xs">
-                    <div className="font-semibold text-slate-900">High-Ticket / Agency</div>
-                    <div className="text-slate-600 text-[11px] mt-0.5">
-                      25% proposal close rate, 60-day RFP cycle, 80% annual retainer retention.
-                    </div>
-                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setActiveExampleCard(null)}
+                    className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100/50"
+                  >
+                    ✕
+                  </Button>
                 </div>
               </div>
             )}
@@ -5203,6 +5347,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
       {openStep !== 'ALL' && openStep !== 5 ? (
         // COLLAPSED STEP 5 OVERVIEW CARD
         <div
+          id="module-h-step-5"
           onClick={() => setOpenStep(5)}
           className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
         >
@@ -5251,7 +5396,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Open Overview</span>
+                {completedCoreStepsCount === 4 ? 'Open Overview' : 'Review Overview'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -5259,7 +5404,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         </div>
       ) : (
         // EXPANDED STEP 5 OVERVIEW CARD
-        <Card className="rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm">
+        <Card id="module-h-step-5" className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm">
           <CardHeader className="border-b border-indigo-100/80 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">

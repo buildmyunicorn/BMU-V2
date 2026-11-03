@@ -50,7 +50,9 @@ import {
   type SavedModuleDData,
   type SavedModuleEData,
   type SavedModuleFData,
+  type SavedModuleGData,
   type SavedModuleHData,
+  type SavedModuleIData,
   type SavedMasterDocumentData,
   type SavedValidationSurvey,
   type SavedSurveyResponse,
@@ -141,7 +143,9 @@ async function buildSessionFromDbUser(
     const modD = modRows.find((m) => m.moduleCode === 'MOD_D_PRODUCT_BUILD');
     const modE = modRows.find((m) => m.moduleCode === 'MOD_E_OPERATIONS');
     const modF = modRows.find((m) => m.moduleCode === 'MOD_F_COFOUNDER_TEAM');
+    const modG = modRows.find((m) => m.moduleCode === 'MOD_G_LAUNCHPAD');
     const modH = modRows.find((m) => m.moduleCode === 'MOD_H_REVENUE');
+    const modI = modRows.find((m) => m.moduleCode === 'MOD_I_MARKETING');
     const modK = modRows.find(
       (m) =>
         m.moduleCode === 'MOD_L_BUSINESS_PLAN' ||
@@ -171,7 +175,9 @@ async function buildSessionFromDbUser(
     const modDInputs = (modD?.structuredInputsJsonb ?? {}) as SavedModuleDData;
     const modEInputs = (modE?.structuredInputsJsonb ?? {}) as SavedModuleEData;
     const modFInputs = (modF?.structuredInputsJsonb ?? {}) as SavedModuleFData;
+    const modGInputs = (modG?.structuredInputsJsonb ?? {}) as SavedModuleGData;
     const modHInputs = (modH?.structuredInputsJsonb ?? {}) as SavedModuleHData;
+    const modIInputs = (modI?.structuredInputsJsonb ?? {}) as SavedModuleIData;
     const modKInputs = (modK?.structuredInputsJsonb ?? {}) as {
       masterDocumentData?: SavedMasterDocumentData;
     };
@@ -460,6 +466,16 @@ async function buildSessionFromDbUser(
               : modFInputs.thingsToConsider,
           }
         : undefined,
+      moduleGData: modG
+        ? {
+            ...modGInputs,
+            completionPercentage:
+              modG.completionPercentage ?? modGInputs.completionPercentage,
+            thingsToConsider: Array.isArray(modG.aiThingsToConsiderJsonb)
+              ? modG.aiThingsToConsiderJsonb
+              : modGInputs.thingsToConsider,
+          }
+        : undefined,
       moduleHData: modH
         ? {
             ...modHInputs,
@@ -468,6 +484,16 @@ async function buildSessionFromDbUser(
             thingsToConsider: Array.isArray(modH.aiThingsToConsiderJsonb)
               ? modH.aiThingsToConsiderJsonb
               : modHInputs.thingsToConsider,
+          }
+        : undefined,
+      moduleIData: modI
+        ? {
+            ...modIInputs,
+            completionPercentage:
+              modI.completionPercentage ?? modIInputs.completionPercentage,
+            thingsToConsider: Array.isArray(modI.aiThingsToConsiderJsonb)
+              ? modI.aiThingsToConsiderJsonb
+              : modIInputs.thingsToConsider,
           }
         : undefined,
       masterDocumentData:

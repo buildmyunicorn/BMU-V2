@@ -173,6 +173,8 @@ export interface ModuleCWorkspaceProps {
   onParkQuestion: (questionText: string) => Promise<void>;
   onBackToModuleB: () => void;
   onContinueToModuleD?: () => void;
+  initialStep?: number;
+  highlightTarget?: string;
 }
 
 const FOCUS_AREA_OPTIONS: Array<{
@@ -584,6 +586,8 @@ export function ModuleCWorkspace({
   onParkQuestion,
   onBackToModuleB,
   onContinueToModuleD,
+  initialStep,
+  highlightTarget,
 }: ModuleCWorkspaceProps) {
   // Initialize surveys list from saved plan data (can be empty [] if none exist or all were deleted)
   const [surveys, setSurveys] = useState<SavedValidationSurvey[]>(() => {
@@ -800,7 +804,30 @@ export function ModuleCWorkspace({
     useState<boolean>(false);
 
   // Step Accordion State: 0 = all collapsed by default, 1..4 = specific step open, 'ALL' = all open
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 4) {
+      return initialStep;
+    }
+    return 0;
+  });
+
+  // Handle deep-link scrolling and highlight
+  useEffect(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 4) {
+      setOpenStep(initialStep);
+      setTimeout(() => {
+        const targetId = highlightTarget || `module-c-step-${initialStep}`;
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('attention-highlight');
+          void el.offsetWidth;
+          el.classList.add('attention-highlight');
+          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+        }
+      }, 250);
+    }
+  }, [initialStep, highlightTarget]);
 
   const scrollToStep = (stepNum: number) => {
     setOpenStep(stepNum);

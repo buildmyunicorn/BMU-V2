@@ -4610,23 +4610,18 @@ export function ModuleDWorkspace({
     };
   });
 
-  // Sync if active plan switches or when saved moduleDData hydrates from localStorage / Cloud SQL
+  // Sync activeTab if active plan switches or when saved moduleDData hydrates from localStorage / Cloud SQL
   useEffect(() => {
     if (plan.currentModuleStep === 'MOD_D_STEP_6') {
       setActiveTab('STEP_6');
-      setOpenStep(6);
     } else if (plan.currentModuleStep === 'MOD_D_STEP_5') {
       setActiveTab('STEP_5');
-      setOpenStep(5);
     } else if (plan.currentModuleStep === 'MOD_D_STEP_4') {
       setActiveTab('STEP_4');
-      setOpenStep(4);
     } else if (plan.currentModuleStep === 'MOD_D_STEP_3') {
       setActiveTab('STEP_3');
-      setOpenStep(3);
     } else if (plan.currentModuleStep === 'MOD_D_STEP_2') {
       setActiveTab('STEP_2');
-      setOpenStep(2);
     }
 
     const autoTrack = detectRecommendedProductTrack(plan);
@@ -7752,7 +7747,7 @@ export function ModuleDWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleDReadinessSteps[0]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -7790,7 +7785,7 @@ export function ModuleDWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleDReadinessSteps[0]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -7802,14 +7797,14 @@ export function ModuleDWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleDReadinessSteps[0]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
                   }`}
                 >
                   {moduleDReadinessSteps[0]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="h-4 w-4" />
                   ) : (
                     '1'
                   )}
@@ -7833,6 +7828,60 @@ export function ModuleDWorkspace({
               <p className="mt-1 text-xs text-slate-600">
                 Choose your product type and define your core 60-second "Aha! Moment" before spending money on code or materials.
               </p>
+
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  Why Are We Asking This?
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowExamples((prev) => !prev)}
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                  Show Me an Example
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAiGenerateStep1}
+                  disabled={isGeneratingAi || isVaultReadonly}
+                  className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                >
+                  {isGeneratingAi ? (
+                    <>
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-violet-600" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                      Auto-Draft V1 Narrative with AI
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowParkInput((prev) => !prev)}
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
+                  Park It
+                </Button>
+              </div>
             </div>
 
             {openStep !== 'ALL' && (
@@ -7855,27 +7904,36 @@ export function ModuleDWorkspace({
 <div className="space-y-6">
           {/* LAYER 1: WHY ARE WE ASKING THIS? */}
           {showWhyCard && (
-            <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
-              <div className="flex items-start gap-3">
-                <div className="rounded-lg bg-indigo-100 p-2 text-indigo-700">
-                  <Info className="h-4 w-4" />
-                </div>
-                <div className="space-y-1 text-xs text-slate-600">
-                  <div className="font-bold text-slate-900">
-                    Why Step 1 Matters: Right-Sizing Your Product Vehicle Before
-                    You Spend Money
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 shadow-2xs">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-indigo-100 p-2 text-indigo-700">
+                    <Info className="h-4 w-4" />
                   </div>
-                  <p>
-                    Whether you are applying for an{' '}
-                    <strong>Irish LEO / Enterprise Ireland</strong> grant, a{' '}
-                    <strong>UK Start Up Loan / Innovate UK</strong> award, or
-                    bootstrapping your first 20 sales, assessors and customers
-                    want to know <em>specifically</em> what they are getting on
-                    Day 1. Selecting your <strong>Product Track</strong> below
-                    automatically tailors every question in Module D so you only
-                    answer questions relevant to your exact business model.
-                  </p>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    <div className="font-bold text-slate-900">
+                      Why Step 1 Matters: Right-Sizing Your Product Vehicle Before
+                      You Spend Money
+                    </div>
+                    <p>
+                      Whether you are applying for an{' '}
+                      <strong>Irish LEO / Enterprise Ireland</strong> grant, a{' '}
+                      <strong>UK Start Up Loan / Innovate UK</strong> award, or
+                      bootstrapping your first 20 sales, assessors and customers
+                      want to know <em>specifically</em> what they are getting on
+                      Day 1. Selecting your <strong>Product Track</strong> below
+                      automatically tailors every question in Module D so you only
+                      answer questions relevant to your exact business model.
+                    </p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowWhyCard(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
               </div>
             </div>
           )}
@@ -8549,7 +8607,7 @@ export function ModuleDWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleDReadinessSteps[1]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -8587,7 +8645,7 @@ export function ModuleDWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleDReadinessSteps[1]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -8599,7 +8657,7 @@ export function ModuleDWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleDReadinessSteps[1]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
@@ -8630,6 +8688,50 @@ export function ModuleDWorkspace({
               <p className="mt-1 text-xs text-slate-600">
                 Balance third-party marketplaces (Amazon, App Store, Etsy) with 0%-commission direct channels and track your real blended fee %.
               </p>
+
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  Why Are We Asking This?
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAiGenerateStep2}
+                  disabled={isGeneratingStep2Ai || isVaultReadonly}
+                  className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                >
+                  {isGeneratingStep2Ai ? (
+                    <>
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-violet-600" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                      Auto-Draft Rent-to-Own Bridge with AI
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowParkInput((prev) => !prev)}
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
+                  Park It
+                </Button>
+              </div>
             </div>
 
             {openStep !== 'ALL' && (
@@ -8652,30 +8754,39 @@ export function ModuleDWorkspace({
 <div className="space-y-6">
           {/* LAYER 1: WHY ARE WE ASKING THIS? (STEP 2) */}
           {showWhyCard && (
-            <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
-              <div className="flex items-start gap-3">
-                <div className="rounded-lg bg-indigo-100 p-2 text-indigo-700">
-                  <Info className="h-4 w-4" />
-                </div>
-                <div className="space-y-1 text-xs text-slate-600">
-                  <div className="font-bold text-slate-900">
-                    Why Step 2 Matters: &ldquo;Own vs. Rent&rdquo; Channels &amp;
-                    Your Real Pocket Margin
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 shadow-2xs">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-indigo-100 p-2 text-indigo-700">
+                    <Info className="h-4 w-4" />
                   </div>
-                  <p>
-                    Third-party marketplaces (like{' '}
-                    <strong>Amazon FBA, Etsy, Apple App Store, or AppSumo</strong>)
-                    are fantastic for <em>renting</em> ready-to-buy discovery,
-                    but they charge <strong>10.5% to 65%</strong> in commissions
-                    and often hide customer emails. Direct channels (like your own{' '}
-                    <strong>Web Portal / Stripe / Shopify store</strong>) cost
-                    only <strong>~2.9%</strong> and give you{' '}
-                    <strong>100% customer ownership</strong>. Your blended fee %
-                    here automatically flows into{' '}
-                    <strong>Module H (Pricing &amp; Unit Economics)</strong> so
-                    you never underprice your product.
-                  </p>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    <div className="font-bold text-slate-900">
+                      Why Step 2 Matters: &ldquo;Own vs. Rent&rdquo; Channels &amp;
+                      Your Real Pocket Margin
+                    </div>
+                    <p>
+                      Third-party marketplaces (like{' '}
+                      <strong>Amazon FBA, Etsy, Apple App Store, or AppSumo</strong>)
+                      are fantastic for <em>renting</em> ready-to-buy discovery,
+                      but they charge <strong>10.5% to 65%</strong> in commissions
+                      and often hide customer emails. Direct channels (like your own{' '}
+                      <strong>Web Portal / Stripe / Shopify store</strong>) cost
+                      only <strong>~2.9%</strong> and give you{' '}
+                      <strong>100% customer ownership</strong>. Your blended fee %
+                      here automatically flows into{' '}
+                      <strong>Module H (Pricing &amp; Unit Economics)</strong> so
+                      you never underprice your product.
+                    </p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowWhyCard(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
               </div>
             </div>
           )}
@@ -9738,7 +9849,7 @@ export function ModuleDWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleDReadinessSteps[2]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -9776,7 +9887,7 @@ export function ModuleDWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleDReadinessSteps[2]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -9788,7 +9899,7 @@ export function ModuleDWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleDReadinessSteps[2]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
@@ -9819,6 +9930,60 @@ export function ModuleDWorkspace({
               <p className="mt-1 text-xs text-slate-600">
                 Separate non-negotiable Day-1 features from V1.5 fast-follows and Phase 2 icebox ideas so you launch in weeks, not years.
               </p>
+
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  Why Are We Asking This?
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowExamples((prev) => !prev)}
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                  Show Me an Example
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAiGenerateStep3}
+                  disabled={isGeneratingStep3Ai || isVaultReadonly}
+                  className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                >
+                  {isGeneratingStep3Ai ? (
+                    <>
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-violet-600" />
+                      Calibrating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                      Auto-Calibrate Scope with AI
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowParkInput((prev) => !prev)}
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
+                  Park It
+                </Button>
+              </div>
             </div>
 
             {openStep !== 'ALL' && (
@@ -9854,69 +10019,59 @@ export function ModuleDWorkspace({
                     V2 Icebox)
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowWhyCard((prev) => !prev)}
-                    className="h-7 border-indigo-200 bg-white px-2.5 text-[11px] text-indigo-700"
-                  >
-                    <HelpCircle className="mr-1 h-3.5 w-3.5" />
-                    {showWhyCard ? 'Hide Coaching' : 'Why Are We Asking This?'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowExamples((prev) => !prev)}
-                    className="h-7 border-emerald-300 bg-emerald-50/80 px-2.5 text-[11px] text-emerald-800"
-                  >
-                    <Lightbulb className="mr-1 h-3.5 w-3.5" />
-                    {showExamples ? 'Hide 3 Examples' : 'Test All 3 Scenarios'}
-                  </Button>
-                </div>
               </div>
 
               {showWhyCard && (
-                <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-indigo-100 bg-white/95 p-3.5 text-xs text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
-                  <div>
-                    <div className="font-bold text-indigo-950">
-                      🎯 Why Ruthless V1 Scope Matters
-                    </div>
-                    <p className="mt-1 leading-relaxed text-slate-600">
-                      Founders rarely fail because their Version 1 was too small;
-                      they fail because they tried to build or stock{' '}
-                      <strong>Year 2 features on Day 1</strong> and ran out of
-                      time and cash before speaking to paying customers.
-                    </p>
+                <div className="mt-3 rounded-xl border border-indigo-100 bg-white/95 p-3.5 text-xs text-slate-700">
+                  <div className="flex items-start justify-between gap-2 border-b border-indigo-50 pb-2 mb-2">
+                    <span className="font-bold text-indigo-950">💡 Scope Coaching &amp; Track Alignment</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowWhyCard(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <div>
-                    <div className="font-bold text-indigo-950">
-                      🧭 Adaptive to Your Track ({selectedTrackMeta.badgeText})
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <div className="font-bold text-indigo-950">
+                        🎯 Why Ruthless V1 Scope Matters
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-600">
+                        Founders rarely fail because their Version 1 was too small;
+                        they fail because they tried to build or stock{' '}
+                        <strong>Year 2 features on Day 1</strong> and ran out of
+                        time and cash before speaking to paying customers.
+                      </p>
                     </div>
-                    <p className="mt-1 leading-relaxed text-slate-600">
-                      {step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM'
-                        ? 'Because you selected Physical Product / Maker, Step 3 filters Hero SKUs, repeatable workshop jigs, and <2kg courier boxes—and blocks custom one-off dimensions that destroy batch margins.'
-                        : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT'
-                          ? 'Because you selected Education / Parent Support, Step 3 locks V1 to bite-sized 5-minute audio/video guides and printable routines—and parks €25,000 custom mobile apps in the V2 Icebox.'
-                          : 'Because you selected Software / SaaS, Step 3 locks V1 to your 60-second browser Aha! workflow and Stripe checkout—and parks native mobile apps and enterprise SSO in the V2 Icebox.'}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="font-bold text-indigo-950">
-                      🔗 Feeds Work Packages (Step 5) &amp; Grants (Mod K)
+                    <div>
+                      <div className="font-bold text-indigo-950">
+                        🧭 Adaptive to Your Track ({selectedTrackMeta.badgeText})
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-600">
+                        {step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM'
+                          ? 'Because you selected Physical Product / Maker, Step 3 filters Hero SKUs, repeatable workshop jigs, and <2kg courier boxes—and blocks custom one-off dimensions that destroy batch margins.'
+                          : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT'
+                            ? 'Because you selected Education / Parent Support, Step 3 locks V1 to bite-sized 5-minute audio/video guides and printable routines—and parks €25,000 custom mobile apps in the V2 Icebox.'
+                            : 'Because you selected Software / SaaS, Step 3 locks V1 to your 60-second browser Aha! workflow and Stripe checkout—and parks native mobile apps and enterprise SSO in the V2 Icebox.'}
+                      </p>
                     </div>
-                    <p className="mt-1 leading-relaxed text-slate-600">
-                      Only items in your{' '}
-                      <strong className="text-emerald-700">
-                        MUST-HAVE FOR V1
-                      </strong>{' '}
-                      bucket become your Day-1 Work Packages in Step 5, while
-                      V1.5 and V2 items demonstrate a credible 24-month roadmap
-                      to Irish LEO, Enterprise Ireland, and Innovate UK
-                      assessors.
-                    </p>
+                    <div>
+                      <div className="font-bold text-indigo-950">
+                        🔗 Feeds Work Packages (Step 5) &amp; Grants (Mod K)
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-600">
+                        Only items in your{' '}
+                        <strong className="text-emerald-700">
+                          MUST-HAVE FOR V1
+                        </strong>{' '}
+                        bucket become your Day-1 Work Packages in Step 5, while
+                        V1.5 and V2 items demonstrate a credible 24-month roadmap
+                        to Irish LEO, Enterprise Ireland, and Innovate UK
+                        assessors.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -9928,38 +10083,47 @@ export function ModuleDWorkspace({
                       🧪 1-Click Interactive Tester: Load Any of Our 3 Scenarios
                       Into Step 3
                     </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      <Button
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleLoadScenarioPreset('BMU_SAAS')}
+                          className="h-7 border-indigo-300 bg-white text-[11px] font-semibold text-indigo-800 hover:bg-indigo-50"
+                        >
+                          1. Load SaaS (Startup Preflight)
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            handleLoadScenarioPreset('WOODWORKER_AMAZON_ETSY')
+                          }
+                          className="h-7 border-amber-300 bg-white text-[11px] font-semibold text-amber-900 hover:bg-amber-50"
+                        >
+                          2. Load Woodworker (Amazon &amp; Etsy)
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            handleLoadScenarioPreset('AUTISM_SLEEP_EDUCATION')
+                          }
+                          className="h-7 border-emerald-400 bg-white text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50"
+                        >
+                          3. Load Autism Sleep Platform
+                        </Button>
+                      </div>
+                      <button
                         type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleLoadScenarioPreset('BMU_SAAS')}
-                        className="h-7 border-indigo-300 bg-white text-[11px] font-semibold text-indigo-800 hover:bg-indigo-50"
+                        onClick={() => setShowExamples(false)}
+                        className="ml-1 text-slate-400 hover:text-slate-600"
                       >
-                        1. Load SaaS (Startup Preflight)
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          handleLoadScenarioPreset('WOODWORKER_AMAZON_ETSY')
-                        }
-                        className="h-7 border-amber-300 bg-white text-[11px] font-semibold text-amber-900 hover:bg-amber-50"
-                      >
-                        2. Load Woodworker (Amazon &amp; Etsy)
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          handleLoadScenarioPreset('AUTISM_SLEEP_EDUCATION')
-                        }
-                        className="h-7 border-emerald-400 bg-white text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50"
-                      >
-                        3. Load Autism Sleep Platform
-                      </Button>
+                        ✕
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -11116,7 +11280,7 @@ export function ModuleDWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleDReadinessSteps[3]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -11154,7 +11318,7 @@ export function ModuleDWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleDReadinessSteps[3]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -11166,7 +11330,7 @@ export function ModuleDWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleDReadinessSteps[3]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
@@ -11197,6 +11361,50 @@ export function ModuleDWorkspace({
               <p className="mt-1 text-xs text-slate-600">
                 Classify Tier 1 core IP vs. off-the-shelf Tier 2 & 3 tools, and track once-off build costs vs. monthly tool subscriptions.
               </p>
+
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  Why Are We Asking This?
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAiPopulateStep4Board}
+                  disabled={isGeneratingStep4Ai || isVaultReadonly}
+                  className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                >
+                  {isGeneratingStep4Ai ? (
+                    <>
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-violet-600" />
+                      Drafting...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                      Auto-Draft Tech Stack with AI
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowParkInput((prev) => !prev)}
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
+                  Park It
+                </Button>
+              </div>
             </div>
 
             {openStep !== 'ALL' && (
@@ -11264,9 +11472,18 @@ export function ModuleDWorkspace({
 
               {showWhyCard && (
                 <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5 text-xs leading-relaxed text-slate-700">
-                  <span className="font-semibold text-indigo-900">
-                    💡 Co-Founder Coaching Note:{' '}
-                  </span>
+                  <div className="flex items-start justify-between gap-2 border-b border-indigo-100/70 pb-2 mb-2">
+                    <span className="font-semibold text-indigo-900">
+                      💡 Co-Founder Coaching Note:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowWhyCard(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
                   {activeStep4TrackConfig.whyAskingText}
                 </div>
               )}
@@ -12408,7 +12625,7 @@ export function ModuleDWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleDReadinessSteps[4]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -12446,7 +12663,7 @@ export function ModuleDWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleDReadinessSteps[4]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -12458,7 +12675,7 @@ export function ModuleDWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleDReadinessSteps[4]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
@@ -12489,6 +12706,60 @@ export function ModuleDWorkspace({
               <p className="mt-1 text-xs text-slate-600">
                 Grants like Innovate UK and LEO ask you to group your build plan into numbered &quot;Work Packages&quot; (e.g. Phase 1: Recipe/Prototype, Phase 2: Safety Testing, Phase 3: Launch).
               </p>
+
+              {/* Dedicated 4-Layer Support Strip */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  Why Are We Asking This?
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowExamples((prev) => !prev)}
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                  Show Me an Example
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleAiPopulateStep5Board()}
+                  disabled={isVaultReadonly || isGeneratingStep5Ai}
+                  className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                >
+                  {isGeneratingStep5Ai ? (
+                    <>
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-violet-600" />
+                      Drafting...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                      Auto-Draft Work Packages with AI
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowParkInput((prev) => !prev)}
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
+                  Park It
+                </Button>
+              </div>
             </div>
 
             {openStep !== 'ALL' && (
@@ -12533,40 +12804,43 @@ export function ModuleDWorkspace({
                     {activeStep5TrackConfig.whyThisMattersText}
                   </p>
                 </div>
-
-                <div className="flex shrink-0 flex-wrap gap-1.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowExamples(!showExamples)}
-                    className="border-indigo-200 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
-                  >
-                    <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
-                    {showExamples
-                      ? 'Hide Example'
-                      : 'Show Me an Example'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAiPopulateStep5Board()}
-                    disabled={isVaultReadonly || isGeneratingStep5Ai}
-                    className="border-indigo-200 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
-                  >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
-                    I&apos;m Stuck — Draft WPs &amp; Flow with AI
-                  </Button>
-                </div>
               </div>
+
+              {showWhyCard && (
+                <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3 text-xs text-slate-700">
+                  <div className="flex items-start justify-between gap-2 border-b border-indigo-100/70 pb-2 mb-2">
+                    <span className="font-semibold text-indigo-900">
+                      💡 Why Work Packages Matter for Grants &amp; Delivery:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowWhyCard(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="leading-relaxed text-slate-600">
+                    {activeStep5TrackConfig.whyThisMattersText}
+                  </p>
+                </div>
+              )}
 
               {showExamples && (
                 <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3 text-xs text-slate-700">
-                  <div className="font-semibold text-indigo-900">
-                    💡 {activeStep5TrackConfig.stepSubtitle}
+                  <div className="flex items-start justify-between gap-2 border-b border-indigo-100/70 pb-2 mb-2">
+                    <span className="font-semibold text-indigo-900">
+                      💡 {activeStep5TrackConfig.stepSubtitle}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowExamples(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <p className="mt-1 leading-relaxed text-slate-600">
+                  <p className="leading-relaxed text-slate-600">
                     {activeStep5TrackConfig.flowDiagramSubtitle}
                   </p>
                 </div>
@@ -13812,8 +14086,8 @@ export function ModuleDWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                  completedModuleDCoreStepsCount === 5
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  completedModuleDCoreStepsCount === 5 || (moduleDReadinessSteps[5]?.isComplete ?? false)
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
                 }`}
@@ -13828,10 +14102,14 @@ export function ModuleDWorkspace({
                   <Badge
                     variant={
                       completedModuleDCoreStepsCount === 5
-                        ? 'success'
-                        : 'secondary'
+                        ? 'default'
+                        : 'outline'
                     }
-                    className="shrink-0 text-[10px]"
+                    className={`shrink-0 text-[10px] font-medium ${
+                      completedModuleDCoreStepsCount === 5
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
                   >
                     {completedModuleDCoreStepsCount}/5 Sections Ready
                   </Badge>
@@ -13847,7 +14125,7 @@ export function ModuleDWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Open Overview</span>
+                <span>{completedModuleDCoreStepsCount === 5 || (moduleDReadinessSteps[5]?.isComplete ?? false) ? 'Open Overview' : 'Review Overview'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -13862,13 +14140,13 @@ export function ModuleDWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    completedModuleDCoreStepsCount === 5
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                    completedModuleDCoreStepsCount === 5 || (moduleDReadinessSteps[5]?.isComplete ?? false)
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
                   }`}
                 >
-                  <FileText className="h-3.5 w-3.5" />
+                  <FileText className="h-4 w-4" />
                 </span>
                 <h2 className="text-base font-bold text-slate-900">
                   Product, Scope &amp; Work Package Brief
@@ -13876,10 +14154,14 @@ export function ModuleDWorkspace({
                 <Badge
                   variant={
                     completedModuleDCoreStepsCount === 5
-                      ? 'success'
-                      : 'secondary'
+                      ? 'default'
+                      : 'outline'
                   }
-                  className="shrink-0 text-[10px]"
+                  className={`shrink-0 text-[10px] font-medium ${
+                    completedModuleDCoreStepsCount === 5
+                      ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                      : 'border-slate-300 text-slate-600'
+                  }`}
                 >
                   {completedModuleDCoreStepsCount}/5 Sections Ready
                 </Badge>

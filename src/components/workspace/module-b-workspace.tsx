@@ -658,6 +658,8 @@ export interface ModuleBWorkspaceProps {
   whiteLabelEnabled?: boolean;
   onParkQuestion: (questionText: string) => void;
   onBackToModuleA: () => void;
+  initialStep?: number;
+  highlightTarget?: string;
 }
 
 export function ModuleBWorkspace({
@@ -677,6 +679,8 @@ export function ModuleBWorkspace({
   whiteLabelEnabled = false,
   onParkQuestion,
   onBackToModuleA,
+  initialStep,
+  highlightTarget,
 }: ModuleBWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
   const localGrants = getGrantsForCountry(selectedCountry);
@@ -702,7 +706,30 @@ export function ModuleBWorkspace({
         : 'B2B_BUSINESSES';
 
   // Step Accordion state: 1, 2, 3, 4, 5, 6 (Summary Brief), or 'ALL'
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 6) {
+      return initialStep;
+    }
+    return 0;
+  });
+
+  // Handle deep-link scrolling and highlight
+  useEffect(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 6) {
+      setOpenStep(initialStep);
+      setTimeout(() => {
+        const targetId = highlightTarget || `module-b-step-${initialStep}`;
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('attention-highlight');
+          void el.offsetWidth;
+          el.classList.add('attention-highlight');
+          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+        }
+      }, 250);
+    }
+  }, [initialStep, highlightTarget]);
 
   const savedBeachhead = plan.moduleBData?.beachhead;
 
@@ -2109,7 +2136,7 @@ export function ModuleBWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[0]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -2126,15 +2153,16 @@ export function ModuleBWorkspace({
                   <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 1: Your First Core Customer Group &amp; Selling Markets
                   </h2>
-                  {moduleBReadinessSteps[0]?.isComplete ? (
-                    <Badge variant="success" className="shrink-0 text-[10px]">
-                      Completed
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                      In Progress
-                    </Badge>
-                  )}
+                  <Badge
+                    variant={moduleBReadinessSteps[0]?.isComplete ? 'default' : 'outline'}
+                    className={`shrink-0 text-[10px] font-medium ${
+                      moduleBReadinessSteps[0]?.isComplete
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {moduleBReadinessSteps[0]?.isComplete ? 'Completed' : 'In Progress'}
+                  </Badge>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
                   {moduleBReadinessSteps[0]?.summary}
@@ -2147,7 +2175,7 @@ export function ModuleBWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleBReadinessSteps[0]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -2156,29 +2184,40 @@ export function ModuleBWorkspace({
       ) : (
         <Card id="module-b-step-1" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
           <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    moduleBReadinessSteps[0]?.isComplete
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
-                  }`}
-                >
-                  {moduleBReadinessSteps[0]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    '1'
-                  )}
-                </span>
-                <h2 className="text-base font-bold text-slate-900">
-                  Step 1: Your First Core Customer Group &amp; Where Are You Selling?
-                </h2>
-                <Badge variant="success" className="shrink-0">Step 1 of 5</Badge>
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  moduleBReadinessSteps[0]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleBReadinessSteps[0]?.isComplete ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  '1'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900">
+                    Step 1: Your First Core Customer Group &amp; Where Are You Selling?
+                  </h2>
+                  <Badge
+                    variant={moduleBReadinessSteps[0]?.isComplete ? 'default' : 'outline'}
+                    className={`shrink-0 text-[10px] font-medium ${
+                      moduleBReadinessSteps[0]?.isComplete
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {moduleBReadinessSteps[0]?.isComplete ? 'Completed' : 'Step 1 of 5'}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  Define who will buy from you (your first core customer group or &ldquo;beachhead&rdquo;) and which countries you plan to sell in.
+                </p>
               </div>
-              <p className="mt-1 text-xs text-slate-600">
-                Define who will buy from you (your first core customer group or &ldquo;beachhead&rdquo;) and which countries you plan to sell in.
-              </p>
             </div>
 
             {openStep !== 'ALL' && (
@@ -2190,7 +2229,7 @@ export function ModuleBWorkspace({
                   e.stopPropagation();
                   setOpenStep(0);
                 }}
-                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100"
               >
                 <span>Collapse Step</span>
                 <ChevronUp className="ml-1 h-3.5 w-3.5" />
@@ -2198,114 +2237,159 @@ export function ModuleBWorkspace({
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowWhyCard(!showWhyCard)}
-              >
-                <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
-                Why Ask This?
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowExamples(!showExamples)}
-              >
-                <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                Show Example
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowImStuck(!showImStuck)}
-              >
-                <Wand2 className="h-3.5 w-3.5 text-violet-600" />
-                I&apos;m Stuck
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowJargonTooltip(!showJargonTooltip)}
-                className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-              >
-                <Info className="h-3 w-3 text-indigo-600 shrink-0" />
-                <span>Your First Core Customer Group (Who buys first?) — Beachhead Jargon</span>
-              </button>
-            </div>
+          {/* Dedicated 4-Layer Support Strip */}
+          <div className="mt-3 flex flex-wrap items-center gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowWhyCard((v) => !v)}
+              className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+            >
+              <HelpCircle className="mr-1 h-3.5 w-3.5" />
+              Why Are We Asking This?
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExamples((v) => !v)}
+              className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+            >
+              <Lightbulb className="mr-1 h-3.5 w-3.5" />
+              Show Me an Example
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowImStuck((v) => !v)}
+              className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+            >
+              <Wand2 className="mr-1 h-3.5 w-3.5" />
+              I&apos;m Stuck
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowJargonTooltip((v) => !v)}
+              className="h-7 border-indigo-200 bg-indigo-50/50 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
+            >
+              <Info className="mr-1 h-3.5 w-3.5" />
+              Beachhead Jargon Guide
+            </Button>
           </div>
 
           <CardContent className="space-y-6 px-0 pb-0 pt-4">
 
           {/* Inline Helpful Tip */}
           {showJargonTooltip && (
-            <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3.5 text-xs text-slate-700 shadow-xs">
-              <div className="font-bold text-indigo-950 flex items-center gap-1.5">
-                <Info className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                📖 Plain-English Guide: Your First Core Customer Group (Who buys first?) — Beachhead Customer / Segment
+            <div className="mt-3 rounded-lg border border-indigo-200 bg-white p-3.5 text-xs text-slate-700 shadow-xs">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <div className="font-bold text-indigo-950 flex items-center gap-1.5">
+                    <Info className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                    📖 Plain-English Guide: Beachhead Customer / Segment
+                  </div>
+                  <p className="mt-1 leading-relaxed">
+                    A <strong>&ldquo;Beachhead&rdquo;</strong> simply means the very first specific group of customers you focus on winning before expanding to everyone else.
+                    With limited time and budget, you cannot market to the whole
+                    world on Day 1. Starting with the{' '}
+                    <strong>specific group of customers who feel the problem most urgently</strong>{' '}
+                    makes it much easier to get your first 10 paying users, gather
+                    feedback, and then expand into bigger markets.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowJargonTooltip(false)}
+                  className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700 shrink-0"
+                >
+                  ✕
+                </Button>
               </div>
-              <p className="mt-1 leading-relaxed">
-                Your First Core Customer Group (Who buys first?) — (A <strong>&ldquo;Beachhead&rdquo;</strong> simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
-                With limited time and budget, you cannot market to the whole
-                world on Day 1. Starting with the{' '}
-                <strong>specific group of customers who feel the problem most urgently</strong>{' '}
-                makes it much easier to get your first 10 paying users, gather
-                feedback, and then expand into bigger markets.
-              </p>
             </div>
           )}
 
           {/* Layer 1: "Why Are We Asking This?" Card */}
           {showWhyCard && (
-            <div className="mt-3 rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
-              <div className="mb-1 flex items-center gap-1.5 font-semibold text-indigo-900">
-                <HelpCircle className="h-4 w-4 text-indigo-600" />
-                Why Grant Panels &amp; Investors Ask Who You Are Selling To First
+            <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2">
+                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-indigo-950">
+                      Why Grant Panels &amp; Investors Ask Who You Are Selling To First
+                    </p>
+                    <p className="leading-relaxed text-indigo-900/90">
+                      The #1 mistake on grant applications and pitch decks is writing{' '}
+                      <em>
+                        &ldquo;Our target market is all businesses or anyone with a
+                        smartphone.&rdquo;
+                      </em>{' '}
+                      When you clearly name who your first customers are (plus the
+                      countries you will sell into), you immediately know who to send
+                      your Step 4 Validation Survey to, and you unlock export grant
+                      points if you plan to sell outside {countryPack.countryName}.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowWhyCard(false)}
+                  className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50 shrink-0"
+                >
+                  ✕
+                </Button>
               </div>
-              <p className="leading-relaxed text-indigo-900/90">
-                The #1 mistake on grant applications and pitch decks is writing{' '}
-                <em>
-                  &ldquo;Our target market is all businesses or anyone with a
-                  smartphone.&rdquo;
-                </em>{' '}
-                When you clearly name who your first customers are (plus the
-                countries you will sell into), you immediately know who to send
-                your Step 4 Validation Survey to, and you unlock export grant
-                points if you plan to sell outside {countryPack.countryName}.
-              </p>
             </div>
           )}
 
           {/* Layer 1: Industry-Tailored Examples */}
           {showExamples && (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-950">
-              <div className="mb-2 flex items-center gap-1.5 font-semibold text-amber-900">
-                <Lightbulb className="h-4 w-4 text-amber-600" />
-                Vague vs. Clear Target Customer Examples for{' '}
-                <span className="underline">{plan.industryCategory}</span>
-              </div>
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <div className="rounded-lg border border-rose-200 bg-white p-2.5">
-                  <span className="font-bold text-rose-700">
-                    ❌ Too Broad (Hard to Reach):
-                  </span>
-                  <p className="mt-1 text-slate-600">
-                    &ldquo;{industryExamples.weakExample}&rdquo;
-                  </p>
+            <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <div className="space-y-2">
+                    <p className="font-semibold text-emerald-950">
+                      Vague vs. Clear Target Customer Examples for{' '}
+                      <span className="underline">{plan.industryCategory}</span>
+                    </p>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 mt-2">
+                      <div className="rounded-lg border border-rose-200 bg-white p-2.5">
+                        <span className="font-bold text-rose-700">
+                          ❌ Too Broad (Hard to Reach):
+                        </span>
+                        <p className="mt-1 text-slate-600">
+                          &ldquo;{industryExamples.weakExample}&rdquo;
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
+                        <span className="font-bold text-emerald-800">
+                          ✅ Clear First Target Customers (Beachhead):
+                        </span>
+                        <p className="mt-1 text-slate-700">
+                          &ldquo;{industryExamples.strongBeachhead}&rdquo;
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
-                  <span className="font-bold text-emerald-800">
-                    ✅ Clear First Target Customers (Beachhead):
-                  </span>
-                  <p className="mt-1 text-slate-700">
-                    &ldquo;{industryExamples.strongBeachhead}&rdquo;
-                  </p>
-                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowExamples(false)}
+                  className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100/50 shrink-0"
+                >
+                  ✕
+                </Button>
               </div>
             </div>
           )}
@@ -2898,7 +2982,7 @@ export function ModuleBWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[1]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -2915,15 +2999,16 @@ export function ModuleBWorkspace({
                   <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 2: Competitors &amp; Current Habits
                   </h2>
-                  {moduleBReadinessSteps[1]?.isComplete ? (
-                    <Badge variant="success" className="shrink-0 text-[10px]">
-                      Completed
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                      In Progress
-                    </Badge>
-                  )}
+                  <Badge
+                    variant={moduleBReadinessSteps[1]?.isComplete ? 'default' : 'outline'}
+                    className={`shrink-0 text-[10px] font-medium ${
+                      moduleBReadinessSteps[1]?.isComplete
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {moduleBReadinessSteps[1]?.isComplete ? 'Completed' : 'In Progress'}
+                  </Badge>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
                   {moduleBReadinessSteps[1]?.summary}
@@ -2936,7 +3021,7 @@ export function ModuleBWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleBReadinessSteps[1]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -2945,31 +3030,43 @@ export function ModuleBWorkspace({
       ) : (
         <Card id="module-b-step-2" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
           <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    moduleBReadinessSteps[1]?.isComplete
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
-                  }`}
-                >
-                  {moduleBReadinessSteps[1]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    '2'
-                  )}
-                </span>
-                <h2 className="text-base font-bold text-slate-900">
-                  Step 2: Competitors &amp; How Customers Deal With This Today
-                </h2>
-                <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 shrink-0">
-                  AI Market Scout Enabled
-                </Badge>
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  moduleBReadinessSteps[1]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleBReadinessSteps[1]?.isComplete ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  '2'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900">
+                    Step 2: Competitors &amp; How Customers Deal With This Today
+                  </h2>
+                  <Badge
+                    variant={moduleBReadinessSteps[1]?.isComplete ? 'default' : 'outline'}
+                    className={`shrink-0 text-[10px] font-medium ${
+                      moduleBReadinessSteps[1]?.isComplete
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {moduleBReadinessSteps[1]?.isComplete ? 'Completed' : 'Step 2 of 5'}
+                  </Badge>
+                  <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 shrink-0 text-[10px] font-medium">
+                    AI Market Scout Enabled
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  Show how your target customers currently handle this problem, map out direct competitors in {targetMarkets.join(', ')}, and define why customers will switch to {plan.title}.
+                </p>
               </div>
-              <p className="mt-1 text-xs text-slate-600">
-                Show how your target customers currently handle this problem, map out direct competitors in {targetMarkets.join(', ')}, and define why customers will switch to {plan.title}.
-              </p>
             </div>
 
             {openStep !== 'ALL' && (
@@ -2981,7 +3078,7 @@ export function ModuleBWorkspace({
                   e.stopPropagation();
                   setOpenStep(0);
                 }}
-                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100"
               >
                 <span>Collapse Step</span>
                 <ChevronUp className="ml-1 h-3.5 w-3.5" />
@@ -2989,83 +3086,99 @@ export function ModuleBWorkspace({
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowStep2WhyCard(!showStep2WhyCard)}
-              >
-                <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
-                Why Ask This?
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowStep2Examples(!showStep2Examples)}
-              >
-                <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                Show Example
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowStep2ImStuck(!showStep2ImStuck)}
-              >
-                <Wand2 className="h-3.5 w-3.5 text-violet-600" />
-                I&apos;m Stuck
-              </Button>
-            </div>
+          {/* Dedicated 4-Layer Support Strip */}
+          <div className="mt-3 flex flex-wrap items-center gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStep2WhyCard(!showStep2WhyCard)}
+              className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+            >
+              <HelpCircle className="mr-1 h-3.5 w-3.5" />
+              Why Are We Asking This?
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStep2Examples(!showStep2Examples)}
+              className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+            >
+              <Lightbulb className="mr-1 h-3.5 w-3.5" />
+              Show Me an Example
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStep2ImStuck(!showStep2ImStuck)}
+              className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+            >
+              <Wand2 className="mr-1 h-3.5 w-3.5" />
+              I&apos;m Stuck
+            </Button>
           </div>
 
           {/* Step 2 Layer 1: "Why Are We Asking This?" Card */}
           {showStep2WhyCard && (
-            <div className="mt-3 rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
-              <div className="mb-1 flex items-center gap-1.5 font-semibold text-indigo-900">
-                <HelpCircle className="h-4 w-4 text-indigo-600" />
-                Why Saying &ldquo;We Have No Competitors&rdquo; Is a Red Flag
+            <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2">
+                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-indigo-950">
+                      Why Saying &ldquo;We Have No Competitors&rdquo; Is a Red Flag
+                    </p>
+                    <p className="leading-relaxed text-indigo-900/90">
+                      Grant assessors and investors hear <em>&ldquo;Nobody else does what we do&rdquo;</em> every day. Even if your product is brand new, your customers are already doing <strong>something</strong> today — whether that&apos;s using Excel spreadsheets, messaging on WhatsApp, hiring a consultant, or just living with the problem. Showing both their current habits and known competitors proves you truly understand your market.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowStep2WhyCard(false)}
+                  className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50 shrink-0"
+                >
+                  ✕
+                </Button>
               </div>
-              <p className="leading-relaxed text-indigo-900/90">
-                Grant assessors and investors hear{' '}
-                <em>&ldquo;Nobody else does what we do&rdquo;</em> every day.
-                Even if your product is brand new, your customers are already
-                doing <strong>something</strong> today — whether that&apos;s
-                using Excel spreadsheets, messaging on WhatsApp, hiring a
-                consultant, or just living with the problem. Showing both their
-                current habits and known competitors proves you truly understand
-                your market.
-              </p>
             </div>
           )}
 
           {/* Step 2 Layer 1: Industry-Tailored Examples */}
           {showStep2Examples && (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-950">
-              <div className="mb-2 flex items-center gap-1.5 font-semibold text-amber-900">
-                <Lightbulb className="h-4 w-4 text-amber-600" />
-                Weak vs. Strong Competitor &amp; Workaround Breakdown for{' '}
-                <span className="underline">{plan.industryCategory}</span>
-              </div>
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <div className="rounded-lg border border-rose-200 bg-white p-2.5">
-                  <span className="font-bold text-rose-700">
-                    ❌ Unconvincing Answer:
-                  </span>
-                  <p className="mt-1 text-slate-600">
-                    &ldquo;{competitorExamples.weakExample}&rdquo;
-                  </p>
+            <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <div className="space-y-2">
+                    <p className="font-semibold text-emerald-950">
+                      Weak vs. Strong Competitor &amp; Workaround Breakdown for <span className="underline">{plan.industryCategory}</span>
+                    </p>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 mt-2">
+                      <div className="rounded-lg border border-rose-200 bg-white p-2.5">
+                        <span className="font-bold text-rose-700">❌ Unconvincing Answer:</span>
+                        <p className="mt-1 text-slate-600">&ldquo;{competitorExamples.weakExample}&rdquo;</p>
+                      </div>
+                      <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
+                        <span className="font-bold text-emerald-800">✅ Realistic, Trust-Building Answer:</span>
+                        <p className="mt-1 text-slate-700">&ldquo;{competitorExamples.strongExample}&rdquo;</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
-                  <span className="font-bold text-emerald-800">
-                    ✅ Realistic, Trust-Building Answer:
-                  </span>
-                  <p className="mt-1 text-slate-700">
-                    &ldquo;{competitorExamples.strongExample}&rdquo;
-                  </p>
-                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowStep2Examples(false)}
+                  className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100/50 shrink-0"
+                >
+                  ✕
+                </Button>
               </div>
             </div>
           )}
@@ -3556,7 +3669,7 @@ export function ModuleBWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[2]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -3573,15 +3686,16 @@ export function ModuleBWorkspace({
                   <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 3: Plain-English Market Sizing ({countryPack.defaultCurrency})
                   </h2>
-                  {moduleBReadinessSteps[2]?.isComplete ? (
-                    <Badge variant="success" className="shrink-0 text-[10px]">
-                      Completed
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                      In Progress
-                    </Badge>
-                  )}
+                  <Badge
+                    variant={moduleBReadinessSteps[2]?.isComplete ? 'default' : 'outline'}
+                    className={`shrink-0 text-[10px] font-medium ${
+                      moduleBReadinessSteps[2]?.isComplete
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {moduleBReadinessSteps[2]?.isComplete ? 'Completed' : 'In Progress'}
+                  </Badge>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
                   {moduleBReadinessSteps[2]?.summary}
@@ -3594,7 +3708,7 @@ export function ModuleBWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleBReadinessSteps[2]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -3606,36 +3720,48 @@ export function ModuleBWorkspace({
           className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
         >
           <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    moduleBReadinessSteps[2]?.isComplete
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
-                  }`}
-                >
-                  {moduleBReadinessSteps[2]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    '3'
-                  )}
-                </span>
-                <h2 className="text-base font-bold text-slate-900">
-                  Step 3: Market Sizing Without the Maths Headache
-                </h2>
-                <Badge variant="outline" className="shrink-0">
-                  Bottom-Up ({countryPack.defaultCurrency})
-                </Badge>
-                {marketSegments.length > 1 && (
-                  <Badge variant="secondary" className="shrink-0">
-                    {marketSegments.length} Customer Groups
-                  </Badge>
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  moduleBReadinessSteps[2]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleBReadinessSteps[2]?.isComplete ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  '3'
                 )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900">
+                    Step 3: Market Sizing Without the Maths Headache
+                  </h2>
+                  <Badge
+                    variant={moduleBReadinessSteps[2]?.isComplete ? 'default' : 'outline'}
+                    className={`shrink-0 text-[10px] font-medium ${
+                      moduleBReadinessSteps[2]?.isComplete
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {moduleBReadinessSteps[2]?.isComplete ? 'Completed' : 'Step 3 of 5'}
+                  </Badge>
+                  <Badge variant="outline" className="shrink-0 text-[10px] font-medium">
+                    Bottom-Up ({countryPack.defaultCurrency})
+                  </Badge>
+                  {marketSegments.length > 1 && (
+                    <Badge variant="secondary" className="shrink-0 text-[10px] font-medium">
+                      {marketSegments.length} Customer Groups
+                    </Badge>
+                  )}
+                </div>
+                <CardDescription className="mt-1 text-xs text-slate-600">
+                  Skip the fake &ldquo;1% of a $50 Billion global industry&rdquo; guessing game. Answer 3 simple questions per customer group and we&apos;ll calculate your Year 1–2 Revenue Goal, Reachable Market, and Wider Long-Term Market automatically in {countryPack.defaultCurrency}.
+                </CardDescription>
               </div>
-              <CardDescription className="mt-1 text-xs text-slate-600">
-                Skip the fake &ldquo;1% of a $50 Billion global industry&rdquo; guessing game. Answer 3 simple questions per customer group and we&apos;ll calculate your Year 1–2 Revenue Goal, Reachable Market, and Wider Long-Term Market automatically in {countryPack.defaultCurrency}.
-              </CardDescription>
             </div>
 
             {openStep !== 'ALL' && (
@@ -3647,7 +3773,7 @@ export function ModuleBWorkspace({
                   e.stopPropagation();
                   setOpenStep(0);
                 }}
-                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100"
               >
                 <span>Collapse Step</span>
                 <ChevronUp className="ml-1 h-3.5 w-3.5" />
@@ -3655,34 +3781,37 @@ export function ModuleBWorkspace({
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          {/* Dedicated 4-Layer Support Strip */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2">
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setShowStep3WhyCard((v) => !v)}
+                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
               >
-                <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
-                {showStep3WhyCard ? 'Hide Why' : 'Why Ask This?'}
+                <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                Why Are We Asking This?
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setShowStep3Examples((v) => !v)}
+                className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
               >
-                <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                {showStep3Examples ? 'Hide Examples' : 'Show Example'}
+                <Lightbulb className="mr-1 h-3.5 w-3.5" />
+                Show Me an Example
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setShowStep3ImStuck((v) => !v)}
-                className="border-amber-200 bg-amber-50/80 text-amber-900 hover:bg-amber-100"
+                className="h-7 border-amber-200 bg-amber-50/80 text-[11px] font-medium text-amber-900 hover:bg-amber-100"
               >
-                <Compass className="h-3.5 w-3.5 text-amber-600" />
+                <Compass className="mr-1 h-3.5 w-3.5 text-amber-600" />
                 I&apos;m Stuck
               </Button>
               <Button
@@ -3691,9 +3820,9 @@ export function ModuleBWorkspace({
                 size="sm"
                 disabled={isVaultReadonly}
                 onClick={handleUseIndustryBenchmark}
-                className="border-emerald-200 bg-emerald-50/80 text-emerald-900 hover:bg-emerald-100"
+                className="h-7 border-emerald-200 bg-emerald-50/80 text-[11px] font-medium text-emerald-900 hover:bg-emerald-100"
               >
-                <BarChart3 className="h-3.5 w-3.5 text-emerald-600" />
+                <BarChart3 className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                 Use Industry Benchmark
               </Button>
             </div>
@@ -3702,16 +3831,16 @@ export function ModuleBWorkspace({
               size="sm"
               disabled={isVaultReadonly || isEstimatingStep3Ai}
               onClick={handleRunAiMarketSizing}
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
+              className="h-7 bg-indigo-600 text-white text-[11px] font-medium hover:bg-indigo-700"
             >
               {isEstimatingStep3Ai ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
                   Estimating...
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Sparkles className="mr-1 h-3.5 w-3.5" />
                   Estimate Customer Counts with AI
                 </>
               )}
@@ -3721,133 +3850,139 @@ export function ModuleBWorkspace({
           <CardContent className="space-y-6 px-0 pb-0 pt-4">
             {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
             {showStep3WhyCard && (
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
-                <div className="flex items-start gap-2.5">
-                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-                  <div className="space-y-1.5">
-                    <div className="font-bold">
-                      Why do grant panels and investors prefer &ldquo;Bottom-Up
-                      Maths&rdquo; over big industry reports?
+              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-indigo-950">
+                        Why do grant panels and investors prefer &ldquo;Bottom-Up
+                        Maths&rdquo; over big industry reports?
+                      </p>
+                      <p className="leading-relaxed text-indigo-900/90">
+                        When a founder says{' '}
+                        <em>
+                          &ldquo;The global software market is €100 Billion and we
+                          only need 1%&rdquo;
+                        </em>
+                        , reviewers immediately push back because it doesn&apos;t
+                        show how many real customers you need to win. Instead,
+                        counting <strong>Number of Customers × Price Paid</strong>{' '}
+                        proves your Year 1–2 revenue goal is grounded in reality —
+                        especially if you sell to{' '}
+                        <strong>more than one customer group</strong> (for example,
+                        individual users <em>plus</em> universities or business
+                        teams).
+                      </p>
                     </div>
-                    <p className="leading-relaxed text-indigo-900/90">
-                      When a founder says{' '}
-                      <em>
-                        &ldquo;The global software market is €100 Billion and we
-                        only need 1%&rdquo;
-                      </em>
-                      , reviewers immediately push back because it doesn&apos;t
-                      show how many real customers you need to win. Instead,
-                      counting <strong>Number of Customers × Price Paid</strong>{' '}
-                      proves your Year 1–2 revenue goal is grounded in reality —
-                      especially if you sell to{' '}
-                      <strong>more than one customer group</strong> (for example,
-                      individual users <em>plus</em> universities or business
-                      teams).
-                    </p>
                   </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowStep3WhyCard(false)}
+                    className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50 shrink-0"
+                  >
+                    ✕
+                  </Button>
                 </div>
               </div>
             )}
 
             {/* Layer 1: Industry-Tailored Example Drawer */}
             {showStep3Examples && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="font-bold">
-                  💡 How a Multi-Group Startup Sizes Their Market (Example in{' '}
-                  {countryPack.defaultCurrency})
-                </span>
-                <Badge variant="warning">Real-World Example</Badge>
-              </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="rounded-lg border border-amber-200/80 bg-white p-3">
-                  <div className="font-bold text-slate-900">
-                    Group 1: Individual Founders (Self-Serve)
+              <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="space-y-2">
+                      <p className="font-semibold text-emerald-950">
+                        How a Multi-Group Startup Sizes Their Market (Example in {countryPack.defaultCurrency})
+                      </p>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-2">
+                        <div className="rounded-lg border border-emerald-200/80 bg-white p-3">
+                          <div className="font-bold text-slate-900">
+                            Group 1: Individual Founders (Self-Serve)
+                          </div>
+                          <ul className="mt-1.5 space-y-1 text-slate-700">
+                            <li>
+                              • <strong>Price:</strong> {countryPack.defaultCurrency} 29
+                              per year/pass
+                            </li>
+                            <li>
+                              • <strong>Year 1–2 Customer Goal:</strong> 400 founders ={' '}
+                              <strong>
+                                {formatPlanCurrency(11600, countryPack.defaultCurrency)}
+                                /yr
+                              </strong>
+                            </li>
+                            <li>
+                              • <strong>Reachable Customers in Markets:</strong> 25,000
+                              founders ={' '}
+                              <strong>
+                                {formatPlanCurrency(
+                                  725000,
+                                  countryPack.defaultCurrency
+                                )}
+                                /yr
+                              </strong>
+                            </li>
+                          </ul>
+                        </div>
+                        <div className="rounded-lg border border-emerald-200/80 bg-white p-3">
+                          <div className="font-bold text-slate-900">
+                            Group 2: Universities &amp; Accelerators (B2B / Cohort)
+                          </div>
+                          <ul className="mt-1.5 space-y-1 text-slate-700">
+                            <li>
+                              • <strong>Price:</strong> {countryPack.defaultCurrency}{' '}
+                              2,500 per annual cohort licence
+                            </li>
+                            <li>
+                              • <strong>Year 1–2 Customer Goal:</strong> 10 programmes ={' '}
+                              <strong>
+                                {formatPlanCurrency(25000, countryPack.defaultCurrency)}
+                                /yr
+                              </strong>
+                            </li>
+                            <li>
+                              • <strong>Reachable Customers in Markets:</strong> 200
+                              programmes ={' '}
+                              <strong>
+                                {formatPlanCurrency(
+                                  500000,
+                                  countryPack.defaultCurrency
+                                )}
+                                /yr
+                              </strong>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-[11px] text-emerald-900">
+                        Combined Year 1–2 Revenue Goal:{' '}
+                        <strong>
+                          {formatPlanCurrency(36600, countryPack.defaultCurrency)}/yr
+                        </strong>{' '}
+                        • Combined Reachable Market:{' '}
+                        <strong>
+                          {formatPlanCurrency(1225000, countryPack.defaultCurrency)}/yr
+                        </strong>
+                      </p>
+                    </div>
                   </div>
-                  <ul className="mt-1.5 space-y-1 text-slate-700">
-                    <li>
-                      • <strong>Price:</strong> {countryPack.defaultCurrency} 29
-                      per year/pass
-                    </li>
-                    <li>
-                      • <strong>Year 1–2 Customer Goal:</strong> 400 founders ={' '}
-                      <strong>
-                        {formatPlanCurrency(11600, countryPack.defaultCurrency)}
-                        /yr
-                      </strong>
-                    </li>
-                    <li>
-                      • <strong>Reachable Customers in Markets:</strong> 25,000
-                      founders ={' '}
-                      <strong>
-                        {formatPlanCurrency(
-                          725000,
-                          countryPack.defaultCurrency
-                        )}
-                        /yr
-                      </strong>
-                    </li>
-                  </ul>
-                </div>
-                <div className="rounded-lg border border-amber-200/80 bg-white p-3">
-                  <div className="font-bold text-slate-900">
-                    Group 2: Universities &amp; Accelerators (B2B / Cohort)
-                  </div>
-                  <ul className="mt-1.5 space-y-1 text-slate-700">
-                    <li>
-                      • <strong>Price:</strong> {countryPack.defaultCurrency}{' '}
-                      2,500 per annual cohort licence
-                    </li>
-                    <li>
-                      • <strong>Year 1–2 Customer Goal:</strong> 10 programmes ={' '}
-                      <strong>
-                        {formatPlanCurrency(25000, countryPack.defaultCurrency)}
-                        /yr
-                      </strong>
-                    </li>
-                    <li>
-                      • <strong>Reachable Customers in Markets:</strong> 200
-                      programmes ={' '}
-                      <strong>
-                        {formatPlanCurrency(
-                          500000,
-                          countryPack.defaultCurrency
-                        )}
-                        /yr
-                      </strong>
-                    </li>
-                  </ul>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowStep3Examples(false)}
+                    className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100/50 shrink-0"
+                  >
+                    ✕
+                  </Button>
                 </div>
               </div>
-              <p className="mt-2.5 text-[11px] text-amber-900">
-                Combined Year 1–2 Revenue Goal:{' '}
-                <strong>
-                  {formatPlanCurrency(36600, countryPack.defaultCurrency)}/yr
-                </strong>{' '}
-                • Combined Reachable Market:{' '}
-                <strong>
-                  {formatPlanCurrency(1225000, countryPack.defaultCurrency)}/yr
-                </strong>
-                . Click{' '}
-                <button
-                  type="button"
-                  onClick={handleUseIndustryBenchmark}
-                  className="font-bold underline hover:text-amber-950"
-                >
-                  Use Industry Benchmark
-                </button>{' '}
-                or{' '}
-                <button
-                  type="button"
-                  onClick={handleRunAiMarketSizing}
-                  className="font-bold underline hover:text-amber-950"
-                >
-                  Estimate Customer Counts with AI
-                </button>{' '}
-                if you want a starting point!
-              </p>
-            </div>
-          )}
+            )}
 
           {/* Layer 2: "I'm Stuck" Breakdown Helper */}
           {showStep3ImStuck && (
@@ -4501,7 +4636,7 @@ export function ModuleBWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[3]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -4518,15 +4653,16 @@ export function ModuleBWorkspace({
                   <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
                     Step 4: Competitive Edge &amp; Stand Out
                   </h2>
-                  {moduleBReadinessSteps[3]?.isComplete ? (
-                    <Badge variant="success" className="shrink-0 text-[10px]">
-                      Completed
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                      In Progress
-                    </Badge>
-                  )}
+                  <Badge
+                    variant={moduleBReadinessSteps[3]?.isComplete ? 'default' : 'outline'}
+                    className={`shrink-0 text-[10px] font-medium ${
+                      moduleBReadinessSteps[3]?.isComplete
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {moduleBReadinessSteps[3]?.isComplete ? 'Completed' : 'In Progress'}
+                  </Badge>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
                   {moduleBReadinessSteps[3]?.summary}
@@ -4539,7 +4675,7 @@ export function ModuleBWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleBReadinessSteps[3]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -4551,29 +4687,40 @@ export function ModuleBWorkspace({
           className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
         >
           <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    moduleBReadinessSteps[3]?.isComplete
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
-                  }`}
-                >
-                  {moduleBReadinessSteps[3]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    '4'
-                  )}
-                </span>
-                <h2 className="text-base font-bold text-slate-900">
-                  Step 4: Competitive Edge &amp; How You Stand Out
-                </h2>
-                <Badge variant="default" className="shrink-0">Step 4 of 5</Badge>
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  moduleBReadinessSteps[3]?.isComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {moduleBReadinessSteps[3]?.isComplete ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  '4'
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900">
+                    Step 4: Competitive Edge &amp; How You Stand Out
+                  </h2>
+                  <Badge
+                    variant={moduleBReadinessSteps[3]?.isComplete ? 'default' : 'outline'}
+                    className={`shrink-0 text-[10px] font-medium ${
+                      moduleBReadinessSteps[3]?.isComplete
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {moduleBReadinessSteps[3]?.isComplete ? 'Completed' : 'Step 4 of 5'}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  Show side-by-side how you win against current customer habits and competitors, how you make switching effortless, and what protects your business as you grow.
+                </p>
               </div>
-              <p className="mt-1 text-xs text-slate-600">
-                Show side-by-side how you win against current customer habits and competitors, how you make switching effortless, and what protects your business as you grow.
-              </p>
             </div>
 
             {openStep !== 'ALL' && (
@@ -4585,7 +4732,7 @@ export function ModuleBWorkspace({
                   e.stopPropagation();
                   setOpenStep(0);
                 }}
-                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100"
               >
                 <span>Collapse Step</span>
                 <ChevronUp className="ml-1 h-3.5 w-3.5" />
@@ -4593,30 +4740,28 @@ export function ModuleBWorkspace({
             )}
           </div>
 
-          {/* Layer 1 & 2 Support Buttons */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          {/* Dedicated 4-Layer Support Strip */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2">
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setShowStep4WhyCard((v) => !v)}
+                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
               >
-                <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
-                {showStep4WhyCard
-                  ? 'Hide Coaching'
-                  : 'Why Are We Asking This?'}
+                <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                Why Are We Asking This?
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setShowStep4Examples((v) => !v)}
+                className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
               >
-                <Lightbulb className="h-3.5 w-3.5 text-amber-600" />
-                {showStep4Examples
-                  ? 'Hide Examples'
-                  : `Show ${plan.industryCategory} Example`}
+                <Lightbulb className="mr-1 h-3.5 w-3.5" />
+                Show Me an Example
               </Button>
             </div>
             <Button
@@ -4624,16 +4769,16 @@ export function ModuleBWorkspace({
               size="sm"
               disabled={isVaultReadonly || isGeneratingStep4Ai}
               onClick={handleRunAiCompetitiveEdge}
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
+              className="h-7 bg-indigo-600 text-white text-[11px] font-medium hover:bg-indigo-700"
             >
               {isGeneratingStep4Ai ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
                   Drafting Edge...
                 </>
               ) : (
                 <>
-                  <Wand2 className="h-3.5 w-3.5" />
+                  <Wand2 className="mr-1 h-3.5 w-3.5" />
                   Auto-Draft Competitive Edge with AI
                 </>
               )}
@@ -4643,42 +4788,79 @@ export function ModuleBWorkspace({
           <CardContent className="space-y-6 px-0 pb-0 pt-4">
             {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
             {showStep4WhyCard && (
-              <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
-                <div className="font-bold text-indigo-900">
-                  💡 Why Are We Asking This? (Co-Founder Coaching)
+              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-indigo-950">
+                        Why Are We Asking This? (Co-Founder Coaching)
+                      </p>
+                      <p className="leading-relaxed text-indigo-900/90">
+                        Being <em>&ldquo;slightly better&rdquo;</em> isn&apos;t enough to
+                        get busy customers to abandon a habit they already know. First,
+                        you need a <strong>low-risk way for them to switch</strong>.
+                        Second, investors and grant boards always ask:{' '}
+                        <em>
+                          &ldquo;What stops an existing software company or competitor
+                          from copying this next month?&rdquo;
+                        </em>{' '}
+                        This step gives you a clear, visual answer to both questions.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowStep4WhyCard(false)}
+                    className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50 shrink-0"
+                  >
+                    ✕
+                  </Button>
                 </div>
-                <p className="mt-1 leading-relaxed text-indigo-900/90">
-                  Being <em>&ldquo;slightly better&rdquo;</em> isn&apos;t enough to
-                  get busy customers to abandon a habit they already know. First,
-                  you need a <strong>low-risk way for them to switch</strong>.
-                  Second, investors and grant boards always ask:{' '}
-                  <em>
-                    &ldquo;What stops an existing software company or competitor
-                    from copying this next month?&rdquo;
-                  </em>{' '}
-                  This step gives you a clear, visual answer to both questions.
-                </p>
               </div>
             )}
 
             {/* Layer 1: Industry-Tailored Weak vs Strong Example */}
             {showStep4Examples && (
-              <div className="grid grid-cols-1 gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs md:grid-cols-2">
-                <div className="rounded-lg border border-rose-200 bg-white p-3">
-                  <div className="font-bold text-rose-700">
-                    ❌ Vague Claim (What Grant Boards &amp; Buyers Doubt)
+              <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="space-y-2">
+                      <p className="font-semibold text-emerald-950">
+                        Weak vs. Strong Competitive Edge Examples ({plan.industryCategory})
+                      </p>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-2">
+                        <div className="rounded-lg border border-rose-200 bg-white p-3">
+                          <div className="font-bold text-rose-700">
+                            ❌ Vague Claim (What Grant Boards &amp; Buyers Doubt)
+                          </div>
+                          <p className="mt-1 text-slate-600">
+                            &ldquo;{competitiveEdgeExamples.weakExample}&rdquo;
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-emerald-200 bg-white p-3">
+                          <div className="font-bold text-emerald-800">
+                            ✅ Clear Competitive Edge ({plan.industryCategory})
+                          </div>
+                          <p className="mt-1 text-slate-700">
+                            &ldquo;{competitiveEdgeExamples.strongExample}&rdquo;
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <p className="mt-1 text-slate-600">
-                    &ldquo;{competitiveEdgeExamples.weakExample}&rdquo;
-                  </p>
-                </div>
-                <div className="rounded-lg border border-emerald-200 bg-white p-3">
-                  <div className="font-bold text-emerald-800">
-                    ✅ Clear Competitive Edge ({plan.industryCategory})
-                  </div>
-                  <p className="mt-1 text-slate-700">
-                    &ldquo;{competitiveEdgeExamples.strongExample}&rdquo;
-                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowStep4Examples(false)}
+                    className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100/50 shrink-0"
+                  >
+                    ✕
+                  </Button>
                 </div>
               </div>
             )}
@@ -5218,7 +5400,7 @@ export function ModuleBWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[4]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -5256,7 +5438,7 @@ export function ModuleBWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleBReadinessSteps[4]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -5271,14 +5453,14 @@ export function ModuleBWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleBReadinessSteps[4]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
                   }`}
                 >
                   {moduleBReadinessSteps[4]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="h-4 w-4" />
                   ) : (
                     '5'
                   )}
@@ -5437,7 +5619,7 @@ export function ModuleBWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   completedModuleBReadinessCount === 5
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -5472,7 +5654,7 @@ export function ModuleBWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Open Overview</span>
+                <span>{completedModuleBReadinessCount === 5 ? 'Open Overview' : 'Review Overview'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -5484,13 +5666,13 @@ export function ModuleBWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     completedModuleBReadinessCount === 5
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
                   }`}
                 >
-                  <FileText className="h-3.5 w-3.5" />
+                  <FileText className="h-4 w-4" />
                 </span>
                 <h2 className="text-base font-bold text-slate-900">
                   Market &amp; Customer Validation Brief

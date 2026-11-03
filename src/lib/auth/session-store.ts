@@ -1661,6 +1661,75 @@ export interface SavedModuleFData {
 }
 
 // ==========================================
+// MODULE G: LAUNCHPAD & OPERATIONS HUB TYPES
+// ==========================================
+
+export interface SavedModuleGData {
+  step1: {
+    state: 'ALREADY_HAVE' | 'HELP_SETUP';
+    legalStructure: 'LTD' | 'SOLE_TRADER' | 'DAC' | 'LLP' | 'OTHER';
+    customLegalStructure?: string;
+    registeredEntityName: string;
+    registrationNumber: string; // CRO / Companies House CRN
+    registrationDate: string;
+    targetFormationTimeline: string;
+    incorporationNotes: string;
+  };
+  step2: {
+    state: 'ALREADY_HAVE' | 'HELP_SETUP';
+    primaryDomain: string;
+    isDomainLive: boolean;
+    officialBusinessEmail: string;
+    emailProvider: 'GOOGLE_WORKSPACE' | 'MICROSOFT_365' | 'HOSTING_MAIL' | 'OTHER';
+    customEmailProvider?: string;
+    notes: string;
+  };
+  step3: {
+    state: 'ALREADY_HAVE' | 'HELP_SETUP';
+    bankProvider: 'REVOLUT_BUSINESS' | 'AIB' | 'BANK_OF_IRELAND' | 'BARCLAYS' | 'TIDE' | 'MONZO' | 'OTHER';
+    customBankProvider?: string;
+    hasDedicatedIban: boolean;
+    ibanLast4: string;
+    targetOpeningTimeline: string;
+    notes: string;
+  };
+  step4: {
+    state: 'ALREADY_HAVE' | 'HELP_SETUP';
+    softwareChoice: 'XERO' | 'QUICKBOOKS' | 'SURF_ACCOUNTS' | 'EXCEL' | 'OTHER';
+    customSoftwareChoice?: string;
+    hasAccountant: boolean;
+    accountantFirmName: string;
+    vatStatus: 'NOT_REGISTERED' | 'REGISTERED' | 'PLANNING_TO_REGISTER';
+    payrollSetup: 'NONE' | 'DIRECTOR_ONLY' | 'EXTERNAL_BUREAU' | 'IN_HOUSE';
+    notes: string;
+  };
+  step5: {
+    state: 'ALREADY_HAVE' | 'HELP_SETUP';
+    hasPublicLiability: boolean;
+    hasEmployersLiability: boolean;
+    hasProfessionalIndemnity: boolean;
+    hasProductLiability: boolean;
+    currentInsurerName: string;
+    policyRenewalDate: string;
+    targetCoverageTimeline: string;
+    notes: string;
+  };
+  step6: {
+    state: 'ALREADY_HAVE' | 'HELP_SETUP';
+    hasIpAssignmentSigned: boolean;
+    hasPrivacyPolicy: boolean;
+    hasTermsOfService: boolean;
+    hasStandardNda: boolean;
+    gdprOfficerDesignated: boolean;
+    legalAdvisorOrPlatform: string;
+    notes: string;
+  };
+  completionPercentage?: number;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
+// ==========================================
 // MODULE H: REVENUE & PRICING ARCHITECT TYPES
 // ==========================================
 
@@ -1780,6 +1849,300 @@ export interface SavedModuleHData {
   lastSavedAt?: string;
 }
 
+export type BrandToneOfVoice =
+  | 'AUTHORITATIVE_TRUSTED'
+  | 'APPROACHABLE_FRIENDLY'
+  | 'PLAYFUL_BOLD'
+  | 'TECHNICAL_TRANSPARENT'
+  | 'PREMIUM_CURATED'
+  | 'OTHER';
+
+export interface PositioningStatementFormula {
+  targetCustomer: string; // "For [target audience]..."
+  customerProblem: string; // "...who struggle with [core problem]..."
+  solutionCategory: string; // "...[Startup Name] is a [category/vehicle]..."
+  primaryBenefit: string; // "...that provides [key transformation/benefit]..."
+  competitiveWedge: string; // "...unlike [alternatives], we [key wedge]..."
+}
+
+export interface BrandPositioningStep1Data {
+  elevatorHook140: string; // 140-char max elevator hook
+  positioningFormula: PositioningStatementFormula;
+  toneOfVoice: BrandToneOfVoice;
+  otherToneOfVoiceText?: string;
+  toneOfVoiceBoundary: {
+    weAre: string; // e.g. "Direct, expert, and actionable"
+    weAreNever: string; // e.g. "Jargon-filled, cynical, or corporate"
+  };
+  corePillars: [string, string, string]; // 3 distinct value pillars
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+// --- MODULE I STEP 2: THE MODERN 4PS STRATEGY & CHANNEL DISTRIBUTION MATRIX ---
+
+export type ProductPackagingType =
+  | 'DIGITAL_SAAS_CLOUD'
+  | 'PHYSICAL_D2C_PRODUCT'
+  | 'HIGH_TOUCH_SERVICE'
+  | 'MARKETPLACE_PLATFORM'
+  | 'HYBRID_HARDWARE_SOFTWARE'
+  | 'OTHER';
+
+export interface FourPsProductP1 {
+  packagingType: ProductPackagingType;
+  otherPackagingTypeText?: string;
+  coreDeliverableSummary: string; // What exactly does the buyer receive upon purchase?
+  perceivedValueDriver: string; // e.g. White-glove onboarding, proprietary templates, SLA guarantee, unboxing experience
+}
+
+export type PricingStanceType =
+  | 'VALUE_BASED_PREMIUM'
+  | 'COMPETITIVE_PARITY'
+  | 'PENETRATION_LOSS_LEADER'
+  | 'FREEMIUM_EXPAND'
+  | 'TIERED_FLAT_SUBSCRIPTION'
+  | 'USAGE_BASED_METERED'
+  | 'OTHER';
+
+export interface FourPsPriceP2 {
+  pricingStance: PricingStanceType;
+  otherPricingStanceText?: string;
+  headlinePricePoint: string; // e.g. "€49/month" or "£120/order"
+  priceJustification: string; // Why the customer feels this is a bargain compared to the cost of inaction
+  paymentTermsOrFrictionReducer: string; // e.g. "14-day free trial, no credit card required", "Pay on invoice 30 days"
+}
+
+export type PrimaryDistributionChannel =
+  | 'DIRECT_WEB_SELF_SERVE'
+  | 'OUTBOUND_DIRECT_SALES'
+  | 'MARKETPLACE_APPSTORE'
+  | 'PARTNER_RESELLER_NETWORK'
+  | 'EVENTS_RETAIL_COMMUNITY'
+  | 'OTHER';
+
+export interface FourPsPlaceP3 {
+  primaryChannel: PrimaryDistributionChannel;
+  otherPrimaryChannelText?: string;
+  secondaryChannels: string[];
+  customerJourneyFrictionPoint: string; // Risk of friction/drop-off
+  frictionMitigationPlan: string; // Concrete tactical mitigation
+}
+
+export type PrimaryAcquisitionEngine =
+  | 'FOUNDER_LED_ORGANIC'
+  | 'OUTBOUND_ACCOUNT_BASED'
+  | 'SEARCH_INTENT_SEO'
+  | 'PAID_PERFORMANCE_ADS'
+  | 'COMMUNITY_PARTNERSHIP'
+  | 'OTHER';
+
+export interface FourPsPromotionP4 {
+  primaryAcquisitionEngine: PrimaryAcquisitionEngine;
+  otherAcquisitionEngineText?: string;
+  beachheadChannelTactics: string; // Step-by-step description of the single beachhead channel
+  primarySocialHub: string; // e.g. LinkedIn, X/Twitter, Instagram, YouTube, Discord, etc.
+  contentOrCampaignHook: string; // First headline asset or hook
+}
+
+export interface Modern4PsStep2Data {
+  productP1: FourPsProductP1;
+  priceP2: FourPsPriceP2;
+  placeP3: FourPsPlaceP3;
+  promotionP4: FourPsPromotionP4;
+  digitalPresenceChecklist: {
+    hasLandingPage: boolean;
+    hasDomainEmail: boolean;
+    hasAnalyticsTracking: boolean;
+    hasSocialProofOrWaitlist: boolean;
+  };
+  strategicRationale?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type First10AcquisitionArchetype =
+  | 'WARM_NETWORK_ROLODEX'
+  | 'ACCOUNT_BASED_SNIPER'
+  | 'COMMUNITY_ADVISORY_COUNCIL'
+  | 'MANUAL_CONCIERGE_PILOT'
+  | 'EXCLUSIVE_FOUNDING_COHORT'
+  | 'OTHER';
+
+export type PipelineProspectStatus =
+  | 'TO_CONTACT'
+  | 'CONTACTED'
+  | 'MEETING_SET'
+  | 'PILOT_AGREED'
+  | 'CONVERTED_PAID'
+  | 'DISQUALIFIED';
+
+export interface First10ProspectItem {
+  id: string;
+  companyOrPersona: string;
+  decisionMakerTitle: string;
+  triggerEventOrAngle: string;
+  status: PipelineProspectStatus;
+  source: 'MANUAL' | 'MODULE_C_WAITLIST' | 'MODULE_C_SURVEY' | 'MODULE_C_INTERVIEW';
+  notes?: string;
+}
+
+export interface First10PilotOffer {
+  pilotStructure: string;
+  quidProQuoFounderAsk: string;
+  riskReversal: string;
+}
+
+export interface First10OutreachScripts {
+  advisoryScript: string;
+  sniperScript: string;
+  foundingCohortScript: string;
+}
+
+export interface First10FollowUpCadence {
+  day1Icebreaker: string;
+  day4Bump: string;
+  day8MicroQuestion: string;
+  day14Breakup: string;
+}
+
+export interface First10ObjectionBusters {
+  vendorRisk: string;
+  statusQuoInertia: string;
+  featureGap: string;
+  objection1Title?: string;
+  objection1Quote?: string;
+  objection2Title?: string;
+  objection2Quote?: string;
+  objection3Title?: string;
+  objection3Quote?: string;
+}
+
+export interface First10LetterOfIntent {
+  targetCompanyName: string;
+  targetContactName: string;
+  pilotDurationWeeks: number;
+  pilotPricePoint: string;
+  primarySuccessKpi: string;
+  customTermsText?: string;
+  generatedLoiMarkdown: string;
+}
+
+export interface First10PlaybookStep3Data {
+  acquisitionArchetype: First10AcquisitionArchetype;
+  otherAcquisitionArchetypeText?: string;
+  strategicRationale?: string;
+  pilotOffer: First10PilotOffer;
+  targetPipeline: First10ProspectItem[];
+  outreachScripts: First10OutreachScripts;
+  followUpCadence: First10FollowUpCadence;
+  objectionBusters: First10ObjectionBusters;
+  letterOfIntent: First10LetterOfIntent;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type BudgetGoalPreset =
+  | 'FIRST_10_PILOT'
+  | 'MOD_H_Y1_BREAKEVEN'
+  | 'MOD_H_Y2_SCALE'
+  | 'MOD_H_Y3_SCALE'
+  | 'CUSTOM_TARGET'
+  | 'OTHER';
+
+export type MarketingBudgetBucketType =
+  | 'PAID_MEDIA_ADS'
+  | 'GROWTH_STACK_TOOLS'
+  | 'CONTENT_EVENTS_PR'
+  | 'OTHER';
+
+export type MarketingGrantEligibilityStatus =
+  | 'ELIGIBLE_CAPABILITY_OR_EXPORT'
+  | 'INELIGIBLE_ONGOING_AD_SPEND'
+  | 'WORKING_CAPITAL_LOAN_ELIGIBLE';
+
+export type LtvPurchaseModelType =
+  | 'RECURRING_SUBSCRIPTION'
+  | 'SINGLE_ONE_TIME_PURCHASE'
+  | 'REPEAT_PURCHASE_ORDERS'
+  | 'OTHER';
+
+export type PaidAdsViabilityDecision =
+  | 'ACTIVE'
+  | 'OPTED_OUT_UNPROFITABLE'
+  | 'DEFERRED_POST_PMF';
+
+export interface MarketingBudgetLineItem {
+  id: string;
+  bucket: MarketingBudgetBucketType;
+  otherBucketText?: string;
+  channelOrToolName: string;
+  monthlySpend: number;
+  grantEligibilityStatus: MarketingGrantEligibilityStatus;
+  notes: string;
+}
+
+export interface MarketingBudgetStep4Data {
+  goalPreset: BudgetGoalPreset;
+  otherGoalPresetText?: string;
+  targetMonthlyNewCustomers: number;
+  deductWarmPipelineLeads: boolean;
+  leadToCustomerConversionPercent: number;
+  visitorToLeadConversionPercent: number;
+  paidTrafficSharePercent: number;
+  estimatedCostPerClickOrTouch: number;
+  founderHourlyShadowRate: number;
+  minutesPerOrganicOutreachOrPiece: number;
+  ltvPurchaseModel?: LtvPurchaseModelType;
+  otherLtvPurchaseModelText?: string;
+  averageCustomerRetentionMonths: number;
+  budgetLineItems: MarketingBudgetLineItem[];
+  totalPlannedMonthlyMarketingSpend: number;
+  calculatedCashCac: number;
+  calculatedFullyLoadedCac: number;
+  calculatedLtv: number;
+  calculatedLtvToCacRatio: number;
+  calculatedPaybackMonths: number;
+  weeklyFounderMarketingHours: number;
+  paidAdsViabilityDecision?: PaidAdsViabilityDecision;
+  excludePaidAdsFromModuleJ?: boolean;
+  syncedToModuleJOverheads: boolean;
+  lastSyncedToModuleJAt?: string;
+  cacAndBudgetNarrative: string;
+  grantAssessorTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type MarketingReadinessConfidence =
+  | 'ORGANIC_FIRST_10_READY'
+  | 'SCALABLE_HYBRID_FUNNEL'
+  | 'BOOTSTRAPPED_ZERO_AD_SPEND'
+  | 'NEEDS_CONVERSION_TESTING'
+  | 'OTHER'
+  | '';
+
+export interface MarketingExecutiveBriefStep5Data {
+  blindSpots: BlindSpotItem[];
+  marketingReadinessConfidence: MarketingReadinessConfidence;
+  otherReadinessConfidenceText?: string;
+  executiveMarketingSummaryNarrative: string;
+  aiAssessorTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export interface SavedModuleIData {
+  step1Positioning?: BrandPositioningStep1Data;
+  step2FourPs?: Modern4PsStep2Data;
+  step3First10?: First10PlaybookStep3Data;
+  step4Budget?: MarketingBudgetStep4Data;
+  step5MarketingBrief?: MarketingExecutiveBriefStep5Data;
+  completionPercentage?: number;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
 export type FounderStage =
   | 'IDEA_EXPLORER'
   | 'BUILDING_MVP'
@@ -1846,7 +2209,9 @@ export interface ActiveStartupPlan {
   moduleDData?: SavedModuleDData;
   moduleEData?: SavedModuleEData;
   moduleFData?: SavedModuleFData;
+  moduleGData?: SavedModuleGData;
   moduleHData?: SavedModuleHData;
+  moduleIData?: SavedModuleIData;
   masterDocumentData?: SavedMasterDocumentData;
   openQuestions: string[];
 }
@@ -1903,7 +2268,9 @@ export function hasRealFounderContent(
     plan.moduleDData ||
     plan.moduleEData ||
     plan.moduleFData ||
+    plan.moduleGData ||
     plan.moduleHData ||
+    plan.moduleIData ||
     plan.masterDocumentData
   ) {
     return true;
@@ -1930,7 +2297,9 @@ function scorePlanRichness(plan: ActiveStartupPlan): number {
   if (plan.moduleDData) score += 20;
   if (plan.moduleEData) score += 20;
   if (plan.moduleFData) score += 20;
+  if (plan.moduleGData) score += 20;
   if (plan.moduleHData) score += 20;
+  if (plan.moduleIData) score += 20;
   if (plan.masterDocumentData) score += 20;
   return score;
 }

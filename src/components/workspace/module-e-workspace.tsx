@@ -2338,19 +2338,14 @@ export function ModuleEWorkspace({
   useEffect(() => {
     if (plan.currentModuleStep === 'MOD_E_STEP_6') {
       setActiveTab('STEP_6');
-      setOpenStep(6);
     } else if (plan.currentModuleStep === 'MOD_E_STEP_5') {
       setActiveTab('STEP_5');
-      setOpenStep(5);
     } else if (plan.currentModuleStep === 'MOD_E_STEP_4') {
       setActiveTab('STEP_4');
-      setOpenStep(4);
     } else if (plan.currentModuleStep === 'MOD_E_STEP_3') {
       setActiveTab('STEP_3');
-      setOpenStep(3);
     } else if (plan.currentModuleStep === 'MOD_E_STEP_2') {
       setActiveTab('STEP_2');
-      setOpenStep(2);
     }
   }, [plan.currentModuleStep]);
 
@@ -4413,7 +4408,7 @@ export function ModuleEWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[0]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -4451,7 +4446,7 @@ export function ModuleEWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleEReadinessSteps[0]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -4463,14 +4458,14 @@ export function ModuleEWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[0]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
                   }`}
                 >
                   {moduleEReadinessSteps[0]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    <Check className="h-4 w-4 stroke-[3]" />
                   ) : (
                     '1'
                   )}
@@ -4517,50 +4512,48 @@ export function ModuleEWorkspace({
           {/* Top Context & 4-Layer Support Toolbar */}
           <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="border-b border-slate-100 pb-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-indigo-100 text-indigo-800">
-                      Step 1 of 6
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-slate-300 bg-slate-50 text-[11px] text-slate-700"
-                    >
-                      Synced from Module D:{' '}
-                      {inheritedTrack === 'OTHER' && inheritedOtherTrackText
-                        ? inheritedOtherTrackText
-                        : inheritedTrack.replace(/_/g, ' ')}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-800"
-                    >
-                      Auto-Feeds Module G Unit Economics (COGS &amp; Mins/Order)
-                    </Badge>
-                  </div>
-                  <CardTitle className="mt-1.5 text-base font-bold text-slate-900 sm:text-lg">
-                    1. &ldquo;A Day in the Life of an Order&rdquo; — End-to-End
-                    Fulfillment Blueprint
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-600">
-                    Walk through what happens the moment a customer clicks
-                    &ldquo;Buy&rdquo;—who does what, which tools or machines are
-                    used, how many hands-on minutes it takes, and what each
-                    order costs to deliver.
-                  </CardDescription>
-                </div>
-
-                {/* 4-Layer Support Buttons */}
+              <div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-indigo-100 text-indigo-800">
+                    Step 1 of 6
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="border-slate-300 bg-slate-50 text-[11px] text-slate-700"
+                  >
+                    Synced from Module D:{' '}
+                    {inheritedTrack === 'OTHER' && inheritedOtherTrackText
+                      ? inheritedOtherTrackText
+                      : inheritedTrack.replace(/_/g, ' ')}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-800"
+                  >
+                    Auto-Feeds Module G Unit Economics (COGS &amp; Mins/Order)
+                  </Badge>
+                </div>
+                <CardTitle className="mt-1.5 text-base font-bold text-slate-900 sm:text-lg">
+                  1. &ldquo;A Day in the Life of an Order&rdquo; — End-to-End
+                  Fulfillment Blueprint
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-600">
+                  Walk through what happens the moment a customer clicks
+                  &ldquo;Buy&rdquo;—who does what, which tools or machines are
+                  used, how many hands-on minutes it takes, and what each
+                  order costs to deliver.
+                </CardDescription>
+
+                {/* Dedicated 4-Layer Support Strip directly under title/description */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowWhyAsking(!showWhyAsking)}
-                    className="border-indigo-200 bg-indigo-50/70 text-xs text-indigo-900 hover:bg-indigo-100"
+                    className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
                   >
-                    <HelpCircle className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
                     Why Are We Asking This?
                   </Button>
                   <Button
@@ -4568,9 +4561,9 @@ export function ModuleEWorkspace({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowExampleDrawer(!showExampleDrawer)}
-                    className="border-amber-200 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
+                    className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                   >
-                    <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                    <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                     Show Me an Example
                   </Button>
                 </div>
@@ -4581,10 +4574,21 @@ export function ModuleEWorkspace({
               {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
               {showWhyAsking && (
                 <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
-                  <div className="flex items-center gap-2 font-bold text-indigo-900">
-                    <HelpCircle className="h-4 w-4 text-indigo-600" />
-                    Why Grant Assessors &amp; Investors Scrutinize Your Single
-                    Order Blueprint
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 font-bold text-indigo-900">
+                      <HelpCircle className="h-4 w-4 text-indigo-600" />
+                      Why Grant Assessors &amp; Investors Scrutinize Your Single
+                      Order Blueprint
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setShowWhyAsking(false)}
+                      className="h-6 w-6 p-0 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/50 shrink-0"
+                    >
+                      ✕
+                    </Button>
                   </div>
                   <p className="mt-1.5 leading-relaxed text-indigo-900/90">
                     Both{' '}
@@ -4624,34 +4628,46 @@ export function ModuleEWorkspace({
               {showExampleDrawer && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-xs text-amber-950">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="font-bold text-amber-900">
-                      💡 Side-by-Side Industry Examples (Step 1 Blueprint)
+                    <div className="flex items-center gap-2 font-bold text-amber-900">
+                      <Lightbulb className="h-4 w-4 text-amber-600" />
+                      Side-by-Side Industry Examples (Step 1 Blueprint)
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExamplePersonaTab('WOODWORKER_BOARDS')
+                          }
+                          className={`rounded-lg px-2.5 py-1 font-semibold ${
+                            examplePersonaTab === 'WOODWORKER_BOARDS'
+                              ? 'bg-amber-800 text-white'
+                              : 'bg-white text-amber-900 border border-amber-300'
+                          }`}
+                        >
+                          🪵 Woodworker (Chopping Boards)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExamplePersonaTab('BMU_SAAS')}
+                          className={`rounded-lg px-2.5 py-1 font-semibold ${
+                            examplePersonaTab === 'BMU_SAAS'
+                              ? 'bg-indigo-800 text-white'
+                              : 'bg-white text-indigo-900 border border-indigo-300'
+                          }`}
+                        >
+                          🚀 Startup Preflight (Cloud AI SaaS)
+                        </button>
+                      </div>
+                      <Button
                         type="button"
-                        onClick={() =>
-                          setExamplePersonaTab('WOODWORKER_BOARDS')
-                        }
-                        className={`rounded-lg px-2.5 py-1 font-semibold ${
-                          examplePersonaTab === 'WOODWORKER_BOARDS'
-                            ? 'bg-amber-800 text-white'
-                            : 'bg-white text-amber-900 border border-amber-300'
-                        }`}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowExampleDrawer(false)}
+                        className="h-6 w-6 p-0 text-amber-700 hover:text-amber-900 hover:bg-amber-100/50 shrink-0"
                       >
-                        🪵 Woodworker (Chopping Boards)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setExamplePersonaTab('BMU_SAAS')}
-                        className={`rounded-lg px-2.5 py-1 font-semibold ${
-                          examplePersonaTab === 'BMU_SAAS'
-                            ? 'bg-indigo-800 text-white'
-                            : 'bg-white text-indigo-900 border border-indigo-300'
-                        }`}
-                      >
-                        🚀 Startup Preflight (Cloud AI SaaS)
-                      </button>
+                        ✕
+                      </Button>
                     </div>
                   </div>
 
@@ -5538,7 +5554,7 @@ export function ModuleEWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[1]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -5576,7 +5592,7 @@ export function ModuleEWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleEReadinessSteps[1]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -5588,7 +5604,7 @@ export function ModuleEWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[1]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
@@ -5642,84 +5658,82 @@ export function ModuleEWorkspace({
           {/* Top Context & 4-Layer Built-In Support Card */}
           <Card className="border-indigo-200 bg-white shadow-xs">
             <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
-              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-indigo-600 text-white">
-                      Step 2 of 6 • Premises, Equipment &amp; 3-Quote Schedule
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-900"
-                    >
-                      {selectedCountry === 'IE'
-                        ? '🇮🇪 IE LEO 3-Quote (>= €1,000) & Mobile Asset / Laptop Ban Guardrails Active'
-                        : selectedCountry === 'GB'
-                          ? '🇬🇧 UK Innovate UK Capital Usage Depreciation & Start Up Loan Rules Active'
-                          : '🌍 Capex, 3-Quote Procurement & Grant Eligibility Guardrails Active'}
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-base font-bold text-slate-900 sm:text-lg">
-                    Where Do You Work &amp; What Machinery / Equipment Powers Your
-                    Output?
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-600">
-                    {selectedCountry === 'IE' ? (
-                      <>
-                        Define your operating footprint (remote cloud, home
-                        garage workshop, enterprise centre, or industrial unit),
-                        build your itemized capital equipment schedule, and
-                        enforce{' '}
-                        <strong>
-                          🇮🇪 IE LEO 3-Quote Rules (&ge;{' '}
-                          {formatPlanCurrency(1000, plan.baseCurrency)})
-                        </strong>{' '}
-                        and{' '}
-                        <strong>
-                          IE LEO Mobile Asset / Laptop Ban ring-fencing
-                        </strong>{' '}
-                        for Module K Appendix C.
-                      </>
-                    ) : selectedCountry === 'GB' ? (
-                      <>
-                        Define your operating footprint (remote cloud, home
-                        workshop, maker space, or industrial unit), build your
-                        itemized capital equipment schedule, calculate{' '}
-                        <strong>
-                          🇬🇧 UK Innovate UK 12-Month Capital Usage Depreciation
-                        </strong>
-                        , and structure{' '}
-                        <strong>
-                          British Business Bank Start Up Loan &amp; 3-Quote (&ge;{' '}
-                          {formatPlanCurrency(1000, plan.baseCurrency)})
-                        </strong>{' '}
-                        evidence.
-                      </>
-                    ) : (
-                      <>
-                        Define your operating footprint (remote cloud, home
-                        workshop, incubator, or industrial unit), build your
-                        itemized capital equipment schedule, and enforce{' '}
-                        <strong>
-                          3-Quote Procurement Rules (&ge;{' '}
-                          {formatPlanCurrency(1000, plan.baseCurrency)})
-                        </strong>{' '}
-                        and <strong>Mobile IT ring-fencing</strong>.
-                      </>
-                    )}
-                  </CardDescription>
-                </div>
-
-                {/* 4-Layer Built-In Support Buttons */}
+              <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-indigo-600 text-white">
+                    Step 2 of 6 • Premises, Equipment &amp; 3-Quote Schedule
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-900"
+                  >
+                    {selectedCountry === 'IE'
+                      ? '🇮🇪 IE LEO 3-Quote (>= €1,000) & Mobile Asset / Laptop Ban Guardrails Active'
+                      : selectedCountry === 'GB'
+                        ? '🇬🇧 UK Innovate UK Capital Usage Depreciation & Start Up Loan Rules Active'
+                        : '🌍 Capex, 3-Quote Procurement & Grant Eligibility Guardrails Active'}
+                  </Badge>
+                </div>
+                <CardTitle className="text-base font-bold text-slate-900 sm:text-lg">
+                  Where Do You Work &amp; What Machinery / Equipment Powers Your
+                  Output?
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-600">
+                  {selectedCountry === 'IE' ? (
+                    <>
+                      Define your operating footprint (remote cloud, home
+                      garage workshop, enterprise centre, or industrial unit),
+                      build your itemized capital equipment schedule, and
+                      enforce{' '}
+                      <strong>
+                        🇮🇪 IE LEO 3-Quote Rules (&ge;{' '}
+                        {formatPlanCurrency(1000, plan.baseCurrency)})
+                      </strong>{' '}
+                      and{' '}
+                      <strong>
+                        IE LEO Mobile Asset / Laptop Ban ring-fencing
+                      </strong>{' '}
+                      for Module K Appendix C.
+                    </>
+                  ) : selectedCountry === 'GB' ? (
+                    <>
+                      Define your operating footprint (remote cloud, home
+                      workshop, maker space, or industrial unit), build your
+                      itemized capital equipment schedule, calculate{' '}
+                      <strong>
+                        🇬🇧 UK Innovate UK 12-Month Capital Usage Depreciation
+                      </strong>
+                      , and structure{' '}
+                      <strong>
+                        British Business Bank Start Up Loan &amp; 3-Quote (&ge;{' '}
+                        {formatPlanCurrency(1000, plan.baseCurrency)})
+                      </strong>{' '}
+                      evidence.
+                    </>
+                  ) : (
+                    <>
+                      Define your operating footprint (remote cloud, home
+                      workshop, incubator, or industrial unit), build your
+                      itemized capital equipment schedule, and enforce{' '}
+                      <strong>
+                        3-Quote Procurement Rules (&ge;{' '}
+                        {formatPlanCurrency(1000, plan.baseCurrency)})
+                      </strong>{' '}
+                      and <strong>Mobile IT ring-fencing</strong>.
+                    </>
+                  )}
+                </CardDescription>
+
+                {/* Dedicated 4-Layer Built-In Support Strip */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/60">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowWhyAskingStep2(!showWhyAskingStep2)}
-                    className="border-indigo-200 bg-indigo-50/60 text-xs text-indigo-900 hover:bg-indigo-100"
+                    className="h-7 border-indigo-200 bg-indigo-50/60 text-[11px] font-medium text-indigo-900 hover:bg-indigo-100"
                   >
-                    <HelpCircle className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
                     Why Are We Asking This?
                   </Button>
                   <Button
@@ -5729,9 +5743,9 @@ export function ModuleEWorkspace({
                     onClick={() =>
                       setShowExampleDrawerStep2(!showExampleDrawerStep2)
                     }
-                    className="border-emerald-200 bg-emerald-50/70 text-xs text-emerald-900 hover:bg-emerald-100"
+                    className="h-7 border-emerald-200 bg-emerald-50/70 text-[11px] font-medium text-emerald-900 hover:bg-emerald-100"
                   >
-                    <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                    <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                     Show Me an Example
                   </Button>
                   <Button
@@ -5746,9 +5760,9 @@ export function ModuleEWorkspace({
                           : 'BMU_SAAS'
                       )
                     }
-                    className="border-amber-200 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
+                    className="h-7 border-amber-200 bg-amber-50/70 text-[11px] font-medium text-amber-900 hover:bg-amber-100"
                   >
-                    <Gauge className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                    <Gauge className="mr-1 h-3.5 w-3.5 text-amber-600" />
                     Use Industry Benchmark
                   </Button>
                 </div>
@@ -5914,29 +5928,40 @@ export function ModuleEWorkspace({
                       Side-by-Side Example: Artisan Woodworker Workshop vs.
                       Startup Preflight Cloud SaaS
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setExamplePersonaTab('WOODWORKER_BOARDS')}
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${
+                            examplePersonaTab === 'WOODWORKER_BOARDS'
+                              ? 'bg-amber-600 text-white'
+                              : 'bg-white text-slate-700 ring-1 ring-slate-200'
+                          }`}
+                        >
+                          🪵 Woodworker (Chopping Boards)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExamplePersonaTab('BMU_SAAS')}
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${
+                            examplePersonaTab === 'BMU_SAAS'
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-white text-slate-700 ring-1 ring-slate-200'
+                          }`}
+                        >
+                          🚀 Startup Preflight (SaaS)
+                        </button>
+                      </div>
+                      <Button
                         type="button"
-                        onClick={() => setExamplePersonaTab('WOODWORKER_BOARDS')}
-                        className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${
-                          examplePersonaTab === 'WOODWORKER_BOARDS'
-                            ? 'bg-amber-600 text-white'
-                            : 'bg-white text-slate-700 ring-1 ring-slate-200'
-                        }`}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowExampleDrawerStep2(false)}
+                        className="h-6 w-6 p-0 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100/50 shrink-0"
                       >
-                        🪵 Woodworker (Chopping Boards)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setExamplePersonaTab('BMU_SAAS')}
-                        className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${
-                          examplePersonaTab === 'BMU_SAAS'
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-white text-slate-700 ring-1 ring-slate-200'
-                        }`}
-                      >
-                        🚀 Startup Preflight (SaaS)
-                      </button>
+                        ✕
+                      </Button>
                     </div>
                   </div>
 
@@ -7472,7 +7497,7 @@ export function ModuleEWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[2]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -7510,7 +7535,7 @@ export function ModuleEWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleEReadinessSteps[2]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -7522,7 +7547,7 @@ export function ModuleEWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[2]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
@@ -7575,86 +7600,84 @@ export function ModuleEWorkspace({
           <div className="space-y-5">
           <Card className="border-indigo-200 bg-white shadow-xs">
             <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
-              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-indigo-600 text-white">
-                      Step 3 of 6 • Supply-Chain Resilience &amp; 4-Category
-                      Risk Register
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-900"
-                    >
-                      {selectedCountry === 'IE'
-                        ? '🇮🇪 IE LEO Project Risk Table & Enterprise Ireland Supply-Chain Audit Ready'
-                        : selectedCountry === 'GB'
-                          ? '🇬🇧 UK Innovate UK Q9 Risk Register Appendix & Start Up Loan Ready'
-                          : '🌍 4-Category Project Risk Register & Supply-Chain Audit Ready'}
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-base font-bold text-slate-900 sm:text-lg">
-                    How Do You Prevent Single Points of Failure &amp; De-Risk
-                    Execution?
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-600">
-                    {selectedCountry === 'IE' ? (
-                      <>
-                        Define your backup supplier strategy and build a formal{' '}
-                        <strong>
-                          4-Category Project Risk Register (Likelihood 1–5
-                          &times; Impact 1–5)
-                        </strong>{' '}
-                        covering Technical/Production, Commercial/Market,
-                        Financial/Supply-Chain, and Managerial/Regulatory risks
-                        for your{' '}
-                        <strong>
-                          🇮🇪 IE Local Enterprise Office (LEO) / Enterprise
-                          Ireland
-                        </strong>{' '}
-                        business plan.
-                      </>
-                    ) : selectedCountry === 'GB' ? (
-                      <>
-                        Define your backup supplier strategy and build a formal{' '}
-                        <strong>
-                          4-Category Project Risk Register (Likelihood 1–5
-                          &times; Impact 1–5)
-                        </strong>{' '}
-                        covering Technical/Production, Commercial/Market,
-                        Financial/Supply-Chain, and Managerial/Regulatory risks
-                        for{' '}
-                        <strong>
-                          🇬🇧 UK Innovate UK Question 9 (Risk Register Appendix)
-                        </strong>{' '}
-                        and{' '}
-                        <strong>British Business Bank Start Up Loans</strong>.
-                      </>
-                    ) : (
-                      <>
-                        Define your backup supplier strategy and build a formal{' '}
-                        <strong>
-                          4-Category Project Risk Register (Likelihood 1–5
-                          &times; Impact 1–5)
-                        </strong>{' '}
-                        covering Technical/Production, Commercial/Market,
-                        Financial/Supply-Chain, and Managerial/Regulatory risks
-                        for Module K.
-                      </>
-                    )}
-                  </CardDescription>
-                </div>
-
-                {/* 4-Layer Built-In Support Buttons */}
+              <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-indigo-600 text-white">
+                    Step 3 of 6 • Supply-Chain Resilience &amp; 4-Category
+                    Risk Register
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-900"
+                  >
+                    {selectedCountry === 'IE'
+                      ? '🇮🇪 IE LEO Project Risk Table & Enterprise Ireland Supply-Chain Audit Ready'
+                      : selectedCountry === 'GB'
+                        ? '🇬🇧 UK Innovate UK Q9 Risk Register Appendix & Start Up Loan Ready'
+                        : '🌍 4-Category Project Risk Register & Supply-Chain Audit Ready'}
+                  </Badge>
+                </div>
+                <CardTitle className="text-base font-bold text-slate-900 sm:text-lg">
+                  How Do You Prevent Single Points of Failure &amp; De-Risk
+                  Execution?
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-600">
+                  {selectedCountry === 'IE' ? (
+                    <>
+                      Define your backup supplier strategy and build a formal{' '}
+                      <strong>
+                        4-Category Project Risk Register (Likelihood 1–5
+                        &times; Impact 1–5)
+                      </strong>{' '}
+                      covering Technical/Production, Commercial/Market,
+                      Financial/Supply-Chain, and Managerial/Regulatory risks
+                      for your{' '}
+                      <strong>
+                        🇮🇪 IE Local Enterprise Office (LEO) / Enterprise
+                        Ireland
+                      </strong>{' '}
+                      business plan.
+                    </>
+                  ) : selectedCountry === 'GB' ? (
+                    <>
+                      Define your backup supplier strategy and build a formal{' '}
+                      <strong>
+                        4-Category Project Risk Register (Likelihood 1–5
+                        &times; Impact 1–5)
+                      </strong>{' '}
+                      covering Technical/Production, Commercial/Market,
+                      Financial/Supply-Chain, and Managerial/Regulatory risks
+                      for{' '}
+                      <strong>
+                        🇬🇧 UK Innovate UK Question 9 (Risk Register Appendix)
+                      </strong>{' '}
+                      and{' '}
+                      <strong>British Business Bank Start Up Loans</strong>.
+                    </>
+                  ) : (
+                    <>
+                      Define your backup supplier strategy and build a formal{' '}
+                      <strong>
+                        4-Category Project Risk Register (Likelihood 1–5
+                        &times; Impact 1–5)
+                      </strong>{' '}
+                      covering Technical/Production, Commercial/Market,
+                      Financial/Supply-Chain, and Managerial/Regulatory risks
+                      for Module K.
+                    </>
+                  )}
+                </CardDescription>
+
+                {/* Dedicated 4-Layer Built-In Support Strip */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/60">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowWhyAskingStep3(!showWhyAskingStep3)}
-                    className="border-indigo-200 bg-indigo-50/60 text-xs text-indigo-900 hover:bg-indigo-100"
+                    className="h-7 border-indigo-200 bg-indigo-50/60 text-[11px] font-medium text-indigo-900 hover:bg-indigo-100"
                   >
-                    <HelpCircle className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
                     Why Are We Asking This?
                   </Button>
                   <Button
@@ -7664,9 +7687,9 @@ export function ModuleEWorkspace({
                     onClick={() =>
                       setShowExampleDrawerStep3(!showExampleDrawerStep3)
                     }
-                    className="border-emerald-200 bg-emerald-50/70 text-xs text-emerald-900 hover:bg-emerald-100"
+                    className="h-7 border-emerald-200 bg-emerald-50/70 text-[11px] font-medium text-emerald-900 hover:bg-emerald-100"
                   >
-                    <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                    <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                     Show Me an Example
                   </Button>
                   <Button
@@ -7675,9 +7698,9 @@ export function ModuleEWorkspace({
                     size="sm"
                     disabled={isVaultReadonly}
                     onClick={handleApplyStep3IndustryBenchmark}
-                    className="border-amber-200 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
+                    className="h-7 border-amber-200 bg-amber-50/70 text-[11px] font-medium text-amber-900 hover:bg-amber-100"
                   >
-                    <Gauge className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                    <Gauge className="mr-1 h-3.5 w-3.5 text-amber-600" />
                     Use Industry Benchmark
                   </Button>
                 </div>
@@ -8789,7 +8812,7 @@ export function ModuleEWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[3]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -8827,7 +8850,7 @@ export function ModuleEWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleEReadinessSteps[3]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -8839,7 +8862,7 @@ export function ModuleEWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[3]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
@@ -8893,63 +8916,62 @@ export function ModuleEWorkspace({
           {/* 4-Layer Support & Action Bar (No Presets — Pure Plan-Driven) */}
           <Card className="border-indigo-200/80 bg-gradient-to-r from-indigo-50/70 via-white to-emerald-50/50 shadow-xs">
             <CardContent className="p-4">
-              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-indigo-600 text-white">
-                      Step 4 of 6 • Support, Returns, Warranty &amp; QC SOP
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-indigo-600 text-white">
+                    Step 4 of 6 • Support, Returns, Warranty &amp; QC SOP
+                  </Badge>
+                  {selectedCountry === 'IE' ? (
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-emerald-900"
+                    >
+                      🇮🇪 Ireland Consumer Rights Act 2022 (CRAA) &amp; CCPC
+                      Mode
                     </Badge>
-                    {selectedCountry === 'IE' ? (
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-300 bg-emerald-50 text-emerald-900"
-                      >
-                        🇮🇪 Ireland Consumer Rights Act 2022 (CRAA) &amp; CCPC
-                        Mode
-                      </Badge>
-                    ) : selectedCountry === 'GB' ? (
-                      <Badge
-                        variant="outline"
-                        className="border-indigo-300 bg-indigo-50 text-indigo-900"
-                      >
-                        🇬🇧 UK Consumer Rights Act 2015 &amp; Consumer Contracts
-                        Mode
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-slate-300 bg-white text-slate-700"
-                      >
-                        🌍 {countryPack.countryName} Consumer Protection &amp;
-                        QC Mode
-                      </Badge>
-                    )}
-                    {step4Data.aiEngineUsed && (
-                      <Badge
-                        variant="outline"
-                        className="border-violet-200 bg-violet-50 text-[11px] text-violet-800"
-                      >
-                        Engine: {step4Data.aiEngineUsed}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-600">
-                    Define how your business handles customer support SLAs,
-                    returns/remakes, statutory warranties, and 3-gate Quality
-                    Control (QC) checkpoints so defect/refund friction never
-                    quietly erodes your Module G unit economics.
-                  </p>
+                  ) : selectedCountry === 'GB' ? (
+                    <Badge
+                      variant="outline"
+                      className="border-indigo-300 bg-indigo-50 text-indigo-900"
+                    >
+                      🇬🇧 UK Consumer Rights Act 2015 &amp; Consumer Contracts
+                      Mode
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="border-slate-300 bg-white text-slate-700"
+                    >
+                      🌍 {countryPack.countryName} Consumer Protection &amp;
+                      QC Mode
+                    </Badge>
+                  )}
+                  {step4Data.aiEngineUsed && (
+                    <Badge
+                      variant="outline"
+                      className="border-violet-200 bg-violet-50 text-[11px] text-violet-800"
+                    >
+                      Engine: {step4Data.aiEngineUsed}
+                    </Badge>
+                  )}
                 </div>
+                <p className="text-xs text-slate-600">
+                  Define how your business handles customer support SLAs,
+                  returns/remakes, statutory warranties, and 3-gate Quality
+                  Control (QC) checkpoints so defect/refund friction never
+                  quietly erodes your Module G unit economics.
+                </p>
 
-                <div className="flex flex-wrap items-center gap-1.5">
+                {/* Dedicated 4-Layer Support Strip */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/60">
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
                     onClick={() => setShowWhyAskingStep4((v) => !v)}
-                    className="h-8 border-indigo-200 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                    className="h-7 border-indigo-200 bg-white text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
                   >
-                    <HelpCircle className="mr-1.5 h-3.5 w-3.5" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5" />
                     Why Are We Asking?
                   </Button>
                   <Button
@@ -8957,9 +8979,9 @@ export function ModuleEWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={() => setShowExampleDrawerStep4((v) => !v)}
-                    className="h-8 border-emerald-200 bg-white text-xs text-emerald-700 hover:bg-emerald-50"
+                    className="h-7 border-emerald-200 bg-white text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                   >
-                    <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
+                    <Lightbulb className="mr-1 h-3.5 w-3.5" />
                     Show Me an Example
                   </Button>
                   <Button
@@ -8968,9 +8990,9 @@ export function ModuleEWorkspace({
                     variant="outline"
                     disabled={isVaultReadonly}
                     onClick={handleApplyStep4IndustryBenchmark}
-                    className="h-8 border-amber-200 bg-amber-50/70 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                    className="h-7 border-amber-200 bg-amber-50/70 text-[11px] font-semibold text-amber-900 hover:bg-amber-100"
                   >
-                    <Layers className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                    <Layers className="mr-1 h-3.5 w-3.5 text-amber-600" />
                     Use Industry Benchmark
                   </Button>
                   <Button
@@ -8978,9 +9000,9 @@ export function ModuleEWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={() => setShowParkInputStep4((v) => !v)}
-                    className="h-8 border-slate-200 bg-white text-xs text-slate-700 hover:bg-slate-50"
+                    className="h-7 border-slate-200 bg-white text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-indigo-600" />
                     Park Open Question
                   </Button>
                   <Button
@@ -8991,9 +9013,9 @@ export function ModuleEWorkspace({
                     onClick={() =>
                       handleRunAiStep4('POPULATE_QC_AND_NARRATIVES')
                     }
-                    className="h-8 border-violet-200 bg-violet-50/70 text-xs font-semibold text-violet-800 hover:bg-violet-100"
+                    className="h-7 border-violet-200 bg-violet-50/70 text-[11px] font-semibold text-violet-800 hover:bg-violet-100"
                   >
-                    <MessageSquareWarning className="mr-1.5 h-3.5 w-3.5 text-violet-600" />
+                    <MessageSquareWarning className="mr-1 h-3.5 w-3.5 text-violet-600" />
                     I&apos;m Stuck (AI Auto-Draft)
                   </Button>
                 </div>
@@ -10120,7 +10142,7 @@ export function ModuleEWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[4]?.isComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -10158,7 +10180,7 @@ export function ModuleEWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Edit Step</span>
+                <span>{moduleEReadinessSteps[4]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -10170,14 +10192,14 @@ export function ModuleEWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[4]?.isComplete
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
                   }`}
                 >
                   {moduleEReadinessSteps[4]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    <Check className="h-4 w-4 stroke-[3]" />
                   ) : (
                     '5'
                   )}
@@ -10224,7 +10246,7 @@ export function ModuleEWorkspace({
           {/* 1. Top Header & 4-Layer Built-In Support Bar (Zero Presets) */}
           <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="pb-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-3">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className="bg-indigo-950 text-white hover:bg-indigo-900">
@@ -10250,11 +10272,11 @@ export function ModuleEWorkspace({
                       Governance
                     </Badge>
                   </div>
-                  <CardTitle className="text-lg font-bold text-slate-900 sm:text-xl">
+                  <CardTitle className="text-base font-bold text-slate-900">
                     Permits, Health &amp; Safety, GDPR &amp; Instant Startup
                     Insurance Matcher
                   </CardTitle>
-                  <CardDescription className="text-xs leading-relaxed text-slate-600 sm:text-sm">
+                  <CardDescription className="text-xs leading-relaxed text-slate-600">
                     Verify your{' '}
                     <span className="font-semibold text-slate-800">
                       {countryPack.countryName}
@@ -10269,16 +10291,16 @@ export function ModuleEWorkspace({
                   </CardDescription>
                 </div>
 
-                {/* 4-Layer Support Action Buttons */}
-                <div className="flex flex-wrap items-center gap-1.5">
+                {/* Dedicated 4-Layer Support Strip */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
                     onClick={() => setShowWhyAskingStep5((prev) => !prev)}
-                    className="h-8 border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                    className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
                   >
-                    <HelpCircle className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
                     Why Are We Asking This?
                   </Button>
                   <Button
@@ -10286,9 +10308,9 @@ export function ModuleEWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={() => setShowExampleDrawerStep5((prev) => !prev)}
-                    className="h-8 border-amber-200 bg-amber-50/70 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                    className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                   >
-                    <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                    <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                     Show Me an Example
                   </Button>
                   <Button
@@ -10297,9 +10319,9 @@ export function ModuleEWorkspace({
                     variant="outline"
                     disabled={isVaultReadonly}
                     onClick={handleApplyStep5IndustryBenchmark}
-                    className="h-8 border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                    className="h-7 border-emerald-300 bg-emerald-50 text-[11px] font-medium text-emerald-900 hover:bg-emerald-100"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                    <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                     Use Industry Benchmark
                   </Button>
                   <Button
@@ -10307,9 +10329,9 @@ export function ModuleEWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={() => setShowParkInputStep5((prev) => !prev)}
-                    className="h-8 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                    className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
                   >
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+                    <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
                     Park It
                   </Button>
                 </div>
@@ -11801,7 +11823,7 @@ export function ModuleEWorkspace({
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   completedModuleECoreStepsCount === 5
                     ? 'bg-emerald-600 text-white'
                     : 'bg-indigo-600 text-white'
@@ -11836,7 +11858,7 @@ export function ModuleEWorkspace({
                 variant="ghost"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
               >
-                <span>Open Overview</span>
+                <span>{completedModuleECoreStepsCount === 5 ? 'Open Overview' : 'Review Overview'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -11851,13 +11873,13 @@ export function ModuleEWorkspace({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     completedModuleECoreStepsCount === 5
                       ? 'bg-emerald-600 text-white'
                       : 'bg-indigo-600 text-white'
                   }`}
                 >
-                  <FileText className="h-3.5 w-3.5" />
+                  <FileText className="h-4 w-4" />
                 </span>
                 <h2 className="text-base font-bold text-slate-900">
                   Operations, Equipment &amp; Risk Brief

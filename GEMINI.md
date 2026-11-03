@@ -95,7 +95,7 @@ Every module workspace component (`src/components/workspace/module-*-workspace.t
   - **Step Title:** `<h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">` (14px font, bold, slate-900, with indigo hover transition). **Never use `text-xs` or `text-base` for collapsed titles.**
   - **Step Subtitle / Summary:** `<p className="mt-0.5 truncate text-xs text-slate-500">` (12px font, slate-500, with `mt-0.5` spacing). **Never use `text-[11px]` for step summaries.**
   - **Badges:** `shrink-0 text-[10px] font-medium`. Completed: `bg-emerald-100 text-emerald-800 border-emerald-300`. In Progress: `variant="outline" className="border-slate-300 text-slate-600"`.
-  - **Action Button:** `<Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">` with `Edit Step` (or `Open Overview`) + `<ChevronDown className="ml-1 h-3.5 w-3.5" />`.
+  - **Dynamic Action Button:** `<Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">{isStepComplete ? 'Edit Step' : 'Open Step'}<ChevronDown className="ml-1 h-3.5 w-3.5" /></Button>` (or `{isOverviewReady ? 'Open Overview' : 'Review Overview'}` for Overview steps). **Never hardcode static `'Edit Step'` when a step has not been started.**
 - **Expanded Step State (`openStep === 'ALL' || openStep === stepNum`):**
   - **Outer Container:** `rounded-xl border border-slate-200 bg-white p-6 shadow-xs` (or `<Card className="rounded-xl border border-slate-200 bg-white shadow-xs">` with `<CardHeader className="border-b border-slate-100 pb-4">`).
   - **Header Layout:** `flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4` with left content in `flex items-start gap-3 min-w-0 flex-1`.
@@ -103,8 +103,26 @@ Every module workspace component (`src/components/workspace/module-*-workspace.t
   - **Step Title:** `<CardTitle className="text-base font-bold text-slate-900">` or `<h2 className="text-base font-bold text-slate-900">` (16px font, bold, slate-900). **Never use `text-sm` or `sm:text-lg` for expanded titles.**
   - **Step Description:** `<CardDescription className="mt-1 text-xs text-slate-600">` or `<p className="mt-1 text-xs text-slate-600">` (12px font, slate-600, `mt-1`).
   - **Badges:** `shrink-0 text-[10px] font-medium`.
-  - **Collapse Button:** `<Button size="sm" variant="ghost" onClick={() => setOpenStep(0)} className="text-xs text-slate-500 hover:bg-slate-100">` with `Collapse Step` + `<ChevronUp className="ml-1 h-3.5 w-3.5" />`.
+  - **Top-Right Header Actions (Clean Rule):** The top-right flex cluster of the header must contain **ONLY** the `Collapse Step` button (`<Button size="sm" variant="ghost" onClick={() => setOpenStep(0)} className="text-xs text-slate-500 hover:bg-slate-100">Collapse Step<ChevronUp className="ml-1 h-3.5 w-3.5" /></Button>`). **Never bunch micro-coaching or AI generation buttons in the top header row.**
+  - **Dedicated 4-Layer Support Strip (Directly Below Title & Description):** Placed within `CardHeader` under the title and description row (`<div className="mt-3 flex flex-wrap items-center gap-2 pt-2">`), containing:
+    1. `Why Are We Asking This?`: `<Button type="button" size="sm" variant="outline" onClick={() => setActiveWhyCard(prev => prev === stepNum ? null : stepNum)} className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"><HelpCircle className="mr-1 h-3.5 w-3.5" />Why Are We Asking This?</Button>`
+    2. `Show Me an Example`: `<Button type="button" size="sm" variant="outline" onClick={() => setActiveExampleCard(prev => prev === stepNum ? null : stepNum)} className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"><Lightbulb className="mr-1 h-3.5 w-3.5" />Show Me an Example</Button>`
+    3. Contextual Step AI Action: `<Button type="button" size="sm" variant="outline" onClick={handleGenerateAi} disabled={isGenerating || isVaultReadonly} className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"><Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />Auto-Generate / Calibrate with AI</Button>`
+  - **Collapsible Micro-Coaching Drawers:** Clean dismissable panels with explicit close (`✕`) buttons:
+    - *Why Drawer:* `mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900`
+    - *Example Drawer:* `mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950`
   - **Bottom Step Toolbar:** Clean flex action bar with AI helpers (`Wand2` / `Sparkles`), `Save` button, and `Next Step` button (`ArrowRight`) that advances `openStep` and scrolls smoothly to the next step.
+
+### 2. Multi-Column Metrics & Underwriting Diagnostic Grid Standard:
+- Any multi-metric or financial diagnostic group (e.g. Unit Economics, CAC Payback, Working Capital, Headcount, Breakeven) **must** be rendered inside a structured, airy container rather than cramped in a single row:
+  - Outer Wrapper: `rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 sm:p-6 shadow-xs space-y-5` with a dedicated section title, icon box (`h-7 w-7 rounded-lg bg-indigo-50 border border-indigo-200/60 text-indigo-700`), and descriptive subtitle.
+  - Multi-Column Grid: `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4` (never cram 4+ cards into a flat row without proper responsive wrapping).
+  - Individual Metric Card: `rounded-xl border p-4.5 shadow-xs flex flex-col justify-between transition-all` with:
+    - Top row: Tracking category title (`text-[11px] font-bold uppercase tracking-wider text-slate-500`) + status badge.
+    - Large Hero Number: `text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900` + unit subtitle.
+    - Contextual Pill Container: Secondary calculations isolated in a soft row (`rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600`).
+    - Underwriting Footnote: `mt-4 border-t pt-2.5 text-[11px] leading-normal` clearly explaining IE LEO / Enterprise Ireland / UK Innovate UK grant assessor impact.
+  - Health State Tinting: Use subtle gradient backgrounds for warning/success states (e.g., `from-emerald-50/50 to-white border-emerald-200`, `from-amber-50/60 to-white border-amber-200`, `from-rose-50/60 to-white border-rose-200`).
 
 ### 2. Collapsible Step Accordion State (`openStep`):
 - Manage `const [openStep, setOpenStep] = useState<number | 'ALL'>(...)` initialized automatically to the first incomplete step (or the final Overview step if all core steps are complete).
