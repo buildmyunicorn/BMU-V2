@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { clearActiveBmuSession } from '@/lib/auth/session-store';
 import { logoutFounderAction } from '@/app/actions/auth';
+import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 import {
   submitEarlyAccessWaitlistAction,
   type EarlyAccessLeadRecord,
@@ -255,6 +256,9 @@ export default function LandingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+      {/* Stripe Sandbox Environment Notification Banner */}
+      <StripeSandboxBadge />
+
       {/* Early Access Public Beta Top Banner */}
       <div className="border-b border-indigo-200/80 bg-indigo-50/80 px-4 py-2 text-center">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-2 text-xs text-slate-800">
@@ -501,6 +505,16 @@ export default function LandingPage() {
                         : 'Join Early Access'}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+                    <span>Or test the live platform immediately:</span>
+                    <Link
+                      href="/register"
+                      className="font-semibold text-indigo-600 hover:underline"
+                    >
+                      Try Sandbox Demo Free →
+                    </Link>
                   </div>
                 </form>
               )}

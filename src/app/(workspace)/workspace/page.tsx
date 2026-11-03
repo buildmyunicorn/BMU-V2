@@ -46,6 +46,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { createStripeCheckoutSessionAction } from '@/app/actions/stripe';
 import {
   Card,
   CardContent,
@@ -246,6 +247,8 @@ import { ModuleFWorkspace } from '@/components/workspace/module-f-workspace';
 import { ModuleGWorkspace } from '@/components/workspace/module-g-workspace';
 import { ModuleHWorkspace } from '@/components/workspace/module-h-workspace';
 import { ModuleIWorkspace } from '@/components/workspace/module-i-workspace';
+import { ModuleJWorkspace } from '@/components/workspace/module-j-workspace';
+import { ModuleKWorkspace } from '@/components/workspace/module-k-workspace';
 import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
 import { LocalBugCaptureWidget } from '@/components/workspace/local-bug-capture-widget';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
@@ -499,6 +502,10 @@ export default function WorkspacePage() {
   const [showImStuckHelper, setShowImStuckHelper] = useState(false);
   const [askUnicornOpen, setAskUnicornOpen] = useState(false);
   const [paywallModalFeature, setPaywallModalFeature] = useState<string | null>(
+    null
+  );
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false);
+  const [stripeCheckoutError, setStripeCheckoutError] = useState<string | null>(
     null
   );
   const [openQuestions, setOpenQuestions] = useState<string[]>([]);
@@ -4361,6 +4368,63 @@ export default function WorkspacePage() {
           ? 10
           : 0;
 
+  const savedModJStep1 = currentPlan.moduleJData?.step1OverheadsTax;
+  const step1ModJScore = savedModJStep1
+    ? (savedModJStep1.overheadLineItems?.length || 0) >= 2 &&
+      Boolean(savedModJStep1.overheadsAndTaxNarrative?.trim())
+      ? 20
+      : 10
+    : 0;
+
+  const savedModJStep2 = currentPlan.moduleJData?.step2WorkingCapital;
+  const step2ModJScore = savedModJStep2
+    ? Boolean(savedModJStep2.customerCollectionTiming) &&
+      Boolean(savedModJStep2.workingCapitalNarrative?.trim())
+      ? 20
+      : 10
+    : 0;
+
+  const savedModJStep3 = currentPlan.moduleJData?.step3CashflowGap;
+  const step3ModJScore = savedModJStep3
+    ? (savedModJStep3.fundingSources?.length || 0) >= 1 &&
+      Boolean(savedModJStep3.fundingGapNarrative?.trim())
+      ? 20
+      : 10
+    : 0;
+
+  const savedModJStep4 = currentPlan.moduleJData?.step4Statements;
+  const step4ModJScore = savedModJStep4
+    ? Boolean(savedModJStep4.activeStressScenario) &&
+      Boolean(savedModJStep4.writtenFinancialAssumptionsBlock?.trim())
+      ? 20
+      : 10
+    : 0;
+
+  const savedModJStep5 = currentPlan.moduleJData?.step5FinanceBrief;
+  const step5ModJScore = savedModJStep5
+    ? Boolean(savedModJStep5.executiveFinancialSummaryNarrative?.trim()) &&
+      Boolean(savedModJStep5.financeReadinessConfidence)
+      ? 20
+      : 10
+    : 0;
+
+  const totalModJScore =
+    step1ModJScore +
+    step2ModJScore +
+    step3ModJScore +
+    step4ModJScore +
+    step5ModJScore;
+
+  const moduleJProgressPercent =
+    currentPlan.moduleJData?.completionPercentage &&
+    currentPlan.moduleJData.completionPercentage > totalModJScore
+      ? currentPlan.moduleJData.completionPercentage
+      : totalModJScore > 0
+        ? Math.min(100, totalModJScore)
+        : activeModule === 'MOD_J_FINANCE'
+          ? 10
+          : 0;
+
   const masterDocChapterPills: Array<{
     short: string;
     code: ModuleCode;
@@ -4833,7 +4897,9 @@ export default function WorkspacePage() {
                                   ? 'H'
                                   : activeModule === 'MOD_I_MARKETING'
                                     ? 'I'
-                                    : 'A'}
+                                    : activeModule === 'MOD_J_FINANCE'
+                                      ? 'J'
+                                      : 'A'}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-xs font-bold text-slate-900">
@@ -4857,12 +4923,14 @@ export default function WorkspacePage() {
                                     ? 'Module H: Pricing & Pocket Profit Breakeven'
                                     : activeModule === 'MOD_I_MARKETING'
                                       ? 'Module I: Marketing & First 10 Customers'
-                                      : 'Startup Preflight Workspace'}
+                                      : activeModule === 'MOD_J_FINANCE'
+                                        ? 'Module J: 3-Year Financials & Cashflow'
+                                        : 'Startup Preflight Workspace'}
                 </div>
                 <div className="text-[11px] text-indigo-700">
                   {mobileSidebarOpen
-                    ? 'Hide Modules (A–I) & Parked Questions'
-                    : `Tap to Switch Module (A–I) • ${openQuestions.length} Parked`}
+                    ? 'Hide Modules (A–J) & Parked Questions'
+                    : `Tap to Switch Module (A–J) • ${openQuestions.length} Parked`}
                 </div>
               </div>
             </div>
@@ -4878,10 +4946,10 @@ export default function WorkspacePage() {
               mobileSidebarOpen ? 'block' : 'hidden'
             } space-y-3.5 sm:space-y-5 lg:block`}
           >
-            {/* Module A - I Navigation List */}
+            {/* Module A - J Navigation List */}
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
               <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Founder Journey (Modules A–I)
+                Founder Journey (Modules A–J)
               </div>
               <div className="space-y-1">
                 {MODULES_LIST.map((mod) => {
@@ -4906,7 +4974,11 @@ export default function WorkspacePage() {
                                   ? moduleHProgressPercent
                                   : mod.code === 'MOD_I_MARKETING'
                                     ? moduleIProgressPercent
-                                    : mod.progress;
+                                    : mod.code === 'MOD_J_FINANCE'
+                                      ? moduleJProgressPercent
+                                      : mod.code === 'MOD_K_GRANTS_FUNDING'
+                                        ? (currentPlan.moduleKData?.completionPercentage || (activeModule === 'MOD_K_GRANTS_FUNDING' ? 15 : 0))
+                                        : mod.progress;
 
                   return (
                     <button
@@ -4935,7 +5007,9 @@ export default function WorkspacePage() {
                           mod.code === 'MOD_F_COFOUNDER_TEAM' ||
                           mod.code === 'MOD_G_LAUNCHPAD' ||
                           mod.code === 'MOD_H_REVENUE' ||
-                          mod.code === 'MOD_I_MARKETING'
+                          mod.code === 'MOD_I_MARKETING' ||
+                          mod.code === 'MOD_J_FINANCE' ||
+                          mod.code === 'MOD_K_GRANTS_FUNDING'
                         ) {
                           setMobileSidebarOpen(false);
                           navigateToModuleWithHistory(mod.code);
@@ -5805,6 +5879,268 @@ export default function WorkspacePage() {
                 navigateToModuleWithHistory(modCode, targetStep, highlightId);
               }}
             />
+          ) : activeModule === 'MOD_J_FINANCE' ? (
+            <ModuleJWorkspace
+              key={currentPlan.id}
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
+              onSaveStep1OverheadsTax={async (step1Data, progress = 25) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_J_STEP_1_OVERHEADS_TAX',
+                      moduleJData: {
+                        ...(p.moduleJData || {}),
+                        step1OverheadsTax: step1Data,
+                        completionPercentage: Math.max(
+                          p.moduleJData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep2WorkingCapital={async (step2Data, progress = 50) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_J_STEP_2_WORKING_CAPITAL',
+                      moduleJData: {
+                        ...(p.moduleJData || {}),
+                        step2WorkingCapital: step2Data,
+                        completionPercentage: Math.max(
+                          p.moduleJData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep3CashflowGap={async (step3Data, progress = 65) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_J_STEP_3_CASHFLOW_GAP',
+                      moduleJData: {
+                        ...(p.moduleJData || {}),
+                        step3CashflowGap: step3Data,
+                        completionPercentage: Math.max(
+                          p.moduleJData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep4Statements={async (step4Data, progress = 85) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_J_STEP_4_STATEMENTS_STRESS_TEST',
+                      moduleJData: {
+                        ...(p.moduleJData || {}),
+                        step4Statements: step4Data,
+                        completionPercentage: Math.max(
+                          p.moduleJData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep5Brief={async (step5Data, progress = 100) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_J_STEP_5_EXECUTIVE_FINANCE_BRIEF',
+                      moduleJData: {
+                        ...(p.moduleJData || {}),
+                        step5FinanceBrief: step5Data,
+                        completionPercentage: Math.max(
+                          p.moduleJData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onBackToModuleI={() => {
+                navigateToModuleWithHistory('MOD_I_MARKETING', 5, 'module-i-step-5');
+              }}
+              onContinueToModuleK={() => {
+                const access = canAccessModule(
+                  activeEntitlement,
+                  'MOD_K_GRANTS_FUNDING'
+                );
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock('MOD_K_GRANTS_FUNDING');
+                  setPaywallModalFeature(
+                    `Module K: Non-Dilutive Grants & Tax Relief — ${access.reason}`
+                  );
+                  return;
+                }
+                navigateToModuleWithHistory('MOD_K_GRANTS_FUNDING');
+              }}
+              onNavigateToModule={(modCode, targetStep, highlightId) => {
+                const access = canAccessModule(activeEntitlement, modCode);
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock(modCode);
+                  setPaywallModalFeature(
+                    access.reason || 'This module requires an upgraded plan.'
+                  );
+                  return;
+                }
+                navigateToModuleWithHistory(modCode, targetStep, highlightId);
+              }}
+            />
+          ) : activeModule === 'MOD_K_GRANTS_FUNDING' ? (
+            <ModuleKWorkspace
+              key={currentPlan.id}
+              plan={{
+                ...currentPlan,
+                conceptCanvas: effectiveCanvas,
+              }}
+              selectedCountry={selectedCountry}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
+              onSaveStep1Audit={async (step1Data, progress = 25) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_K_STEP_1_AUDIT',
+                      moduleKData: {
+                        ...(p.moduleKData || {}),
+                        step1Audit: step1Data,
+                        completionPercentage: Math.max(
+                          p.moduleKData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onSaveStep2CapitalStack={async (step2Data, progress = 50) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_K_STEP_2_CAPITAL_STACK',
+                      moduleKData: {
+                        ...(p.moduleKData || {}),
+                        step2CapitalStack: step2Data,
+                        completionPercentage: Math.max(
+                          p.moduleKData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onBackToModuleJ={() => {
+                navigateToModuleWithHistory('MOD_J_FINANCE', 5, 'module-j-step-5');
+              }}
+              onContinueToModuleL={() => {
+                const access = canAccessModule(
+                  activeEntitlement,
+                  'MOD_L_BUSINESS_PLAN'
+                );
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock('MOD_L_BUSINESS_PLAN');
+                  setPaywallModalFeature(
+                    `Module L: Official Plan & Grant Compiler — ${access.reason}`
+                  );
+                  return;
+                }
+                navigateToModuleWithHistory('MOD_L_BUSINESS_PLAN');
+              }}
+              onNavigateToModule={(modCode, targetStep, highlightId) => {
+                const access = canAccessModule(activeEntitlement, modCode);
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock(modCode);
+                  setPaywallModalFeature(
+                    access.reason || 'This module requires an upgraded plan.'
+                  );
+                  return;
+                }
+                navigateToModuleWithHistory(modCode, targetStep, highlightId);
+              }}
+            />
           ) : activeModule === 'MOD_E_OPERATIONS' ? (
             <ModuleEWorkspace
               key={currentPlan.id}
@@ -5874,6 +6210,7 @@ export default function WorkspacePage() {
           ) : activeModule === 'MOD_D_PRODUCT_BUILD' ? (
             <ModuleDWorkspace
               key={currentPlan.id}
+              founderName={session.user.name}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -9495,54 +9832,129 @@ export default function WorkspacePage() {
               <strong>Feature Requested:</strong> {paywallModalFeature}
             </div>
 
-            <div className="mt-4 space-y-2.5 text-xs">
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
-                <div className="flex items-center justify-between font-bold text-indigo-950">
-                  <span>6-Month Co-Founder Pass</span>
-                  <span className="text-sm text-indigo-700">€149 one-time</span>
-                </div>
-                <p className="mt-1 text-indigo-900/80">
-                  3 Startup Plans • 3 Co-Founder Seats • Full Modules A–I • 750
-                  AI Credits/mo.
-                </p>
+            {stripeCheckoutError && (
+              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                {stripeCheckoutError}
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+            )}
+
+            <div className="mt-4 space-y-2.5 text-xs">
+              <div className="rounded-xl border-2 border-indigo-500 bg-indigo-50/80 p-3.5 shadow-xs">
+                <div className="flex items-center justify-between font-bold text-indigo-950">
+                  <span className="text-sm">6-Month Co-Founder Pass</span>
+                  <span className="rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
+                    {countryPack.defaultCurrency === 'GBP' ? '£169' : '€199'}
+                  </span>
+                </div>
+                <p className="mt-1 text-indigo-900/90 text-[11px] leading-relaxed">
+                  3 Startup Plans • 3 Co-Founder Seats • Full Modules A–L • Module F Awkward Questions Alignment • 500 AI Credits/mo.
+                </p>
+                <div className="mt-3">
+                  <Button
+                    size="sm"
+                    className="w-full bg-indigo-600 font-semibold text-white hover:bg-indigo-700"
+                    disabled={isRedirectingToStripe}
+                    onClick={async () => {
+                      setIsRedirectingToStripe(true);
+                      setStripeCheckoutError(null);
+                      const res = await createStripeCheckoutSessionAction({
+                        planType: 'SIX_MONTH_COFOUNDER',
+                        currency: (countryPack.defaultCurrency as any) || 'EUR',
+                        planId: currentPlan?.id,
+                      });
+                      if (res.success && res.url) {
+                        window.location.href = res.url;
+                      } else {
+                        setIsRedirectingToStripe(false);
+                        setStripeCheckoutError(
+                          res.error || 'Failed to initialize Stripe checkout.'
+                        );
+                      }
+                    }}
+                  >
+                    {isRedirectingToStripe ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Connecting to Stripe...
+                      </>
+                    ) : (
+                      <>
+                        Purchase Co-Founder Pass
+                        <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
                 <div className="flex items-center justify-between font-bold text-slate-900">
-                  <span>Have an AppSumo or University Cohort Code?</span>
+                  <span>6-Month Solo Pass</span>
+                  <span className="text-xs font-semibold text-slate-700">
+                    {countryPack.defaultCurrency === 'GBP' ? '£109' : '€129'}
+                  </span>
+                </div>
+                <p className="mt-1 text-slate-600 text-[11px]">
+                  1 Active Startup Plan • 1 Seat • Full Modules A–L • 250 AI Credits/mo.
+                </p>
+                <div className="mt-2.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs font-medium"
+                    disabled={isRedirectingToStripe}
+                    onClick={async () => {
+                      setIsRedirectingToStripe(true);
+                      setStripeCheckoutError(null);
+                      const res = await createStripeCheckoutSessionAction({
+                        planType: 'SIX_MONTH_SOLO',
+                        currency: (countryPack.defaultCurrency as any) || 'EUR',
+                        planId: currentPlan?.id,
+                      });
+                      if (res.success && res.url) {
+                        window.location.href = res.url;
+                      } else {
+                        setIsRedirectingToStripe(false);
+                        setStripeCheckoutError(
+                          res.error || 'Failed to initialize Stripe checkout.'
+                        );
+                      }
+                    }}
+                  >
+                    Purchase Solo Pass
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-center justify-between font-bold text-slate-900">
+                  <span>Have an AppSumo or Cohort Voucher?</span>
                   <Ticket className="h-4 w-4 text-amber-600" />
                 </div>
-                <p className="mt-1 text-slate-600">
-                  Redeem your voucher code or test tier upgrades via the
-                  footer simulator.
+                <p className="mt-1 text-slate-600 text-[11px]">
+                  Already have an institutional or AppSumo voucher code?
                 </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <Link href="/redeem" className="flex-1">
+                    <Button variant="ghost" size="sm" className="w-full text-xs text-indigo-600 hover:bg-indigo-50">
+                      Redeem Voucher Code →
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-end gap-2">
-              <Link href="/redeem">
-                <Button variant="outline" size="sm">
-                  Redeem Code
-                </Button>
-              </Link>
+            <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3">
+              <span className="text-[10px] text-slate-400">
+                Encrypted via Stripe 256-bit SSL
+              </span>
               <Button
+                variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setSelectedTierPreset('SIX_MONTH_COFOUNDER');
-                  setPaywallModalFeature(null);
-                  if (
-                    pendingModuleAfterUnlock === 'MOD_B_MARKET' ||
-                    pendingModuleAfterUnlock === 'MOD_A_IDEATION' ||
-                    pendingModuleAfterUnlock === 'MOD_C_SURVEYS_FEEDBACK' ||
-                    pendingModuleAfterUnlock === 'MOD_D_PRODUCT_BUILD' ||
-                    pendingModuleAfterUnlock === 'MOD_E_OPERATIONS'
-                  ) {
-                    setActiveModule(pendingModuleAfterUnlock);
-                    setPendingModuleAfterUnlock(null);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }
-                }}
+                onClick={() => setPaywallModalFeature(null)}
+                className="text-xs text-slate-500"
               >
-                Unlock Now
+                Close
               </Button>
             </div>
           </div>

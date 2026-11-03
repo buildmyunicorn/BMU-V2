@@ -10898,6 +10898,8 @@ Return strictly valid JSON:
   return fallback;
 }
 
+
+
 // -----------------------------------------------------------------------------
 // MODULE H (STEP 3): BREAKEVEN & WORKING CAPITAL ASSESSOR NARRATIVE GENERATOR
 // -----------------------------------------------------------------------------
@@ -11080,6 +11082,8 @@ Return strictly valid JSON:
 
   return fallback;
 }
+
+
 
 // -----------------------------------------------------------------------------
 // MODULE H (STEP 4): SALES VELOCITY, CAPACITY & ASSUMPTIONS GENERATOR
@@ -11490,6 +11494,8 @@ Return strictly valid JSON:
 }
 
 
+
+
 // ============================================================================
 // MODULE I: BRAND POSITIONING & 3-SECOND HOOK (MOD_I_POSITIONING)
 // ============================================================================
@@ -11764,6 +11770,8 @@ Return strictly valid JSON:
 
   return fallback;
 }
+
+
 
 // --- MODULE I STEP 2: THE MODERN 4PS STRATEGY & CHANNEL DISTRIBUTION MATRIX ---
 
@@ -12143,6 +12151,8 @@ Respond ONLY with a valid JSON object matching this schema:
 
   return fallback;
 }
+
+
 
 // ============================================================================
 // MODULE I — STEP 3: FIRST 10 CUSTOMERS PLAYBOOK & LOI GENERATOR
@@ -12661,6 +12671,8 @@ Respond ONLY with a valid JSON object matching this schema:
 
   return fallback;
 }
+
+
 
 // ============================================================================
 // MODULE I — SECTION 3.6: DYNAMIC OBJECTION BUSTERS & AI REBUTTALS
@@ -13229,6 +13241,8 @@ Respond ONLY with a valid JSON object matching this schema:
   return fallback;
 }
 
+
+
 /**
  * AI Assessor Mode: Generates Module I Step 5 Marketing & Customer Acquisition Brief & Blind-Spot Audit.
  */
@@ -13517,5 +13531,662 @@ Return strictly JSON:
 
   return fallback;
 }
+
+
+
+// ---------------------------------------------------------------------------
+// MODULE J STEP 1: OVERHEADS, LOCALIZED TAXES & VAT AUTO-PILOT CALIBRATION
+// ---------------------------------------------------------------------------
+
+export interface GenerateModuleJOverheadsTaxParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  currencySymbol: string;
+  operatingCostPosture: string;
+  monthlyFixedOverheadsYear1: number;
+  monthlyFounderDrawingsYear1: number;
+  monthlyTeamSalariesYear1: number;
+  employerPayrollTaxRatePercent: number;
+  vatRegistrationStrategy: string;
+  exportRevenueSharePercent: number;
+  totalCapExEquipmentValue: number;
+}
+
+export interface GenerateModuleJOverheadsTaxResult {
+  allowed: boolean;
+  overheadsAndTaxNarrative: string;
+  grantAssessorTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleJOverheadsTaxViaRouter(
+  params: GenerateModuleJOverheadsTaxParams
+): Promise<GenerateModuleJOverheadsTaxResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const taxAuthority = isUK ? 'HMRC' : 'Irish Revenue';
+  const payrollTaxName = isUK
+    ? `Employer Class 1 National Insurance & Workplace Pension (${params.employerPayrollTaxRatePercent}%)`
+    : `Employer PRSI (${params.employerPayrollTaxRatePercent}%)`;
+  const grantBody = isUK
+    ? 'British Business Bank Start Up Loans & Innovate UK'
+    : 'Local Enterprise Office (LEO) & Enterprise Ireland';
+
+  const monthlyPayrollTax = Math.round(
+    (params.monthlyTeamSalariesYear1 * params.employerPayrollTaxRatePercent) / 100
+  );
+  const totalMonthlyBurn =
+    params.monthlyFixedOverheadsYear1 +
+    params.monthlyFounderDrawingsYear1 +
+    params.monthlyTeamSalariesYear1 +
+    monthlyPayrollTax;
+
+  const fallback: GenerateModuleJOverheadsTaxResult = {
+    allowed: true,
+    overheadsAndTaxNarrative: `${params.planTitle} maintains a disciplined ${params.operatingCostPosture.replace(/_/g, ' ').toLowerCase()} operating posture in Year 1, with non-payroll fixed overheads budgeted at ${params.currencySymbol}${params.monthlyFixedOverheadsYear1.toLocaleString()}/month (${params.currencySymbol}${(params.monthlyFixedOverheadsYear1 * 12).toLocaleString()}/year). Combined with founder survival drawings of ${params.currencySymbol}${params.monthlyFounderDrawingsYear1.toLocaleString()}/month, Year 1 employee payroll of ${params.currencySymbol}${params.monthlyTeamSalariesYear1.toLocaleString()}/month, and statutory ${payrollTaxName} of ${params.currencySymbol}${monthlyPayrollTax.toLocaleString()}/month, the total baseline monthly cash burn is ${params.currencySymbol}${totalMonthlyBurn.toLocaleString()}/month.\n\nFor statutory tax and grant underwriting compliance with ${taxAuthority} and ${grantBody}, VAT is modeled under a ${params.vatRegistrationStrategy.replace(/_/g, ' ').toLowerCase()} strategy so collected VAT is ring-fenced from operating revenue. International export revenue is targeted at ${params.exportRevenueSharePercent}% of turnover, directly supporting non-displacement and export growth criteria${params.totalCapExEquipmentValue > 0 ? `, while ${params.currencySymbol}${params.totalCapExEquipmentValue.toLocaleString()} in capital equipment from Module E is depreciated on a 3-year straight-line basis` : ''}.`,
+    grantAssessorTip: isUK
+      ? `Start Up Loans & Innovate UK assessors verify that Employer NIC (13.8%) + 3% Workplace Pension are factored into Year 1–3 salary rows, and that VAT collected is excluded from P&L revenue.`
+      : `Irish LEO & Enterprise Ireland underwriters check that 11.15% Employer PRSI is applied to PAYE hires, routine overheads are separated from grant-eligible R&D/CapEx, and export revenue reaches ${params.exportRevenueSharePercent}%+ to prove non-displacement.`,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_J_OVERHEADS_TAX',
+    'You are a startup CFO and government grant financial underwriter specializing in early-stage operating overheads, employer payroll taxes, and VAT compliance.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+
+      const prompt = `You are a startup CFO and grant underwriter for ${grantBody} (${params.hqCountryCode}).
+Startup: ${sanitizePromptInput(params.planTitle, 120)}
+Sector: ${sanitizePromptInput(params.industryCategory, 100)}
+Operating Cost Posture: ${sanitizePromptInput(params.operatingCostPosture, 60)}
+Year 1 Fixed Overheads (ex-payroll): ${params.currencySymbol}${params.monthlyFixedOverheadsYear1}/month
+Year 1 Founder Drawings: ${params.currencySymbol}${params.monthlyFounderDrawingsYear1}/month
+Year 1 Team Salaries: ${params.currencySymbol}${params.monthlyTeamSalariesYear1}/month
+Statutory Employer Payroll Tax: ${payrollTaxName}
+VAT Strategy: ${sanitizePromptInput(params.vatRegistrationStrategy, 60)}
+Export Revenue Target: ${params.exportRevenueSharePercent}%
+CapEx Equipment Schedule: ${params.currencySymbol}${params.totalCapExEquipmentValue}
+
+Write a clear, credible 2-paragraph "Operating Cost & Tax Compliance Justification" (110–170 words) suitable for both a first-time founder and a ${grantBody} financial assessor, plus a 1-sentence grantAssessorTip.
+Return strictly JSON:
+{
+  "overheadsAndTaxNarrative": "string (2 paragraphs separated by \\n\\n)",
+  "grantAssessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text ? response.text.trim() : '';
+      if (text) {
+        const parsed = JSON.parse(text);
+        return {
+          allowed: true,
+          overheadsAndTaxNarrative:
+            typeof parsed.overheadsAndTaxNarrative === 'string' &&
+            parsed.overheadsAndTaxNarrative.trim().length > 30
+              ? parsed.overheadsAndTaxNarrative.trim()
+              : fallback.overheadsAndTaxNarrative,
+          grantAssessorTip:
+            typeof parsed.grantAssessorTip === 'string' && parsed.grantAssessorTip.trim()
+              ? parsed.grantAssessorTip.trim()
+              : fallback.grantAssessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn(
+        '[AI Router] Module J Step 1 Gemini call fallback:',
+        err?.message || err
+      );
+    }
+  }
+
+  return fallback;
+}
+
+
+// ---------------------------------------------------------------------------
+// MODULE J STEP 2: PAYMENT TIMING, WORKING CAPITAL & SEASONALITY CALIBRATION
+// ---------------------------------------------------------------------------
+
+export interface GenerateModuleJWorkingCapitalParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  currencySymbol: string;
+  customerCollectionTiming: string;
+  effectiveDebtorDays: number;
+  inventoryStockTiming: string;
+  upfrontStockMonthsBuffer: number;
+  seasonalityRampCurve: string;
+  monthToStartRevenue: number;
+  peakWorkingCapitalLockup: number;
+  year1CashCollectionEfficiencyPercent: number;
+}
+
+export interface GenerateModuleJWorkingCapitalResult {
+  allowed: boolean;
+  workingCapitalNarrative: string;
+  grantAssessorTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleJWorkingCapitalViaRouter(
+  params: GenerateModuleJWorkingCapitalParams
+): Promise<GenerateModuleJWorkingCapitalResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const grantBody = isUK
+    ? 'British Business Bank Start Up Loans & Innovate UK'
+    : 'Local Enterprise Office (LEO) & Enterprise Ireland';
+
+  const fallback: GenerateModuleJWorkingCapitalResult = {
+    allowed: true,
+    workingCapitalNarrative: `${params.planTitle} models customer cash collection on a ${params.effectiveDebtorDays}-day debtor cycle (${params.customerCollectionTiming.replace(/_/g, ' ').toLowerCase()}), with commercial billing commencing in Month ${params.monthToStartRevenue} following initial V1 readiness. Under a ${params.seasonalityRampCurve.replace(/_/g, ' ').toLowerCase()} trajectory, approximately ${params.year1CashCollectionEfficiencyPercent}% of Year 1 invoiced turnover lands as cleared bank cash within Year 1, while late-quarter invoices roll cleanly into Q1 of Year 2.\n\nOn the supply and inventory side (${params.inventoryStockTiming.replace(/_/g, ' ').toLowerCase()}), the business maintains a ${params.upfrontStockMonthsBuffer}-month stock/fulfillment buffer, creating a peak working capital lockup of ${params.currencySymbol}${params.peakWorkingCapitalLockup.toLocaleString()}. By explicitly separating paper P&L invoicing from cleared bank cash inflows, the 36-month cashflow model protects against debtor lag and seasonal working-capital squeeze.`,
+    grantAssessorTip: isUK
+      ? `Start Up Loans & Innovate UK assessors look closely at whether B2B founders falsely assume 0-day payment; modeling ${params.effectiveDebtorDays} debtor days and a Month ${params.monthToStartRevenue} revenue start demonstrates high commercial realism.`
+      : `Irish LEO & Enterprise Ireland evaluators frequently challenge projections that ignore B2B invoice lag or pre-launch build months; explicitly budgeting ${params.currencySymbol}${params.peakWorkingCapitalLockup.toLocaleString()} for working capital lockup directly de-risks your cashflow.`,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_J_WORKING_CAPITAL',
+    'You are a startup CFO and government grant financial underwriter specializing in working capital cycles, debtor days, inventory lead times, and seasonal cashflow modeling.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a startup CFO and grant underwriter for ${grantBody} (${params.hqCountryCode}).
+Startup: ${sanitizePromptInput(params.planTitle, 120)}
+Sector: ${sanitizePromptInput(params.industryCategory, 100)}
+Customer Payment Terms: ${sanitizePromptInput(params.customerCollectionTiming, 60)} (${params.effectiveDebtorDays} Debtor Days)
+Inventory / Supplier Timing: ${sanitizePromptInput(params.inventoryStockTiming, 60)} (${params.upfrontStockMonthsBuffer} months upfront buffer)
+Seasonality Ramp Curve: ${sanitizePromptInput(params.seasonalityRampCurve, 60)}
+First Revenue Month: Month ${params.monthToStartRevenue}
+Peak Working Capital Cash Lockup: ${params.currencySymbol}${params.peakWorkingCapitalLockup}
+Year 1 Cash Collection Efficiency: ${params.year1CashCollectionEfficiencyPercent}%
+
+Write a clear, credible 2-paragraph "Working Capital, Payment Timing & Seasonality Justification" (110–170 words) suitable for both a founder and a ${grantBody} financial assessor, plus a 1-sentence grantAssessorTip.
+Return strictly JSON:
+{
+  "workingCapitalNarrative": "string (2 paragraphs separated by \\n\\n)",
+  "grantAssessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text ? response.text.trim() : '';
+      if (text) {
+        const parsed = JSON.parse(text);
+        return {
+          allowed: true,
+          workingCapitalNarrative:
+            typeof parsed.workingCapitalNarrative === 'string' &&
+            parsed.workingCapitalNarrative.trim().length > 30
+              ? parsed.workingCapitalNarrative.trim()
+              : fallback.workingCapitalNarrative,
+          grantAssessorTip:
+            typeof parsed.grantAssessorTip === 'string' && parsed.grantAssessorTip.trim()
+              ? parsed.grantAssessorTip.trim()
+              : fallback.grantAssessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn(
+        '[AI Router] Module J Step 2 Gemini call fallback:',
+        err?.message || err
+      );
+    }
+  }
+
+  return fallback;
+}
+
+
+// ---------------------------------------------------------------------------
+// MODULE J STEP 3: 36-MONTH CASHFLOW TROUGH & GRANT REIMBURSEMENT BRIDGE
+// ---------------------------------------------------------------------------
+
+export interface GenerateModuleJCashflowFundingGapParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  currencySymbol: string;
+  primaryFundingStrategy: string;
+  startingCashBalanceDay1: number;
+  safetyBufferPercent: number;
+  operatingCashTroughAmount: number;
+  operatingCashTroughMonth: number;
+  recommendedCapitalRaise: number;
+  totalStackedFunding: number;
+  reimbursedGrantTotal: number;
+  maxGrantLagMonths: number;
+  cashflowPositiveMonth: number | null;
+  fundingSourcesSummary: string;
+}
+
+export interface GenerateModuleJCashflowFundingGapResult {
+  allowed: boolean;
+  fundingGapNarrative: string;
+  grantAssessorTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleJCashflowFundingGapViaRouter(
+  params: GenerateModuleJCashflowFundingGapParams
+): Promise<GenerateModuleJCashflowFundingGapResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const grantBody = isUK
+    ? 'British Business Bank Start Up Loans, Innovate UK & HMRC SEIS/EIS'
+    : 'Local Enterprise Office (LEO), Microfinance Ireland & Enterprise Ireland';
+
+  const troughAbs = Math.abs(Math.min(0, params.operatingCashTroughAmount));
+  const fallback: GenerateModuleJCashflowFundingGapResult = {
+    allowed: true,
+    fundingGapNarrative: `Across the 36-month cashflow projection, ${params.planTitle} reaches its lowest pre-funding operating cash point ("The Cash Trough") of -${params.currencySymbol}${troughAbs.toLocaleString()} in Month ${params.operatingCashTroughMonth}, driven by upfront launch commitments, debtor collection timing, and initial operating burn before recurring customer cash inflows reach scale${params.cashflowPositiveMonth ? ` (achieving monthly operating cashflow positivity in Month ${params.cashflowPositiveMonth})` : ''}. Applying a prudent ${params.safetyBufferPercent}% working-capital contingency buffer establishes a target capital requirement of ${params.currencySymbol}${params.recommendedCapitalRaise.toLocaleString()}.\n\nTo bridge this trough cleanly, the business has structured a ${params.currencySymbol}${params.totalStackedFunding.toLocaleString()} capital stack (${params.fundingSourcesSummary || 'founder equity and structured startup finance'})${params.reimbursedGrantTotal > 0 ? `, explicitly accounting for a ${params.maxGrantLagMonths}-month reimbursement arrears lag on ${params.currencySymbol}${params.reimbursedGrantTotal.toLocaleString()} of state grant funding so the bank balance remains positive while awaiting receipt verification and drawdown` : ''}.`,
+    grantAssessorTip: isUK
+      ? `Innovate UK Smart Grants are paid quarterly in arrears and Start Up Loans require proof of repayment affordability; showing a ${params.safetyBufferPercent}% buffer above your Month ${params.operatingCashTroughMonth} cash trough proves you won't run out of cash waiting for grant claims.`
+      : `Irish LEO Priming & Feasibility Grants are strictly paid in arrears after you spend and submit paid invoices + tax clearance; explicitly bridging the ${params.maxGrantLagMonths}-month grant reimbursement lag with founder equity or Microfinance Ireland funds is a top evaluator green flag.`,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_J_CASHFLOW_FUNDING_GAP',
+    'You are a startup CFO and government grant financial underwriter specializing in 36-month cashflow troughs, grant reimbursement arrears bridging, and startup capital stacks.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a startup CFO and grant underwriter for ${grantBody} (${params.hqCountryCode}).
+Startup: ${sanitizePromptInput(params.planTitle, 120)}
+Sector: ${sanitizePromptInput(params.industryCategory, 100)}
+Primary Funding Posture: ${sanitizePromptInput(params.primaryFundingStrategy, 80)}
+Starting Cash Day 1: ${params.currencySymbol}${params.startingCashBalanceDay1}
+Pre-Funding Operating Cash Trough: -${params.currencySymbol}${troughAbs} in Month ${params.operatingCashTroughMonth}
+Safety Buffer: ${params.safetyBufferPercent}%
+Recommended Total Capital Raise: ${params.currencySymbol}${params.recommendedCapitalRaise}
+Total Stacked Funding: ${params.currencySymbol}${params.totalStackedFunding} (${sanitizePromptInput(params.fundingSourcesSummary, 240)})
+Grant Funding Paid in Arrears: ${params.currencySymbol}${params.reimbursedGrantTotal} (with ${params.maxGrantLagMonths}-month reimbursement lag)
+Monthly Operating Cashflow-Positive Crossover: ${params.cashflowPositiveMonth ? `Month ${params.cashflowPositiveMonth}` : 'Post-Year 3'}
+
+Write a clear, credible 2-paragraph "36-Month Cash Trough, Runway & Grant Reimbursement Bridge Justification" (115–175 words) suitable for both a founder and a ${grantBody} underwriter, plus a 1-sentence grantAssessorTip.
+Return strictly JSON:
+{
+  "fundingGapNarrative": "string (2 paragraphs separated by \\n\\n)",
+  "grantAssessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text ? response.text.trim() : '';
+      if (text) {
+        const parsed = JSON.parse(text);
+        return {
+          allowed: true,
+          fundingGapNarrative:
+            typeof parsed.fundingGapNarrative === 'string' &&
+            parsed.fundingGapNarrative.trim().length > 30
+              ? parsed.fundingGapNarrative.trim()
+              : fallback.fundingGapNarrative,
+          grantAssessorTip:
+            typeof parsed.grantAssessorTip === 'string' && parsed.grantAssessorTip.trim()
+              ? parsed.grantAssessorTip.trim()
+              : fallback.grantAssessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn(
+        '[AI Router] Module J Step 3 Gemini call fallback:',
+        err?.message || err
+      );
+    }
+  }
+
+  return fallback;
+}
+
+
+export interface GenerateModuleJStatementsStressTestParams {
+  planId: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: string;
+  currencySymbol: string;
+  activeStressScenario: string;
+  revenueY1: number;
+  revenueY2: number;
+  revenueY3: number;
+  grossMarginY3Percent: number;
+  ebitdaY1: number;
+  ebitdaY2: number;
+  ebitdaY3: number;
+  netProfitAfterTaxY3: number;
+  exportRevenueSharePercent: number;
+  lowestStressedBankBalance: number;
+  lowestStressedMonth: number;
+  corporationTaxRatePercent: number;
+}
+
+export interface GenerateModuleJStatementsStressTestResult {
+  allowed: boolean;
+  writtenFinancialAssumptionsBlock: string;
+  grantAssessorTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleJStatementsStressTestViaRouter(
+  params: GenerateModuleJStatementsStressTestParams
+): Promise<GenerateModuleJStatementsStressTestResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const grantBody = isUK
+    ? 'British Business Bank Start Up Loans, Innovate UK & HMRC SEIS/EIS'
+    : 'Local Enterprise Office (LEO), Microfinance Ireland & Enterprise Ireland';
+
+  const fallback: GenerateModuleJStatementsStressTestResult = {
+    allowed: true,
+    writtenFinancialAssumptionsBlock: `Across the 3-Year Profit & Loss and 36-Month Cashflow projection, ${params.planTitle} scales net turnover from ${params.currencySymbol}${params.revenueY1.toLocaleString()} in Year 1 to ${params.currencySymbol}${params.revenueY2.toLocaleString()} in Year 2 and ${params.currencySymbol}${params.revenueY3.toLocaleString()} in Year 3 (${params.exportRevenueSharePercent}% international/export revenue share), achieving a ${params.grossMarginY3Percent}% gross margin and ${params.currencySymbol}${params.ebitdaY3.toLocaleString()} Year 3 EBITDA (${params.currencySymbol}${params.netProfitAfterTaxY3.toLocaleString()} retained Net Profit After ${params.corporationTaxRatePercent}% Corporation Tax).\n\nUnder the active "${params.activeStressScenario}" sensitivity scenario, the model incorporates full statutory payroll taxes, 3-year straight-line CapEx depreciation, and debtor collection lags, maintaining a lowest stressed bank balance of ${params.currencySymbol}${params.lowestStressedBankBalance.toLocaleString()} in Month ${params.lowestStressedMonth} so operations remain solvent even if commercial ramp experiences downside friction.`,
+    grantAssessorTip: isUK
+      ? `Start Up Loans and Innovate UK assessors test whether your business survives a 15–20% revenue delay; documenting your ${params.grossMarginY3Percent}% gross margin and Month ${params.lowestStressedMonth} stressed cash floor gives underwriters immediate confidence.`
+      : `Irish LEO and Enterprise Ireland evaluators require a written Financial Assumptions note explaining how your Year 1–3 P&L connects to your headcount, ${params.exportRevenueSharePercent}% export sales, and sensitivity stress test.`,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_J_STATEMENTS_STRESS_TEST',
+    'You are a startup CFO and government grant financial underwriter specializing in 3-Year Profit & Loss statements, 36-Month Cashflow schedules, and sensitivity stress testing.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a startup CFO and grant underwriter for ${grantBody} (${params.hqCountryCode}).
+Startup: ${sanitizePromptInput(params.planTitle, 120)}
+Sector: ${sanitizePromptInput(params.industryCategory, 100)}
+Active Stress-Test Scenario: ${sanitizePromptInput(params.activeStressScenario, 100)}
+3-Year Net Turnover: Y1 ${params.currencySymbol}${params.revenueY1}, Y2 ${params.currencySymbol}${params.revenueY2}, Y3 ${params.currencySymbol}${params.revenueY3} (${params.exportRevenueSharePercent}% export share)
+Year 3 Gross Margin: ${params.grossMarginY3Percent}%
+3-Year EBITDA: Y1 ${params.currencySymbol}${params.ebitdaY1}, Y2 ${params.currencySymbol}${params.ebitdaY2}, Y3 ${params.currencySymbol}${params.ebitdaY3}
+Year 3 Net Profit After Tax (${params.corporationTaxRatePercent}% Corp Tax): ${params.currencySymbol}${params.netProfitAfterTaxY3}
+Lowest Stressed Bank Balance: ${params.currencySymbol}${params.lowestStressedBankBalance} in Month ${params.lowestStressedMonth}
+
+Write a clear, grant-ready 2-paragraph "Official 3-Year P&L, Cashflow & Sensitivity Assumptions Note" (115–175 words) suitable for a ${grantBody} application, plus a 1-sentence grantAssessorTip.
+Return strictly JSON:
+{
+  "writtenFinancialAssumptionsBlock": "string (2 paragraphs separated by \\n\\n)",
+  "grantAssessorTip": "string"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text ? response.text.trim() : '';
+      if (text) {
+        const parsed = JSON.parse(text);
+        return {
+          allowed: true,
+          writtenFinancialAssumptionsBlock:
+            typeof parsed.writtenFinancialAssumptionsBlock === 'string' &&
+            parsed.writtenFinancialAssumptionsBlock.trim().length > 30
+              ? parsed.writtenFinancialAssumptionsBlock.trim()
+              : fallback.writtenFinancialAssumptionsBlock,
+          grantAssessorTip:
+            typeof parsed.grantAssessorTip === 'string' && parsed.grantAssessorTip.trim()
+              ? parsed.grantAssessorTip.trim()
+              : fallback.grantAssessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn(
+        '[AI Router] Module J Step 4 Gemini call fallback:',
+        err?.message || err
+      );
+    }
+  }
+
+  return fallback;
+}
+
+export interface GenerateModuleJExecutiveBriefParams {
+  planId: string;
+  planTitle: string;
+  industryCategory: string;
+  hqCountryCode: SupportedCountryCode;
+  currencySymbol: string;
+  totalMonthlyBurnY1: number;
+  effectiveDebtorDays: number;
+  peakWorkingCapitalLockup: number;
+  operatingCashTroughAmount: number;
+  operatingCashTroughMonth: number;
+  totalStackedFunding: number;
+  revenueY1: number;
+  revenueY2: number;
+  revenueY3: number;
+  exportRevenueSharePercent: number;
+  grossMarginY3Percent: number;
+  ebitdaY3: number;
+  netProfitAfterTaxY3: number;
+  lowestStressedBankBalance: number;
+  lowestStressedMonth: number;
+}
+
+export interface GenerateModuleJExecutiveBriefResult {
+  allowed: boolean;
+  blindSpots: Array<{
+    id: string;
+    title: string;
+    severity: 'INFO' | 'WARNING' | 'CRITICAL';
+    description: string;
+    actionableFix: string;
+  }>;
+  financeReadinessConfidence:
+    | 'BANK_AND_GRANT_UNDERWRITING_READY'
+    | 'BOOTSTRAP_CASHFLOW_SELF_FUNDED'
+    | 'REQUIRES_BRIDGE_OR_LOAN_FACILITY'
+    | 'NEEDS_UNIT_ECONOMICS_RECALIBRATION';
+  executiveFinancialSummaryNarrative: string;
+  aiAssessorTip: string;
+  engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function generateModuleJExecutiveBriefViaRouter(
+  params: GenerateModuleJExecutiveBriefParams
+): Promise<GenerateModuleJExecutiveBriefResult> {
+  const isUK = params.hqCountryCode === 'GB';
+  const grantBody = isUK
+    ? 'British Business Bank Start Up Loans, Innovate UK & HMRC SEIS/EIS'
+    : 'Local Enterprise Office (LEO), Microfinance Ireland & Enterprise Ireland';
+
+  const isSolvent = params.lowestStressedBankBalance >= 0;
+  const recommendedConfidence: GenerateModuleJExecutiveBriefResult['financeReadinessConfidence'] =
+    isSolvent && params.totalStackedFunding >= params.operatingCashTroughAmount
+      ? 'BANK_AND_GRANT_UNDERWRITING_READY'
+      : params.operatingCashTroughAmount <= 5000
+      ? 'BOOTSTRAP_CASHFLOW_SELF_FUNDED'
+      : 'REQUIRES_BRIDGE_OR_LOAN_FACILITY';
+
+  const fallbackBlindSpots: GenerateModuleJExecutiveBriefResult['blindSpots'] = [
+    {
+      id: 'mod-j-bs-1',
+      title:
+        params.effectiveDebtorDays >= 30
+          ? `B2B Debtor Lag (${params.effectiveDebtorDays} Days) vs. Month 1–3 Cash Burn`
+          : 'Grant Reimbursement Arrears Timing vs. Upfront Working Capital',
+      severity: params.lowestStressedBankBalance < 0 ? 'CRITICAL' : 'WARNING',
+      description: isUK
+        ? `Innovate UK and Start Up Loans disburse funds in arrears or scheduled tranches. With ${params.currencySymbol}${params.totalMonthlyBurnY1.toLocaleString()}/mo in Year 1 burn and ${params.effectiveDebtorDays}-day customer payment terms, your pre-funding cash trough reaches -${params.currencySymbol}${params.operatingCashTroughAmount.toLocaleString()} in Month ${params.operatingCashTroughMonth}.`
+        : `Irish LEO Priming/Feasibility grants reimburse vouched receipts in arrears ONLY after you spend the cash first. With ${params.currencySymbol}${params.totalMonthlyBurnY1.toLocaleString()}/mo in Year 1 burn and ${params.effectiveDebtorDays}-day debtor terms, your pre-funding cash trough reaches -${params.currencySymbol}${params.operatingCashTroughAmount.toLocaleString()} in Month ${params.operatingCashTroughMonth}.`,
+      actionableFix: isSolvent
+        ? `Maintain your ${params.currencySymbol}${params.totalStackedFunding.toLocaleString()} capital stack in Step 3 so your lowest stressed bank balance stays positive (+${params.currencySymbol}${params.lowestStressedBankBalance.toLocaleString()} in Month ${params.lowestStressedMonth}).`
+        : `Increase upfront non-arrears bridge funding (founder equity or ${isUK ? 'Start Up Loan' : 'Microfinance Ireland loan'}) by at least ${params.currencySymbol}${Math.abs(params.lowestStressedBankBalance).toLocaleString()} in Step 3.`,
+    },
+    {
+      id: 'mod-j-bs-2',
+      title: `Statutory Payroll On-Costs & Tax Clearance Readiness`,
+      severity: 'INFO',
+      description: isUK
+        ? 'UK lenders and HMRC SEIS auditors verify that Employer Class 1 NIC (13.8%) + Workplace Pension (3%) are budgeted on top of gross salaries and that Companies House / UTR filings are active.'
+        : 'LEO and Enterprise Ireland evaluators verify that 11.15% Employer PRSI is budgeted on all PAYE hires and that an active Revenue eTax Clearance (eTC) certificate is in place.',
+      actionableFix:
+        'Keep your Step 1 Statutory Tax Auto-Pilot enabled and attach the exported Excel (.xls) schedule directly to your Module K/L grant pack.',
+    },
+    {
+      id: 'mod-j-bs-3',
+      title: `3-Year Export Turnover (${params.exportRevenueSharePercent}%) & Gross Margin Scaling (${params.grossMarginY3Percent}%)`,
+      severity: params.exportRevenueSharePercent < 15 && !isUK ? 'WARNING' : 'INFO',
+      description: isUK
+        ? `Your 3-Year P&L scales from ${params.currencySymbol}${params.revenueY1.toLocaleString()} (Y1) to ${params.currencySymbol}${params.revenueY3.toLocaleString()} (Y3) with ${params.currencySymbol}${params.ebitdaY3.toLocaleString()} Year 3 EBITDA.`
+        : `Irish LEO Priming and Enterprise Ireland PSSF/HPSU grants heavily weight international export share (currently ${params.exportRevenueSharePercent}%) and non-displacement of local competitors.`,
+      actionableFix:
+        'Highlight your Year 1–3 export turnover row in Step 4 when submitting to Module K (Grants & Funding) and Module L (Business Plan Compiler).',
+    },
+  ];
+
+  const fallback: GenerateModuleJExecutiveBriefResult = {
+    allowed: true,
+    blindSpots: fallbackBlindSpots,
+    financeReadinessConfidence: recommendedConfidence,
+    executiveFinancialSummaryNarrative: `${params.planTitle} presents an underwriter-ready 3-Year Profit & Loss and 36-Month Cashflow model tailored for ${grantBody}. Across Years 1 to 3, net turnover scales from ${params.currencySymbol}${params.revenueY1.toLocaleString()} to ${params.currencySymbol}${params.revenueY2.toLocaleString()} and ${params.currencySymbol}${params.revenueY3.toLocaleString()} (${params.exportRevenueSharePercent}% international export share), generating a ${params.grossMarginY3Percent}% Year 3 gross margin, ${params.currencySymbol}${params.ebitdaY3.toLocaleString()} EBITDA, and ${params.currencySymbol}${params.netProfitAfterTaxY3.toLocaleString()} retained Net Profit After Tax.\n\nOn a month-by-month liquidity basis, the model accounts for ${params.currencySymbol}${params.totalMonthlyBurnY1.toLocaleString()}/mo in Year 1 operating burn, ${params.effectiveDebtorDays}-day customer payment collection lags (${params.currencySymbol}${params.peakWorkingCapitalLockup.toLocaleString()} peak working capital lockup), and grant reimbursement arrears. The resulting Month ${params.operatingCashTroughMonth} pre-funding cash trough of -${params.currencySymbol}${params.operatingCashTroughAmount.toLocaleString()} is bridged by ${params.currencySymbol}${params.totalStackedFunding.toLocaleString()} in stacked funding, maintaining a lowest stressed bank balance of ${params.currencySymbol}${params.lowestStressedBankBalance.toLocaleString()} in Month ${params.lowestStressedMonth}.`,
+    aiAssessorTip: isUK
+      ? `Attach the exported Module J Excel (.xls) schedule alongside this Executive Brief when applying for British Business Bank Start Up Loans, Innovate UK, or HMRC SEIS Advance Assurance in Module K.`
+      : `Attach the exported Module J Excel (.xls) schedule alongside this Executive Brief for your Local Enterprise Office (LEO), Microfinance Ireland, or Enterprise Ireland submission in Module K.`,
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_J_EXECUTIVE_BRIEF',
+    'You are a senior startup CFO and government grant underwriter conducting a constructive financial blind-spot review and executive financial brief.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a senior startup CFO and financial underwriter for ${grantBody} (${params.hqCountryCode}).
+Startup: ${sanitizePromptInput(params.planTitle, 120)}
+Sector: ${sanitizePromptInput(params.industryCategory, 100)}
+Year 1 Monthly Burn (incl. Payroll & Taxes): ${params.currencySymbol}${params.totalMonthlyBurnY1}
+Debtor Days: ${params.effectiveDebtorDays} days (Peak Working Capital Lockup: ${params.currencySymbol}${params.peakWorkingCapitalLockup})
+Pre-Funding 36-Month Cash Trough: -${params.currencySymbol}${params.operatingCashTroughAmount} in Month ${params.operatingCashTroughMonth}
+Total Stacked Funding: ${params.currencySymbol}${params.totalStackedFunding}
+3-Year Net Turnover: Y1 ${params.currencySymbol}${params.revenueY1}, Y2 ${params.currencySymbol}${params.revenueY2}, Y3 ${params.currencySymbol}${params.revenueY3} (${params.exportRevenueSharePercent}% export share)
+Year 3 Gross Margin: ${params.grossMarginY3Percent}%, Year 3 EBITDA: ${params.currencySymbol}${params.ebitdaY3}, Year 3 Net Profit After Tax: ${params.currencySymbol}${params.netProfitAfterTaxY3}
+Lowest Stressed Bank Balance: ${params.currencySymbol}${params.lowestStressedBankBalance} in Month ${params.lowestStressedMonth}
+
+Return strictly JSON with:
+1. "blindSpots": array of 3 constructive financial underwriting blind-spots (each with id, title, severity: "INFO"|"WARNING"|"CRITICAL", description, actionableFix).
+2. "financeReadinessConfidence": one of "BANK_AND_GRANT_UNDERWRITING_READY" | "BOOTSTRAP_CASHFLOW_SELF_FUNDED" | "REQUIRES_BRIDGE_OR_LOAN_FACILITY" | "NEEDS_UNIT_ECONOMICS_RECALIBRATION".
+3. "executiveFinancialSummaryNarrative": 2-paragraph (130-185 words) executive financial summary suitable for a ${grantBody} application.
+4. "aiAssessorTip": 1-sentence actionable tip.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+
+      const text = response.text ? response.text.trim() : '';
+      if (text) {
+        const parsed = JSON.parse(text);
+        const validConf = [
+          'BANK_AND_GRANT_UNDERWRITING_READY',
+          'BOOTSTRAP_CASHFLOW_SELF_FUNDED',
+          'REQUIRES_BRIDGE_OR_LOAN_FACILITY',
+          'NEEDS_UNIT_ECONOMICS_RECALIBRATION',
+        ];
+        return {
+          allowed: true,
+          blindSpots:
+            Array.isArray(parsed.blindSpots) && parsed.blindSpots.length >= 2
+              ? parsed.blindSpots.slice(0, 4).map((b: any, i: number) => ({
+                  id: `mod-j-bs-${i + 1}`,
+                  title: String(b.title || fallbackBlindSpots[i % 3].title),
+                  severity:
+                    b.severity === 'CRITICAL' || b.severity === 'WARNING'
+                      ? b.severity
+                      : 'INFO',
+                  description: String(
+                    b.description || fallbackBlindSpots[i % 3].description
+                  ),
+                  actionableFix: String(
+                    b.actionableFix || fallbackBlindSpots[i % 3].actionableFix
+                  ),
+                }))
+              : fallback.blindSpots,
+          financeReadinessConfidence: validConf.includes(
+            parsed.financeReadinessConfidence
+          )
+            ? parsed.financeReadinessConfidence
+            : fallback.financeReadinessConfidence,
+          executiveFinancialSummaryNarrative:
+            typeof parsed.executiveFinancialSummaryNarrative === 'string' &&
+            parsed.executiveFinancialSummaryNarrative.trim().length > 35
+              ? parsed.executiveFinancialSummaryNarrative.trim()
+              : fallback.executiveFinancialSummaryNarrative,
+          aiAssessorTip:
+            typeof parsed.aiAssessorTip === 'string' && parsed.aiAssessorTip.trim()
+              ? parsed.aiAssessorTip.trim()
+              : fallback.aiAssessorTip,
+          engineMode: 'gemini-2.5-flash',
+        };
+      }
+    } catch (err: any) {
+      console.warn(
+        '[AI Router] Module J Step 5 Gemini call fallback:',
+        err?.message || err
+      );
+    }
+  }
+
+  return fallback;
+}
+
+
+
+
 
 

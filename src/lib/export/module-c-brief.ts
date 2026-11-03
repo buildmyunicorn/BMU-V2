@@ -59,6 +59,22 @@ export const INTERVIEW_SIGNAL_LABELS: Record<InterviewSignalBadgeType, string> =
   POLITE_FLUFF: 'Polite Fluff (Compliments Without Action)',
 };
 
+export const FOCUS_AREA_LABELS: Record<string, string> = {
+  PROBLEM_AND_PAIN: 'Problem & Pain Intensity',
+  CURRENT_WORKAROUNDS: 'Current Workarounds & Frustrations',
+  PAST_SPENDING_BUDGET: 'Past Spending & Budget Reality',
+  WORKFLOW_AND_HABITS: 'Day-to-Day Workflow & Habits',
+  FEATURE_PRIORITIES: 'Most Valuable Outcome / Feature Priorities',
+  OTHER: 'Custom Focus',
+};
+
+export const QUESTION_TYPE_LABELS: Record<string, string> = {
+  MULTIPLE_CHOICE: 'Single Choice (Pick 1)',
+  MULTI_SELECT: 'Multi-Select (Check All)',
+  SCALE_1_5: '1–5 Rating Scale',
+  OPEN_TEXT: 'Short Open Text',
+};
+
 export function formatInterviewChannel(log: SavedCustomerInterviewLog): string {
   if (log.channel === 'OTHER' && log.otherChannelText?.trim()) {
     return `Other: ${log.otherChannelText.trim()}`;
@@ -144,15 +160,30 @@ export function buildModuleCMarkdownBrief(data: ModuleCBriefData): string {
         `### ${sIdx + 1}. ${survey.title}`
       );
       lines.push(
-        `- **Status:** ${survey.isPublished ? 'Published & Tamper-Proof Locked' : 'Draft'} | **Responses:** ${survey.responses.length} (${sReal} real) | **Waitlist Signups:** ${sWaitlist}`
+        `- **Status:** ${survey.isPublished ? 'Published & Tamper-Proof Locked' : 'Draft'} | **Public URL:** /v/${survey.publicSlug} | **Responses:** ${survey.responses.length} (${sReal} real) | **Waitlist Signups:** ${sWaitlist}`
       );
+      if (survey.focusAreas && survey.focusAreas.length > 0) {
+        const faNames = survey.focusAreas
+          .map((f) =>
+            f === 'OTHER' && survey.otherFocusAreaText?.trim()
+              ? `Custom: ${survey.otherFocusAreaText.trim()}`
+              : FOCUS_AREA_LABELS[f] || f
+          )
+          .join(', ');
+        lines.push(`- **Focus Areas:** ${faNames}`);
+      }
       if (survey.introDescription?.trim()) {
         lines.push(`- **Respondent Intro:** ${survey.introDescription.trim()}`);
       }
+      if (survey.waitlistIncentiveText?.trim()) {
+        lines.push(`- **Waitlist Incentive:** ${survey.waitlistIncentiveText.trim()}`);
+      }
       lines.push('- **Mom-Test Questions:**');
       survey.questions.forEach((q, qIdx) => {
+        const typeLabel = QUESTION_TYPE_LABELS[q.type] || q.type;
+        const optsText = q.options?.length ? ` (Options: ${q.options.join('; ')}${q.allowOther !== false ? ' [Other allowed]' : ''})` : '';
         lines.push(
-          `  ${qIdx + 1}. [${q.type}] ${q.questionText} ${q.momTestPassed ? '✓ (Mom-Test Verified)' : '⚠️ (Review for Bias)'}`
+          `  ${qIdx + 1}. [${typeLabel}] ${q.questionText}${optsText} ${q.momTestPassed ? '✓ (Mom-Test Verified)' : '⚠️ (Review for Bias)'}`
         );
       });
 
@@ -292,6 +323,18 @@ export function buildModuleCStandaloneHtmlDocument(
             const sWaitlist = survey.responses.filter(
               (r) => r.joinedWaitlist && Boolean(r.respondentEmail?.trim())
             ).length;
+            const focusPills =
+              survey.focusAreas && survey.focusAreas.length > 0
+                ? survey.focusAreas
+                    .map((fa) => {
+                      if (fa === 'OTHER' && survey.otherFocusAreaText?.trim()) {
+                        return `Custom: ${survey.otherFocusAreaText.trim()}`;
+                      }
+                      return FOCUS_AREA_LABELS[fa] || fa;
+                    })
+                    .join(' • ')
+                : '';
+
             const questionsRows = survey.questions
               .map(
                 (q, qIdx) => `
@@ -301,17 +344,172 @@ export function buildModuleCStandaloneHtmlDocument(
                   <div style="font-weight: 700; color: #0f172a;">${escapeDocumentHtml(q.questionText)}</div>
                   ${
                     q.options && q.options.length > 0
-                      ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Options: ${escapeDocumentHtml(q.options.join(' • '))}</div>`
+                      ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Options: ${escapeDocumentHtml(q.options.join(' • '))}${q.allowOther !== false ? ' • [Other / Custom write-in]' : ''}</div>`
+                      : ''
+                  }
+                  ${
+                    q.momTestFeedback && !q.momTestPassed
+                      ? `<div style="font-size: 10px; color: #b45309; margin-top: 2px; font-style: italic;">⚠️ Bias alert: ${escapeDocumentHtml(q.momTestFeedback)}</div>`
                       : ''
                   }
                 </td>
-                <td style="width: 120px; font-size: 11px; color: #475569;">${escapeDocumentHtml(q.type.replace(/_/g, ' '))}</td>
+                <td style="width: 130px; font-size: 11px; color: #475569;">${escapeDocumentHtml(QUESTION_TYPE_LABELS[q.type] || q.type.replace(/_/g, ' '))}</td>
                 <td style="width: 110px; font-size: 11px; font-weight: 700; color: ${q.momTestPassed ? '#047857' : '#b45309'};">
                   ${q.momTestPassed ? '✓ Mom-Test Pass' : '⚠️ Check Bias'}
                 </td>
               </tr>`
               )
               .join('');
+
+            // Build aggregated response breakdown for this survey
+            let questionBreakdownHtml = '';
+            if (survey.responses.length > 0) {
+              const qCards = survey.questions
+                .map((q, qNum) => {
+                  if (q.type === 'SCALE_1_5') {
+                    let sSum = 0;
+                    let sCount = 0;
+                    const dist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+                    for (const r of survey.responses) {
+                      const val = r.answers[q.id]?.scaleValue;
+                      if (typeof val === 'number' && val >= 1 && val <= 5) {
+                        dist[val] = (dist[val] || 0) + 1;
+                        sSum += val;
+                        sCount += 1;
+                      }
+                    }
+                    const qAvg = sCount > 0 ? (sSum / sCount).toFixed(1) : 'N/A';
+                    return `
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-top: 8px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                        <div style="font-weight: 700; font-size: 11px; color: #1e293b;">Q${qNum + 1}: ${escapeDocumentHtml(q.questionText)}</div>
+                        <span class="pill" style="margin: 0; background: #eef2ff; color: #3730a3; border-color: #c7d2fe;">Avg: ${qAvg} / 5.0 (${sCount} answered)</span>
+                      </div>
+                      <div style="display: flex; gap: 6px; margin-top: 6px;">
+                        ${[1, 2, 3, 4, 5]
+                          .map(
+                            (num) => `
+                        <div style="flex: 1; text-align: center; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px;">
+                          <div style="font-size: 9px; color: #64748b; font-weight: 600;">Score ${num}</div>
+                          <div style="font-size: 13px; font-weight: 800; color: #0f172a;">${dist[num] || 0}</div>
+                        </div>`
+                          )
+                          .join('')}
+                      </div>
+                    </div>`;
+                  }
+
+                  if (q.type === 'MULTIPLE_CHOICE' || q.type === 'MULTI_SELECT') {
+                    const counts: Record<string, number> = {};
+                    for (const opt of q.options || []) counts[opt] = 0;
+                    let otherCount = 0;
+                    const otherTexts: string[] = [];
+                    let answeredCount = 0;
+
+                    for (const r of survey.responses) {
+                      const ans = r.answers[q.id];
+                      if (!ans) continue;
+                      if (q.type === 'MULTIPLE_CHOICE' && ans.selectedOption) {
+                        answeredCount += 1;
+                        if (ans.selectedOption === 'OTHER') {
+                          otherCount += 1;
+                          if (ans.otherText?.trim()) otherTexts.push(ans.otherText.trim());
+                        } else {
+                          counts[ans.selectedOption] = (counts[ans.selectedOption] || 0) + 1;
+                        }
+                      } else if (q.type === 'MULTI_SELECT' && Array.isArray(ans.selectedOptions) && ans.selectedOptions.length > 0) {
+                        answeredCount += 1;
+                        for (const sel of ans.selectedOptions) {
+                          if (sel === 'OTHER') {
+                            otherCount += 1;
+                            if (ans.otherText?.trim()) otherTexts.push(ans.otherText.trim());
+                          } else {
+                            counts[sel] = (counts[sel] || 0) + 1;
+                          }
+                        }
+                      }
+                    }
+
+                    const optRows = Object.entries(counts)
+                      .map(([optLabel, tally]) => {
+                        const pct = answeredCount > 0 ? Math.round((tally / answeredCount) * 100) : 0;
+                        return `
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 2px 0;">
+                          <span style="color: #334155;">${escapeDocumentHtml(optLabel)}</span>
+                          <span style="font-weight: 700; color: #0f172a;">${tally} <span style="font-weight: 400; color: #64748b;">(${pct}%)</span></span>
+                        </div>`;
+                      })
+                      .join('');
+
+                    const otherRow = otherCount > 0
+                      ? `
+                      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 2px 0; border-top: 1px dashed #e2e8f0; margin-top: 3px;">
+                        <span style="color: #4338ca; font-weight: 600;">Other / Custom Write-Ins</span>
+                        <span style="font-weight: 700; color: #4338ca;">${otherCount}</span>
+                      </div>
+                      ${
+                        otherTexts.length > 0
+                          ? `<div style="font-size: 10px; color: #475569; font-style: italic; margin-top: 2px;">Write-ins: ${escapeDocumentHtml(otherTexts.join(' • '))}</div>`
+                          : ''
+                      }`
+                      : '';
+
+                    return `
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-top: 8px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <div style="font-weight: 700; font-size: 11px; color: #1e293b;">Q${qNum + 1}: ${escapeDocumentHtml(q.questionText)}</div>
+                        <span class="pill" style="margin: 0; background: #f1f5f9; color: #475569;">${answeredCount} answered</span>
+                      </div>
+                      <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px;">
+                        ${optRows}
+                        ${otherRow}
+                      </div>
+                    </div>`;
+                  }
+
+                  if (q.type === 'OPEN_TEXT') {
+                    const quotes = survey.responses
+                      .map((r) => ({
+                        text: r.answers[q.id]?.openText?.trim() || '',
+                        author: r.respondentNameOrRole || 'Anonymous Respondent',
+                      }))
+                      .filter((item) => item.text.length > 0);
+
+                    return `
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-top: 8px;">
+                      <div style="font-weight: 700; font-size: 11px; color: #1e293b; margin-bottom: 6px;">
+                        Q${qNum + 1}: ${escapeDocumentHtml(q.questionText)} <span style="font-weight: 400; color: #64748b;">(${quotes.length} written responses)</span>
+                      </div>
+                      ${
+                        quotes.length === 0
+                          ? `<div style="font-size: 11px; color: #94a3b8; font-style: italic;">No written comments yet.</div>`
+                          : `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px;">
+                              ${quotes
+                                .map(
+                                  (qt) => `
+                              <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; font-size: 11px;">
+                                <div style="color: #334155; font-style: italic;">&ldquo;${escapeDocumentHtml(qt.text)}&rdquo;</div>
+                                <div style="font-size: 10px; color: #64748b; font-weight: 600; margin-top: 4px; text-align: right;">— ${escapeDocumentHtml(qt.author)}</div>
+                              </div>`
+                                )
+                                .join('')}
+                            </div>`
+                      }
+                    </div>`;
+                  }
+
+                  return '';
+                })
+                .join('');
+
+              questionBreakdownHtml = `
+              <div style="margin-top: 12px; border-top: 1px solid #e2e8f0; pt-2;">
+                <div style="font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 8px;">
+                  Aggregated Response Breakdown (${survey.responses.length} responses)
+                </div>
+                ${qCards}
+              </div>`;
+            }
 
             const aiSummaryHtml = survey.aiInsightsSummary
               ? `<div class="worry-box" style="margin-top: 10px; background: #eef2ff; border-color: #c7d2fe; color: #1e1b4b;">
@@ -321,20 +519,31 @@ export function buildModuleCStandaloneHtmlDocument(
                       ? `<div style="margin-top: 4px; font-size: 12px;"><strong>Validated Pain Patterns:</strong> ${escapeDocumentHtml(survey.aiInsightsSummary.validatedPainPoints.join(' • '))}</div>`
                       : ''
                   }
+                  ${
+                    survey.aiInsightsSummary.politenessAlertOrRisks?.length
+                      ? `<div style="margin-top: 4px; font-size: 12px; color: #9a3412;"><strong>Politeness / Blind-Spot Alert:</strong> ${escapeDocumentHtml(survey.aiInsightsSummary.politenessAlertOrRisks.join(' • '))}</div>`
+                      : ''
+                  }
                   <div style="margin-top: 4px; font-size: 12px;"><strong>Recommended V1 Action (Feeds Module D):</strong> ${escapeDocumentHtml(survey.aiInsightsSummary.recommendedNextAction)}</div>
                 </div>`
               : '';
 
             return `
-            <div class="card" style="margin-bottom: 12px;">
+            <div class="card" style="margin-bottom: 14px;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
                 <div>
                   <div class="card-label">SURVEY #${idx + 1}</div>
                   <div class="card-value" style="font-size: 15px; font-weight: 800;">${escapeDocumentHtml(survey.title)}</div>
+                  ${focusPills ? `<div style="font-size: 11px; color: #6366f1; font-weight: 600; margin-top: 2px;">Focus: ${escapeDocumentHtml(focusPills)}</div>` : ''}
+                  ${survey.introDescription?.trim() ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;"><strong>Intro:</strong> ${escapeDocumentHtml(survey.introDescription.trim())}</div>` : ''}
+                  ${survey.waitlistIncentiveText?.trim() ? `<div style="font-size: 11px; color: #059669; margin-top: 2px;"><strong>Waitlist Incentive:</strong> ${escapeDocumentHtml(survey.waitlistIncentiveText.trim())}</div>` : ''}
                 </div>
-                <span class="pill" style="margin: 0; background: ${survey.isPublished ? '#ecfdf5' : '#fef3c7'}; border-color: ${survey.isPublished ? '#a7f3d0' : '#fde68a'}; color: ${survey.isPublished ? '#065f46' : '#92400e'};">
-                  ${survey.isPublished ? '🔒 Published & Locked' : 'Draft Survey'} • ${survey.responses.length} Responses (${sReal} Real) • ${sWaitlist} Waitlist
-                </span>
+                <div style="text-align: right;">
+                  <span class="pill" style="margin: 0; background: ${survey.isPublished ? '#ecfdf5' : '#fef3c7'}; border-color: ${survey.isPublished ? '#a7f3d0' : '#fde68a'}; color: ${survey.isPublished ? '#065f46' : '#92400e'};">
+                    ${survey.isPublished ? '🔒 Published & Locked' : 'Draft Survey'} • ${survey.responses.length} Responses (${sReal} Real) • ${sWaitlist} Waitlist
+                  </span>
+                  <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-mono;">Link: /v/${escapeDocumentHtml(survey.publicSlug)}</div>
+                </div>
               </div>
               <table class="doc-table">
                 <thead>
@@ -349,6 +558,7 @@ export function buildModuleCStandaloneHtmlDocument(
                   ${questionsRows}
                 </tbody>
               </table>
+              ${questionBreakdownHtml}
               ${aiSummaryHtml}
             </div>`;
           })
@@ -412,14 +622,35 @@ export function buildModuleCStandaloneHtmlDocument(
   const waitlistHtml =
     waitlistLeads.length === 0
       ? `<div class="card"><div class="card-value" style="color: #64748b;">No early-bird waitlist emails captured yet. Enable waitlist collection on your survey to capture warm beta leads.</div></div>`
-      : `<div style="margin-top: 4px;">
-          ${waitlistLeads
-            .map(
-              (lead) =>
-                `<span class="pill">${escapeDocumentHtml(lead.respondentNameOrRole || 'Early-Bird Lead')} • ${escapeDocumentHtml(lead.respondentEmail || '')}${lead.isSimulated ? ' (Sample)' : ''}</span>`
-            )
-            .join('')}
-        </div>`;
+      : `<table class="doc-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Lead Name / Role</th>
+              <th>Contact Email</th>
+              <th>Status / Verified</th>
+              <th>Submission Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${waitlistLeads
+              .map(
+                (lead, lIdx) => `
+              <tr>
+                <td style="width: 36px; font-weight: 700; color: #047857;">#${lIdx + 1}</td>
+                <td style="font-weight: 700; color: #0f172a;">${escapeDocumentHtml(lead.respondentNameOrRole || 'Early-Bird Lead')}</td>
+                <td><span style="font-family: monospace; font-size: 11px; color: #3730a3; font-weight: 600;">${escapeDocumentHtml(lead.respondentEmail || '—')}</span></td>
+                <td>
+                  <span class="pill" style="margin: 0; background: ${lead.isSimulated ? '#f1f5f9' : '#ecfdf5'}; color: ${lead.isSimulated ? '#475569' : '#047857'}; border-color: ${lead.isSimulated ? '#cbd5e1' : '#a7f3d0'};">
+                    ${lead.isSimulated ? 'Simulated Sample' : '✓ Verified Beta Lead'}
+                  </span>
+                </td>
+                <td style="font-size: 11px; color: #64748b;">${lead.submittedAt ? escapeDocumentHtml(lead.submittedAt.slice(0, 10)) : '—'}</td>
+              </tr>`
+              )
+              .join('')}
+          </tbody>
+        </table>`;
 
   const blindSpotsHtml = data.thingsToConsider
     .map(

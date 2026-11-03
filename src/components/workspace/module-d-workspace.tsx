@@ -60,6 +60,11 @@ import {
   formatPlanCurrency,
   type SupportedCountryCode,
 } from '@/lib/localization';
+import {
+  buildModuleDMarkdownBrief as generateModuleDMarkdownBrief,
+  buildModuleDStandaloneHtmlBrief as generateModuleDStandaloneHtmlBrief,
+  type ModuleDBriefData,
+} from '@/lib/export/module-d-brief';
 import type {
   ActiveStartupPlan,
   ProductTrackType,
@@ -97,6 +102,7 @@ export interface ModuleDWorkspaceProps {
   plan: ActiveStartupPlan;
   selectedCountry: SupportedCountryCode;
   isVaultReadonly: boolean;
+  founderName?: string;
   onSaveStep1ProductVehicle: (
     data: ProductVehicleStep1Data,
     progress: number
@@ -4336,6 +4342,7 @@ export function ModuleDWorkspace({
   plan,
   selectedCountry,
   isVaultReadonly,
+  founderName = 'Founder',
   onSaveStep1ProductVehicle,
   onSaveStep2ChannelMatrix,
   onSaveStep3ScopeFilter,
@@ -6753,684 +6760,46 @@ export function ModuleDWorkspace({
   // 1-PAGE PRODUCT, TECHNICAL & WORK PACKAGE BRIEF EXPORT (MD / HTML / PDF)
   // =========================================================================
 
+  const getModuleDBriefPayload = (): ModuleDBriefData => ({
+    planTitle: plan.title,
+    founderName: founderName || 'Founder',
+    industryCategory: plan.industryCategory || 'Startup',
+    hqCountryCode: plan.hqCountryCode || selectedCountry || 'IE',
+    baseCurrency: plan.baseCurrency,
+    targetMarkets: (plan as any).targetMarkets || [],
+    step1Data,
+    step2Data,
+    step3Data,
+    step4Data,
+    step5Data,
+    step6Data,
+    beachheadSegment:
+      plan.moduleBData?.beachhead?.beachheadSegment ||
+      plan.conceptCanvas?.targetCustomer ||
+      'Early adopters',
+    validatedPainPoint,
+    surveyResponseCount,
+    waitlistCount,
+    interviewCount,
+    thingsToConsider: step6Data.blindSpots.map((bs) => ({
+      id: bs.id,
+      title: bs.title,
+      category: bs.category,
+      severity: bs.severity === 'CRITICAL' ? 'CRITICAL' : bs.severity === 'IMPORTANT' ? 'WARNING' : 'INFO',
+      explanation: bs.whyItMatters,
+      suggestedAction: bs.recommendedActionOrFix,
+    })),
+    whiteLabelEnabled,
+  });
+
   const buildModuleDMarkdownBrief = (): string => {
-    const day1Items = step3Data.items.filter(
-      (i) => i.bucket === 'MUST_HAVE_V1'
-    );
-    const v15Items = step3Data.items.filter(
-      (i) => i.bucket === 'FAST_FOLLOW_V1_5'
-    );
-    const v2Items = step3Data.items.filter(
-      (i) => i.bucket === 'PARKING_LOT_V2'
-    );
-    const inHouseStack = step4Data.items.filter(
-      (i) => i.tier === 'BUILD_IN_HOUSE'
-    );
-    const buyRentStack = step4Data.items.filter(
-      (i) => i.tier === 'BUY_RENT_OFF_SHELF'
-    );
-    const partnerStack = step4Data.items.filter(
-      (i) => i.tier === 'OUTSOURCE_PARTNER'
-    );
-
-    const formFactorLabel =
-      step1Data.formFactor === 'OTHER'
-        ? step1Data.otherFormFactorText || 'Custom Form Factor'
-        : activeTrackConfig.formFactorOptions.find(
-            (f) => f.value === step1Data.formFactor
-          )?.label || step1Data.formFactor;
-
-    const v1ApproachLabel =
-      step1Data.v1PrototypeApproach === 'OTHER'
-        ? step1Data.otherV1PrototypeApproachText || 'Custom V1 Approach'
-        : activeTrackConfig.v1ApproachOptions.find(
-            (a) => a.value === step1Data.v1PrototypeApproach
-          )?.label || step1Data.v1PrototypeApproach;
-
-    const primaryChannelLabel =
-      step2Data.primaryChannel === 'OTHER'
-        ? step2Data.otherPrimaryChannelText || 'Custom Primary Channel'
-        : activeStep2TrackConfig.channelOptions.find(
-            (c) => c.value === step2Data.primaryChannel
-          )?.label || step2Data.primaryChannel;
-
-    const secondaryChannelLabels = step2Data.secondaryChannels.map((sc) =>
-      sc === 'OTHER'
-        ? step2Data.otherSecondaryChannelText || 'Custom Secondary Channel'
-        : activeStep2TrackConfig.channelOptions.find((c) => c.value === sc)
-            ?.label || sc
-    );
-
-    const deliveryModelLabel =
-      step2Data.deliveryFulfillmentModel === 'OTHER'
-        ? step2Data.otherDeliveryFulfillmentText || 'Custom Delivery Model'
-        : activeStep2TrackConfig.deliveryOptions.find(
-            (d) => d.value === step2Data.deliveryFulfillmentModel
-          )?.label || step2Data.deliveryFulfillmentModel;
-
-    const combinedMonthly = step4MonthlyTotal + step5MonthlyTotal;
-    const combinedOneOff = step4OneOffTotal + step5OneOffTotal;
-    const combinedUnitCogs = step4PerUnitTotal + step5PerUnitTotal;
-    const netRevenueKeptPercent = Number(
-      (100 - step2Data.estimatedBlendedFeePercent).toFixed(1)
-    );
-
-    const lines: string[] = [
-      `# ${plan.title} — 1-Page Product, Scope & Work Package Brief (Module D)`,
-      `**Country / Currency:** ${countryPack.countryName} (${plan.baseCurrency}) | **Product Track:** ${selectedTrackMeta.label}`,
-      `**Platform / Form Factor:** ${formFactorLabel} | **V1 Build Approach:** ${v1ApproachLabel} | **Target Launch Window:** ${step1Data.launchTimeline.replace(/_/g, ' ')}`,
-      `**Upstream Customer Proof (Modules A–C):** Target Customer: ${
-        plan.moduleBData?.beachhead?.beachheadSegment ||
-        plan.conceptCanvas?.targetCustomer ||
-        'Early adopters'
-      } | Survey Responses: ${surveyResponseCount} | Waitlist Leads: ${waitlistCount} | 1-on-1 Interviews: ${interviewCount}`,
-      `**#1 Validated Pain Point:** "${
-        validatedPainPoint || 'Deliver a fast, reliable V1 solution.'
-      }"`,
-      '',
-      `## 1. Executive Product Summary & De-Risking Charter`,
-      step6Data.executiveProductBriefSummary ||
-        step1Data.ahaMomentNarrative ||
-        '_No executive summary recorded yet._',
-      '',
-      `**De-Risking & Grant Sign-Off:** ${
-        step6Data.keyDeRiskingSignOffNarrative ||
-        step5Data.bottleneckAndDeRiskingNarrative ||
-        '_Not recorded yet._'
-      }`,
-      '',
-      `## 2. Product Vehicle, Channel Strategy & Unit Cost Roll-Up (Steps 1–2 & 4–5)`,
-      `- **Product Track & Format:** ${selectedTrackMeta.label} — ${formFactorLabel}`,
-      `- **V1 Build / Prototype Approach:** ${v1ApproachLabel}`,
-      `- **60-Second Customer "Aha! Moment":** ${step1Data.ahaMomentNarrative || '—'}`,
-      `- **Primary Distribution Channel (${step2Data.primaryChannelSharePercent}% share):** ${primaryChannelLabel}`,
-      `- **Secondary Distribution Channels (${Math.max(0, 100 - step2Data.primaryChannelSharePercent)}% share):** ${
-        secondaryChannelLabels.join(', ') || 'None (100% Primary)'
-      }`,
-      `- **Blended Platform/Payment Fee:** ${step2Data.estimatedBlendedFeePercent}% (You keep ${netRevenueKeptPercent}% Net Revenue before COGS)`,
-      `- **V1 Delivery & Fulfillment Model:** ${deliveryModelLabel}`,
-      `- **Rent-to-Own Customer Bridge Strategy:** ${step2Data.rentToOwnBridgeStrategy || '—'}`,
-      `- **Estimated Cost Structure (Synced to Module H):** ${formatPlanCurrency(
-        combinedOneOff,
-        plan.baseCurrency
-      )} once-off | ${formatPlanCurrency(
-        combinedMonthly,
-        plan.baseCurrency
-      )}/mo recurring | ${formatPlanCurrency(
-        combinedUnitCogs,
-        plan.baseCurrency
-      )}/unit direct variable COGS`,
-      '',
-      `## 3. Ruthless V1 Scope Filter (Step 3)`,
-      `- **🟢 Day-1 V1 Core — Launch Now (${day1Items.length}):** ${
-        day1Items.map((i) => i.title).join(', ') || 'None added'
-      }`,
-      `- **🟡 Version 1.5 — Fast-Follow (${v15Items.length}):** ${
-        v15Items.map((i) => i.title).join(', ') || 'None'
-      }`,
-      `- **🔴 Phase 2 / V2 Backlog — Do Not Build Yet (${v2Items.length}):** ${
-        v2Items.map((i) => i.title).join(', ') || 'None'
-      }`,
-      `- **What We Explicitly Refuse to Build in V1:** ${
-        step3Data.whatWeRefuseToBuildInV1Narrative || '—'
-      }`,
-      '',
-      `## 4. 3-Tier "Build vs. Buy" & Core IP ("Secret Sauce") Matrix (Step 4)`,
-      `- **Tier 1 — Custom Build / Core IP ("Your Secret Sauce": ${inHouseStack.length}):** ${
-        inHouseStack
-          .map((i) => `${i.title} (${i.vendorOrToolName || 'In-house'})`)
-          .join('; ') || 'None'
-      }`,
-      `- **Tier 2 — Buy / Rent Off-the-Shelf (Commodity: ${buyRentStack.length}):** ${
-        buyRentStack
-          .map((i) => `${i.title} (${i.vendorOrToolName || 'SaaS/Tool'})`)
-          .join('; ') || 'None'
-      }`,
-      `- **Tier 3 — Configure / Specialist Partner (${partnerStack.length}):** ${
-        partnerStack
-          .map((i) => `${i.title} (${i.vendorOrToolName || 'Partner'})`)
-          .join('; ') || 'None'
-      }`,
-      `- **Core IP & Secret Sauce Narrative:** ${
-        step4Data.secretSauceInHouseNarrative ||
-        step5Data.technicalMeritAndInnovationNarrative ||
-        '—'
-      }`,
-      '',
-      `## 5. System Architecture Flow & Work Packages WP1–WPn (Step 5)`,
-      ...(step5Data.flowStages.length > 0
-        ? [
-            `**4-Stage System Architecture / Production Flow:**`,
-            ...step5Data.flowStages.map(
-              (st, idx) =>
-                `- **Stage ${idx + 1} (${st.stageTitle}):** Stack: ${
-                  st.keyToolsOrMaterials || st.whatHappensHere || '—'
-                } -> Output: ${st.outputOrHandoff || st.outputOrHandOff || '—'}`
-            ),
-            '',
-          ]
-        : []),
-      ...step5Data.workPackages.map(
-        (wp) =>
-          `- **${wp.wpCode}: ${wp.title}** (${wp.timelineWindow.replace(/_/g, ' ')}) — Mode: ${
-            wp.executionMode
-          } | Cost: ${
-            wp.costModel === 'SWEAT_EQUITY_ZERO'
-              ? 'Sweat Equity'
-              : formatPlanCurrency(wp.estimatedCostAmount, plan.baseCurrency)
-          } | Deliverable: ${
-            wp.deliverableMilestone || wp.deliverableMilestoneProof || '—'
-          } | Gate: ${
-            wp.verificationGateOrDeRisking || wp.linkedTaskSummary || '—'
-          }`
-      ),
-      '',
-      `## 6. Constructive "Things to Consider" & Mitigations (Step 6)`,
-      ...step6Data.blindSpots.map(
-        (bs) =>
-          `- **[${bs.isResolved ? 'ADDRESSED' : bs.severity}] ${bs.title}:** ${
-            bs.whyItMatters
-          } -> *Action:* ${bs.recommendedActionOrFix}${
-            bs.founderMitigationNote
-              ? ` | *Founder Plan:* ${bs.founderMitigationNote}`
-              : ''
-          }`
-      ),
-      '',
-      whiteLabelEnabled
-        ? `_Generated for ${plan.title}_`
-        : `_Generated with Startup Preflight — Module D Product & Technical Blueprint_`,
-    ];
-
-    return lines.join('\n');
+    return generateModuleDMarkdownBrief(getModuleDBriefPayload());
   };
 
   const buildModuleDStandaloneHtmlBrief = (): string => {
-    const esc = (str: string) =>
-      String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-
-    const day1Items = step3Data.items.filter(
-      (i) => i.bucket === 'MUST_HAVE_V1'
-    );
-    const v15Items = step3Data.items.filter(
-      (i) => i.bucket === 'FAST_FOLLOW_V1_5'
-    );
-    const v2Items = step3Data.items.filter(
-      (i) => i.bucket === 'PARKING_LOT_V2'
-    );
-    const deferredItems = step3Data.items.filter(
-      (i) => i.bucket !== 'MUST_HAVE_V1'
-    );
-
-    const inHouseStack = step4Data.items.filter(
-      (i) => i.tier === 'BUILD_IN_HOUSE'
-    );
-    const buyRentStack = step4Data.items.filter(
-      (i) => i.tier === 'BUY_RENT_OFF_SHELF'
-    );
-    const partnerStack = step4Data.items.filter(
-      (i) => i.tier === 'OUTSOURCE_PARTNER'
-    );
-
-    const formFactorLabel =
-      step1Data.formFactor === 'OTHER'
-        ? step1Data.otherFormFactorText || 'Custom Form Factor'
-        : activeTrackConfig.formFactorOptions.find(
-            (f) => f.value === step1Data.formFactor
-          )?.label || step1Data.formFactor;
-
-    const v1ApproachLabel =
-      step1Data.v1PrototypeApproach === 'OTHER'
-        ? step1Data.otherV1PrototypeApproachText || 'Custom V1 Approach'
-        : activeTrackConfig.v1ApproachOptions.find(
-            (a) => a.value === step1Data.v1PrototypeApproach
-          )?.label || step1Data.v1PrototypeApproach;
-
-    const primaryChannelLabel =
-      step2Data.primaryChannel === 'OTHER'
-        ? step2Data.otherPrimaryChannelText || 'Custom Primary Channel'
-        : activeStep2TrackConfig.channelOptions.find(
-            (c) => c.value === step2Data.primaryChannel
-          )?.label || step2Data.primaryChannel;
-
-    const secondaryChannelLabels = step2Data.secondaryChannels.map((sc) =>
-      sc === 'OTHER'
-        ? step2Data.otherSecondaryChannelText || 'Custom Secondary Channel'
-        : activeStep2TrackConfig.channelOptions.find((c) => c.value === sc)
-            ?.label || sc
-    );
-
-    const combinedMonthly = step4MonthlyTotal + step5MonthlyTotal;
-    const combinedOneOff = step4OneOffTotal + step5OneOffTotal;
-    const combinedUnitCogs = step4PerUnitTotal + step5PerUnitTotal;
-    const netRevenueKeptPercent = Number(
-      (100 - step2Data.estimatedBlendedFeePercent).toFixed(1)
-    );
-
-    const readinessLabel =
-      step6Data.readinessConfidence === 'OTHER'
-        ? step6Data.otherReadinessConfidenceText || 'Custom Readiness Status'
-        : READINESS_CONFIDENCE_OPTIONS.find(
-            (r) => r.value === step6Data.readinessConfidence
-          )?.label || 'Ready for Pilot Build';
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>${esc(plan.title)} — Product, Scope & Work Package Brief</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #0f172a;
-      background: #f8fafc;
-      margin: 0;
-      padding: 28px;
-      line-height: 1.5;
-    }
-    .sheet {
-      max-width: 980px;
-      margin: 0 auto;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 32px;
-      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
-    }
-    .header {
-      border-bottom: 2px solid #e0e7ff;
-      padding-bottom: 18px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-    }
-    .eyebrow {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #4338ca;
-      margin-bottom: 4px;
-    }
-    h1 {
-      font-size: 22px;
-      margin: 0 0 6px 0;
-      color: #0f172a;
-    }
-    .meta {
-      font-size: 12px;
-      color: #475569;
-    }
-    .badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-      background: #eef2ff;
-      color: #3730a3;
-      border: 1px solid #c7d2fe;
-    }
-    h2 {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #312e81;
-      margin: 22px 0 10px 0;
-      border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 6px;
-    }
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
-    .card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 12px 14px;
-      font-size: 12px;
-    }
-    .card-title {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: #475569;
-      margin-bottom: 4px;
-    }
-    .card-val {
-      font-size: 14px;
-      font-weight: 700;
-      color: #0f172a;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      margin-top: 8px;
-    }
-    th, td {
-      border: 1px solid #e2e8f0;
-      padding: 8px 10px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      background: #f1f5f9;
-      font-size: 11px;
-      text-transform: uppercase;
-      color: #334155;
-    }
-    .flow-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    .flow-box {
-      flex: 1;
-      background: #eef2ff;
-      border: 1px solid #c7d2fe;
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-size: 11px;
-    }
-    .footer {
-      margin-top: 24px;
-      padding-top: 12px;
-      border-top: 1px solid #e2e8f0;
-      font-size: 11px;
-      color: #64748b;
-      display: flex;
-      justify-content: space-between;
-    }
-    @media print {
-      body { background: #ffffff; padding: 0; }
-      .sheet { border: none; box-shadow: none; padding: 12px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="sheet">
-    <div class="header">
-      <div>
-        <div class="eyebrow">Module D • 1-Page Product, Scope &amp; Work Package Brief (Steps 1–6)</div>
-        <h1>${esc(plan.title)}</h1>
-        <div class="meta">
-          <strong>Track:</strong> ${esc(selectedTrackMeta.label)} &bull;
-          <strong>Format:</strong> ${esc(formFactorLabel)} &bull;
-          <strong>V1 Approach:</strong> ${esc(v1ApproachLabel)} &bull;
-          <strong>Launch Window:</strong> ${esc(step1Data.launchTimeline.replace(/_/g, ' '))} &bull;
-          <strong>Jurisdiction:</strong> ${esc(countryPack.countryName)} (${esc(plan.baseCurrency)})
-        </div>
-      </div>
-      <div class="badge">${esc(readinessLabel)}</div>
-    </div>
-
-    <div class="card" style="background:#f0fdf4;border-color:#bbf7d0;margin-bottom:12px;">
-      <div class="card-title" style="color:#166534;">Upstream Customer &amp; Survey Proof Anchor (Modules A–C)</div>
-      <div style="font-size:12px;color:#14532d;">
-        <strong>Beachhead Customer:</strong> ${esc(
-          plan.moduleBData?.beachhead?.beachheadSegment ||
-            plan.conceptCanvas?.targetCustomer ||
-            'Early adopters'
-        )} &bull;
-        <strong>Validation Proof:</strong> ${surveyResponseCount} Survey Responses, ${waitlistCount} Waitlist Leads, ${interviewCount} 1-on-1 Interviews<br/>
-        <strong>#1 Problem Solved in V1:</strong> &ldquo;${esc(
-          validatedPainPoint || 'Deliver a fast, reliable V1 solution.'
-        )}&rdquo;
-      </div>
-    </div>
-
-    <div class="card" style="background:#eef2ff;border-color:#c7d2fe;margin-bottom:14px;">
-      <div class="card-title" style="color:#3730a3;">Executive Product Brief &amp; Value Delivery Summary</div>
-      <div style="font-size:13px;color:#1e1b4b;">
-        ${esc(
-          step6Data.executiveProductBriefSummary ||
-            step1Data.ahaMomentNarrative ||
-            'Focused V1 product blueprint.'
-        )}
-      </div>
-      ${
-        step1Data.ahaMomentNarrative
-          ? `<div style="margin-top:6px;font-size:12px;color:#312e81;"><strong>60-Second Customer Aha! Moment:</strong> ${esc(
-              step1Data.ahaMomentNarrative
-            )}</div>`
-          : ''
-      }
-      ${
-        step6Data.keyDeRiskingSignOffNarrative
-          ? `<div style="margin-top:6px;font-size:12px;color:#312e81;"><strong>De-Risking &amp; Grant Sign-Off:</strong> ${esc(
-              step6Data.keyDeRiskingSignOffNarrative
-            )}</div>`
-          : ''
-      }
-    </div>
-
-    <h2>1. Product Format, Own vs. Rent Channels &amp; Cost Structure (Steps 1–2 &amp; 4–5)</h2>
-    <div class="grid-3">
-      <div class="card">
-        <div class="card-title">Step 1 • Vehicle &amp; V1 Approach</div>
-        <div class="card-val">${esc(formFactorLabel)}</div>
-        <div class="meta">${esc(v1ApproachLabel)}</div>
-      </div>
-      <div class="card">
-        <div class="card-title">Step 2 • Own vs. Rent Channels</div>
-        <div class="card-val">${esc(primaryChannelLabel)} (${step2Data.primaryChannelSharePercent}%)</div>
-        <div class="meta">Secondary: ${esc(secondaryChannelLabels.join(', ') || 'None')} &bull; <strong>${step2Data.estimatedBlendedFeePercent}% Fee</strong> (Keep ${netRevenueKeptPercent}%)</div>
-      </div>
-      <div class="card">
-        <div class="card-title">Steps 4–5 • V1 Build &amp; Unit Cost</div>
-        <div class="card-val">${esc(formatPlanCurrency(combinedOneOff, plan.baseCurrency))} once-off</div>
-        <div class="meta">${esc(formatPlanCurrency(combinedMonthly, plan.baseCurrency))}/mo &bull; <strong>${esc(formatPlanCurrency(combinedUnitCogs, plan.baseCurrency))}/unit COGS</strong></div>
-      </div>
-    </div>
-    ${
-      step2Data.rentToOwnBridgeStrategy
-        ? `<div class="card" style="margin-top:10px;"><div class="card-title">Rent-to-Own Customer Bridge Strategy</div><div>${esc(
-            step2Data.rentToOwnBridgeStrategy
-          )}</div></div>`
-        : ''
-    }
-
-    <h2>2. Ruthless 3-Bucket V1 Scope Filter (Step 3)</h2>
-    <div class="grid-3">
-      <div class="card" style="border-color:#a7f3d0;background:#ecfdf5;">
-        <div class="card-title" style="color:#047857;">🟢 Day-1 V1 Core — Launch Now (${day1Items.length})</div>
-        <ul style="margin:6px 0 0 16px;padding:0;">
-          ${
-            day1Items.length > 0
-              ? day1Items
-                .map(
-                  (it) =>
-                    `<li><strong>${esc(it.title)}</strong>${
-                      it.rationaleOrNote ? `: ${esc(it.rationaleOrNote)}` : ''
-                    }</li>`
-                )
-                .join('')
-              : '<li>No Day-1 items listed yet.</li>'
-          }
-        </ul>
-      </div>
-      <div class="card" style="border-color:#c7d2fe;background:#eef2ff;">
-        <div class="card-title" style="color:#3730a3;">🟡 Version 1.5 — Fast-Follow (${v15Items.length})</div>
-        <ul style="margin:6px 0 0 16px;padding:0;">
-          ${
-            v15Items.length > 0
-              ? v15Items
-                .map((it) => `<li><strong>${esc(it.title)}</strong></li>`)
-                .join('')
-              : '<li>None deferred to V1.5 yet.</li>'
-          }
-        </ul>
-      </div>
-      <div class="card" style="border-color:#fecdd3;background:#fff1f2;">
-        <div class="card-title" style="color:#be123c;">🔴 Phase 2 / V2 Backlog — Do Not Build Yet (${v2Items.length})</div>
-        <ul style="margin:6px 0 0 16px;padding:0;">
-          ${
-            v2Items.length > 0
-              ? v2Items
-                .map((it) => `<li><del>${esc(it.title)}</del></li>`)
-                .join('')
-              : `<li>${deferredItems.length === 0 ? 'None in V2 backlog yet.' : ''}</li>`
-          }
-        </ul>
-      </div>
-    </div>
-
-    <h2>3. 3-Tier &ldquo;Build vs. Buy&rdquo; &amp; Core IP (&ldquo;Secret Sauce&rdquo;) Matrix (Step 4)</h2>
-    <div class="grid-3">
-      <div class="card" style="border-color:#a7f3d0;background:#f0fdf4;">
-        <div class="card-title" style="color:#047857;">Tier 1 • Custom Build / Core IP (${inHouseStack.length})</div>
-        <ul style="margin:6px 0 0 16px;padding:0;">
-          ${
-            inHouseStack.length > 0
-              ? inHouseStack
-                .map(
-                  (it) =>
-                    `<li><strong>${esc(it.title)}</strong> (${esc(
-                      it.vendorOrToolName || 'In-House IP'
-                    )})</li>`
-                )
-                .join('')
-              : '<li>No Tier 1 items listed yet.</li>'
-          }
-        </ul>
-      </div>
-      <div class="card">
-        <div class="card-title">Tier 2 • Buy / Rent Off-the-Shelf (${buyRentStack.length})</div>
-        <ul style="margin:6px 0 0 16px;padding:0;">
-          ${
-            buyRentStack.length > 0
-              ? buyRentStack
-                .map(
-                  (it) =>
-                    `<li><strong>${esc(it.title)}</strong> (${esc(
-                      it.vendorOrToolName || 'Off-the-Shelf'
-                    )})</li>`
-                )
-                .join('')
-              : '<li>No Tier 2 items listed yet.</li>'
-          }
-        </ul>
-      </div>
-      <div class="card">
-        <div class="card-title">Tier 3 • Configure / Partner (${partnerStack.length})</div>
-        <ul style="margin:6px 0 0 16px;padding:0;">
-          ${
-            partnerStack.length > 0
-              ? partnerStack
-                .map(
-                  (it) =>
-                    `<li><strong>${esc(it.title)}</strong> (${esc(
-                      it.vendorOrToolName || 'Specialist Partner'
-                    )})</li>`
-                )
-                .join('')
-              : '<li>No Tier 3 items listed yet.</li>'
-          }
-        </ul>
-      </div>
-    </div>
-
-    ${
-      step5Data.flowStages.length > 0
-        ? `<h2>4. System Architecture &amp; Delivery Flow (${step5Data.flowStages.length} Stages)</h2>
-    <div class="flow-row">
-      ${step5Data.flowStages
-        .map(
-          (st, idx) => `<div class="flow-box">
-        <div style="font-weight:700;color:#312e81;">${idx + 1}. ${esc(st.stageTitle)}</div>
-        <div style="color:#475569;margin-top:2px;">${esc(st.stageSubtitle || '')}</div>
-        <div style="margin-top:4px;font-weight:600;color:#1e293b;">Stack: ${esc(st.keyToolsOrMaterials || st.whatHappensHere || '')}</div>
-        <div style="margin-top:2px;color:#047857;">&rarr; ${esc(st.outputOrHandoff || st.outputOrHandOff || '')}</div>
-      </div>`
-        )
-        .join('')}
-    </div>`
-        : ''
-    }
-
-    <h2>5. Work Package Milestone Schedule (WP1–WP${step5Data.workPackages.length || 4})</h2>
-    <div class="overflow-x-auto">
-    <table class="w-full min-w-[600px]">
-      <thead>
-        <tr>
-          <th>WP</th>
-          <th>Work Package &amp; Mode</th>
-          <th>Window</th>
-          <th>Deliverable &amp; De-Risking Proof Gate</th>
-          <th>Budget</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${
-          step5Data.workPackages.length > 0
-            ? step5Data.workPackages
-                .map(
-                  (wp) => `<tr>
-          <td><strong>${esc(wp.wpCode)}</strong></td>
-          <td><strong>${esc(wp.title)}</strong><br/><span style="color:#64748b;font-size:11px;">${esc(wp.executionMode.replace(/_/g, ' '))}</span></td>
-          <td>${esc(wp.timelineWindow.replace(/_/g, ' '))}</td>
-          <td>${esc(wp.deliverableMilestone || wp.deliverableMilestoneProof || '')}<br/><span style="color:#047857;font-size:11px;"><strong>Gate:</strong> ${esc(wp.verificationGateOrDeRisking || wp.linkedTaskSummary || '')}</span></td>
-          <td><strong>${
-            wp.costModel === 'SWEAT_EQUITY_ZERO'
-              ? 'Sweat Equity'
-              : esc(formatPlanCurrency(wp.estimatedCostAmount, plan.baseCurrency))
-          }</strong></td>
-        </tr>`
-                )
-                .join('')
-            : `<tr><td colspan="5" style="color:#64748b;">No Work Packages added in Step 5 yet.</td></tr>`
-        }
-      </tbody>
-    </table>
-    </div>
-
-    <h2>6. Constructive &ldquo;Things to Consider&rdquo; &amp; Founder Mitigations (${step6Data.blindSpots.length})</h2>
-    <div class="card">
-      <ul style="margin:4px 0 0 16px;padding:0;">
-        ${
-          step6Data.blindSpots.length > 0
-            ? step6Data.blindSpots
-                .map(
-                  (bs) =>
-                    `<li><strong>${esc(bs.title)}</strong> (${
-                      bs.isResolved ? '✓ Addressed' : esc(bs.severity)
-                    }): ${esc(
-                      bs.founderMitigationNote || bs.recommendedActionOrFix
-                    )}</li>`
-                )
-                .join('')
-            : '<li>No blind-spot items recorded yet.</li>'
-        }
-      </ul>
-    </div>
-
-    <div class="footer">
-      <span>${
-        whiteLabelEnabled
-          ? esc(plan.title)
-          : 'Startup Preflight • Module D Product & Technical Brief'
-      }</span>
-      <span>Generated ${new Date().toISOString().slice(0, 10)}</span>
-    </div>
-  </div>
-</body>
-</html>`;
+    return generateModuleDStandaloneHtmlBrief(getModuleDBriefPayload());
   };
+
 
   const handleCopyModuleDBriefMarkdown = async () => {
     const md = buildModuleDMarkdownBrief();

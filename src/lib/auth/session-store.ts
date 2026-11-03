@@ -2143,6 +2143,298 @@ export interface SavedModuleIData {
   lastSavedAt?: string;
 }
 
+// --- MODULE J: 3-YEAR FINANCIALS, 36-MONTH CASHFLOW & LOCALIZED TAX AUTO-PILOT ---
+
+export type FinanceViewLanguageMode = 'PLAIN_ENGLISH_FOUNDER' | 'OFFICIAL_GRANT_ACCOUNTANT';
+
+export type OperatingCostPostureType =
+  | 'BOOTSTRAPPED_HOME_LEAN'
+  | 'HYBRID_COWORKING_GROWTH'
+  | 'COMMERCIAL_PREMISES_TEAM'
+  | 'HIGH_VELOCITY_VENTURE'
+  | 'OTHER';
+
+export type OverheadBucketCategory =
+  | 'PREMISES_RENT_UTILITIES'
+  | 'SOFTWARE_CLOUD_AI'
+  | 'MARKETING_GROWTH_EVENTS'
+  | 'ACCOUNTING_LEGAL_COMPLIANCE'
+  | 'INSURANCE_STATUTORY'
+  | 'TRAVEL_ADMIN_SUNDRIES'
+  | 'OTHER';
+
+export type VatRegistrationStrategyType =
+  | 'REGISTERED_FROM_DAY_1'
+  | 'REGISTER_AT_THRESHOLD'
+  | 'VAT_EXEMPT_OR_BELOW'
+  | 'OTHER';
+
+export type OverheadGrantEligibilityTag =
+  | 'ELIGIBLE_INNOVATION_OR_EXPORT'
+  | 'WORKING_CAPITAL_LOAN_ELIGIBLE'
+  | 'INELIGIBLE_ROUTINE_OPEX';
+
+export interface FinancialOverheadLineItem {
+  id: string;
+  category: OverheadBucketCategory;
+  otherCategoryText?: string;
+  plainEnglishLabel: string;
+  accountantLabel: string;
+  sourceModuleLabel: string;
+  monthlyCostYear1: number;
+  annualStepUpPercentYear2: number; // e.g. 15% increase in Y2
+  annualStepUpPercentYear3: number; // e.g. 20% increase in Y3
+  grantEligibilityTag: OverheadGrantEligibilityTag;
+  notes: string;
+}
+
+export interface FinancialOverheadsTaxStep1Data {
+  viewLanguageMode: FinanceViewLanguageMode;
+  operatingCostPosture: OperatingCostPostureType;
+  otherOperatingCostPostureText?: string;
+  overheadLineItems: FinancialOverheadLineItem[];
+  // Payroll & Survival Sync (from Module F & Module H)
+  monthlyFounderDrawingsYear1: number;
+  monthlyTeamSalariesYear1: number;
+  monthlyTeamSalariesYear2: number;
+  monthlyTeamSalariesYear3: number;
+  autoApplyEmployerPayrollTax: boolean;
+  employerPayrollTaxRatePercent: number; // e.g. 11.15% IE PRSI or 16.8% UK NIC + Pension
+  corporationTaxRatePercent: number; // e.g. 12.5% IE or 19% UK Small Profits
+  // VAT & Export Guardrails
+  vatRegistrationStrategy: VatRegistrationStrategyType;
+  otherVatRegistrationStrategyText?: string;
+  standardVatRatePercent: number; // e.g. 23% IE or 20% UK
+  exportRevenueSharePercent: number; // 0 to 100% (Mandatory for IE LEO & EI)
+  exportTargetMarketsSummary: string;
+  // CapEx Depreciation Sync (from Module E)
+  totalCapExEquipmentValue: number;
+  capExDepreciationYears: number; // default 3 years (36 months)
+  // Written justification & AI tips
+  overheadsAndTaxNarrative: string;
+  grantAssessorTip?: string;
+  lastSyncedFromUpstreamAt?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type CustomerCollectionTimingType =
+  | 'INSTANT_CARD_STRIPE_0'
+  | 'NET_15_INVOICE'
+  | 'NET_30_STANDARD_B2B'
+  | 'NET_60_ENTERPRISE_RETAIL'
+  | 'OTHER';
+
+export type InventoryStockTimingType =
+  | 'NO_PHYSICAL_STOCK_DIGITAL'
+  | 'PAY_ON_DELIVERY_30_DAYS'
+  | 'IMPORT_MANUFACTURING_60_90_DAYS'
+  | 'OTHER';
+
+export type SeasonalityRampCurveType =
+  | 'STEADY_LINEAR_RAMP'
+  | 'SLOW_B2B_H2_WEIGHTED'
+  | 'Q4_RETAIL_GIFTING_PEAK'
+  | 'SUMMER_HOSPITALITY_PEAK'
+  | 'OTHER';
+
+export interface WorkingCapitalTimingStep2Data {
+  customerCollectionTiming: CustomerCollectionTimingType;
+  otherCustomerCollectionTimingText?: string;
+  customDebtorDays?: number;
+  inventoryStockTiming: InventoryStockTimingType;
+  otherInventoryStockTimingText?: string;
+  upfrontStockMonthsBuffer: number;
+  seasonalityRampCurve: SeasonalityRampCurveType;
+  otherSeasonalityRampCurveText?: string;
+  monthToStartRevenue: number; // 1 to 12 (e.g. Month 1 or Month 3 after build)
+  workingCapitalNarrative: string;
+  grantAssessorTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type PrimaryFundingStrategyType =
+  | 'BOOTSTRAPPED_FOUNDER_SAVINGS'
+  | 'GRANT_PLUS_MATCH_FUNDING'
+  | 'STARTUP_LOAN_DEBT_BRIDGE'
+  | 'ANGEL_SEIS_EIS_ROUND'
+  | 'OTHER';
+
+export type FundingSourceCategoryType =
+  | 'FOUNDER_SAVINGS_EQUITY'
+  | 'LEO_EI_INNOVATE_GRANT'
+  | 'STARTUP_LOAN_MICROFINANCE'
+  | 'ANGEL_SEIS_EIS_EQUITY'
+  | 'OTHER';
+
+export interface FundingSourceLineItem {
+  id: string;
+  sourceType: FundingSourceCategoryType;
+  otherSourceTypeText?: string;
+  label: string;
+  amount: number;
+  isReimbursementArrears: boolean; // True for LEO / Innovate UK grants paid after spend
+  reimbursementLagMonths: number; // e.g. 2 or 3 months lag
+}
+
+export interface CashflowFundingGapStep3Data {
+  primaryFundingStrategy?: PrimaryFundingStrategyType;
+  otherPrimaryFundingStrategyText?: string;
+  startingCashBalanceDay1: number;
+  safetyBufferPercent: number; // default 20%
+  fundingSources: FundingSourceLineItem[];
+  loanInterestRatePercent: number; // e.g. 6% UK Start Up Loan / MFI
+  loanTermMonths: number; // e.g. 36 or 60 months
+  fundingGapNarrative: string;
+  grantAssessorTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type FinancialStressScenarioType =
+  | 'BASE_CASE_OFFICIAL'
+  | 'DELAYED_LAUNCH_3_MO'
+  | 'UNDERWRITER_STRESS_TEST'
+  | 'OTHER';
+
+export type CorporateIpReadinessStatusType =
+  | 'LTD_INCORPORATED_IP_ASSIGNED'
+  | 'INCORPORATION_IN_PROGRESS'
+  | 'SOLE_TRADER_PRE_INCORPORATION'
+  | 'OTHER';
+
+export interface StatementsStressTestStep4Data {
+  activeStressScenario: FinancialStressScenarioType;
+  otherStressScenarioText?: string;
+  customRevenueHaircutPercent?: number;
+  customCostInflationPercent?: number;
+  customDelayMonths?: number;
+  corporateIpReadinessStatus?: CorporateIpReadinessStatusType;
+  otherCorporateIpReadinessStatusText?: string;
+  writtenFinancialAssumptionsBlock: string;
+  corporateIpPlaceholderNotes?: string;
+  grantAssessorTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export type FinanceReadinessConfidence =
+  | 'BANK_AND_GRANT_UNDERWRITING_READY'
+  | 'BOOTSTRAP_CASHFLOW_SELF_FUNDED'
+  | 'REQUIRES_BRIDGE_OR_LOAN_FACILITY'
+  | 'NEEDS_UNIT_ECONOMICS_RECALIBRATION'
+  | 'OTHER'
+  | '';
+
+export interface FinanceBlindSpotItem {
+  id: string;
+  title: string;
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  description: string;
+  actionableFix: string;
+}
+
+export interface FinanceExecutiveBriefStep5Data {
+  blindSpots: FinanceBlindSpotItem[];
+  financeReadinessConfidence: FinanceReadinessConfidence;
+  otherReadinessConfidenceText?: string;
+  executiveFinancialSummaryNarrative: string;
+  aiAssessorTip?: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export interface SavedModuleJData {
+  step1OverheadsTax?: FinancialOverheadsTaxStep1Data;
+  step2WorkingCapital?: WorkingCapitalTimingStep2Data;
+  step3CashflowGap?: CashflowFundingGapStep3Data;
+  step4Statements?: StatementsStressTestStep4Data;
+  step5FinanceBrief?: FinanceExecutiveBriefStep5Data;
+  completionPercentage?: number;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
+// ============================================================================
+// MODULE K (NON-DILUTIVE GRANTS, LOANS & TAX RELIEF HUB) TYPES
+// ============================================================================
+
+export type ModuleKGrantKey =
+  | 'IE_LEO_FEASIBILITY'
+  | 'IE_LEO_PRIMING'
+  | 'IE_LEO_GROW_DIGITAL_AI'
+  | 'IE_EI_PSSF'
+  | 'IE_REVENUE_SURE_TAX_RELIEF'
+  | 'IE_EI_EII_INVESTOR_RELIEF'
+  | 'GB_BBB_START_UP_LOAN'
+  | 'GB_INNOVATE_UK_SMART'
+  | 'GB_HMRC_SEIS_ASSURANCE'
+  | 'GB_GROWTH_HUB_MATCH';
+
+export interface ModuleKStep1AuditSavedData {
+  selectedGrantKey: ModuleKGrantKey;
+  targetCountry: 'IE' | 'GB';
+  overallAssessorReadinessScore: number;
+  stackedFundingRoadmapSelected: boolean;
+  activeFilterTab: 'ALL' | 'NEEDS_ACTION' | 'PASSED';
+  founderNotes: string;
+  lastAuditedAt?: string;
+}
+
+export type CapitalStackPresetType =
+  | 'NON_DILUTIVE_LEO_BOOTSTRAP'
+  | 'BALANCED_GRANT_PLUS_FOUNDER_SAVINGS'
+  | 'MAX_GOV_DEBT_BRIDGE'
+  | 'ANGEL_MATCH_ACCELERATOR'
+  | 'OTHER';
+
+export interface CapitalAllocationTierItem {
+  id: string;
+  sourceKey:
+    | 'FOUNDER_SAVINGS_EQUITY'
+    | 'PRIMARY_GRANT'
+    | 'SECONDARY_GRANT'
+    | 'GOV_BACKED_LOAN'
+    | 'ANGEL_INVESTOR_EQUITY'
+    | 'OTHER';
+  label: string;
+  amount: number;
+  percentageOfGap: number;
+  isDilutive: boolean;
+  equityDilutionPercent?: number; // e.g. 5% for angel piece
+  matchComplianceRatio?: number; // e.g. 50%
+  description: string;
+}
+
+export interface ModuleKStep2CapitalStackSavedData {
+  presetUsed: CapitalStackPresetType;
+  otherPresetText?: string;
+  totalTargetFundingGap: number; // Inherited from Module J or calibrated
+  fundingSources: CapitalAllocationTierItem[];
+  skinInTheGameCash: number;
+  totalGrantsAllocated: number;
+  totalLoansAllocated: number;
+  totalAngelAllocated: number;
+  skinInTheGamePercent: number;
+  projectedEquityDilutionPercent: number;
+  assessorSoundnessScore: number;
+  fundingStrategyNarrative: string;
+  lastSavedAt?: string;
+  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export interface SavedModuleKData {
+  step1Audit?: ModuleKStep1AuditSavedData;
+  step2CapitalStack?: ModuleKStep2CapitalStackSavedData;
+  step3ReimbursementBridge?: Record<string, unknown>;
+  step4TaxRelief?: Record<string, unknown>;
+  step5FundingBrief?: Record<string, unknown>;
+  completionPercentage?: number;
+  thingsToConsider?: BlindSpotItem[];
+  lastSavedAt?: string;
+}
+
 export type FounderStage =
   | 'IDEA_EXPLORER'
   | 'BUILDING_MVP'
@@ -2212,6 +2504,8 @@ export interface ActiveStartupPlan {
   moduleGData?: SavedModuleGData;
   moduleHData?: SavedModuleHData;
   moduleIData?: SavedModuleIData;
+  moduleJData?: SavedModuleJData;
+  moduleKData?: SavedModuleKData;
   masterDocumentData?: SavedMasterDocumentData;
   openQuestions: string[];
 }
@@ -2271,6 +2565,7 @@ export function hasRealFounderContent(
     plan.moduleGData ||
     plan.moduleHData ||
     plan.moduleIData ||
+    plan.moduleJData ||
     plan.masterDocumentData
   ) {
     return true;
@@ -2300,6 +2595,7 @@ function scorePlanRichness(plan: ActiveStartupPlan): number {
   if (plan.moduleGData) score += 20;
   if (plan.moduleHData) score += 20;
   if (plan.moduleIData) score += 20;
+  if (plan.moduleJData) score += 20;
   if (plan.masterDocumentData) score += 20;
   return score;
 }
