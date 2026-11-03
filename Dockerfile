@@ -1,12 +1,14 @@
 # ============================================================
 # Build My Unicorn (BMU) 2.0 — Google Cloud Run Dockerfile
 # ============================================================
-FROM node:22-alpine AS base
+FROM node:22-bookworm-slim AS base
 
 # 1. Install dependencies
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
+
+# Force IPv4 in Node to prevent dual-stack IPv6 DNS hangs in container networks
+ENV NODE_OPTIONS="--no-network-family-autoselection"
 
 COPY package.json package-lock.json* ./
 RUN npm ci
@@ -29,8 +31,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=8080
 ENV HOSTNAME="0.0.0.0"
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 -g nodejs nextjs
 
 # Copy public assets and standalone build output
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public

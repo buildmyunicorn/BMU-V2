@@ -33,6 +33,7 @@ import {
   FileText,
   Info,
   UserCheck,
+  User,
   LogOut,
   Wrench,
   Loader2,
@@ -4622,13 +4623,24 @@ export default function WorkspacePage() {
               userEmail={session.user.email}
             />
 
+            <Link href="/account" title="My Account & Billing">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="px-2 text-xs text-slate-600 sm:px-3"
+              >
+                <User className="h-3.5 w-3.5 text-indigo-600" />
+                <span className="hidden sm:inline">My Account</span>
+              </Button>
+            </Link>
+
             <Link href="/onboarding" title="Plan Settings">
               <Button
                 variant="ghost"
                 size="sm"
                 className="px-2 text-xs text-slate-600 sm:px-3"
               >
-                <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
+                <UserCheck className="h-3.5 w-3.5 text-slate-500" />
                 <span className="hidden sm:inline">Plan Settings</span>
               </Button>
             </Link>
