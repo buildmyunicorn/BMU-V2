@@ -329,6 +329,7 @@ export function ModuleLWorkspace({
           await onSaveStep1Mode?.(step1Data, progress);
         }}
         onAdvanceToStep2={() => scrollToStep(2, 'module-l-step-2')}
+        onJumpToCompilerStep3={() => scrollToStep(3, 'module-l-step-3')}
         onParkQuestionInSession={onParkQuestionInSession}
       />
 

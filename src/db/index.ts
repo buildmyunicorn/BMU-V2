@@ -6,9 +6,12 @@ const connectionString =
   process.env.DATABASE_URL ||
   'postgresql://bmu_user:bmu_local_password@localhost:5432/bmu_dev';
 
-const DB_CONNECTION_TIMEOUT_MS = 2500;
+const DB_CONNECTION_TIMEOUT_MS =
+  process.env.DB_CONNECTION_TIMEOUT_MS
+    ? parseInt(process.env.DB_CONNECTION_TIMEOUT_MS, 10)
+    : 10_000;
 const DB_OFFLINE_COOLDOWN_MS = 15_000;
-const POOL_CONFIG_VERSION = 2;
+const POOL_CONFIG_VERSION = 4;
 
 const globalForDb = globalThis as unknown as {
   pool: Pool | undefined;
@@ -47,6 +50,8 @@ function createConfiguredPool(): Pool {
     max: 10,
     connectionTimeoutMillis: DB_CONNECTION_TIMEOUT_MS,
     idleTimeoutMillis: 10_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
   });
 
   // Prevent unhandled pool error events from crashing the Node process when offline/hotspotting
@@ -96,7 +101,29 @@ function createConfiguredPool(): Pool {
       );
       globalForDb.lastConnectionFailureAt = undefined;
       return result;
-    } catch (err) {
+    } catch (err: unknown) {
+      const errMsg =
+        err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string'
+          ? (err as { message: string }).message.toLowerCase()
+          : '';
+
+      // If an idle connection in the pool was terminated by Cloud SQL / proxy while sitting idle,
+      // retry once with a freshly negotiated socket instead of failing the request.
+      if (errMsg.includes('connection terminated unexpectedly')) {
+        try {
+          const retryResult = await (origQuery as (...a: unknown[]) => Promise<unknown>)(
+            ...args
+          );
+          globalForDb.lastConnectionFailureAt = undefined;
+          return retryResult;
+        } catch (retryErr) {
+          if (isConnectionLevelError(retryErr)) {
+            globalForDb.lastConnectionFailureAt = Date.now();
+          }
+          throw retryErr;
+        }
+      }
+
       if (isConnectionLevelError(err)) {
         globalForDb.lastConnectionFailureAt = Date.now();
       }

@@ -315,6 +315,7 @@ export interface ModuleLModeSelectorStepProps {
     progress?: number
   ) => Promise<void> | void;
   onAdvanceToStep2: () => void;
+  onJumpToCompilerStep3?: () => void;
   onParkQuestionInSession?: (questionText: string) => void;
 }
 
@@ -326,6 +327,7 @@ export function ModuleLModeSelectorStep({
   isVaultReadonly = false,
   onSaveStep1,
   onAdvanceToStep2,
+  onJumpToCompilerStep3,
   onParkQuestionInSession,
 }: ModuleLModeSelectorStepProps) {
   const isUK = plan.hqCountryCode === 'GB';
@@ -613,6 +615,24 @@ export function ModuleLModeSelectorStep({
     }
   }
 
+  async function handleSaveAndJumpToCompiler() {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      if (!isVaultReadonly) {
+        const payload = buildPayload();
+        await onSaveStep1(payload, 20);
+      }
+      if (onJumpToCompilerStep3) {
+        onJumpToCompilerStep3();
+      } else {
+        onAdvanceToStep2();
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   // ===========================================================================
   // COLLAPSED STEP STATE (Strict GEMINI.md Section 6.1 Standard)
   // ===========================================================================
@@ -890,175 +910,6 @@ export function ModuleLModeSelectorStep({
         </div>
 
         {/* =================================================================== */}
-        {/* 1. MULTI-COLUMN METRICS & UNDERWRITING DIAGNOSTIC GRID (Section 6.2)*/}
-        {/* =================================================================== */}
-        <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 sm:p-6 shadow-xs space-y-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-indigo-200/60 bg-indigo-50 text-indigo-700">
-                <Landmark className="h-4 w-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  Live Compiler Rubric &amp; Cross-Module Readiness Telemetry
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Real-time diagnostic showing how your saved answers across Modules A–K map into your selected submission mode.
-                </p>
-              </div>
-            </div>
-            <Badge
-              variant="outline"
-              className="border-indigo-200 bg-indigo-50/70 text-[10px] font-semibold text-indigo-800"
-            >
-              Active Mode: {activeCatalogItem.badge}
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            {/* Metric Card 1: Format & Section Structure */}
-            <div className="rounded-xl border border-indigo-200 bg-gradient-to-b from-indigo-50/40 to-white p-4.5 shadow-xs flex flex-col justify-between transition-all">
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Official Dossier Format
-                  </span>
-                  <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px]">
-                    {strictWordCountEnforcement ? 'Strict Rubric' : 'Flexible Length'}
-                  </Badge>
-                </div>
-                <div className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                  {activeCatalogItem.wordLimitDisciplineLabel}
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {activeCatalogItem.sectionStructureLabel}
-                </p>
-                <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
-                  Target Committee:{' '}
-                  <strong className="text-slate-900">
-                    {targetAgencyOrCommitteeName}
-                  </strong>
-                </div>
-              </div>
-              <p className="mt-4 border-t border-slate-100 pt-2.5 text-[11px] leading-normal text-slate-500">
-                Enforces official evaluator question order and word/character ceilings in Step 3.
-              </p>
-            </div>
-
-            {/* Metric Card 2: Cross-Module Data Coverage */}
-            <div
-              className={`rounded-xl border p-4.5 shadow-xs flex flex-col justify-between transition-all ${
-                moduleSyncTelemetry.syncedCount >= 8
-                  ? 'border-emerald-200 bg-gradient-to-b from-emerald-50/50 to-white'
-                  : 'border-amber-200 bg-gradient-to-b from-amber-50/60 to-white'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Modules A–K Feed
-                  </span>
-                  <Badge
-                    className={
-                      moduleSyncTelemetry.syncedCount >= 8
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]'
-                        : 'bg-amber-100 text-amber-800 border-amber-300 text-[10px]'
-                    }
-                  >
-                    {Math.round(
-                      (moduleSyncTelemetry.syncedCount /
-                        moduleSyncTelemetry.totalModules) *
-                        100
-                    )}
-                    % Synced
-                  </Badge>
-                </div>
-                <div className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                  {moduleSyncTelemetry.syncedCount} / {moduleSyncTelemetry.totalModules}
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Foundation Modules Populated
-                </p>
-                <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
-                  Zero-Hallucination Grounding:{' '}
-                  <strong className="text-emerald-700">Active</strong>
-                </div>
-              </div>
-              <p className="mt-4 border-t border-slate-100 pt-2.5 text-[11px] leading-normal text-slate-500">
-                Grant assessors penalize generic AI prose; every section cites your saved workspace numbers.
-              </p>
-            </div>
-
-            {/* Metric Card 3: Target Ask & Approval Threshold */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4.5 shadow-xs flex flex-col justify-between transition-all">
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Target Ask &amp; Hurdle
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-300 bg-emerald-50 text-emerald-800 text-[10px]"
-                  >
-                    {activeCatalogItem.passThresholdLabel}
-                  </Badge>
-                </div>
-                <div className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                  {formatPlanCurrency(targetFundingAskAmount, currency)}
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Primary Submission Ask / Facility
-                </p>
-                <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
-                  Weights: <span className="font-medium">{activeCatalogItem.rubricWeightsSummary}</span>
-                </div>
-              </div>
-              <p className="mt-4 border-t border-slate-100 pt-2.5 text-[11px] leading-normal text-slate-500">
-                Reconciled in Step 2 against your Module J Cashflow Trough and Module K Capital Stack.
-              </p>
-            </div>
-
-            {/* Metric Card 4: Mandatory Appendices A–F Status */}
-            <div
-              className={`rounded-xl border p-4.5 shadow-xs flex flex-col justify-between transition-all ${
-                moduleSyncTelemetry.appendicesReady >= 5
-                  ? 'border-emerald-200 bg-gradient-to-b from-emerald-50/50 to-white'
-                  : 'border-amber-200 bg-gradient-to-b from-amber-50/60 to-white'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Appendices Binder A–F
-                  </span>
-                  <Badge
-                    className={
-                      includeAppendicesBinder
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]'
-                        : 'bg-slate-100 text-slate-700 border-slate-300 text-[10px]'
-                    }
-                  >
-                    {includeAppendicesBinder ? 'Auto-Attached' : 'Narrative Only'}
-                  </Badge>
-                </div>
-                <div className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                  {moduleSyncTelemetry.appendicesReady} / {moduleSyncTelemetry.totalAppendices}
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Evidence Appendices Verified
-                </p>
-                <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
-                  Includes CVs, 3-Yr Financials, 3-Quotes, Survey Telemetry &amp; Risk Register
-                </div>
-              </div>
-              <p className="mt-4 border-t border-slate-100 pt-2.5 text-[11px] leading-normal text-slate-500">
-                IE LEO and UK Innovate UK reject applications missing mandatory financial or quote appendices.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* =================================================================== */}
         {/* 2. PRIMARY COMPILATION MODE SELECTOR (5 Official Modes + "OTHER")   */}
         {/* =================================================================== */}
         <div className="space-y-3">
@@ -1161,35 +1012,60 @@ export function ModuleLModeSelectorStep({
         {/* =================================================================== */}
         {/* SELECTED MODE STRUCTURE & RUBRIC PREVIEW CARD                       */}
         {/* =================================================================== */}
-        <div className="rounded-xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/50 via-white to-violet-50/40 p-4 sm:p-5 space-y-3">
+        <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/60 via-white to-violet-50/40 p-4 sm:p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-indigo-600" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-950">
-                Selected Compiler Blueprint: {activeCatalogItem.title}
-              </h4>
-            </div>
-            <span className="text-[11px] font-semibold text-indigo-700">
-              Scoring Weights: {activeCatalogItem.rubricWeightsSummary}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {activeCatalogItem.keySectionsPreview.map((sec, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white px-3 py-2 text-xs text-slate-700"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                <span className="truncate font-medium">{sec}</span>
+              <FileText className="h-5 w-5 text-indigo-600" />
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                  Compiler Blueprint Output Preview: {activeCatalogItem.title}
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Format: <span className="font-semibold text-slate-700">{activeCatalogItem.sectionStructureLabel}</span> ({activeCatalogItem.wordLimitDisciplineLabel}) • Scoring Weights: <span className="font-semibold text-indigo-700">{activeCatalogItem.rubricWeightsSummary}</span>
+                </p>
               </div>
-            ))}
+            </div>
+            {onJumpToCompilerStep3 && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveAndJumpToCompiler}
+                disabled={isSaving}
+                className="bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs"
+              >
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
+                ⚡ Auto-Compile This Blueprint Now (Step 3)
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
 
-          <p className="text-[11px] text-slate-600">
-            <strong className="text-slate-900">Evaluator Underwriting Note:</strong>{' '}
-            {activeCatalogItem.underwriterFootNote}
-          </p>
+          <div className="rounded-lg border border-indigo-100 bg-white/90 p-3">
+            <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              The Compiler will automatically construct answers for these {activeCatalogItem.keySectionsPreview.length} questions from your 11 modules:
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {activeCatalogItem.keySectionsPreview.map((sec, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2 text-xs text-slate-800"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  <span className="truncate font-medium">{sec}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-600 pt-1">
+            <p className="max-w-xl">
+              <strong className="text-slate-900">Evaluator Underwriting Note:</strong>{' '}
+              {activeCatalogItem.underwriterFootNote}
+            </p>
+            <div className="text-xs font-semibold text-indigo-700">
+              Ready to compile immediately or customize committee parameters below ▾
+            </div>
+          </div>
         </div>
 
         {/* =================================================================== */}

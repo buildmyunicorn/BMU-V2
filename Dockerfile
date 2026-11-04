@@ -11,7 +11,7 @@ WORKDIR /app
 ENV NODE_OPTIONS="--no-network-family-autoselection"
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci || npm install --no-audit --no-fund
 
 # 2. Build the Next.js Standalone application
 FROM base AS builder

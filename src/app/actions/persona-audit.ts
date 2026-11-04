@@ -15,6 +15,7 @@ import {
   type PersonaAuditFinding,
   type PersonaAuditReport,
   type ModuleBuildLifecycleStatus,
+  type CognitiveLoadRating,
 } from '@/lib/personas/persona-audit-engine';
 
 interface SourceFileInspectionResult {
@@ -216,6 +217,9 @@ export async function runPersonaPlatformAuditAction(input: {
         formattingScore: 100,
         viewportScore: 100,
         personaFitScore: 100,
+        followabilityScore: 100,
+        cognitiveLoadRating: 'EFFORTLESS_TO_FOLLOW',
+        personaCheckInSummary: 'Scaffold module awaiting implementation.',
         issuesCount: moduleFindings.length,
       });
 
@@ -466,6 +470,17 @@ export async function runPersonaPlatformAuditAction(input: {
         moduleFindings.filter((f) => f.category === 'PERSONA_MODEL_FIT').length * 10
     );
 
+    const followabilityScore = Math.max(
+      60,
+      100 - (hasMicroCoachingWhyCards ? 0 : 15) - (hasShowMeExampleCards ? 0 : 15) - moduleFindings.length * 2
+    );
+    const cognitiveLoadRating: CognitiveLoadRating =
+      followabilityScore >= 80
+        ? 'EFFORTLESS_TO_FOLLOW'
+        : followabilityScore >= 65
+        ? 'SLIGHT_FRICTION'
+        : 'TOO_COMPLICATED_OVERWHELMING';
+
     moduleSummaries.push({
       moduleCode: modMeta.code,
       shortName: modMeta.shortName,
@@ -484,6 +499,9 @@ export async function runPersonaPlatformAuditAction(input: {
       formattingScore,
       viewportScore,
       personaFitScore,
+      followabilityScore,
+      cognitiveLoadRating,
+      personaCheckInSummary: `${persona.name} finds ${modMeta.shortName} followable with score ${followabilityScore}/100.`,
       issuesCount: moduleFindings.length,
     });
 
@@ -531,7 +549,15 @@ export async function runPersonaPlatformAuditAction(input: {
             : 'Grade 11–12 (Startup/Grant Dense — Needs Plain-English Sub-Labels for L1/L2)',
       jargonTermsFlaggedCount: flaggedJargonSet.size,
       flaggedTerms: Array.from(flaggedJargonSet),
+      overallFollowabilityVerdict:
+        overallHealthScore >= 80
+          ? 'Clear and intuitive across tested founder personas.'
+          : 'High cognitive load detected in technical or grant sections.',
+      modulesFlaggedTooComplicatedCount: moduleSummaries.filter(
+        (m) => m.cognitiveLoadRating === 'TOO_COMPLICATED_OVERWHELMING'
+      ).length,
     },
+    followabilityCheckIns: [],
     moduleSummaries,
     findings,
   };

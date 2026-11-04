@@ -519,32 +519,15 @@ export function MasterDocumentWorkspace({
                 Ch 11: Grants (K)
               </button>
             )}
-          </div>
-
-          {/* Toggle for Active Chapters Only vs Show Unstarted & Compiler Guide */}
-          <div className="flex items-center gap-1.5 rounded-xl bg-slate-900/80 p-1 ring-1 ring-white/15">
-            <button
-              type="button"
-              onClick={() => handleToggleRoadmap(false)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
-                !showUpcomingRoadmap
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              Active Chapters Only
-            </button>
-            <button
-              type="button"
-              onClick={() => handleToggleRoadmap(true)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
-                showUpcomingRoadmap
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              + All 12 Chapters Guide
-            </button>
+            {facts.hasModuleL && (
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('master-doc-ch12')}
+                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
+              >
+                Ch 12: Compiler (L)
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -2805,64 +2788,6 @@ export function MasterDocumentWorkspace({
               Open Module L Compiler
               <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
             </Button>
-          </div>
-        </section>
-      )}
-
-      {/* =================================================================== */}
-      {/* OPTIONAL ALL 12 CHAPTERS GUIDE (MODULES A–L)                        */}
-      {/* =================================================================== */}
-      {showUpcomingRoadmap && (
-        <section className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/30 p-5 sm:p-6">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-indigo-600" />
-              <h3 className="text-sm font-bold text-slate-900">
-                Complete 12-Chapter Master Blueprint Architecture (Modules A–L)
-              </h3>
-            </div>
-            <Badge variant="secondary" className="text-[10px]">
-              {facts.activeChaptersCount}/12 Active
-            </Badge>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              { code: 'MOD_A_IDEATION' as ModuleCode, active: facts.hasModuleA, title: 'Ch 1: Ideation & Founder Fit (Mod A)', desc: 'Concept Canvas, Motivations & Fit Scorecard' },
-              { code: 'MOD_B_MARKET' as ModuleCode, active: facts.hasModuleB, title: 'Ch 2: Market & Wedge (Mod B)', desc: 'Beachhead Persona, Competitors & TAM/SAM/SOM' },
-              { code: 'MOD_C_SURVEYS_FEEDBACK' as ModuleCode, active: facts.hasModuleC, title: 'Ch 3: Validation Proof (Mod C)', desc: 'Public Validation Surveys, Waitlist & 1-on-1 Interviews' },
-              { code: 'MOD_D_PRODUCT_BUILD' as ModuleCode, active: facts.hasModuleD, title: 'Ch 4: Product & Scope (Mod D)', desc: 'Product Vehicle, Channels, V1 Filter & Work Packages' },
-              { code: 'MOD_E_OPERATIONS' as ModuleCode, active: facts.hasModuleE, title: 'Ch 5: Operations & Risk (Mod E)', desc: 'Order Fulfillment, Equipment CapEx & Risk Register' },
-              { code: 'MOD_F_COFOUNDER_TEAM' as ModuleCode, active: facts.hasModuleF, title: 'Ch 6: Team & Hiring (Mod F)', desc: '150-Word Profiles, Survival Budget & 3-Year Hiring' },
-              { code: 'MOD_G_LAUNCHPAD' as ModuleCode, active: facts.hasModuleG, title: 'Ch 7: Launchpad Setup (Mod G)', desc: '0–100% Ops Readiness across 6 Legal/Bank/Tax Pillars' },
-              { code: 'MOD_H_REVENUE' as ModuleCode, active: facts.hasModuleH, title: 'Ch 8: Pricing & Pocket Profit (Mod H)', desc: 'Pricing Architect, Sales Velocity & 3-Year Breakeven' },
-              { code: 'MOD_I_MARKETING' as ModuleCode, active: facts.hasModuleI, title: 'Ch 9: Marketing & First 10 (Mod I)', desc: 'Positioning, 4Ps, First 10 Customers & CAC/LTV' },
-              { code: 'MOD_J_FINANCE' as ModuleCode, active: facts.hasModuleJ, title: 'Ch 10: 36-Month Financials (Mod J)', desc: 'Overheads, Working Capital & Cashflow Trough' },
-              { code: 'MOD_K_GRANTS_FUNDING' as ModuleCode, active: facts.hasModuleK, title: 'Ch 11: Grants & Capital Stack (Mod K)', desc: 'IE/UK Grants, Reimbursement Bridge & SEIS/EIS/EII' },
-              { code: 'MOD_L_BUSINESS_PLAN' as ModuleCode, active: facts.hasModuleL, title: 'Ch 12: Business Plan & Grant Compiler (Mod L)', desc: 'Contradiction Audit, Official Form Modes & Proof Binder' },
-            ].map((item) => (
-              <button
-                key={item.code}
-                type="button"
-                onClick={() => onJumpToModule(item.code)}
-                className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white/90 p-3.5 text-left text-xs transition hover:border-indigo-300 hover:shadow-2xs"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 font-bold text-slate-900">
-                    <span>{item.title}</span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        item.active
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {item.active ? 'Populated' : 'Not Started'}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-slate-600">{item.desc}</p>
-                </div>
-              </button>
-            ))}
           </div>
         </section>
       )}

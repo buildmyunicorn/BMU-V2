@@ -603,18 +603,56 @@ export const countryRules = pgTable('country_rules', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export const grantStatusEnum = pgEnum('grant_status', [
+  'ACTIVE',
+  'PENDING_REVIEW',
+  'PAUSED',
+  'ARCHIVED',
+]);
+
 export const grantsDirectory = pgTable('grants_directory', {
   id: uuid('id').defaultRandom().primaryKey(),
   slug: text('slug').notNull().unique(), // For public SEO pages: startuppreflight.com/grants/[slug]
-  countryCode: text('country_code').notNull(), // 'IE', 'GB', 'US', 'AU', 'CA', 'EU'
+  countryCode: text('country_code').notNull(), // 'IE', 'GB', 'US', 'AU', 'CA', 'EU', 'ALL'
   grantName: text('grant_name').notNull(), // e.g., 'LEO Feasibility Study Grant'
   providerAgency: text('provider_agency').notNull(), // e.g., 'Local Enterprise Office (Ireland)'
-  fundingType: text('funding_type').notNull(), // 'GRANT', 'TAX_RELIEF', 'R_AND_D_CREDIT', 'EQUITY_MATCH', 'STARTUP_LOAN'
+  fundingType: text('funding_type').notNull(), // 'GRANT', 'TAX_RELIEF', 'R_AND_D_CREDIT', 'EQUITY_MATCH', 'STARTUP_LOAN', 'VOUCHER'
+  
+  // Numerical Underwriting Parameters
+  currency: text('currency').default('EUR').notNull(),
   maxAmountFormatted: text('max_amount_formatted').notNull(), // e.g., '€15,000 (50% Match / 60% in BMW Region)'
+  maxFundingAmount: integer('max_funding_amount'), // 15000
+  matchRatePercentage: integer('match_rate_percentage').default(50), // 50
+  isRepayable: boolean('is_repayable').default(false).notNull(),
+  minEmployees: integer('min_employees').default(0),
+  maxEmployees: integer('max_employees').default(10),
+  maxTradingMonths: integer('max_trading_months'), // e.g. 18 for Priming, 36 for Start Up Loans
+  stageFit: text('stage_fit'), // 'Pre-Trading / Prototype Stage', etc.
+  turnaroundLabel: text('turnaround_label'), // '4–6 Weeks Turnaround'
+  turnaroundSpeed: text('turnaround_speed'), // 'FAST_2_TO_4_WEEKS', 'STANDARD_6_TO_8_WEEKS', etc.
+  leoThreeQuoteEnforced: boolean('leo_three_quote_enforced').default(false),
+  compilerTemplateId: text('compiler_template_id'), // 'IE_LEO_OFFICIAL', 'UK_INNOVATE_UK_9Q', etc.
+
+  // Rich AI-Extracted Knowledge Base & SEO Copy
+  summary: text('summary'),
+  descriptionMarkdown: text('description_markdown'),
+  eligibleCosts: jsonb('eligible_costs').$type<string[]>().default([]).notNull(),
+  ineligibleCosts: jsonb('ineligible_costs').$type<string[]>().default([]).notNull(),
+  applicationRequirements: jsonb('application_requirements').$type<string[]>().default([]).notNull(),
+  disqualificationRedFlags: jsonb('disqualification_red_flags').$type<string[]>().default([]).notNull(),
   reimbursementWarning: text('reimbursement_warning').notNull(),
   eligibilityRulesJsonb: jsonb('eligibility_rules_jsonb').default({}).notNull(),
   officialUrl: text('official_url'),
-  isActive: boolean('is_active').default(true).notNull(),
+  deadlineDate: timestamp('deadline_date'),
+
+  // Staging, Approval & Scanner Provenance
+  status: grantStatusEnum('status').default('ACTIVE').notNull(),
+  isActive: boolean('is_active').default(true).notNull(), // Kept for 100% backward compatibility
+  confidenceScore: integer('confidence_score'), // 0-100 from AI scanner
+  sourceSnippets: jsonb('source_snippets').$type<string[]>().default([]),
+  discoveredVia: text('discovered_via').default('SYSTEM_SEED'), // 'SYSTEM_SEED', 'AI_SCANNER', 'ADMIN_PROMPT', 'MANUAL'
+  lastVerifiedAt: timestamp('last_verified_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 

@@ -2664,7 +2664,7 @@ export interface ModuleLStep3NarrativeCompilerSavedData {
   sections: ModuleLCompiledSectionItem[];
   executiveHookStatement: string;
   aiAssessorTip?: string;
-  aiEngineUsed?: 'gemini-2.5-flash' | 'smart-synthesizer';
+  aiEngineUsed?: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'smart-synthesizer';
   lastSavedAt?: string;
 }
 
@@ -2701,12 +2701,41 @@ export interface ModuleLStep5SubmissionBriefSavedData {
   lastSavedAt?: string;
 }
 
+export type BusinessPlanArchetype =
+  | 'IE_LEO_OFFICIAL_GRANT'
+  | 'UK_INNOVATE_UK_9Q'
+  | 'UK_START_UP_LOANS_WORKBOOK'
+  | 'COMMERCIAL_BANK_LOAN'
+  | 'INVESTOR_ANGEL_MEMO'
+  | 'LEAN_ONE_PAGER'
+  | 'STANDARD_COMPREHENSIVE_PLAN';
+
+export interface BusinessPlanVersionItem {
+  id: string;
+  title: string;
+  archetype: BusinessPlanArchetype;
+  createdAt: string;
+  lastEditedAt: string;
+  isPrimary?: boolean;
+  targetAudience: 'GRANT_COMMITTEE' | 'COMMERCIAL_BANK' | 'ANGEL_INVESTOR' | 'ADVISOR_BOARD' | 'INTERNAL_TEAM';
+  targetTone: 'EVIDENCE_LED_ASSESSOR' | 'UNDERWRITER_CONSERVATIVE' | 'VENTURE_HIGH_GROWTH' | 'EXECUTIVE_CRISP';
+  targetFundingAsk?: number;
+  sections: ModuleLCompiledSectionItem[];
+  executiveHookStatement?: string;
+  auditScore?: number;
+  auditItems?: ModuleLContradictionAuditItem[];
+  lastAuditedAt?: string;
+  appendices?: ModuleLAppendixBinderItem[];
+}
+
 export interface SavedModuleLData {
   step1Mode?: ModuleLStep1ModeSavedData;
   step2Audit?: ModuleLStep2ContradictionAuditSavedData;
   step3Compiler?: ModuleLStep3NarrativeCompilerSavedData;
   step4Appendices?: ModuleLStep4AppendicesSavedData;
   step5DossierBrief?: ModuleLStep5SubmissionBriefSavedData;
+  versions?: BusinessPlanVersionItem[];
+  activeVersionId?: string;
   completionPercentage?: number;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;

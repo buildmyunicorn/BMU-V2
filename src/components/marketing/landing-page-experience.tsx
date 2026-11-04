@@ -385,6 +385,12 @@ export function LandingPageExperience({
               Pricing
             </a>
             <Link
+              href="/grants"
+              className="rounded-full px-3.5 py-1.5 font-medium text-indigo-600 transition hover:bg-indigo-50 hover:shadow-2xs"
+            >
+              Grants Directory
+            </Link>
+            <Link
               href="/about-founder"
               className="rounded-full px-3.5 py-1.5 transition hover:bg-white hover:text-slate-900 hover:shadow-2xs"
             >
@@ -1749,6 +1755,11 @@ export function LandingPageExperience({
                 <li>
                   <Link href="/about-founder" className="hover:text-white">
                     Meet the Founder
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/grants" className="hover:text-white">
+                    Startup Grants Directory
                   </Link>
                 </li>
                 <li>

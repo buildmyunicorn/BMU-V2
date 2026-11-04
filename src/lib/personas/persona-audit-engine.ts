@@ -41,6 +41,11 @@ export type AuditIssueCategory =
 
 export type AuditIssueSeverity = 'CRITICAL' | 'IMPORTANT' | 'SUGGESTION';
 
+export type CognitiveLoadRating =
+  | 'EFFORTLESS_TO_FOLLOW'
+  | 'SLIGHT_FRICTION'
+  | 'TOO_COMPLICATED_OVERWHELMING';
+
 export interface PersonaArchetypeDefinition {
   id: PersonaArchetypeId;
   name: string;
@@ -100,6 +105,9 @@ export interface ModuleAuditSummaryItem {
   formattingScore: number; // 0-100
   viewportScore: number; // 0-100
   personaFitScore: number; // 0-100
+  followabilityScore?: number; // 0-100
+  cognitiveLoadRating?: CognitiveLoadRating;
+  personaCheckInSummary?: string;
   issuesCount: number;
 }
 
@@ -131,7 +139,10 @@ export interface PersonaAuditReport {
     estimatedReadingGrade: string;
     jargonTermsFlaggedCount: number;
     flaggedTerms: string[];
+    overallFollowabilityVerdict?: string;
+    modulesFlaggedTooComplicatedCount?: number;
   };
+  followabilityCheckIns?: unknown[];
   moduleSummaries: ModuleAuditSummaryItem[];
   findings: PersonaAuditFinding[];
 }

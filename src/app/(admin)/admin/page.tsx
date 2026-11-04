@@ -86,6 +86,11 @@ import { PersonaUxAuditLabTab } from '@/components/admin/persona-ux-audit-lab-ta
 import { VouchersCohortsStudioTab } from '@/components/admin/vouchers-cohorts-studio-tab';
 import { SystemEmailsStudioTab } from '@/components/admin/system-emails-studio-tab';
 import { PartnersReferralsStudioTab } from '@/components/admin/partners-referrals-studio-tab';
+import { GrantsManagementStudioTab } from '@/components/admin/grants-management-studio-tab';
+import {
+  listAdminGrantsAction,
+  type GrantDirectoryRecord,
+} from '@/app/actions/admin-grants';
 import {
   listAdminVouchersAndCohortsAction,
   type AdminVoucherSummary,
@@ -426,8 +431,10 @@ export default function AdminDashboardPage() {
   const [partnerReferralEventsList, setPartnerReferralEventsList] = useState<
     PartnerReferralEventRecord[]
   >([]);
+  const [grantsList, setGrantsList] = useState<GrantDirectoryRecord[]>([]);
   const [activeAdminSection, setActiveAdminSection] = useState<
     | 'ACCOUNTS_AND_WAITLIST'
+    | 'GRANTS_CATALOG'
     | 'VOUCHERS_AND_COHORTS'
     | 'PARTNERS_AND_REFERRALS'
     | 'SYSTEM_EMAILS'
@@ -466,13 +473,14 @@ export default function AdminDashboardPage() {
   async function fetchUsers() {
     setIsLoading(true);
     try {
-      const [res, waitlistRes, supportRes, voucherRes, partnersRes] =
+      const [res, waitlistRes, supportRes, voucherRes, partnersRes, grantsRes] =
         await Promise.all([
           listAdminUsersAction(),
           listEarlyAccessWaitlistAction(),
           listSupportTicketsAction(),
           listAdminVouchersAndCohortsAction(),
           listAdminPartnersAndEventsAction(),
+          listAdminGrantsAction(),
         ]);
       if (!res.authenticated) {
         router.replace('/admin/login');
@@ -481,6 +489,10 @@ export default function AdminDashboardPage() {
       setAdminAuthenticated(true);
       setAdminEmail(res.adminEmail || 'admin@startuppreflight.com');
       setDbConnected(res.dbConnected);
+
+      if (grantsRes.success) {
+        setGrantsList(grantsRes.grants);
+      }
 
       const deletedIds = getLocalDeletedUserIds();
       if (res.dbConnected && res.users.length > 0) {
@@ -1280,6 +1292,32 @@ export default function AdminDashboardPage() {
 
             <button
               type="button"
+              onClick={() => setActiveAdminSection('GRANTS_CATALOG')}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeAdminSection === 'GRANTS_CATALOG'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>Grants &amp; Funding Hub</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeAdminSection === 'GRANTS_CATALOG'
+                    ? 'bg-white/20 text-white'
+                    : grantsList.filter((g) => g.status === 'PENDING_REVIEW').length > 0
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-emerald-100 text-emerald-800'
+                }`}
+              >
+                {grantsList.filter((g) => g.status === 'PENDING_REVIEW').length > 0
+                  ? `${grantsList.filter((g) => g.status === 'PENDING_REVIEW').length} Review`
+                  : `${grantsList.filter((g) => g.status === 'ACTIVE').length} Live`}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveAdminSection('VOUCHERS_AND_COHORTS')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
                 activeAdminSection === 'VOUCHERS_AND_COHORTS'
@@ -1407,7 +1445,18 @@ export default function AdminDashboardPage() {
           </span>
         </div>
 
-        {activeAdminSection === 'VOUCHERS_AND_COHORTS' ? (
+        {activeAdminSection === 'GRANTS_CATALOG' ? (
+          <GrantsManagementStudioTab
+            initialGrants={grantsList}
+            onRefresh={fetchUsers}
+            onNotify={(type, text) =>
+              setBannerMessage({
+                type: type === 'error' ? 'warning' : 'success',
+                text,
+              })
+            }
+          />
+        ) : activeAdminSection === 'VOUCHERS_AND_COHORTS' ? (
           <VouchersCohortsStudioTab
             vouchers={vouchersList}
             cohorts={cohortsList}

@@ -161,6 +161,7 @@ import {
   type CoFounderAlignmentStep4Data,
   type HiringPlanStep5Data,
   type TeamBlindSpotAuditBriefData,
+  type SavedModuleLData,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -257,6 +258,7 @@ import { ModuleIWorkspace } from '@/components/workspace/module-i-workspace';
 import { ModuleJWorkspace } from '@/components/workspace/module-j-workspace';
 import { ModuleKWorkspace } from '@/components/workspace/module-k-workspace';
 import { ModuleLWorkspace } from '@/components/workspace/module-l-workspace';
+import { BusinessPlanStudioWorkspace } from '@/components/workspace/business-plan-studio-workspace';
 import {
   saveModuleLStep1ModeAction,
   saveModuleLPartialDataAction,
@@ -503,6 +505,7 @@ export default function WorkspacePage() {
   const [activeModule, setActiveModule] =
     useState<ModuleCode>('MOD_A_IDEATION');
   const [isMasterDocumentOpen, setIsMasterDocumentOpen] = useState(false);
+  const [isBusinessPlanStudioOpen, setIsBusinessPlanStudioOpen] = useState(false);
   const [hasHydratedLocation, setHasHydratedLocation] = useState(false);
   const hasHydratedLocationRef = useRef(false);
   const [pendingModuleAfterUnlock, setPendingModuleAfterUnlock] =
@@ -630,10 +633,11 @@ export default function WorkspacePage() {
       setThingsToConsider(activePlan.thingsToConsider || []);
       setOpenQuestions(activePlan.openQuestions || []);
       // Resolve initial module / view:
-      // Priority 1: URL search params (?view=master_doc or ?module=MOD_...)
+      // Priority 1: URL search params (?view=master_doc or ?view=business_plan_studio or ?module=MOD_...)
       // Priority 2: localStorage (plan-scoped or global)
       // Priority 3: activePlan.currentModuleStep
       let resolvedMasterDoc = false;
+      let resolvedBpStudio = false;
       let resolvedInitialMod: ModuleCode | null = null;
 
       if (typeof window !== 'undefined') {
@@ -642,6 +646,12 @@ export default function WorkspacePage() {
         const moduleParam = searchParams.get('module');
 
         if (
+          viewParam === 'business_plan_studio' ||
+          viewParam === 'bp_studio' ||
+          moduleParam === 'business_plan_studio'
+        ) {
+          resolvedBpStudio = true;
+        } else if (
           viewParam === 'master_doc' ||
           moduleParam === 'master_doc'
         ) {
@@ -663,11 +673,13 @@ export default function WorkspacePage() {
           }
         }
 
-        if (!resolvedMasterDoc && !resolvedInitialMod) {
+        if (!resolvedMasterDoc && !resolvedBpStudio && !resolvedInitialMod) {
           const storedView =
             localStorage.getItem(`spf_active_view_${activePlan.id}`) ||
             localStorage.getItem('spf_last_active_view');
-          if (storedView === 'master_doc') {
+          if (storedView === 'business_plan_studio') {
+            resolvedBpStudio = true;
+          } else if (storedView === 'master_doc') {
             resolvedMasterDoc = true;
           } else {
             const storedModule =
@@ -681,15 +693,20 @@ export default function WorkspacePage() {
         }
       }
 
-      if (!resolvedMasterDoc && !resolvedInitialMod) {
+      if (!resolvedMasterDoc && !resolvedBpStudio && !resolvedInitialMod) {
         resolvedInitialMod =
           resolveModuleFromStep(activePlan.currentModuleStep) ||
           'MOD_A_IDEATION';
       }
 
-      if (resolvedMasterDoc) {
+      if (resolvedBpStudio) {
+        setIsBusinessPlanStudioOpen(true);
+        setIsMasterDocumentOpen(false);
+      } else if (resolvedMasterDoc) {
+        setIsBusinessPlanStudioOpen(false);
         setIsMasterDocumentOpen(true);
       } else if (resolvedInitialMod) {
+        setIsBusinessPlanStudioOpen(false);
         setIsMasterDocumentOpen(false);
         setActiveModule(resolvedInitialMod);
       }
@@ -1083,6 +1100,7 @@ export default function WorkspacePage() {
                 dbPlan.currentModuleStep
               );
               if (cloudFromStep) {
+                setIsBusinessPlanStudioOpen(false);
                 setIsMasterDocumentOpen(false);
                 setActiveModule(cloudFromStep);
               }
@@ -1101,7 +1119,11 @@ export default function WorkspacePage() {
     if (typeof window === 'undefined') return;
 
     const url = new URL(window.location.href);
-    if (isMasterDocumentOpen) {
+    if (isBusinessPlanStudioOpen) {
+      url.searchParams.delete('module');
+      url.searchParams.delete('step');
+      url.searchParams.set('view', 'business_plan_studio');
+    } else if (isMasterDocumentOpen) {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
       url.searchParams.set('view', 'master_doc');
@@ -1123,7 +1145,12 @@ export default function WorkspacePage() {
 
     try {
       const activePlanId = session?.activePlanId;
-      if (isMasterDocumentOpen) {
+      if (isBusinessPlanStudioOpen) {
+        localStorage.setItem('spf_last_active_view', 'business_plan_studio');
+        if (activePlanId) {
+          localStorage.setItem(`spf_active_view_${activePlanId}`, 'business_plan_studio');
+        }
+      } else if (isMasterDocumentOpen) {
         localStorage.setItem('spf_last_active_view', 'master_doc');
         if (activePlanId) {
           localStorage.setItem(`spf_active_view_${activePlanId}`, 'master_doc');
@@ -1148,6 +1175,7 @@ export default function WorkspacePage() {
     openStep,
     moduleNavTarget,
     isMasterDocumentOpen,
+    isBusinessPlanStudioOpen,
     session?.activePlanId,
   ]);
 
@@ -1162,14 +1190,24 @@ export default function WorkspacePage() {
       const validStep = parsedStep && !isNaN(parsedStep) && parsedStep > 0 ? parsedStep : undefined;
 
       if (
+        viewParam === 'business_plan_studio' ||
+        viewParam === 'bp_studio' ||
+        moduleParam === 'business_plan_studio'
+      ) {
+        setIsBusinessPlanStudioOpen(true);
+        setIsMasterDocumentOpen(false);
+        setModuleNavTarget(null);
+      } else if (
         viewParam === 'master_doc' ||
         moduleParam === 'master_doc'
       ) {
+        setIsBusinessPlanStudioOpen(false);
         setIsMasterDocumentOpen(true);
         setModuleNavTarget(null);
       } else if (moduleParam) {
         const resolved = resolveModuleFromParam(moduleParam);
         if (resolved) {
+          setIsBusinessPlanStudioOpen(false);
           setIsMasterDocumentOpen(false);
           setActiveModule(resolved);
           if (validStep) {
@@ -1183,6 +1221,7 @@ export default function WorkspacePage() {
           }
         }
       } else {
+        setIsBusinessPlanStudioOpen(false);
         setIsMasterDocumentOpen(false);
         setActiveModule('MOD_A_IDEATION');
         if (validStep) {
@@ -1211,6 +1250,7 @@ export default function WorkspacePage() {
       }
       window.history.pushState(null, '', url.toString());
     }
+    setIsBusinessPlanStudioOpen(false);
     setIsMasterDocumentOpen(false);
     setActiveModule(modCode);
     if (modCode === 'MOD_A_IDEATION') {
@@ -5068,6 +5108,84 @@ export default function WorkspacePage() {
             </div>
           </button>
 
+          {/* Prominent Left-Sidebar Tile: Business Plan Studio (2.5 Pro Engine) */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsBusinessPlanStudioOpen(true);
+              setIsMasterDocumentOpen(false);
+              setMobileSidebarOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`group relative w-full overflow-hidden rounded-xl border p-3.5 text-left transition-all ${
+              isBusinessPlanStudioOpen
+                ? 'border-violet-400 bg-gradient-to-br from-violet-950 via-slate-900 to-indigo-950 text-white shadow-md ring-2 ring-violet-400/50'
+                : 'border-slate-200/90 bg-white hover:border-violet-300 hover:bg-violet-50/20 text-slate-900 shadow-xs'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                    isBusinessPlanStudioOpen
+                      ? 'bg-violet-500 text-white shadow-xs'
+                      : 'bg-violet-100 text-violet-700 group-hover:bg-violet-200'
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`text-xs font-extrabold tracking-tight sm:text-sm ${
+                        isBusinessPlanStudioOpen ? 'text-white' : 'text-slate-900'
+                      }`}
+                    >
+                      Business Plan Studio
+                    </span>
+                    <Badge
+                      className={
+                        isBusinessPlanStudioOpen
+                          ? 'border-violet-400/40 bg-violet-500/30 px-1.5 py-0 text-[9px] font-bold text-violet-200'
+                          : 'border-violet-200 bg-violet-100 px-1.5 py-0 text-[9px] font-bold text-violet-700'
+                      }
+                    >
+                      PRO 2.5
+                    </Badge>
+                  </div>
+                  <p
+                    className={`mt-0.5 text-[11px] ${
+                      isBusinessPlanStudioOpen ? 'text-violet-200/90' : 'text-slate-500'
+                    }`}
+                  >
+                    Multi-version grant, loan &amp; angel dossiers
+                  </p>
+                </div>
+              </div>
+              <ArrowRight
+                className={`mt-1 h-4 w-4 shrink-0 transition-transform ${
+                  isBusinessPlanStudioOpen
+                    ? 'translate-x-0.5 text-violet-300'
+                    : 'text-slate-400 group-hover:translate-x-0.5 group-hover:text-violet-600'
+                }`}
+              />
+            </div>
+
+            <div
+              className={`mt-2.5 flex items-center justify-between text-[10px] font-semibold ${
+                isBusinessPlanStudioOpen ? 'text-violet-200/90' : 'text-slate-600'
+              }`}
+            >
+              <span className="flex items-center gap-1">
+                <FileText className={`h-3 w-3 ${isBusinessPlanStudioOpen ? 'text-violet-300' : 'text-violet-600'}`} />
+                {currentPlan.moduleLData?.versions?.length || 1} Plan {(currentPlan.moduleLData?.versions?.length || 1) === 1 ? 'Version' : 'Versions'}
+              </span>
+              <span className={isBusinessPlanStudioOpen ? 'text-violet-200' : 'text-violet-600 font-bold'}>
+                {isBusinessPlanStudioOpen ? 'Studio Active • In Editor' : 'Open Studio →'}
+              </span>
+            </div>
+          </button>
+
           {/* Mobile/Tablet Collapsible Module & Parking Lot Toggle (< lg only) */}
           <button
             type="button"
@@ -5076,55 +5194,59 @@ export default function WorkspacePage() {
           >
             <div className="flex min-w-0 items-center gap-2.5">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
-                {isMasterDocumentOpen
-                  ? '★'
-                  : activeModule === 'MOD_A_IDEATION'
-                    ? 'A'
-                    : activeModule === 'MOD_B_MARKET'
-                      ? 'B'
-                      : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
-                        ? 'C'
-                        : activeModule === 'MOD_D_PRODUCT_BUILD'
-                          ? 'D'
-                          : activeModule === 'MOD_E_OPERATIONS'
-                            ? 'E'
-                            : activeModule === 'MOD_F_COFOUNDER_TEAM'
-                              ? 'F'
-                              : activeModule === 'MOD_G_LAUNCHPAD'
-                                ? 'G'
-                                : activeModule === 'MOD_H_REVENUE'
-                                  ? 'H'
-                                  : activeModule === 'MOD_I_MARKETING'
-                                    ? 'I'
-                                    : activeModule === 'MOD_J_FINANCE'
-                                      ? 'J'
-                                      : 'A'}
+                {isBusinessPlanStudioOpen
+                  ? 'BP'
+                  : isMasterDocumentOpen
+                    ? '★'
+                    : activeModule === 'MOD_A_IDEATION'
+                      ? 'A'
+                      : activeModule === 'MOD_B_MARKET'
+                        ? 'B'
+                        : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+                          ? 'C'
+                          : activeModule === 'MOD_D_PRODUCT_BUILD'
+                            ? 'D'
+                            : activeModule === 'MOD_E_OPERATIONS'
+                              ? 'E'
+                              : activeModule === 'MOD_F_COFOUNDER_TEAM'
+                                ? 'F'
+                                : activeModule === 'MOD_G_LAUNCHPAD'
+                                  ? 'G'
+                                  : activeModule === 'MOD_H_REVENUE'
+                                    ? 'H'
+                                    : activeModule === 'MOD_I_MARKETING'
+                                      ? 'I'
+                                      : activeModule === 'MOD_J_FINANCE'
+                                        ? 'J'
+                                        : 'A'}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-xs font-bold text-slate-900">
-                  {isMasterDocumentOpen
-                    ? 'Living Master Document (Modules A–L)'
-                    : activeModule === 'MOD_A_IDEATION'
-                      ? 'Module A: Ideation & Founder Fit'
-                      : activeModule === 'MOD_B_MARKET'
-                        ? 'Module B: Market & Competitors'
-                        : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
-                          ? 'Module C: Customer Surveys & Feedback'
-                          : activeModule === 'MOD_D_PRODUCT_BUILD'
-                            ? 'Module D: Product & Build Vehicle'
-                            : activeModule === 'MOD_E_OPERATIONS'
-                              ? 'Module E: Operations & Fulfillment'
-                              : activeModule === 'MOD_F_COFOUNDER_TEAM'
-                                ? 'Module F: Team, Survival Budget & Roles'
-                                : activeModule === 'MOD_G_LAUNCHPAD'
-                                  ? 'Module G: Getting Set Up (Launchpad & Operations)'
-                                  : activeModule === 'MOD_H_REVENUE'
-                                    ? 'Module H: Pricing & Pocket Profit Breakeven'
-                                    : activeModule === 'MOD_I_MARKETING'
-                                      ? 'Module I: Marketing & First 10 Customers'
-                                      : activeModule === 'MOD_J_FINANCE'
-                                        ? 'Module J: 3-Year Financials & Cashflow'
-                                        : 'Startup Preflight Workspace'}
+                  {isBusinessPlanStudioOpen
+                    ? 'Business Plan Studio (Multi-Version)'
+                    : isMasterDocumentOpen
+                      ? 'Living Master Document (Modules A–L)'
+                      : activeModule === 'MOD_A_IDEATION'
+                        ? 'Module A: Ideation & Founder Fit'
+                        : activeModule === 'MOD_B_MARKET'
+                          ? 'Module B: Market & Competitors'
+                          : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
+                            ? 'Module C: Customer Surveys & Feedback'
+                            : activeModule === 'MOD_D_PRODUCT_BUILD'
+                              ? 'Module D: Product & Build Vehicle'
+                              : activeModule === 'MOD_E_OPERATIONS'
+                                ? 'Module E: Operations & Fulfillment'
+                                : activeModule === 'MOD_F_COFOUNDER_TEAM'
+                                  ? 'Module F: Team, Survival Budget & Roles'
+                                  : activeModule === 'MOD_G_LAUNCHPAD'
+                                    ? 'Module G: Getting Set Up (Launchpad & Operations)'
+                                    : activeModule === 'MOD_H_REVENUE'
+                                      ? 'Module H: Pricing & Pocket Profit Breakeven'
+                                      : activeModule === 'MOD_I_MARKETING'
+                                        ? 'Module I: Marketing & First 10 Customers'
+                                        : activeModule === 'MOD_J_FINANCE'
+                                          ? 'Module J: 3-Year Financials & Cashflow'
+                                          : 'Startup Preflight Workspace'}
                 </div>
                 <div className="text-[11px] text-indigo-700">
                   {mobileSidebarOpen
@@ -5273,6 +5395,46 @@ export default function WorkspacePage() {
               </div>
             </div>
 
+            {/* Dedicated Multi-Version Business Plan Studio Section under Module List */}
+            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50/70 via-white to-indigo-50/40 p-3.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-violet-950">
+                  <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+                  Business Plan Studio
+                </span>
+                <Badge className="border-violet-300 bg-violet-100 text-[10px] font-bold text-violet-800">
+                  2.5 PRO
+                </Badge>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
+                Create &amp; compile multiple targeted business plans for LEO grants, Innovate UK, commercial bank loans, or angel pitch decks.
+              </p>
+              <div className="mt-2.5 flex items-center justify-between rounded-lg bg-white/80 p-2 text-[11px] border border-violet-100">
+                <span className="text-slate-600 font-medium">Saved Versions:</span>
+                <span className="font-bold text-violet-900">
+                  {currentPlan.moduleLData?.versions?.length || 1} Dossier{(currentPlan.moduleLData?.versions?.length || 1) === 1 ? '' : 's'}
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={isBusinessPlanStudioOpen ? "default" : "outline"}
+                onClick={() => {
+                  setIsBusinessPlanStudioOpen(true);
+                  setIsMasterDocumentOpen(false);
+                  setMobileSidebarOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`mt-2.5 w-full text-xs font-bold transition-all ${
+                  isBusinessPlanStudioOpen
+                    ? 'bg-violet-700 hover:bg-violet-800 text-white shadow-xs'
+                    : 'border-violet-300 bg-white text-violet-700 hover:bg-violet-50 hover:border-violet-400'
+                }`}
+              >
+                {isBusinessPlanStudioOpen ? 'Currently In Studio' : 'Open Business Plan Studio →'}
+              </Button>
+            </div>
+
             {/* Open Questions Parking Lot Sidebar Card */}
             <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 shadow-xs">
               <div className="flex items-center justify-between">
@@ -5374,7 +5536,55 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {isMasterDocumentOpen ? (
+          {isBusinessPlanStudioOpen ? (
+            <BusinessPlanStudioWorkspace
+              key={`bp-studio-${currentPlan.id}`}
+              plan={{
+                ...currentPlan,
+                hqCountryCode: selectedCountry,
+                brainDumpText,
+                conceptCanvas: effectiveCanvas,
+                founderMotivation,
+                teamAndBudget,
+                founderRealityCheck,
+                thingsToConsider: liveThingsToConsider,
+                openQuestions,
+              }}
+              selectedCountry={selectedCountry}
+              founderName={session.user.name}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+              whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
+              onUpdatePlanModuleLData={(updatedModuleL: SavedModuleLData) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      moduleLData: updatedModuleL,
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+              }}
+              onJumpToModule={(modCode: ModuleCode, targetStep?: number) => {
+                const access = canAccessModule(activeEntitlement, modCode);
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock(modCode);
+                  setPaywallModalFeature(
+                    access.reason || 'This module requires an upgraded plan.'
+                  );
+                  return;
+                }
+                setIsBusinessPlanStudioOpen(false);
+                navigateToModuleWithHistory(modCode, targetStep);
+              }}
+            />
+          ) : isMasterDocumentOpen ? (
             <MasterDocumentWorkspace
               key={`master-doc-${currentPlan.id}`}
               plan={{
