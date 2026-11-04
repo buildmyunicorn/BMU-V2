@@ -14,6 +14,21 @@ import {
   generateModuleLStep1MandateViaRouter,
   type GenerateModuleLStep1MandateParams,
   type GenerateModuleLStep1MandateResult,
+  generateModuleLStep2AuditViaRouter,
+  type GenerateModuleLStep2AuditParams,
+  type GenerateModuleLStep2AuditResult,
+  generateModuleLStep2DefenseViaRouter,
+  type GenerateModuleLStep2DefenseParams,
+  type GenerateModuleLStep2DefenseResult,
+  generateModuleLStep3SectionViaRouter,
+  type GenerateModuleLStep3SectionParams,
+  type GenerateModuleLStep3SectionResult,
+  generateModuleLStep4AuditViaRouter,
+  type GenerateModuleLStep4AuditParams,
+  type GenerateModuleLStep4AuditResult,
+  generateModuleLStep5DossierViaRouter,
+  type GenerateModuleLStep5DossierParams,
+  type GenerateModuleLStep5DossierResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -151,6 +166,52 @@ export async function generateModuleLStep1MandateAction(
 }
 
 /**
+ * Runs the deep Cross-Module Contradiction and Pre-Flight Underwriter Audit via the central AI router.
+ */
+export async function generateModuleLStep2AuditAction(
+  params: GenerateModuleLStep2AuditParams
+): Promise<GenerateModuleLStep2AuditResult> {
+  if (params.planId && UUID_REGEX.test(params.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
+    if (!authCheck.authorized) {
+      return {
+        allowed: false,
+        reason: authCheck.reason || 'Unauthorized plan access.',
+        overallAuditScore: 0,
+        auditItems: [],
+        preFlightDefenseSummary: '',
+        aiAssessorTip: '',
+        engineMode: 'smart-synthesizer',
+      };
+    }
+  }
+
+  return generateModuleLStep2AuditViaRouter(params);
+}
+
+/**
+ * Calibrates or re-generates the Consolidated Pre-Flight Defense Statement via AI.
+ */
+export async function generateModuleLStep2DefenseAction(
+  params: GenerateModuleLStep2DefenseParams
+): Promise<GenerateModuleLStep2DefenseResult> {
+  if (params.planId && UUID_REGEX.test(params.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
+    if (!authCheck.authorized) {
+      return {
+        allowed: false,
+        reason: authCheck.reason || 'Unauthorized plan access.',
+        defenseSummary: '',
+        aiAssessorTip: '',
+        engineMode: 'smart-synthesizer',
+      };
+    }
+  }
+
+  return generateModuleLStep2DefenseViaRouter(params);
+}
+
+/**
  * Parks an open question from Module L into `open_questions_parking_lot`.
  */
 export async function parkModuleLOpenQuestionAction(input: {
@@ -180,6 +241,73 @@ export async function parkModuleLOpenQuestionAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 }
+
+/**
+ * Compiles or polishes an individual section of the Module L Step 3 Narrative Compiler via the central AI router.
+ */
+export async function generateModuleLStep3SectionAction(
+  params: GenerateModuleLStep3SectionParams
+): Promise<GenerateModuleLStep3SectionResult> {
+  const auth = await verifyActiveSessionAndPlanOwnership(params.planId);
+  if (!auth.authorized) {
+    return {
+      allowed: false,
+      compiledResponseText: params.currentResponseText || '',
+      wordCount: (params.currentResponseText || '').split(/\s+/).filter(Boolean).length,
+      aiAssessorTip: 'Session verification failed.',
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  return generateModuleLStep3SectionViaRouter(params);
+}
+
+/**
+ * Audits the Module L Step 4 Appendices Evidence Binder via the central AI router.
+ */
+export async function generateModuleLStep4AuditAction(
+  params: GenerateModuleLStep4AuditParams
+): Promise<GenerateModuleLStep4AuditResult> {
+  const auth = await verifyActiveSessionAndPlanOwnership(params.planId);
+  if (!auth.authorized) {
+    return {
+      allowed: false,
+      aiBinderAssessment:
+        'All appendices must be verified before submission.',
+      aiAssessorTip: 'Session verification failed.',
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  return generateModuleLStep4AuditViaRouter(params);
+}
+
+/**
+ * Generates or calibrates the Module L Step 5 Final Dossier Brief & Readiness Review via the central AI router.
+ */
+export async function generateModuleLStep5DossierAction(
+  params: GenerateModuleLStep5DossierParams
+): Promise<GenerateModuleLStep5DossierResult> {
+  const auth = await verifyActiveSessionAndPlanOwnership(params.planId);
+  if (!auth.authorized) {
+    return {
+      allowed: false,
+      executiveDossierSummary:
+        'All sections and appendices must be compiled and signed off prior to submission.',
+      committeeReadinessScore: 85,
+      finalSubmissionChecklist: [
+        'Review narrative sections',
+        'Verify matching funds',
+        'Confirm appendices A-F',
+      ],
+      aiAssessorTip: 'Session verification failed.',
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  return generateModuleLStep5DossierViaRouter(params);
+}
+
 
 /**
  * Persists Module L Steps 2–5 payloads cleanly to `plan_modules_data`.
@@ -266,3 +394,4 @@ export async function saveModuleLPartialDataAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 }
+

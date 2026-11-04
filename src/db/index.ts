@@ -172,6 +172,53 @@ export function ensureDatabaseSchemaSynced(): Promise<void> {
 
           ALTER TABLE grants_directory
             ADD COLUMN IF NOT EXISTS slug text;
+
+          CREATE TABLE IF NOT EXISTS partner_offers (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            slug text NOT NULL UNIQUE,
+            slot_key text NOT NULL,
+            name text NOT NULL,
+            logo_emoji text NOT NULL DEFAULT '⚡',
+            category text NOT NULL,
+            headline text NOT NULL,
+            perk_description text NOT NULL,
+            badge_text text NOT NULL,
+            promo_code text,
+            country_scope text NOT NULL DEFAULT 'ALL',
+            action_type text NOT NULL DEFAULT 'AFFILIATE_LINK',
+            action_label text NOT NULL,
+            referral_url text NOT NULL,
+            trust_factor text NOT NULL,
+            warm_intro_recipient_email text,
+            warm_intro_questions_json jsonb DEFAULT '[]'::jsonb,
+            commission_bounty_summary text,
+            partner_contact_notes text,
+            sort_order integer NOT NULL DEFAULT 10,
+            is_active boolean NOT NULL DEFAULT true,
+            created_at timestamp NOT NULL DEFAULT now(),
+            updated_at timestamp NOT NULL DEFAULT now()
+          );
+
+          CREATE TABLE IF NOT EXISTS partner_referral_events (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            partner_id text NOT NULL,
+            partner_name text NOT NULL,
+            partner_slug text NOT NULL,
+            slot_key text NOT NULL,
+            event_type text NOT NULL DEFAULT 'AFFILIATE_CLICK',
+            plan_id text,
+            plan_title text,
+            founder_name text,
+            founder_email text,
+            country_code text NOT NULL DEFAULT 'IE',
+            selected_domain text,
+            destination_url text,
+            intake_answers_json jsonb DEFAULT '{}'::jsonb,
+            lead_status text NOT NULL DEFAULT 'CLICKED',
+            estimated_bounty_amount text,
+            admin_notes text,
+            created_at timestamp NOT NULL DEFAULT now()
+          );
         `);
       } catch (err) {
         // Reset promise so a transient connection issue can retry on next request

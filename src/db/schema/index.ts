@@ -675,6 +675,69 @@ export const emailLogs = pgTable('email_logs', {
 });
 
 // ==========================================
+// 7E. PARTNER REFERRAL ENGINE & WARM INTRO CONCIERGE (Module G & Contextual Slots)
+// ==========================================
+export type WarmIntroQuestionField = {
+  id: string;
+  label: string;
+  placeholder?: string;
+  type: 'TEXT' | 'SELECT' | 'CHECKBOX';
+  options?: string[];
+  required?: boolean;
+};
+
+export const partnerOffers = pgTable('partner_offers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').notNull().unique(), // Used by /api/go/[slug] redirect & click tracking
+  slotKey: text('slot_key').notNull(), // e.g., 'OPS_STEP_1_INCORPORATION', 'OPS_STEP_2_DOMAIN', etc.
+  name: text('name').notNull(),
+  logoEmoji: text('logo_emoji').default('⚡').notNull(),
+  category: text('category').notNull(),
+  headline: text('headline').notNull(),
+  perkDescription: text('perk_description').notNull(),
+  badgeText: text('badge_text').notNull(),
+  promoCode: text('promo_code'), // Optional voucher/promo code for founders to copy
+  countryScope: text('country_scope').default('ALL').notNull(), // 'ALL' | 'IE' | 'GB'
+  actionType: text('action_type').default('AFFILIATE_LINK').notNull(), // 'AFFILIATE_LINK' | 'WARM_INTRO_MODAL'
+  actionLabel: text('action_label').notNull(),
+  referralUrl: text('referral_url').notNull(), // Supports {domain}, {planId}, {country} macros
+  trustFactor: text('trust_factor').notNull(),
+  warmIntroRecipientEmail: text('warm_intro_recipient_email'), // Recipient email for WARM_INTRO_MODAL
+  warmIntroQuestionsJson: jsonb('warm_intro_questions_json')
+    .$type<WarmIntroQuestionField[]>()
+    .default([]),
+  commissionBountySummary: text('commission_bounty_summary'), // Admin-only deal terms / CPA notes
+  partnerContactNotes: text('partner_contact_notes'), // Admin-only account manager contact info
+  sortOrder: integer('sort_order').default(10).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const partnerReferralEvents = pgTable('partner_referral_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  partnerId: text('partner_id').notNull(),
+  partnerName: text('partner_name').notNull(),
+  partnerSlug: text('partner_slug').notNull(),
+  slotKey: text('slot_key').notNull(),
+  eventType: text('event_type').default('AFFILIATE_CLICK').notNull(), // 'AFFILIATE_CLICK' | 'WARM_INTRO_LEAD'
+  planId: text('plan_id'),
+  planTitle: text('plan_title'),
+  founderName: text('founder_name'),
+  founderEmail: text('founder_email'),
+  countryCode: text('country_code').default('IE').notNull(),
+  selectedDomain: text('selected_domain'),
+  destinationUrl: text('destination_url'),
+  intakeAnswersJson: jsonb('intake_answers_json')
+    .$type<Record<string, string>>()
+    .default({}),
+  leadStatus: text('lead_status').default('CLICKED').notNull(), // 'CLICKED' | 'INTRO_SENT' | 'PARTNER_CONTACTED' | 'CONVERTED_BOUNTY_DUE' | 'BOUNTY_PAID' | 'ARCHIVED'
+  estimatedBountyAmount: text('estimated_bounty_amount'),
+  adminNotes: text('admin_notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ==========================================
 // 8. DRIZZLE RELATIONS
 // ==========================================
 export const tenantsRelations = relations(tenants, ({ many }) => ({

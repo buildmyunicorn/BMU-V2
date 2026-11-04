@@ -332,7 +332,7 @@ export function MasterDocumentWorkspace({
                 Zero-Hallucination Verified
               </span>
               <span className="text-xs text-slate-300">
-                {facts.activeChaptersCount} of 5 Foundation Chapters Active (
+                {facts.activeChaptersCount} of 11 Foundation Chapters Active (
                 {facts.overallCompletionPercent}% Assembled)
               </span>
             </div>
@@ -426,7 +426,7 @@ export function MasterDocumentWorkspace({
                 onClick={() => scrollToAnchor('master-doc-ch-a')}
                 className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
               >
-                Ch 1: Concept
+                Ch 1: Concept (A)
               </button>
             )}
             {facts.hasModuleB && (
@@ -435,7 +435,7 @@ export function MasterDocumentWorkspace({
                 onClick={() => scrollToAnchor('master-doc-ch-b')}
                 className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
               >
-                Ch 2: Market
+                Ch 2: Market (B)
               </button>
             )}
             {facts.hasModuleC && (
@@ -444,7 +444,7 @@ export function MasterDocumentWorkspace({
                 onClick={() => scrollToAnchor('master-doc-ch-c')}
                 className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
               >
-                Ch 3: Validation
+                Ch 3: Validation (C)
               </button>
             )}
             {facts.hasModuleD && (
@@ -453,7 +453,7 @@ export function MasterDocumentWorkspace({
                 onClick={() => scrollToAnchor('master-doc-ch-d')}
                 className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
               >
-                Ch 4: Product
+                Ch 4: Product (D)
               </button>
             )}
             {facts.hasModuleE && (
@@ -462,12 +462,66 @@ export function MasterDocumentWorkspace({
                 onClick={() => scrollToAnchor('master-doc-ch-e')}
                 className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
               >
-                Ch 5: Operations
+                Ch 5: Operations (E)
+              </button>
+            )}
+            {facts.hasModuleF && (
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('master-doc-ch-f')}
+                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
+              >
+                Ch 6: Team (F)
+              </button>
+            )}
+            {facts.hasModuleG && (
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('master-doc-ch-g')}
+                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
+              >
+                Ch 7: Launchpad (G)
+              </button>
+            )}
+            {facts.hasModuleH && (
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('master-doc-ch-h')}
+                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
+              >
+                Ch 8: Revenue (H)
+              </button>
+            )}
+            {facts.hasModuleI && (
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('master-doc-ch-i')}
+                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
+              >
+                Ch 9: Marketing (I)
+              </button>
+            )}
+            {facts.hasModuleJ && (
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('master-doc-ch-j')}
+                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
+              >
+                Ch 10: Finance (J)
+              </button>
+            )}
+            {facts.hasModuleK && (
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('master-doc-ch-k')}
+                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/30"
+              >
+                Ch 11: Grants (K)
               </button>
             )}
           </div>
 
-          {/* Toggle for Active Chapters Only vs Show Upcoming F-I Roadmap */}
+          {/* Toggle for Active Chapters Only vs Show Unstarted & Compiler Guide */}
           <div className="flex items-center gap-1.5 rounded-xl bg-slate-900/80 p-1 ring-1 ring-white/15">
             <button
               type="button"
@@ -489,7 +543,7 @@ export function MasterDocumentWorkspace({
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              + Upcoming (F–I) Roadmap
+              + All 11 Chapters Guide
             </button>
           </div>
         </div>
@@ -522,10 +576,10 @@ export function MasterDocumentWorkspace({
             </span>
             <div>
               <h2 className="text-base font-bold text-slate-900 sm:text-lg">
-                1-Page Executive Snapshot
+                1-Page Executive Snapshot (Modules A–K)
               </h2>
               <p className="text-xs text-slate-500">
-                100% deterministic summary pulled directly from your saved inputs across Modules A–E.
+                100% deterministic summary pulled directly from your saved inputs across all 11 foundation modules (Modules A–K).
               </p>
             </div>
           </div>
@@ -867,6 +921,301 @@ export function MasterDocumentWorkspace({
             </p>
           )}
         </div>
+
+        {/* Grid for Modules F, G, H, I, J, K */}
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Card F: Team, Survival Budget & 3-Year Hiring Plan */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                  <Users className="h-4 w-4" />
+                  👥 Team, Survival &amp; Hiring (Module F)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onJumpToModule('MOD_F_COFOUNDER_TEAM')}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  <Pencil className="h-3 w-3" />
+                  {facts.hasModuleF ? 'Edit in Module F' : 'Start Module F'}
+                </button>
+              </div>
+              {facts.hasModuleF ? (
+                <dl className="space-y-1.5 text-xs text-slate-700">
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Team Posture: </dt>
+                    <dd className="inline">
+                      {facts.teamStructurePostureLabel || '—'} ({facts.teamMembersCount} promoter(s) • {facts.hatsAssignedCount}/7 Startup Hats covered)
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Personal Survival Burn: </dt>
+                    <dd className="inline">
+                      {formatPlanCurrency(facts.monthlyNetSurvivalBurnTotal, facts.currency)}/mo net burn •{' '}
+                      {formatPlanCurrency(facts.personalSavingsBufferTotal, facts.currency)} personal savings buffer
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">3-Year Job Creation: </dt>
+                    <dd className="inline font-semibold text-indigo-900">
+                      {facts.plannedHiresCount} planned hire(s) mapped • {facts.advisorsCount} advisor(s)
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-xs italic text-slate-500">
+                  Not yet populated. Complete Module F to add 150-word promoter profiles, personal survival budgets, 7 Startup Hats, and your 3-year hiring plan.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Card G: Getting Set Up — Launchpad & Operations Readiness */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                  <ShieldCheck className="h-4 w-4" />
+                  🚀 Launchpad &amp; Ops Setup (Module G)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onJumpToModule('MOD_G_LAUNCHPAD')}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  <Pencil className="h-3 w-3" />
+                  {facts.hasModuleG ? 'Edit in Module G' : 'Start Module G'}
+                </button>
+              </div>
+              {facts.hasModuleG ? (
+                <dl className="space-y-1.5 text-xs text-slate-700">
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Ops Readiness Score: </dt>
+                    <dd className="inline font-bold text-emerald-700">
+                      {facts.opsReadinessPercent}% Ready across 6 pillars
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Legal Entity &amp; Domain: </dt>
+                    <dd className="inline">
+                      {facts.legalEntityStructureLabel || '—'}
+                      {facts.registeredEntityName ? ` (${facts.registeredEntityName})` : ''} •{' '}
+                      {facts.primaryDomain || 'Domain pending'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Banking &amp; Bookkeeping: </dt>
+                    <dd className="inline">
+                      {facts.bankProviderLabel || 'Bank pending'}{' '}
+                      {facts.hasDedicatedIban ? '(Dedicated IBAN)' : ''} •{' '}
+                      {facts.accountingSoftwareLabel || 'Accounting pending'}
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-xs italic text-slate-500">
+                  Not yet populated. Complete Module G to track your 0–100% Operations Readiness across Incorporation, Domain/Email, Banking, Accounting, Insurance, and Legal/IP.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Card H: Revenue Model, Pricing & 3-Year Pocket Profit */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                  <DollarSign className="h-4 w-4" />
+                  💰 Pricing &amp; Pocket Profit (Module H)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onJumpToModule('MOD_H_REVENUE')}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  <Pencil className="h-3 w-3" />
+                  {facts.hasModuleH ? 'Edit in Module H' : 'Start Module H'}
+                </button>
+              </div>
+              {facts.hasModuleH ? (
+                <dl className="space-y-1.5 text-xs text-slate-700">
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Revenue Vehicle &amp; Price: </dt>
+                    <dd className="inline">
+                      {facts.revenueModelVehicleLabel || '—'} ({facts.pricingTiersCount} tier(s) •{' '}
+                      {formatPlanCurrency(facts.blendedAveragePriceNet, facts.currency)} blended net price)
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Year 1 Turnover &amp; Pocket Profit: </dt>
+                    <dd className="inline font-bold text-indigo-900">
+                      {formatPlanCurrency(facts.year1ProjectedNetTurnover, facts.currency)} Y1 net turnover ({facts.year1TargetCustomers} customers) →{' '}
+                      {formatPlanCurrency(facts.year1PocketProfitNet, facts.currency)} Y1 Pocket Profit
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Y2–Y3 Trajectory &amp; Sales Motion: </dt>
+                    <dd className="inline">
+                      Y2: {formatPlanCurrency(facts.year2ProjectedNetTurnover, facts.currency)} • Y3:{' '}
+                      {formatPlanCurrency(facts.year3ProjectedNetTurnover, facts.currency)} ({facts.primarySalesMotionLabel || '—'})
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-xs italic text-slate-500">
+                  Not yet populated. Complete Module H to model your pricing tiers, written sales assumptions, and 3-year Pocket Profit breakeven.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Card I: Marketing, 4Ps & First 10 Customers */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                  <Megaphone className="h-4 w-4" />
+                  📣 Marketing, 4Ps &amp; First 10 (Module I)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onJumpToModule('MOD_I_MARKETING')}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  <Pencil className="h-3 w-3" />
+                  {facts.hasModuleI ? 'Edit in Module I' : 'Start Module I'}
+                </button>
+              </div>
+              {facts.hasModuleI ? (
+                <dl className="space-y-1.5 text-xs text-slate-700">
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Elevator Hook: </dt>
+                    <dd className="inline">{facts.elevatorHook140 || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">First 10 Customers Playbook: </dt>
+                    <dd className="inline">
+                      {facts.first10ArchetypeLabel || '—'} ({facts.first10ProspectsCount} named prospects •{' '}
+                      {facts.committedOrPilotProspectsCount} active pilot/committed)
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Unit Economics &amp; Budget: </dt>
+                    <dd className="inline font-semibold text-slate-900">
+                      {formatPlanCurrency(facts.monthlyMarketingBudget, facts.currency)}/mo budget • CAC:{' '}
+                      {formatPlanCurrency(facts.calculatedCashCac, facts.currency)} • LTV:{' '}
+                      {formatPlanCurrency(facts.calculatedLtv, facts.currency)} ({facts.calculatedLtvToCacRatio}x LTV:CAC)
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-xs italic text-slate-500">
+                  Not yet populated. Complete Module I to build your brand positioning, 4Ps strategy, First 10 Customers tracker, and CAC/LTV marketing budget.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Card J: 36-Month Financial Builder & Cashflow Trough */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                  <Scale className="h-4 w-4" />
+                  📈 36-Month Financials &amp; Cashflow (Module J)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onJumpToModule('MOD_J_FINANCE')}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  <Pencil className="h-3 w-3" />
+                  {facts.hasModuleJ ? 'Edit in Module J' : 'Start Module J'}
+                </button>
+              </div>
+              {facts.hasModuleJ ? (
+                <dl className="space-y-1.5 text-xs text-slate-700">
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Operating Cost Posture: </dt>
+                    <dd className="inline">
+                      {facts.operatingCostPostureLabel || '—'} ({formatPlanCurrency(facts.monthlyFixedOverheadsTotal, facts.currency)}/mo fixed overheads)
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Payroll &amp; Working Capital: </dt>
+                    <dd className="inline">
+                      {formatPlanCurrency(facts.monthlyFounderDrawingsYear1, facts.currency)}/mo founder drawings •{' '}
+                      {formatPlanCurrency(facts.monthlyTeamSalariesYear1, facts.currency)}/mo Y1 team salaries •{' '}
+                      {facts.customerCollectionTimingLabel || '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Day-1 Cash &amp; External Funding: </dt>
+                    <dd className="inline font-semibold text-indigo-900">
+                      {formatPlanCurrency(facts.startingCashBalanceDay1, facts.currency)} starting cash +{' '}
+                      {formatPlanCurrency(facts.totalExternalFundingMapped, facts.currency)} external capital ({facts.primaryFundingStrategyLabel || '—'})
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-xs italic text-slate-500">
+                  Not yet populated. Complete Module J to configure localized overheads, working capital timing, and your 36-month cashflow trough.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Card K: Non-Dilutive Grants, Capital Stack & Tax Relief */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                  <Sparkles className="h-4 w-4" />
+                  🏛️ Grants, Loans &amp; Tax Relief (Module K)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onJumpToModule('MOD_K_GRANTS_FUNDING')}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  <Pencil className="h-3 w-3" />
+                  {facts.hasModuleK ? 'Edit in Module K' : 'Start Module K'}
+                </button>
+              </div>
+              {facts.hasModuleK ? (
+                <dl className="space-y-1.5 text-xs text-slate-700">
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Lead Programme &amp; Readiness: </dt>
+                    <dd className="inline font-bold text-emerald-700">
+                      {facts.selectedGrantKey || '—'} ({facts.overallAssessorReadinessScore}/100 Assessor Readiness)
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Capital Stack ({formatPlanCurrency(facts.totalTargetFundingGap, facts.currency)} Target): </dt>
+                    <dd className="inline">
+                      Cash: {formatPlanCurrency(facts.skinInTheGameCash, facts.currency)} ({facts.skinInTheGamePercent}%) • Grants:{' '}
+                      {formatPlanCurrency(facts.totalGrantsAllocated, facts.currency)} • Loans:{' '}
+                      {formatPlanCurrency(facts.totalLoansAllocated, facts.currency)} • Equity:{' '}
+                      {formatPlanCurrency(facts.totalAngelAllocated, facts.currency)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Reimbursement Bridge &amp; Tax Relief: </dt>
+                    <dd className="inline">
+                      {facts.bridgeStrategyLabel || '—'} ({facts.isAssessorLiquidityCompliant ? 'Liquidity Compliant' : 'Gap Flagged'}) •{' '}
+                      {facts.primaryTaxScheme} ({formatPlanCurrency(facts.targetReliefRaiseAmount, facts.currency)})
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-xs italic text-slate-500">
+                  Not yet populated. Complete Module K to score IE/UK grant readiness, build your non-dilutive capital stack, and verify reimbursement bridge liquidity.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* =================================================================== */}
@@ -884,7 +1233,7 @@ export function MasterDocumentWorkspace({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-base font-bold text-slate-900 sm:text-lg">
-                  Cohesive Executive Story
+                  Cohesive Executive Story (Modules A–K)
                 </h2>
                 <Badge className="bg-emerald-50 text-[10px] font-semibold text-emerald-800 border-emerald-200">
                   <Lock className="mr-1 h-3 w-3 text-emerald-600" />
@@ -892,7 +1241,7 @@ export function MasterDocumentWorkspace({
                 </Badge>
               </div>
               <p className="text-xs text-slate-500">
-                Weaves your verified inputs across Modules A–E into a smooth 3-paragraph narrative without inventing a single fact.
+                Weaves your verified inputs across Modules A–K into a smooth 3-paragraph narrative without inventing a single fact.
               </p>
             </div>
           </div>
@@ -1699,7 +2048,631 @@ export function MasterDocumentWorkspace({
       )}
 
       {/* =================================================================== */}
-      {/* OPTIONAL UPCOMING CHAPTERS ROADMAP (MODULES F–K)                    */}
+      {/* CHAPTER 6: TEAM, SURVIVAL BUDGET & 3-YEAR HIRING PLAN (MODULE F)    */}
+      {/* =================================================================== */}
+      {facts.hasModuleF && plan.moduleFData && (
+        <section
+          id="master-doc-ch-f"
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
+        >
+          <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+                F
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                  Chapter 6: Founding Team, Personal Survival Budget &amp; 3-Year Hiring Plan
+                </h2>
+                <p className="text-xs text-slate-500">
+                  150-word promoter profiles, 7 Startup Hats coverage, personal survival burn, and 3-year job creation roadmap.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onJumpToModule('MOD_F_COFOUNDER_TEAM')}
+              className="w-fit text-xs text-indigo-700"
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit in Module F
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Team Structure &amp; Governance
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Structure Posture:</span>{' '}
+                {facts.teamStructurePostureLabel || '—'} ({facts.teamMembersCount} promoter(s))
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">7 Startup Hats Assigned:</span>{' '}
+                {facts.hatsAssignedCount}/7 core functional domains • {facts.advisorsCount} external advisor(s)
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Co-Founder Alignment:</span>{' '}
+                {facts.alignmentResponsesCount} alignment questionnaire response(s) logged
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Personal Survival Budget &amp; Hiring Plan
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Monthly Net Survival Burn:</span>{' '}
+                {formatPlanCurrency(facts.monthlyNetSurvivalBurnTotal, facts.currency)}/month
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Personal Savings Buffer:</span>{' '}
+                {formatPlanCurrency(facts.personalSavingsBufferTotal, facts.currency)}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">3-Year Job Creation:</span>{' '}
+                {facts.plannedHiresCount} planned hire(s) scheduled across Years 1–3
+              </p>
+            </div>
+          </div>
+
+          {facts.teamMemberSummaries.length > 0 && (
+            <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[600px] border-collapse text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    <th className="px-3.5 py-2.5">Promoter</th>
+                    <th className="px-3.5 py-2.5">Role Title</th>
+                    <th className="px-3.5 py-2.5">Equity &amp; Commitment</th>
+                    <th className="px-3.5 py-2.5">150-Word Promoter Bio</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {facts.teamMemberSummaries.map((tm, idx) => (
+                    <tr key={`${tm.name}-${idx}`} className="bg-white">
+                      <td className="px-3.5 py-2.5 font-bold text-slate-900">{tm.name}</td>
+                      <td className="px-3.5 py-2.5 font-semibold text-indigo-900">{tm.roleTitle}</td>
+                      <td className="px-3.5 py-2.5 text-slate-700">
+                        {tm.equityPercent}% equity • {tm.weeklyHours} hrs/wk
+                      </td>
+                      <td className="px-3.5 py-2.5 text-slate-700">{tm.bio150Words || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {facts.plannedHiresSummaries.length > 0 && (
+            <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[600px] border-collapse text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    <th className="px-3.5 py-2.5">Planned Role Title</th>
+                    <th className="px-3.5 py-2.5">Target Quarter</th>
+                    <th className="px-3.5 py-2.5">Employment Type</th>
+                    <th className="px-3.5 py-2.5">Annual Gross Salary</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {facts.plannedHiresSummaries.map((h, idx) => (
+                    <tr key={`${h.roleTitle}-${idx}`} className="bg-white">
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-900">{h.roleTitle}</td>
+                      <td className="px-3.5 py-2.5 font-bold text-indigo-900">{h.targetQuarter}</td>
+                      <td className="px-3.5 py-2.5 text-slate-600">{h.employmentType}</td>
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-800">
+                        {formatPlanCurrency(h.annualGrossSalary, facts.currency)}/yr
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* =================================================================== */}
+      {/* CHAPTER 7: GETTING SET UP — LAUNCHPAD & OPS READINESS (MODULE G)    */}
+      {/* =================================================================== */}
+      {facts.hasModuleG && plan.moduleGData && (
+        <section
+          id="master-doc-ch-g"
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
+        >
+          <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+                G
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                  Chapter 7: Getting Set Up — Launchpad &amp; Operations Readiness ({facts.opsReadinessPercent}% Ready)
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Incorporation, domain &amp; official email, business banking, bookkeeping/VAT, statutory insurance, and IP/GDPR compliance.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onJumpToModule('MOD_G_LAUNCHPAD')}
+              className="w-fit text-xs text-indigo-700"
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit in Module G
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                1. Legal Entity &amp; 2. Domain/Email
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Structure:</span>{' '}
+                {facts.legalEntityStructureLabel || '—'}
+                {facts.registeredEntityName ? ` (${facts.registeredEntityName})` : ''}
+                {facts.registrationNumber ? ` • Reg #${facts.registrationNumber}` : ''}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Domain &amp; Email:</span>{' '}
+                {facts.primaryDomain || '—'} • {facts.officialBusinessEmail || '—'}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                3. Banking &amp; 4. Bookkeeping/VAT
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Business Bank:</span>{' '}
+                {facts.bankProviderLabel || '—'}{' '}
+                {facts.hasDedicatedIban ? '(Dedicated Business IBAN)' : ''}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Accounting &amp; VAT:</span>{' '}
+                {facts.accountingSoftwareLabel || '—'} • {facts.vatStatusLabel || '—'}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                5. Insurance &amp; 6. Legal/IP/GDPR
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Insurance Policies:</span>{' '}
+                {facts.insurancesActiveList.join(', ') || 'Pending'}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Legal &amp; IP Baseline:</span>{' '}
+                {facts.legalComplianceItemsActiveList.join(', ') || 'Pending'}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* =================================================================== */}
+      {/* CHAPTER 8: PRICING ARCHITECT & POCKET PROFIT BREAKEVEN (MODULE H)   */}
+      {/* =================================================================== */}
+      {facts.hasModuleH && plan.moduleHData && (
+        <section
+          id="master-doc-ch-h"
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
+        >
+          <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+                H
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                  Chapter 8: Revenue Model, Pricing Architect &amp; 3-Year Pocket Profit Breakeven
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Pricing tiers, written sales velocity assumptions, and 3-year Pocket Profit trajectory net of COGS and friction costs.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onJumpToModule('MOD_H_REVENUE')}
+              className="w-fit text-xs text-indigo-700"
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit in Module H
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Revenue Vehicle &amp; Sales Velocity
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Revenue Vehicle:</span>{' '}
+                {facts.revenueModelVehicleLabel || '—'}
+                {facts.valueMetric ? ` (Value Metric: ${facts.valueMetric})` : ''}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Blended Net Price:</span>{' '}
+                {formatPlanCurrency(facts.blendedAveragePriceNet, facts.currency)} across {facts.pricingTiersCount} tier(s)
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Sales Motion &amp; Cycle:</span>{' '}
+                {facts.primarySalesMotionLabel || '—'} • {facts.salesCycleDays}-day cycle ({facts.expectedConversionRatePercent}% conversion)
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                3-Year Turnover &amp; Pocket Profit Trajectory
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Year 1 Target:</span>{' '}
+                {facts.year1TargetCustomers} customers →{' '}
+                <span className="font-bold text-indigo-900">
+                  {formatPlanCurrency(facts.year1ProjectedNetTurnover, facts.currency)}
+                </span>{' '}
+                net turnover ({formatPlanCurrency(facts.year1PocketProfitNet, facts.currency)} Pocket Profit)
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Year 2 Projected Net Turnover:</span>{' '}
+                {formatPlanCurrency(facts.year2ProjectedNetTurnover, facts.currency)}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Year 3 Projected Net Turnover:</span>{' '}
+                {formatPlanCurrency(facts.year3ProjectedNetTurnover, facts.currency)}
+              </p>
+            </div>
+          </div>
+
+          {facts.pricingTiersSummaries.length > 0 && (
+            <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[600px] border-collapse text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    <th className="px-3.5 py-2.5">Pricing Tier</th>
+                    <th className="px-3.5 py-2.5">Net Price (Ex-Tax)</th>
+                    <th className="px-3.5 py-2.5">Billing Cadence</th>
+                    <th className="px-3.5 py-2.5">Pocket Contribution Margin</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {facts.pricingTiersSummaries.map((tier, idx) => (
+                    <tr key={`${tier.name}-${idx}`} className="bg-white">
+                      <td className="px-3.5 py-2.5 font-bold text-slate-900">{tier.name}</td>
+                      <td className="px-3.5 py-2.5 font-semibold text-indigo-900">
+                        {formatPlanCurrency(tier.priceNetOfTax, facts.currency)}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-slate-600">{tier.billingFrequency}</td>
+                      <td className="px-3.5 py-2.5 font-semibold text-emerald-700">
+                        {tier.pocketProfitMarginPercent}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* =================================================================== */}
+      {/* CHAPTER 9: MARKETING, 4PS & FIRST 10 CUSTOMERS (MODULE I)           */}
+      {/* =================================================================== */}
+      {facts.hasModuleI && plan.moduleIData && (
+        <section
+          id="master-doc-ch-i"
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
+        >
+          <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+                I
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                  Chapter 9: Brand Positioning, 4Ps Strategy, First 10 Customers &amp; Marketing Budget
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Positioning hook, 4Ps commercial architecture, First 10 Customers pipeline, and reverse-engineered CAC/LTV unit economics.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onJumpToModule('MOD_I_MARKETING')}
+              className="w-fit text-xs text-indigo-700"
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit in Module I
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Brand Positioning &amp; First 10 Customers Playbook
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">140-Char Elevator Hook:</span>{' '}
+                {facts.elevatorHook140 || '—'}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Positioning Statement:</span>{' '}
+                {facts.positioningFormulaSummary || '—'}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">First 10 Customers Playbook:</span>{' '}
+                {facts.first10ArchetypeLabel || '—'} ({facts.first10ProspectsCount} named prospects •{' '}
+                {facts.committedOrPilotProspectsCount} active pilot/committed)
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Reverse-Engineered Marketing Budget &amp; CAC/LTV
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Monthly Marketing Budget:</span>{' '}
+                {formatPlanCurrency(facts.monthlyMarketingBudget, facts.currency)}/month
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Customer Acquisition Cost (CAC):</span>{' '}
+                {formatPlanCurrency(facts.calculatedCashCac, facts.currency)} •{' '}
+                <span className="font-semibold text-slate-900">LTV:</span>{' '}
+                {formatPlanCurrency(facts.calculatedLtv, facts.currency)}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">LTV:CAC Ratio &amp; Payback:</span>{' '}
+                <span className="font-bold text-indigo-900">{facts.calculatedLtvToCacRatio}x</span> •{' '}
+                {facts.calculatedPaybackMonths} month(s) CAC payback
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                P1 • Product Strategy
+              </div>
+              <p className="mt-1 text-slate-700">{facts.fourPsSummary.productP1 || '—'}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                P2 • Price Positioning
+              </div>
+              <p className="mt-1 text-slate-700">{facts.fourPsSummary.priceP2 || '—'}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                P3 • Place &amp; Channels
+              </div>
+              <p className="mt-1 text-slate-700">{facts.fourPsSummary.placeP3 || '—'}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                P4 • Promotion Motion
+              </div>
+              <p className="mt-1 text-slate-700">{facts.fourPsSummary.promotionP4 || '—'}</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* =================================================================== */}
+      {/* CHAPTER 10: 36-MONTH FINANCIAL BUILDER & CASHFLOW TROUGH (MODULE J) */}
+      {/* =================================================================== */}
+      {facts.hasModuleJ && plan.moduleJData && (
+        <section
+          id="master-doc-ch-j"
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
+        >
+          <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+                J
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                  Chapter 10: 36-Month Financial Builder, Overheads, Working Capital &amp; Cashflow Trough
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Localized overhead posture, Year 1 payroll/drawings, debtor/creditor working capital timing, and 36-month funding runway.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onJumpToModule('MOD_J_FINANCE')}
+              className="w-fit text-xs text-indigo-700"
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit in Module J
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Fixed Overheads &amp; Year 1 Payroll Posture
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Operating Cost Posture:</span>{' '}
+                {facts.operatingCostPostureLabel || '—'}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Monthly Fixed Overheads:</span>{' '}
+                {formatPlanCurrency(facts.monthlyFixedOverheadsTotal, facts.currency)}/month
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Y1 Founder Drawings &amp; Team Payroll:</span>{' '}
+                {formatPlanCurrency(facts.monthlyFounderDrawingsYear1, facts.currency)}/mo drawings •{' '}
+                {formatPlanCurrency(facts.monthlyTeamSalariesYear1, facts.currency)}/mo team salaries
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Working Capital &amp; Funding Runway
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Customer Collection Timing:</span>{' '}
+                {facts.customerCollectionTimingLabel || '—'}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Primary Funding Strategy:</span>{' '}
+                {facts.primaryFundingStrategyLabel || '—'}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Starting Cash &amp; External Capital:</span>{' '}
+                {formatPlanCurrency(facts.startingCashBalanceDay1, facts.currency)} Day-1 cash +{' '}
+                {formatPlanCurrency(facts.totalExternalFundingMapped, facts.currency)} external funding
+              </p>
+            </div>
+          </div>
+
+          {facts.writtenFinancialAssumptionsBlock && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                Written Financial Assumptions Notes
+              </div>
+              <p className="leading-relaxed">{facts.writtenFinancialAssumptionsBlock}</p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* =================================================================== */}
+      {/* CHAPTER 11: GRANTS, CAPITAL STACK & TAX RELIEF (MODULE K)           */}
+      {/* =================================================================== */}
+      {facts.hasModuleK && plan.moduleKData && (
+        <section
+          id="master-doc-ch-k"
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
+        >
+          <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+                K
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                  Chapter 11: Non-Dilutive Grants, Capital Stack, Reimbursement Bridge &amp; Tax Relief
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Grant readiness scorer, matched funding capital stack, reimbursement cashflow bridge, and investor/R&amp;D tax relief.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onJumpToModule('MOD_K_GRANTS_FUNDING')}
+              className="w-fit text-xs text-indigo-700"
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit in Module K
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Lead Programme &amp; Matched Capital Stack
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Lead Programme:</span>{' '}
+                <span className="font-bold text-indigo-900">{facts.selectedGrantKey || '—'}</span>{' '}
+                ({facts.overallAssessorReadinessScore}/100 Assessor Readiness)
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">
+                  Target Capital Stack ({formatPlanCurrency(facts.totalTargetFundingGap, facts.currency)}):
+                </span>{' '}
+                Founder Cash: {formatPlanCurrency(facts.skinInTheGameCash, facts.currency)} ({facts.skinInTheGamePercent}%) •{' '}
+                Grants: {formatPlanCurrency(facts.totalGrantsAllocated, facts.currency)} •{' '}
+                Loans: {formatPlanCurrency(facts.totalLoansAllocated, facts.currency)} •{' '}
+                Equity: {formatPlanCurrency(facts.totalAngelAllocated, facts.currency)} ({facts.projectedEquityDilutionPercent}% dilution)
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Reimbursement Cashflow Bridge &amp; Tax Relief
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Reimbursement Turnaround &amp; Bridge:</span>{' '}
+                {facts.grantReimbursementTurnaroundWeeks} weeks lag • {facts.bridgeStrategyLabel || '—'} (
+                <span className={facts.isAssessorLiquidityCompliant ? 'font-bold text-emerald-700' : 'font-bold text-amber-700'}>
+                  {facts.isAssessorLiquidityCompliant ? 'Assessor Liquidity Compliant' : 'Liquidity Gap Flagged'}
+                </span>
+                )
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Tax Relief &amp; Advance Assurance:</span>{' '}
+                {facts.primaryTaxScheme} ({formatPlanCurrency(facts.targetReliefRaiseAmount, facts.currency)} target raise •{' '}
+                Status: {facts.advanceAssuranceStatus})
+              </p>
+            </div>
+          </div>
+
+          {facts.executiveFundingSummaryNarrative && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                Executive Funding &amp; Non-Dilutive Strategy Narrative
+              </div>
+              <p className="leading-relaxed">{facts.executiveFundingSummaryNarrative}</p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* =================================================================== */}
+      {/* OFFICIAL GRANT & BUSINESS PLAN COMPILER (MODULE L) LAUNCHER         */}
+      {/* =================================================================== */}
+      <section className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-emerald-50/60 p-5 shadow-xs sm:p-6">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+              <Sparkles className="h-4 w-4 text-indigo-600" />
+              Module L • Official Grant &amp; Business Plan Compiler
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              Ready to compile your official LEO, Innovate UK, Start Up Loans, or SEIS/EIS pack?
+            </h3>
+            <p className="text-xs text-slate-600">
+              Module L auto-compiles all 11 foundation chapters (Modules A–K) into official submission templates with live proof blocks and Pre-Flight Contradiction &amp; Grant Audit.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
+            className="shrink-0 bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+          >
+            Open Module L Compiler
+            <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </section>
+
+      {/* =================================================================== */}
+      {/* OPTIONAL ALL 11 CHAPTERS GUIDE (MODULES A–K)                        */}
       {/* =================================================================== */}
       {showUpcomingRoadmap && (
         <section className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/30 p-5 sm:p-6">
@@ -1707,59 +2680,50 @@ export function MasterDocumentWorkspace({
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-indigo-600" />
               <h3 className="text-sm font-bold text-slate-900">
-                Upcoming Blueprint Chapters Roadmap (Modules F–K)
+                Complete 11-Chapter Master Blueprint Architecture (Modules A–K)
               </h3>
             </div>
             <Badge variant="secondary" className="text-[10px]">
-              Auto-unlocks as you progress
+              {facts.activeChaptersCount}/11 Active
             </Badge>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-white/80 p-3.5 text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                <Users className="h-3.5 w-3.5 text-indigo-600" />
-                Chapter 6: Team, Survival Budget &amp; Co-Founder Fit (Module F)
-              </div>
-              <p className="mt-1 text-slate-600">
-                Promoter 150-word profiles, personal survival budget, 7 Startup Hats, and blind-reveal co-founder alignment.
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white/80 p-3.5 text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
-                Chapter 7: Getting Set Up — Launchpad &amp; Operations (Module G)
-              </div>
-              <p className="mt-1 text-slate-600">
-                6-card setup hub (0–100% Ops Readiness Score): Legal Entity (CRO/Companies House), Domain &amp; @company Email, Business Bank Account, Bookkeeping/VAT/Payroll, Startup Insurance, and Legal/IP/GDPR.
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white/80 p-3.5 text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                <DollarSign className="h-3.5 w-3.5 text-indigo-600" />
-                Chapter 8: Selling, Sales Assumptions &amp; Pocket Profit (Module H)
-              </div>
-              <p className="mt-1 text-slate-600">
-                Pricing architect, written sales assumptions, and unit economics pulling COGS and fees from Modules D &amp; E.
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white/80 p-3.5 text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                <Megaphone className="h-3.5 w-3.5 text-indigo-600" />
-                Chapter 9: Marketing, 4Ps &amp; First 10 Customers (Module I)
-              </div>
-              <p className="mt-1 text-slate-600">
-                Brand positioning, 4Ps strategy, waitlist lead conversion, and reverse-engineered marketing budget.
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white/80 p-3.5 text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                <Scale className="h-3.5 w-3.5 text-indigo-600" />
-                Chapter 10: Financials, Cashflow &amp; Grant Readiness (Modules J &amp; K)
-              </div>
-              <p className="mt-1 text-slate-600">
-                36-month no-spreadsheet financial builder, cashflow trough, and IE/UK non-dilutive grant matcher.
-              </p>
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { code: 'MOD_A_IDEATION' as ModuleCode, active: facts.hasModuleA, title: 'Ch 1: Ideation & Founder Fit (Mod A)', desc: 'Concept Canvas, Motivations & Fit Scorecard' },
+              { code: 'MOD_B_MARKET' as ModuleCode, active: facts.hasModuleB, title: 'Ch 2: Market & Wedge (Mod B)', desc: 'Beachhead Persona, Competitors & TAM/SAM/SOM' },
+              { code: 'MOD_C_SURVEYS_FEEDBACK' as ModuleCode, active: facts.hasModuleC, title: 'Ch 3: Validation Proof (Mod C)', desc: 'Public Validation Surveys, Waitlist & 1-on-1 Interviews' },
+              { code: 'MOD_D_PRODUCT_BUILD' as ModuleCode, active: facts.hasModuleD, title: 'Ch 4: Product & Scope (Mod D)', desc: 'Product Vehicle, Channels, V1 Filter & Work Packages' },
+              { code: 'MOD_E_OPERATIONS' as ModuleCode, active: facts.hasModuleE, title: 'Ch 5: Operations & Risk (Mod E)', desc: 'Order Fulfillment, Equipment CapEx & Risk Register' },
+              { code: 'MOD_F_COFOUNDER_TEAM' as ModuleCode, active: facts.hasModuleF, title: 'Ch 6: Team & Hiring (Mod F)', desc: '150-Word Profiles, Survival Budget & 3-Year Hiring' },
+              { code: 'MOD_G_LAUNCHPAD' as ModuleCode, active: facts.hasModuleG, title: 'Ch 7: Launchpad Setup (Mod G)', desc: '0–100% Ops Readiness across 6 Legal/Bank/Tax Pillars' },
+              { code: 'MOD_H_REVENUE' as ModuleCode, active: facts.hasModuleH, title: 'Ch 8: Pricing & Pocket Profit (Mod H)', desc: 'Pricing Architect, Sales Velocity & 3-Year Breakeven' },
+              { code: 'MOD_I_MARKETING' as ModuleCode, active: facts.hasModuleI, title: 'Ch 9: Marketing & First 10 (Mod I)', desc: 'Positioning, 4Ps, First 10 Customers & CAC/LTV' },
+              { code: 'MOD_J_FINANCE' as ModuleCode, active: facts.hasModuleJ, title: 'Ch 10: 36-Month Financials (Mod J)', desc: 'Overheads, Working Capital & Cashflow Trough' },
+              { code: 'MOD_K_GRANTS_FUNDING' as ModuleCode, active: facts.hasModuleK, title: 'Ch 11: Grants & Capital Stack (Mod K)', desc: 'IE/UK Grants, Reimbursement Bridge & SEIS/EIS/EII' },
+            ].map((item) => (
+              <button
+                key={item.code}
+                type="button"
+                onClick={() => onJumpToModule(item.code)}
+                className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white/90 p-3.5 text-left text-xs transition hover:border-indigo-300 hover:shadow-2xs"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 font-bold text-slate-900">
+                    <span>{item.title}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        item.active
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {item.active ? 'Populated' : 'Not Started'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-slate-600">{item.desc}</p>
+                </div>
+              </button>
+            ))}
           </div>
         </section>
       )}

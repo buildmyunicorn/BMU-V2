@@ -34,6 +34,10 @@ import {
   ModuleLModeSelectorStep,
   MODULE_L_COMPILER_MODES,
 } from '@/components/workspace/module-l-mode-selector-step';
+import { ModuleLContradictionAuditStep } from '@/components/workspace/module-l-contradiction-audit-step';
+import { ModuleLNarrativeCompilerStep } from '@/components/workspace/module-l-narrative-compiler-step';
+import { ModuleLAppendicesBinderStep } from '@/components/workspace/module-l-appendices-binder-step';
+import { ModuleLSubmissionDossierStep } from '@/components/workspace/module-l-submission-dossier-step';
 
 export interface ModuleLWorkspaceProps {
   plan: ActiveStartupPlan;
@@ -86,6 +90,10 @@ export function ModuleLWorkspace({
   plan,
   isVaultReadonly = false,
   onSaveStep1Mode,
+  onSaveStep2Audit,
+  onSaveStep3Compiler,
+  onSaveStep4Appendices,
+  onSaveStep5Brief,
   onParkQuestionInSession,
   onBackToModuleK,
   onOpenMasterBlueprint,
@@ -413,161 +421,368 @@ export function ModuleLWorkspace({
             </div>
           </CardHeader>
           <CardContent className="pt-5">
-            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-slate-700">
-              <p className="font-bold text-slate-900">
-                Step 1 Mode Locked: {activeCatalogItem.title}
-              </p>
-              <p className="mt-1">
-                Ready to build out the full Step 2 Cross-Module Contradiction &amp; Pre-Flight Audit engine next!
-              </p>
-            </div>
+            <ModuleLContradictionAuditStep
+              plan={plan}
+              isVaultReadonly={isVaultReadonly}
+              onSaveStep2Audit={async (data, progress = 40) => {
+                if (onSaveStep2Audit) {
+                  await onSaveStep2Audit(data, progress);
+                }
+              }}
+              onBackToStep1={() => {
+                setOpenStep(1);
+                const el = document.getElementById('module-l-step-1');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onContinueToStep3={() => {
+                setOpenStep(3);
+                const el = document.getElementById('module-l-step-3');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onNavigateToModule={onNavigateToModule}
+              onParkQuestionInSession={onParkQuestionInSession}
+            />
           </CardContent>
         </Card>
       )}
 
       {/* ========================================================================= */}
-      {/* STEP 3: SECTION-BY-SECTION NARRATIVE COMPILER (Collapsed / Preview)       */}
+      {/* STEP 3: SECTION-BY-SECTION NARRATIVE COMPILER                             */}
       {/* ========================================================================= */}
-      <div
-        id="module-l-step-3"
-        onClick={() => setOpenStep(openStep === 3 ? 0 : 3)}
-        className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0 flex-1">
-            <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                isStep3Complete
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-indigo-600 text-white'
-              }`}
-            >
-              {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
-                  3. Interactive Section-by-Section Narrative &amp; Question Compiler
-                </h2>
-                <Badge
-                  variant="outline"
-                  className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
-                >
-                  {activeCatalogItem.sectionStructureLabel}
-                </Badge>
+      {openStep !== 3 && openStep !== 'ALL' ? (
+        <div
+          id="module-l-step-3"
+          onClick={() => setOpenStep(3)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  isStep3Complete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
               </div>
-              <p className="mt-0.5 truncate text-xs text-slate-500">
-                Auto-assembles your official application responses from Modules A–K with live word-limit gauges, scoring rubrics, and inline AI calibration.
-              </p>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    3. Interactive Section-by-Section Narrative &amp; Question Compiler
+                  </h2>
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
+                  >
+                    {activeCatalogItem.sectionStructureLabel}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  Auto-assembles your official application responses from Modules A–K with live word-limit gauges, scoring rubrics, and inline AI calibration.
+                </p>
+              </div>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+            >
+              {isStep3Complete ? 'Edit Step' : 'Open Step'}
+              <ChevronDown className="ml-1 h-3.5 w-3.5" />
+            </Button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
-          >
-            {isStep3Complete ? 'Edit Step' : 'Open Step'}
-            <ChevronDown className="ml-1 h-3.5 w-3.5" />
-          </Button>
         </div>
-      </div>
+      ) : (
+        <Card
+          id="module-l-step-3"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs"
+        >
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  3
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      3. Interactive Section-by-Section Narrative &amp; Question Compiler
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                    >
+                      {activeCatalogItem.sectionStructureLabel}
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    Auto-assembles your official application responses from Modules A–K with live word-limit gauges, scoring rubrics, and inline AI calibration.
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setOpenStep(0)}
+                className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
+              >
+                Collapse Step
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <ModuleLNarrativeCompilerStep
+              plan={plan}
+              isVaultReadonly={isVaultReadonly}
+              onSaveStep3Compiler={async (data, progress = 60) => {
+                if (onSaveStep3Compiler) {
+                  await onSaveStep3Compiler(data, progress);
+                }
+              }}
+              onBackToStep2={() => {
+                setOpenStep(2);
+                const el = document.getElementById('module-l-step-2');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onContinueToStep4={() => {
+                setOpenStep(4);
+                const el = document.getElementById('module-l-step-4');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onNavigateToModule={onNavigateToModule}
+              onParkQuestionInSession={onParkQuestionInSession}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* ========================================================================= */}
-      {/* STEP 4: MANDATORY APPENDICES A–F EVIDENCE BINDER (Collapsed / Preview)    */}
+      {/* STEP 4: MANDATORY APPENDICES A–F EVIDENCE BINDER                           */}
       {/* ========================================================================= */}
-      <div
-        id="module-l-step-4"
-        onClick={() => setOpenStep(openStep === 4 ? 0 : 4)}
-        className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0 flex-1">
-            <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                isStep4Complete
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-indigo-600 text-white'
-              }`}
-            >
-              {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
-                  4. Mandatory Appendices &amp; Verifiable Proof Binder (Appendices A–F)
-                </h2>
-                <Badge
-                  variant="outline"
-                  className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
-                >
-                  Appendices A–F
-                </Badge>
+      {openStep !== 4 && openStep !== 'ALL' ? (
+        <div
+          id="module-l-step-4"
+          onClick={() => setOpenStep(4)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  isStep4Complete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
               </div>
-              <p className="mt-0.5 truncate text-xs text-slate-500">
-                Attaches Promoter CVs (App A), 36-Month Financials (App B), Work Packages &amp; 3-Quotes (App C), Survey Proof (App D), Risk Register (App E) &amp; Statutory Setup (App F).
-              </p>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    4. Mandatory Appendices &amp; Verifiable Proof Binder (Appendices A–F)
+                  </h2>
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
+                  >
+                    Appendices A–F
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  Attaches 36-Month Financials (App A), Technical Work Packages (App B), 3-Quotes (App C), Promoter CVs (App D), Survey Proof (App E) &amp; Statutory Setup (App F).
+                </p>
+              </div>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+            >
+              {isStep4Complete ? 'Edit Step' : 'Open Step'}
+              <ChevronDown className="ml-1 h-3.5 w-3.5" />
+            </Button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
-          >
-            {isStep4Complete ? 'Edit Step' : 'Open Step'}
-            <ChevronDown className="ml-1 h-3.5 w-3.5" />
-          </Button>
         </div>
-      </div>
+      ) : (
+        <Card
+          id="module-l-step-4"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs"
+        >
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  4
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      4. Mandatory Appendices &amp; Verifiable Proof Binder (Appendices A–F)
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                    >
+                      Appendices A–F
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    Attaches 36-Month Financials (App A), Technical Work Packages (App B), 3-Quotes (App C), Promoter CVs (App D), Survey Proof (App E) &amp; Statutory Setup (App F).
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setOpenStep(0)}
+                className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
+              >
+                Collapse Step
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <ModuleLAppendicesBinderStep
+              plan={plan}
+              isVaultReadonly={isVaultReadonly}
+              onSaveStep4Appendices={async (data, progress = 80) => {
+                if (onSaveStep4Appendices) {
+                  await onSaveStep4Appendices(data, progress);
+                }
+              }}
+              onBackToStep3={() => {
+                setOpenStep(3);
+                const el = document.getElementById('module-l-step-3');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onContinueToStep5={() => {
+                setOpenStep(5);
+                const el = document.getElementById('module-l-step-5');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onNavigateToModule={onNavigateToModule}
+              onParkQuestionInSession={onParkQuestionInSession}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* ========================================================================= */}
       {/* STEP 5 (OVERVIEW): OFFICIAL SUBMISSION DOSSIER BRIEF (Strict Section 6.4) */}
       {/* ========================================================================= */}
-      <div
-        id="module-l-step-5"
-        onClick={() => setOpenStep(openStep === 5 ? 0 : 5)}
-        className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0 flex-1">
-            <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                isStep5Complete
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-indigo-600 text-white'
-              }`}
-            >
-              <FileText className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
-                  Official Submission Dossier &amp; Executive Brief
-                </h2>
-                <Badge
-                  variant="outline"
-                  className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
-                >
-                  {completedCoreStepsCount}/5 Sections Ready
-                </Badge>
+      {openStep !== 5 && openStep !== 'ALL' ? (
+        <div
+          id="module-l-step-5"
+          onClick={() => setOpenStep(5)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  isStep5Complete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+              >
+                {isStep5Complete ? <Check className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
               </div>
-              <p className="mt-0.5 truncate text-xs text-slate-500">
-                Final committee submission checklist, Things to Consider review, and 1-click PDF / Standalone HTML / Markdown dossier export.
-              </p>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    5. Official Submission Dossier &amp; Executive Brief
+                  </h2>
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                  >
+                    {completedCoreStepsCount}/5 Sections Ready
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  Final committee submission checklist, Things to Consider review, and 1-click PDF / Standalone HTML / Markdown dossier export.
+                </p>
+              </div>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+            >
+              <span>{isStep5Complete ? 'Open Overview' : 'Review Overview'}</span>
+              <ChevronDown className="ml-1 h-3.5 w-3.5" />
+            </Button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
-          >
-            <span>{isStep5Complete ? 'Open Overview' : 'Review Overview'}</span>
-            <ChevronDown className="ml-1 h-3.5 w-3.5" />
-          </Button>
         </div>
-      </div>
+      ) : (
+        <Card
+          id="module-l-step-5"
+          className="scroll-mt-24 rounded-xl border border-indigo-200 bg-white shadow-xs"
+        >
+          <CardHeader className="border-b border-indigo-100 bg-gradient-to-r from-indigo-50/50 via-white to-violet-50/30 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  5
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      5. Official Submission Dossier &amp; Executive Brief
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                    >
+                      Final Capstone &amp; Submission
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    Comprehensive final gatekeeper, assessor audit score, statutory checklist &amp; standalone printable dossier export.
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setOpenStep(0)}
+                className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
+              >
+                Collapse Step
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <ModuleLSubmissionDossierStep
+              plan={plan}
+              isVaultReadonly={isVaultReadonly}
+              onSaveStep5Brief={async (data, progress = 100) => {
+                if (onSaveStep5Brief) {
+                  await onSaveStep5Brief(data, progress);
+                }
+              }}
+              onBackToStep4={() => {
+                setOpenStep(4);
+                const el = document.getElementById('module-l-step-4');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onOpenMasterBlueprint={onOpenMasterBlueprint}
+              onNavigateToModule={onNavigateToModule}
+              onParkQuestionInSession={onParkQuestionInSession}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -30,6 +30,7 @@ import {
   Copy,
   Bug,
   Archive,
+  Handshake,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -84,11 +85,21 @@ import { SupportBugTrackerTab } from '@/components/admin/support-bug-tracker-tab
 import { PersonaUxAuditLabTab } from '@/components/admin/persona-ux-audit-lab-tab';
 import { VouchersCohortsStudioTab } from '@/components/admin/vouchers-cohorts-studio-tab';
 import { SystemEmailsStudioTab } from '@/components/admin/system-emails-studio-tab';
+import { PartnersReferralsStudioTab } from '@/components/admin/partners-referrals-studio-tab';
 import {
   listAdminVouchersAndCohortsAction,
   type AdminVoucherSummary,
   type AdminCohortSummary,
 } from '@/app/actions/admin-vouchers';
+import { listAdminPartnersAndEventsAction } from '@/app/actions/admin-partners';
+import {
+  loadLocalPartnerOffers,
+  saveLocalPartnerOffers,
+  loadLocalReferralEvents,
+  saveLocalReferralEvents,
+  type PartnerOfferRecord,
+  type PartnerReferralEventRecord,
+} from '@/lib/partners/partner-catalog-store';
 
 type StatusFilterTab =
   | 'ALL_ACTIVE'
@@ -409,9 +420,16 @@ export default function AdminDashboardPage() {
     refundedVouchers: 0,
     totalCohorts: 0,
   });
+  const [partnerOffersList, setPartnerOffersList] = useState<
+    PartnerOfferRecord[]
+  >([]);
+  const [partnerReferralEventsList, setPartnerReferralEventsList] = useState<
+    PartnerReferralEventRecord[]
+  >([]);
   const [activeAdminSection, setActiveAdminSection] = useState<
     | 'ACCOUNTS_AND_WAITLIST'
     | 'VOUCHERS_AND_COHORTS'
+    | 'PARTNERS_AND_REFERRALS'
     | 'SYSTEM_EMAILS'
     | 'SUPPORT_AND_BUGS'
     | 'PERSONA_UX_LAB'
@@ -448,12 +466,14 @@ export default function AdminDashboardPage() {
   async function fetchUsers() {
     setIsLoading(true);
     try {
-      const [res, waitlistRes, supportRes, voucherRes] = await Promise.all([
-        listAdminUsersAction(),
-        listEarlyAccessWaitlistAction(),
-        listSupportTicketsAction(),
-        listAdminVouchersAndCohortsAction(),
-      ]);
+      const [res, waitlistRes, supportRes, voucherRes, partnersRes] =
+        await Promise.all([
+          listAdminUsersAction(),
+          listEarlyAccessWaitlistAction(),
+          listSupportTicketsAction(),
+          listAdminVouchersAndCohortsAction(),
+          listAdminPartnersAndEventsAction(),
+        ]);
       if (!res.authenticated) {
         router.replace('/admin/login');
         return;
@@ -509,6 +529,35 @@ export default function AdminDashboardPage() {
         setVouchersList(voucherRes.vouchers);
         setCohortsList(voucherRes.cohorts);
         setVoucherStats(voucherRes.stats);
+      }
+
+      // Merge server/PostgreSQL partner offers & referral events with local cache
+      if (partnersRes.ok) {
+        if (partnersRes.dbConnected && partnersRes.offers.length > 0) {
+          setPartnerOffersList(partnersRes.offers);
+          saveLocalPartnerOffers(partnersRes.offers);
+        } else {
+          const localOffers = loadLocalPartnerOffers();
+          setPartnerOffersList(
+            localOffers.length > 0 ? localOffers : partnersRes.offers
+          );
+        }
+
+        const localEvents = loadLocalReferralEvents();
+        const eventMap = new Map<string, PartnerReferralEventRecord>();
+        for (const ev of partnersRes.events || []) {
+          eventMap.set(ev.id, ev);
+        }
+        for (const ev of localEvents) {
+          if (!eventMap.has(ev.id)) {
+            eventMap.set(ev.id, ev);
+          }
+        }
+        const mergedEvents = Array.from(eventMap.values()).sort((a, b) =>
+          b.createdAt.localeCompare(a.createdAt)
+        );
+        setPartnerReferralEventsList(mergedEvents);
+        saveLocalReferralEvents(mergedEvents);
       }
     } finally {
       setIsLoading(false);
@@ -705,6 +754,8 @@ export default function AdminDashboardPage() {
         setActiveAdminSection('PERSONA_UX_LAB');
       } else if (params.get('tab') === 'vouchers') {
         setActiveAdminSection('VOUCHERS_AND_COHORTS');
+      } else if (params.get('tab') === 'partners') {
+        setActiveAdminSection('PARTNERS_AND_REFERRALS');
       }
     }
     fetchUsers();
@@ -1251,6 +1302,28 @@ export default function AdminDashboardPage() {
 
             <button
               type="button"
+              onClick={() => setActiveAdminSection('PARTNERS_AND_REFERRALS')}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeAdminSection === 'PARTNERS_AND_REFERRALS'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Handshake className="h-4 w-4" />
+              <span>Partners &amp; Referrals Studio</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeAdminSection === 'PARTNERS_AND_REFERRALS'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-indigo-100 text-indigo-800'
+                }`}
+              >
+                {partnerOffersList.filter((o) => o.isActive).length} Active
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveAdminSection('SYSTEM_EMAILS')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
                 activeAdminSection === 'SYSTEM_EMAILS'
@@ -1328,7 +1401,9 @@ export default function AdminDashboardPage() {
                 ? 'Synthetic Founder Personas, L1–L4 Literacy Lever, Mobile/Tablet/Laptop & Fix Prompt Generator'
                 : activeAdminSection === 'VOUCHERS_AND_COHORTS'
                   ? 'Batch Generator, CSV Exports, Lifetime & Time-Limited Passes, Safe Refund Downgrades'
-                  : 'Manage Founder Tiers, Lifetime Access & Early-Access Leads'}
+                  : activeAdminSection === 'PARTNERS_AND_REFERRALS'
+                    ? 'Module Step Slot Mapper, Warm Intro Intake Builder, Affiliate Links & Bounty Ledger'
+                    : 'Manage Founder Tiers, Lifetime Access & Early-Access Leads'}
           </span>
         </div>
 
@@ -1344,6 +1419,15 @@ export default function AdminDashboardPage() {
                 text,
               })
             }
+          />
+        ) : activeAdminSection === 'PARTNERS_AND_REFERRALS' ? (
+          <PartnersReferralsStudioTab
+            offers={partnerOffersList}
+            events={partnerReferralEventsList}
+            onUpdateOffers={setPartnerOffersList}
+            onUpdateEvents={setPartnerReferralEventsList}
+            onRefresh={fetchUsers}
+            onNotify={(type, text) => setBannerMessage({ type, text })}
           />
         ) : activeAdminSection === 'SYSTEM_EMAILS' ? (
           <SystemEmailsStudioTab

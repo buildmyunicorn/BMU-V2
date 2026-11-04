@@ -251,7 +251,10 @@ import { ModuleIWorkspace } from '@/components/workspace/module-i-workspace';
 import { ModuleJWorkspace } from '@/components/workspace/module-j-workspace';
 import { ModuleKWorkspace } from '@/components/workspace/module-k-workspace';
 import { ModuleLWorkspace } from '@/components/workspace/module-l-workspace';
-import { saveModuleLStep1ModeAction } from '@/app/actions/module-l';
+import {
+  saveModuleLStep1ModeAction,
+  saveModuleLPartialDataAction,
+} from '@/app/actions/module-l';
 import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
 import { LocalBugCaptureWidget } from '@/components/workspace/local-bug-capture-widget';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
@@ -6266,6 +6269,138 @@ export default function WorkspacePage() {
                 await saveModuleLStep1ModeAction({
                   planId: currentPlan.id,
                   step1Mode: step1Data,
+                  completionPercentage: progress,
+                });
+              }}
+              onSaveStep2Audit={async (step2Data, progress = 40) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_L_STEP_2_AUDIT',
+                      moduleLData: {
+                        ...(p.moduleLData || {}),
+                        step2Audit: step2Data,
+                        completionPercentage: Math.max(
+                          p.moduleLData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+
+                await saveModuleLPartialDataAction({
+                  planId: currentPlan.id,
+                  stepKey: 'step2Audit',
+                  payload: step2Data,
+                  completionPercentage: progress,
+                });
+              }}
+              onSaveStep3Compiler={async (step3Data, progress = 60) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_L_STEP_3_COMPILER',
+                      moduleLData: {
+                        ...(p.moduleLData || {}),
+                        step3Compiler: step3Data,
+                        completionPercentage: Math.max(
+                          p.moduleLData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+
+                await saveModuleLPartialDataAction({
+                  planId: currentPlan.id,
+                  stepKey: 'step3Compiler',
+                  payload: step3Data,
+                  completionPercentage: progress,
+                });
+              }}
+              onSaveStep4Appendices={async (step4Data, progress = 80) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_L_STEP_4_APPENDICES',
+                      moduleLData: {
+                        ...(p.moduleLData || {}),
+                        step4Appendices: step4Data,
+                        completionPercentage: Math.max(
+                          p.moduleLData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+
+                await saveModuleLPartialDataAction({
+                  planId: currentPlan.id,
+                  stepKey: 'step4Appendices',
+                  payload: step4Data,
+                  completionPercentage: progress,
+                });
+              }}
+              onSaveStep5Brief={async (step5Data, progress = 100) => {
+                setSession((prev) => {
+                  const updatedPlans = prev.plans.map((p) => {
+                    if (p.id !== currentPlan.id) return p;
+                    return {
+                      ...p,
+                      currentModuleStep: 'MOD_L_STEP_5_BRIEF',
+                      moduleLData: {
+                        ...(p.moduleLData || {}),
+                        step5DossierBrief: step5Data,
+                        completionPercentage: Math.max(
+                          p.moduleLData?.completionPercentage || 0,
+                          progress
+                        ),
+                        lastSavedAt: new Date().toISOString(),
+                      },
+                    };
+                  });
+                  const updatedSession: BmuLocalSession = {
+                    ...prev,
+                    plans: updatedPlans,
+                  };
+                  saveBmuSession(updatedSession);
+                  return updatedSession;
+                });
+
+                await saveModuleLPartialDataAction({
+                  planId: currentPlan.id,
+                  stepKey: 'step5DossierBrief',
+                  payload: step5Data,
                   completionPercentage: progress,
                 });
               }}

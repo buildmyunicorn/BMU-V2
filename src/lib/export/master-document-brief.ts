@@ -199,12 +199,18 @@ export interface MasterDocumentVerifiedFacts {
   exportScopeLabel: string;
   targetMarketsLabel: string;
 
-  // Chapter completion flags (strictly factual)
+  // Chapter completion flags (strictly factual across all 11 Foundation Modules A–K)
   hasModuleA: boolean;
   hasModuleB: boolean;
   hasModuleC: boolean;
   hasModuleD: boolean;
   hasModuleE: boolean;
+  hasModuleF: boolean;
+  hasModuleG: boolean;
+  hasModuleH: boolean;
+  hasModuleI: boolean;
+  hasModuleJ: boolean;
+  hasModuleK: boolean;
   activeChaptersCount: number;
   overallCompletionPercent: number;
 
@@ -299,6 +305,115 @@ export interface MasterDocumentVerifiedFacts {
   complianceItemsCount: number;
   estimatedAnnualInsurancePremium: number;
   executiveOperationsSummaryNarrative: string;
+
+  // Module F Facts (Team, Survival Budget, 7 Hats & Hiring Plan)
+  teamStructurePostureLabel: string;
+  teamMembersCount: number;
+  teamMemberSummaries: Array<{
+    name: string;
+    roleTitle: string;
+    equityPercent: number;
+    weeklyHours: number;
+    bio150Words: string;
+  }>;
+  hatsAssignedCount: number;
+  advisorsCount: number;
+  monthlyNetSurvivalBurnTotal: number;
+  personalSavingsBufferTotal: number;
+  alignmentResponsesCount: number;
+  plannedHiresCount: number;
+  plannedHiresSummaries: Array<{
+    roleTitle: string;
+    targetQuarter: string;
+    annualGrossSalary: number;
+    employmentType: string;
+  }>;
+  executiveTeamCapabilityNarrative: string;
+
+  // Module G Facts (Launchpad & Operations Readiness Hub)
+  opsReadinessPercent: number;
+  legalEntityStructureLabel: string;
+  registeredEntityName: string;
+  registrationNumber: string;
+  primaryDomain: string;
+  officialBusinessEmail: string;
+  bankProviderLabel: string;
+  hasDedicatedIban: boolean;
+  accountingSoftwareLabel: string;
+  vatStatusLabel: string;
+  insurancesActiveList: string[];
+  legalComplianceItemsActiveList: string[];
+
+  // Module H Facts (Revenue, Pricing Architect & 3-Year Pocket Profit Breakeven)
+  revenueModelVehicleLabel: string;
+  valueMetric: string;
+  pricingTiersCount: number;
+  pricingTiersSummaries: Array<{
+    name: string;
+    priceNetOfTax: number;
+    billingFrequency: string;
+    pocketProfitMarginPercent: number;
+  }>;
+  blendedAveragePriceNet: number;
+  year1TargetCustomers: number;
+  year1ProjectedNetTurnover: number;
+  year1PocketProfitNet: number;
+  year2ProjectedNetTurnover: number;
+  year3ProjectedNetTurnover: number;
+  salesCycleDays: number;
+  primarySalesMotionLabel: string;
+  expectedConversionRatePercent: number;
+  executiveCommercialSummaryNarrative: string;
+
+  // Module I Facts (Brand Positioning, 4Ps, First 10 Customers & CAC/LTV Budget)
+  elevatorHook140: string;
+  positioningFormulaSummary: string;
+  fourPsSummary: {
+    productP1: string;
+    priceP2: string;
+    placeP3: string;
+    promotionP4: string;
+  };
+  first10ArchetypeLabel: string;
+  pilotOfferHeadline: string;
+  first10ProspectsCount: number;
+  committedOrPilotProspectsCount: number;
+  monthlyMarketingBudget: number;
+  calculatedCashCac: number;
+  calculatedLtv: number;
+  calculatedLtvToCacRatio: number;
+  calculatedPaybackMonths: number;
+  executiveMarketingSummaryNarrative: string;
+
+  // Module J Facts (36-Month Financial Builder, Overheads, Working Capital & Cashflow Trough)
+  operatingCostPostureLabel: string;
+  monthlyFixedOverheadsTotal: number;
+  monthlyFounderDrawingsYear1: number;
+  monthlyTeamSalariesYear1: number;
+  customerCollectionTimingLabel: string;
+  primaryFundingStrategyLabel: string;
+  startingCashBalanceDay1: number;
+  totalExternalFundingMapped: number;
+  writtenFinancialAssumptionsBlock: string;
+  executiveFinancialSummaryNarrative: string;
+
+  // Module K Facts (Non-Dilutive Grants, Capital Stack, Reimbursement Bridge & Tax Relief)
+  selectedGrantKey: string;
+  overallAssessorReadinessScore: number;
+  totalTargetFundingGap: number;
+  skinInTheGameCash: number;
+  totalGrantsAllocated: number;
+  totalLoansAllocated: number;
+  totalAngelAllocated: number;
+  skinInTheGamePercent: number;
+  projectedEquityDilutionPercent: number;
+  grantReimbursementTurnaroundWeeks: number;
+  bridgeStrategyLabel: string;
+  isAssessorLiquidityCompliant: boolean;
+  primaryTaxScheme: string;
+  targetReliefRaiseAmount: number;
+  advanceAssuranceStatus: string;
+  executiveFundingSummaryNarrative: string;
 }
 
 /**
@@ -464,15 +579,122 @@ export function extractMasterDocumentVerifiedFacts(
         (riskReg?.riskItems?.length ?? 0) > 0)
   );
 
+  // Module F Check (Co-Founder, Team, Personal Survival Budget & 3-Year Hiring Plan)
+  const modF = plan.moduleFData;
+  const teamMembers = modF?.promoterProfiles?.teamMembers || [];
+  const hatAssignments = modF?.step2RoleMatrixData?.hatAssignments || [];
+  const founderBudgets = modF?.step3SurvivalBudgetData?.founderBudgets || [];
+  const hiringRoles = modF?.step5HiringPlanData?.roles || [];
+  const hasModuleF = Boolean(
+    modF &&
+      (teamMembers.length > 0 ||
+        modF.promoterProfiles?.executiveTeamCapabilityNarrative?.trim() ||
+        hatAssignments.some(
+          (h) =>
+            Boolean(h.primaryOwnerMemberId?.trim()) &&
+            h.primaryOwnerMemberId !== 'UNASSIGNED'
+        ) ||
+        founderBudgets.length > 0 ||
+        hiringRoles.length > 0)
+  );
+
+  // Module G Check (Launchpad & Operations Hub — 6 Setup Cards)
+  const modG = plan.moduleGData;
+  const gStepsReady = modG
+    ? [
+        modG.step1?.state === 'ALREADY_HAVE' || Boolean(modG.step1?.registeredEntityName?.trim()),
+        modG.step2?.state === 'ALREADY_HAVE' || Boolean(modG.step2?.primaryDomain?.trim()),
+        modG.step3?.state === 'ALREADY_HAVE' || Boolean(modG.step3?.hasDedicatedIban),
+        modG.step4?.state === 'ALREADY_HAVE' || Boolean(modG.step4?.hasAccountant),
+        modG.step5?.state === 'ALREADY_HAVE' ||
+          Boolean(
+            modG.step5?.hasPublicLiability ||
+              modG.step5?.hasProfessionalIndemnity ||
+              modG.step5?.hasEmployersLiability
+          ),
+        modG.step6?.state === 'ALREADY_HAVE' ||
+          Boolean(modG.step6?.hasIpAssignmentSigned || modG.step6?.hasPrivacyPolicy),
+      ].filter(Boolean).length
+    : 0;
+  const opsReadinessPercent = modG
+    ? typeof modG.completionPercentage === 'number' && modG.completionPercentage > 0
+      ? modG.completionPercentage
+      : Math.round((gStepsReady / 6) * 100)
+    : 0;
+  const hasModuleG = Boolean(
+    modG &&
+      (opsReadinessPercent > 0 ||
+        modG.step1?.registeredEntityName?.trim() ||
+        modG.step2?.primaryDomain?.trim() ||
+        modG.step2?.officialBusinessEmail?.trim() ||
+        Boolean(modG.lastSavedAt))
+  );
+
+  // Module H Check (Revenue Model, Pricing Architect & 3-Year Pocket Profit Breakeven)
+  const modH = plan.moduleHData;
+  const hTiers = modH?.step2PricingTiers?.tiers || [];
+  const hYearTargets = modH?.step3BreakevenCalculator?.yearTargets || [];
+  const hasModuleH = Boolean(
+    modH &&
+      (hTiers.length > 0 ||
+        modH.step1RevenueModel?.offeringRangeSummary?.trim() ||
+        hYearTargets.length > 0 ||
+        modH.step4SalesAssumptions?.writtenAssumptionsNarrative?.trim() ||
+        modH.step5RevenueBrief?.executiveCommercialSummaryNarrative?.trim())
+  );
+
+  // Module I Check (Brand Positioning, 4Ps, First 10 Customers & Marketing Budget)
+  const modI = plan.moduleIData;
+  const iProspects = modI?.step3First10?.targetPipeline || [];
+  const hasModuleI = Boolean(
+    modI &&
+      (modI.step1Positioning?.elevatorHook140?.trim() ||
+        modI.step2FourPs?.strategicRationale?.trim() ||
+        iProspects.length > 0 ||
+        (modI.step4Budget?.totalPlannedMonthlyMarketingSpend ?? 0) > 0 ||
+        modI.step5MarketingBrief?.executiveMarketingSummaryNarrative?.trim())
+  );
+
+  // Module J Check (36-Month Financial Builder, Overheads, Working Capital & Cashflow Trough)
+  const modJ = plan.moduleJData;
+  const jOverheads = modJ?.step1OverheadsTax?.overheadLineItems || [];
+  const jFundingSources = modJ?.step3CashflowGap?.fundingSources || [];
+  const hasModuleJ = Boolean(
+    modJ &&
+      (jOverheads.length > 0 ||
+        modJ.step1OverheadsTax?.overheadsAndTaxNarrative?.trim() ||
+        modJ.step2WorkingCapital?.workingCapitalNarrative?.trim() ||
+        jFundingSources.length > 0 ||
+        modJ.step4Statements?.writtenFinancialAssumptionsBlock?.trim() ||
+        modJ.step5FinanceBrief?.executiveFinancialSummaryNarrative?.trim())
+  );
+
+  // Module K Check (Non-Dilutive Grants, Capital Stack, Reimbursement Bridge & Tax Relief)
+  const modK = plan.moduleKData;
+  const kFundingSources = modK?.step2CapitalStack?.fundingSources || [];
+  const hasModuleK = Boolean(
+    modK &&
+      (Boolean(modK.step1Audit?.selectedGrantKey) ||
+        kFundingSources.length > 0 ||
+        (modK.step2CapitalStack?.totalTargetFundingGap ?? 0) > 0 ||
+        modK.step5FundingBrief?.executiveSummary?.trim())
+  );
+
   const activeChaptersCount = [
     hasModuleA,
     hasModuleB,
     hasModuleC,
     hasModuleD,
     hasModuleE,
+    hasModuleF,
+    hasModuleG,
+    hasModuleH,
+    hasModuleI,
+    hasModuleJ,
+    hasModuleK,
   ].filter(Boolean).length;
 
-  const overallCompletionPercent = Math.round((activeChaptersCount / 5) * 100);
+  const overallCompletionPercent = Math.round((activeChaptersCount / 11) * 100);
 
   // Module A Labels
   const motivationLabel =
@@ -695,6 +917,178 @@ export function extractMasterDocumentVerifiedFacts(
     ? `${topRisk.riskTitle} — Mitigated via: ${topRisk.mitigationAndContingencyPlan}`
     : '';
 
+  // Module F Metrics & Summaries
+  const TEAM_POSTURE_READER_LABELS: Record<string, string> = {
+    SOLO_FOUNDER_ADVISORS: 'Solo Founder + Advisory Support',
+    TWO_COFOUNDERS: '2 Co-Founders (Complementary Partnership)',
+    THREE_PLUS_FOUNDERS: '3+ Co-Founders (Multi-Partner Founding Team)',
+    FOUNDER_PLUS_EARLY_HIRES: 'Lead Founder + Key Early Specialist Hires',
+    OTHER: 'Custom Founding Team Posture',
+  };
+  const rawTeamPosture = modF?.promoterProfiles?.teamStructurePosture || '';
+  const teamStructurePostureLabel =
+    rawTeamPosture === 'OTHER' &&
+    modF?.promoterProfiles?.otherTeamStructurePostureText?.trim()
+      ? modF.promoterProfiles.otherTeamStructurePostureText.trim()
+      : TEAM_POSTURE_READER_LABELS[rawTeamPosture] || teamStructureLabel || '';
+
+  const teamMemberSummaries = teamMembers.map((m) => {
+    const hoursFromCommitment =
+      m.weeklyCommitment === 'FULL_TIME_40H_PLUS'
+        ? 40
+        : m.weeklyCommitment === 'PART_TIME_20_TO_30H'
+          ? 25
+          : m.weeklyCommitment === 'EVENING_WEEKEND_10_TO_15H'
+            ? 12
+            : 5;
+    return {
+      name: m.fullName?.trim() || 'Founder',
+      roleTitle: m.jobTitle?.trim() || 'Co-Founder',
+      equityPercent: Number(m.equitySharePercent) || 0,
+      weeklyHours: hoursFromCommitment,
+      bio150Words: sanitizeSurveyTerminologyForReader(
+        m.compiled150WordNarrative?.trim() || ''
+      ),
+    };
+  });
+
+  const hatsAssignedCount = hatAssignments.filter(
+    (h) =>
+      Boolean(h.primaryOwnerMemberId?.trim()) &&
+      h.primaryOwnerMemberId !== 'UNASSIGNED'
+  ).length;
+  const advisorsCount = modF?.step2RoleMatrixData?.advisors?.length ?? 0;
+
+  const monthlyNetSurvivalBurnTotal = founderBudgets.reduce((sum, fb) => {
+    const gross =
+      (Number(fb.housingAndUtilities) || 0) +
+      (Number(fb.groceriesAndEssentials) || 0) +
+      (Number(fb.transportAndCommute) || 0) +
+      (Number(fb.debtAndLoanCommitments) || 0) +
+      (Number(fb.dependentsAndFamily) || 0);
+    const net = Math.max(0, gross - (Number(fb.incomeOffsetCushion) || 0));
+    return sum + net;
+  }, 0);
+
+  const personalSavingsBufferTotal = founderBudgets.reduce(
+    (sum, fb) => sum + (Number(fb.personalSavingsBuffer) || 0),
+    0
+  );
+
+  const plannedHiresSummaries = hiringRoles.map((r) => ({
+    roleTitle: r.title?.trim() || 'Planned Role',
+    targetQuarter: `Y${r.yearScheduled || 1}-${r.targetQuarter || 'Q1'}`,
+    annualGrossSalary: Number(r.grossAnnualSalary) || 0,
+    employmentType: r.employmentMode || 'FULL_TIME',
+  }));
+
+  const executiveTeamCapabilityNarrative = sanitizeSurveyTerminologyForReader(
+    modF?.step6BlindSpotAuditData?.executiveTeamCapabilityNarrative?.trim() ||
+      modF?.promoterProfiles?.executiveTeamCapabilityNarrative?.trim() ||
+      ''
+  );
+
+  // Module G Metrics & Summaries
+  const legalEntityStructureLabel = modG?.step1
+    ? modG.step1.legalStructure === 'OTHER' && modG.step1.customLegalStructure?.trim()
+      ? modG.step1.customLegalStructure.trim()
+      : modG.step1.legalStructure || ''
+    : '';
+  const bankProviderLabel = modG?.step3
+    ? modG.step3.bankProvider === 'OTHER' && modG.step3.customBankProvider?.trim()
+      ? modG.step3.customBankProvider.trim()
+      : (modG.step3.bankProvider || '').replace(/_/g, ' ')
+    : '';
+  const accountingSoftwareLabel = modG?.step4
+    ? modG.step4.softwareChoice === 'OTHER' && modG.step4.customSoftwareChoice?.trim()
+      ? modG.step4.customSoftwareChoice.trim()
+      : (modG.step4.softwareChoice || '').replace(/_/g, ' ')
+    : '';
+  const vatStatusLabel = modG?.step4?.vatStatus
+    ? modG.step4.vatStatus.replace(/_/g, ' ')
+    : '';
+  const insurancesActiveList: string[] = [];
+  if (modG?.step5?.hasPublicLiability) insurancesActiveList.push('Public Liability');
+  if (modG?.step5?.hasEmployersLiability)
+    insurancesActiveList.push("Employers' Liability");
+  if (modG?.step5?.hasProfessionalIndemnity)
+    insurancesActiveList.push('Professional Indemnity');
+  if (modG?.step5?.hasProductLiability) insurancesActiveList.push('Product Liability');
+
+  const legalComplianceItemsActiveList: string[] = [];
+  if (modG?.step6?.hasIpAssignmentSigned)
+    legalComplianceItemsActiveList.push('Founder IP Assignment Signed');
+  if (modG?.step6?.hasPrivacyPolicy)
+    legalComplianceItemsActiveList.push('Privacy Policy Live');
+  if (modG?.step6?.hasTermsOfService)
+    legalComplianceItemsActiveList.push('Terms of Service');
+  if (modG?.step6?.hasStandardNda) legalComplianceItemsActiveList.push('Standard NDA');
+  if (modG?.step6?.gdprOfficerDesignated)
+    legalComplianceItemsActiveList.push('GDPR Data Protection Lead');
+
+  // Module H Metrics & Summaries
+  const REVENUE_VEHICLE_READER_LABELS: Record<string, string> = {
+    SUBSCRIPTION_RECURRING: 'Recurring Subscription (SaaS / Membership / Retainer)',
+    ONE_OFF_TRANSACTION: 'Direct Unit / Product Sales (One-Off Purchase)',
+    SERVICE_PROJECT_HOURLY: 'Productized Service / Project Sprint / B2B Retainer',
+    USAGE_BASED_METERED: 'Usage-Based / Pay-As-You-Go Metered Pricing',
+    MARKETPLACE_COMMISSION: 'Marketplace Take-Rate / Transaction Commission',
+    HARDWARE_PLUS_PLAN: 'Hardware Device Sale + Recurring Companion Plan',
+    OTHER: 'Custom Revenue Vehicle',
+  };
+  const rawRevVehicle = modH?.step1RevenueModel?.revenueModelVehicle || '';
+  const revenueModelVehicleLabel =
+    rawRevVehicle === 'OTHER' &&
+    modH?.step1RevenueModel?.otherRevenueModelText?.trim()
+      ? modH.step1RevenueModel.otherRevenueModelText.trim()
+      : REVENUE_VEHICLE_READER_LABELS[rawRevVehicle] || rawRevVehicle;
+
+  const hFriction = modH?.step3BreakevenCalculator?.frictionCosts;
+  const pricingTiersSummaries = hTiers.map((t) => {
+    const net = Number(t.priceNetOfTax) || 0;
+    const cogs = Number(hFriction?.directVariableCogsPerUnit) || 0;
+    const feePct =
+      (Number(hFriction?.paymentGatewayPercent) || 0) +
+      (Number(hFriction?.disputeRefundBufferPercent) || 0) +
+      (Number(hFriction?.affiliateCommissionPercent) || 0);
+    const flatFee = (Number(hFriction?.paymentGatewayFixedCents) || 0) / 100;
+    const pocket = net - cogs - (net * feePct) / 100 - flatFee;
+    const marginPct = net > 0 ? Math.max(0, Math.round((pocket / net) * 100)) : 0;
+    return {
+      name: t.name?.trim() || 'Tier',
+      priceNetOfTax: net,
+      billingFrequency: t.billingFrequency || 'MONTHLY',
+      pocketProfitMarginPercent: marginPct,
+    };
+  });
+
+  const y1Target =
+    hYearTargets.find((y) => y.yearNumber === 1) || hYearTargets[0];
+  const y2Target =
+    hYearTargets.find((y) => y.yearNumber === 2) || hYearTargets[1];
+  const y3Target =
+    hYearTargets.find((y) => y.yearNumber === 3) || hYearTargets[2];
+
+  // Module I Metrics & Summaries
+  const posFormula = modI?.step1Positioning?.positioningFormula;
+  const positioningFormulaSummary = posFormula?.targetCustomer?.trim()
+    ? `For ${posFormula.targetCustomer.trim()} who ${posFormula.customerProblem?.trim() || 'need a better solution'}, ${plan.title} is a ${posFormula.solutionCategory?.trim() || 'solution'} that ${posFormula.primaryBenefit?.trim() || 'delivers measurable results'} — unlike alternatives, we ${posFormula.competitiveWedge?.trim() || 'win on execution'}.`
+    : '';
+
+  const committedOrPilotProspectsCount = iProspects.filter((p) =>
+    ['PILOT_AGREED', 'CONVERTED_PAID'].includes(p.status)
+  ).length;
+
+  // Module J Metrics & Summaries
+  const monthlyFixedOverheadsTotal = jOverheads.reduce(
+    (sum, item) => sum + (Number(item.monthlyCostYear1) || 0),
+    0
+  );
+  const totalExternalFundingMapped = jFundingSources.reduce(
+    (sum, fs) => sum + (Number(fs.amount) || 0),
+    0
+  );
+
   return {
     planTitle: plan.title,
     founderName,
@@ -710,6 +1104,12 @@ export function extractMasterDocumentVerifiedFacts(
     hasModuleC,
     hasModuleD,
     hasModuleE,
+    hasModuleF,
+    hasModuleG,
+    hasModuleH,
+    hasModuleI,
+    hasModuleJ,
+    hasModuleK,
     activeChaptersCount,
     overallCompletionPercent,
 
@@ -838,6 +1238,169 @@ export function extractMasterDocumentVerifiedFacts(
     executiveOperationsSummaryNarrative: sanitizeSurveyTerminologyForReader(
       modEAudit?.executiveOperationsSummaryNarrative?.trim() || ''
     ),
+
+    // Module F Returned Facts
+    teamStructurePostureLabel,
+    teamMembersCount: teamMembers.length,
+    teamMemberSummaries,
+    hatsAssignedCount,
+    advisorsCount,
+    monthlyNetSurvivalBurnTotal,
+    personalSavingsBufferTotal,
+    alignmentResponsesCount: modF?.step4AlignmentData?.responses?.length ?? 0,
+    plannedHiresCount: hiringRoles.length,
+    plannedHiresSummaries,
+    executiveTeamCapabilityNarrative,
+
+    // Module G Returned Facts
+    opsReadinessPercent,
+    legalEntityStructureLabel,
+    registeredEntityName: modG?.step1?.registeredEntityName?.trim() || '',
+    registrationNumber: modG?.step1?.registrationNumber?.trim() || '',
+    primaryDomain: modG?.step2?.primaryDomain?.trim() || '',
+    officialBusinessEmail: modG?.step2?.officialBusinessEmail?.trim() || '',
+    bankProviderLabel,
+    hasDedicatedIban: Boolean(modG?.step3?.hasDedicatedIban),
+    accountingSoftwareLabel,
+    vatStatusLabel,
+    insurancesActiveList,
+    legalComplianceItemsActiveList,
+
+    // Module H Returned Facts
+    revenueModelVehicleLabel,
+    valueMetric: modH?.step1RevenueModel?.valueMetric?.trim() || '',
+    pricingTiersCount: hTiers.length,
+    pricingTiersSummaries,
+    blendedAveragePriceNet:
+      Number(modH?.step2PricingTiers?.blendedAveragePriceNet) ||
+      (pricingTiersSummaries[0]?.priceNetOfTax ?? 0),
+    year1TargetCustomers:
+      Number(y1Target?.customersNeededToBreakeven) ||
+      Number(modH?.step3BreakevenCalculator?.activeCustomerSlider) ||
+      0,
+    year1ProjectedNetTurnover:
+      (Number(y1Target?.monthlyRevenueAtBreakeven) || 0) * 12,
+    year1PocketProfitNet:
+      (Number(y1Target?.monthlyPocketProfitAtTarget) || 0) * 12,
+    year2ProjectedNetTurnover:
+      (Number(y2Target?.monthlyRevenueAtBreakeven) || 0) * 12,
+    year3ProjectedNetTurnover:
+      (Number(y3Target?.monthlyRevenueAtBreakeven) || 0) * 12,
+    salesCycleDays: Number(modH?.step4SalesAssumptions?.salesCycleDays) || 0,
+    primarySalesMotionLabel: (
+      modH?.step4SalesAssumptions?.primarySalesMotion || ''
+    ).replace(/_/g, ' '),
+    expectedConversionRatePercent:
+      Number(modH?.step4SalesAssumptions?.expectedConversionRatePercent) || 0,
+    executiveCommercialSummaryNarrative: sanitizeSurveyTerminologyForReader(
+      modH?.step5RevenueBrief?.executiveCommercialSummaryNarrative?.trim() ||
+        modH?.step3BreakevenCalculator?.breakevenNarrative?.trim() ||
+        ''
+    ),
+
+    // Module I Returned Facts
+    elevatorHook140: sanitizeSurveyTerminologyForReader(
+      modI?.step1Positioning?.elevatorHook140?.trim() || ''
+    ),
+    positioningFormulaSummary: sanitizeSurveyTerminologyForReader(
+      positioningFormulaSummary
+    ),
+    fourPsSummary: {
+      productP1:
+        modI?.step2FourPs?.productP1?.coreDeliverableSummary?.trim() || '',
+      priceP2:
+        modI?.step2FourPs?.priceP2?.priceJustification?.trim() ||
+        modI?.step2FourPs?.priceP2?.headlinePricePoint?.trim() ||
+        '',
+      placeP3: (modI?.step2FourPs?.placeP3?.primaryChannel || '').replace(
+        /_/g,
+        ' '
+      ),
+      promotionP4:
+        modI?.step2FourPs?.promotionP4?.beachheadChannelTactics?.trim() || '',
+    },
+    first10ArchetypeLabel: (
+      modI?.step3First10?.acquisitionArchetype || ''
+    ).replace(/_/g, ' '),
+    pilotOfferHeadline:
+      modI?.step3First10?.pilotOffer?.pilotStructure?.trim() || '',
+    first10ProspectsCount: iProspects.length,
+    committedOrPilotProspectsCount,
+    monthlyMarketingBudget:
+      Number(modI?.step4Budget?.totalPlannedMonthlyMarketingSpend) || 0,
+    calculatedCashCac: Number(modI?.step4Budget?.calculatedCashCac) || 0,
+    calculatedLtv: Number(modI?.step4Budget?.calculatedLtv) || 0,
+    calculatedLtvToCacRatio:
+      Number(modI?.step4Budget?.calculatedLtvToCacRatio) || 0,
+    calculatedPaybackMonths:
+      Number(modI?.step4Budget?.calculatedPaybackMonths) || 0,
+    executiveMarketingSummaryNarrative: sanitizeSurveyTerminologyForReader(
+      modI?.step5MarketingBrief?.executiveMarketingSummaryNarrative?.trim() || ''
+    ),
+
+    // Module J Returned Facts
+    operatingCostPostureLabel: (
+      modJ?.step1OverheadsTax?.operatingCostPosture || ''
+    ).replace(/_/g, ' '),
+    monthlyFixedOverheadsTotal,
+    monthlyFounderDrawingsYear1:
+      Number(modJ?.step1OverheadsTax?.monthlyFounderDrawingsYear1) || 0,
+    monthlyTeamSalariesYear1:
+      Number(modJ?.step1OverheadsTax?.monthlyTeamSalariesYear1) || 0,
+    customerCollectionTimingLabel: (
+      modJ?.step2WorkingCapital?.customerCollectionTiming || ''
+    ).replace(/_/g, ' '),
+    primaryFundingStrategyLabel: (
+      modJ?.step3CashflowGap?.primaryFundingStrategy || ''
+    ).replace(/_/g, ' '),
+    startingCashBalanceDay1:
+      Number(modJ?.step3CashflowGap?.startingCashBalanceDay1) || 0,
+    totalExternalFundingMapped,
+    writtenFinancialAssumptionsBlock: sanitizeSurveyTerminologyForReader(
+      modJ?.step4Statements?.writtenFinancialAssumptionsBlock?.trim() || ''
+    ),
+    executiveFinancialSummaryNarrative: sanitizeSurveyTerminologyForReader(
+      modJ?.step5FinanceBrief?.executiveFinancialSummaryNarrative?.trim() || ''
+    ),
+
+    // Module K Returned Facts
+    selectedGrantKey: modK?.step1Audit?.selectedGrantKey || '',
+    overallAssessorReadinessScore:
+      Number(modK?.step1Audit?.overallAssessorReadinessScore) ||
+      Number(modK?.step5FundingBrief?.assessorReadinessScore) ||
+      0,
+    totalTargetFundingGap:
+      Number(modK?.step2CapitalStack?.totalTargetFundingGap) || 0,
+    skinInTheGameCash: Number(modK?.step2CapitalStack?.skinInTheGameCash) || 0,
+    totalGrantsAllocated:
+      Number(modK?.step2CapitalStack?.totalGrantsAllocated) || 0,
+    totalLoansAllocated:
+      Number(modK?.step2CapitalStack?.totalLoansAllocated) || 0,
+    totalAngelAllocated:
+      Number(modK?.step2CapitalStack?.totalAngelAllocated) || 0,
+    skinInTheGamePercent:
+      Number(modK?.step2CapitalStack?.skinInTheGamePercent) || 0,
+    projectedEquityDilutionPercent:
+      Number(modK?.step2CapitalStack?.projectedEquityDilutionPercent) || 0,
+    grantReimbursementTurnaroundWeeks:
+      Number(modK?.step3ReimbursementBridge?.estimatedClaimTurnaroundWeeks) || 0,
+    bridgeStrategyLabel: (
+      modK?.step3ReimbursementBridge?.bridgeStrategy || ''
+    ).replace(/_/g, ' '),
+    isAssessorLiquidityCompliant: Boolean(
+      modK?.step3ReimbursementBridge?.isAssessorLiquidityCompliant
+    ),
+    primaryTaxScheme: modK?.step4TaxRelief?.primaryTaxScheme || '',
+    targetReliefRaiseAmount:
+      Number(modK?.step4TaxRelief?.targetReliefRaiseAmount) || 0,
+    advanceAssuranceStatus: (
+      modK?.step4TaxRelief?.advanceAssuranceStatus || ''
+    ).replace(/_/g, ' '),
+    executiveFundingSummaryNarrative: sanitizeSurveyTerminologyForReader(
+      modK?.step5FundingBrief?.executiveSummary?.trim() ||
+        modK?.step2CapitalStack?.fundingStrategyNarrative?.trim() ||
+        ''
+    ),
   };
 }
 
@@ -901,10 +1464,39 @@ export function buildDeterministicMasterStory(
     }
   }
 
+  if (facts.hasModuleI) {
+    if (facts.elevatorHook140) {
+      p1Parts.push(
+        `Brand positioning leads with: "${facts.elevatorHook140}"${
+          facts.first10ProspectsCount > 0
+            ? `, backed by a First-10 pipeline of ${facts.first10ProspectsCount} named prospect(s) (${facts.committedOrPilotProspectsCount} in active pilot/paid status)`
+            : ''
+        }.`
+      );
+      p1Sources.push('Module I: Brand Positioning & First 10');
+    }
+    if (facts.monthlyMarketingBudget > 0 || facts.calculatedCashCac > 0) {
+      p1Parts.push(
+        `Growth economics allocate ${formatPlanCurrency(
+          facts.monthlyMarketingBudget,
+          facts.currency
+        )}/month in acquisition budget with a modeled cash CAC of ${formatPlanCurrency(
+          facts.calculatedCashCac,
+          facts.currency
+        )}${
+          facts.calculatedLtvToCacRatio > 0
+            ? ` (${facts.calculatedLtvToCacRatio.toFixed(1)}:1 LTV:CAC)`
+            : ''
+        }.`
+      );
+      p1Sources.push('Module I: Marketing Budget & CAC/LTV');
+    }
+  }
+
   const paragraph1OpportunityAndMarket =
     p1Parts.length > 0
       ? sanitizeSurveyTerminologyForReader(p1Parts.join(' '))
-      : `${facts.planTitle} (${facts.countryName} • ${facts.currency}) is currently capturing its initial concept and market foundations in Module A and Module B.`;
+      : `${facts.planTitle} (${facts.countryName} • ${facts.currency}) is currently capturing its initial concept, market, and positioning foundations across Modules A, B, and I.`;
 
   // Paragraph 2: Customer Validation & Product Architecture (Modules C + D)
   const p2Parts: string[] = [];
@@ -991,10 +1583,45 @@ export function buildDeterministicMasterStory(
     }
   }
 
+  if (facts.hasModuleH) {
+    if (facts.revenueModelVehicleLabel || facts.pricingTiersCount > 0) {
+      p2Parts.push(
+        `Commercial monetization operates via ${
+          facts.revenueModelVehicleLabel || 'tiered pricing'
+        } across ${facts.pricingTiersCount} pricing tier(s) (blended net price: ${formatPlanCurrency(
+          facts.blendedAveragePriceNet,
+          facts.currency
+        )}${facts.valueMetric ? ` ${facts.valueMetric}` : ''}).`
+      );
+      p2Sources.push('Module H: Pricing Architect');
+    }
+    if (facts.year1ProjectedNetTurnover > 0) {
+      p2Parts.push(
+        `The 3-Year Pocket Profit breakeven model targets ${
+          facts.year1TargetCustomers
+        } Year 1 customers generating ${formatPlanCurrency(
+          facts.year1ProjectedNetTurnover,
+          facts.currency
+        )} in Year 1 net turnover (${formatPlanCurrency(
+          facts.year1PocketProfitNet,
+          facts.currency
+        )} net pocket profit)${
+          facts.year3ProjectedNetTurnover > 0
+            ? `, scaling to ${formatPlanCurrency(
+                facts.year3ProjectedNetTurnover,
+                facts.currency
+              )} by Year 3`
+            : ''
+        }.`
+      );
+      p2Sources.push('Module H: 3-Year Breakeven Engine');
+    }
+  }
+
   const paragraph2ValidationAndProduct =
     p2Parts.length > 0
       ? sanitizeSurveyTerminologyForReader(p2Parts.join(' '))
-      : 'Customer validation (Module C: Public Validation Surveys & 1-on-1 Interviews) and Product Architecture (Module D: Product Vehicle & V1 Scope) have not yet been populated.';
+      : 'Customer validation (Module C), Product Architecture (Module D), and Revenue & Pricing (Module H) have not yet been populated.';
 
   // Paragraph 3: Operations, Fulfillment, Equipment & Risk Posture (Module E)
   const p3Parts: string[] = [];
@@ -1057,26 +1684,97 @@ export function buildDeterministicMasterStory(
         ', '
       )}) and a ${
         facts.growthTradeoffLabel || 'disciplined'
-      } growth strategy. Detailed fulfillment stages, equipment schedules, and the project risk register will populate automatically once Module E is completed.`
+      } growth strategy.`
     );
     p3Sources.push('Module A: Founder Non-Negotiables');
+  }
+
+  if (facts.hasModuleF) {
+    p3Parts.push(
+      `The founding team comprises ${facts.teamMembersCount} promoter profile(s) (${
+        facts.hatsAssignedCount
+      }/7 functional startup hats assigned, ${formatPlanCurrency(
+        facts.monthlyNetSurvivalBurnTotal,
+        facts.currency
+      )}/mo combined net personal survival budget${
+        facts.plannedHiresCount > 0
+          ? `, and ${facts.plannedHiresCount} scheduled 3-year hire(s)`
+          : ''
+      }).`
+    );
+    p3Sources.push('Module F: Team, Survival Budget & Hiring');
+  }
+
+  if (facts.hasModuleG) {
+    p3Parts.push(
+      `Launchpad operations readiness stands at ${facts.opsReadinessPercent}% (${
+        facts.legalEntityStructureLabel || 'Legal structure'
+      }${
+        facts.registeredEntityName ? ` • ${facts.registeredEntityName}` : ''
+      }${facts.primaryDomain ? ` • ${facts.primaryDomain}` : ''}).`
+    );
+    p3Sources.push('Module G: Launchpad & Ops Hub');
+  }
+
+  if (facts.hasModuleJ) {
+    p3Parts.push(
+      `In Module J, 36-month financials model ${formatPlanCurrency(
+        facts.monthlyFixedOverheadsTotal,
+        facts.currency
+      )}/mo in fixed overheads, ${formatPlanCurrency(
+        facts.startingCashBalanceDay1,
+        facts.currency
+      )} Day-1 cash, and ${formatPlanCurrency(
+        facts.totalExternalFundingMapped,
+        facts.currency
+      )} in mapped external funding.`
+    );
+    p3Sources.push('Module J: 36-Month Financial Builder');
+  }
+
+  if (facts.hasModuleK) {
+    p3Parts.push(
+      `Module K structures a ${formatPlanCurrency(
+        facts.totalTargetFundingGap,
+        facts.currency
+      )} capital stack (${formatPlanCurrency(
+        facts.skinInTheGameCash,
+        facts.currency
+      )} founder cash [${facts.skinInTheGamePercent}%], ${formatPlanCurrency(
+        facts.totalGrantsAllocated,
+        facts.currency
+      )} non-dilutive grants, ${formatPlanCurrency(
+        facts.totalLoansAllocated,
+        facts.currency
+      )} loans, and ${formatPlanCurrency(
+        facts.totalAngelAllocated,
+        facts.currency
+      )} equity${
+        facts.primaryTaxScheme && facts.primaryTaxScheme !== 'NONE'
+          ? ` via ${facts.primaryTaxScheme}`
+          : ''
+      }) with an assessor readiness score of ${facts.overallAssessorReadinessScore}/100.`
+    );
+    p3Sources.push('Module K: Grants, Capital Stack & Tax Relief');
   }
 
   const paragraph3OperationsAndExecution =
     p3Parts.length > 0
       ? sanitizeSurveyTerminologyForReader(p3Parts.join(' '))
-      : 'Operational fulfillment, premises, equipment CapEx, and the 4-category risk register (Module E) have not yet been populated.';
+      : 'Operations (Module E), Team & Launchpad (Modules F–G), 36-Month Financials (Module J), and Non-Dilutive Capital Stack (Module K) have not yet been populated.';
 
   return {
     paragraph1OpportunityAndMarket,
     paragraph1Sources:
-      p1Sources.length > 0 ? p1Sources : ['Awaiting Module A & B Inputs'],
+      p1Sources.length > 0 ? p1Sources : ['Awaiting Module A, B & I Inputs'],
     paragraph2ValidationAndProduct,
     paragraph2Sources:
-      p2Sources.length > 0 ? p2Sources : ['Awaiting Module C & D Inputs'],
+      p2Sources.length > 0 ? p2Sources : ['Awaiting Module C, D & H Inputs'],
     paragraph3OperationsAndExecution,
     paragraph3Sources:
-      p3Sources.length > 0 ? p3Sources : ['Awaiting Module E Inputs'],
+      p3Sources.length > 0
+        ? p3Sources
+        : ['Awaiting Module E, F, G, J & K Inputs'],
     isCustomEdited: false,
     lastWeavedAt: new Date().toISOString(),
     aiEngineUsed: 'smart-synthesizer',
@@ -1105,7 +1803,7 @@ export function buildMasterDocumentMarkdown(
     `# ${facts.planTitle} — Living Master Business Blueprint`,
     `**Prepared by:** ${facts.founderName} | **Date:** ${dateStr}`,
     `**HQ Country:** ${facts.countryName} (${facts.currency}) | **Industry:** ${facts.industryCategory} | **Scope:** ${facts.exportScopeLabel}`,
-    `**Blueprint Progress:** ${facts.activeChaptersCount} of 5 Core Foundation Chapters Active (${facts.overallCompletionPercent}% Assembled)`,
+    `**Blueprint Progress:** ${facts.activeChaptersCount} of 11 Foundation Chapters Active (${facts.overallCompletionPercent}% Assembled)`,
     '',
     '---',
     '',
@@ -1158,6 +1856,57 @@ export function buildMasterDocumentMarkdown(
           `- **Risk & Quality Governance:** ${facts.riskItemsCount} formal risk(s) mapped • ${facts.qcCheckpointsCount} QC checkpoint(s)`,
         ]
       : ['- *Module E (Operations, Equipment & Risk Register) has not been filled in yet.*']),
+    '',
+    '### 👥 Founding Team, Survival Budget & 3-Year Hiring (Module F)',
+    ...(facts.hasModuleF
+      ? [
+          `- **Founding Team (${facts.teamMembersCount}):** ${facts.teamMemberSummaries.map((m) => `${m.name} (${m.roleTitle} • ${m.equityPercent}% equity)`).join(', ') || 'Profiles in progress'}`,
+          `- **Functional Hats & Survival Budget:** ${facts.hatsAssignedCount}/7 startup hats assigned • ${formatPlanCurrency(facts.monthlyNetSurvivalBurnTotal, facts.currency)}/mo net survival budget • ${facts.plannedHiresCount} scheduled hire(s)`,
+        ]
+      : ['- *Module F (Co-Founder, Team & Personal Survival Budget) has not been filled in yet.*']),
+    '',
+    '### 🚀 Getting Set Up — Launchpad & Operations Readiness (Module G)',
+    ...(facts.hasModuleG
+      ? [
+          `- **Operations Readiness Score:** ${facts.opsReadinessPercent}% Ready`,
+          `- **Entity & Digital Presence:** ${facts.legalEntityStructureLabel || 'Entity TBD'}${facts.registeredEntityName ? ` (${facts.registeredEntityName})` : ''} • Domain: ${facts.primaryDomain || 'TBD'} • Banking: ${facts.bankProviderLabel || 'TBD'}`,
+          `- **Accounting, Insurance & Legal:** ${facts.accountingSoftwareLabel || 'Accounting TBD'} (${facts.vatStatusLabel || 'VAT TBD'}) • ${facts.insurancesActiveList.length} insurance policy type(s) • ${facts.legalComplianceItemsActiveList.length} legal/GDPR item(s) active`,
+        ]
+      : ['- *Module G (Launchpad & Operations Hub) has not been filled in yet.*']),
+    '',
+    '### 💰 Revenue Model, Pricing & 3-Year Breakeven (Module H)',
+    ...(facts.hasModuleH
+      ? [
+          `- **Revenue Model & Pricing (${facts.pricingTiersCount} Tier(s)):** ${facts.revenueModelVehicleLabel || 'Pricing model'} • Blended Net Price: ${formatPlanCurrency(facts.blendedAveragePriceNet, facts.currency)}${facts.valueMetric ? ` (${facts.valueMetric})` : ''}`,
+          `- **3-Year Pocket Profit Trajectory:** Y1: ${formatPlanCurrency(facts.year1ProjectedNetTurnover, facts.currency)} net turnover (${facts.year1TargetCustomers} customers • ${formatPlanCurrency(facts.year1PocketProfitNet, facts.currency)} net pocket profit) → Y2: ${formatPlanCurrency(facts.year2ProjectedNetTurnover, facts.currency)} → Y3: ${formatPlanCurrency(facts.year3ProjectedNetTurnover, facts.currency)}`,
+        ]
+      : ['- *Module H (Revenue, Pricing Architect & 3-Year Breakeven) has not been filled in yet.*']),
+    '',
+    '### 📣 Brand Positioning, 4Ps, First 10 & CAC/LTV (Module I)',
+    ...(facts.hasModuleI
+      ? [
+          `- **3-Second Elevator Hook:** ${facts.elevatorHook140 || 'Not set'}`,
+          `- **First 10 Customers Pipeline:** ${facts.first10ProspectsCount} named prospect(s) (${facts.committedOrPilotProspectsCount} pilot/paid) • Pilot Offer: ${facts.pilotOfferHeadline || 'Defined'}`,
+          `- **Marketing Budget & Unit Economics:** ${formatPlanCurrency(facts.monthlyMarketingBudget, facts.currency)}/mo spend • Cash CAC: ${formatPlanCurrency(facts.calculatedCashCac, facts.currency)} • LTV: ${formatPlanCurrency(facts.calculatedLtv, facts.currency)} (${facts.calculatedLtvToCacRatio.toFixed(1)}:1 LTV:CAC)`,
+        ]
+      : ['- *Module I (Marketing, 4Ps & First 10 Customers) has not been filled in yet.*']),
+    '',
+    '### 📈 36-Month Financial Builder & Cashflow Trough (Module J)',
+    ...(facts.hasModuleJ
+      ? [
+          `- **Overheads & Payroll Baseline:** ${formatPlanCurrency(facts.monthlyFixedOverheadsTotal, facts.currency)}/mo fixed overheads • ${formatPlanCurrency(facts.monthlyFounderDrawingsYear1, facts.currency)}/mo Y1 founder drawings • ${formatPlanCurrency(facts.monthlyTeamSalariesYear1, facts.currency)}/mo Y1 salaries`,
+          `- **Working Capital & Funding:** Collection: ${facts.customerCollectionTimingLabel || 'Standard'} • Day-1 Cash: ${formatPlanCurrency(facts.startingCashBalanceDay1, facts.currency)} • External Funding Mapped: ${formatPlanCurrency(facts.totalExternalFundingMapped, facts.currency)}`,
+        ]
+      : ['- *Module J (36-Month Financial Builder & Cashflow Trough) has not been filled in yet.*']),
+    '',
+    '### 🏆 Non-Dilutive Grants, Capital Stack & Tax Relief (Module K)',
+    ...(facts.hasModuleK
+      ? [
+          `- **Target Scheme & Readiness:** ${facts.selectedGrantKey || 'Primary Grant Scheme'} • Assessor Readiness Score: ${facts.overallAssessorReadinessScore}/100`,
+          `- **Capital Stack (${formatPlanCurrency(facts.totalTargetFundingGap, facts.currency)} Total):** ${formatPlanCurrency(facts.skinInTheGameCash, facts.currency)} Founder Cash (${facts.skinInTheGamePercent}%) + ${formatPlanCurrency(facts.totalGrantsAllocated, facts.currency)} Grants + ${formatPlanCurrency(facts.totalLoansAllocated, facts.currency)} Loans + ${formatPlanCurrency(facts.totalAngelAllocated, facts.currency)} Equity (${facts.projectedEquityDilutionPercent}% dilution)`,
+          `- **Reimbursement Bridge & Tax Relief:** ${facts.grantReimbursementTurnaroundWeeks} wks claim turnaround (${facts.bridgeStrategyLabel || 'Bridge'}) • Tax Scheme: ${facts.primaryTaxScheme || 'None'} (${formatPlanCurrency(facts.targetReliefRaiseAmount, facts.currency)} target raise)`,
+        ]
+      : ['- *Module K (Grants, Capital Stack & Tax Relief) has not been filled in yet.*']),
     '',
     '---',
     '',
@@ -1371,15 +2120,176 @@ export function buildMasterDocumentMarkdown(
     );
   }
 
+  // Chapter 6: Module F
+  if (facts.hasModuleF) {
+    lines.push(
+      '---',
+      '',
+      '## Chapter 6: Founding Team, Personal Survival Budget & 3-Year Hiring Plan (Module F)',
+      '',
+      `- **Team Structure Posture:** ${facts.teamStructurePostureLabel || '—'}`,
+      `- **7 Functional Startup Hats Assigned:** ${facts.hatsAssignedCount}/7 (${facts.advisorsCount} external advisor(s))`,
+      `- **Combined Monthly Net Survival Burn:** ${formatPlanCurrency(facts.monthlyNetSurvivalBurnTotal, facts.currency)}/month (Personal Savings Buffer: ${formatPlanCurrency(facts.personalSavingsBufferTotal, facts.currency)})`,
+      ...(facts.teamMemberSummaries.length > 0
+        ? [
+            '',
+            '### Promoter Profiles & Equity Allocation',
+            ...facts.teamMemberSummaries.map(
+              (m) =>
+                `- **${m.name} — ${m.roleTitle}** (${m.equityPercent}% Equity • ${m.weeklyHours} hrs/wk): ${m.bio150Words || '—'}`
+            ),
+          ]
+        : []),
+      ...(facts.plannedHiresSummaries.length > 0
+        ? [
+            '',
+            '### 3-Year Job Creation & Hiring Schedule',
+            ...facts.plannedHiresSummaries.map(
+              (r) =>
+                `- **${r.roleTitle}** (${r.targetQuarter} • ${r.employmentType} • ${formatPlanCurrency(r.annualGrossSalary, facts.currency)}/yr)`
+            ),
+          ]
+        : []),
+      ...(facts.executiveTeamCapabilityNarrative
+        ? [
+            '',
+            `- **Executive Team Capability Summary:** ${facts.executiveTeamCapabilityNarrative}`,
+          ]
+        : []),
+      ''
+    );
+  }
+
+  // Chapter 7: Module G
+  if (facts.hasModuleG) {
+    lines.push(
+      '---',
+      '',
+      '## Chapter 7: Getting Set Up — Launchpad & Operations Readiness Hub (Module G)',
+      '',
+      `- **Operations Readiness Score:** ${facts.opsReadinessPercent}% Ready`,
+      `- **1. Legal Entity & Registration:** ${facts.legalEntityStructureLabel || '—'} • Entity Name: ${facts.registeredEntityName || '—'} • Reg No: ${facts.registrationNumber || 'Pending'}`,
+      `- **2. Official Domain & Business Email:** Domain: ${facts.primaryDomain || '—'} • Official Email: ${facts.officialBusinessEmail || '—'}`,
+      `- **3. Business Bank Account:** ${facts.bankProviderLabel || '—'} (${facts.hasDedicatedIban ? 'Dedicated Business IBAN Active' : 'IBAN Setup In Progress'})`,
+      `- **4. Bookkeeping, VAT & Payroll:** Software: ${facts.accountingSoftwareLabel || '—'} • VAT Status: ${facts.vatStatusLabel || '—'}`,
+      `- **5. Statutory Startup Insurance:** ${facts.insurancesActiveList.length > 0 ? facts.insurancesActiveList.join(', ') : 'In progress'}`,
+      `- **6. Baseline Legal, IP & GDPR Compliance:** ${facts.legalComplianceItemsActiveList.length > 0 ? facts.legalComplianceItemsActiveList.join(', ') : 'In progress'}`,
+      ''
+    );
+  }
+
+  // Chapter 8: Module H
+  if (facts.hasModuleH) {
+    lines.push(
+      '---',
+      '',
+      '## Chapter 8: Revenue Model, Pricing Architect & 3-Year Pocket Profit Breakeven (Module H)',
+      '',
+      `- **Revenue Vehicle & Value Metric:** ${facts.revenueModelVehicleLabel || '—'} (${facts.valueMetric || '—'})`,
+      `- **Blended Net Average Price:** ${formatPlanCurrency(facts.blendedAveragePriceNet, facts.currency)} ex-VAT`,
+      ...(facts.pricingTiersSummaries.length > 0
+        ? [
+            '',
+            '### Pricing Tiers & Unit Pocket Profit Margins',
+            ...facts.pricingTiersSummaries.map(
+              (t) =>
+                `- **${t.name}:** ${formatPlanCurrency(t.priceNetOfTax, facts.currency)} (${t.billingFrequency}) — **${t.pocketProfitMarginPercent}%** Pocket Profit Margin`
+            ),
+          ]
+        : []),
+      '',
+      '### 3-Year Commercial & Breakeven Trajectory',
+      `- **Year 1 Target:** ${facts.year1TargetCustomers} customers • ${formatPlanCurrency(facts.year1ProjectedNetTurnover, facts.currency)} Net Turnover • ${formatPlanCurrency(facts.year1PocketProfitNet, facts.currency)} Net Pocket Profit`,
+      `- **Year 2 Projected Net Turnover:** ${formatPlanCurrency(facts.year2ProjectedNetTurnover, facts.currency)}`,
+      `- **Year 3 Projected Net Turnover:** ${formatPlanCurrency(facts.year3ProjectedNetTurnover, facts.currency)}`,
+      `- **Sales Cycle & Conversion:** ${facts.salesCycleDays} days sales cycle • ${facts.primarySalesMotionLabel || 'Direct'} • ${facts.expectedConversionRatePercent}% conversion rate`,
+      ...(facts.executiveCommercialSummaryNarrative
+        ? [
+            '',
+            `- **Executive Commercial Summary:** ${facts.executiveCommercialSummaryNarrative}`,
+          ]
+        : []),
+      ''
+    );
+  }
+
+  // Chapter 9: Module I
+  if (facts.hasModuleI) {
+    lines.push(
+      '---',
+      '',
+      '## Chapter 9: Brand Positioning, 4Ps Strategy, First 10 Customers & Marketing Budget (Module I)',
+      '',
+      `- **3-Second Elevator Hook:** ${facts.elevatorHook140 || '—'}`,
+      `- **Positioning Formula:** ${facts.positioningFormulaSummary || '—'}`,
+      `- **4Ps Commercial Alignment:** Product: ${facts.fourPsSummary.productP1 || '—'} | Price: ${facts.fourPsSummary.priceP2 || '—'} | Place: ${facts.fourPsSummary.placeP3 || '—'} | Promotion: ${facts.fourPsSummary.promotionP4 || '—'}`,
+      `- **First 10 Customers Playbook:** ${facts.first10ArchetypeLabel || 'Direct Outreach'} • Pilot Offer: ${facts.pilotOfferHeadline || '—'} • ${facts.first10ProspectsCount} named prospect(s) (${facts.committedOrPilotProspectsCount} pilot/paid)`,
+      `- **Reverse-Engineered Marketing Budget & CAC/LTV:** ${formatPlanCurrency(facts.monthlyMarketingBudget, facts.currency)}/mo spend • Cash CAC: ${formatPlanCurrency(facts.calculatedCashCac, facts.currency)} • Customer LTV: ${formatPlanCurrency(facts.calculatedLtv, facts.currency)} • LTV:CAC Ratio: ${facts.calculatedLtvToCacRatio.toFixed(1)}:1 (${facts.calculatedPaybackMonths} mo payback)`,
+      ...(facts.executiveMarketingSummaryNarrative
+        ? [
+            '',
+            `- **Executive Marketing Summary:** ${facts.executiveMarketingSummaryNarrative}`,
+          ]
+        : []),
+      ''
+    );
+  }
+
+  // Chapter 10: Module J
+  if (facts.hasModuleJ) {
+    lines.push(
+      '---',
+      '',
+      '## Chapter 10: 36-Month Financial Builder, Overheads, Working Capital & Cashflow Trough (Module J)',
+      '',
+      `- **Operating Cost Posture:** ${facts.operatingCostPostureLabel || 'Lean'} • Monthly Fixed Overheads: ${formatPlanCurrency(facts.monthlyFixedOverheadsTotal, facts.currency)}/mo`,
+      `- **Year 1 Monthly Payroll & Drawings:** ${formatPlanCurrency(facts.monthlyFounderDrawingsYear1, facts.currency)}/mo Founder Drawings • ${formatPlanCurrency(facts.monthlyTeamSalariesYear1, facts.currency)}/mo Team Salaries`,
+      `- **Working Capital Timing:** Customer Collection: ${facts.customerCollectionTimingLabel || '—'}`,
+      `- **Funding Strategy & Cashflow Bridge:** ${facts.primaryFundingStrategyLabel || '—'} • Day-1 Cash Balance: ${formatPlanCurrency(facts.startingCashBalanceDay1, facts.currency)} • Mapped External Funding: ${formatPlanCurrency(facts.totalExternalFundingMapped, facts.currency)}`,
+      ...(facts.writtenFinancialAssumptionsBlock
+        ? [
+            '',
+            `- **Written Financial Assumptions:** ${facts.writtenFinancialAssumptionsBlock}`,
+          ]
+        : []),
+      ...(facts.executiveFinancialSummaryNarrative
+        ? [
+            '',
+            `- **Executive Financial Summary:** ${facts.executiveFinancialSummaryNarrative}`,
+          ]
+        : []),
+      ''
+    );
+  }
+
+  // Chapter 11: Module K
+  if (facts.hasModuleK) {
+    lines.push(
+      '---',
+      '',
+      '## Chapter 11: Non-Dilutive Grants, Capital Stack, Reimbursement Bridge & Tax Relief (Module K)',
+      '',
+      `- **Target Primary Grant Scheme:** ${facts.selectedGrantKey || '—'} (Assessor Readiness Score: ${facts.overallAssessorReadinessScore}/100)`,
+      `- **Total Target Funding Gap:** ${formatPlanCurrency(facts.totalTargetFundingGap, facts.currency)}`,
+      `- **Capital Stack Breakdown:** Founder Skin-in-the-Game Cash: ${formatPlanCurrency(facts.skinInTheGameCash, facts.currency)} (${facts.skinInTheGamePercent}%) | Non-Dilutive Grants: ${formatPlanCurrency(facts.totalGrantsAllocated, facts.currency)} | Loans/Debt: ${formatPlanCurrency(facts.totalLoansAllocated, facts.currency)} | Angel/Equity: ${formatPlanCurrency(facts.totalAngelAllocated, facts.currency)} (${facts.projectedEquityDilutionPercent}% dilution)`,
+      `- **Vouched Grant Reimbursement Timing Bridge:** ${facts.grantReimbursementTurnaroundWeeks} weeks estimated claim turnaround • Bridge Strategy: ${facts.bridgeStrategyLabel || '—'} (${facts.isAssessorLiquidityCompliant ? 'Assessor Liquidity Compliant' : 'Requires Additional Bridge Buffer'})`,
+      `- **Investor Tax Relief Catalyst:** ${facts.primaryTaxScheme || 'NONE'} • Target Relief Raise: ${formatPlanCurrency(facts.targetReliefRaiseAmount, facts.currency)} (${facts.advanceAssuranceStatus || 'Status TBD'})`,
+      ...(facts.executiveFundingSummaryNarrative
+        ? [
+            '',
+            `- **Executive Funding & Grant Strategy Summary:** ${facts.executiveFundingSummaryNarrative}`,
+          ]
+        : []),
+      ''
+    );
+  }
+
   if (showUpcomingChaptersRoadmap) {
     lines.push(
       '---',
       '',
-      '## Upcoming Chapters Roadmap (Modules F–I)',
-      '- **Chapter 6 (Module F):** Co-Founder & Team Alignment, Promoter CVs, Personal Survival Budget & 7 Startup Hats',
-      '- **Chapter 7 (Module G):** Pricing Architect, Written Sales Assumptions & Pocket Profit Unit Economics',
-      '- **Chapter 8 (Module H):** Brand Positioning, 4Ps Strategy & First 10 Customers Playbook',
-      '- **Chapter 9 (Module I):** 36-Month No-Spreadsheet Financial Builder, Cashflow Trough & Non-Dilutive Grant Matcher',
+      '## Official Submission & Export Readiness (Module L)',
+      '- **Module L (Interactive Business Plan & Official Grant Compiler):** Ready to compile Chapters 1–11 into IE LEO Official Form + Appendices A–F, UK Innovate UK 9-Question IFS Mode, UK Start Up Loans Workbook, UK HMRC SEIS/EIS Advance Assurance Pack, or Standard Bank/Investor Business Plan.',
       ''
     );
   }
@@ -1472,6 +2382,80 @@ export function buildMasterDocumentStandaloneHtml(
                  <strong>Risk & QC Governance:</strong> ${facts.riskItemsCount} project risk(s) & ${facts.qcCheckpointsCount} QC checkpoint(s) mapped${facts.topRiskTitleAndMitigation ? ` • <em>Top Risk:</em> ${escapeDocumentHtml(facts.topRiskTitleAndMitigation)}` : ''}`
               : '<em>Module E not yet completed.</em>'
           }
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top: 12px;">
+        <div class="box">
+          <div class="box-label">👥 Team, Survival Budget & Hiring (Module F)</div>
+          <div class="box-value">
+            ${
+              facts.hasModuleF
+                ? `<strong>Team (${facts.teamMembersCount}):</strong> ${escapeDocumentHtml(facts.teamMemberSummaries.map((m) => `${m.name} (${m.roleTitle})`).join(', ') || '—')}<br/>
+                   <strong>7 Startup Hats:</strong> ${facts.hatsAssignedCount}/7 assigned (${facts.advisorsCount} advisor(s))<br/>
+                   <strong>Net Survival Burn:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.monthlyNetSurvivalBurnTotal, facts.currency))}/mo • <strong>3-Yr Hires:</strong> ${facts.plannedHiresCount}`
+                : '<em>Module F not yet completed.</em>'
+            }
+          </div>
+        </div>
+        <div class="box">
+          <div class="box-label">🚀 Launchpad & Operations Readiness (Module G)</div>
+          <div class="box-value">
+            ${
+              facts.hasModuleG
+                ? `<strong>Ops Readiness Score:</strong> ${facts.opsReadinessPercent}% Ready<br/>
+                   <strong>Entity & Domain:</strong> ${escapeDocumentHtml(facts.legalEntityStructureLabel || '—')} (${escapeDocumentHtml(facts.registeredEntityName || 'TBD')}) • ${escapeDocumentHtml(facts.primaryDomain || 'Domain TBD')}<br/>
+                   <strong>Banking & Tax:</strong> ${escapeDocumentHtml(facts.bankProviderLabel || 'TBD')} • ${escapeDocumentHtml(facts.accountingSoftwareLabel || 'TBD')} (${escapeDocumentHtml(facts.vatStatusLabel || 'VAT TBD')})`
+                : '<em>Module G not yet completed.</em>'
+            }
+          </div>
+        </div>
+        <div class="box">
+          <div class="box-label">💰 Revenue, Pricing & 3-Yr Breakeven (Module H)</div>
+          <div class="box-value">
+            ${
+              facts.hasModuleH
+                ? `<strong>Model (${facts.pricingTiersCount} Tier(s)):</strong> ${escapeDocumentHtml(facts.revenueModelVehicleLabel || '—')} (${escapeDocumentHtml(formatPlanCurrency(facts.blendedAveragePriceNet, facts.currency))} blended net)<br/>
+                   <strong>Y1 Target:</strong> ${facts.year1TargetCustomers} customers → ${escapeDocumentHtml(formatPlanCurrency(facts.year1ProjectedNetTurnover, facts.currency))} net turnover<br/>
+                   <strong>Y3 Trajectory:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.year3ProjectedNetTurnover, facts.currency))} net turnover`
+                : '<em>Module H not yet completed.</em>'
+            }
+          </div>
+        </div>
+        <div class="box">
+          <div class="box-label">📣 Positioning, First 10 & CAC/LTV (Module I)</div>
+          <div class="box-value">
+            ${
+              facts.hasModuleI
+                ? `<strong>3-Sec Hook:</strong> ${escapeDocumentHtml(facts.elevatorHook140 || '—')}<br/>
+                   <strong>First 10 Pipeline:</strong> ${facts.first10ProspectsCount} prospects (${facts.committedOrPilotProspectsCount} pilot/paid)<br/>
+                   <strong>Unit Growth:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.monthlyMarketingBudget, facts.currency))}/mo spend • CAC: ${escapeDocumentHtml(formatPlanCurrency(facts.calculatedCashCac, facts.currency))} (${facts.calculatedLtvToCacRatio.toFixed(1)}:1 LTV:CAC)`
+                : '<em>Module I not yet completed.</em>'
+            }
+          </div>
+        </div>
+        <div class="box">
+          <div class="box-label">📈 36-Month Financials & Cashflow (Module J)</div>
+          <div class="box-value">
+            ${
+              facts.hasModuleJ
+                ? `<strong>Fixed Overheads:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.monthlyFixedOverheadsTotal, facts.currency))}/mo (${escapeDocumentHtml(facts.operatingCostPostureLabel || 'Lean')})<br/>
+                   <strong>Y1 Drawings & Payroll:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.monthlyFounderDrawingsYear1, facts.currency))}/mo drawings • ${escapeDocumentHtml(formatPlanCurrency(facts.monthlyTeamSalariesYear1, facts.currency))}/mo payroll<br/>
+                   <strong>Cash & Funding:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.startingCashBalanceDay1, facts.currency))} Day-1 cash • ${escapeDocumentHtml(formatPlanCurrency(facts.totalExternalFundingMapped, facts.currency))} external funding`
+                : '<em>Module J not yet completed.</em>'
+            }
+          </div>
+        </div>
+        <div class="box">
+          <div class="box-label">🏆 Grants, Capital Stack & Tax Relief (Module K)</div>
+          <div class="box-value">
+            ${
+              facts.hasModuleK
+                ? `<strong>Target Scheme:</strong> ${escapeDocumentHtml(facts.selectedGrantKey || '—')} (${facts.overallAssessorReadinessScore}/100 Readiness)<br/>
+                   <strong>Capital Stack (${escapeDocumentHtml(formatPlanCurrency(facts.totalTargetFundingGap, facts.currency))}):</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.skinInTheGameCash, facts.currency))} cash + ${escapeDocumentHtml(formatPlanCurrency(facts.totalGrantsAllocated, facts.currency))} grants + ${escapeDocumentHtml(formatPlanCurrency(facts.totalLoansAllocated, facts.currency))} loans<br/>
+                   <strong>Tax Relief:</strong> ${escapeDocumentHtml(facts.primaryTaxScheme || 'NONE')} (${escapeDocumentHtml(formatPlanCurrency(facts.targetReliefRaiseAmount, facts.currency))} target)`
+                : '<em>Module K not yet completed.</em>'
+            }
+          </div>
         </div>
       </div>
     </div>
@@ -1843,30 +2827,222 @@ export function buildMasterDocumentStandaloneHtml(
     `);
   }
 
+  // Chapter 6: Module F
+  if (facts.hasModuleF) {
+    sections.push(`
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">F</span>
+          <span class="section-title">Chapter 6: Founding Team, Personal Survival Budget & 3-Year Hiring Plan (Module F)</span>
+        </div>
+        <div class="grid-3" style="margin-bottom: 12px;">
+          <div class="box">
+            <div class="box-label">Founding Team & Hats</div>
+            <div class="box-value"><strong>${facts.teamMembersCount}</strong> Promoter(s) • <strong>${facts.hatsAssignedCount}/7</strong> Hats Assigned</div>
+          </div>
+          <div class="box">
+            <div class="box-label">Monthly Net Survival Burn</div>
+            <div class="box-value"><strong>${escapeDocumentHtml(formatPlanCurrency(facts.monthlyNetSurvivalBurnTotal, facts.currency))}/mo</strong></div>
+          </div>
+          <div class="box">
+            <div class="box-label">3-Year Planned Hires</div>
+            <div class="box-value"><strong>${facts.plannedHiresCount}</strong> Scheduled Role(s)</div>
+          </div>
+        </div>
+        ${
+          facts.teamMemberSummaries.length > 0
+            ? `<table class="doc-table" style="margin-bottom: 12px;">
+                <thead>
+                  <tr>
+                    <th>Promoter Name & Role</th>
+                    <th>Equity %</th>
+                    <th>Commitment</th>
+                    <th>150-Word Promoter Capability Bio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${facts.teamMemberSummaries
+                    .map(
+                      (m) => `
+                    <tr>
+                      <td><strong>${escapeDocumentHtml(m.name)}</strong><br/>${escapeDocumentHtml(m.roleTitle)}</td>
+                      <td>${m.equityPercent}%</td>
+                      <td>${m.weeklyHours} hrs/wk</td>
+                      <td>${escapeDocumentHtml(m.bio150Words || '—')}</td>
+                    </tr>`
+                    )
+                    .join('')}
+                </tbody>
+              </table>`
+            : ''
+        }
+      </div>
+    `);
+  }
+
+  // Chapter 7: Module G
+  if (facts.hasModuleG) {
+    sections.push(`
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">G</span>
+          <span class="section-title">Chapter 7: Getting Set Up — Launchpad & Operations Readiness (Module G)</span>
+        </div>
+        <div class="grid-2">
+          <div class="box">
+            <div class="box-label">Entity, Domain & Banking</div>
+            <div class="box-value">
+              <strong>Readiness Score:</strong> ${facts.opsReadinessPercent}%<br/>
+              <strong>Legal Structure:</strong> ${escapeDocumentHtml(facts.legalEntityStructureLabel || '—')} (${escapeDocumentHtml(facts.registeredEntityName || 'TBD')})<br/>
+              <strong>Domain & Email:</strong> ${escapeDocumentHtml(facts.primaryDomain || '—')} • ${escapeDocumentHtml(facts.officialBusinessEmail || '—')}<br/>
+              <strong>Business Banking:</strong> ${escapeDocumentHtml(facts.bankProviderLabel || '—')} (${facts.hasDedicatedIban ? 'Dedicated IBAN Active' : 'Pending'})
+            </div>
+          </div>
+          <div class="box">
+            <div class="box-label">Bookkeeping, Insurance & Legal/GDPR</div>
+            <div class="box-value">
+              <strong>Accounting & VAT:</strong> ${escapeDocumentHtml(facts.accountingSoftwareLabel || '—')} (${escapeDocumentHtml(facts.vatStatusLabel || '—')})<br/>
+              <strong>Active Insurance:</strong> ${escapeDocumentHtml(facts.insurancesActiveList.join(', ') || 'In setup')}<br/>
+              <strong>Legal & GDPR:</strong> ${escapeDocumentHtml(facts.legalComplianceItemsActiveList.join(', ') || 'In setup')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  // Chapter 8: Module H
+  if (facts.hasModuleH) {
+    sections.push(`
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">H</span>
+          <span class="section-title">Chapter 8: Revenue Model, Pricing Architect & 3-Year Pocket Profit Breakeven (Module H)</span>
+        </div>
+        <div class="grid-3" style="margin-bottom: 12px;">
+          <div class="box">
+            <div class="box-label">Year 1 Net Turnover (${facts.year1TargetCustomers} cust)</div>
+            <div class="box-value"><strong>${escapeDocumentHtml(formatPlanCurrency(facts.year1ProjectedNetTurnover, facts.currency))}</strong></div>
+          </div>
+          <div class="box">
+            <div class="box-label">Year 2 Net Turnover</div>
+            <div class="box-value"><strong>${escapeDocumentHtml(formatPlanCurrency(facts.year2ProjectedNetTurnover, facts.currency))}</strong></div>
+          </div>
+          <div class="box">
+            <div class="box-label">Year 3 Net Turnover</div>
+            <div class="box-value"><strong>${escapeDocumentHtml(formatPlanCurrency(facts.year3ProjectedNetTurnover, facts.currency))}</strong></div>
+          </div>
+        </div>
+        <div class="box">
+          <div class="box-label">Pricing Architecture & Sales Motion</div>
+          <div class="box-value">
+            <strong>Model:</strong> ${escapeDocumentHtml(facts.revenueModelVehicleLabel || '—')} • <strong>Blended Net Price:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.blendedAveragePriceNet, facts.currency))}<br/>
+            <strong>Sales Cycle & Motion:</strong> ${facts.salesCycleDays} days (${escapeDocumentHtml(facts.primarySalesMotionLabel || 'Direct')}) • ${facts.expectedConversionRatePercent}% conversion<br/>
+            ${facts.executiveCommercialSummaryNarrative ? `<strong>Summary:</strong> ${escapeDocumentHtml(facts.executiveCommercialSummaryNarrative)}` : ''}
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  // Chapter 9: Module I
+  if (facts.hasModuleI) {
+    sections.push(`
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">I</span>
+          <span class="section-title">Chapter 9: Brand Positioning, 4Ps, First 10 Customers & Marketing Budget (Module I)</span>
+        </div>
+        <div class="grid-2">
+          <div class="box">
+            <div class="box-label">3-Second Hook & Positioning</div>
+            <div class="box-value">
+              <strong>Hook:</strong> ${escapeDocumentHtml(facts.elevatorHook140 || '—')}<br/>
+              <strong>Positioning:</strong> ${escapeDocumentHtml(facts.positioningFormulaSummary || '—')}
+            </div>
+          </div>
+          <div class="box">
+            <div class="box-label">First 10 Pipeline & CAC / LTV Economics</div>
+            <div class="box-value">
+              <strong>First 10 Pipeline:</strong> ${facts.first10ProspectsCount} prospects (${facts.committedOrPilotProspectsCount} pilot/paid) • Offer: ${escapeDocumentHtml(facts.pilotOfferHeadline || '—')}<br/>
+              <strong>Monthly Budget:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.monthlyMarketingBudget, facts.currency))}/mo • <strong>Cash CAC:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.calculatedCashCac, facts.currency))} • <strong>LTV:CAC:</strong> ${facts.calculatedLtvToCacRatio.toFixed(1)}:1
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  // Chapter 10: Module J
+  if (facts.hasModuleJ) {
+    sections.push(`
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">J</span>
+          <span class="section-title">Chapter 10: 36-Month Financial Builder, Overheads & Cashflow Trough (Module J)</span>
+        </div>
+        <div class="grid-2">
+          <div class="box">
+            <div class="box-label">Overheads, Drawings & Payroll</div>
+            <div class="box-value">
+              <strong>Cost Posture:</strong> ${escapeDocumentHtml(facts.operatingCostPostureLabel || 'Lean')} (${escapeDocumentHtml(formatPlanCurrency(facts.monthlyFixedOverheadsTotal, facts.currency))}/mo fixed overheads)<br/>
+              <strong>Y1 Founder Drawings:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.monthlyFounderDrawingsYear1, facts.currency))}/mo<br/>
+              <strong>Y1 Team Payroll:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.monthlyTeamSalariesYear1, facts.currency))}/mo
+            </div>
+          </div>
+          <div class="box">
+            <div class="box-label">Working Capital & Funding Bridge</div>
+            <div class="box-value">
+              <strong>Collection Timing:</strong> ${escapeDocumentHtml(facts.customerCollectionTimingLabel || '—')}<br/>
+              <strong>Day-1 Cash:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.startingCashBalanceDay1, facts.currency))} • <strong>External Funding:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.totalExternalFundingMapped, facts.currency))}<br/>
+              ${facts.executiveFinancialSummaryNarrative ? `<strong>Summary:</strong> ${escapeDocumentHtml(facts.executiveFinancialSummaryNarrative)}` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  // Chapter 11: Module K
+  if (facts.hasModuleK) {
+    sections.push(`
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">K</span>
+          <span class="section-title">Chapter 11: Non-Dilutive Grants, Capital Stack & Investor Tax Relief (Module K)</span>
+        </div>
+        <div class="grid-2">
+          <div class="box">
+            <div class="box-label">Grant Target & Capital Stack (${escapeDocumentHtml(formatPlanCurrency(facts.totalTargetFundingGap, facts.currency))})</div>
+            <div class="box-value">
+              <strong>Primary Scheme:</strong> ${escapeDocumentHtml(facts.selectedGrantKey || '—')} (${facts.overallAssessorReadinessScore}/100 Readiness)<br/>
+              <strong>Founder Cash:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.skinInTheGameCash, facts.currency))} (${facts.skinInTheGamePercent}%)<br/>
+              <strong>Grants + Loans + Equity:</strong> ${escapeDocumentHtml(formatPlanCurrency(facts.totalGrantsAllocated, facts.currency))} Grants • ${escapeDocumentHtml(formatPlanCurrency(facts.totalLoansAllocated, facts.currency))} Loans • ${escapeDocumentHtml(formatPlanCurrency(facts.totalAngelAllocated, facts.currency))} Equity
+            </div>
+          </div>
+          <div class="box">
+            <div class="box-label">Reimbursement Bridge & Tax Relief</div>
+            <div class="box-value">
+              <strong>Claim Turnaround:</strong> ${facts.grantReimbursementTurnaroundWeeks} weeks (${escapeDocumentHtml(facts.bridgeStrategyLabel || 'Bridge')})<br/>
+              <strong>Investor Tax Scheme:</strong> ${escapeDocumentHtml(facts.primaryTaxScheme || 'NONE')} (${escapeDocumentHtml(formatPlanCurrency(facts.targetReliefRaiseAmount, facts.currency))} target raise)<br/>
+              ${facts.executiveFundingSummaryNarrative ? `<strong>Summary:</strong> ${escapeDocumentHtml(facts.executiveFundingSummaryNarrative)}` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
   if (showUpcomingChaptersRoadmap) {
     sections.push(`
       <div class="section">
         <div class="section-header">
-          <span class="section-num">+</span>
-          <span class="section-title">Upcoming Blueprint Chapters Roadmap (Modules F–I)</span>
+          <span class="section-num">L</span>
+          <span class="section-title">Official Grant & Business Plan Compilation (Module L)</span>
         </div>
-        <div class="grid-2">
-          <div class="box">
-            <div class="box-label">Chapter 6 • Team & Alignment (Module F)</div>
-            <div class="box-value">Promoter 150-Word Profiles, Personal Survival Budget, 7 Startup Hats & Co-Founder Alignment</div>
-          </div>
-          <div class="box">
-            <div class="box-label">Chapter 7 • Revenue & Unit Economics (Module G)</div>
-            <div class="box-value">Pricing Architect, Written Sales Assumptions & Pocket Profit Margin Calculator</div>
-          </div>
-          <div class="box">
-            <div class="box-label">Chapter 8 • Marketing & First 10 Customers (Module H)</div>
-            <div class="box-value">3-Second Hook, 4Ps Strategy, Waitlist Conversion & Reverse Marketing Budget</div>
-          </div>
-          <div class="box">
-            <div class="box-label">Chapter 9 • Financials & Grants (Module I)</div>
-            <div class="box-value">36-Month Cashflow Builder, Funding Gap & Non-Dilutive Grant Readiness</div>
-          </div>
+        <div class="box">
+          <div class="box-label">Module L • Interactive Business Plan & Official Grant Compiler</div>
+          <div class="box-value">Compile Chapters 1–11 into IE LEO Official Application Form + Appendices A–F, UK Innovate UK 9-Question IFS Mode, UK Start Up Loans Workbook, UK HMRC SEIS/EIS Pack, or Standard Business Plan.</div>
         </div>
       </div>
     `);
