@@ -2760,6 +2760,41 @@ const LEGACY_PER_USER_STORAGE_PREFIX = 'bmu_v2_session_by_email_v1::';
 const PUBLIC_SURVEYS_REGISTRY_KEY = 'spf_v2_public_surveys_registry_v1';
 const LEGACY_PUBLIC_SURVEYS_REGISTRY_KEY = 'bmu_v2_public_surveys_registry_v1';
 const REAL_PLANS_VAULT_KEY = 'spf_v2_real_founder_plans_vault_v1';
+const DELETED_PLAN_IDS_KEY = 'spf_v2_deleted_plan_ids_vault_v1';
+
+export function getDeletedPlanIdsFromStorage(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(DELETED_PLAN_IDS_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function markPlanAsDeletedInBrowserStorage(planId: string): void {
+  if (typeof window === 'undefined' || !planId) return;
+  try {
+    const deletedSet = getDeletedPlanIdsFromStorage();
+    deletedSet.add(planId);
+    window.localStorage.setItem(
+      DELETED_PLAN_IDS_KEY,
+      JSON.stringify(Array.from(deletedSet))
+    );
+
+    // Remove from REAL_PLANS_VAULT_KEY
+    const rawVault = window.localStorage.getItem(REAL_PLANS_VAULT_KEY);
+    if (rawVault) {
+      const existingVault: ActiveStartupPlan[] = JSON.parse(rawVault);
+      const filtered = (existingVault || []).filter((p) => p.id !== planId);
+      window.localStorage.setItem(REAL_PLANS_VAULT_KEY, JSON.stringify(filtered));
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 export function isSyntheticPersonaPlan(
   plan?: Partial<ActiveStartupPlan> | null
@@ -2838,8 +2873,9 @@ function scorePlanRichness(plan: ActiveStartupPlan): number {
 function backupRealPlansToVault(plans: ActiveStartupPlan[]): void {
   if (typeof window === 'undefined') return;
   try {
-    const realCandidates = (plans || []).filter((p) =>
-      hasRealFounderContent(p)
+    const deletedSet = getDeletedPlanIdsFromStorage();
+    const realCandidates = (plans || []).filter(
+      (p) => hasRealFounderContent(p) && !deletedSet.has(p.id)
     );
     if (realCandidates.length === 0) return;
 
@@ -2850,7 +2886,7 @@ function backupRealPlansToVault(plans: ActiveStartupPlan[]): void {
     const byId = new Map<string, ActiveStartupPlan>();
 
     for (const existing of existingVault) {
-      if (existing?.id && !isSyntheticPersonaPlan(existing)) {
+      if (existing?.id && !isSyntheticPersonaPlan(existing) && !deletedSet.has(existing.id)) {
         byId.set(existing.id, existing);
       }
     }
@@ -2872,12 +2908,14 @@ function backupRealPlansToVault(plans: ActiveStartupPlan[]): void {
 
 export function recoverAllRealPlansFromBrowserStorage(): ActiveStartupPlan[] {
   if (typeof window === 'undefined') return [];
+  const deletedSet = getDeletedPlanIdsFromStorage();
   const byId = new Map<string, ActiveStartupPlan>();
 
   const considerPlans = (plans?: ActiveStartupPlan[]) => {
     if (!Array.isArray(plans)) return;
     for (const p of plans) {
       if (!p?.id || isSyntheticPersonaPlan(p)) continue;
+      if (deletedSet.has(p.id)) continue;
       if (!hasRealFounderContent(p)) continue;
       const existing = byId.get(p.id);
       if (!existing || scorePlanRichness(p) >= scorePlanRichness(existing)) {
@@ -2939,7 +2977,10 @@ function sanitizeAndRestoreRealPlansInSession(
   session: BmuLocalSession,
   allowPersonaPreview: boolean
 ): BmuLocalSession {
-  const rawPlans = Array.isArray(session.plans) ? session.plans : [];
+  const deletedSet = getDeletedPlanIdsFromStorage();
+  const rawPlans = (Array.isArray(session.plans) ? session.plans : []).filter(
+    (p) => !p?.id || !deletedSet.has(p.id)
+  );
   const recoveredRealPlans = recoverAllRealPlansFromBrowserStorage();
 
   // Merge non-persona plans from session with recovered real plans from browser storage
@@ -3049,6 +3090,25 @@ export function loadBmuSessionForEmail(email: string): BmuLocalSession | null {
   } catch {
     return null;
   }
+}
+
+export function createFreshStartupPlan(
+  hqCountryCode: SupportedCountryCode = 'IE'
+): ActiveStartupPlan {
+  const pack = getCountryRulePack(hqCountryCode);
+  return {
+    id: `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    title: 'My Startup Plan',
+    oneLinerSummary: '',
+    industryCategory: 'B2B SaaS / AI App',
+    hqCountryCode,
+    baseCurrency: pack.defaultCurrency,
+    targetMarketsArray: [hqCountryCode],
+    exportPotential: 'DOMESTIC_ONLY',
+    currentModuleStep: 'MOD_A_STEP_1',
+    brainDumpText: '',
+    openQuestions: [],
+  };
 }
 
 export function getDefaultDemoSession(): BmuLocalSession {

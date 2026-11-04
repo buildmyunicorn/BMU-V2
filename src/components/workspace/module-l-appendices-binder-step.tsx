@@ -30,6 +30,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PlanQuotesTrackerCard } from '@/components/workspace/three-quote-concierge-modal';
 import type {
   ActiveStartupPlan,
   ModuleLStep4AppendicesSavedData,
@@ -563,6 +564,18 @@ export function ModuleLAppendicesBinderStep({
                     placeholder="Add verification notes for claims officer..."
                   />
                 </div>
+
+                {appendix.code === 'APPENDIX_C' && (
+                  <div className="mt-4 pt-3 border-t border-slate-200/80">
+                    <div className="mb-2 text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span>⚡</span> Live Supplier Quotations &amp; Uploaded Vendor Letterhead PDFs:
+                    </div>
+                    <PlanQuotesTrackerCard
+                      planId={plan.id}
+                      baseCurrency={plan.baseCurrency || 'EUR'}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}

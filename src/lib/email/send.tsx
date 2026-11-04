@@ -19,18 +19,36 @@ import {
   CofounderInviteEmail,
   CofounderInviteEmailProps,
 } from './templates/cofounder-invite';
+import {
+  QuoteRfpPartnerInviteEmail,
+  QuoteRfpPartnerInviteEmailProps,
+} from './templates/quote-rfp-partner-invite';
+import {
+  QuoteRfpDispatchedFounderReceipt,
+  QuoteRfpDispatchedFounderReceiptProps,
+} from './templates/quote-rfp-dispatched-founder-receipt';
+import {
+  QuoteReceivedFounderEmail,
+  QuoteReceivedFounderEmailProps,
+} from './templates/quote-received-founder';
 
 export type EmailTemplateType =
   | 'WELCOME_FOUNDER'
   | 'PASSWORD_RESET'
   | 'VOUCHER_REDEEMED'
-  | 'COFOUNDER_INVITE';
+  | 'COFOUNDER_INVITE'
+  | 'QUOTE_RFP_PARTNER_INVITE'
+  | 'QUOTE_RFP_FOUNDER_RECEIPT'
+  | 'QUOTE_RECEIVED_FOUNDER';
 
 export type TemplatePropsMap = {
   WELCOME_FOUNDER: WelcomeFounderEmailProps;
   PASSWORD_RESET: PasswordResetEmailProps;
   VOUCHER_REDEEMED: VoucherRedeemedEmailProps;
   COFOUNDER_INVITE: CofounderInviteEmailProps;
+  QUOTE_RFP_PARTNER_INVITE: QuoteRfpPartnerInviteEmailProps;
+  QUOTE_RFP_FOUNDER_RECEIPT: QuoteRfpDispatchedFounderReceiptProps;
+  QUOTE_RECEIVED_FOUNDER: QuoteReceivedFounderEmailProps;
 };
 
 export interface SendSystemEmailParams<T extends EmailTemplateType> {
@@ -71,6 +89,15 @@ export async function renderEmailHtml<T extends EmailTemplateType>(
       break;
     case 'COFOUNDER_INVITE':
       element = <CofounderInviteEmail {...(props as CofounderInviteEmailProps)} />;
+      break;
+    case 'QUOTE_RFP_PARTNER_INVITE':
+      element = <QuoteRfpPartnerInviteEmail {...(props as QuoteRfpPartnerInviteEmailProps)} />;
+      break;
+    case 'QUOTE_RFP_FOUNDER_RECEIPT':
+      element = <QuoteRfpDispatchedFounderReceipt {...(props as QuoteRfpDispatchedFounderReceiptProps)} />;
+      break;
+    case 'QUOTE_RECEIVED_FOUNDER':
+      element = <QuoteReceivedFounderEmail {...(props as QuoteReceivedFounderEmailProps)} />;
       break;
     default:
       throw new Error(`Unknown email template: ${template}`);

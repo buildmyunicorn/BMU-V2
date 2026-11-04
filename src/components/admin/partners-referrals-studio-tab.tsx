@@ -53,6 +53,7 @@ import {
   type PartnerCountryScope,
   type PartnerActionType,
   type ReferralLeadStatus,
+  type QuoteSupplierCategory,
 } from '@/lib/partners/partner-catalog-store';
 import {
   upsertAdminPartnerOfferAction,
@@ -62,6 +63,8 @@ import {
   submitPartnerWarmIntroLeadAction,
   submitPaidPartnerConciergeOrderAction,
   updatePartnerReferralLeadStatusAction,
+  getAdminQuoteRfpsAction,
+  type AdminQuoteRfpItem,
 } from '@/app/actions/admin-partners';
 
 interface PartnersReferralsStudioTabProps {
@@ -112,7 +115,7 @@ export function PartnersReferralsStudioTab({
   onNotify,
 }: PartnersReferralsStudioTabProps) {
   const [subTab, setSubTab] = useState<
-    'DIRECTORY_BY_STEP' | 'WARM_INTRO_SIMULATOR' | 'LEADS_AND_CLICKS_LEDGER'
+    'DIRECTORY_BY_STEP' | 'WARM_INTRO_SIMULATOR' | 'LEADS_AND_CLICKS_LEDGER' | 'THREE_QUOTE_CONCIERGE'
   >('DIRECTORY_BY_STEP');
 
   // Directory filters
@@ -155,6 +158,25 @@ export function PartnersReferralsStudioTab({
     'ALL' | 'PAID_CONCIERGE_ORDER' | 'WARM_INTRO_LEAD' | 'AFFILIATE_CLICK'
   >('ALL');
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+
+  // 3-Quote Concierge State
+  const [quoteRfps, setQuoteRfps] = useState<AdminQuoteRfpItem[]>([]);
+  const [isLoadingRfps, setIsLoadingRfps] = useState(false);
+  const [copiedMagicLink, setCopiedMagicLink] = useState<string | null>(null);
+
+  // Load RFPs when switching to 3-Quote Concierge subtab
+  React.useEffect(() => {
+    if (subTab === 'THREE_QUOTE_CONCIERGE') {
+      setIsLoadingRfps(true);
+      getAdminQuoteRfpsAction()
+        .then((res) => {
+          if (res.ok) {
+            setQuoteRfps(res.rfps);
+          }
+        })
+        .finally(() => setIsLoadingRfps(false));
+    }
+  }, [subTab]);
 
   // Computed KPI stats
   const stats = useMemo(() => {
@@ -253,6 +275,12 @@ export function PartnersReferralsStudioTab({
       checkoutAddonsJson: [],
       commissionBountySummary: '',
       partnerContactNotes: '',
+      isSupplierPartner: false,
+      supplierCategory: null,
+      dispatchEmail: '',
+      monthlyRfpCap: 10,
+      rfpsDispatchedThisMonth: 0,
+      lastRfpDispatchedAt: null,
       sortOrder: 10,
       isActive: true,
       createdAt: nowIso,
@@ -301,6 +329,10 @@ export function PartnersReferralsStudioTab({
         checkoutAddonsJson: editingOffer.checkoutAddonsJson || [],
         commissionBountySummary: editingOffer.commissionBountySummary,
         partnerContactNotes: editingOffer.partnerContactNotes,
+        isSupplierPartner: editingOffer.isSupplierPartner,
+        supplierCategory: editingOffer.supplierCategory,
+        dispatchEmail: editingOffer.dispatchEmail,
+        monthlyRfpCap: editingOffer.monthlyRfpCap,
         sortOrder: editingOffer.sortOrder,
         isActive: editingOffer.isActive,
       });
@@ -644,6 +676,20 @@ export function PartnersReferralsStudioTab({
           >
             <DollarSign className="mr-1.5 h-3.5 w-3.5" />
             3. Clicks, Warm Intro Leads &amp; Bounty Ledger ({events.length})
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setSubTab('THREE_QUOTE_CONCIERGE')}
+            className={
+              subTab === 'THREE_QUOTE_CONCIERGE'
+                ? 'bg-amber-600 text-white hover:bg-amber-500 text-xs shadow-sm font-semibold'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs'
+            }
+          >
+            <Sparkles className="mr-1.5 h-3.5 w-3.5 text-amber-300" />
+            4. ⚡ 3-Quote Concierge Network ({offers.filter((o) => o.isSupplierPartner).length} Suppliers)
           </Button>
         </div>
 
@@ -1614,6 +1660,424 @@ export function PartnersReferralsStudioTab({
       )}
 
       {/* ===================================================================== */}
+      {/* SUB-TAB 4: 3-QUOTE CONCIERGE NETWORK & INBOUND RFPS */}
+      {/* ===================================================================== */}
+      {subTab === 'THREE_QUOTE_CONCIERGE' && (
+        <div className="space-y-6">
+          {/* Top Info Banner */}
+          <div className="rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-amber-400" />
+                  <h3 className="text-base font-bold text-white">
+                    3-Quote Concierge Supplier Network &amp; RFP Dispatch Queue
+                  </h3>
+                </div>
+                <p className="max-w-3xl text-xs text-slate-300">
+                  Irish LEO requires 3 written quotes for items $\ge$ €5,000. When a founder requests quotes in Module D (Dev/Build) or Module E (Equipment), our automated engine matches the top 3 vetted suppliers, generates cryptographic magic links, and emails them. Suppliers submit quotes directly without passwords, automatically attaching into the founder&apos;s Module L grant pack.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    handleOpenNewPartnerModal('MOD_D_STEP_3_TECH_AGENCY_QUOTES');
+                    setEditingOffer((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            isSupplierPartner: true,
+                            supplierCategory: 'DEV_AGENCY',
+                            dispatchEmail: 'quotes@partner.ie',
+                          }
+                        : null
+                    );
+                  }}
+                  className="bg-amber-600 text-xs font-semibold text-white hover:bg-amber-500"
+                >
+                  <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
+                  + Enroll New Supplier Partner
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Supplier Stats */}
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 border-t border-amber-500/20 pt-4">
+              <div className="rounded-lg bg-slate-950/60 p-2.5">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase">
+                  Active Suppliers
+                </div>
+                <div className="text-xl font-bold text-amber-300">
+                  {offers.filter((o) => o.isSupplierPartner && o.isActive).length}
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-slate-950/60 p-2.5">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase">
+                  Dev &amp; Tech Agencies
+                </div>
+                <div className="text-xl font-bold text-indigo-300">
+                  {
+                    offers.filter(
+                      (o) =>
+                        o.isSupplierPartner &&
+                        o.supplierCategory === 'DEV_AGENCY'
+                    ).length
+                  }
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-slate-950/60 p-2.5">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase">
+                  Equipment Suppliers
+                </div>
+                <div className="text-xl font-bold text-emerald-300">
+                  {
+                    offers.filter(
+                      (o) =>
+                        o.isSupplierPartner &&
+                        o.supplierCategory === 'EQUIPMENT_SUPPLIER'
+                    ).length
+                  }
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-slate-950/60 p-2.5">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase">
+                  Total RFPs Dispatched
+                </div>
+                <div className="text-xl font-bold text-sky-300">
+                  {quoteRfps.length}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Enrolled Suppliers Table */}
+          <Card className="border-slate-800 bg-slate-900/90 text-slate-100">
+            <CardHeader className="border-b border-slate-800 pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-bold text-white">
+                    Enrolled Supplier Directory
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-400">
+                    Partners configured with RFPs inbox and active category matching.
+                  </CardDescription>
+                </div>
+                <Badge className="border-amber-500/40 bg-amber-500/20 text-xs text-amber-300">
+                  {offers.filter((o) => o.isSupplierPartner).length} Enrolled
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-slate-800">
+                {offers
+                  .filter((o) => o.isSupplierPartner)
+                  .map((sup) => (
+                    <div
+                      key={sup.id}
+                      className="flex flex-wrap items-center justify-between gap-3 p-3.5 hover:bg-slate-800/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{sup.logoEmoji || '🏢'}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-white text-xs">
+                              {sup.name}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="border-slate-700 text-[10px] font-mono text-slate-300"
+                            >
+                              {sup.supplierCategory || 'DEV_AGENCY'}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="border-slate-700 text-[10px] text-slate-400"
+                            >
+                              {sup.countryScope === 'ALL'
+                                ? '🌍 All'
+                                : sup.countryScope === 'IE'
+                                  ? '🇮🇪 Ireland'
+                                  : '🇬🇧 UK'}
+                            </Badge>
+                            {sup.isActive ? (
+                              <Badge className="border-emerald-500/40 bg-emerald-500/20 text-[10px] text-emerald-300">
+                                Active in Pool
+                              </Badge>
+                            ) : (
+                              <Badge className="border-slate-700 bg-slate-800 text-[10px] text-slate-400">
+                                Paused
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+                            <span>
+                              Quotes Inbox:{' '}
+                              <strong className="text-amber-300 font-mono">
+                                {sup.dispatchEmail || 'None configured'}
+                              </strong>
+                            </span>
+                            <span>•</span>
+                            <span>
+                              Dispatched this month:{' '}
+                              <strong>{sup.rfpsDispatchedThisMonth || 0}</strong> /{' '}
+                              {sup.monthlyRfpCap || 10} cap
+                            </span>
+                            {sup.commissionBountySummary && (
+                              <>
+                                <span>•</span>
+                                <span className="text-emerald-400">
+                                  Bounty: {sup.commissionBountySummary}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingOffer(sup)}
+                          className="h-7 border-slate-700 bg-slate-800 text-xs text-slate-300 hover:bg-slate-700"
+                        >
+                          <Edit3 className="mr-1 h-3 w-3" />
+                          Edit Supplier
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleToggleActive(sup)}
+                          className={`h-7 text-xs ${
+                            sup.isActive
+                              ? 'text-amber-400 hover:bg-amber-950/50'
+                              : 'text-emerald-400 hover:bg-emerald-950/50'
+                          }`}
+                        >
+                          {sup.isActive ? 'Pause' : 'Activate'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                {offers.filter((o) => o.isSupplierPartner).length === 0 && (
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    No partners have been enrolled in the 3-Quote Supplier Network yet. Click &quot;+ Enroll New Supplier Partner&quot; or edit an existing partner to enroll them.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Inbound Dispatched RFPs & Live Magic Links */}
+          <Card className="border-slate-800 bg-slate-900/90 text-slate-100">
+            <CardHeader className="border-b border-slate-800 pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-bold text-white">
+                    Live Inbound RFPs &amp; Supplier Response Queue
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-400">
+                    Real-time tracking of quote requests dispatched by founders and partner magic links.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setIsLoadingRfps(true);
+                    getAdminQuoteRfpsAction()
+                      .then((res) => {
+                        if (res.ok) setQuoteRfps(res.rfps);
+                      })
+                      .finally(() => setIsLoadingRfps(false));
+                  }}
+                  className="h-7 border-slate-700 bg-slate-800 text-xs text-slate-300"
+                >
+                  <RotateCcw className="mr-1 h-3 w-3" />
+                  Refresh RFPs
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              {isLoadingRfps ? (
+                <div className="p-8 text-center text-xs text-slate-400">
+                  Loading dispatched quote requests...
+                </div>
+              ) : quoteRfps.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-800 p-8 text-center">
+                  <Sparkles className="mx-auto h-8 w-8 text-amber-400/50" />
+                  <p className="mt-2 text-xs font-semibold text-slate-300">
+                    No quote requests dispatched yet.
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    When founders click &quot;Request 3 Quotes&quot; in Module D or Module E, dispatched RFPs and magic link tokens will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {quoteRfps.map((rfp) => (
+                    <div
+                      key={rfp.id}
+                      className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-white">
+                              {rfp.projectTitle}
+                            </span>
+                            <Badge className="border-indigo-500/40 bg-indigo-500/20 text-[10px] text-indigo-300">
+                              {rfp.rfpCategory}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="border-slate-700 text-[10px] text-slate-300"
+                            >
+                              {rfp.targetCountryCode} • {rfp.currency}
+                            </Badge>
+                            <Badge
+                              className={`text-[10px] ${
+                                rfp.quotesReceivedCount >= 3
+                                  ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                                  : 'border-amber-500/40 bg-amber-500/20 text-amber-300'
+                              }`}
+                            >
+                              {rfp.quotesReceivedCount} of 3 Quotes Uploaded
+                            </Badge>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                            <span>
+                              Founder: <strong className="text-white">{rfp.founderContactInfo.name}</strong> ({rfp.founderContactInfo.companyName})
+                            </span>
+                            <span>•</span>
+                            <span>{rfp.founderContactInfo.email}</span>
+                            <span>•</span>
+                            <span>Budget: <strong className="text-emerald-400">{rfp.budgetRange}</strong></span>
+                            <span>•</span>
+                            <span>Timeline: {rfp.targetDeliveryTimeline}</span>
+                            <span>•</span>
+                            <span>{new Date(rfp.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Scope Summary Preview */}
+                      <div className="rounded-lg border border-slate-800/80 bg-slate-900/60 p-2.5 text-xs text-slate-300">
+                        <span className="font-semibold text-slate-200">Scope: </span>
+                        {rfp.scopeSummary}
+                      </div>
+
+                      {/* Dispatched Partners & Magic Link Tokens */}
+                      <div className="space-y-2 pt-1 border-t border-slate-800/80">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Dispatched Partners &amp; Magic Links
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          {rfp.partnerResponses.map((resp) => {
+                            const magicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/quotes/submit/${resp.magicToken}`;
+                            const isSubmitted = resp.status === 'QUOTE_SUBMITTED';
+
+                            return (
+                              <div
+                                key={resp.id}
+                                className={`rounded-lg border p-3 space-y-2 ${
+                                  isSubmitted
+                                    ? 'border-emerald-500/40 bg-emerald-950/20'
+                                    : 'border-slate-800 bg-slate-900/50'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                    <span>{resp.partnerLogo}</span>
+                                    <span className="font-semibold text-xs text-white">
+                                      {resp.partnerName}
+                                    </span>
+                                  </div>
+                                  <Badge
+                                    className={`text-[9px] ${
+                                      isSubmitted
+                                        ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                                        : 'border-slate-700 bg-slate-800 text-slate-400'
+                                    }`}
+                                  >
+                                    {resp.status}
+                                  </Badge>
+                                </div>
+
+                                {isSubmitted ? (
+                                  <div className="space-y-1 text-xs">
+                                    <div className="font-bold text-emerald-300">
+                                      Net Quote: {resp.quoteCurrency} {resp.quoteAmountNet}
+                                      {resp.estimatedWeeks && ` (${resp.estimatedWeeks} wks)`}
+                                    </div>
+                                    {resp.quoteFileUrl && (
+                                      <a
+                                        href={resp.quoteFileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center text-[11px] text-sky-400 hover:underline"
+                                      >
+                                        <ExternalLink className="mr-1 h-3 w-3" />
+                                        View Quote PDF ({resp.quoteFileName || 'Document'})
+                                      </a>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-between pt-1">
+                                    <span className="text-[10px] text-slate-500 font-mono truncate max-w-[140px]">
+                                      Token: {resp.magicToken.slice(0, 10)}...
+                                    </span>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(magicUrl);
+                                        setCopiedMagicLink(resp.magicToken);
+                                        setTimeout(() => setCopiedMagicLink(null), 2000);
+                                        onNotify('success', 'Magic Link copied to clipboard!');
+                                      }}
+                                      className="h-6 px-1.5 text-[10px] text-indigo-300 hover:bg-slate-800"
+                                    >
+                                      {copiedMagicLink === resp.magicToken ? (
+                                        <>
+                                          <Check className="mr-1 h-3 w-3 text-emerald-400" />
+                                          Copied!
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="mr-1 h-3 w-3" />
+                                          Copy Link
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
       {/* CREATE / EDIT PARTNER OFFER MODAL (WITH WARM INTRO QUESTION BUILDER) */}
       {/* ===================================================================== */}
       {editingOffer && (
@@ -1700,6 +2164,93 @@ export function PartnersReferralsStudioTab({
                       <option value="GB">🇬🇧 UK Founders Only (GB)</option>
                     </select>
                   </div>
+                </div>
+
+                {/* 3-Quote Supplier Network Assignment */}
+                <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-amber-400" />
+                        <span className="text-xs font-bold text-amber-200">
+                          3-Quote Concierge Automated Supplier Network
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        When enabled, this partner is enrolled in the automated 3-quote dispatch algorithm for grant candidates.
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-semibold text-white cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingOffer.isSupplierPartner || false}
+                        onChange={(e) =>
+                          setEditingOffer({
+                            ...editingOffer,
+                            isSupplierPartner: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-amber-600 focus:ring-amber-500"
+                      />
+                      <span>Active Supplier</span>
+                    </label>
+                  </div>
+
+                  {editingOffer.isSupplierPartner && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 pt-2 border-t border-amber-500/20">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-slate-300">Supplier Category</Label>
+                        <select
+                          value={editingOffer.supplierCategory || 'DEV_AGENCY'}
+                          onChange={(e) =>
+                            setEditingOffer({
+                              ...editingOffer,
+                              supplierCategory: e.target.value as QuoteSupplierCategory,
+                            })
+                          }
+                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value="DEV_AGENCY">💻 Dev &amp; Tech Agency (Full-Stack / Mobile)</option>
+                          <option value="NO_CODE_STUDIO">⚡ No-Code Studio (Webflow / Bubble / Shopify)</option>
+                          <option value="EQUIPMENT_SUPPLIER">🏭 Equipment &amp; Machinery Supplier</option>
+                          <option value="BRANDING_DESIGN">🎨 Branding &amp; Packaging Agency</option>
+                          <option value="OTHER">📦 Other Supplier</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs text-slate-300">RFPs Inbox Email *</Label>
+                        <Input
+                          value={editingOffer.dispatchEmail || ''}
+                          onChange={(e) =>
+                            setEditingOffer({
+                              ...editingOffer,
+                              dispatchEmail: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. quotes@agency.ie"
+                          className="border-slate-700 bg-slate-900 text-xs font-mono text-amber-300"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs text-slate-300">Monthly RFP Cap</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={editingOffer.monthlyRfpCap ?? 10}
+                          onChange={(e) =>
+                            setEditingOffer({
+                              ...editingOffer,
+                              monthlyRfpCap: Number(e.target.value) || 10,
+                            })
+                          }
+                          className="border-slate-700 bg-slate-900 text-xs text-white"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

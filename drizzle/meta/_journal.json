@@ -22,6 +22,20 @@
       "when": 1793736830312,
       "tag": "0002_pretty_joseph",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793785168535,
+      "tag": "0003_flimsy_vulture",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793786536549,
+      "tag": "0004_graceful_prism",
+      "breakpoints": true
     }
   ]
 }

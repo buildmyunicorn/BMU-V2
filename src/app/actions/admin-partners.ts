@@ -7,6 +7,8 @@ import {
   ensureDatabaseSchemaSynced,
   partnerOffers,
   partnerReferralEvents,
+  quoteRfpRequests,
+  quotePartnerResponses,
   emailLogs,
 } from '@/db';
 import type {
@@ -26,6 +28,7 @@ import {
   type PartnerCountryScope,
   type PartnerActionType,
   type ReferralLeadStatus,
+  type QuoteSupplierCategory,
 } from '@/lib/partners/partner-catalog-store';
 
 async function verifyAdminAuth(): Promise<boolean> {
@@ -63,6 +66,12 @@ function mapDbOfferToRecord(
       : [],
     commissionBountySummary: row.commissionBountySummary,
     partnerContactNotes: row.partnerContactNotes,
+    isSupplierPartner: Boolean(row.isSupplierPartner),
+    supplierCategory: row.supplierCategory,
+    dispatchEmail: row.dispatchEmail,
+    monthlyRfpCap: row.monthlyRfpCap ?? 10,
+    rfpsDispatchedThisMonth: row.rfpsDispatchedThisMonth ?? 0,
+    lastRfpDispatchedAt: row.lastRfpDispatchedAt ? row.lastRfpDispatchedAt.toISOString() : null,
     sortOrder: row.sortOrder ?? 10,
     isActive: Boolean(row.isActive),
     createdAt: row.createdAt ? row.createdAt.toISOString() : new Date().toISOString(),
@@ -337,6 +346,12 @@ export async function upsertAdminPartnerOfferAction(input: {
   checkoutAddonsJson?: PartnerCheckoutAddonField[];
   commissionBountySummary?: string | null;
   partnerContactNotes?: string | null;
+  isSupplierPartner?: boolean;
+  supplierCategory?: QuoteSupplierCategory | null;
+  dispatchEmail?: string | null;
+  monthlyRfpCap?: number;
+  rfpsDispatchedThisMonth?: number;
+  lastRfpDispatchedAt?: string | null;
   sortOrder?: number;
   isActive?: boolean;
 }): Promise<{
@@ -389,6 +404,12 @@ export async function upsertAdminPartnerOfferAction(input: {
     checkoutAddonsJson: input.checkoutAddonsJson || [],
     commissionBountySummary: input.commissionBountySummary?.trim() || null,
     partnerContactNotes: input.partnerContactNotes?.trim() || null,
+    isSupplierPartner: Boolean(input.isSupplierPartner),
+    supplierCategory: input.supplierCategory || null,
+    dispatchEmail: input.dispatchEmail?.trim() || null,
+    monthlyRfpCap: Number.isFinite(input.monthlyRfpCap) ? Number(input.monthlyRfpCap) : 10,
+    rfpsDispatchedThisMonth: Number.isFinite(input.rfpsDispatchedThisMonth) ? Number(input.rfpsDispatchedThisMonth) : 0,
+    lastRfpDispatchedAt: input.lastRfpDispatchedAt || null,
     sortOrder: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 10,
     isActive: input.isActive ?? true,
     createdAt: nowIso,
@@ -427,6 +448,10 @@ export async function upsertAdminPartnerOfferAction(input: {
           checkoutAddonsJson: fallbackOffer.checkoutAddonsJson,
           commissionBountySummary: fallbackOffer.commissionBountySummary,
           partnerContactNotes: fallbackOffer.partnerContactNotes,
+          isSupplierPartner: fallbackOffer.isSupplierPartner,
+          supplierCategory: fallbackOffer.supplierCategory,
+          dispatchEmail: fallbackOffer.dispatchEmail,
+          monthlyRfpCap: fallbackOffer.monthlyRfpCap,
           sortOrder: fallbackOffer.sortOrder,
           isActive: fallbackOffer.isActive,
           updatedAt: new Date(),
@@ -474,6 +499,10 @@ export async function upsertAdminPartnerOfferAction(input: {
           checkoutAddonsJson: fallbackOffer.checkoutAddonsJson,
           commissionBountySummary: fallbackOffer.commissionBountySummary,
           partnerContactNotes: fallbackOffer.partnerContactNotes,
+          isSupplierPartner: fallbackOffer.isSupplierPartner,
+          supplierCategory: fallbackOffer.supplierCategory,
+          dispatchEmail: fallbackOffer.dispatchEmail,
+          monthlyRfpCap: fallbackOffer.monthlyRfpCap,
           sortOrder: fallbackOffer.sortOrder,
           isActive: fallbackOffer.isActive,
           updatedAt: new Date(),
@@ -512,6 +541,10 @@ export async function upsertAdminPartnerOfferAction(input: {
         checkoutAddonsJson: fallbackOffer.checkoutAddonsJson,
         commissionBountySummary: fallbackOffer.commissionBountySummary,
         partnerContactNotes: fallbackOffer.partnerContactNotes,
+        isSupplierPartner: fallbackOffer.isSupplierPartner,
+        supplierCategory: fallbackOffer.supplierCategory,
+        dispatchEmail: fallbackOffer.dispatchEmail,
+        monthlyRfpCap: fallbackOffer.monthlyRfpCap,
         sortOrder: fallbackOffer.sortOrder,
         isActive: fallbackOffer.isActive,
       })
@@ -1276,6 +1309,138 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
       emailSent,
       paymentRef,
       event: fallbackEvent,
+    };
+  }
+}
+
+// ==========================================
+// 3-QUOTE CONCIERGE ADMIN QUERIES
+// ==========================================
+export interface AdminQuoteRfpItem {
+  id: string;
+  planId: string;
+  projectTitle: string;
+  targetCountryCode: string;
+  currency: string;
+  rfpCategory: string;
+  budgetRange: string;
+  targetDeliveryTimeline: string;
+  scopeSummary: string;
+  status: string;
+  dispatchedPartnersCount: number;
+  quotesReceivedCount: number;
+  founderContactInfo: {
+    name: string;
+    email: string;
+    phone?: string;
+    companyName: string;
+  };
+  createdAt: string;
+  partnerResponses: Array<{
+    id: string;
+    partnerId: string;
+    partnerName: string;
+    partnerLogo: string;
+    magicToken: string;
+    status: string;
+    quoteAmountNet?: string | null;
+    quoteCurrency: string;
+    estimatedWeeks?: number | null;
+    quoteFileUrl?: string | null;
+    quoteFileName?: string | null;
+    quoteNotes?: string | null;
+    submittedAt?: string | null;
+  }>;
+}
+
+export async function getAdminQuoteRfpsAction(): Promise<{
+  ok: boolean;
+  rfps: AdminQuoteRfpItem[];
+  error?: string;
+}> {
+  const isAdmin = await verifyAdminAuth();
+  if (!isAdmin) {
+    return { ok: false, rfps: [], error: 'Unauthorized: Super Admin session required.' };
+  }
+
+  try {
+    await ensureDatabaseSchemaSynced();
+
+    const rfpRows = await db
+      .select()
+      .from(quoteRfpRequests)
+      .orderBy(desc(quoteRfpRequests.createdAt))
+      .limit(50);
+
+    if (rfpRows.length === 0) {
+      return { ok: true, rfps: [] };
+    }
+
+    const responsesRows = await db
+      .select({
+        id: quotePartnerResponses.id,
+        rfpId: quotePartnerResponses.rfpId,
+        partnerId: quotePartnerResponses.partnerId,
+        partnerName: partnerOffers.name,
+        partnerLogo: partnerOffers.logoEmoji,
+        magicToken: quotePartnerResponses.magicToken,
+        status: quotePartnerResponses.status,
+        quoteAmountNet: quotePartnerResponses.quoteAmountNet,
+        quoteCurrency: quotePartnerResponses.quoteCurrency,
+        estimatedWeeks: quotePartnerResponses.estimatedWeeks,
+        quoteFileUrl: quotePartnerResponses.quoteFileUrl,
+        quoteFileName: quotePartnerResponses.quoteFileName,
+        quoteNotes: quotePartnerResponses.quoteNotes,
+        submittedAt: quotePartnerResponses.submittedAt,
+      })
+      .from(quotePartnerResponses)
+      .leftJoin(partnerOffers, eq(quotePartnerResponses.partnerId, partnerOffers.id));
+
+    const responsesByRfp = new Map<string, typeof responsesRows>();
+    for (const resp of responsesRows) {
+      const list = responsesByRfp.get(resp.rfpId) || [];
+      list.push(resp);
+      responsesByRfp.set(resp.rfpId, list);
+    }
+
+    const result: AdminQuoteRfpItem[] = rfpRows.map((row) => ({
+      id: row.id,
+      planId: row.planId,
+      projectTitle: row.projectTitle,
+      targetCountryCode: row.targetCountryCode,
+      currency: row.currency,
+      rfpCategory: row.rfpCategory,
+      budgetRange: row.budgetRange,
+      targetDeliveryTimeline: row.targetDeliveryTimeline,
+      scopeSummary: row.scopeSummary,
+      status: row.status,
+      dispatchedPartnersCount: row.dispatchedPartnersCount,
+      quotesReceivedCount: row.quotesReceivedCount,
+      founderContactInfo: row.founderContactInfo,
+      createdAt: row.createdAt.toISOString(),
+      partnerResponses: (responsesByRfp.get(row.id) || []).map((p) => ({
+        id: p.id,
+        partnerId: p.partnerId,
+        partnerName: p.partnerName || 'Unknown Partner',
+        partnerLogo: p.partnerLogo || '🏢',
+        magicToken: p.magicToken,
+        status: p.status,
+        quoteAmountNet: p.quoteAmountNet,
+        quoteCurrency: p.quoteCurrency,
+        estimatedWeeks: p.estimatedWeeks,
+        quoteFileUrl: p.quoteFileUrl,
+        quoteFileName: p.quoteFileName,
+        quoteNotes: p.quoteNotes,
+        submittedAt: p.submittedAt ? p.submittedAt.toISOString() : null,
+      })),
+    }));
+
+    return { ok: true, rfps: result };
+  } catch (err) {
+    return {
+      ok: false,
+      rfps: [],
+      error: err instanceof Error ? err.message : 'Failed to query quote RFPs',
     };
   }
 }

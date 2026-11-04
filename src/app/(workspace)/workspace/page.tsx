@@ -45,6 +45,7 @@ import {
   Eye,
   CheckCircle2,
   BookOpen,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createStripeCheckoutSessionAction } from '@/app/actions/stripe';
@@ -79,11 +80,14 @@ import {
   loadBmuSessionForEmail,
   saveBmuSession,
   getDefaultDemoSession,
+  createFreshStartupPlan,
+  markPlanAsDeletedInBrowserStorage,
   deduplicateSurveyResponses,
   isSyntheticPersonaPlan,
   exitPersonaPreviewAndRestoreRealPlans,
   type BmuLocalSession,
   type SavedConceptCanvas,
+  type ActiveStartupPlan,
   type SavedFounderMotivation,
   type FounderMotivationType,
   type FounderWeeklyHours,
@@ -170,6 +174,8 @@ import {
   generateModuleAConceptCanvasAction,
   saveModuleACanvasEditsAction,
   parkOpenQuestionAction,
+  deleteStartupPlanAction,
+  cloneStartupPlanAction,
   generateModuleAGrantPositioningAdviceAction,
 } from '@/app/actions/module-a';
 import {
@@ -502,6 +508,14 @@ export default function WorkspacePage() {
   const [pendingModuleAfterUnlock, setPendingModuleAfterUnlock] =
     useState<ModuleCode | null>(null);
   const [planDropdownOpen, setPlanDropdownOpen] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [isDeletingPlan, setIsDeletingPlan] = useState(false);
+  const [deletePlanError, setDeletePlanError] = useState<string | null>(null);
+  const [isCloningPlan, setIsCloningPlan] = useState(false);
+  const [clonePlanError, setClonePlanError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showWhyCard, setShowWhyCard] = useState(true);
   const [showExamples, setShowExamples] = useState(false);
@@ -1416,6 +1430,151 @@ export default function WorkspacePage() {
           }
         }
       }
+    }
+  }
+
+  async function handleConfirmDeletePlan() {
+    if (!planToDelete || isDeletingPlan) return;
+    setIsDeletingPlan(true);
+    setDeletePlanError(null);
+
+    try {
+      const planIdToDelete = planToDelete.id;
+      // Mark as deleted in localStorage tombstones and remove from browser vault immediately
+      markPlanAsDeletedInBrowserStorage(planIdToDelete);
+
+      // Invoke server action to delete from Cloud SQL (with ownership verification)
+      const res = await deleteStartupPlanAction({ planId: planIdToDelete });
+      if (
+        !res.ok &&
+        res.error &&
+        !res.error.includes('not found') &&
+        !res.error.includes('DATABASE_UNAVAILABLE') &&
+        !res.error.includes('UNAUTHENTICATED')
+      ) {
+        setDeletePlanError(res.error);
+        setIsDeletingPlan(false);
+        return;
+      }
+
+      // Filter out deleted plan from current session plans
+      const remainingPlans = session.plans.filter((p) => p.id !== planIdToDelete);
+
+      if (remainingPlans.length > 0) {
+        // If the active plan was deleted, switch to the first remaining plan
+        const nextActivePlan =
+          session.activePlanId === planIdToDelete
+            ? remainingPlans[0]
+            : remainingPlans.find((p) => p.id === session.activePlanId) || remainingPlans[0];
+
+        const nextSession: BmuLocalSession = {
+          ...session,
+          plans: remainingPlans,
+          activePlanId: nextActivePlan.id,
+        };
+        setSession(nextSession);
+        saveBmuSession(nextSession);
+        handleSelectPlan(nextActivePlan.id);
+      } else {
+        // All plans were deleted, generate a fresh clean plan
+        const freshPlan = createFreshStartupPlan(selectedCountry || 'IE');
+        const nextSession: BmuLocalSession = {
+          ...session,
+          plans: [freshPlan],
+          activePlanId: freshPlan.id,
+        };
+        setSession(nextSession);
+        saveBmuSession(nextSession);
+        handleSelectPlan(freshPlan.id);
+      }
+
+      setPlanToDelete(null);
+      setPlanDropdownOpen(false);
+    } catch (err: any) {
+      setDeletePlanError(err?.message || 'Failed to delete plan.');
+    } finally {
+      setIsDeletingPlan(false);
+    }
+  }
+
+  async function handleClonePlan() {
+    if (isCloningPlan) return;
+
+    if (!multiPlanCheck.allowed) {
+      setPlanDropdownOpen(false);
+      setPaywallModalFeature(
+        'Clone & Pivot Plan (Test a B2B vs. B2C variation without losing your original plan)'
+      );
+      return;
+    }
+
+    if (!currentPlan) return;
+
+    setIsCloningPlan(true);
+    setClonePlanError(null);
+
+    try {
+      const pivotTitle = `${currentPlan.title} (Pivot)`;
+      const res = await cloneStartupPlanAction({
+        sourcePlanId: currentPlan.id,
+        newTitle: pivotTitle,
+      });
+
+      if (!res.ok) {
+        if (res.limitReached) {
+          setPlanDropdownOpen(false);
+          setPaywallModalFeature(
+            'Clone & Pivot Plan (Test a B2B vs. B2C variation without losing your original plan)'
+          );
+          return;
+        }
+        setClonePlanError(res.error || 'Failed to clone plan.');
+        return;
+      }
+
+      const newPlanId =
+        res.newPlanId ||
+        (typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
+
+      const clonedPlan: ActiveStartupPlan = {
+        ...JSON.parse(JSON.stringify(currentPlan)),
+        id: newPlanId,
+        title: res.newPlanTitle || pivotTitle,
+        isPivot: true,
+      };
+
+      // If survey data exists in module C, reset response data and generate unique survey slugs for the pivot
+      if (clonedPlan.moduleCData?.surveys) {
+        clonedPlan.moduleCData = {
+          ...clonedPlan.moduleCData,
+          surveys: clonedPlan.moduleCData.surveys.map((s: SavedValidationSurvey) => ({
+            ...s,
+            id: `srv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            publicSlug: `${s.publicSlug.slice(0, 36)}-pivot-${Math.random().toString(36).slice(2, 6)}`,
+            title: `${s.title} (Pivot)`,
+            responses: [],
+            publishedAt: undefined,
+          })),
+        };
+      }
+
+      const updatedPlans = [clonedPlan, ...session.plans];
+      const updatedSession: BmuLocalSession = {
+        ...session,
+        plans: updatedPlans,
+        activePlanId: clonedPlan.id,
+      };
+
+      setSession(updatedSession);
+      saveBmuSession(updatedSession);
+      handleSelectPlan(clonedPlan.id);
+      setPlanDropdownOpen(false);
+    } catch (err: any) {
+      setClonePlanError(err?.message || 'Failed to clone plan.');
+    } finally {
+      setIsCloningPlan(false);
     }
   }
 
@@ -4695,8 +4854,13 @@ export default function WorkspacePage() {
               className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
             >
               <div className="min-w-0 pr-2">
-                <div className="truncate text-sm font-bold text-slate-900">
-                  {currentPlan.title}
+                <div className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-900">
+                  <span className="truncate">{currentPlan.title}</span>
+                  {currentPlan.isPivot && (
+                    <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                      Pivot
+                    </span>
+                  )}
                 </div>
                 <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
                   <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
@@ -4717,27 +4881,49 @@ export default function WorkspacePage() {
                   YOUR STARTUP PLANS
                 </div>
                 {session.plans.map((p) => (
-                  <button
+                  <div
                     key={p.id}
-                    type="button"
-                    onClick={() => handleSelectPlan(p.id)}
-                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs ${
+                    className={`group/plan flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${
                       p.id === currentPlan.id
                         ? 'bg-indigo-50 font-semibold text-indigo-900'
                         : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="truncate pr-2">
-                      <div>{p.title}</div>
-                      <div className="text-[11px] text-slate-400">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPlan(p.id)}
+                      className="min-w-0 flex-1 truncate pr-2 text-left"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="truncate">{p.title}</span>
+                        {p.isPivot && (
+                          <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                            Pivot
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] font-normal text-slate-400">
                         {p.hqCountryCode} ({p.baseCurrency}) •{' '}
                         {p.industryCategory}
                       </div>
+                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {p.id === currentPlan.id && (
+                        <Check className="h-4 w-4 shrink-0 text-indigo-600 mr-1" />
+                      )}
+                      <button
+                        type="button"
+                        title={`Delete ${p.title}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPlanToDelete({ id: p.id, title: p.title });
+                        }}
+                        className="rounded p-1 text-slate-400 opacity-60 transition-opacity hover:bg-red-50 hover:text-red-600 hover:opacity-100 group-hover/plan:opacity-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    {p.id === currentPlan.id && (
-                      <Check className="h-4 w-4 shrink-0 text-indigo-600" />
-                    )}
-                  </button>
+                  </div>
                 ))}
 
                 <div className="my-1.5 border-t border-slate-100" />
@@ -4764,21 +4950,27 @@ export default function WorkspacePage() {
                   )}
                 </button>
 
+                {clonePlanError && (
+                  <div className="mx-2 mb-1 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                    {clonePlanError}
+                  </div>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => {
-                    setPlanDropdownOpen(false);
-                    if (!multiPlanCheck.allowed) {
-                      setPaywallModalFeature(
-                        'Clone & Pivot Plan (Test a B2B vs. B2C variation without losing your original plan)'
-                      );
-                    }
-                  }}
-                  className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  disabled={isCloningPlan}
+                  onClick={handleClonePlan}
+                  className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
                   <span className="flex items-center gap-1.5">
-                    <GitBranch className="h-3.5 w-3.5 text-violet-600" />
-                    Clone &amp; Pivot Current Plan
+                    {isCloningPlan ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-600" />
+                    ) : (
+                      <GitBranch className="h-3.5 w-3.5 text-violet-600" />
+                    )}
+                    {isCloningPlan
+                      ? 'Cloning Plan & Modules...'
+                      : 'Clone & Pivot Current Plan'}
                   </span>
                   {!multiPlanCheck.allowed && (
                     <Lock className="h-3.5 w-3.5 text-amber-600" />
@@ -10253,6 +10445,92 @@ export default function WorkspacePage() {
                 className="text-xs text-slate-500"
               >
                 Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* DELETE PLAN CONFIRMATION MODAL                            */}
+      {/* ========================================================= */}
+      {planToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                  <Trash2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Delete Startup Plan?
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    This action will permanently remove this plan and its module data.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isDeletingPlan}
+                onClick={() => {
+                  setPlanToDelete(null);
+                  setDeletePlanError(null);
+                }}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-red-100 bg-red-50/70 p-3.5 text-xs text-red-950">
+              <p className="font-semibold text-red-900">
+                Are you sure you want to delete &ldquo;{planToDelete.title}&rdquo;?
+              </p>
+              <p className="mt-1 text-[11px] text-red-700">
+                All associated ideation canvas, customer surveys, financial models, and research in this plan will be permanently deleted.
+              </p>
+            </div>
+
+            {deletePlanError && (
+              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                {deletePlanError}
+              </div>
+            )}
+
+            <div className="mt-5 flex items-center justify-end gap-2.5 border-t border-slate-100 pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isDeletingPlan}
+                onClick={() => {
+                  setPlanToDelete(null);
+                  setDeletePlanError(null);
+                }}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isDeletingPlan}
+                onClick={handleConfirmDeletePlan}
+                className="bg-red-600 text-xs font-semibold text-white hover:bg-red-700 shadow-xs"
+              >
+                {isDeletingPlan ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete Plan
+                  </>
+                )}
               </Button>
             </div>
           </div>

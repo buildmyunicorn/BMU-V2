@@ -56,6 +56,11 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
+  ThreeQuoteConciergeModal,
+  PlanQuotesTrackerCard,
+} from '@/components/workspace/three-quote-concierge-modal';
+import type { QuoteSupplierCategory } from '@/lib/partners/partner-catalog-store';
+import {
   getCountryRulePack,
   formatPlanCurrency,
   type SupportedCountryCode,
@@ -4426,6 +4431,9 @@ export function ModuleDWorkspace({
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
   const [parkQuestionInput, setParkQuestionInput] = useState('');
   const [showParkInput, setShowParkInput] = useState(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [quoteModalCategory, setQuoteModalCategory] =
+    useState<QuoteSupplierCategory>('DEV_AGENCY');
 
   // Custom item form state for Step 3 Ruthless Scope Filter
   const [newScopeItemTitle, setNewScopeItemTitle] = useState('');
@@ -11578,6 +11586,19 @@ export function ModuleDWorkspace({
           </Card>
 
           {/* =============================================================== */}
+          {/* 3-QUOTE CONCIERGE & PARTNER BENCH (STEP 4)                      */}
+          {/* =============================================================== */}
+          <PlanQuotesTrackerCard
+            planId={plan.id}
+            baseCurrency={plan.baseCurrency}
+            categoryFilter="DEV_AGENCY"
+            onRequestNewQuotes={() => {
+              setQuoteModalCategory('DEV_AGENCY');
+              setIsQuoteModalOpen(true);
+            }}
+          />
+
+          {/* =============================================================== */}
           {/* SECTION 2: CORE IP OWNERSHIP RULE & DEFENSIBILITY CHARTER       */}
           {/* =============================================================== */}
           <Card className="border-slate-200 shadow-xs">
@@ -13229,6 +13250,19 @@ export function ModuleDWorkspace({
                     className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
                   />
                 </div>
+              </div>
+
+              {/* 3-Quote Concierge Tracker Card for Work Packages */}
+              <div className="pt-2">
+                <PlanQuotesTrackerCard
+                  planId={plan.id}
+                  baseCurrency={plan.baseCurrency}
+                  categoryFilter="DEV_AGENCY"
+                  onRequestNewQuotes={() => {
+                    setQuoteModalCategory('DEV_AGENCY');
+                    setIsQuoteModalOpen(true);
+                  }}
+                />
               </div>
 
               {/* STEP 5 FOOTER ACTIONS */}
@@ -15042,6 +15076,28 @@ export function ModuleDWorkspace({
           </CardContent>
         </Card>
       )}
+
+      {/* 3-Quote Concierge Marketplace Dispatch Modal */}
+      <ThreeQuoteConciergeModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        planId={plan.id}
+        planTitle={plan.title}
+        hqCountryCode={selectedCountry}
+        baseCurrency={plan.baseCurrency}
+        sourceModule="MOD_D_PRODUCT_BUILD"
+        defaultCategory={quoteModalCategory}
+        initialWorkPackages={step5Data.workPackages.map((wp, idx) => ({
+          id: wp.id,
+          name: `${wp.wpCode || `WP${idx + 1}`}: ${wp.title}`,
+          description: wp.deliverableMilestoneProof || wp.linkedTaskSummary || '',
+          targetDays: 14,
+        }))}
+        initialFounderContact={{
+          name: founderName,
+          companyName: plan.title,
+        }}
+      />
     </div>
   );
 }

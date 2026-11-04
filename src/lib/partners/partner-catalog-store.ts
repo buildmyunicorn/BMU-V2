@@ -35,6 +35,13 @@ export type ReferralLeadStatus =
   | 'BOUNTY_PAID'
   | 'ARCHIVED';
 
+export type QuoteSupplierCategory =
+  | 'DEV_AGENCY'
+  | 'NO_CODE_STUDIO'
+  | 'EQUIPMENT_SUPPLIER'
+  | 'BRANDING_DESIGN'
+  | 'OTHER';
+
 export interface PartnerOfferRecord {
   id: string;
   slug: string;
@@ -58,6 +65,13 @@ export interface PartnerOfferRecord {
   checkoutAddonsJson?: PartnerCheckoutAddonField[];
   commissionBountySummary?: string | null;
   partnerContactNotes?: string | null;
+  // 3-Quote Concierge fields:
+  isSupplierPartner?: boolean;
+  supplierCategory?: QuoteSupplierCategory | null;
+  dispatchEmail?: string | null;
+  monthlyRfpCap?: number;
+  rfpsDispatchedThisMonth?: number;
+  lastRfpDispatchedAt?: string | null;
   sortOrder: number;
   isActive: boolean;
   createdAt: string;

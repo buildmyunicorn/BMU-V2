@@ -1504,6 +1504,56 @@ export function LandingPageExperience({
                 Redeem Your Cohort / Partner Code →
               </Link>
             </div>
+
+            {/* Founder Credibility Banner with Photo & LinkedIn */}
+            <div className="mt-6 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs sm:p-8">
+              <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
+                    <img
+                      src="/images/founder-thomas-walsh.jpg"
+                      alt="Thomas Walsh — Founder of Startup Preflight"
+                      width={96}
+                      height={96}
+                      className="h-full w-full object-cover object-top"
+                    />
+                  </div>
+                  <div className="max-w-2xl">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Built by a Practitioner — Meet Founder Thomas Walsh
+                    </span>
+                    <h3 className="mt-2 text-lg font-black text-slate-900 sm:text-xl">
+                      20+ Years in Software &amp; Cloud Architecture • 400+ Startups Scaled
+                    </h3>
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600 sm:text-sm">
+                      &ldquo;I watched hundreds of brilliant founders get rejected because their
+                      great idea was trapped in a messy document or broken spreadsheet. Startup
+                      Preflight puts our 12-module commercial, technical, and financial underwriting
+                      playbook in your hands.&rdquo;
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row md:flex-col">
+                  <Link href="/about-founder">
+                    <Button
+                      variant="outline"
+                      className="h-10 w-full rounded-xl border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Read Thomas&apos;s Story →
+                    </Button>
+                  </Link>
+                  <a
+                    href="https://www.linkedin.com/in/twalsh-start-ups/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
+                  >
+                    Connect on LinkedIn ↗
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

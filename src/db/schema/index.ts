@@ -83,6 +83,29 @@ export const questionStatusEnum = pgEnum('question_status', [
   'RESOLVED',
 ]);
 
+export const quoteSupplierCategoryEnum = pgEnum('quote_supplier_category', [
+  'DEV_AGENCY',
+  'NO_CODE_STUDIO',
+  'EQUIPMENT_SUPPLIER',
+  'BRANDING_DESIGN',
+  'OTHER',
+]);
+
+export const quoteRfpStatusEnum = pgEnum('quote_rfp_status', [
+  'DISPATCHED',
+  'QUOTES_IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+]);
+
+export const quoteResponseStatusEnum = pgEnum('quote_response_status', [
+  'SENT',
+  'OPENED',
+  'QUOTE_SUBMITTED',
+  'DECLINED',
+  'EXPIRED',
+]);
+
 export type StartupHat =
   | 'VISION_INVESTOR'
   | 'PRODUCT_TECH'
@@ -720,6 +743,13 @@ export const partnerOffers = pgTable('partner_offers', {
     .default([]),
   commissionBountySummary: text('commission_bounty_summary'), // Admin-only deal terms / CPA notes
   partnerContactNotes: text('partner_contact_notes'), // Admin-only account manager contact info
+  // 3-Quote Concierge Supplier Attributes:
+  isSupplierPartner: boolean('is_supplier_partner').default(false).notNull(), // Active in 3-Quote automated dispatch pool
+  supplierCategory: quoteSupplierCategoryEnum('supplier_category'), // 'DEV_AGENCY' | 'NO_CODE_STUDIO' | 'EQUIPMENT_SUPPLIER' | 'BRANDING_DESIGN' | 'OTHER'
+  dispatchEmail: text('dispatch_email'), // Direct RFPs recipient email (e.g. quotes@agency.ie)
+  monthlyRfpCap: integer('monthly_rfp_cap').default(10).notNull(), // Maximum RFPs per month to prevent agency spam
+  rfpsDispatchedThisMonth: integer('rfps_dispatched_this_month').default(0).notNull(),
+  lastRfpDispatchedAt: timestamp('last_rfp_dispatched_at'),
   sortOrder: integer('sort_order').default(10).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -748,6 +778,81 @@ export const partnerReferralEvents = pgTable('partner_referral_events', {
   adminNotes: text('admin_notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// ==========================================
+// 7B. 3-QUOTE CONCIERGE (RFP & MAGIC LINK QUOTES)
+// ==========================================
+export type QuoteRfpWorkPackageItem = {
+  id: string;
+  name: string;
+  description: string;
+  targetDays?: number;
+};
+
+export type QuoteRfpFounderContact = {
+  name: string;
+  email: string;
+  phone?: string;
+  companyName: string;
+};
+
+export const quoteRfpRequests = pgTable('quote_rfp_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  planId: uuid('plan_id')
+    .references(() => startupPlans.id, { onDelete: 'cascade' })
+    .notNull(),
+  founderUserId: uuid('founder_user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  rfpCategory: quoteSupplierCategoryEnum('rfp_category').notNull(),
+  targetCountryCode: text('target_country_code').default('IE').notNull(),
+  currency: text('currency').default('EUR').notNull(),
+  projectTitle: text('project_title').notNull(),
+  budgetRange: text('budget_range').notNull(), // e.g. '€5,000 - €15,000'
+  targetDeliveryTimeline: text('target_delivery_timeline').notNull(), // e.g. '3 Months'
+  scopeSummary: text('scope_summary').notNull(),
+  workPackagesJson: jsonb('work_packages_json')
+    .$type<QuoteRfpWorkPackageItem[]>()
+    .default([]),
+  founderContactInfo: jsonb('founder_contact_info')
+    .$type<QuoteRfpFounderContact>()
+    .notNull(),
+  sourceModule: text('source_module').default('MOD_D_PRODUCT_BUILD').notNull(), // 'MOD_D_PRODUCT_BUILD' | 'MOD_E_OPERATIONS'
+  equipmentItemName: text('equipment_item_name'), // Optional item name if triggered from Mod E
+  status: quoteRfpStatusEnum('status').default('DISPATCHED').notNull(),
+  dispatchedPartnersCount: integer('dispatched_partners_count').default(0).notNull(),
+  quotesReceivedCount: integer('quotes_received_count').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const quotePartnerResponses = pgTable(
+  'quote_partner_responses',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    rfpId: uuid('rfp_id')
+      .references(() => quoteRfpRequests.id, { onDelete: 'cascade' })
+      .notNull(),
+    partnerId: uuid('partner_id')
+      .references(() => partnerOffers.id, { onDelete: 'cascade' })
+      .notNull(),
+    magicToken: text('magic_token').notNull().unique(), // Secure nanoid/uuid token for /quotes/submit/[token]
+    tokenExpiresAt: timestamp('token_expires_at').notNull(),
+    status: quoteResponseStatusEnum('status').default('SENT').notNull(),
+    quoteAmountNet: numeric('quote_amount_net', { precision: 12, scale: 2 }),
+    quoteCurrency: text('quote_currency').default('EUR').notNull(),
+    estimatedWeeks: integer('estimated_weeks'),
+    quoteFileUrl: text('quote_file_url'), // S3 / Blob / Data URL to the uploaded quote PDF
+    quoteFileName: text('quote_file_name'),
+    quoteNotes: text('quote_notes'), // Notes or itemization from agency
+    openedAt: timestamp('opened_at'),
+    submittedAt: timestamp('submitted_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    magicTokenIdx: uniqueIndex('quote_responses_magic_token_idx').on(table.magicToken),
+  })
+);
 
 // ==========================================
 // 8. DRIZZLE RELATIONS
@@ -822,6 +927,7 @@ export const startupPlansRelations = relations(
     modulesData: many(planModulesData),
     openQuestions: many(openQuestionsParkingLot),
     validationSurveys: many(validationSurveys),
+    quoteRfps: many(quoteRfpRequests),
   })
 );
 
@@ -876,6 +982,35 @@ export const surveyResponsesRelations = relations(
     survey: one(validationSurveys, {
       fields: [surveyResponses.surveyId],
       references: [validationSurveys.id],
+    }),
+  })
+);
+
+export const quoteRfpRequestsRelations = relations(
+  quoteRfpRequests,
+  ({ one, many }) => ({
+    plan: one(startupPlans, {
+      fields: [quoteRfpRequests.planId],
+      references: [startupPlans.id],
+    }),
+    founder: one(users, {
+      fields: [quoteRfpRequests.founderUserId],
+      references: [users.id],
+    }),
+    partnerResponses: many(quotePartnerResponses),
+  })
+);
+
+export const quotePartnerResponsesRelations = relations(
+  quotePartnerResponses,
+  ({ one }) => ({
+    rfp: one(quoteRfpRequests, {
+      fields: [quotePartnerResponses.rfpId],
+      references: [quoteRfpRequests.id],
+    }),
+    partner: one(partnerOffers, {
+      fields: [quotePartnerResponses.partnerId],
+      references: [partnerOffers.id],
     }),
   })
 );

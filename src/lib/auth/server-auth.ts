@@ -32,6 +32,9 @@ function getSessionSecret(): string {
 const FOUNDER_TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 const ADMIN_TOKEN_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export interface SessionTokenPayload {
   userId: string;
   email: string;
@@ -313,7 +316,11 @@ export async function verifyActiveSessionAndPlanOwnership(planId?: string): Prom
   reason?: string;
 }> {
   const isLocalPlanId =
-    !planId || planId.startsWith('demo-') || planId.startsWith('local-');
+    !planId ||
+    planId.startsWith('demo-') ||
+    planId.startsWith('local-') ||
+    planId.startsWith('plan-') ||
+    !UUID_REGEX.test(planId);
 
   const founderSession = await getServerSessionCookie();
   const adminSession = await getAdminSessionCookie();
@@ -330,15 +337,33 @@ export async function verifyActiveSessionAndPlanOwnership(planId?: string): Prom
     };
   }
 
+  // Super-admin virtual session (master env credentials) or DB user check
+  let isSuperAdmin = Boolean(adminSession && adminSession.role === 'SUPER_ADMIN');
+
+  if (
+    activeSession.userId === 'super-admin-root' ||
+    activeSession.userId === 'super-admin-local'
+  ) {
+    isSuperAdmin = true;
+  } else if (
+    activeSession.userId === 'local-founder-session' ||
+    activeSession.userId.startsWith('local-') ||
+    activeSession.userId.startsWith('demo-') ||
+    !UUID_REGEX.test(activeSession.userId)
+  ) {
+    return {
+      authorized: true,
+      isLocalPreview: true,
+      userId: activeSession.userId,
+      email: activeSession.email,
+      isSuperAdmin: false,
+    };
+  }
+
   try {
     await ensureDatabaseSchemaSynced();
 
-    // Super-admin virtual session (master env credentials) or DB user check
-    let isSuperAdmin = Boolean(adminSession && adminSession.role === 'SUPER_ADMIN');
-    if (
-      activeSession.userId !== 'super-admin-root' &&
-      activeSession.userId !== 'super-admin-local'
-    ) {
+    if (!isSuperAdmin) {
       const [dbUser] = await db
         .select({
           id: users.id,

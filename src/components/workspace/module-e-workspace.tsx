@@ -38,6 +38,7 @@ import {
   ClipboardCheck,
   Layers,
   MessageSquareWarning,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -48,6 +49,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  ThreeQuoteConciergeModal,
+  PlanQuotesTrackerCard,
+} from '@/components/workspace/three-quote-concierge-modal';
+import type { QuoteSupplierCategory } from '@/lib/partners/partner-catalog-store';
 import {
   getCountryRulePack,
   formatPlanCurrency,
@@ -2391,6 +2397,11 @@ export function ModuleEWorkspace({
   const [parkQuestionInputStep2, setParkQuestionInputStep2] = useState('');
   const [isSavingStep2, setIsSavingStep2] = useState(false);
   const [isGeneratingAiStep2, setIsGeneratingAiStep2] = useState(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [selectedEquipmentForQuote, setSelectedEquipmentForQuote] = useState<{
+    name: string;
+    cost: number;
+  } | null>(null);
 
   const [showWhyAskingStep3, setShowWhyAskingStep3] = useState(false);
   const [showExampleDrawerStep3, setShowExampleDrawerStep3] = useState(false);
@@ -6934,9 +6945,25 @@ export function ModuleEWorkspace({
                           </div>
 
                           <div className="md:col-span-5">
-                            <label className="mb-1 block text-[11px] font-bold text-slate-700">
-                              3-Quote &amp; Appendix C Procurement Status
-                            </label>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[11px] font-bold text-slate-700">
+                                3-Quote &amp; Appendix C Procurement Status
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedEquipmentForQuote({
+                                    name: item.assetName,
+                                    cost: item.totalCostExVat,
+                                  });
+                                  setIsQuoteModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 hover:bg-indigo-100"
+                              >
+                                <Zap className="h-3 w-3 text-indigo-600" />
+                                3-Quote Concierge
+                              </button>
+                            </div>
                             <select
                               disabled={isVaultReadonly}
                               value={item.quoteComplianceStatus}
@@ -7060,6 +7087,19 @@ export function ModuleEWorkspace({
                     );
                   })}
                 </div>
+              </div>
+
+              {/* 3-Quote Concierge Tracker Card for Equipment Schedule */}
+              <div className="pt-2">
+                <PlanQuotesTrackerCard
+                  planId={plan.id}
+                  baseCurrency={plan.baseCurrency}
+                  categoryFilter="EQUIPMENT_SUPPLIER"
+                  onRequestNewQuotes={() => {
+                    setSelectedEquipmentForQuote(null);
+                    setIsQuoteModalOpen(true);
+                  }}
+                />
               </div>
 
               {/* ============================================================= */}
@@ -13033,6 +13073,26 @@ export function ModuleEWorkspace({
           </CardContent>
         </Card>
       )}
+
+      {/* 3-Quote Concierge Marketplace Dispatch Modal */}
+      <ThreeQuoteConciergeModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => {
+          setIsQuoteModalOpen(false);
+          setSelectedEquipmentForQuote(null);
+        }}
+        planId={plan.id}
+        planTitle={plan.title}
+        hqCountryCode={selectedCountry}
+        baseCurrency={plan.baseCurrency}
+        sourceModule="MOD_E_OPERATIONS"
+        defaultCategory="EQUIPMENT_SUPPLIER"
+        initialEquipmentName={selectedEquipmentForQuote?.name}
+        initialBudgetEstimate={selectedEquipmentForQuote?.cost}
+        initialFounderContact={{
+          companyName: plan.title,
+        }}
+      />
     </div>
   );
 }

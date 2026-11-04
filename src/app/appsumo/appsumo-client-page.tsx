@@ -3,503 +3,436 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import {
+  Rocket,
   Sparkles,
-  ArrowRight,
   CheckCircle2,
-  BarChart3,
-  MessageSquare,
-  Users,
-  FileText,
-  DollarSign,
-  TrendingUp,
-  HelpCircle,
-  ChevronDown,
-  ChevronUp,
+  ArrowRight,
   ShieldCheck,
-  Zap,
-  Globe2,
-  Lock,
+  TrendingUp,
   Layers,
-  Flame,
-  Check,
+  Award,
+  KeyRound,
+  Users,
+  MessageSquareText,
   X,
-  Target,
-  QrCode,
-  Share2,
+  Lock,
+  Globe,
+  Check,
+  ChevronDown,
+  Zap,
+  FileSpreadsheet,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  HeroInteractiveProductShowcase,
+  BentoFeatureVisualCards,
+} from '@/components/marketing/platform-ui-previews';
 
-export default function AppSumoLandingPage() {
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
+const TWELVE_MODULES = [
+  {
+    code: 'Module A',
+    title: 'Idea, Storyboard & Fit Scorecard',
+    desc: 'Capture your vision in plain English, map a 4-panel customer storyboard, check live domain availability, and score your Founder-Idea Fit out of 100.',
+    tag: 'Ideation',
+  },
+  {
+    code: 'Module B',
+    title: 'Market Sizing & Competitor Scout',
+    desc: 'Build a bottom-up TAM/SAM/SOM model in plain English, define your beachhead customer persona, and map your competitive wedge.',
+    tag: 'Market',
+  },
+  {
+    code: 'Module C',
+    title: 'Customer Surveys & Waitlist Engine',
+    desc: 'Publish a hosted "Mom Test" validation survey & waitlist page (/v/[slug]) with QR code distribution and AI sentiment synthesis.',
+    tag: 'Validation',
+  },
+  {
+    code: 'Module D',
+    title: 'Product Build & V1 Scope Filter',
+    desc: 'Compare Own vs. Rent channels, get a 3-Tier Build-vs-Buy recommendation, ruthlessly filter V1 features, and structure Work Packages (WP1–WPn).',
+    tag: 'Product',
+  },
+  {
+    code: 'Module E',
+    title: 'Operations, Suppliers & Risk Register',
+    desc: 'Map a Day in the Life of an Order, build your equipment schedule, and complete a 4-category risk register & compliance checklist.',
+    tag: 'Operations',
+  },
+  {
+    code: 'Module F',
+    title: 'Co-Founder Alignment & Team',
+    desc: 'Run the Blind-Reveal 12 Awkward Questions Survey, view your Side-by-Side Alignment Heatmap, calculate fair equity splits, and plan 3-year hiring.',
+    tag: 'Team',
+  },
+  {
+    code: 'Module G',
+    title: 'Getting Set Up (Launchpad Hub)',
+    desc: 'Track your 0–100% Operations Readiness Score across entity registration, domain/email, banking, bookkeeping, insurance, and baseline IP/GDPR.',
+    tag: 'Setup',
+  },
+  {
+    code: 'Module H',
+    title: 'Pricing & 3-Year Pocket Profit Engine',
+    desc: 'Interactive visual breakeven graph pulling COGS, fees, and payroll automatically — plus a non-destructive What-If stress-test sandbox.',
+    tag: 'Unit Economics',
+  },
+  {
+    code: 'Module I',
+    title: 'Go-To-Market & First 10 Customers',
+    desc: 'Build your brand positioning, 4Ps strategy, First 10 Customers playbook, and reverse-engineered marketing budget calculator.',
+    tag: 'Marketing',
+  },
+  {
+    code: 'Module J',
+    title: 'No-Spreadsheet 36-Month Finance',
+    desc: 'Generate 3-year P&L, localized employer taxes/VAT, sensitivity analysis, and your 36-month cashflow trough & funding gap automatically.',
+    tag: 'Finance',
+  },
+  {
+    code: 'Module K',
+    title: 'Funding, Loans & Tax Relief Hub',
+    desc: 'Match against non-dilutive startup grants, loans, and investor tax relief schemes (including IE & UK programmes where applicable).',
+    tag: 'Funding',
+  },
+  {
+    code: 'Module L',
+    title: 'Business Plan & Compiler Vault',
+    desc: 'Compile your live modules, financials, and customer survey proof into a boardroom-ready Business Plan & Pre-Flight AI Audit.',
+    tag: 'Compiler',
+  },
+];
 
-  const toggleFaq = (index: number) => {
-    setOpenFaq((prev) => (prev === index ? null : index));
-  };
+const APPSUMO_FAQS = [
+  {
+    q: 'How does the AppSumo Lifetime Deal work compared to the 6-Month Pass?',
+    a: 'Standard customers pay $139–$219 every 6 months (or a recurring monthly vault fee). With an AppSumo Lifetime Deal code, you pay once and unlock permanent lifetime access to all 12 Startup Preflight modules (Modules A–L) with zero recurring subscription fees.',
+  },
+  {
+    q: 'How many codes should I stack (Tier 1 vs. Tier 2 vs. Tier 3)?',
+    a: '1 Code (Tier 1) is ideal for a solo founder working on a single startup idea (1 Plan, 1 Seat, 150 AI credits/month). 2 Codes (Tier 2 — Most Popular) unlocks 3 Active Startup Plans, 3 Team Seats, 400 AI credits/month, and the flagship Module F Blind-Reveal Co-Founder Alignment Engine. 3+ Codes (Tier 3) is built for serial builders, incubators, and consultants: 10 Active Plans, 5 Team Seats, 1,000 AI credits/month, White-Label Public Surveys & PDF Exports, and Bring-Your-Own-Key (BYOK) for unlimited Gemini AI calls.',
+  },
+  {
+    q: 'Does Startup Preflight work for my country and currency?',
+    a: 'Yes! Every startup plan supports USD ($), EUR (€), GBP (£), CAD ($), and AUD ($). You can use the Global Business Plan compiler anywhere in the world, and if you are incorporating or expanding in Ireland or the UK, you also get full access to the localized IE (LEO / Enterprise Ireland) and UK (Start Up Loans / Innovate UK / HMRC SEIS) compilers.',
+  },
+  {
+    q: 'How do AI credits and Bring-Your-Own-Key (BYOK) work?',
+    a: 'Every AppSumo tier includes a generous monthly allowance of built-in Gemini AI calls that resets automatically every month for life (150/mo on Tier 1, 400/mo on Tier 2, 1,000/mo on Tier 3). On Tier 3 (3+ Codes), you can also optionally paste your own Google Gemini API key (encrypted at rest via AES-256-GCM) for unlimited AI extractions and audits.',
+  },
+  {
+    q: 'How do I redeem my AppSumo code?',
+    a: 'Click "Redeem Code" in the top navigation bar (or visit /redeem), create your founder account, and enter your AppSumo code(s). Your account entitlement upgrades immediately and stacks automatically if you enter multiple codes.',
+  },
+];
+
+export function AppSumoClientPage() {
+  const [isModulesModalOpen, setIsModulesModalOpen] = useState(false);
+  const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(0);
 
   return (
-    <div className="min-h-screen bg-slate-950 font-sans text-slate-100 selection:bg-amber-500 selection:text-slate-950">
-      {/* Top AppSumo Exclusive Banner */}
-      <div className="border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-amber-500/10 px-4 py-2.5 text-center text-xs font-medium text-amber-200">
-        <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wider text-amber-400">
-          <Sparkles className="h-3.5 w-3.5" /> AppSumo Exclusive Lifetime Deal
-        </span>
-        <span className="mx-2 hidden text-amber-400/50 sm:inline">•</span>
-        <span className="hidden sm:inline">
-          Get lifetime access with zero monthly recurring software fees.
-        </span>
-        <Link
-          href="/redeem"
-          className="ml-3 inline-flex items-center font-bold text-amber-300 underline decoration-amber-400/50 underline-offset-2 hover:text-white"
-        >
-          Redeem Your Code <ArrowRight className="ml-1 h-3 w-3" />
-        </Link>
-      </div>
+    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
+      <StripeSandboxBadge />
 
-      {/* Navigation Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
+      {/* ===================================================================== */}
+      {/* MODERN SINGLE-BAR FLOATING-PILL HEADER                                */}
+      {/* ===================================================================== */}
+      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
+          {/* Left: Clean Brand Logo + AppSumo Pill */}
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-amber-500 text-white shadow-lg shadow-indigo-500/20">
-              <Zap className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-extrabold tracking-tight text-white">
-                  Startup Preflight
-                </span>
-                <Badge className="border-amber-500/30 bg-amber-500/10 text-[10px] font-semibold text-amber-300">
-                  AppSumo Edition
-                </Badge>
+            <Link href="/" className="group flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-xs transition-transform group-hover:scale-105">
+                <Rocket className="h-4 w-4 text-amber-400" />
               </div>
-            </div>
+              <span className="text-base font-extrabold tracking-tight text-slate-900">
+                Startup<span className="text-indigo-600">Preflight</span>
+              </span>
+            </Link>
+            <span className="hidden items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-900 sm:inline-flex">
+              🌮 AppSumo LTD
+            </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Center: Modern Floating Pill Links */}
+          <nav className="hidden items-center gap-1 rounded-full border border-slate-200/80 bg-slate-100/75 p-1 lg:flex">
+            <a
+              href="#preview"
+              className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-white hover:text-slate-900 hover:shadow-2xs"
+            >
+              Live Preview
+            </a>
+            <a
+              href="#features"
+              className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-white hover:text-slate-900 hover:shadow-2xs"
+            >
+              4 Flagship Engines
+            </a>
+            <button
+              type="button"
+              onClick={() => setIsModulesModalOpen(true)}
+              className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-white hover:text-slate-900 hover:shadow-2xs"
+            >
+              12 Modules
+            </button>
+            <a
+              href="#comparison"
+              className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-white hover:text-slate-900 hover:shadow-2xs"
+            >
+              Compare
+            </a>
+            <a
+              href="#tiers"
+              className="rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-900 shadow-2xs transition-all"
+            >
+              Deal Tiers
+            </a>
+            <a
+              href="#faq"
+              className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-white hover:text-slate-900 hover:shadow-2xs"
+            >
+              FAQ
+            </a>
+          </nav>
+
+          {/* Right: Redeem & Claim Actions */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="hidden px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900 sm:inline-block"
+            >
+              Sign In
+            </Link>
             <Link href="/redeem">
               <Button
                 variant="outline"
                 size="sm"
-                className="border-slate-700 bg-slate-900/80 text-xs font-semibold text-slate-200 hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+                className="h-9 rounded-full border-amber-300 bg-amber-50/80 px-3.5 text-xs font-bold text-amber-900 hover:bg-amber-100"
               >
+                <KeyRound className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
                 Redeem Code
               </Button>
             </Link>
-            <Link href="/register?deal=appsumo">
+            <a href="#tiers">
               <Button
                 size="sm"
-                className="bg-amber-500 text-xs font-bold text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20"
+                className="h-9 rounded-full bg-slate-900 px-4 text-xs font-semibold text-white shadow-xs hover:bg-indigo-600"
               >
-                Get Started
+                View LTD Tiers
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden px-4 pt-16 pb-20 sm:px-6 lg:pt-24 lg:pb-28">
-        {/* Glow ambient background effects */}
-        <div className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-indigo-600/20 blur-[120px]" />
-        <div className="pointer-events-none absolute top-1/3 -right-20 -z-10 h-80 w-80 rounded-full bg-amber-500/10 blur-[100px]" />
+      {/* ===================================================================== */}
+      {/* HERO SECTION WITH LIVE INTERACTIVE WORKSPACE PREVIEW                  */}
+      {/* ===================================================================== */}
+      <section className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white via-amber-50/20 to-slate-50 pt-10 pb-16 sm:pt-14 sm:pb-24">
+        <div className="pointer-events-none absolute top-0 left-1/2 -z-10 h-[500px] w-[1000px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-amber-200/35 via-indigo-200/30 to-emerald-100/25 blur-3xl" />
 
-        <div className="mx-auto max-w-4xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3.5 py-1 text-xs font-semibold text-indigo-300 backdrop-blur-xs">
-            <Flame className="h-3.5 w-3.5 text-amber-400" />
-            <span>Built for Founders, Indie Hackers &amp; Early-Stage Builders</span>
-          </div>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mx-auto max-w-4xl text-center">
+            {/* Top AppSumo Badge */}
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-300/90 bg-amber-50 px-4 py-1.5 text-xs font-bold text-amber-900 shadow-2xs">
+              <Award className="h-3.5 w-3.5 text-amber-600" />
+              <span>EXCLUSIVE APPSUMO LIFETIME DEAL • PAY ONCE, OWN FOREVER</span>
+            </div>
 
-          <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Stop staring at a blank page.{' '}
-            <span className="block mt-2 bg-gradient-to-r from-indigo-400 via-indigo-200 to-amber-300 bg-clip-text text-transparent">
-              Build your business plan, validation waitlist &amp; financials in hours.
-            </span>
-          </h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-5xl lg:text-[54px] lg:leading-[1.08]">
+              Turn Raw Startup Ideas Into{' '}
+              <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-amber-600 bg-clip-text text-transparent">
+                Validated Business Plans &amp; 3-Year Financials
+              </span>{' '}
+              — For Life.
+            </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-base text-slate-300 sm:text-lg sm:leading-relaxed">
-            Turn your raw founder brain-dump into an investor-ready business plan, 
-            instant hosted customer validation waitlist, and interactive 3-year financial model — 
-            without expensive consultants or complex spreadsheets.
-          </p>
+            <p className="mx-auto mt-5 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-lg">
+              Ditch fragile Excel spreadsheets, $30/mo doc tools, and generic AI wrappers that only
+              agree with you. Startup Preflight is the 12-module{' '}
+              <strong className="font-semibold text-slate-900">
+                Supportive Co-Founder &amp; Blind-Spot Engine
+              </strong>{' '}
+              that validates customer demand, aligns co-founders, models 3-year Pocket Profit, and
+              compiles investor-ready plans.
+            </p>
 
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-            <Link href="/register?deal=appsumo" className="w-full sm:w-auto">
-              <Button
-                size="lg"
-                className="w-full bg-amber-500 px-8 font-bold text-slate-950 hover:bg-amber-400 shadow-xl shadow-amber-500/20 sm:w-auto"
+            {/* Primary CTAs */}
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <a href="#tiers" className="w-full sm:w-auto">
+                <Button className="h-12 w-full rounded-xl bg-indigo-600 px-7 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 sm:w-auto">
+                  Explore Stackable Lifetime Tiers ($59)
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </a>
+              <Link href="/redeem" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  className="h-12 w-full rounded-xl border-amber-300 bg-amber-50/70 px-6 text-sm font-bold text-amber-950 hover:bg-amber-100 sm:w-auto"
+                >
+                  <KeyRound className="mr-2 h-4 w-4 text-amber-600" />
+                  Already Bought? Redeem Code
+                </Button>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsModulesModalOpen(true)}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 sm:w-auto"
               >
-                Claim Your Lifetime Deal
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/redeem" className="w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full border-slate-700 bg-slate-900/60 font-semibold text-slate-200 hover:border-slate-600 hover:bg-slate-800 hover:text-white sm:w-auto"
-              >
-                Already have an AppSumo Code?
-              </Button>
-            </Link>
-          </div>
+                <Layers className="h-4 w-4 text-indigo-600" />
+                See All 12 Modules
+              </button>
+            </div>
 
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <span>Lifetime access • Zero subscriptions</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <span>Bank &amp; Investor Ready</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <span>60-Day Money-Back Guarantee</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Hero Interactive App Mockup Preview */}
-        <div className="mx-auto mt-14 max-w-5xl rounded-2xl border border-slate-800 bg-slate-900/70 p-2 shadow-2xl backdrop-blur-xl sm:p-4">
-          <div className="flex items-center justify-between border-b border-slate-800 px-4 pb-3">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-rose-500/80" />
-              <div className="h-3 w-3 rounded-full bg-amber-500/80" />
-              <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
-              <span className="ml-2 text-xs font-medium text-slate-400">
-                Startup Preflight OS — Active Workspace
+            {/* Trust Strip */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                Zero recurring subscription fees
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                Supports USD ($), EUR (€), GBP (£), CAD &amp; AUD
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                Stack up to 3+ codes for White-Label &amp; BYOK
               </span>
             </div>
-            <Badge className="bg-indigo-500/20 text-indigo-300 text-[10px] border-indigo-500/30">
-              Live AI Co-Founder Active
+          </div>
+
+          {/* LIVE INTERACTIVE PLATFORM UI SHOWCASE */}
+          <div id="preview" className="mt-10 scroll-mt-24 sm:mt-12">
+            <HeroInteractiveProductShowcase edition="GLOBAL" />
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 4 STANDALONE TOOLS INCLUDED IN ONE LIFETIME DEAL                      */}
+      {/* ===================================================================== */}
+      <section id="features" className="scroll-mt-20 py-16 sm:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mx-auto max-w-3xl text-center">
+            <Badge className="border-indigo-200 bg-indigo-50 text-indigo-700">
+              4 Flagship Engines in 1 Deal
             </Badge>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              Replace 4 Separate SaaS Subscriptions With One Connected Workspace
+            </h2>
+            <p className="mt-3 text-sm text-slate-600 sm:text-base">
+              Every module shares a single source of truth. Change a hiring role in Module F or a
+              product channel in Module D, and your 3-year Pocket Profit breakeven in Module H
+              updates automatically.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-12">
-            {/* Left Column: Flow & Validation */}
-            <div className="space-y-4 lg:col-span-7">
-              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500/20 text-xs font-bold text-indigo-400">
-                      1
-                    </span>
-                    <span className="text-sm font-bold text-slate-200">
-                      Idea Dump ➔ 1-Page Concept Canvas
-                    </span>
-                  </div>
-                  <Badge variant="outline" className="border-emerald-500/30 text-[10px] text-emerald-400">
-                    Auto-Synthesized
-                  </Badge>
-                </div>
-                <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-                  Extracts core customer pain points, competitive edge, and unit model from unstructured notes in seconds.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/20 text-xs font-bold text-amber-400">
-                      2
-                    </span>
-                    <span className="text-sm font-bold text-slate-200">
-                      Hosted Waitlist &amp; Mom-Test Survey Engine
-                    </span>
-                  </div>
-                  <Badge className="bg-amber-500/20 text-[10px] text-amber-300 border-amber-500/30">
-                    Live Public Page Included
-                  </Badge>
-                </div>
-                <div className="mt-3 flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/90 p-2.5 font-mono text-xs text-indigo-300">
-                  <span>startuppreflight.com/v/your-startup</span>
-                  <Share2 className="h-3.5 w-3.5 text-slate-400" />
-                </div>
-                <p className="mt-2 text-xs text-slate-400">
-                  Capture early customer emails and unbiased willingness-to-pay quotes before writing a line of code.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500/20 text-xs font-bold text-indigo-400">
-                      3
-                    </span>
-                    <span className="text-sm font-bold text-slate-200">
-                      12 Awkward Co-Founder Questions
-                    </span>
-                  </div>
-                  <Badge variant="outline" className="border-slate-700 text-[10px] text-slate-400">
-                    Blind-Reveal
-                  </Badge>
-                </div>
-                <p className="mt-2 text-xs text-slate-400">
-                  Uncover founder misalignments on equity, time commitment, and exit expectations before they sink the company.
-                </p>
-              </div>
-            </div>
-
-            {/* Right Column: Pocket-Profit Financial Visualizer */}
-            <div className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-4 lg:col-span-5">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    &quot;Pocket Profit&quot; Visual Breakeven
-                  </span>
-                  <TrendingUp className="h-4 w-4 text-emerald-400" />
-                </div>
-                <div className="mt-3 rounded-lg border border-slate-800/80 bg-slate-900/50 p-3">
-                  <div className="text-[11px] text-slate-400">Monthly Breakeven Target</div>
-                  <div className="mt-1 text-2xl font-extrabold text-white">
-                    42 Customers <span className="text-xs font-normal text-emerald-400">(@ $99/mo)</span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800 pt-2">
-                    <span>COGS + Platform Fees: $8.50/user</span>
-                    <span className="text-emerald-400 font-semibold">91.4% Gross Margin</span>
-                  </div>
-                </div>
-
-                <div className="mt-3 space-y-2">
-                  <div className="rounded-lg bg-slate-900/40 p-2.5 text-xs">
-                    <div className="flex justify-between text-slate-300">
-                      <span>Worst-Case Sandbox</span>
-                      <span className="text-rose-400 font-mono">68 Users</span>
-                    </div>
-                  </div>
-                  <div className="rounded-lg bg-slate-900/40 p-2.5 text-xs">
-                    <div className="flex justify-between text-slate-300">
-                      <span>Ramen Survival Runway</span>
-                      <span className="text-amber-400 font-mono">14 Months</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-950/20 p-2.5 text-center text-xs font-medium text-emerald-300">
-                ✨ Zero spreadsheet formulas required
-              </div>
-            </div>
+          <div className="mt-12">
+            <BentoFeatureVisualCards edition="GLOBAL" />
           </div>
         </div>
       </section>
 
-      {/* The 4 Core Engines for Global & US Founders */}
-      <section className="border-t border-slate-900 bg-slate-950/40 px-4 py-20 sm:px-6">
-        <div className="mx-auto max-w-6xl">
-          <div className="text-center">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-indigo-400">
-              The Startup Preflight Operating System
+      {/* ===================================================================== */}
+      {/* COMPARISON TABLE: WHY APPSUMO BUYERS SWITCH TO STARTUP PREFLIGHT      */}
+      {/* ===================================================================== */}
+      <section
+        id="comparison"
+        className="scroll-mt-20 border-y border-slate-200/80 bg-white py-16 sm:py-24"
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-3xl text-center">
+            <Badge className="border-emerald-200 bg-emerald-50 text-emerald-800">
+              Head-to-Head Comparison
+            </Badge>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              Why Founders Ditch Generic Chatbots &amp; Legacy Plan Builders
             </h2>
-            <p className="mt-2 text-2xl font-extrabold text-white sm:text-4xl">
-              Everything you need to launch with conviction
-            </p>
-            <p className="mx-auto mt-3 max-w-xl text-sm text-slate-400">
-              Stop stitching together 5 different tools. We replaced expensive consultants, 
-              confusing financial templates, and survey builders with a unified founder hub.
+            <p className="mt-3 text-sm text-slate-600 sm:text-base">
+              Most tools just generate walls of generic AI text that investors immediately ignore.
+              Startup Preflight builds an interconnected commercial, financial, and validation data
+              model.
             </p>
           </div>
 
-          <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Engine 1: Validation */}
-            <Card className="border-slate-800 bg-slate-900/60 transition-all hover:border-indigo-500/50">
-              <CardHeader>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
-                  <MessageSquare className="h-5 w-5" />
-                </div>
-                <CardTitle className="mt-2 text-lg font-bold text-white">
-                  1. Hosted Customer Validation &amp; Waitlist Engine
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-xs">
-                  Generate unbiased &quot;Mom Test&quot; surveys that uncover genuine customer pain without leading questions.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs text-slate-300">
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>Instant public survey page (<code className="text-indigo-300 font-mono">startuppreflight.com/v/[slug]</code>)</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>Lead capture waitlist with automated early-adopter tagging</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>1-on-1 interview logger with AI sentiment analysis</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Engine 2: Pocket Profit */}
-            <Card className="border-slate-800 bg-slate-900/60 transition-all hover:border-indigo-500/50">
-              <CardHeader>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
-                  <DollarSign className="h-5 w-5" />
-                </div>
-                <CardTitle className="mt-2 text-lg font-bold text-white">
-                  2. &quot;Pocket Profit&quot; Visual Breakeven Engine
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-xs">
-                  Understand your true unit economics including platform friction (Stripe fees, Shopify, App Store cuts).
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs text-slate-300">
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>Interactive Price vs. Volume vs. Friction Crossover Graph</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>3-Year Time Horizon Switcher (Year 1, Year 2, Year 3 projection)</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>&quot;What-If Sandbox&quot; presets: Worst-Case, Ramen Survival, Aggressive Growth</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Engine 3: Co-Founder Alignment */}
-            <Card className="border-slate-800 bg-slate-900/60 transition-all hover:border-indigo-500/50">
-              <CardHeader>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
-                  <Users className="h-5 w-5" />
-                </div>
-                <CardTitle className="mt-2 text-lg font-bold text-white">
-                  3. Blind-Reveal Co-Founder Alignment Survey
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-xs">
-                  The #1 killer of early startups is founder conflict. Solve it before you incorporate.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs text-slate-300">
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>12 Awkward Questions covering equity, vesting, work hours &amp; exit goals</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>Blind-reveal mechanism (neither founder sees answers until both complete)</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>Side-by-side alignment heatmap highlighting dangerous friction points</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Engine 4: Document Compiler */}
-            <Card className="border-slate-800 bg-slate-900/60 transition-all hover:border-indigo-500/50">
-              <CardHeader>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
-                  <FileText className="h-5 w-5" />
-                </div>
-                <CardTitle className="mt-2 text-lg font-bold text-white">
-                  4. Bank &amp; Investor Business Plan Compiler
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-xs">
-                  Compile your structured data into executive-grade PDF and presentation briefs in 1 click.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs text-slate-300">
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>Ready for US SBA 7(a) Bank Loans, Angels &amp; Venture Investors</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>AI Pre-Flight Audit: Finds narrative contradictions &amp; financial math errors</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>Live customer proof blocks directly injected from your validation surveys</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Comparison: Startup Preflight vs The Rest */}
-      <section className="px-4 py-20 sm:px-6">
-        <div className="mx-auto max-w-4xl">
-          <div className="text-center">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-amber-400">
-              Why Founders Choose Startup Preflight
-            </h2>
-            <p className="mt-2 text-2xl font-extrabold text-white sm:text-3xl">
-              Better than static templates. Cheaper than consultants.
-            </p>
-          </div>
-
-          <div className="mt-10 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/50">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-800 bg-slate-900 text-slate-300">
-                <tr>
-                  <th className="p-3.5 font-semibold">Capability</th>
-                  <th className="p-3.5 font-bold text-amber-400">Startup Preflight (LTD)</th>
-                  <th className="p-3.5 text-slate-400">LivePlan / Standard SaaS</th>
-                  <th className="p-3.5 text-slate-400">Raw ChatGPT / Claude</th>
+          <div className="mt-10 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
+            <table className="w-full min-w-[680px] border-collapse text-left text-xs sm:text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/80">
+                  <th className="p-4 font-bold text-slate-700">Capability</th>
+                  <th className="bg-indigo-50/80 p-4 font-black text-indigo-950">
+                    Startup Preflight (LTD)
+                  </th>
+                  <th className="p-4 font-semibold text-slate-500">
+                    Generic AI / ChatGPT Wrappers
+                  </th>
+                  <th className="p-4 font-semibold text-slate-500">
+                    Legacy Plan Software ($30/mo)
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-slate-200">
                 <tr>
-                  <td className="p-3.5 font-medium">Pricing Model</td>
-                  <td className="p-3.5 font-bold text-emerald-400">Lifetime Deal (Pay Once)</td>
-                  <td className="p-3.5 text-rose-400">$20–$40/mo ongoing</td>
-                  <td className="p-3.5 text-slate-400">$20/mo subscription</td>
+                  <td className="p-4 font-semibold text-slate-900">
+                    &ldquo;Capture First, Expand Second&rdquo; Blind-Spot AI
+                  </td>
+                  <td className="bg-indigo-50/40 p-4 font-bold text-emerald-700">
+                    ✓ Built-in across all 12 Modules
+                  </td>
+                  <td className="p-4 text-slate-500">✗ Sycophantic — agrees with bad ideas</td>
+                  <td className="p-4 text-slate-500">✗ Static text boxes only</td>
                 </tr>
                 <tr>
-                  <td className="p-3.5 font-medium">Interactive Financial Sandbox</td>
-                  <td className="p-3.5 font-semibold text-emerald-400">
-                    <Check className="inline h-4 w-4 mr-1" /> Built-in (No spreadsheets)
+                  <td className="p-4 font-semibold text-slate-900">
+                    Hosted Public Customer Survey &amp; Waitlist (/v/[slug])
                   </td>
-                  <td className="p-3.5 text-slate-400">Complex tables required</td>
-                  <td className="p-3.5 text-rose-400">
-                    <X className="inline h-4 w-4 mr-1" /> Hallucinates math
+                  <td className="bg-indigo-50/40 p-4 font-bold text-emerald-700">
+                    ✓ Included + QR Kit &amp; AI Sentiment
                   </td>
+                  <td className="p-4 text-slate-500">✗ Cannot host public forms</td>
+                  <td className="p-4 text-slate-500">✗ Requires separate Typeform ($29/mo)</td>
                 </tr>
                 <tr>
-                  <td className="p-3.5 font-medium">Hosted Validation Survey &amp; Waitlist</td>
-                  <td className="p-3.5 font-semibold text-emerald-400">
-                    <Check className="inline h-4 w-4 mr-1" /> Included (1-click link)
+                  <td className="p-4 font-semibold text-slate-900">
+                    Blind-Reveal Co-Founder Alignment &amp; Equity Calculator
                   </td>
-                  <td className="p-3.5 text-rose-400">
-                    <X className="inline h-4 w-4 mr-1" /> No (Requires Typeform)
+                  <td className="bg-indigo-50/40 p-4 font-bold text-emerald-700">
+                    ✓ 12 Awkward Questions + Heatmap
                   </td>
-                  <td className="p-3.5 text-rose-400">
-                    <X className="inline h-4 w-4 mr-1" /> No hosting capability
-                  </td>
+                  <td className="p-4 text-slate-500">✗ None</td>
+                  <td className="p-4 text-slate-500">✗ None</td>
                 </tr>
                 <tr>
-                  <td className="p-3.5 font-medium">Co-Founder Blind Alignment Survey</td>
-                  <td className="p-3.5 font-semibold text-emerald-400">
-                    <Check className="inline h-4 w-4 mr-1" /> Included (12 questions)
+                  <td className="p-4 font-semibold text-slate-900">
+                    3-Year &ldquo;Pocket Profit&rdquo; &amp; What-If Stress Sandbox
                   </td>
-                  <td className="p-3.5 text-rose-400">
-                    <X className="inline h-4 w-4 mr-1" /> Not available
+                  <td className="bg-indigo-50/40 p-4 font-bold text-emerald-700">
+                    ✓ Interactive visual breakeven engine
                   </td>
-                  <td className="p-3.5 text-rose-400">
-                    <X className="inline h-4 w-4 mr-1" /> Not available
-                  </td>
+                  <td className="p-4 text-slate-500">✗ Hallucinates financial math</td>
+                  <td className="p-4 text-slate-500">✗ Rigid accounting tables</td>
                 </tr>
                 <tr>
-                  <td className="p-3.5 font-medium">Contradiction &amp; Blind-Spot Audit</td>
-                  <td className="p-3.5 font-semibold text-emerald-400">
-                    <Check className="inline h-4 w-4 mr-1" /> Automated Pre-Flight AI
+                  <td className="p-4 font-semibold text-slate-900">
+                    Pre-Flight Contradiction &amp; Underwriting Audit
                   </td>
-                  <td className="p-3.5 text-rose-400">
-                    <X className="inline h-4 w-4 mr-1" /> Static fill-in-the-blank
+                  <td className="bg-indigo-50/40 p-4 font-bold text-emerald-700">
+                    ✓ Cross-checks narrative vs. financials
                   </td>
-                  <td className="p-3.5 text-slate-400">Requires prompt engineering</td>
+                  <td className="p-4 text-slate-500">✗ No cross-module memory</td>
+                  <td className="p-4 text-slate-500">✗ Manual human review required</td>
+                </tr>
+                <tr>
+                  <td className="p-4 font-semibold text-slate-900">Cost Over 3 Years</td>
+                  <td className="bg-indigo-50/40 p-4 font-black text-indigo-700">
+                    $59 – $177 Once (Lifetime)
+                  </td>
+                  <td className="p-4 text-slate-500">$720+ ($20/mo recurring)</td>
+                  <td className="p-4 text-slate-500">$1,080+ ($30/mo recurring)</td>
                 </tr>
               </tbody>
             </table>
@@ -507,266 +440,513 @@ export default function AppSumoLandingPage() {
         </div>
       </section>
 
-      {/* AppSumo Tier Breakdown (Tier 1 vs Tier 2) */}
-      <section className="border-t border-slate-900 bg-gradient-to-b from-slate-950 via-slate-900/40 to-slate-950 px-4 py-20 sm:px-6">
-        <div className="mx-auto max-w-4xl">
-          <div className="text-center">
-            <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs">
-              Simple 2-Tier Stacking
+      {/* ===================================================================== */}
+      {/* APPSUMO 3-TIER STACKABLE DEAL BREAKDOWN                               */}
+      {/* ===================================================================== */}
+      <section id="tiers" className="scroll-mt-20 py-16 sm:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mx-auto max-w-3xl text-center">
+            <Badge className="border-amber-300 bg-amber-50 text-amber-900">
+              Stackable AppSumo Lifetime Tiers
             </Badge>
-            <h2 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">
-              Choose Your AppSumo Tier
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              Choose Your Lifetime Tier (Stack Up to 3+ Codes)
             </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Stack 1 or 2 codes to match your team size and startup portfolio.
+            <p className="mt-3 text-sm text-slate-600 sm:text-base">
+              Every tier includes lifetime access to all 12 Startup Preflight modules (A–L), the
+              hosted Customer Survey &amp; Waitlist engine, and the 3-Year Pocket Profit model.
+              Stack codes to unlock Co-Founder seats, additional Startup Plans, White-Label exports,
+              and BYOK.
             </p>
           </div>
 
-          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Tier 1 */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
-                  Tier 1 • 1 Code
-                </span>
-                <Badge variant="outline" className="border-slate-700 text-xs text-slate-300">
-                  Solo Founder
-                </Badge>
-              </div>
-
-              <div className="mt-4">
-                <div className="text-3xl font-extrabold text-white">Lifetime Access</div>
-                <p className="mt-1 text-xs text-slate-400">
-                  Ideal for solo creators and entrepreneurs building their flagship business.
+          <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {/* TIER 1: 1 CODE */}
+            <div className="flex flex-col justify-between rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs sm:p-8">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                    License Tier 1 • 1 Code
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400 line-through">
+                    $278/yr value
+                  </span>
+                </div>
+                <h3 className="mt-4 text-xl font-black text-slate-900">Solo Founder LTD</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Ideal for a solo founder turning one startup idea into a validated business plan.
                 </p>
-              </div>
 
-              <div className="mt-6 border-t border-slate-800 pt-6">
-                <ul className="space-y-3 text-xs text-slate-300">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span><strong>1 Active Startup Plan</strong></span>
+                <div className="mt-5 flex items-baseline gap-2 border-b border-slate-100 pb-5">
+                  <span className="text-4xl font-black tracking-tight text-slate-900">$59</span>
+                  <span className="text-xs font-semibold text-slate-500">
+                    one-time payment • lifetime access
+                  </span>
+                </div>
+
+                <ul className="mt-5 space-y-3 text-xs text-slate-700">
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>
+                      <strong>1 Active Startup Plan</strong> (with Clone/Pivot support)
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span><strong>1 Team Seat</strong> (Solo workspace)</span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>
+                      <strong>1 Founder Seat</strong>
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>All 12 Core Business Modules (A–L)</span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>
+                      <strong>All 12 Founder Modules (A–L)</strong> unlocked for life
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Hosted Customer Validation &amp; Waitlist Page</span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>
+                      <strong>Hosted Public Validation Survey &amp; Waitlist</strong> (/v/[slug])
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>&quot;Pocket Profit&quot; 3-Year Visual Breakeven Sandbox</span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>
+                      <strong>150 AI Credits / month</strong> (resets monthly for life)
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Unlimited PDF &amp; Document Brief Exports</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>150 Monthly AI Credits</span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>
+                      <strong>Standard Business Plan + IE/UK Compilers</strong>
+                    </span>
                   </li>
                 </ul>
               </div>
 
-              <Link href="/register?deal=appsumo" className="mt-8 block">
-                <Button className="w-full bg-slate-800 text-xs font-bold text-white hover:bg-slate-700">
-                  Get Tier 1 Deal
-                </Button>
-              </Link>
+              <div className="mt-8 space-y-2.5">
+                <Link href="/register?deal=appsumo&tier=1" className="block">
+                  <Button className="h-11 w-full rounded-xl bg-slate-900 text-xs font-bold text-white hover:bg-indigo-600">
+                    Get Started with Tier 1
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link
+                  href="/redeem"
+                  className="block text-center text-[11px] font-semibold text-slate-500 hover:text-indigo-600"
+                >
+                  Have a Tier 1 code? Redeem here →
+                </Link>
+              </div>
             </div>
 
-            {/* Tier 2 */}
-            <div className="relative rounded-2xl border-2 border-amber-500/80 bg-gradient-to-b from-slate-900 to-slate-950 p-6 shadow-2xl shadow-amber-500/10">
-              <div className="absolute -top-3 right-6">
-                <span className="rounded-full bg-amber-500 px-3 py-1 text-[10px] font-extrabold uppercase text-slate-950">
-                  Most Popular
-                </span>
+            {/* TIER 2: 2 CODES (MOST POPULAR) */}
+            <div className="relative flex flex-col justify-between rounded-3xl border-2 border-indigo-600 bg-white p-6 shadow-xl shadow-indigo-900/10 sm:p-8">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600 px-4 py-1 text-[11px] font-bold tracking-wider text-white uppercase shadow-sm">
+                Most Popular • Co-Founder Ready
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                  Tier 2 • 2 Codes Stacked
-                </span>
-                <Badge className="bg-amber-500/20 text-xs font-bold text-amber-300 border-amber-500/30">
-                  Co-Founder &amp; Multi-Plan
-                </Badge>
-              </div>
-
-              <div className="mt-4">
-                <div className="text-3xl font-extrabold text-white">Lifetime Access</div>
-                <p className="mt-1 text-xs text-slate-400">
-                  For co-founders, agencies, and serial founders exploring multiple ventures or pivots.
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                    License Tier 2 • 2 Codes
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400 line-through">
+                    $438/yr value
+                  </span>
+                </div>
+                <h3 className="mt-4 text-xl font-black text-slate-900">
+                  Co-Founder &amp; Multi-Bet LTD
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Test up to 3 startup ideas and unlock the Blind-Reveal Co-Founder Alignment
+                  Engine.
                 </p>
-              </div>
 
-              <div className="mt-6 border-t border-slate-800 pt-6">
-                <ul className="space-y-3 text-xs text-slate-300">
-                  <li className="flex items-center gap-2 text-amber-200">
-                    <Check className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span><strong>3 Active Startup Plans</strong> (Clone &amp; Pivot enabled)</span>
+                <div className="mt-5 flex items-baseline gap-2 border-b border-slate-100 pb-5">
+                  <span className="text-4xl font-black tracking-tight text-slate-900">$118</span>
+                  <span className="text-xs font-semibold text-slate-500">
+                    2 codes stacked • lifetime access
+                  </span>
+                </div>
+
+                <ul className="mt-5 space-y-3 text-xs text-slate-700">
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <span>
+                      <strong>3 Active Startup Plans</strong> (compare multiple ideas side by side)
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2 text-amber-200">
-                    <Check className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span><strong>3 Team Seats per Plan</strong> (Real-time collaboration)</span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <span>
+                      <strong>3 Collaborator / Co-Founder Seats</strong>
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2 text-amber-200">
-                    <Check className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span><strong>Blind-Reveal Co-Founder Alignment Engine</strong></span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <span>
+                      <strong>Unlocks Multi-Seat Module F Co-Founder Alignment:</strong> Blind-Reveal
+                      12 Awkward Questions Survey &amp; Heatmap
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>All 12 Core Business Modules (A–L)</span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <span>
+                      <strong>400 AI Credits / month</strong> (resets monthly for life)
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Hosted Customer Validation &amp; Waitlist Page</span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <span>
+                      <strong>Full Module L Pre-Flight Contradiction Audit</strong> (Gemini 2.5 Pro)
+                    </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>&quot;Pocket Profit&quot; 3-Year Visual Breakeven Sandbox</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Unlimited PDF &amp; Document Brief Exports</span>
-                  </li>
-                  <li className="flex items-center gap-2 text-amber-200">
-                    <Check className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span><strong>450 Monthly AI Credits</strong></span>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <span>Everything in Tier 1 included</span>
                   </li>
                 </ul>
               </div>
 
-              <Link href="/register?deal=appsumo" className="mt-8 block">
-                <Button className="w-full bg-amber-500 text-xs font-bold text-slate-950 hover:bg-amber-400 shadow-lg shadow-amber-500/20">
-                  Get Tier 2 Deal
-                </Button>
-              </Link>
+              <div className="mt-8 space-y-2.5">
+                <Link href="/register?deal=appsumo&tier=2" className="block">
+                  <Button className="h-11 w-full rounded-xl bg-indigo-600 text-xs font-bold text-white shadow-md hover:bg-indigo-500">
+                    Stack 2 Codes (Tier 2)
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link
+                  href="/redeem"
+                  className="block text-center text-[11px] font-semibold text-indigo-600 hover:underline"
+                >
+                  Have 2 codes? Stack them in /redeem →
+                </Link>
+              </div>
+            </div>
+
+            {/* TIER 3: 3+ CODES (SERIAL BUILDER & ADVISOR) */}
+            <div className="flex flex-col justify-between rounded-3xl border border-amber-300/90 bg-gradient-to-b from-amber-50/40 via-white to-white p-6 shadow-xs sm:p-8">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full border border-amber-300 bg-amber-100/80 px-3 py-1 text-xs font-bold text-amber-950">
+                    License Tier 3 • 3+ Codes
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400 line-through">
+                    $990/yr value
+                  </span>
+                </div>
+                <h3 className="mt-4 text-xl font-black text-slate-900">
+                  Serial Builder &amp; Advisor LTD
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Built for serial entrepreneurs, venture studios, and startup consultants.
+                </p>
+
+                <div className="mt-5 flex items-baseline gap-2 border-b border-slate-100 pb-5">
+                  <span className="text-4xl font-black tracking-tight text-slate-900">$177</span>
+                  <span className="text-xs font-semibold text-slate-500">
+                    3 codes stacked • lifetime access
+                  </span>
+                </div>
+
+                <ul className="mt-5 space-y-3 text-xs text-slate-700">
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <span>
+                      <strong>10 Active Startup Plans</strong> (run multiple ventures or client
+                      projects)
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <span>
+                      <strong>5 Collaborator / Team Seats</strong>
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <span>
+                      <strong>White-Label Public Surveys &amp; PDF Exports</strong> (remove Startup
+                      Preflight branding)
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <span>
+                      <strong>Bring-Your-Own-Key (BYOK) Enabled:</strong> Add your own encrypted
+                      Gemini key for unlimited AI calls
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <span>
+                      <strong>1,000 Platform AI Credits / month</strong> included out of the box
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <span>Everything in Tier 1 &amp; Tier 2 included</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mt-8 space-y-2.5">
+                <Link href="/register?deal=appsumo&tier=3" className="block">
+                  <Button className="h-11 w-full rounded-xl bg-amber-500 text-xs font-bold text-slate-950 shadow-sm hover:bg-amber-400">
+                    Unlock Max Tier 3 (3+ Codes)
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link
+                  href="/redeem"
+                  className="block text-center text-[11px] font-semibold text-amber-800 hover:underline"
+                >
+                  Have 3+ codes? Stack them in /redeem →
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Frequently Asked Questions */}
-      <section className="px-4 py-20 sm:px-6">
-        <div className="mx-auto max-w-3xl">
+      {/* ===================================================================== */}
+      {/* FOUNDER NOTE FOR SUMO-LINGS                                           */}
+      {/* ===================================================================== */}
+      <section className="border-t border-slate-200/80 bg-white py-14 sm:py-20">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="rounded-3xl border border-slate-200/90 bg-gradient-to-br from-slate-50 via-white to-indigo-50/40 p-6 shadow-xs sm:p-10">
+            <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
+                  <img
+                    src="/images/founder-thomas-walsh.jpg"
+                    alt="Thomas Walsh — Founder of Startup Preflight"
+                    width={96}
+                    height={96}
+                    className="h-full w-full object-cover object-top"
+                  />
+                </div>
+                <div className="max-w-xl">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700">
+                    <Sparkles className="h-3.5 w-3.5" />A Note to Sumo-lings from Founder Thomas
+                    Walsh
+                  </span>
+                  <h3 className="mt-2.5 text-xl font-black text-slate-900 sm:text-2xl">
+                    Built on 20+ Years of Engineering &amp; 400+ Startups Scaled
+                  </h3>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:text-sm">
+                    &ldquo;We didn&apos;t build Startup Preflight as a quick weekend AI wrapper.
+                    Every module encodes two decades of real-world software architecture, commercial
+                    modeling, and startup underwriting. Whether you&apos;re launching your first
+                    SaaS, opening a physical business, or advising clients, our goal is to help you
+                    spot fatal blind spots on paper before they cost you real money.&rdquo;
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row md:flex-col">
+                <Link href="/about-founder">
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full rounded-xl border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Read Thomas&apos;s Story →
+                  </Button>
+                </Link>
+                <a
+                  href="https://www.linkedin.com/in/twalsh-start-ups/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
+                >
+                  Connect on LinkedIn ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================================== */}
+      {/* APPSUMO FAQ ACCORDION                                                 */}
+      {/* ===================================================================== */}
+      <section id="faq" className="scroll-mt-20 border-t border-slate-200/80 bg-slate-50 py-16 sm:py-24">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6">
           <div className="text-center">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-indigo-400">
-              Got Questions?
+            <Badge className="border-slate-300 bg-white text-slate-700">
+              AppSumo Buyer FAQ
+            </Badge>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+              Frequently Asked Questions About the Lifetime Deal
             </h2>
-            <p className="mt-2 text-2xl font-extrabold text-white sm:text-3xl">
-              Frequently Asked Questions
-            </p>
           </div>
 
           <div className="mt-10 space-y-3">
-            {[
-              {
-                q: 'Can I use this for US companies (LLCs, C-Corps, Sole Proprietorships)?',
-                a: 'Yes! Startup Preflight natively supports USD ($), US market sizing (TAM/SAM/SOM), US competitor scouting, and produces business plans formatted for US SBA 7(a) bank loans, Angel syndicates, and Venture Capital seed rounds.',
-              },
-              {
-                q: 'How does code stacking work?',
-                a: 'You can buy 1 code for solo access or 2 codes to unlock 3 startup plans, 3 collaborator seats, and the multi-user Co-Founder Alignment Engine. You can stack your second code immediately at redemption or later inside your account settings.',
-              },
-              {
-                q: 'How does the hosted customer validation waitlist work?',
-                a: 'When you build your survey in Module C, you can publish a public link (startuppreflight.com/v/[your-slug]). Customers can view your proposition, answer your bias-free questions, and sign up for your waitlist. All answers and leads flow directly into your private dashboard.',
-              },
-              {
-                q: 'Can I export my plan and financial tables?',
-                a: 'Yes, both Tier 1 and Tier 2 include unlimited PDF exports of your complete business plan, executive summaries, risk registers, and financial breakeven diagnostics.',
-              },
-              {
-                q: 'What is the 60-day money-back guarantee?',
-                a: 'All AppSumo purchases are backed by AppSumo’s official 60-day money-back guarantee. If Startup Preflight is not the right fit for your venture, you can request a full refund through AppSumo with zero friction.',
-              },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 transition-all"
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleFaq(idx)}
-                  className="flex w-full items-center justify-between text-left text-sm font-bold text-slate-200"
+            {APPSUMO_FAQS.map((item, idx) => {
+              const isOpen = openFaqIdx === idx;
+              return (
+                <div
+                  key={item.q}
+                  className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-colors"
                 >
-                  <span>{item.q}</span>
-                  {openFaq === idx ? (
-                    <ChevronUp className="h-4 w-4 text-amber-400" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaqIdx(isOpen ? null : idx)}
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-bold text-slate-900 hover:bg-slate-50/70"
+                  >
+                    <span>{item.q}</span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
+                        isOpen ? 'rotate-180 text-indigo-600' : ''
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="border-t border-slate-100 px-5 py-4 text-xs leading-relaxed text-slate-600 sm:text-sm">
+                      {item.a}
+                    </div>
                   )}
-                </button>
-                {openFaq === idx && (
-                  <p className="mt-3 text-xs leading-relaxed text-slate-400 border-t border-slate-800/60 pt-3">
-                    {item.a}
-                  </p>
-                )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 12-MODULE DRAWER MODAL                                                */}
+      {/* ===================================================================== */}
+      {isModulesModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="relative max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <Badge className="border-indigo-200 bg-indigo-50 text-indigo-700">
+                  Complete 12-Module System
+                </Badge>
+                <h3 className="mt-1 text-xl font-black text-slate-900">
+                  All 12 Modules Included in Every AppSumo Tier
+                </h3>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Every step includes &ldquo;Why Are We Asking This?&rdquo; micro-coaching, industry
+                  examples, and a &ldquo;Things to Consider&rdquo; blind-spot review.
+                </p>
               </div>
-            ))}
+              <button
+                type="button"
+                onClick={() => setIsModulesModalOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {TWELVE_MODULES.map((m) => (
+                <div
+                  key={m.code}
+                  className="rounded-2xl border border-slate-200/90 bg-slate-50/60 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-indigo-600">{m.code}</span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      {m.tag}
+                    </span>
+                  </div>
+                  <h4 className="mt-1.5 text-sm font-bold text-slate-900">{m.title}</h4>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600">{m.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
+      )}
 
-      {/* Final Call to Action Strip */}
-      <section className="border-t border-slate-800/80 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-amber-950/30 px-4 py-16 text-center sm:px-6">
-        <div className="mx-auto max-w-2xl">
-          <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs">
-            AppSumo Special
-          </Badge>
-          <h2 className="mt-4 text-2xl font-extrabold text-white sm:text-4xl">
-            Start building your venture today.
-          </h2>
-          <p className="mt-3 text-sm text-slate-400">
-            No recurring monthly fees. Instant access to all 12 modules and customer validation engines.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/register?deal=appsumo" className="w-full sm:w-auto">
-              <Button
-                size="lg"
-                className="w-full bg-amber-500 px-8 font-bold text-slate-950 hover:bg-amber-400 shadow-xl shadow-amber-500/20 sm:w-auto"
-              >
-                Claim Lifetime Deal
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/redeem" className="w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full border-slate-700 bg-slate-900 font-semibold text-slate-200 hover:bg-slate-800 hover:text-white sm:w-auto"
-              >
-                Redeem Voucher Code
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* ===================================================================== */}
+      {/* UNIFIED MODERN FOOTER                                                 */}
+      {/* ===================================================================== */}
+      <footer className="border-t border-slate-200 bg-slate-950 py-12 text-slate-400">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="grid grid-cols-1 gap-8 pb-10 md:grid-cols-4">
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                  <Rocket className="h-4 w-4" />
+                </div>
+                <span className="text-base font-extrabold text-white">
+                  Startup<span className="text-indigo-400">Preflight</span>
+                </span>
+              </div>
+              <p className="mt-3 max-w-md text-xs leading-relaxed text-slate-400">
+                The Supportive Co-Founder &amp; Blind-Spot Engine. Capture your vision in plain
+                English, validate customer demand, align co-founders, model 3-year Pocket Profit,
+                and compile investor- and grant-ready business plans.
+              </p>
+            </div>
 
-      {/* Simple Footer (Unlinked from Main Site) */}
-      <footer className="border-t border-slate-900 bg-slate-950 px-4 py-8 text-center text-xs text-slate-500 sm:px-6">
-        <div className="mx-auto max-w-4xl flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-400">Startup Preflight</span>
-            <span>•</span>
-            <span>AppSumo Lifetime Partner Edition</span>
+            <div>
+              <p className="text-xs font-bold tracking-wider text-white uppercase">
+                Regional Editions
+              </p>
+              <ul className="mt-3 space-y-2 text-xs">
+                <li>
+                  <Link href="/" className="hover:text-white">
+                    🌍 Global Business Plan Edition
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/ie" className="hover:text-white">
+                    🇮🇪 Ireland Grants &amp; LEO Edition (/ie)
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/uk" className="hover:text-white">
+                    🇬🇧 UK Loans, Innovate UK &amp; SEIS Edition (/uk)
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/appsumo" className="text-white">
+                    🌮 AppSumo Lifetime Deal Hub
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold tracking-wider text-white uppercase">Platform</p>
+              <ul className="mt-3 space-y-2 text-xs">
+                <li>
+                  <Link href="/redeem" className="hover:text-white">
+                    Redeem AppSumo Code
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/register" className="hover:text-white">
+                    Start Module A Free
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/login" className="hover:text-white">
+                    Founder Sign In
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/about-founder" className="hover:text-white">
+                    Meet the Founder (Thomas Walsh)
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/privacy" className="hover:text-slate-400">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="hover:text-slate-400">
-              Terms of Service
-            </Link>
-            <Link href="/redeem" className="hover:text-amber-400 text-slate-400 font-medium">
-              Voucher Redemption
-            </Link>
+
+          <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-800/80 pt-6 text-[11px] text-slate-500 sm:flex-row">
+            <p>© {new Date().getFullYear()} Startup Preflight. All rights reserved.</p>
+            <div className="flex items-center gap-4">
+              <span className="inline-flex items-center gap-1">
+                <Globe className="h-3.5 w-3.5 text-indigo-400" />
+                GDPR Compliant • AES-256 Encrypted Vault
+              </span>
+            </div>
           </div>
         </div>
       </footer>

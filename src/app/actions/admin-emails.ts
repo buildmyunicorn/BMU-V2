@@ -138,6 +138,9 @@ export async function sendAdminTestEmailAction(
     PASSWORD_RESET: 'Reset your Startup Preflight password [TEST]',
     VOUCHER_REDEEMED: 'Pass Activated! [TEST]',
     COFOUNDER_INVITE: 'Co-Founder Workspace Invitation [TEST]',
+    QUOTE_RFP_PARTNER_INVITE: '⚡ [New RFP] Quote Request [TEST]',
+    QUOTE_RFP_FOUNDER_RECEIPT: '⚡ 3-Quote Request Dispatched [TEST]',
+    QUOTE_RECEIVED_FOUNDER: '🎉 Official Supplier Quote Received! [TEST]',
   };
 
   const result = await sendSystemEmail({
@@ -189,6 +192,44 @@ function getDefaultSamplePropsForTemplate(
         inviteeEmail: 'cofounder@example.com',
         roleTitle: 'Co-Founder & CTO',
         acceptUrl: `${appUrl}/invite/accept?token=sample_invite_token_456`,
+      };
+    case 'QUOTE_RFP_PARTNER_INVITE':
+      return {
+        partnerName: 'Apex Dev Studio',
+        projectTitle: 'PulseGuard AI — Remote Patient Monitoring',
+        category: 'DEV_AGENCY',
+        countryCode: 'IE',
+        currency: 'EUR',
+        budgetRange: '€10,000 - €25,000',
+        targetTimeline: '3 Months',
+        scopeSummary: 'Next.js SaaS dashboard with HIPAA-compliant telemetry API and Stripe subscriptions.',
+        workPackagesCount: 3,
+        magicPortalUrl: `${appUrl}/quotes/submit/test-token-123`,
+      };
+    case 'QUOTE_RFP_FOUNDER_RECEIPT':
+      return {
+        founderName: 'Ciarán O’Connor',
+        planTitle: 'PulseGuard AI',
+        projectTitle: 'PulseGuard AI Software Build',
+        category: 'DEV_AGENCY',
+        currency: 'EUR',
+        budgetRange: '€10,000 - €25,000',
+        partnersCount: 3,
+        partnerNames: ['Apex Dev Studio', 'Dublin App Lab', 'Celtic Cloud Solutions'],
+        workspaceUrl: `${appUrl}/workspace`,
+      };
+    case 'QUOTE_RECEIVED_FOUNDER':
+      return {
+        founderName: 'Ciarán O’Connor',
+        planTitle: 'PulseGuard AI',
+        partnerName: 'Apex Dev Studio',
+        partnerLogo: '💻',
+        quoteAmountNet: '14,500.00',
+        quoteCurrency: 'EUR',
+        estimatedWeeks: 8,
+        quoteNotes: 'Includes full Figma prototype, Next.js build, and 60 days QA warranty.',
+        quoteFileUrl: 'https://example.com/quote.pdf',
+        workspaceUrl: `${appUrl}/workspace`,
       };
     default:
       return {};
