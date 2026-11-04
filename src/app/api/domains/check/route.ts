@@ -4,15 +4,66 @@ import dns from 'dns/promises';
 export interface DomainCheckItem {
   domain: string;
   tld: string;
+  status: 'AVAILABLE' | 'TAKEN';
   available: boolean;
   statusLabel: string;
+  reason: string;
   recommended?: boolean;
   notes?: string;
 }
 
-async function isDomainRegisteredViaDns(domain: string): Promise<boolean> {
+/**
+ * Checks domain availability using a 2-tier strategy:
+ * Tier 1: Google DNS-over-HTTPS (DoH). High speed, zero UDP port blocking in Cloud Run / container networks.
+ * Tier 2: Native Node.js dns.resolveNs / dns.resolve4 fallback.
+ */
+async function checkDomainAvailability(
+  domain: string
+): Promise<{ available: boolean; reason: string }> {
+  // Tier 1: Google DoH (Reliable across serverless and cloud containers)
   try {
-    // Check NS records first (virtually all registered domains have NS records delegated)
+    const dohUrl = `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=NS`;
+    const res = await fetch(dohUrl, {
+      headers: { Accept: 'application/dns-json' },
+      signal: AbortSignal.timeout(2500),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      // Status 3 = NXDOMAIN (Non-Existent Domain -> unequivocally Available)
+      if (data.Status === 3) {
+        return {
+          available: true,
+          reason: 'No active DNS delegation or NS records found (Available to Claim)',
+        };
+      }
+      // Status 0 with Answer = Active NS delegation -> Registered
+      if (data.Status === 0 && Array.isArray(data.Answer) && data.Answer.length > 0) {
+        return {
+          available: false,
+          reason: 'Active NS delegation / DNS records detected (Already Claimed)',
+        };
+      }
+      // Status 0 with Authority indicating domain SOA
+      if (data.Status === 0 && Array.isArray(data.Authority)) {
+        const hasDirectAuthority = data.Authority.some(
+          (a: { name?: string }) =>
+            a.name && (a.name === domain || a.name === `${domain}.`)
+        );
+        if (hasDirectAuthority) {
+          return {
+            available: false,
+            reason: 'Active SOA authority zone detected (Already Claimed)',
+          };
+        }
+      }
+    }
+  } catch {
+    // Fall through to native DNS
+  }
+
+  // Tier 2: Native Node.js DNS fallback
+  try {
     const ns = await Promise.race([
       dns.resolveNs(domain),
       new Promise<string[]>((_, reject) =>
@@ -20,16 +71,21 @@ async function isDomainRegisteredViaDns(domain: string): Promise<boolean> {
       ),
     ]);
     if (Array.isArray(ns) && ns.length > 0) {
-      return true;
+      return {
+        available: false,
+        reason: 'Active NS delegation / DNS records detected (Already Claimed)',
+      };
     }
   } catch (err: unknown) {
     const code =
       err && typeof err === 'object' && 'code' in err
         ? String((err as { code?: unknown }).code)
         : '';
-    // ENOTFOUND or ENODATA on NS usually means the domain is not delegated / available
-    if (code === 'ENOTFOUND') {
-      return false;
+    if (code === 'ENOTFOUND' || code === 'NXDOMAIN') {
+      return {
+        available: true,
+        reason: 'No active DNS delegation found (Available to Claim)',
+      };
     }
   }
 
@@ -41,13 +97,29 @@ async function isDomainRegisteredViaDns(domain: string): Promise<boolean> {
       ),
     ]);
     if (Array.isArray(aRecords) && aRecords.length > 0) {
-      return true;
+      return {
+        available: false,
+        reason: 'Active A records pointing to hosting server (Already Claimed)',
+      };
     }
-  } catch {
-    // No A record
+  } catch (err: unknown) {
+    const code =
+      err && typeof err === 'object' && 'code' in err
+        ? String((err as { code?: unknown }).code)
+        : '';
+    if (code === 'ENOTFOUND' || code === 'NXDOMAIN') {
+      return {
+        available: true,
+        reason: 'No active DNS records found (Available to Claim)',
+      };
+    }
   }
 
-  return false;
+  // If no NS or A records were found or resolved, assume available
+  return {
+    available: true,
+    reason: 'No active DNS delegation or NS records found (Available to Claim)',
+  };
 }
 
 function sanitizeBaseLabel(rawInput: string): string {
@@ -127,12 +199,15 @@ export async function GET(request: NextRequest) {
 
   const results: DomainCheckItem[] = await Promise.all(
     candidates.map(async (item) => {
-      const isTaken = await isDomainRegisteredViaDns(item.domain);
+      const check = await checkDomainAvailability(item.domain);
+      const isAvail = check.available;
       return {
         domain: item.domain,
         tld: item.tld,
-        available: !isTaken,
-        statusLabel: !isTaken ? 'Available to Claim' : 'Already Registered',
+        status: isAvail ? 'AVAILABLE' : 'TAKEN',
+        available: isAvail,
+        statusLabel: isAvail ? 'Available to Claim' : 'Already Registered',
+        reason: check.reason,
         recommended: item.recommended,
         notes: item.notes,
       };

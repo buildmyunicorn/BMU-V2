@@ -1,4 +1,9 @@
-import type { WarmIntroQuestionField } from '@/db/schema';
+import type {
+  WarmIntroQuestionField,
+  PartnerCheckoutAddonField,
+} from '@/db/schema';
+
+export type { PartnerCheckoutAddonField };
 
 export type PartnerSlotKey =
   | 'OPS_STEP_1_INCORPORATION'
@@ -18,7 +23,10 @@ export type PartnerSlotKey =
   | 'MOD_K_GRANT_WRITERS_RND';
 
 export type PartnerCountryScope = 'ALL' | 'IE' | 'GB';
-export type PartnerActionType = 'AFFILIATE_LINK' | 'WARM_INTRO_MODAL';
+export type PartnerActionType =
+  | 'AFFILIATE_LINK'
+  | 'WARM_INTRO_MODAL'
+  | 'PAID_STRIPE_CONCIERGE';
 export type ReferralLeadStatus =
   | 'CLICKED'
   | 'INTRO_SENT'
@@ -45,6 +53,9 @@ export interface PartnerOfferRecord {
   trustFactor: string;
   warmIntroRecipientEmail?: string | null;
   warmIntroQuestionsJson: WarmIntroQuestionField[];
+  checkoutPriceAmount?: number | null;
+  checkoutCurrency?: string | null;
+  checkoutAddonsJson?: PartnerCheckoutAddonField[];
   commissionBountySummary?: string | null;
   partnerContactNotes?: string | null;
   sortOrder: number;
@@ -59,7 +70,7 @@ export interface PartnerReferralEventRecord {
   partnerName: string;
   partnerSlug: string;
   slotKey: PartnerSlotKey;
-  eventType: 'AFFILIATE_CLICK' | 'WARM_INTRO_LEAD';
+  eventType: 'AFFILIATE_CLICK' | 'WARM_INTRO_LEAD' | 'PAID_CONCIERGE_ORDER';
   planId?: string | null;
   planTitle?: string | null;
   founderName?: string | null;
@@ -501,7 +512,7 @@ const NOW_ISO = '2026-11-01T10:00:00.000Z';
 
 export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
   // =========================================================================
-  // STEP 1: INCORPORATION & COMPANY SECRETARIAL
+  // STEP 1: INCORPORATION & COMPANY SECRETARIAL (PAID STRIPE CONCIERGE)
   // =========================================================================
   {
     id: 'partner-company-bureau-ie',
@@ -509,22 +520,47 @@ export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
     slotKey: 'OPS_STEP_1_INCORPORATION',
     name: 'Company Bureau Formations (Concierge)',
     logoEmoji: '⚡',
-    category: 'Assisted Company Formation & Secretarial',
-    headline: 'Fast-Track LTD Incorporation + Revenue Tax Registration & Company Seal',
+    category: 'Paid Stripe Incorporation Concierge',
+    headline: 'Done-For-You LTD Incorporation + Revenue Tax Registration & Company Seal',
     perkDescription:
-      'Done-for-you Irish & UK company incorporation in 3–5 days. Includes constitution, share certificates, CRO/Companies House filing, and optional Dublin/London registered office address.',
-    badgeText: 'Warm Intro • Priority Setup',
+      'Complete your company setup questionnaire here, pay the €150 flat formation fee via Stripe, and our partner formation specialists will file your CRO A1 / Companies House incorporation, constitution, and share certificates within 3–5 business days.',
+    badgeText: '€150 Flat Fee • Stripe Checkout',
     promoCode: 'PREFLIGHT-LTD',
     countryScope: 'ALL',
-    actionType: 'WARM_INTRO_MODAL',
-    actionLabel: 'Request Fast-Track Incorporation Intro',
+    actionType: 'PAID_STRIPE_CONCIERGE',
+    actionLabel: 'Incorporate My Company — €150',
     referralUrl: 'https://www.companyformations.ie/?utm_source=startuppreflight',
-    trustFactor: 'Over 30,000 entities incorporated across Ireland & the UK',
+    trustFactor: 'Over 30,000 entities incorporated across Ireland & the UK • Includes €50 CRO statutory filing fee',
     warmIntroRecipientEmail: 'formations@companyformations.ie',
     warmIntroQuestionsJson: getSlotDefinition('OPS_STEP_1_INCORPORATION')
       .defaultWarmIntroQuestions,
-    commissionBountySummary: '€85 CPA per completed LTD formation package',
-    partnerContactNotes: 'Warm intros routed to New Business Formation Desk.',
+    checkoutPriceAmount: 150,
+    checkoutCurrency: 'EUR',
+    checkoutAddonsJson: [
+      {
+        id: 'addon-virtual-registered-office',
+        label: 'Virtual Registered Office Address (12 Months)',
+        description:
+          'Official commercial Dublin / London Registered Office address + statutory mail scanning so your personal home address stays off the public register.',
+        priceAmount: 150,
+      },
+      {
+        id: 'addon-company-secretary-service',
+        label: 'Named Corporate Company Secretary & Annual Compliance',
+        description:
+          'Acts as your statutory named Company Secretary, maintains your Register of Members/Directors, and prepares your first Annual Return (B1).',
+        priceAmount: 95,
+      },
+      {
+        id: 'addon-rbo-beneficial-ownership',
+        label: 'Done-For-You RBO (Register of Beneficial Ownership) Filing',
+        description:
+          'Mandatory statutory beneficial ownership declaration filed on your behalf after CRO incorporation to avoid late filing penalties.',
+        priceAmount: 75,
+      },
+    ],
+    commissionBountySummary: '€150 collected upfront via Stripe (€60 platform margin / €90 partner fulfillment)',
+    partnerContactNotes: 'Paid incorporation orders & answers auto-dispatched to New Business Formation Desk.',
     sortOrder: 1,
     isActive: true,
     createdAt: NOW_ISO,
@@ -536,11 +572,11 @@ export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
     slotKey: 'OPS_STEP_1_INCORPORATION',
     name: 'CRO Core Portal (Ireland Official)',
     logoEmoji: '🇮🇪',
-    category: 'Official State Registry',
+    category: 'Official State Registry (Self-File)',
     headline: 'Self-File Directly with the Irish Companies Registration Office',
     perkDescription:
-      'Standard €50 statutory filing fee via the A1 Online system on CORE. Requires a MyGovID / ROS digital signature and an EEA-resident director.',
-    badgeText: 'Official State Portal (€50)',
+      'Standard €50 statutory filing fee via the A1 Online system on CORE. Requires you to draft your own constitution, arrange a separate company secretary, and sign via MyGovID / ROS.',
+    badgeText: 'DIY State Portal (€50)',
     promoCode: null,
     countryScope: 'IE',
     actionType: 'AFFILIATE_LINK',
@@ -549,6 +585,9 @@ export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
     trustFactor: 'Statutory Registry for Irish LTD & DAC Entities',
     warmIntroRecipientEmail: null,
     warmIntroQuestionsJson: [],
+    checkoutPriceAmount: null,
+    checkoutCurrency: 'EUR',
+    checkoutAddonsJson: [],
     commissionBountySummary: 'Official statutory resource (Non-monetized trust builder)',
     partnerContactNotes: 'Government portal link.',
     sortOrder: 2,
@@ -562,11 +601,11 @@ export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
     slotKey: 'OPS_STEP_1_INCORPORATION',
     name: 'Companies House (UK Official)',
     logoEmoji: '🇬🇧',
-    category: 'Official State Registry',
+    category: 'Official State Registry (Self-File)',
     headline: 'Incorporate Directly Online with UK Companies House',
     perkDescription:
       'Direct digital incorporation for £50. Standard UK Private Limited by Shares (LTD) incorporation completes in 24–48 hours with model Articles of Association.',
-    badgeText: 'Official GOV.UK Portal (£50)',
+    badgeText: 'DIY GOV.UK Portal (£50)',
     promoCode: null,
     countryScope: 'GB',
     actionType: 'AFFILIATE_LINK',
@@ -575,6 +614,9 @@ export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
     trustFactor: 'Statutory Registry for UK LTD Entities',
     warmIntroRecipientEmail: null,
     warmIntroQuestionsJson: [],
+    checkoutPriceAmount: null,
+    checkoutCurrency: 'GBP',
+    checkoutAddonsJson: [],
     commissionBountySummary: 'Official statutory resource (Non-monetized trust builder)',
     partnerContactNotes: 'UK Government portal link.',
     sortOrder: 3,
@@ -1009,8 +1051,8 @@ export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
 // =========================================================================
 // BROWSER LOCALSTORAGE CACHE & OFFLINE FALLBACK HELPERS
 // =========================================================================
-const LOCAL_PARTNER_OFFERS_KEY = 'spf_admin_partner_offers_v1';
-const LOCAL_REFERRAL_EVENTS_KEY = 'spf_admin_partner_referral_events_v1';
+const LOCAL_PARTNER_OFFERS_KEY = 'spf_admin_partner_offers_v2';
+const LOCAL_REFERRAL_EVENTS_KEY = 'spf_admin_partner_referral_events_v2';
 
 export function loadLocalPartnerOffers(): PartnerOfferRecord[] {
   if (typeof window === 'undefined') return DEFAULT_PARTNER_OFFERS;

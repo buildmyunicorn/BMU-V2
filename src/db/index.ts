@@ -191,6 +191,9 @@ export function ensureDatabaseSchemaSynced(): Promise<void> {
             trust_factor text NOT NULL,
             warm_intro_recipient_email text,
             warm_intro_questions_json jsonb DEFAULT '[]'::jsonb,
+            checkout_price_amount integer,
+            checkout_currency text DEFAULT 'EUR',
+            checkout_addons_json jsonb DEFAULT '[]'::jsonb,
             commission_bounty_summary text,
             partner_contact_notes text,
             sort_order integer NOT NULL DEFAULT 10,
@@ -198,6 +201,10 @@ export function ensureDatabaseSchemaSynced(): Promise<void> {
             created_at timestamp NOT NULL DEFAULT now(),
             updated_at timestamp NOT NULL DEFAULT now()
           );
+
+          ALTER TABLE partner_offers ADD COLUMN IF NOT EXISTS checkout_price_amount integer;
+          ALTER TABLE partner_offers ADD COLUMN IF NOT EXISTS checkout_currency text DEFAULT 'EUR';
+          ALTER TABLE partner_offers ADD COLUMN IF NOT EXISTS checkout_addons_json jsonb DEFAULT '[]'::jsonb;
 
           CREATE TABLE IF NOT EXISTS partner_referral_events (
             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

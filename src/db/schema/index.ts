@@ -686,6 +686,13 @@ export type WarmIntroQuestionField = {
   required?: boolean;
 };
 
+export type PartnerCheckoutAddonField = {
+  id: string;
+  label: string;
+  description: string;
+  priceAmount: number;
+};
+
 export const partnerOffers = pgTable('partner_offers', {
   id: uuid('id').defaultRandom().primaryKey(),
   slug: text('slug').notNull().unique(), // Used by /api/go/[slug] redirect & click tracking
@@ -698,13 +705,18 @@ export const partnerOffers = pgTable('partner_offers', {
   badgeText: text('badge_text').notNull(),
   promoCode: text('promo_code'), // Optional voucher/promo code for founders to copy
   countryScope: text('country_scope').default('ALL').notNull(), // 'ALL' | 'IE' | 'GB'
-  actionType: text('action_type').default('AFFILIATE_LINK').notNull(), // 'AFFILIATE_LINK' | 'WARM_INTRO_MODAL'
+  actionType: text('action_type').default('AFFILIATE_LINK').notNull(), // 'AFFILIATE_LINK' | 'WARM_INTRO_MODAL' | 'PAID_STRIPE_CONCIERGE'
   actionLabel: text('action_label').notNull(),
   referralUrl: text('referral_url').notNull(), // Supports {domain}, {planId}, {country} macros
   trustFactor: text('trust_factor').notNull(),
-  warmIntroRecipientEmail: text('warm_intro_recipient_email'), // Recipient email for WARM_INTRO_MODAL
+  warmIntroRecipientEmail: text('warm_intro_recipient_email'), // Recipient email for WARM_INTRO_MODAL or PAID_STRIPE_CONCIERGE
   warmIntroQuestionsJson: jsonb('warm_intro_questions_json')
     .$type<WarmIntroQuestionField[]>()
+    .default([]),
+  checkoutPriceAmount: integer('checkout_price_amount'), // e.g., 150 for €150 flat fee
+  checkoutCurrency: text('checkout_currency').default('EUR'), // 'EUR' | 'GBP' | 'USD'
+  checkoutAddonsJson: jsonb('checkout_addons_json')
+    .$type<PartnerCheckoutAddonField[]>()
     .default([]),
   commissionBountySummary: text('commission_bounty_summary'), // Admin-only deal terms / CPA notes
   partnerContactNotes: text('partner_contact_notes'), // Admin-only account manager contact info

@@ -332,7 +332,7 @@ export function MasterDocumentWorkspace({
                 Zero-Hallucination Verified
               </span>
               <span className="text-xs text-slate-300">
-                {facts.activeChaptersCount} of 11 Foundation Chapters Active (
+                {facts.activeChaptersCount} of 12 Chapters Active (
                 {facts.overallCompletionPercent}% Assembled)
               </span>
             </div>
@@ -543,7 +543,7 @@ export function MasterDocumentWorkspace({
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              + All 11 Chapters Guide
+              + All 12 Chapters Guide
             </button>
           </div>
         </div>
@@ -576,10 +576,10 @@ export function MasterDocumentWorkspace({
             </span>
             <div>
               <h2 className="text-base font-bold text-slate-900 sm:text-lg">
-                1-Page Executive Snapshot (Modules A–K)
+                1-Page Executive Snapshot (Modules A–L)
               </h2>
               <p className="text-xs text-slate-500">
-                100% deterministic summary pulled directly from your saved inputs across all 11 foundation modules (Modules A–K).
+                100% deterministic summary pulled directly from your saved inputs across all 12 modules (Modules A–L).
               </p>
             </div>
           </div>
@@ -597,7 +597,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <Compass className="h-4 w-4" />
                   🎯 Concept &amp; Founder Fit (Module A)
                 </span>
@@ -610,7 +610,7 @@ export function MasterDocumentWorkspace({
                   Edit in Module A
                 </button>
               </div>
-              <dl className="space-y-1.5 text-xs text-slate-700">
+              <dl className="space-y-2 text-sm text-slate-700">
                 <div>
                   <dt className="inline font-semibold text-slate-900">Problem: </dt>
                   <dd className="inline">
@@ -649,7 +649,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <BarChart3 className="h-4 w-4" />
                   📊 Market &amp; Wedge (Module B)
                 </span>
@@ -663,7 +663,7 @@ export function MasterDocumentWorkspace({
                 </button>
               </div>
               {facts.hasModuleB ? (
-                <dl className="space-y-1.5 text-xs text-slate-700">
+                <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">Beachhead Buyer: </dt>
                     <dd className="inline">
@@ -701,7 +701,7 @@ export function MasterDocumentWorkspace({
                   </div>
                 </dl>
               ) : (
-                <p className="text-xs italic text-slate-500">
+                <p className="text-sm italic text-slate-500">
                   Not yet populated. Complete Module B to add your beachhead persona, competitors, and bottom-up SOM/SAM market sizing.
                 </p>
               )}
@@ -712,7 +712,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <MessageSquare className="h-4 w-4" />
                   💬 Validation Proof (Module C)
                 </span>
@@ -726,7 +726,7 @@ export function MasterDocumentWorkspace({
                 </button>
               </div>
               {facts.hasModuleC ? (
-                <dl className="space-y-1.5 text-xs text-slate-700">
+                <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">
                       Public Validation Surveys:{' '}
@@ -770,7 +770,7 @@ export function MasterDocumentWorkspace({
                   )}
                 </dl>
               ) : (
-                <p className="text-xs italic text-slate-500">
+                <p className="text-sm italic text-slate-500">
                   Not yet populated. Use Module C to launch public validation surveys, collect waitlist leads, and log 1-on-1 customer interviews.
                 </p>
               )}
@@ -781,7 +781,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <Wrench className="h-4 w-4" />
                   🛠️ What We&apos;re Building (Module D)
                 </span>
@@ -795,7 +795,7 @@ export function MasterDocumentWorkspace({
                 </button>
               </div>
               {facts.hasModuleD ? (
-                <dl className="space-y-1.5 text-xs text-slate-700">
+                <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">Product Vehicle: </dt>
                     <dd className="inline">
@@ -834,7 +834,7 @@ export function MasterDocumentWorkspace({
                   </div>
                 </dl>
               ) : (
-                <p className="text-xs italic text-slate-500">
+                <p className="text-sm italic text-slate-500">
                   Not yet populated. Complete Module D to define your product vehicle, channel strategy, V1 feature filter, and work packages.
                 </p>
               )}
@@ -845,7 +845,7 @@ export function MasterDocumentWorkspace({
         {/* Full-Width Card E: Operations, Equipment & Risk Posture */}
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
               <Briefcase className="h-4 w-4" />
               ⚙️ Operations, Equipment &amp; Risk Posture (Module E)
             </span>
@@ -859,7 +859,7 @@ export function MasterDocumentWorkspace({
             </button>
           </div>
           {facts.hasModuleE ? (
-            <div className="grid grid-cols-1 gap-3 text-xs text-slate-700 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 text-sm text-slate-700 md:grid-cols-3">
               <div>
                 <div className="font-semibold text-slate-900">
                   Fulfillment &amp; Unit Capacity
@@ -916,7 +916,7 @@ export function MasterDocumentWorkspace({
               </div>
             </div>
           ) : (
-            <p className="text-xs italic text-slate-500">
+            <p className="text-sm italic text-slate-500">
               Not yet populated. Complete Module E to add your order fulfillment stages, equipment schedule, and 4-category project risk register.
             </p>
           )}
@@ -928,7 +928,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <Users className="h-4 w-4" />
                   👥 Team, Survival &amp; Hiring (Module F)
                 </span>
@@ -942,7 +942,7 @@ export function MasterDocumentWorkspace({
                 </button>
               </div>
               {facts.hasModuleF ? (
-                <dl className="space-y-1.5 text-xs text-slate-700">
+                <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">Team Posture: </dt>
                     <dd className="inline">
@@ -964,7 +964,7 @@ export function MasterDocumentWorkspace({
                   </div>
                 </dl>
               ) : (
-                <p className="text-xs italic text-slate-500">
+                <p className="text-sm italic text-slate-500">
                   Not yet populated. Complete Module F to add 150-word promoter profiles, personal survival budgets, 7 Startup Hats, and your 3-year hiring plan.
                 </p>
               )}
@@ -975,7 +975,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <ShieldCheck className="h-4 w-4" />
                   🚀 Launchpad &amp; Ops Setup (Module G)
                 </span>
@@ -989,7 +989,7 @@ export function MasterDocumentWorkspace({
                 </button>
               </div>
               {facts.hasModuleG ? (
-                <dl className="space-y-1.5 text-xs text-slate-700">
+                <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">Ops Readiness Score: </dt>
                     <dd className="inline font-bold text-emerald-700">
@@ -1014,7 +1014,7 @@ export function MasterDocumentWorkspace({
                   </div>
                 </dl>
               ) : (
-                <p className="text-xs italic text-slate-500">
+                <p className="text-sm italic text-slate-500">
                   Not yet populated. Complete Module G to track your 0–100% Operations Readiness across Incorporation, Domain/Email, Banking, Accounting, Insurance, and Legal/IP.
                 </p>
               )}
@@ -1025,7 +1025,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <DollarSign className="h-4 w-4" />
                   💰 Pricing &amp; Pocket Profit (Module H)
                 </span>
@@ -1039,7 +1039,7 @@ export function MasterDocumentWorkspace({
                 </button>
               </div>
               {facts.hasModuleH ? (
-                <dl className="space-y-1.5 text-xs text-slate-700">
+                <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">Revenue Vehicle &amp; Price: </dt>
                     <dd className="inline">
@@ -1063,7 +1063,7 @@ export function MasterDocumentWorkspace({
                   </div>
                 </dl>
               ) : (
-                <p className="text-xs italic text-slate-500">
+                <p className="text-sm italic text-slate-500">
                   Not yet populated. Complete Module H to model your pricing tiers, written sales assumptions, and 3-year Pocket Profit breakeven.
                 </p>
               )}
@@ -1074,7 +1074,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <Megaphone className="h-4 w-4" />
                   📣 Marketing, 4Ps &amp; First 10 (Module I)
                 </span>
@@ -1088,7 +1088,7 @@ export function MasterDocumentWorkspace({
                 </button>
               </div>
               {facts.hasModuleI ? (
-                <dl className="space-y-1.5 text-xs text-slate-700">
+                <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">Elevator Hook: </dt>
                     <dd className="inline">{facts.elevatorHook140 || '—'}</dd>
@@ -1110,7 +1110,7 @@ export function MasterDocumentWorkspace({
                   </div>
                 </dl>
               ) : (
-                <p className="text-xs italic text-slate-500">
+                <p className="text-sm italic text-slate-500">
                   Not yet populated. Complete Module I to build your brand positioning, 4Ps strategy, First 10 Customers tracker, and CAC/LTV marketing budget.
                 </p>
               )}
@@ -1121,7 +1121,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <Scale className="h-4 w-4" />
                   📈 36-Month Financials &amp; Cashflow (Module J)
                 </span>
@@ -1135,7 +1135,7 @@ export function MasterDocumentWorkspace({
                 </button>
               </div>
               {facts.hasModuleJ ? (
-                <dl className="space-y-1.5 text-xs text-slate-700">
+                <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">Operating Cost Posture: </dt>
                     <dd className="inline">
@@ -1159,7 +1159,7 @@ export function MasterDocumentWorkspace({
                   </div>
                 </dl>
               ) : (
-                <p className="text-xs italic text-slate-500">
+                <p className="text-sm italic text-slate-500">
                   Not yet populated. Complete Module J to configure localized overheads, working capital timing, and your 36-month cashflow trough.
                 </p>
               )}
@@ -1170,7 +1170,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                   <Sparkles className="h-4 w-4" />
                   🏛️ Grants, Loans &amp; Tax Relief (Module K)
                 </span>
@@ -1184,7 +1184,7 @@ export function MasterDocumentWorkspace({
                 </button>
               </div>
               {facts.hasModuleK ? (
-                <dl className="space-y-1.5 text-xs text-slate-700">
+                <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">Lead Programme &amp; Readiness: </dt>
                     <dd className="inline font-bold text-emerald-700">
@@ -1209,8 +1209,55 @@ export function MasterDocumentWorkspace({
                   </div>
                 </dl>
               ) : (
-                <p className="text-xs italic text-slate-500">
+                <p className="text-sm italic text-slate-500">
                   Not yet populated. Complete Module K to score IE/UK grant readiness, build your non-dilutive capital stack, and verify reimbursement bridge liquidity.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Card L: Official Grant & Business Plan Compiler */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                  <FileText className="h-4 w-4" />
+                  📑 Grant &amp; Plan Compiler (Module L)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  <Pencil className="h-3 w-3" />
+                  {facts.hasModuleL ? 'Edit in Module L' : 'Start Module L'}
+                </button>
+              </div>
+              {facts.hasModuleL ? (
+                <dl className="space-y-2 text-sm text-slate-700">
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Mode &amp; Committee: </dt>
+                    <dd className="inline font-medium text-indigo-900">
+                      {facts.compilerModeLabel} ({facts.targetAgencyOrCommitteeName})
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Contradiction Audit Score: </dt>
+                    <dd className="inline font-bold text-emerald-700">
+                      {facts.contradictionAuditScore}/100 Pre-Flight Clearance ({facts.auditPassedCount} Passed, {facts.auditWarningCount} Warnings)
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-slate-900">Narrative &amp; Proof Binder: </dt>
+                    <dd className="inline">
+                      {facts.compiledSectionsCount} question(s) compiled (~{facts.totalCompiledWordCount.toLocaleString()} words) •{' '}
+                      {facts.appendicesReadyCount}/{facts.totalAppendicesCount} appendices ready ({facts.committeeReadinessScore}/100 Committee Ready)
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-sm italic text-slate-500">
+                  Not yet compiled. Complete Module L to run your Pre-Flight Contradiction Audit, auto-compile official submission narratives, and assemble Appendices A–F.
                 </p>
               )}
             </div>
@@ -1444,54 +1491,54 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 1. Core Problem
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-800 sm:text-sm">
+              <p className="mt-1 text-sm leading-relaxed text-slate-800">
                 {facts.coreProblem || '—'}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 2. Target Customer
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-800 sm:text-sm">
+              <p className="mt-1 text-sm leading-relaxed text-slate-800">
                 {facts.targetCustomer || '—'}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 3. Proposed Solution
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-800 sm:text-sm">
+              <p className="mt-1 text-sm leading-relaxed text-slate-800">
                 {facts.proposedSolution || '—'}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 4. Unfair Advantage &amp; Why You
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-800 sm:text-sm">
+              <p className="mt-1 text-sm leading-relaxed text-slate-800">
                 {facts.unfairAdvantage || '—'}
               </p>
             </div>
           </div>
 
           <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 5. Revenue &amp; Grant Fit
               </div>
-              <p className="mt-1 text-xs text-slate-700">
+              <p className="mt-1 text-sm text-slate-700">
                 {facts.revenueAndGrantFit || '—'}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Ambition, Team &amp; Starting Budget
               </div>
-              <p className="mt-1 text-xs text-slate-700">
+              <p className="mt-1 text-sm text-slate-700">
                 <span className="font-semibold text-slate-900">
                   {facts.motivationLabel || 'Founder'}
                 </span>{' '}
@@ -1506,11 +1553,11 @@ export function MasterDocumentWorkspace({
                 </p>
               )}
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Non-Negotiables &amp; Reality Check
               </div>
-              <p className="mt-1 text-xs text-slate-700">
+              <p className="mt-1 text-sm text-slate-700">
                 <span className="font-semibold text-slate-900">Dealbreakers:</span>{' '}
                 {facts.dealbreakersList.length > 0
                   ? facts.dealbreakersList.join(', ')
@@ -1562,7 +1609,7 @@ export function MasterDocumentWorkspace({
 
           {/* Market Sizing Trio */}
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                 Year 1–2 Revenue Target (SOM)
               </div>
@@ -1570,7 +1617,7 @@ export function MasterDocumentWorkspace({
                 {facts.somFormatted ? `${facts.somFormatted}/yr` : '—'}
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Reachable Market in Target Geographies (SAM)
               </div>
@@ -1578,7 +1625,7 @@ export function MasterDocumentWorkspace({
                 {facts.samFormatted ? `${facts.samFormatted}/yr` : '—'}
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Wider Long-Term Opportunity (TAM)
               </div>
@@ -1589,7 +1636,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Beachhead Persona &amp; Buying Trigger
               </div>
@@ -1611,7 +1658,7 @@ export function MasterDocumentWorkspace({
               )}
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Why Customers Switch &amp; Competitive Wedge
               </div>
@@ -1702,7 +1749,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Public Survey Responses
               </div>
@@ -1724,7 +1771,7 @@ export function MasterDocumentWorkspace({
                 Opted in via public validation survey
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 1-on-1 Customer Interviews
               </div>
@@ -1745,7 +1792,7 @@ export function MasterDocumentWorkspace({
               <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                 Verified Customer Pain Points &amp; Survey Takeaways
               </div>
-              <ul className="list-disc space-y-1 pl-4 text-xs text-slate-700">
+              <ul className="list-disc space-y-1 pl-4 text-sm text-slate-700">
                 {facts.topValidatedPainPoints.map((pt, i) => (
                   <li key={i}>{pt}</li>
                 ))}
@@ -1832,7 +1879,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Product Vehicle &amp; Customer Aha Moment
               </div>
@@ -1853,7 +1900,7 @@ export function MasterDocumentWorkspace({
               )}
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Channel Strategy &amp; V1 Scope Discipline
               </div>
@@ -1957,7 +2004,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Fulfillment Blueprint &amp; Unit Capacity
               </div>
@@ -1982,7 +2029,7 @@ export function MasterDocumentWorkspace({
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Premises, Equipment Schedule &amp; Governance
               </div>
@@ -2082,7 +2129,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Team Structure &amp; Governance
               </div>
@@ -2100,7 +2147,7 @@ export function MasterDocumentWorkspace({
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Personal Survival Budget &amp; Hiring Plan
               </div>
@@ -2210,7 +2257,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 1. Legal Entity &amp; 2. Domain/Email
               </div>
@@ -2226,7 +2273,7 @@ export function MasterDocumentWorkspace({
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 3. Banking &amp; 4. Bookkeeping/VAT
               </div>
@@ -2241,7 +2288,7 @@ export function MasterDocumentWorkspace({
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 5. Insurance &amp; 6. Legal/IP/GDPR
               </div>
@@ -2293,7 +2340,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Revenue Vehicle &amp; Sales Velocity
               </div>
@@ -2312,7 +2359,7 @@ export function MasterDocumentWorkspace({
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 3-Year Turnover &amp; Pocket Profit Trajectory
               </div>
@@ -2401,7 +2448,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Brand Positioning &amp; First 10 Customers Playbook
               </div>
@@ -2420,7 +2467,7 @@ export function MasterDocumentWorkspace({
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Reverse-Engineered Marketing Budget &amp; CAC/LTV
               </div>
@@ -2443,25 +2490,25 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
+            <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-sm">
               <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                 P1 • Product Strategy
               </div>
               <p className="mt-1 text-slate-700">{facts.fourPsSummary.productP1 || '—'}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
+            <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-sm">
               <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                 P2 • Price Positioning
               </div>
               <p className="mt-1 text-slate-700">{facts.fourPsSummary.priceP2 || '—'}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
+            <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-sm">
               <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                 P3 • Place &amp; Channels
               </div>
               <p className="mt-1 text-slate-700">{facts.fourPsSummary.placeP3 || '—'}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
+            <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-sm">
               <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                 P4 • Promotion Motion
               </div>
@@ -2506,7 +2553,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Fixed Overheads &amp; Year 1 Payroll Posture
               </div>
@@ -2525,7 +2572,7 @@ export function MasterDocumentWorkspace({
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Working Capital &amp; Funding Runway
               </div>
@@ -2546,7 +2593,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           {facts.writtenFinancialAssumptionsBlock && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 text-xs text-slate-700">
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                 Written Financial Assumptions Notes
               </div>
@@ -2591,7 +2638,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Lead Programme &amp; Matched Capital Stack
               </div>
@@ -2611,7 +2658,7 @@ export function MasterDocumentWorkspace({
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Reimbursement Cashflow Bridge &amp; Tax Relief
               </div>
@@ -2632,7 +2679,7 @@ export function MasterDocumentWorkspace({
           </div>
 
           {facts.executiveFundingSummaryNarrative && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 text-xs text-slate-700">
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-700">
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
                 Executive Funding &amp; Non-Dilutive Strategy Narrative
               </div>
@@ -2643,36 +2690,127 @@ export function MasterDocumentWorkspace({
       )}
 
       {/* =================================================================== */}
-      {/* OFFICIAL GRANT & BUSINESS PLAN COMPILER (MODULE L) LAUNCHER         */}
+      {/* CHAPTER 12: OFFICIAL GRANT & BUSINESS PLAN COMPILER (MODULE L)      */}
       {/* =================================================================== */}
-      <section className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-emerald-50/60 p-5 shadow-xs sm:p-6">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
-              <Sparkles className="h-4 w-4 text-indigo-600" />
-              Module L • Official Grant &amp; Business Plan Compiler
+      {facts.hasModuleL ? (
+        <section
+          id="master-doc-ch12"
+          className="rounded-2xl border border-indigo-200 bg-white p-5 shadow-xs sm:p-6"
+        >
+          <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-950 text-xs font-extrabold text-white">
+                12
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+                  Chapter 12: Interactive Business Plan &amp; Grant Compiler (Module L)
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Pre-Flight Contradiction Audit, official grant narrative compiler &amp; mandatory proof binder.
+                </p>
+              </div>
             </div>
-            <h3 className="text-base font-bold text-slate-900">
-              Ready to compile your official LEO, Innovate UK, Start Up Loans, or SEIS/EIS pack?
-            </h3>
-            <p className="text-xs text-slate-600">
-              Module L auto-compiles all 11 foundation chapters (Modules A–K) into official submission templates with live proof blocks and Pre-Flight Contradiction &amp; Grant Audit.
-            </p>
+            <button
+              type="button"
+              onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit in Module L
+            </button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
-            className="shrink-0 bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
-          >
-            Open Module L Compiler
-            <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </section>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Compiler Mode &amp; Objective
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Mode:</span>{' '}
+                <span className="font-bold text-indigo-900">{facts.compilerModeLabel}</span>
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Target Committee:</span>{' '}
+                {facts.targetAgencyOrCommitteeName} ({formatPlanCurrency(facts.targetFundingAskAmount, facts.currency)} ask • {facts.submissionObjectiveLabel})
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Pre-Flight Contradiction Audit &amp; Readiness
+              </div>
+              <p>
+                <span className="font-semibold text-slate-900">Audit Score:</span>{' '}
+                <span className="font-bold text-emerald-700">{facts.contradictionAuditScore}/100 Pre-Flight Clearance</span>{' '}
+                ({facts.auditPassedCount} Passed, {facts.auditWarningCount} Warnings, {facts.auditCriticalCount} Critical)
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-slate-900">Dossier Readiness:</span>{' '}
+                {facts.compiledSectionsCount} question(s) compiled (~{facts.totalCompiledWordCount.toLocaleString()} words) •{' '}
+                {facts.appendicesReadyCount}/{facts.totalAppendicesCount} proof appendices ready (
+                <span className="font-bold text-indigo-700">{facts.committeeReadinessScore}/100 Committee Ready</span>)
+              </p>
+            </div>
+          </div>
+
+          {facts.executiveHookStatement && (
+            <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3.5 text-xs text-indigo-950">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                Executive Hook Statement
+              </div>
+              <p className="italic leading-relaxed">"{facts.executiveHookStatement}"</p>
+            </div>
+          )}
+
+          {facts.preFlightDefenseSummary && (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                Pre-Flight Assessor Defense Statement
+              </div>
+              <p className="leading-relaxed">{facts.preFlightDefenseSummary}</p>
+            </div>
+          )}
+
+          {facts.executiveDossierSummary && (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                Official Submission Dossier Executive Brief
+              </div>
+              <p className="leading-relaxed">{facts.executiveDossierSummary}</p>
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-emerald-50/60 p-5 shadow-xs sm:p-6">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <Sparkles className="h-4 w-4 text-indigo-600" />
+                Module L • Official Grant &amp; Business Plan Compiler
+              </div>
+              <h3 className="text-base font-bold text-slate-900">
+                Ready to compile your official LEO, Innovate UK, Start Up Loans, or SEIS/EIS pack?
+              </h3>
+              <p className="text-xs text-slate-600">
+                Module L auto-compiles all 11 foundation chapters (Modules A–K) into official submission templates with live proof blocks and Pre-Flight Contradiction &amp; Grant Audit.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
+              className="shrink-0 bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+            >
+              Open Module L Compiler
+              <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </section>
+      )}
 
       {/* =================================================================== */}
-      {/* OPTIONAL ALL 11 CHAPTERS GUIDE (MODULES A–K)                        */}
+      {/* OPTIONAL ALL 12 CHAPTERS GUIDE (MODULES A–L)                        */}
       {/* =================================================================== */}
       {showUpcomingRoadmap && (
         <section className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/30 p-5 sm:p-6">
@@ -2680,11 +2818,11 @@ export function MasterDocumentWorkspace({
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-indigo-600" />
               <h3 className="text-sm font-bold text-slate-900">
-                Complete 11-Chapter Master Blueprint Architecture (Modules A–K)
+                Complete 12-Chapter Master Blueprint Architecture (Modules A–L)
               </h3>
             </div>
             <Badge variant="secondary" className="text-[10px]">
-              {facts.activeChaptersCount}/11 Active
+              {facts.activeChaptersCount}/12 Active
             </Badge>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -2700,6 +2838,7 @@ export function MasterDocumentWorkspace({
               { code: 'MOD_I_MARKETING' as ModuleCode, active: facts.hasModuleI, title: 'Ch 9: Marketing & First 10 (Mod I)', desc: 'Positioning, 4Ps, First 10 Customers & CAC/LTV' },
               { code: 'MOD_J_FINANCE' as ModuleCode, active: facts.hasModuleJ, title: 'Ch 10: 36-Month Financials (Mod J)', desc: 'Overheads, Working Capital & Cashflow Trough' },
               { code: 'MOD_K_GRANTS_FUNDING' as ModuleCode, active: facts.hasModuleK, title: 'Ch 11: Grants & Capital Stack (Mod K)', desc: 'IE/UK Grants, Reimbursement Bridge & SEIS/EIS/EII' },
+              { code: 'MOD_L_BUSINESS_PLAN' as ModuleCode, active: facts.hasModuleL, title: 'Ch 12: Business Plan & Grant Compiler (Mod L)', desc: 'Contradiction Audit, Official Form Modes & Proof Binder' },
             ].map((item) => (
               <button
                 key={item.code}

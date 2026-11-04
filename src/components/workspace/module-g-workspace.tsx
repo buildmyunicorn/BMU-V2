@@ -36,7 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PartnerSlot } from '@/components/workspace/partner-slot';
+import { PartnerSlot, type PaidConciergeOrderSummary } from '@/components/workspace/partner-slot';
 import type { SavedConceptCanvas } from '@/lib/auth/session-store';
 
 export interface ModuleGData {
@@ -49,6 +49,7 @@ export interface ModuleGData {
     registrationDate: string;
     targetFormationTimeline: string;
     incorporationNotes: string;
+    incorporationOrder?: PaidConciergeOrderSummary | null;
   };
   step2: {
     state: 'ALREADY_HAVE' | 'HELP_SETUP';
@@ -112,6 +113,7 @@ export function getDefaultModuleGData(): ModuleGData {
       registrationDate: '',
       targetFormationTimeline: 'WITHIN_30_DAYS',
       incorporationNotes: '',
+      incorporationOrder: null,
     },
     step2: {
       state: 'HELP_SETUP',
@@ -258,8 +260,11 @@ export function ModuleGWorkspace({
     Array<{
       domain: string;
       tld: string;
-      status: 'AVAILABLE' | 'TAKEN';
-      reason: string;
+      status?: 'AVAILABLE' | 'TAKEN';
+      available?: boolean;
+      statusLabel?: string;
+      reason?: string;
+      notes?: string;
     }>
   >([]);
   const [selectedDomainForClaim, setSelectedDomainForClaim] = useState<string>(
@@ -282,13 +287,18 @@ export function ModuleGWorkspace({
       if (Array.isArray(json.results)) {
         setDomainCheckResults(json.results);
         const preferredTld = normalizedCountry === 'GB' ? '.co.uk' : '.ie';
+        const isItemAvail = (r: { status?: string; available?: boolean }) =>
+          r.status === 'AVAILABLE' || r.available === true;
         const availablePreferred = json.results.find(
-          (r: { status: string; tld: string; domain: string }) =>
-            r.status === 'AVAILABLE' && r.tld === preferredTld
+          (r: { status?: string; available?: boolean; tld: string; domain: string }) =>
+            isItemAvail(r) && r.tld === preferredTld
         );
         const firstAvailable =
           availablePreferred ||
-          json.results.find((r: { status: string }) => r.status === 'AVAILABLE');
+          json.results.find(
+            (r: { status?: string; available?: boolean; domain: string }) =>
+              isItemAvail(r)
+          );
         if (firstAvailable && !selectedDomainForClaim) {
           setSelectedDomainForClaim(firstAvailable.domain);
         }
@@ -353,7 +363,7 @@ export function ModuleGWorkspace({
   const isStep1Done =
     data.step1.state === 'ALREADY_HAVE'
       ? !!data.step1.registeredEntityName.trim() && !!data.step1.registrationNumber.trim()
-      : !!data.step1.targetFormationTimeline;
+      : !!data.step1.incorporationOrder || !!data.step1.targetFormationTimeline;
 
   // Step 2: Domain & Email Readiness Check
   const isGmailDetected =
@@ -579,8 +589,10 @@ export function ModuleGWorkspace({
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
                     {data.step1.state === 'ALREADY_HAVE'
-                      ? `Registered ${data.step1.legalStructure} • ${data.step1.registeredEntityName || 'Entity on file'}`
-                      : `Setting Up • Target: ${data.step1.targetFormationTimeline.replace(/_/g, ' ')}`}
+                      ? `Registered ${data.step1.legalStructure} • ${data.step1.registeredEntityName || 'Entity on file'} (${data.step1.registrationNumber || 'CRN recorded'})`
+                      : data.step1.incorporationOrder
+                        ? `Paid Formation Order Dispatched to ${data.step1.incorporationOrder.partnerName} • Awaiting CRO/CRN Number`
+                        : `Setting Up • Target: ${data.step1.targetFormationTimeline.replace(/_/g, ' ')}`}
                   </p>
                 </div>
               </div>
@@ -785,6 +797,170 @@ export function ModuleGWorkspace({
                     </select>
                   </div>
 
+                  {/* LIVE 3-STAGE INCORPORATION STATUS TRACKER (Appears once founder completes Flow B Stripe Concierge Order) */}
+                  {data.step1.incorporationOrder && (
+                    <div className="rounded-2xl border-2 border-emerald-400/80 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/40 p-5 shadow-xs space-y-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-emerald-200/70 pb-3.5">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge className="bg-emerald-600 text-[10px] font-bold text-white">
+                              Live Incorporation Status Tracker
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-300 bg-white font-mono text-[10px] text-emerald-800"
+                            >
+                              Stripe Ref: {data.step1.incorporationOrder.stripePaymentRef}
+                            </Badge>
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-900">
+                            Company Formation Order with{' '}
+                            {data.step1.incorporationOrder.partnerName}
+                          </h4>
+                          <p className="text-xs text-slate-600">
+                            1st Choice Name:{' '}
+                            <strong className="text-slate-900">
+                              {data.step1.incorporationOrder.companyChoice1}
+                            </strong>
+                            {data.step1.incorporationOrder.companyChoice2
+                              ? ` • Backup Name: ${data.step1.incorporationOrder.companyChoice2}`
+                              : ''}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-extrabold text-emerald-800">
+                            {data.step1.incorporationOrder.currency === 'GBP'
+                              ? '£'
+                              : '€'}
+                            {data.step1.incorporationOrder.totalPaidAmount} Paid
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {new Date(
+                              data.step1.incorporationOrder.paidAt
+                            ).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3-Stage Visual Pipeline */}
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        {/* Stage 1: Paid via Stripe */}
+                        <div className="rounded-xl border border-emerald-200 bg-white p-3.5 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                              Stage 1 • Payment
+                            </span>
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          </div>
+                          <div className="text-xs font-bold text-slate-900">
+                            Stripe Checkout Verified
+                          </div>
+                          <p className="text-[11px] text-slate-600 leading-snug">
+                            Base package (
+                            {data.step1.incorporationOrder.currency === 'GBP'
+                              ? '£'
+                              : '€'}
+                            {data.step1.incorporationOrder.basePriceAmount})
+                            {data.step1.incorporationOrder.selectedAddons
+                              ?.length > 0
+                              ? ` + ${data.step1.incorporationOrder.selectedAddons.length} add-on(s)`
+                              : ''}{' '}
+                            paid in full.
+                          </p>
+                        </div>
+
+                        {/* Stage 2: Dossier Sent to Partner */}
+                        <div className="rounded-xl border border-emerald-200 bg-white p-3.5 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                              Stage 2 • Partner Filing
+                            </span>
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          </div>
+                          <div className="text-xs font-bold text-slate-900">
+                            Dossier Emailed to Formation Desk
+                          </div>
+                          <p className="text-[11px] text-slate-600 leading-snug">
+                            Dispatched to{' '}
+                            <span className="font-mono text-[10px] text-indigo-700">
+                              {data.step1.incorporationOrder.recipientEmail}
+                            </span>{' '}
+                            (CC: {data.step1.incorporationOrder.founderEmail}).
+                          </p>
+                        </div>
+
+                        {/* Stage 3: Enter Official CRO / Companies House Number Once Issued */}
+                        <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-3.5 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+                              Stage 3 • Final Step
+                            </span>
+                            {data.step1.registrationNumber.trim() ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            ) : (
+                              <Clock className="h-4 w-4 text-indigo-600" />
+                            )}
+                          </div>
+                          <div className="text-xs font-bold text-slate-900">
+                            Record Official{' '}
+                            {normalizedCountry === 'IE' ? 'CRO' : 'CRN'} Number
+                          </div>
+                          <p className="text-[11px] text-slate-600 leading-snug">
+                            Once {data.step1.incorporationOrder.partnerName}{' '}
+                            emails your Certificate of Incorporation, paste your
+                            number below:
+                          </p>
+                          <div className="flex gap-1.5 pt-1">
+                            <Input
+                              value={data.step1.registrationNumber}
+                              onChange={(e) =>
+                                setData({
+                                  ...data,
+                                  step1: {
+                                    ...data.step1,
+                                    registrationNumber: e.target.value,
+                                  },
+                                })
+                              }
+                              placeholder={
+                                normalizedCountry === 'IE'
+                                  ? 'CRO # e.g. 748291'
+                                  : 'CRN # e.g. 15293841'
+                              }
+                              className="h-8 bg-white font-mono text-base sm:text-xs"
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={!data.step1.registrationNumber.trim()}
+                              onClick={() =>
+                                setData({
+                                  ...data,
+                                  step1: {
+                                    ...data.step1,
+                                    state: 'ALREADY_HAVE',
+                                    registeredEntityName:
+                                      data.step1.registeredEntityName.trim() ||
+                                      data.step1.incorporationOrder
+                                        ?.companyChoice1 ||
+                                      plan.title ||
+                                      'Registered LTD',
+                                    registrationDate:
+                                      data.step1.registrationDate ||
+                                      new Date().toISOString().slice(0, 10),
+                                  },
+                                })
+                              }
+                              className="h-8 shrink-0 bg-emerald-600 hover:bg-emerald-700 px-2.5 text-[11px] font-bold text-white"
+                            >
+                              Save &amp; Complete
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Partner Slot Hook */}
                   <PartnerSlot
                     slot="OPS_STEP_1_INCORPORATION"
@@ -794,7 +970,19 @@ export function ModuleGWorkspace({
                     oneLinerSummary={plan.oneLinerSummary || plan.elevatorPitch}
                     founderEmail={data.step2.officialBusinessEmail}
                     title="Recommended Incorporation Registrars & Formation Concierges"
-                    description="Incorporate directly via the official government portal or request a Warm Intro to a trusted formation concierge to handle your company secretarial records."
+                    description="Pay a fixed package price via Stripe, complete our 60-second formation questionnaire, and we automatically dispatch your paid incorporation order to our vetted partner desk."
+                    onPaidConciergeOrderSubmitted={(orderSummary) => {
+                      setData((prev) => ({
+                        ...prev,
+                        step1: {
+                          ...prev.step1,
+                          registeredEntityName:
+                            prev.step1.registeredEntityName.trim() ||
+                            orderSummary.companyChoice1,
+                          incorporationOrder: orderSummary,
+                        },
+                      }));
+                    }}
                   />
                 </div>
               )}
@@ -1076,8 +1264,15 @@ export function ModuleGWorkspace({
                   <div className="space-y-3 pt-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                       {domainCheckResults.map((item) => {
-                        const isAvailable = item.status === 'AVAILABLE';
+                        const isAvailable =
+                          item.status === 'AVAILABLE' || item.available === true;
                         const isSelected = selectedDomainForClaim === item.domain;
+                        const reasonText =
+                          item.reason ||
+                          item.notes ||
+                          (isAvailable
+                            ? 'Available to claim'
+                            : 'Active DNS records detected (Already registered)');
                         return (
                           <div
                             key={item.domain}
@@ -1108,7 +1303,7 @@ export function ModuleGWorkspace({
                                 </Badge>
                               </div>
                               <p className="mt-1 text-[10px] text-slate-500 leading-snug">
-                                {item.reason}
+                                {reasonText}
                               </p>
                             </div>
 

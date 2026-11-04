@@ -113,6 +113,41 @@ export default function OnboardingPage() {
     if (session?.user?.name) {
       setFounderName(session.user.name);
     }
+
+    if (typeof window !== 'undefined') {
+      const cookieMatch = document.cookie.match(/(?:^|;\s*)spf_region=([^;]+)/);
+      const savedRegion = (
+        cookieMatch?.[1] ||
+        window.localStorage.getItem('spf_region') ||
+        ''
+      )
+        .trim()
+        .toUpperCase();
+
+      const validCodes: SupportedCountryCode[] = [
+        'IE',
+        'GB',
+        'US',
+        'AU',
+        'CA',
+        'EU',
+        'ROW',
+      ];
+      if (validCodes.includes(savedRegion as SupportedCountryCode)) {
+        const code = savedRegion as SupportedCountryCode;
+        setHqCountryCode(code);
+        const defaultCityMap: Record<SupportedCountryCode, string> = {
+          IE: 'Dublin',
+          GB: 'London',
+          US: 'Austin, TX',
+          AU: 'Sydney',
+          CA: 'Toronto',
+          EU: 'Amsterdam',
+          ROW: 'Global',
+        };
+        setRegionOrCounty(defaultCityMap[code]);
+      }
+    }
   }, []);
 
   const countryPack = getCountryRulePack(hqCountryCode);
