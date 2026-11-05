@@ -33,6 +33,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BrandLogo } from '@/components/ui/brand-logo';
 import { Badge } from '@/components/ui/badge';
 import { clearActiveBmuSession } from '@/lib/auth/session-store';
 import { logoutFounderAction } from '@/app/actions/auth';
@@ -340,12 +341,7 @@ export function LandingPageExperience({
             href={edition === 'IE' ? '/ie' : edition === 'UK' ? '/uk' : '/'}
             className="flex shrink-0 items-center gap-2.5"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white shadow-2xs">
-              <Sparkles className="h-4 w-4 text-indigo-400" />
-            </div>
-            <span className="text-[15px] font-bold tracking-tight text-slate-900">
-              Startup Preflight
-            </span>
+            <BrandLogo variant="full" size="sm" theme="light" />
           </Link>
 
           {/* Center: Modern Floating Pill Nav (Desktop) */}
@@ -1659,12 +1655,7 @@ export function LandingPageExperience({
           <div className="grid grid-cols-1 gap-8 md:grid-cols-12">
             <div className="md:col-span-5">
               <div className="flex flex-wrap items-center gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <span className="text-sm font-bold text-white">
-                  Startup Preflight
-                </span>
+                <BrandLogo variant="full" size="sm" theme="dark" />
               </div>
               <p className="mt-2.5 max-w-sm text-xs leading-relaxed text-slate-400">
                 The Supportive AI Co-Founder, Customer Validation &amp;

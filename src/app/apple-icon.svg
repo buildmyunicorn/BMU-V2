@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" width="180" height="180">
+  <defs>
+    <linearGradient id="apple-bg" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="apple-top" x1="41" y1="75" x2="146" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="50%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="apple-bot" x1="86" y1="101" x2="146" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#312E81"/>
+      <stop offset="50%" stop-color="#3730A3"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+    <linearGradient id="apple-keel" x1="86" y1="101" x2="146" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="60%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <linearGradient id="apple-orbit" x1="22" y1="154" x2="101" y2="105" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.3"/>
+      <stop offset="50%" stop-color="#0EA5E9" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="1"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="180" height="180" rx="40" fill="url(#apple-bg)"/>
+  <rect width="176" height="176" x="2" y="2" rx="38" stroke="#312E81" stroke-width="2" stroke-opacity="0.5"/>
+
+  <!-- Centered Scaled Mark (scale ~3.75x) -->
+  <g transform="translate(17, 17) scale(3.05)">
+    <path d="M 6 40 C 10 42, 17 41, 23 35 C 26 32, 28 28, 27 25" stroke="url(#apple-orbit)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <path d="M 7 34 C 11 35, 16 33, 20 28" stroke="url(#apple-orbit)" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+    <path d="M 39 9 L 11 20 L 23 27 Z" fill="url(#apple-top)"/>
+    <path d="M 39 9 L 23 27 L 29 37 Z" fill="url(#apple-bot)"/>
+    <path d="M 39 9 L 23 27 L 24.5 25 L 34 14 Z" fill="url(#apple-keel)" opacity="0.95"/>
+    <path d="M 23 27 L 20 30 L 22 26 Z" fill="#06B6D4" opacity="0.85"/>
+    <circle cx="39" cy="9" r="1.6" fill="#FFFFFF"/>
+    <circle cx="39" cy="9" r="3" stroke="#38BDF8" stroke-width="0.8" opacity="0.9" fill="none"/>
+  </g>
+</svg>

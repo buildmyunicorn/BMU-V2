@@ -11,6 +11,7 @@ import {
   LogIn,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 export const metadata: Metadata = {
   title: 'Terms of Service | Startup Preflight',
@@ -24,23 +25,8 @@ export default function TermsOfServicePage() {
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xs">
-              <Sparkles className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold tracking-tight text-slate-900">
-                  Startup Preflight
-                </span>
-                <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-indigo-700 uppercase ring-1 ring-indigo-200">
-                  Early Access
-                </span>
-              </div>
-              <p className="hidden text-xs text-slate-500 sm:block">
-                Supportive AI Co-Founder &amp; Grant Readiness Builder
-              </p>
-            </div>
+          <Link href="/" className="flex items-center">
+            <BrandLogo variant="full" size="sm" badge="Early Access" theme="light" />
           </Link>
 
           <div className="flex items-center gap-2">

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 export default function AboutFounderPage() {
   const [imageError, setImageError] = useState(false);
@@ -34,13 +35,8 @@ export default function AboutFounderPage() {
       <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           {/* Left: Clean Brand Logo */}
-          <Link href="/" className="group flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-xs transition-transform group-hover:scale-105">
-              <Rocket className="h-4 w-4 text-indigo-400" />
-            </div>
-            <span className="text-base font-extrabold tracking-tight text-slate-900">
-              Startup<span className="text-indigo-600">Preflight</span>
-            </span>
+          <Link href="/" className="group flex items-center">
+            <BrandLogo variant="full" size="sm" theme="light" />
           </Link>
 
           {/* Center: Modern Floating Pill Links */}

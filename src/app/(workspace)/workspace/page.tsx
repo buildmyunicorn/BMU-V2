@@ -57,6 +57,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PreflightMark, BrandLogo } from '@/components/ui/brand-logo';
 import {
   calculateAppSumoTierLimits,
   calculatePassLimits,
@@ -4776,10 +4777,10 @@ export default function WorkspacePage() {
                 clearActiveBmuSession();
                 logoutFounderAction().catch(() => {});
               }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xs hover:opacity-95 sm:h-9 sm:w-9"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 shadow-xs hover:opacity-95 sm:h-9 sm:w-9"
               title="Back to Home"
             >
-              <Sparkles className="h-4 w-4" />
+              <PreflightMark size={24} />
             </Link>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -5108,83 +5109,6 @@ export default function WorkspacePage() {
             </div>
           </button>
 
-          {/* Prominent Left-Sidebar Tile: Business Plan Studio (2.5 Pro Engine) */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsBusinessPlanStudioOpen(true);
-              setIsMasterDocumentOpen(false);
-              setMobileSidebarOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className={`group relative w-full overflow-hidden rounded-xl border p-3.5 text-left transition-all ${
-              isBusinessPlanStudioOpen
-                ? 'border-violet-400 bg-gradient-to-br from-violet-950 via-slate-900 to-indigo-950 text-white shadow-md ring-2 ring-violet-400/50'
-                : 'border-slate-200/90 bg-white hover:border-violet-300 hover:bg-violet-50/20 text-slate-900 shadow-xs'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-2.5">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                    isBusinessPlanStudioOpen
-                      ? 'bg-violet-500 text-white shadow-xs'
-                      : 'bg-violet-100 text-violet-700 group-hover:bg-violet-200'
-                  }`}
-                >
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`text-xs font-extrabold tracking-tight sm:text-sm ${
-                        isBusinessPlanStudioOpen ? 'text-white' : 'text-slate-900'
-                      }`}
-                    >
-                      Business Plan Studio
-                    </span>
-                    <Badge
-                      className={
-                        isBusinessPlanStudioOpen
-                          ? 'border-violet-400/40 bg-violet-500/30 px-1.5 py-0 text-[9px] font-bold text-violet-200'
-                          : 'border-violet-200 bg-violet-100 px-1.5 py-0 text-[9px] font-bold text-violet-700'
-                      }
-                    >
-                      PRO 2.5
-                    </Badge>
-                  </div>
-                  <p
-                    className={`mt-0.5 text-[11px] ${
-                      isBusinessPlanStudioOpen ? 'text-violet-200/90' : 'text-slate-500'
-                    }`}
-                  >
-                    Multi-version grant, loan &amp; angel dossiers
-                  </p>
-                </div>
-              </div>
-              <ArrowRight
-                className={`mt-1 h-4 w-4 shrink-0 transition-transform ${
-                  isBusinessPlanStudioOpen
-                    ? 'translate-x-0.5 text-violet-300'
-                    : 'text-slate-400 group-hover:translate-x-0.5 group-hover:text-violet-600'
-                }`}
-              />
-            </div>
-
-            <div
-              className={`mt-2.5 flex items-center justify-between text-[10px] font-semibold ${
-                isBusinessPlanStudioOpen ? 'text-violet-200/90' : 'text-slate-600'
-              }`}
-            >
-              <span className="flex items-center gap-1">
-                <FileText className={`h-3 w-3 ${isBusinessPlanStudioOpen ? 'text-violet-300' : 'text-violet-600'}`} />
-                {currentPlan.moduleLData?.versions?.length || 1} Plan {(currentPlan.moduleLData?.versions?.length || 1) === 1 ? 'Version' : 'Versions'}
-              </span>
-              <span className={isBusinessPlanStudioOpen ? 'text-violet-200' : 'text-violet-600 font-bold'}>
-                {isBusinessPlanStudioOpen ? 'Studio Active • In Editor' : 'Open Studio →'}
-              </span>
-            </div>
-          </button>
 
           {/* Mobile/Tablet Collapsible Module & Parking Lot Toggle (< lg only) */}
           <button
@@ -5403,7 +5327,7 @@ export default function WorkspacePage() {
                   Business Plan Studio
                 </span>
                 <Badge className="border-violet-300 bg-violet-100 text-[10px] font-bold text-violet-800">
-                  2.5 PRO
+                  MULTI-VERSION
                 </Badge>
               </div>
               <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
@@ -10356,7 +10280,7 @@ export default function WorkspacePage() {
       <footer className="mt-12 border-t border-slate-200 bg-white text-slate-500">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-5 text-xs">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-indigo-600" />
+            <PreflightMark size={16} />
             <span className="font-semibold text-slate-800">
               Startup Preflight
             </span>

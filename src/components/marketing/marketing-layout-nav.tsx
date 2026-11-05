@@ -1,7 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
-import { Sparkles, Globe2, ArrowRight } from 'lucide-react';
+import { Globe2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 export function MarketingHeader({ active = 'grants' }: { active?: string }) {
   return (
@@ -9,12 +10,7 @@ export function MarketingHeader({ active = 'grants' }: { active?: string }) {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         {/* Left: Clean Brand Wordmark */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white shadow-2xs">
-            <Sparkles className="h-4 w-4 text-indigo-400" />
-          </div>
-          <span className="text-[15px] font-bold tracking-tight text-slate-900">
-            Startup Preflight
-          </span>
+          <BrandLogo variant="full" size="sm" theme="light" />
         </Link>
 
         {/* Center: Modern Floating Pill Nav (Desktop) */}
@@ -98,12 +94,7 @@ export function MarketingFooter() {
           {/* Brand Column */}
           <div className="md:col-span-5">
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
-                <Sparkles className="h-3.5 w-3.5" />
-              </div>
-              <span className="text-sm font-bold tracking-tight text-white">
-                Startup Preflight
-              </span>
+              <BrandLogo variant="full" size="sm" theme="dark" />
             </div>
             <p className="mt-3 max-w-sm text-xs leading-relaxed text-slate-400">
               The supportive co-founder &amp; blind-spot engine. Helping early-stage founders transform raw concepts into investor-ready plans, grant applications, and validated startups.

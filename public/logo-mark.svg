@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="48" height="48">
+  <defs>
+    <linearGradient id="spf-top" x1="11" y1="20" x2="39" y2="9" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="50%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="spf-bot" x1="23" y1="27" x2="39" y2="9" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#312E81"/>
+      <stop offset="50%" stop-color="#3730A3"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+    <linearGradient id="spf-keel" x1="23" y1="27" x2="39" y2="9" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="60%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#C7D2FE"/>
+    </linearGradient>
+    <linearGradient id="spf-orbit" x1="6" y1="41" x2="27" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.25"/>
+      <stop offset="50%" stop-color="#0EA5E9" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0.95"/>
+    </linearGradient>
+    <filter id="spf-glow" x="-30%" y="-30%" width="160%" height="160%" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="0.8" result="glow"/>
+      <feComposite in="SourceGraphic" in2="glow" operator="over"/>
+    </filter>
+  </defs>
+
+  <path d="M 6 40 C 10 42, 17 41, 23 35 C 26 32, 28 28, 27 25" stroke="url(#spf-orbit)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M 7 34 C 11 35, 16 33, 20 28" stroke="url(#spf-orbit)" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M 39 9 L 11 20 L 23 27 Z" fill="url(#spf-top)"/>
+  <path d="M 39 9 L 23 27 L 29 37 Z" fill="url(#spf-bot)"/>
+  <path d="M 39 9 L 23 27 L 24.5 25 L 34 14 Z" fill="url(#spf-keel)" opacity="0.95"/>
+  <path d="M 23 27 L 20 30 L 22 26 Z" fill="#06B6D4" opacity="0.85"/>
+  <g filter="url(#spf-glow)">
+    <circle cx="39" cy="9" r="1.5" fill="#FFFFFF"/>
+    <circle cx="39" cy="9" r="2.8" stroke="#38BDF8" stroke-width="0.8" opacity="0.75" fill="none"/>
+  </g>
+</svg>

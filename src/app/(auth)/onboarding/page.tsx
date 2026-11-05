@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PreflightMark } from '@/components/ui/brand-logo';
 import { Badge } from '@/components/ui/badge';
 import {
   loadBmuSession,
@@ -191,9 +192,7 @@ export default function OnboardingPage() {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xs">
-              <Sparkles className="h-6 w-6" />
-            </div>
+            <PreflightMark size={40} />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-slate-900">

@@ -6,6 +6,14 @@ export const metadata: Metadata = {
   title: 'Startup Preflight — Supportive Co-Founder & Blind-Spot Engine',
   description:
     'Turn messy startup ideas into validated, bank-ready, and grant-ready business plans with localized tax, grant, and unit economics intelligence.',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/logo-mark.svg', type: 'image/svg+xml' },
+    ],
+    apple: [{ url: '/apple-icon.svg' }],
+    shortcut: ['/favicon.svg'],
+  },
 };
 
 export default function RootLayout({

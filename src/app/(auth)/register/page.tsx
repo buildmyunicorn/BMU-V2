@@ -23,6 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { BrandLogo } from '@/components/ui/brand-logo';
 import {
   registerNewFounderSession,
   saveBmuSession,
@@ -109,13 +110,8 @@ export default function RegisterPage() {
         <div className="mx-auto grid w-full max-w-5xl grid-cols-1 items-center gap-8 lg:grid-cols-12">
           {/* Left Value Prop Column */}
           <div className="space-y-6 lg:col-span-6">
-            <Link href="/" className="inline-flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xs">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <span className="text-lg font-bold tracking-tight text-slate-900">
-                Startup Preflight
-              </span>
+            <Link href="/" className="inline-flex items-center">
+              <BrandLogo variant="full" size="md" theme="light" />
             </Link>
 
             <div className="space-y-3">

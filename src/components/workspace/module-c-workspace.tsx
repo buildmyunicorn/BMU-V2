@@ -981,25 +981,69 @@ export function ModuleCWorkspace({
 
     setOrderingTierId(tier.id);
     try {
-      const res = await createSurveyBoostCheckoutAction({
+      const payload = {
         planId: plan.id,
         surveyId: currentSurvey.publicSlug || currentSurvey.id,
         tierId: tier.id,
         currency: (plan.baseCurrency || 'EUR') as any,
         targetCountryCode: boostDemographics.countryCode,
-        ageRanges: boostDemographics.ageBracket === 'ALL' ? [] : [boostDemographics.ageBracket],
-        gender: boostDemographics.gender === 'ANY' ? undefined : boostDemographics.gender,
-        employmentStatus: boostDemographics.employment === 'ANY' ? [] : [boostDemographics.employment],
-      });
-      if (res.success && res.checkoutUrl) {
+        ageRanges:
+          boostDemographics.ageBracket === 'ALL'
+            ? []
+            : [boostDemographics.ageBracket],
+        gender:
+          boostDemographics.gender === 'ANY'
+            ? undefined
+            : boostDemographics.gender,
+        employmentStatus:
+          boostDemographics.employment === 'ANY'
+            ? []
+            : [boostDemographics.employment],
+      };
+
+      // 1. Try via direct REST API route first (immune to Server Action ID cache desync during fast refresh)
+      let res: { success: boolean; checkoutUrl?: string; error?: string } | null =
+        null;
+      try {
+        const apiResponse = await fetch('/api/survey-boost/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (apiResponse.ok) {
+          res = await apiResponse.json();
+        }
+      } catch (apiErr) {
+        console.warn(
+          'API checkout route threw, attempting server action fallback:',
+          apiErr
+        );
+      }
+
+      // 2. Fallback to server action if direct API route was not reached
+      if (!res) {
+        res = await createSurveyBoostCheckoutAction(payload);
+      }
+
+      if (res && res.success && res.checkoutUrl) {
         window.location.href = res.checkoutUrl;
       } else {
-        alert(res.error || 'Failed to initiate checkout. Please try again.');
+        alert(
+          res?.error ||
+            'Failed to initiate Stripe checkout. Please refresh the page and try again.'
+        );
         setOrderingTierId(null);
       }
     } catch (err: unknown) {
+      console.error('[handleOrderBoostTier] Checkout error:', err);
       const msg = err instanceof Error ? err.message : String(err);
-      alert(msg || 'An error occurred initiating checkout.');
+      if (msg.includes('Failed to fetch') || msg.includes('fetch')) {
+        alert(
+          'Connection to checkout server was interrupted. Please refresh your browser tab (Cmd+R or F5) to sync with the server and try again.'
+        );
+      } else {
+        alert(msg || 'An error occurred initiating checkout.');
+      }
       setOrderingTierId(null);
     }
   };

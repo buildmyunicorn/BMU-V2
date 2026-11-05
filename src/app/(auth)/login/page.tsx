@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { BrandLogo } from '@/components/ui/brand-logo';
 import {
   getDefaultDemoSession,
   loadBmuSessionForEmail,
@@ -273,13 +274,8 @@ export default function LoginPage() {
       <main className="flex flex-1 flex-col justify-center px-6 py-12">
         <div className="mx-auto w-full max-w-md space-y-6">
           <div className="space-y-2 text-center">
-            <Link href="/" className="inline-flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xs">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <span className="text-xl font-bold tracking-tight text-slate-900">
-                Startup Preflight
-              </span>
+            <Link href="/" className="inline-flex items-center justify-center">
+              <BrandLogo variant="full" size="md" theme="light" />
             </Link>
             <p className="text-xs text-slate-500">
               Sign in to access your Startup Plans and AI Co-Founder Workspace.

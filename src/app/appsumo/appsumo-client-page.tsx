@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
+import { BrandLogo } from '@/components/ui/brand-logo';
 import {
   HeroInteractiveProductShowcase,
   BentoFeatureVisualCards,
@@ -144,13 +145,8 @@ export function AppSumoClientPage() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           {/* Left: Clean Brand Logo + AppSumo Pill */}
           <div className="flex items-center gap-2.5">
-            <Link href="/" className="group flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-xs transition-transform group-hover:scale-105">
-                <Rocket className="h-4 w-4 text-amber-400" />
-              </div>
-              <span className="text-base font-extrabold tracking-tight text-slate-900">
-                Startup<span className="text-indigo-600">Preflight</span>
-              </span>
+            <Link href="/" className="group flex items-center">
+              <BrandLogo variant="full" size="sm" theme="light" />
             </Link>
             <span className="hidden items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-900 sm:inline-flex">
               🌮 AppSumo LTD
@@ -599,7 +595,7 @@ export function AppSumoClientPage() {
                   <li className="flex items-start gap-2.5">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
                     <span>
-                      <strong>Full Module L Pre-Flight Contradiction Audit</strong> (Gemini 2.5 Pro)
+                      <strong>Full Module L Pre-Flight Contradiction Audit</strong>
                     </span>
                   </li>
                   <li className="flex items-start gap-2.5">
@@ -870,12 +866,7 @@ export function AppSumoClientPage() {
           <div className="grid grid-cols-1 gap-8 pb-10 md:grid-cols-4">
             <div className="md:col-span-2">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
-                  <Rocket className="h-4 w-4" />
-                </div>
-                <span className="text-base font-extrabold text-white">
-                  Startup<span className="text-indigo-400">Preflight</span>
-                </span>
+                <BrandLogo variant="full" size="sm" theme="dark" />
               </div>
               <p className="mt-3 max-w-md text-xs leading-relaxed text-slate-400">
                 The Supportive Co-Founder &amp; Blind-Spot Engine. Capture your vision in plain
