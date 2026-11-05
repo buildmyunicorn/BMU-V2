@@ -170,6 +170,7 @@ import {
 import {
   getCurrentCloudSessionAction,
   logoutFounderAction,
+  setActivePlanServerAction,
 } from '@/app/actions/auth';
 import {
   saveMasterDocumentDataAction,
@@ -514,6 +515,10 @@ export default function WorkspacePage() {
   const [isBusinessPlanStudioOpen, setIsBusinessPlanStudioOpen] = useState(false);
   const [hasHydratedLocation, setHasHydratedLocation] = useState(false);
   const hasHydratedLocationRef = useRef(false);
+  const sessionRef = useRef(session);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
   const [pendingModuleAfterUnlock, setPendingModuleAfterUnlock] =
     useState<ModuleCode | null>(null);
   const [planDropdownOpen, setPlanDropdownOpen] = useState(false);
@@ -596,10 +601,34 @@ export default function WorkspacePage() {
   // Hydrate from localStorage first, then sync with Cloud SQL PostgreSQL session cookie if present
   useEffect(() => {
     function applySessionToWorkspace(loaded: BmuLocalSession) {
-      setSession(loaded);
+      let resolvedPlanId = loaded.activePlanId;
+      if (typeof window !== 'undefined') {
+        const searchParams = new URLSearchParams(window.location.search);
+        const urlPlanId = searchParams.get('planId');
+        const storedPlanId = localStorage.getItem('spf_last_active_plan_id');
+        if (urlPlanId && loaded.plans.some((p) => p.id === urlPlanId)) {
+          resolvedPlanId = urlPlanId;
+        } else if (storedPlanId && loaded.plans.some((p) => p.id === storedPlanId)) {
+          resolvedPlanId = storedPlanId;
+        }
+      }
+
       const activePlan =
-        loaded.plans.find((p) => p.id === loaded.activePlanId) || loaded.plans[0];
+        loaded.plans.find((p) => p.id === resolvedPlanId) ||
+        loaded.plans.find((p) => p.id === loaded.activePlanId) ||
+        loaded.plans[0];
+
       if (activePlan) {
+        if (loaded.activePlanId !== activePlan.id) {
+          loaded = { ...loaded, activePlanId: activePlan.id };
+          saveBmuSession(loaded);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('spf_last_active_plan_id', activePlan.id);
+            } catch {}
+          }
+        }
+        setSession(loaded);
         setSelectedCountry(activePlan.hqCountryCode);
         setBrainDumpText(activePlan.brainDumpText ?? '');
         setConceptCanvas(activePlan.conceptCanvas || null);
@@ -1193,15 +1222,53 @@ export default function WorkspacePage() {
               };
             });
 
+            // Determine the intended active plan ID without blindly resetting to the first plan
+            let candidatePlanId = prev.activePlanId;
+            if (typeof window !== 'undefined') {
+              const urlPlanId = new URLSearchParams(window.location.search).get('planId');
+              const storedPlanId = localStorage.getItem('spf_last_active_plan_id');
+              if (urlPlanId && mergedPlans.some((p) => p.id === urlPlanId)) {
+                candidatePlanId = urlPlanId;
+              } else if (prev.activePlanId && mergedPlans.some((p) => p.id === prev.activePlanId)) {
+                candidatePlanId = prev.activePlanId;
+              } else if (storedPlanId && mergedPlans.some((p) => p.id === storedPlanId)) {
+                candidatePlanId = storedPlanId;
+              }
+            }
+
+            if (!candidatePlanId || !mergedPlans.some((p) => p.id === candidatePlanId)) {
+              candidatePlanId =
+                res.session?.activePlanId && mergedPlans.some((p) => p.id === res.session!.activePlanId)
+                  ? res.session.activePlanId
+                  : mergedPlans[0]?.id || '';
+            }
+
             const next: BmuLocalSession = {
               ...res.session!,
               plans: mergedPlans,
+              activePlanId: candidatePlanId,
             };
             saveBmuSession(next);
+            if (typeof window !== 'undefined' && candidatePlanId) {
+              try {
+                localStorage.setItem('spf_last_active_plan_id', candidatePlanId);
+              } catch {}
+            }
             return next;
           });
 
+          // Resolve active plan using the preserved activePlanId rather than hardcoding to res.session.plans[0]
+          const activePlanId =
+            (typeof window !== 'undefined'
+              ? new URLSearchParams(window.location.search).get('planId') ||
+                localStorage.getItem('spf_last_active_plan_id')
+              : null) ||
+            sessionRef.current?.activePlanId ||
+            res.session?.activePlanId;
+
           const dbPlan =
+            res.session.plans.find((p) => p.id === activePlanId) ||
+            sessionRef.current?.plans?.find((p) => p.id === activePlanId) ||
             res.session.plans.find(
               (p) => p.id === res.session?.activePlanId
             ) || res.session.plans[0];
@@ -1248,6 +1315,14 @@ export default function WorkspacePage() {
     if (typeof window === 'undefined') return;
 
     const url = new URL(window.location.href);
+    const activePlanId = session?.activePlanId;
+    if (activePlanId) {
+      url.searchParams.set('planId', activePlanId);
+      try {
+        localStorage.setItem('spf_last_active_plan_id', activePlanId);
+      } catch {}
+    }
+
     if (isDashboardOpen) {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
@@ -1318,16 +1393,157 @@ export default function WorkspacePage() {
     session?.activePlanId,
   ]);
 
+  function handleSelectPlan(planId: string, pushHistory = true) {
+    const currentSession = sessionRef.current || session;
+    const found =
+      currentSession.plans.find((p) => p.id === planId) ||
+      session.plans.find((p) => p.id === planId);
+    if (!found) return;
+
+    const updated: BmuLocalSession = {
+      ...currentSession,
+      activePlanId: found.id,
+    };
+    setSession(updated);
+    saveBmuSession(updated);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('spf_last_active_plan_id', found.id);
+      } catch {}
+    }
+
+    // Persist active plan to user profile in Cloud SQL
+    setActivePlanServerAction(found.id).catch(() => {});
+
+    setSelectedCountry(found.hqCountryCode);
+    setBrainDumpText(found.brainDumpText ?? '');
+    setConceptCanvas(found.conceptCanvas || null);
+    setFounderMotivation(
+      found.founderMotivation || {
+        primaryMotivation: 'LEAVE_JOB',
+        weeklyHoursAvailable: '15_TO_25_HRS',
+        twelveMonthSuccessVision: '',
+      }
+    );
+    setTeamAndBudget(
+      found.teamAndBudget || {
+        teamStructureType:
+          session.user.teamStructure === 'CO_FOUNDERS'
+            ? 'COFOUNDER_TEAM'
+            : session.user.teamStructure === 'LOOKING_FOR_COFOUNDER'
+              ? 'SEEKING_COFOUNDER'
+              : 'SOLO_FOUNDER',
+        skillCoverage: 'BUILD_IN_HOUSE',
+        startingBudgetBracket: '1K_TO_5K',
+        teamAndFundingNotes: '',
+      }
+    );
+    setFounderRealityCheck(
+      found.founderRealityCheck || {
+        industryConnection: 'WARM_CONNECTIONS',
+        personalIncomeUrgency: 'MEDIUM_6_TO_12M',
+        dealbreakers: ['NO_PHYSICAL_PREMISES'],
+        growthTradeoff: 'NON_DILUTIVE_GRANTS',
+        biggestWorryPreset: 'FINDING_FIRST_10',
+        biggestWorryNotes: '',
+      }
+    );
+    setGrantEligibilityCheck(
+      found.grantEligibilityCheck ||
+        getDefaultGrantEligibilityCheck({
+          hqCountryCode: found.hqCountryCode,
+          industryCategory: found.industryCategory,
+          exportPotential: found.exportPotential,
+        })
+    );
+    if (!isGrantCheckerSupportedForCountry(found.hqCountryCode) && openStep === 8) {
+      setOpenStep(7);
+    }
+    setThingsToConsider(found.thingsToConsider || []);
+    setOpenQuestions(found.openQuestions || []);
+    setPlanDropdownOpen(false);
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('planId', found.id);
+
+      // Only determine view from storage or step if user explicitly switched plan (pushHistory = true)
+      if (pushHistory) {
+        const storedPlanView = localStorage.getItem(`spf_active_view_${found.id}`);
+        if (storedPlanView === 'master_doc') {
+          setIsDashboardOpen(false);
+          setIsBusinessPlanStudioOpen(false);
+          setIsMasterDocumentOpen(true);
+          url.searchParams.delete('module');
+          url.searchParams.delete('step');
+          url.searchParams.set('view', 'master_doc');
+        } else if (
+          storedPlanView === 'business_plan_studio' ||
+          storedPlanView === 'bp_studio'
+        ) {
+          setIsDashboardOpen(false);
+          setIsBusinessPlanStudioOpen(true);
+          setIsMasterDocumentOpen(false);
+          url.searchParams.delete('module');
+          url.searchParams.delete('step');
+          url.searchParams.set('view', 'business_plan_studio');
+        } else if (storedPlanView === 'dashboard') {
+          setIsDashboardOpen(true);
+          setIsBusinessPlanStudioOpen(false);
+          setIsMasterDocumentOpen(false);
+          url.searchParams.delete('module');
+          url.searchParams.delete('step');
+          url.searchParams.delete('view');
+        } else {
+          const storedPlanModule = localStorage.getItem(`spf_active_module_${found.id}`);
+          const resolvedStored = resolveModuleFromParam(storedPlanModule);
+          if (resolvedStored) {
+            setIsDashboardOpen(false);
+            setIsBusinessPlanStudioOpen(false);
+            setIsMasterDocumentOpen(false);
+            setActiveModule(resolvedStored);
+            url.searchParams.delete('view');
+            url.searchParams.set('module', resolvedStored);
+          } else {
+            const fromStep = resolveModuleFromStep(found.currentModuleStep);
+            if (fromStep) {
+              setIsDashboardOpen(false);
+              setIsBusinessPlanStudioOpen(false);
+              setIsMasterDocumentOpen(false);
+              setActiveModule(fromStep);
+              url.searchParams.delete('view');
+              url.searchParams.set('module', fromStep);
+            }
+          }
+        }
+        window.history.pushState(null, '', url.toString());
+      } else {
+        window.history.replaceState(null, '', url.toString());
+      }
+    }
+  }
+
   // Handle browser Back / Forward navigation smoothly with step restoration
   useEffect(() => {
     const handlePopState = () => {
       const searchParams = new URLSearchParams(window.location.search);
+      const planIdParam = searchParams.get('planId');
       const viewParam = searchParams.get('view');
       const moduleParam = searchParams.get('module');
       const stepParam = searchParams.get('step');
       const parsedStep = stepParam ? parseInt(stepParam, 10) : undefined;
       const validStep = parsedStep && !isNaN(parsedStep) && parsedStep > 0 ? parsedStep : undefined;
 
+      // 1. If planId in URL differs from current activePlanId, switch plan state without pushing new history
+      if (planIdParam && planIdParam !== sessionRef.current?.activePlanId) {
+        const matchingPlan = sessionRef.current?.plans?.find((p) => p.id === planIdParam);
+        if (matchingPlan) {
+          handleSelectPlan(matchingPlan.id, false);
+        }
+      }
+
+      // 2. Synchronize view / module / step with the popped URL state
       if (viewParam === 'dashboard') {
         setIsDashboardOpen(true);
         setIsBusinessPlanStudioOpen(false);
@@ -1385,6 +1601,10 @@ export default function WorkspacePage() {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
       url.searchParams.delete('view');
+      const activeId = sessionRef.current?.activePlanId || session.activePlanId;
+      if (activeId) {
+        url.searchParams.set('planId', activeId);
+      }
       window.history.pushState(null, '', url.toString());
     }
     setIsDashboardOpen(true);
@@ -1400,6 +1620,10 @@ export default function WorkspacePage() {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
       url.searchParams.set('view', 'master_doc');
+      const activeId = sessionRef.current?.activePlanId || session.activePlanId;
+      if (activeId) {
+        url.searchParams.set('planId', activeId);
+      }
       window.history.pushState(null, '', url.toString());
     }
     setIsDashboardOpen(false);
@@ -1415,6 +1639,10 @@ export default function WorkspacePage() {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
       url.searchParams.set('view', 'business_plan_studio');
+      const activeId = sessionRef.current?.activePlanId || session.activePlanId;
+      if (activeId) {
+        url.searchParams.set('planId', activeId);
+      }
       window.history.pushState(null, '', url.toString());
     }
     setIsDashboardOpen(false);
@@ -1433,6 +1661,10 @@ export default function WorkspacePage() {
         url.searchParams.set('step', String(stepNum));
       } else {
         url.searchParams.delete('step');
+      }
+      const activeId = sessionRef.current?.activePlanId || session.activePlanId;
+      if (activeId) {
+        url.searchParams.set('planId', activeId);
       }
       window.history.pushState(null, '', url.toString());
     }
@@ -1578,87 +1810,7 @@ export default function WorkspacePage() {
   const coFounderCheck = canInviteCollaborator(activeEntitlement, 1);
   const aiCreditCheck = canConsumeAiCredits(activeEntitlement, 1);
 
-  function handleSelectPlan(planId: string) {
-    const found = session.plans.find((p) => p.id === planId);
-    if (!found) return;
-    const updated: BmuLocalSession = {
-      ...session,
-      activePlanId: found.id,
-    };
-    setSession(updated);
-    saveBmuSession(updated);
-    setSelectedCountry(found.hqCountryCode);
-    setBrainDumpText(found.brainDumpText ?? '');
-    setConceptCanvas(found.conceptCanvas || null);
-    setFounderMotivation(
-      found.founderMotivation || {
-        primaryMotivation: 'LEAVE_JOB',
-        weeklyHoursAvailable: '15_TO_25_HRS',
-        twelveMonthSuccessVision: '',
-      }
-    );
-    setTeamAndBudget(
-      found.teamAndBudget || {
-        teamStructureType:
-          session.user.teamStructure === 'CO_FOUNDERS'
-            ? 'COFOUNDER_TEAM'
-            : session.user.teamStructure === 'LOOKING_FOR_COFOUNDER'
-              ? 'SEEKING_COFOUNDER'
-              : 'SOLO_FOUNDER',
-        skillCoverage: 'BUILD_IN_HOUSE',
-        startingBudgetBracket: '1K_TO_5K',
-        teamAndFundingNotes: '',
-      }
-    );
-    setFounderRealityCheck(
-      found.founderRealityCheck || {
-        industryConnection: 'WARM_CONNECTIONS',
-        personalIncomeUrgency: 'MEDIUM_6_TO_12M',
-        dealbreakers: ['NO_PHYSICAL_PREMISES'],
-        growthTradeoff: 'NON_DILUTIVE_GRANTS',
-        biggestWorryPreset: 'FINDING_FIRST_10',
-        biggestWorryNotes: '',
-      }
-    );
-    setGrantEligibilityCheck(
-      found.grantEligibilityCheck ||
-        getDefaultGrantEligibilityCheck({
-          hqCountryCode: found.hqCountryCode,
-          industryCategory: found.industryCategory,
-          exportPotential: found.exportPotential,
-        })
-    );
-    if (!isGrantCheckerSupportedForCountry(found.hqCountryCode) && openStep === 8) {
-      setOpenStep(7);
-    }
-    setThingsToConsider(found.thingsToConsider || []);
-    setOpenQuestions(found.openQuestions || []);
-    setPlanDropdownOpen(false);
 
-    if (typeof window !== 'undefined') {
-      const storedPlanView = localStorage.getItem(
-        `spf_active_view_${found.id}`
-      );
-      if (storedPlanView === 'master_doc') {
-        setIsMasterDocumentOpen(true);
-      } else {
-        const storedPlanModule = localStorage.getItem(
-          `spf_active_module_${found.id}`
-        );
-        const resolvedStored = resolveModuleFromParam(storedPlanModule);
-        if (resolvedStored) {
-          setIsMasterDocumentOpen(false);
-          setActiveModule(resolvedStored);
-        } else {
-          const fromStep = resolveModuleFromStep(found.currentModuleStep);
-          if (fromStep) {
-            setIsMasterDocumentOpen(false);
-            setActiveModule(fromStep);
-          }
-        }
-      }
-    }
-  }
 
   async function handleConfirmDeletePlan() {
     if (!planToDelete || isDeletingPlan) return;

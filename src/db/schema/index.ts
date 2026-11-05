@@ -173,6 +173,7 @@ export const users = pgTable('users', {
       teamStructure?: string;
       primaryHat?: StartupHat;
       regionOrCounty?: string;
+      lastActivePlanId?: string;
     }>()
     .default({}),
   emailVerified: boolean('email_verified').default(false).notNull(),

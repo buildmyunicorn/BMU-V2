@@ -600,8 +600,45 @@ async function buildSessionFromDbUser(
     entitlement,
     redeemedCodes: userVouchers.map((v) => v.code),
     plans: mappedPlans,
-    activePlanId: mappedPlans[0]?.id || '',
+    activePlanId:
+      typeof profile.lastActivePlanId === 'string' &&
+      mappedPlans.some((p) => p.id === profile.lastActivePlanId)
+        ? profile.lastActivePlanId
+        : mappedPlans[0]?.id || '',
   };
+}
+
+/**
+ * Persists the user's active plan selection to their profile in Cloud SQL PostgreSQL.
+ */
+export async function setActivePlanServerAction(planId: string): Promise<void> {
+  try {
+    const cookiePayload = await getServerSessionCookie();
+    if (!cookiePayload || !planId?.trim()) return;
+
+    const [dbUser] = await db
+      .select({ id: users.id, founderProfileJson: users.founderProfileJson })
+      .from(users)
+      .where(eq(users.id, cookiePayload.userId))
+      .limit(1);
+
+    if (!dbUser) return;
+
+    const existingProfile =
+      (dbUser.founderProfileJson as Record<string, unknown>) || {};
+    await db
+      .update(users)
+      .set({
+        founderProfileJson: {
+          ...existingProfile,
+          lastActivePlanId: planId.trim(),
+        },
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, dbUser.id));
+  } catch (err) {
+    console.warn('[SPF Auth] Non-fatal error persisting active plan to DB:', err);
+  }
 }
 
 /**
