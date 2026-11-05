@@ -1216,13 +1216,21 @@ async function ensureSupportTicketsTable(): Promise<void> {
       plan_id text,
       plan_title text,
       reporter_email text,
+      reporter_name text,
+      user_plan_type text,
       title text NOT NULL,
       description text NOT NULL,
       expected_behavior text,
       admin_notes text,
+      device_info text,
+      device_metadata_json jsonb DEFAULT '{}'::jsonb,
       created_at timestamp NOT NULL DEFAULT now(),
       updated_at timestamp NOT NULL DEFAULT now()
     );
+    ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS device_info text;
+    ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS reporter_name text;
+    ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS user_plan_type text;
+    ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS device_metadata_json jsonb DEFAULT '{}'::jsonb;
   `);
   globalForSupportTracker.bmuSupportTicketsTableInitialized = true;
 }
@@ -1243,10 +1251,14 @@ function mapSupportTicketRow(
     planId: r.planId ?? null,
     planTitle: r.planTitle ?? null,
     reporterEmail: r.reporterEmail ?? null,
+    reporterName: r.reporterName ?? null,
+    userPlanType: r.userPlanType ?? null,
     title: r.title,
     description: r.description,
     expectedBehavior: r.expectedBehavior ?? null,
     adminNotes: r.adminNotes ?? null,
+    deviceInfo: r.deviceInfo ?? null,
+    deviceMetadataJson: (r.deviceMetadataJson as Record<string, unknown>) ?? null,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   };

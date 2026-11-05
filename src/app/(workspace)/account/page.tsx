@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
 import {
   Card,
   CardHeader,
@@ -306,8 +307,8 @@ export default function AccountPage() {
   return (
     <div className="min-h-screen bg-slate-50/70 pb-16">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:px-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+      <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:px-8">
+        <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
               href="/workspace"
@@ -323,6 +324,11 @@ export default function AccountPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <GlobalFeedbackButton
+              variant="header-pill"
+              userEmail={profile?.email}
+              userName={profile?.name}
+            />
             <span className="text-xs font-medium text-slate-600 hidden sm:inline">
               {profile?.email}
             </span>

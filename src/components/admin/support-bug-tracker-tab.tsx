@@ -22,6 +22,11 @@ import {
   Wrench,
   Check,
   Filter,
+  Smartphone,
+  Laptop,
+  Tablet,
+  ExternalLink,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,6 +60,8 @@ type StatusFilterSubTab =
   | 'IN_PROGRESS'
   | 'RESOLVED'
   | 'ARCHIVED';
+
+type OriginFilterMode = 'ALL' | 'LIVE_USERS' | 'ADMIN_QA';
 
 type TrackerViewMode = 'LIST' | 'BOARD';
 
@@ -115,6 +122,7 @@ export function SupportBugTrackerTab({
   // Filter & View State
   const [statusTab, setStatusTab] =
     useState<StatusFilterSubTab>('ACTIVE_BACKLOG');
+  const [originFilter, setOriginFilter] = useState<OriginFilterMode>('ALL');
   const [typeFilter, setTypeFilter] = useState<SupportTicketType | 'ALL'>(
     'ALL'
   );
@@ -149,6 +157,18 @@ export function SupportBugTrackerTab({
     const archived = tickets.filter((t) => t.status === 'ARCHIVED').length;
     const activeBacklog = open + inProgress;
 
+    const liveUsersCount = tickets.filter(
+      (t) => t.source === 'FOUNDER_SUPPORT' || t.source === 'PUBLIC_VISITOR'
+    ).length;
+    const activeLiveUsersCount = tickets.filter(
+      (t) =>
+        (t.source === 'FOUNDER_SUPPORT' || t.source === 'PUBLIC_VISITOR') &&
+        (t.status === 'OPEN' || t.status === 'IN_PROGRESS')
+    ).length;
+    const adminQaCount = tickets.filter(
+      (t) => t.source === 'ADMIN_TRACKER'
+    ).length;
+
     const activeItems = tickets.filter(
       (t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS'
     );
@@ -175,12 +195,27 @@ export function SupportBugTrackerTab({
       activeImprovements,
       activeHighCritical,
       founderSupportCount,
+      liveUsersCount,
+      activeLiveUsersCount,
+      adminQaCount,
     };
   }, [tickets]);
 
   // Filter Tickets
   const filteredTickets = useMemo(() => {
     return tickets.filter((t) => {
+      // Origin filter
+      if (
+        originFilter === 'LIVE_USERS' &&
+        t.source !== 'FOUNDER_SUPPORT' &&
+        t.source !== 'PUBLIC_VISITOR'
+      ) {
+        return false;
+      }
+      if (originFilter === 'ADMIN_QA' && t.source !== 'ADMIN_TRACKER') {
+        return false;
+      }
+
       // Status filter (only applied in LIST view; BOARD view shows Open, In Progress, Resolved columns)
       if (viewMode === 'LIST') {
         if (
@@ -216,6 +251,10 @@ export function SupportBugTrackerTab({
           t.adminNotes || '',
           t.stepContext || '',
           t.planTitle || '',
+          t.reporterEmail || '',
+          t.reporterName || '',
+          t.deviceInfo || '',
+          t.pageUrl || '',
           t.moduleScope,
           t.customTypeText || '',
         ]
@@ -476,6 +515,49 @@ export function SupportBugTrackerTab({
     );
   }
 
+  function renderSourceBadge(source?: string | null) {
+    if (source === 'FOUNDER_SUPPORT') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 shadow-2xs">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+          LIVE FOUNDER
+        </span>
+      );
+    }
+    if (source === 'PUBLIC_VISITOR') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 shadow-2xs">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          PUBLIC VISITOR
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+        <Wrench className="h-3 w-3" />
+        ADMIN QA
+      </span>
+    );
+  }
+
+  function renderDeviceBadge(deviceInfo?: string | null) {
+    if (!deviceInfo) return null;
+    const isMobile = deviceInfo.includes('Mobile');
+    const isTablet = deviceInfo.includes('Tablet');
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-mono text-slate-700">
+        {isMobile ? (
+          <Smartphone className="h-3 w-3 text-indigo-600 shrink-0" />
+        ) : isTablet ? (
+          <Tablet className="h-3 w-3 text-indigo-600 shrink-0" />
+        ) : (
+          <Laptop className="h-3 w-3 text-indigo-600 shrink-0" />
+        )}
+        <span className="truncate max-w-[240px] sm:max-w-md">{deviceInfo}</span>
+      </span>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* 4 KPI Summary Cards */}
@@ -543,24 +625,24 @@ export function SupportBugTrackerTab({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Founder Support Queue
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
+                Live User Reports
               </span>
-              <MessageSquare className="h-4 w-4 text-amber-500" />
+              <MessageSquare className="h-4 w-4 text-emerald-600" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-bold text-slate-900">
-                {counts.founderSupportCount}
+                {counts.liveUsersCount}
               </span>
-              <Badge variant="secondary" className="text-[10px]">
-                Phase 2 Ready
+              <Badge className="border-emerald-300 bg-emerald-100 text-[10px] text-emerald-800">
+                {counts.activeLiveUsersCount} Active
               </Badge>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Ready for founder support &amp; mentor escalations
+            <p className="mt-1 text-xs text-slate-600">
+              {counts.adminQaCount} Internal QA backlog items
             </p>
           </CardContent>
         </Card>
@@ -845,51 +927,91 @@ export function SupportBugTrackerTab({
 
           {/* Filter & Search Bar */}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            {/* Status Sub-Tabs (visible in List mode) */}
-            {viewMode === 'LIST' ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {(
-                  [
-                    {
-                      id: 'ACTIVE_BACKLOG',
-                      label: `Active Backlog (${counts.activeBacklog})`,
-                    },
-                    { id: 'OPEN', label: `Open (${counts.open})` },
-                    {
-                      id: 'IN_PROGRESS',
-                      label: `In Progress (${counts.inProgress})`,
-                    },
-                    {
-                      id: 'RESOLVED',
-                      label: `Resolved (${counts.resolved})`,
-                    },
-                    {
-                      id: 'ARCHIVED',
-                      label: `Archived (${counts.archived})`,
-                    },
-                  ] as Array<{ id: StatusFilterSubTab; label: string }>
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setStatusTab(tab.id)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      statusTab === tab.id
-                        ? 'bg-indigo-600 text-white shadow-2xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+            {/* Origin & Status Sub-Tabs */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Origin Mode Switcher */}
+              <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setOriginFilter('ALL')}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    originFilter === 'ALL'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All ({tickets.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOriginFilter('LIVE_USERS')}
+                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    originFilter === 'LIVE_USERS'
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : 'text-emerald-800 hover:bg-emerald-50'
+                  }`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Live Users ({counts.liveUsersCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOriginFilter('ADMIN_QA')}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    originFilter === 'ADMIN_QA'
+                      ? 'bg-violet-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Admin QA ({counts.adminQaCount})
+                </button>
               </div>
-            ) : (
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                <Filter className="h-3.5 w-3.5 text-indigo-600" />
-                Kanban Board View: Drag-free 1-click status transitions across
-                Open, In Progress, and Resolved
-              </div>
-            )}
+
+              {/* Status Sub-Tabs (visible in List mode) */}
+              {viewMode === 'LIST' ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {(
+                    [
+                      {
+                        id: 'ACTIVE_BACKLOG',
+                        label: `Active Backlog (${counts.activeBacklog})`,
+                      },
+                      { id: 'OPEN', label: `Open (${counts.open})` },
+                      {
+                        id: 'IN_PROGRESS',
+                        label: `In Progress (${counts.inProgress})`,
+                      },
+                      {
+                        id: 'RESOLVED',
+                        label: `Resolved (${counts.resolved})`,
+                      },
+                      {
+                        id: 'ARCHIVED',
+                        label: `Archived (${counts.archived})`,
+                      },
+                    ] as Array<{ id: StatusFilterSubTab; label: string }>
+                  ).map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setStatusTab(tab.id)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
+                        statusTab === tab.id
+                          ? 'bg-indigo-600 text-white shadow-2xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                  <Filter className="h-3.5 w-3.5 text-indigo-600" />
+                  Kanban Board View
+                </div>
+              )}
+            </div>
 
             {/* Module, Type & Text Search Filters */}
             <div className="flex flex-wrap items-center gap-2">
@@ -962,6 +1084,7 @@ export function SupportBugTrackerTab({
                   {/* Left Details Column */}
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
+                      {renderSourceBadge(ticket.source)}
                       {renderStatusBadge(ticket.status)}
                       {renderPriorityBadge(ticket.priority)}
                       {renderTypeBadge(ticket)}
@@ -972,14 +1095,55 @@ export function SupportBugTrackerTab({
                       </span>
 
                       {ticket.planTitle && (
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] text-slate-500">
                           Plan: <strong>{ticket.planTitle}</strong>
                         </span>
+                      )}
+
+                      {ticket.pageUrl && (
+                        <a
+                          href={ticket.pageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-mono text-indigo-600 hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          {ticket.pageUrl}
+                        </a>
                       )}
 
                       <span className="text-[11px] text-slate-400">
                         • Logged {new Date(ticket.createdAt).toLocaleString()}
                       </span>
+                    </div>
+
+                    {/* Reporter & Device Telemetry Bar */}
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                      {ticket.reporterEmail && (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-700 shadow-2xs">
+                          <User className="h-3 w-3 text-slate-400" />
+                          {ticket.reporterName ? (
+                            <strong className="text-slate-900">
+                              {ticket.reporterName}
+                            </strong>
+                          ) : null}
+                          <a
+                            href={`mailto:${ticket.reporterEmail}`}
+                            className="text-indigo-600 hover:underline"
+                          >
+                            {ticket.reporterEmail}
+                          </a>
+                          {ticket.userPlanType && (
+                            <Badge
+                              variant="secondary"
+                              className="ml-1 px-1.5 py-0 text-[9px]"
+                            >
+                              {ticket.userPlanType}
+                            </Badge>
+                          )}
+                        </span>
+                      )}
+                      {renderDeviceBadge(ticket.deviceInfo)}
                     </div>
 
                     <h3 className="text-sm font-bold text-slate-900">
@@ -1173,15 +1337,18 @@ export function SupportBugTrackerTab({
                             className="space-y-2.5 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition-shadow hover:shadow-sm"
                           >
                             <div className="flex flex-wrap items-center justify-between gap-1.5">
-                              {renderPriorityBadge(ticket.priority)}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {renderSourceBadge(ticket.source)}
+                                {renderPriorityBadge(ticket.priority)}
+                              </div>
                               {renderTypeBadge(ticket)}
                             </div>
 
-                            <div className="text-[11px] font-semibold text-indigo-700">
-                              {getModuleScopeLabel(ticket.moduleScope)}
-                              {ticket.stepContext
-                                ? ` • ${ticket.stepContext}`
-                                : ''}
+                            <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-indigo-700">
+                              <span>{getModuleScopeLabel(ticket.moduleScope)}</span>
+                              {ticket.stepContext ? (
+                                <span className="text-slate-500">• {ticket.stepContext}</span>
+                              ) : null}
                             </div>
 
                             <h4 className="text-xs font-bold text-slate-900">
@@ -1191,6 +1358,17 @@ export function SupportBugTrackerTab({
                             <p className="line-clamp-3 whitespace-pre-line text-xs text-slate-600">
                               {ticket.description}
                             </p>
+
+                            {/* Telemetry info row */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              {renderDeviceBadge(ticket.deviceInfo)}
+                              {ticket.reporterEmail ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                                  <User className="h-3 w-3 text-slate-400" />
+                                  <span className="truncate max-w-[130px]">{ticket.reporterEmail}</span>
+                                </span>
+                              ) : null}
+                            </div>
 
                             {ticket.adminNotes && (
                               <div className="rounded-md bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900">
@@ -1298,6 +1476,29 @@ export function SupportBugTrackerTab({
             </div>
 
             <div className="mt-4 space-y-4">
+              {/* Origin & Telemetry Summary Banner */}
+              <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-xs space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  {renderSourceBadge(editingTicket.source)}
+                  {renderDeviceBadge(editingTicket.deviceInfo)}
+                  {editingTicket.reporterEmail && (
+                    <span className="text-slate-600 font-medium">
+                      Reporter: <strong className="text-slate-900">{editingTicket.reporterName ? `${editingTicket.reporterName} (${editingTicket.reporterEmail})` : editingTicket.reporterEmail}</strong>
+                    </span>
+                  )}
+                  {editingTicket.userPlanType && (
+                    <span className="text-[11px] text-slate-500">
+                      Tier: {editingTicket.userPlanType}
+                    </span>
+                  )}
+                </div>
+                {editingTicket.pageUrl && (
+                  <div className="text-[11px] text-slate-500 truncate">
+                    Page URL: <a href={editingTicket.pageUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">{editingTicket.pageUrl}</a>
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <Label className="mb-1 block text-xs font-semibold">

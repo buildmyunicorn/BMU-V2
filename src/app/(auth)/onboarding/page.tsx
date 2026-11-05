@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PreflightMark } from '@/components/ui/brand-logo';
 import { Badge } from '@/components/ui/badge';
+import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
 import {
   loadBmuSession,
   saveBmuSession,
@@ -225,6 +226,8 @@ export default function OnboardingPage() {
               </p>
             </div>
           </div>
+
+          <GlobalFeedbackButton variant="header-pill" userName={founderName} />
         </div>
 
         <form onSubmit={handleCompleteOnboarding} className="space-y-6">

@@ -271,7 +271,7 @@ import {
   saveModuleLPartialDataAction,
 } from '@/app/actions/module-l';
 import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
-import { LocalBugCaptureWidget } from '@/components/workspace/local-bug-capture-widget';
+import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 import {
   buildModuleAMarkdownBrief,
@@ -5210,8 +5210,8 @@ export default function WorkspacePage() {
         </div>
       )}
       {/* Clean Production Top Navigation Bar with Google Cloud-Style Project Switcher */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur no-print print:hidden">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
+      <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/95 backdrop-blur no-print print:hidden">
+        <div className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4 sm:px-6 sm:py-3 lg:px-8">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -5522,12 +5522,14 @@ export default function WorkspacePage() {
               </Badge>
             </div>
 
-            <LocalBugCaptureWidget
+            <GlobalFeedbackButton
+              variant="header-pill"
               activeModule={activeModule}
               activeStepContext={currentPlan.currentModuleStep}
               planId={currentPlan.id}
               planTitle={currentPlan.title}
               userEmail={session.user.email}
+              userName={session.user.name}
             />
 
             <Link href="/account" title="My Account & Billing">

@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
 import {
   loadPublicSurveyFromLocalRegistry,
   appendResponseToLocalRegistryAndSession,
@@ -423,20 +424,28 @@ export default function PublicValidationSurveyPage() {
 
         {/* Survey Header Card */}
         <div className=" rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-md sm:p-8">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="border-indigo-400/40 bg-indigo-500/30 text-[11px] text-indigo-100">
-              Customer Discovery &amp; Feedback
-            </Badge>
-            {survey.isPublished ? (
-              <Badge className="border-emerald-400/40 bg-emerald-500/25 text-[11px] text-emerald-100">
-                <Lock className="mr-1 h-3 w-3" />
-                Verified &amp; Locked Questions
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-[11px] text-indigo-100">
+                Customer Discovery &amp; Feedback
               </Badge>
-            ) : (
-              <Badge className="border-amber-400/40 bg-amber-500/25 text-[11px] text-amber-100">
-                Draft Preview Mode
-              </Badge>
-            )}
+              {survey.isPublished ? (
+                <Badge className="border-emerald-400/40 bg-emerald-500/25 text-[11px] text-emerald-100">
+                  <Lock className="mr-1 h-3 w-3" />
+                  Verified &amp; Locked Questions
+                </Badge>
+              ) : (
+                <Badge className="border-amber-400/40 bg-amber-500/25 text-[11px] text-amber-100">
+                  Draft Preview Mode
+                </Badge>
+              )}
+            </div>
+
+            <GlobalFeedbackButton
+              variant="header-pill"
+              activeModule="MOD_C_SURVEYS_FEEDBACK"
+              activeStepContext={`Public Survey: ${survey.title || cleanSlug}`}
+            />
           </div>
           <h1 className="mt-2.5 text-xl font-bold tracking-tight sm:text-2xl">
             {survey.title || 'Quick Customer Feedback Survey'}

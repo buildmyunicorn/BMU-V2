@@ -3,11 +3,12 @@ import Link from 'next/link';
 import { Globe2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
 
 export function MarketingHeader({ active = 'grants' }: { active?: string }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
+      <div className="flex h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-12">
         {/* Left: Clean Brand Wordmark */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <BrandLogo variant="full" size="sm" theme="light" />
@@ -65,6 +66,7 @@ export function MarketingHeader({ active = 'grants' }: { active?: string }) {
 
         {/* Right: Auth Actions */}
         <div className="flex items-center gap-2">
+          <GlobalFeedbackButton variant="nav-link" />
           <Link
             href="/login"
             className="hidden px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:text-slate-900 sm:inline-block"

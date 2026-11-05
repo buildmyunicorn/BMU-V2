@@ -35,6 +35,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { Badge } from '@/components/ui/badge';
+import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
 import { clearActiveBmuSession } from '@/lib/auth/session-store';
 import { logoutFounderAction } from '@/app/actions/auth';
 import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
@@ -332,8 +333,8 @@ export function LandingPageExperience({
       <StripeSandboxBadge />
 
       {/* Clean, Single-Bar Modern SaaS Navbar */}
-      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <header className="sticky top-0 z-40 w-full border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
+        <div className="flex h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-12">
           {/* Left: Clean Brand Wordmark */}
           <Link
             href={edition === 'IE' ? '/ie' : edition === 'UK' ? '/uk' : '/'}
@@ -437,6 +438,8 @@ export function LandingPageExperience({
               </Link>
             </div>
 
+            <GlobalFeedbackButton variant="nav-link" />
+
             <Link
               href="/login"
               onClick={() => {
@@ -524,6 +527,9 @@ export function LandingPageExperience({
               >
                 Meet the Founder
               </Link>
+              <div className="px-3 py-1">
+                <GlobalFeedbackButton variant="nav-link" />
+              </div>
               <Link
                 href="/login"
                 onClick={() => {

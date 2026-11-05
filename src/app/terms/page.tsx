@@ -27,8 +27,8 @@ export default function TermsOfServicePage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
+      <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="flex w-full items-center justify-between gap-3 px-4 py-3.5 sm:px-6 lg:px-8 xl:px-12">
           <Link href="/" className="flex items-center">
             <BrandLogo variant="full" size="sm" badge="Early Access" theme="light" />
           </Link>

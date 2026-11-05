@@ -3223,7 +3223,7 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {isSurveyStudioOpen && activeSurvey && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-2 backdrop-blur-xs sm:p-4 lg:p-6">
-          <div className="relative flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-indigo-200 bg-slate-50 shadow-2xl">
+          <div className="relative flex max-h-[94vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-indigo-200 bg-slate-50 shadow-2xl">
             {/* STUDIO STICKY TOP HEADER BAR */}
             <div className="border-b border-slate-200 bg-white px-4 py-3.5 shadow-2xs sm:px-6">
               <div className="flex flex-wrap items-center justify-between gap-3">

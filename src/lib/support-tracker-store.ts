@@ -1,4 +1,7 @@
-export type SupportTicketSource = 'ADMIN_TRACKER' | 'FOUNDER_SUPPORT';
+export type SupportTicketSource =
+  | 'ADMIN_TRACKER'
+  | 'FOUNDER_SUPPORT'
+  | 'PUBLIC_VISITOR';
 
 export type SupportTicketType =
   | 'BUG'
@@ -46,10 +49,14 @@ export interface SupportTicketRecord {
   planId: string | null;
   planTitle: string | null;
   reporterEmail: string | null;
+  reporterName?: string | null;
+  userPlanType?: string | null;
   title: string;
   description: string;
   expectedBehavior: string | null;
   adminNotes: string | null;
+  deviceInfo?: string | null;
+  deviceMetadataJson?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -256,6 +263,25 @@ export function formatSupportTicketAsAiPrompt(
     }`,
   ];
 
+  if (ticket.source) {
+    const originLabel =
+      ticket.source === 'FOUNDER_SUPPORT'
+        ? 'LIVE REGISTERED FOUNDER'
+        : ticket.source === 'PUBLIC_VISITOR'
+          ? 'PUBLIC VISITOR'
+          : 'INTERNAL ADMIN QA';
+    lines.push(`- **Origin:** ${originLabel}`);
+  }
+  if (ticket.reporterEmail) {
+    lines.push(
+      `- **Reporter:** ${ticket.reporterName ? `${ticket.reporterName} <${ticket.reporterEmail}>` : ticket.reporterEmail}${
+        ticket.userPlanType ? ` (${ticket.userPlanType})` : ''
+      }`
+    );
+  }
+  if (ticket.deviceInfo) {
+    lines.push(`- **Device & Environment:** ${ticket.deviceInfo}`);
+  }
   if (ticket.pageUrl) {
     lines.push(`- **Route / URL:** ${ticket.pageUrl}`);
   }
