@@ -49,12 +49,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
-      url: `${BASE_URL}/pricing`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
       url: `${BASE_URL}/about-founder`,
       lastModified: now,
       changeFrequency: 'monthly',
@@ -92,12 +86,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  let activeGrants: { slug: string; countryCode: string; updatedAt: Date | null }[] = [];
+  let activeDbGrants: { slug: string; countryCode: string; updatedAt: Date | null }[] = [];
 
   try {
     await ensureDefaultGrantsSeededInDb();
 
-    activeGrants = await db
+    activeDbGrants = await db
       .select({
         slug: grantsDirectory.slug,
         countryCode: grantsDirectory.countryCode,
@@ -109,15 +103,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('[Sitemap] Error querying grants catalog for sitemap:', err);
   }
 
-  if (activeGrants.length === 0) {
-    activeGrants = getFallbackGrantRecords().map((g) => ({
-      slug: g.slug,
-      countryCode: g.countryCode,
-      updatedAt: g.updatedAt,
-    }));
+  // Combine seed fallback catalog and live DB records by slug to guarantee 100% comprehensive coverage
+  const grantMap = new Map<string, { slug: string; countryCode: string; updatedAt: Date | null }>();
+
+  // 1. Seed with default code catalog
+  for (const fallback of getFallbackGrantRecords()) {
+    grantMap.set(fallback.slug.trim(), {
+      slug: fallback.slug.trim(),
+      countryCode: fallback.countryCode.trim(),
+      updatedAt: fallback.updatedAt,
+    });
   }
 
-  const grantRoutes: MetadataRoute.Sitemap = activeGrants.flatMap((grant) => {
+  // 2. Overwrite / augment with live active DB grants (including newer timestamps and admin additions)
+  for (const dbGrant of activeDbGrants) {
+    if (dbGrant.slug) {
+      grantMap.set(dbGrant.slug.trim(), {
+        slug: dbGrant.slug.trim(),
+        countryCode: (dbGrant.countryCode || 'IE').trim(),
+        updatedAt: dbGrant.updatedAt,
+      });
+    }
+  }
+
+  const allGrants = Array.from(grantMap.values());
+
+  const grantRoutes: MetadataRoute.Sitemap = allGrants.flatMap((grant) => {
     const countrySegment = grant.countryCode.toLowerCase();
     const lastMod = grant.updatedAt || now;
     return [

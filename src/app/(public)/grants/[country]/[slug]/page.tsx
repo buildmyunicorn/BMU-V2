@@ -42,6 +42,17 @@ interface GrantPageProps {
 
 // Generate static params for active grants to pre-render for top-tier SEO
 export async function generateStaticParams() {
+  const paramsMap = new Map<string, { country: string; slug: string }>();
+
+  // 1. Seed fallback records
+  for (const fallback of getFallbackGrantRecords()) {
+    paramsMap.set(fallback.slug, {
+      country: fallback.countryCode.toLowerCase(),
+      slug: fallback.slug,
+    });
+  }
+
+  // 2. Augment with active DB grants
   try {
     const grants = await db
       .select({
@@ -51,26 +62,25 @@ export async function generateStaticParams() {
       .from(grantsDirectory)
       .where(eq(grantsDirectory.status, 'ACTIVE'));
 
-    if (grants.length > 0) {
-      return grants.map((g) => ({
-        country: g.countryCode.toLowerCase(),
-        slug: g.slug,
-      }));
+    for (const g of grants) {
+      if (g.slug) {
+        paramsMap.set(g.slug, {
+          country: (g.countryCode || 'IE').toLowerCase(),
+          slug: g.slug,
+        });
+      }
     }
   } catch (err) {
     console.error('[generateStaticParams] Failed to prefetch grant routes:', err);
   }
 
-  return getFallbackGrantRecords().map((g) => ({
-    country: g.countryCode.toLowerCase(),
-    slug: g.slug,
-  }));
+  return Array.from(paramsMap.values());
 }
 
 // Generate Rich SEO Metadata for Google
 export async function generateMetadata({ params }: GrantPageProps): Promise<Metadata> {
   const { country, slug } = await params;
-  const countryCodeUpper = country.toUpperCase();
+  const countryCodeUpper = country.toUpperCase() === 'UK' ? 'GB' : country.toUpperCase();
 
   try {
     let grant = await db.query.grantsDirectory.findFirst({
@@ -82,9 +92,18 @@ export async function generateMetadata({ params }: GrantPageProps): Promise<Meta
     });
 
     if (!grant) {
+      grant = await db.query.grantsDirectory.findFirst({
+        where: and(
+          eq(grantsDirectory.slug, slug),
+          eq(grantsDirectory.status, 'ACTIVE')
+        ),
+      });
+    }
+
+    if (!grant) {
       grant = getFallbackGrantRecords().find(
-        (g) => g.slug === slug && g.countryCode === countryCodeUpper
-      );
+        (g) => g.slug === slug && (g.countryCode === countryCodeUpper || countryCodeUpper === 'UK')
+      ) || getFallbackGrantRecords().find((g) => g.slug === slug);
     }
 
     if (!grant) {
@@ -131,7 +150,7 @@ export async function generateMetadata({ params }: GrantPageProps): Promise<Meta
 
 export default async function GrantDetailPage({ params }: GrantPageProps) {
   const { country, slug } = await params;
-  const countryCodeUpper = country.toUpperCase();
+  const countryCodeUpper = country.toUpperCase() === 'UK' ? 'GB' : country.toUpperCase();
 
   let grant: typeof grantsDirectory.$inferSelect | undefined;
 
@@ -145,14 +164,23 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
         eq(grantsDirectory.status, 'ACTIVE')
       ),
     });
+
+    if (!grant) {
+      grant = await db.query.grantsDirectory.findFirst({
+        where: and(
+          eq(grantsDirectory.slug, slug),
+          eq(grantsDirectory.status, 'ACTIVE')
+        ),
+      });
+    }
   } catch (error) {
     console.error('[GrantDetailPage] DB Query Error:', error);
   }
 
   if (!grant) {
     grant = getFallbackGrantRecords().find(
-      (g) => g.slug === slug && g.countryCode === countryCodeUpper
-    );
+      (g) => g.slug === slug && (g.countryCode === countryCodeUpper || countryCodeUpper === 'UK')
+    ) || getFallbackGrantRecords().find((g) => g.slug === slug);
   }
 
   if (!grant) {

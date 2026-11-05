@@ -1,6 +1,6 @@
 'use server';
 
-import { stripe } from '@/lib/stripe/client';
+import { stripe, isStripeConfigured } from '@/lib/stripe/client';
 import { STRIPE_PASS_PRODUCTS } from '@/lib/stripe/products';
 import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
 import { db } from '@/db';
@@ -19,6 +19,14 @@ export async function createStripeCheckoutSessionAction(
   input: CreateCheckoutInput
 ): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
+    if (!isStripeConfigured()) {
+      return {
+        success: false,
+        error:
+          'Stripe payments are not configured on this server. Please ensure STRIPE_SECRET_KEY is configured in your environment or Google Cloud Run.',
+      };
+    }
+
     const authCheck = await verifyActiveSessionAndPlanOwnership();
 
     const productConfig = STRIPE_PASS_PRODUCTS[input.planType];

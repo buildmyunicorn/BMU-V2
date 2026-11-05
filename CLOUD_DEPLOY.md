@@ -148,7 +148,11 @@ GOOGLE_CLOUD_LOCATION=europe-west1,\
 MAX_DAILY_PLATFORM_AI_CALLS=500,\
 BETTER_AUTH_SECRET=YOUR_32_BYTE_HEX_SECRET,\
 SUPER_ADMIN_MASTER_PASSWORD=YOUR_STRONG_ADMIN_PASSWORD,\
-DATABASE_URL=postgresql://spf_db_user:CHANGE_ME_SECURE_PASSWORD@localhost/startuppreflight_prod?host=/cloudsql/startuppreflight:europe-west1:spf-postgres"
+DATABASE_URL=postgresql://spf_db_user:CHANGE_ME_SECURE_PASSWORD@localhost/startuppreflight_prod?host=/cloudsql/startuppreflight:europe-west1:spf-postgres,\
+STRIPE_SECRET_KEY=sk_...,\
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...,\
+RESEND_API_KEY=re_...,\
+PROLIFIC_API_TOKEN=..."
 ```
 
 ---

@@ -858,16 +858,10 @@ export async function ensureDefaultGrantsSeededInDb(): Promise<void> {
     try {
       await ensureDatabaseSchemaSynced();
 
-      // Check existing count or sample
+      // Fetch existing slugs to insert any missing seeds idempotently
       const existing = await db
-        .select({ id: grantsDirectory.id, slug: grantsDirectory.slug })
-        .from(grantsDirectory)
-        .limit(10);
-
-      // If already populated with multiple grants, do not re-insert everything
-      if (existing.length >= 8) {
-        return;
-      }
+        .select({ slug: grantsDirectory.slug })
+        .from(grantsDirectory);
 
       const existingSlugs = new Set(existing.map((e) => e.slug));
 

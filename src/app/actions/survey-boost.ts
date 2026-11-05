@@ -10,7 +10,7 @@ import {
   users,
 } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
-import { stripe } from '@/lib/stripe/client';
+import { stripe, isStripeConfigured } from '@/lib/stripe/client';
 import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
 import { ProlificService } from '@/lib/panels/prolific-service';
 
@@ -273,6 +273,14 @@ export async function createSurveyBoostCheckoutAction(
   input: CreateSurveyBoostOrderInput
 ): Promise<{ success: boolean; checkoutUrl?: string; error?: string }> {
   try {
+    if (!isStripeConfigured()) {
+      return {
+        success: false,
+        error:
+          'Stripe payments are not configured on this server. Please ensure STRIPE_SECRET_KEY is configured in your environment or Google Cloud Run.',
+      };
+    }
+
     const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
     if (!authCheck.authorized || !authCheck.userId) {
       return { success: false, error: 'Unauthorized or invalid session.' };
