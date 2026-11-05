@@ -46,6 +46,8 @@ import {
   CheckCircle2,
   BookOpen,
   Trash2,
+  LayoutGrid,
+  ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createStripeCheckoutSessionAction } from '@/app/actions/stripe';
@@ -260,6 +262,7 @@ import { ModuleJWorkspace } from '@/components/workspace/module-j-workspace';
 import { ModuleKWorkspace } from '@/components/workspace/module-k-workspace';
 import { ModuleLWorkspace } from '@/components/workspace/module-l-workspace';
 import { BusinessPlanStudioWorkspace } from '@/components/workspace/business-plan-studio-workspace';
+import { ProjectDashboardView } from '@/components/workspace/project-dashboard-view';
 import {
   saveModuleLStep1ModeAction,
   saveModuleLPartialDataAction,
@@ -503,6 +506,7 @@ export default function WorkspacePage() {
   const [showEngineInspector, setShowEngineInspector] = useState(false);
 
   // Workspace UX Interactive States
+  const [isDashboardOpen, setIsDashboardOpen] = useState(true);
   const [activeModule, setActiveModule] =
     useState<ModuleCode>('MOD_A_IDEATION');
   const [isMasterDocumentOpen, setIsMasterDocumentOpen] = useState(false);
@@ -634,9 +638,8 @@ export default function WorkspacePage() {
       setThingsToConsider(activePlan.thingsToConsider || []);
       setOpenQuestions(activePlan.openQuestions || []);
       // Resolve initial module / view:
-      // Priority 1: URL search params (?view=master_doc or ?view=business_plan_studio or ?module=MOD_...)
-      // Priority 2: localStorage (plan-scoped or global)
-      // Priority 3: activePlan.currentModuleStep
+      // Default on login (/workspace with no view/module params) is the Project Dashboard.
+      let resolvedDashboard = true;
       let resolvedMasterDoc = false;
       let resolvedBpStudio = false;
       let resolvedInitialMod: ModuleCode | null = null;
@@ -646,20 +649,25 @@ export default function WorkspacePage() {
         const viewParam = searchParams.get('view');
         const moduleParam = searchParams.get('module');
 
-        if (
+        if (viewParam === 'dashboard') {
+          resolvedDashboard = true;
+        } else if (
           viewParam === 'business_plan_studio' ||
           viewParam === 'bp_studio' ||
           moduleParam === 'business_plan_studio'
         ) {
+          resolvedDashboard = false;
           resolvedBpStudio = true;
         } else if (
           viewParam === 'master_doc' ||
           moduleParam === 'master_doc'
         ) {
+          resolvedDashboard = false;
           resolvedMasterDoc = true;
         } else if (moduleParam) {
           const fromParam = resolveModuleFromParam(moduleParam);
           if (fromParam) {
+            resolvedDashboard = false;
             resolvedInitialMod = fromParam;
             const stepParam = searchParams.get('step');
             if (stepParam) {
@@ -674,42 +682,41 @@ export default function WorkspacePage() {
           }
         }
 
-        if (!resolvedMasterDoc && !resolvedBpStudio && !resolvedInitialMod) {
-          const storedView =
-            localStorage.getItem(`spf_active_view_${activePlan.id}`) ||
-            localStorage.getItem('spf_last_active_view');
-          if (storedView === 'business_plan_studio') {
-            resolvedBpStudio = true;
-          } else if (storedView === 'master_doc') {
-            resolvedMasterDoc = true;
-          } else {
-            const storedModule =
-              localStorage.getItem(`spf_active_module_${activePlan.id}`) ||
-              localStorage.getItem('spf_last_active_module');
-            const fromStorage = resolveModuleFromParam(storedModule);
-            if (fromStorage) {
-              resolvedInitialMod = fromStorage;
-            }
+        if (!resolvedInitialMod) {
+          const storedModule =
+            localStorage.getItem(`spf_active_module_${activePlan.id}`) ||
+            localStorage.getItem('spf_last_active_module');
+          const fromStorage = resolveModuleFromParam(storedModule);
+          if (fromStorage) {
+            resolvedInitialMod = fromStorage;
           }
         }
       }
 
-      if (!resolvedMasterDoc && !resolvedBpStudio && !resolvedInitialMod) {
+      if (!resolvedInitialMod) {
         resolvedInitialMod =
           resolveModuleFromStep(activePlan.currentModuleStep) ||
           'MOD_A_IDEATION';
       }
 
-      if (resolvedBpStudio) {
+      setActiveModule(resolvedInitialMod);
+
+      if (resolvedDashboard) {
+        setIsDashboardOpen(true);
+        setIsBusinessPlanStudioOpen(false);
+        setIsMasterDocumentOpen(false);
+      } else if (resolvedBpStudio) {
+        setIsDashboardOpen(false);
         setIsBusinessPlanStudioOpen(true);
         setIsMasterDocumentOpen(false);
       } else if (resolvedMasterDoc) {
+        setIsDashboardOpen(false);
         setIsBusinessPlanStudioOpen(false);
         setIsMasterDocumentOpen(true);
-      } else if (resolvedInitialMod) {
+      } else {
+        setIsDashboardOpen(false);
         setIsBusinessPlanStudioOpen(false);
         setIsMasterDocumentOpen(false);
-        setActiveModule(resolvedInitialMod);
       }
 
       hasHydratedLocationRef.current = true;
@@ -1120,7 +1127,11 @@ export default function WorkspacePage() {
     if (typeof window === 'undefined') return;
 
     const url = new URL(window.location.href);
-    if (isBusinessPlanStudioOpen) {
+    if (isDashboardOpen) {
+      url.searchParams.delete('module');
+      url.searchParams.delete('step');
+      url.searchParams.delete('view');
+    } else if (isBusinessPlanStudioOpen) {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
       url.searchParams.set('view', 'business_plan_studio');
@@ -1146,7 +1157,12 @@ export default function WorkspacePage() {
 
     try {
       const activePlanId = session?.activePlanId;
-      if (isBusinessPlanStudioOpen) {
+      if (isDashboardOpen) {
+        localStorage.setItem('spf_last_active_view', 'dashboard');
+        if (activePlanId) {
+          localStorage.setItem(`spf_active_view_${activePlanId}`, 'dashboard');
+        }
+      } else if (isBusinessPlanStudioOpen) {
         localStorage.setItem('spf_last_active_view', 'business_plan_studio');
         if (activePlanId) {
           localStorage.setItem(`spf_active_view_${activePlanId}`, 'business_plan_studio');
@@ -1172,6 +1188,7 @@ export default function WorkspacePage() {
     }
   }, [
     hasHydratedLocation,
+    isDashboardOpen,
     activeModule,
     openStep,
     moduleNavTarget,
@@ -1190,11 +1207,17 @@ export default function WorkspacePage() {
       const parsedStep = stepParam ? parseInt(stepParam, 10) : undefined;
       const validStep = parsedStep && !isNaN(parsedStep) && parsedStep > 0 ? parsedStep : undefined;
 
-      if (
+      if (viewParam === 'dashboard') {
+        setIsDashboardOpen(true);
+        setIsBusinessPlanStudioOpen(false);
+        setIsMasterDocumentOpen(false);
+        setModuleNavTarget(null);
+      } else if (
         viewParam === 'business_plan_studio' ||
         viewParam === 'bp_studio' ||
         moduleParam === 'business_plan_studio'
       ) {
+        setIsDashboardOpen(false);
         setIsBusinessPlanStudioOpen(true);
         setIsMasterDocumentOpen(false);
         setModuleNavTarget(null);
@@ -1202,12 +1225,14 @@ export default function WorkspacePage() {
         viewParam === 'master_doc' ||
         moduleParam === 'master_doc'
       ) {
+        setIsDashboardOpen(false);
         setIsBusinessPlanStudioOpen(false);
         setIsMasterDocumentOpen(true);
         setModuleNavTarget(null);
       } else if (moduleParam) {
         const resolved = resolveModuleFromParam(moduleParam);
         if (resolved) {
+          setIsDashboardOpen(false);
           setIsBusinessPlanStudioOpen(false);
           setIsMasterDocumentOpen(false);
           setActiveModule(resolved);
@@ -1222,22 +1247,61 @@ export default function WorkspacePage() {
           }
         }
       } else {
+        setIsDashboardOpen(true);
         setIsBusinessPlanStudioOpen(false);
         setIsMasterDocumentOpen(false);
-        setActiveModule('MOD_A_IDEATION');
-        if (validStep) {
-          setOpenStep(validStep);
-          setModuleNavTarget({ step: validStep });
-        } else {
-          setOpenStep(0);
-          setModuleNavTarget(null);
-        }
+        setModuleNavTarget(null);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  function openProjectDashboardWithHistory() {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('module');
+      url.searchParams.delete('step');
+      url.searchParams.delete('view');
+      window.history.pushState(null, '', url.toString());
+    }
+    setIsDashboardOpen(true);
+    setIsBusinessPlanStudioOpen(false);
+    setIsMasterDocumentOpen(false);
+    setMobileSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function openMasterDocumentWithHistory() {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('module');
+      url.searchParams.delete('step');
+      url.searchParams.set('view', 'master_doc');
+      window.history.pushState(null, '', url.toString());
+    }
+    setIsDashboardOpen(false);
+    setIsMasterDocumentOpen(true);
+    setIsBusinessPlanStudioOpen(false);
+    setMobileSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function openBusinessPlanStudioWithHistory() {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('module');
+      url.searchParams.delete('step');
+      url.searchParams.set('view', 'business_plan_studio');
+      window.history.pushState(null, '', url.toString());
+    }
+    setIsDashboardOpen(false);
+    setIsBusinessPlanStudioOpen(true);
+    setIsMasterDocumentOpen(false);
+    setMobileSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   function navigateToModuleWithHistory(modCode: ModuleCode, stepNum?: number, highlightId?: string) {
     if (typeof window !== 'undefined') {
@@ -1251,6 +1315,7 @@ export default function WorkspacePage() {
       }
       window.history.pushState(null, '', url.toString());
     }
+    setIsDashboardOpen(false);
     setIsBusinessPlanStudioOpen(false);
     setIsMasterDocumentOpen(false);
     setActiveModule(modCode);
@@ -4649,6 +4714,78 @@ export default function WorkspacePage() {
       masterDocChapterPills.length
   );
 
+  const moduleGProgressPercent =
+    currentPlan.moduleGData?.completionPercentage || 0;
+  const moduleKProgressPercent =
+    currentPlan.moduleKData?.completionPercentage ||
+    (activeModule === 'MOD_K_GRANTS_FUNDING' ? 15 : 0);
+  const moduleLProgressPercent =
+    currentPlan.moduleLData?.completionPercentage ||
+    (activeModule === 'MOD_L_BUSINESS_PLAN' ? 20 : 0);
+
+  const dashboardModuleProgressList = MODULES_LIST.map((mod) => {
+    const access = canAccessModule(activeEntitlement, mod.code);
+    const modProgress =
+      mod.code === 'MOD_A_IDEATION'
+        ? moduleAProgressPercent
+        : mod.code === 'MOD_B_MARKET'
+          ? moduleBProgressPercent
+          : mod.code === 'MOD_C_SURVEYS_FEEDBACK'
+            ? moduleCProgressPercent
+            : mod.code === 'MOD_D_PRODUCT_BUILD'
+              ? moduleDProgressPercent
+              : mod.code === 'MOD_E_OPERATIONS'
+                ? moduleEProgressPercent
+                : mod.code === 'MOD_F_COFOUNDER_TEAM'
+                  ? moduleFProgressPercent
+                  : mod.code === 'MOD_G_LAUNCHPAD'
+                    ? moduleGProgressPercent
+                    : mod.code === 'MOD_H_REVENUE'
+                      ? moduleHProgressPercent
+                      : mod.code === 'MOD_I_MARKETING'
+                        ? moduleIProgressPercent
+                        : mod.code === 'MOD_J_FINANCE'
+                          ? moduleJProgressPercent
+                          : mod.code === 'MOD_K_GRANTS_FUNDING'
+                            ? moduleKProgressPercent
+                            : mod.code === 'MOD_L_BUSINESS_PLAN'
+                              ? moduleLProgressPercent
+                              : mod.progress;
+    return {
+      code: mod.code,
+      short: mod.short,
+      title: mod.title,
+      progress: modProgress,
+      allowed: access.allowed,
+      lockReason: access.reason,
+    };
+  });
+
+  const activeModuleMeta =
+    MODULES_LIST.find((m) => m.code === activeModule) || MODULES_LIST[0];
+
+  const allPlanSurveys = currentPlan.moduleCData?.surveys || [];
+  const dashboardSurveyResponsesCount = allPlanSurveys.reduce(
+    (sum, s) => sum + (s.responses?.length || 0),
+    0
+  );
+  const dashboardWaitlistLeadsCount = allPlanSurveys.reduce(
+    (sum, s) =>
+      sum +
+      (s.responses?.filter(
+        (r) => Boolean(r.respondentEmail?.trim()) || Boolean(r.joinedWaitlist)
+      ).length || 0),
+    0
+  );
+  const primaryPublicSurveySlug =
+    allPlanSurveys.find((s) => Boolean(s.publicSlug))?.publicSlug ||
+    allPlanSurveys[0]?.publicSlug;
+
+  const dashboardLaunchpadCompletedCount = Math.min(
+    6,
+    Math.round((moduleGProgressPercent / 100) * 6)
+  );
+
   const moduleABriefData: ModuleABriefData = {
     planTitle: currentPlan.title,
     founderName: session.user.name,
@@ -4767,41 +4904,196 @@ export default function WorkspacePage() {
           </div>
         </div>
       )}
-      {/* Clean Production Top Navigation Bar */}
+      {/* Clean Production Top Navigation Bar with Google Cloud-Style Project Switcher */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4 sm:px-6 sm:py-3.5">
-          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-            <Link
-              href="/"
-              onClick={() => {
-                clearActiveBmuSession();
-                logoutFounderAction().catch(() => {});
-              }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 shadow-xs hover:opacity-95 sm:h-9 sm:w-9"
-              title="Back to Home"
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={openProjectDashboardWithHistory}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 shadow-xs transition-opacity hover:opacity-95 sm:h-9 sm:w-9"
+              title="Project Dashboard Home"
             >
               <PreflightMark size={24} />
-            </Link>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="hidden text-base font-bold tracking-tight text-slate-900 sm:inline">
-                  Startup Preflight
-                </span>
-                <span className="hidden text-slate-300 sm:inline">/</span>
-                <span className="max-w-[165px] truncate text-sm font-bold text-indigo-700 sm:max-w-none sm:font-semibold">
-                  {currentPlan.title}
-                </span>
-              </div>
-              <p className="truncate text-[11px] text-slate-500 sm:text-xs">
-                {countryPack.countryName} ({countryPack.defaultCurrency}) •{' '}
-                {currentPlan.industryCategory}
-              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={openProjectDashboardWithHistory}
+              className="hidden text-base font-bold tracking-tight text-slate-900 hover:text-indigo-700 sm:inline"
+            >
+              Startup Preflight
+            </button>
+
+            <span className="hidden text-slate-300 sm:inline">/</span>
+
+            {/* Google Cloud-Style Top Project Switcher Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setPlanDropdownOpen(!planDropdownOpen)}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-1.5 text-left shadow-2xs transition-all hover:border-indigo-300 hover:bg-white sm:px-3"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="max-w-[140px] truncate text-xs font-bold text-slate-900 sm:max-w-[220px] sm:text-sm">
+                      {currentPlan.title}
+                    </span>
+                    {currentPlan.isPivot && (
+                      <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">
+                        Pivot
+                      </span>
+                    )}
+                    <Badge
+                      variant="secondary"
+                      className="hidden border-slate-200 bg-white px-1.5 py-0 text-[10px] font-semibold text-slate-700 md:inline-flex"
+                    >
+                      {selectedCountry} • {countryPack.defaultCurrency}
+                    </Badge>
+                  </div>
+                  <div className="hidden truncate text-[10px] text-slate-500 sm:block">
+                    {countryPack.countryName} • {currentPlan.industryCategory} (
+                    {session.plans.length || 1}/
+                    {activeEntitlement.maxStartupPlans} Projects)
+                  </div>
+                </div>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                    planDropdownOpen ? 'rotate-180 text-indigo-600' : ''
+                  }`}
+                />
+              </button>
+
+              {planDropdownOpen && (
+                <div className="absolute left-0 top-full z-40 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl sm:w-80">
+                  <div className="flex items-center justify-between px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <span>Switch Active Venture</span>
+                    <span>
+                      {session.plans.length || 1} /{' '}
+                      {activeEntitlement.maxStartupPlans} Used
+                    </span>
+                  </div>
+                  <div className="mt-1 max-h-60 space-y-1 overflow-y-auto">
+                    {session.plans.map((p) => (
+                      <div
+                        key={p.id}
+                        className={`group/plan flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs transition-colors ${
+                          p.id === currentPlan.id
+                            ? 'bg-indigo-50/90 font-semibold text-indigo-950 ring-1 ring-indigo-200'
+                            : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSelectPlan(p.id)}
+                          className="min-w-0 flex-1 truncate pr-2 text-left"
+                        >
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="truncate font-bold">{p.title}</span>
+                            {p.isPivot && (
+                              <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                                Pivot
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 text-[11px] font-normal text-slate-500">
+                            {p.hqCountryCode} ({p.baseCurrency}) •{' '}
+                            {p.industryCategory}
+                          </div>
+                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          {p.id === currentPlan.id && (
+                            <Check className="mr-1 h-4 w-4 shrink-0 text-indigo-600" />
+                          )}
+                          <button
+                            type="button"
+                            title={`Delete ${p.title}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPlanDropdownOpen(false);
+                              setPlanToDelete({ id: p.id, title: p.title });
+                            }}
+                            className="rounded p-1 text-slate-400 opacity-60 transition-opacity hover:bg-red-50 hover:text-red-600 hover:opacity-100 group-hover/plan:opacity-100"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="my-2 border-t border-slate-100" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlanDropdownOpen(false);
+                      if (!multiPlanCheck.allowed) {
+                        setPaywallModalFeature(
+                          `Create a 2nd Startup Plan (${multiPlanCheck.reason})`
+                        );
+                      } else {
+                        window.location.href = '/onboarding';
+                      }
+                    }}
+                    className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Plus className="h-3.5 w-3.5" />+ Create New Venture
+                    </span>
+                    {!multiPlanCheck.allowed && (
+                      <Lock className="h-3.5 w-3.5 text-amber-600" />
+                    )}
+                  </button>
+
+                  {clonePlanError && (
+                    <div className="mx-2 mb-1 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                      {clonePlanError}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={isCloningPlan}
+                    onClick={handleClonePlan}
+                    className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {isCloningPlan ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-600" />
+                      ) : (
+                        <GitBranch className="h-3.5 w-3.5 text-violet-600" />
+                      )}
+                      {isCloningPlan
+                        ? 'Cloning Venture & Modules...'
+                        : 'Clone & Pivot Current Venture'}
+                    </span>
+                    {!multiPlanCheck.allowed && (
+                      <Lock className="h-3.5 w-3.5 text-amber-600" />
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
+
+            {!isDashboardOpen && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={openProjectDashboardWithHistory}
+                className="h-8 border-indigo-200 bg-indigo-50/70 px-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
+              >
+                <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Project Dashboard</span>
+                <span className="sm:hidden">Dashboard</span>
+              </Button>
+            )}
           </div>
 
           {/* Right User & Co-Pilot Actions */}
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
-            <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs md:flex">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs xl:flex">
               <span className="font-semibold text-slate-800">
                 {session.user.name}
               </span>
@@ -4857,575 +5149,248 @@ export default function WorkspacePage() {
                 <span className="hidden sm:inline">Sign Out</span>
               </Button>
             </Link>
-
-            {/* Ask Preflight AI button temporarily hidden */}
-            {/*
-            <Button
-              size="sm"
-              onClick={() => setAskUnicornOpen(!askUnicornOpen)}
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 px-2.5 text-xs text-white hover:from-indigo-700 hover:to-violet-700 sm:px-3"
-            >
-              <Bot className="h-4 w-4" />
-              <span className=" sm:hidden">Ask AI</span>
-              <span className="hidden sm:inline">Ask Preflight AI</span>
-            </Button>
-            */}
           </div>
         </div>
       </header>
 
       {/* ========================================================= */}
-      {/* MAIN FOUNDER WORKSPACE                                    */}
+      {/* MAIN FOUNDER COMMAND CENTER OR WORKSPACE                  */}
       {/* ========================================================= */}
       <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-4 px-3.5 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-12">
-        {/* LEFT SIDEBAR: Multi-Plan Switcher + Modules A-I + Open Questions Parking Lot */}
-        <aside className="space-y-3.5 sm:space-y-5 lg:col-span-4 xl:col-span-3">
-          {/* Multi-Plan Switcher Card */}
-          <div className="relative rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
-            <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              <span>Active Startup Plan</span>
-              <span>
-                {session.plans.length || 1} /{' '}
-                {activeEntitlement.maxStartupPlans} Plans
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setPlanDropdownOpen(!planDropdownOpen)}
-              className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
-            >
-              <div className="min-w-0 pr-2">
-                <div className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-900">
-                  <span className="truncate">{currentPlan.title}</span>
-                  {currentPlan.isPivot && (
-                    <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
-                      Pivot
-                    </span>
-                  )}
-                </div>
-                <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-                    {selectedCountry} • {countryPack.defaultCurrency}
-                  </Badge>
-                  <span className="truncate">
-                    {currentPlan.industryCategory}
-                  </span>
-                </div>
-              </div>
-              <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
-            </button>
-
-            {/* Dropdown Menu for Switching Plans, Creating New Plan, or Cloning Pivot */}
-            {planDropdownOpen && (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-                <div className="px-2 py-1 text-[11px] font-semibold text-slate-400">
-                  YOUR STARTUP PLANS
-                </div>
-                {session.plans.map((p) => (
-                  <div
-                    key={p.id}
-                    className={`group/plan flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${
-                      p.id === currentPlan.id
-                        ? 'bg-indigo-50 font-semibold text-indigo-900'
-                        : 'text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleSelectPlan(p.id)}
-                      className="min-w-0 flex-1 truncate pr-2 text-left"
-                    >
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="truncate">{p.title}</span>
-                        {p.isPivot && (
-                          <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
-                            Pivot
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] font-normal text-slate-400">
-                        {p.hqCountryCode} ({p.baseCurrency}) •{' '}
-                        {p.industryCategory}
-                      </div>
-                    </button>
-                    <div className="flex shrink-0 items-center gap-1">
-                      {p.id === currentPlan.id && (
-                        <Check className="h-4 w-4 shrink-0 text-indigo-600 mr-1" />
-                      )}
-                      <button
-                        type="button"
-                        title={`Delete ${p.title}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPlanToDelete({ id: p.id, title: p.title });
-                        }}
-                        className="rounded p-1 text-slate-400 opacity-60 transition-opacity hover:bg-red-50 hover:text-red-600 hover:opacity-100 group-hover/plan:opacity-100"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                <div className="my-1.5 border-t border-slate-100" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPlanDropdownOpen(false);
-                    if (!multiPlanCheck.allowed) {
-                      setPaywallModalFeature(
-                        `Create a 2nd Startup Plan (${multiPlanCheck.reason})`
-                      );
-                    } else {
-                      window.location.href = '/onboarding';
-                    }
-                  }}
-                  className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium text-indigo-600 hover:bg-indigo-50"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Plus className="h-3.5 w-3.5" />+ Create New Startup Idea
-                  </span>
-                  {!multiPlanCheck.allowed && (
-                    <Lock className="h-3.5 w-3.5 text-amber-600" />
-                  )}
-                </button>
-
-                {clonePlanError && (
-                  <div className="mx-2 mb-1 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">
-                    {clonePlanError}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  disabled={isCloningPlan}
-                  onClick={handleClonePlan}
-                  className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  <span className="flex items-center gap-1.5">
-                    {isCloningPlan ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-600" />
-                    ) : (
-                      <GitBranch className="h-3.5 w-3.5 text-violet-600" />
-                    )}
-                    {isCloningPlan
-                      ? 'Cloning Plan & Modules...'
-                      : 'Clone & Pivot Current Plan'}
-                  </span>
-                  {!multiPlanCheck.allowed && (
-                    <Lock className="h-3.5 w-3.5 text-amber-600" />
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Prominent Left-Sidebar Tile: Living Master Document */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsMasterDocumentOpen(true);
-              setMobileSidebarOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className={`group relative w-full overflow-hidden rounded-xl border p-3.5 text-left transition-all ${
-              isMasterDocumentOpen
-                ? 'border-indigo-400 bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-900 text-white shadow-md ring-2 ring-indigo-400/50'
-                : 'border-indigo-200/90 bg-gradient-to-br from-indigo-950/95 via-indigo-900/95 to-violet-900/95 text-white shadow-xs hover:border-indigo-400 hover:shadow-md'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-2.5">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                    isMasterDocumentOpen
-                      ? 'bg-emerald-500 text-white shadow-xs'
-                      : 'bg-white/15 text-indigo-100 group-hover:bg-white/25'
-                  }`}
-                >
-                  <BookOpen className="h-4 w-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-extrabold tracking-tight text-white sm:text-sm">
-                      Living Master Document
-                    </span>
-                    <Badge className="border-emerald-400/40 bg-emerald-500/20 px-1.5 py-0 text-[9px] font-bold text-emerald-200">
-                      LIVE
-                    </Badge>
-                  </div>
-                  <p className="mt-0.5 text-[11px] text-indigo-200/90">
-                    Whole-picture blueprint across Modules A–E
-                  </p>
-                </div>
-              </div>
-              <ArrowRight
-                className={`mt-1 h-4 w-4 shrink-0 transition-transform ${
-                  isMasterDocumentOpen
-                    ? 'translate-x-0.5 text-emerald-300'
-                    : 'text-indigo-300 group-hover:translate-x-0.5 group-hover:text-white'
-                }`}
-              />
-            </div>
-
-            {/* Chapter Status Pills [A] [B] [C] [D] [E] */}
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1">
-                {masterDocChapterPills.map((ch) => (
-                  <span
-                    key={ch.short}
-                    className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                      ch.progress > 0
-                        ? 'bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-400/40'
-                        : 'bg-white/10 text-indigo-300/70'
-                    }`}
-                  >
-                    {ch.short}
-                    {ch.progress > 0 ? ' ✓' : ''}
-                  </span>
-                ))}
-              </div>
-              <span className="text-[10px] font-semibold text-indigo-200">
-                {syncedChaptersCount}/{masterDocChapterPills.length} Chapters • {overallSyncedProgressPercent}%
-              </span>
-            </div>
-
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/15">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 transition-all duration-300"
-                style={{ width: `${Math.max(8, overallSyncedProgressPercent)}%` }}
-              />
-            </div>
-
-            <div className="mt-2 flex items-center justify-between text-[10px] font-semibold text-indigo-200/90">
-              <span className="flex items-center gap-1">
-                <ShieldCheck className="h-3 w-3 text-emerald-300" />
-                Zero-Hallucination Grounded
-              </span>
-              <span className="underline decoration-indigo-400/60 underline-offset-2 group-hover:text-white">
-                {isMasterDocumentOpen ? 'Viewing Full Picture' : 'Open Full Picture →'}
-              </span>
-            </div>
-          </button>
-
-
-          {/* Mobile/Tablet Collapsible Module & Parking Lot Toggle (< lg only) */}
-          <button
-            type="button"
-            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-            className="flex w-full items-center justify-between rounded-xl border border-indigo-200 bg-white px-3.5 py-2.5 text-left shadow-xs transition-colors hover:bg-indigo-50/40 lg:hidden"
-          >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
-                {isBusinessPlanStudioOpen
-                  ? 'BP'
-                  : isMasterDocumentOpen
-                    ? '★'
-                    : activeModule === 'MOD_A_IDEATION'
-                      ? 'A'
-                      : activeModule === 'MOD_B_MARKET'
-                        ? 'B'
-                        : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
-                          ? 'C'
-                          : activeModule === 'MOD_D_PRODUCT_BUILD'
-                            ? 'D'
-                            : activeModule === 'MOD_E_OPERATIONS'
-                              ? 'E'
-                              : activeModule === 'MOD_F_COFOUNDER_TEAM'
-                                ? 'F'
-                                : activeModule === 'MOD_G_LAUNCHPAD'
-                                  ? 'G'
-                                  : activeModule === 'MOD_H_REVENUE'
-                                    ? 'H'
-                                    : activeModule === 'MOD_I_MARKETING'
-                                      ? 'I'
-                                      : activeModule === 'MOD_J_FINANCE'
-                                        ? 'J'
-                                        : 'A'}
-              </div>
-              <div className="min-w-0">
-                <div className="truncate text-xs font-bold text-slate-900">
-                  {isBusinessPlanStudioOpen
-                    ? 'Business Plan Studio (Multi-Version)'
-                    : isMasterDocumentOpen
-                      ? 'Living Master Document (Modules A–L)'
-                      : activeModule === 'MOD_A_IDEATION'
-                        ? 'Module A: Ideation & Founder Fit'
-                        : activeModule === 'MOD_B_MARKET'
-                          ? 'Module B: Market & Competitors'
-                          : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
-                            ? 'Module C: Customer Surveys & Feedback'
-                            : activeModule === 'MOD_D_PRODUCT_BUILD'
-                              ? 'Module D: Product & Build Vehicle'
-                              : activeModule === 'MOD_E_OPERATIONS'
-                                ? 'Module E: Operations & Fulfillment'
-                                : activeModule === 'MOD_F_COFOUNDER_TEAM'
-                                  ? 'Module F: Team, Survival Budget & Roles'
-                                  : activeModule === 'MOD_G_LAUNCHPAD'
-                                    ? 'Module G: Getting Set Up (Launchpad & Operations)'
-                                    : activeModule === 'MOD_H_REVENUE'
-                                      ? 'Module H: Pricing & Pocket Profit Breakeven'
-                                      : activeModule === 'MOD_I_MARKETING'
-                                        ? 'Module I: Marketing & First 10 Customers'
-                                        : activeModule === 'MOD_J_FINANCE'
-                                          ? 'Module J: 3-Year Financials & Cashflow'
-                                          : 'Startup Preflight Workspace'}
-                </div>
-                <div className="text-[11px] text-indigo-700">
-                  {mobileSidebarOpen
-                    ? 'Hide Modules (A–J) & Parked Questions'
-                    : `Tap to Switch Module (A–J) • ${openQuestions.length} Parked`}
-                </div>
-              </div>
-            </div>
-            <ChevronDown
-              className={`h-4 w-4 shrink-0 text-indigo-600 transition-transform ${
-                mobileSidebarOpen ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
-
-          <div
-            className={`${
-              mobileSidebarOpen ? 'block' : 'hidden'
-            } space-y-3.5 sm:space-y-5 lg:block`}
-          >
-            {/* Module A - J Navigation List */}
+        {/* LEFT SIDEBAR: Shown ONLY when inside the Step-by-Step Founder Workspace (Modules A–L) */}
+        {!isDashboardOpen && !isBusinessPlanStudioOpen && !isMasterDocumentOpen && (
+          <aside className="space-y-3.5 sm:space-y-4 lg:col-span-4 xl:col-span-3">
+            {/* Slim Back to Project Dashboard + Quick Switch Card */}
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
-              <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Founder Journey (Modules A–J)
-              </div>
-              <div className="space-y-1">
-                {MODULES_LIST.map((mod) => {
-                  const access = canAccessModule(activeEntitlement, mod.code);
-                  const IconComponent = mod.icon;
-                  const isCurrent =
-                    !isMasterDocumentOpen && activeModule === mod.code;
-                  const modProgress =
-                    mod.code === 'MOD_A_IDEATION'
-                      ? moduleAProgressPercent
-                      : mod.code === 'MOD_B_MARKET'
-                        ? moduleBProgressPercent
-                        : mod.code === 'MOD_C_SURVEYS_FEEDBACK'
-                          ? moduleCProgressPercent
-                          : mod.code === 'MOD_D_PRODUCT_BUILD'
-                            ? moduleDProgressPercent
-                            : mod.code === 'MOD_E_OPERATIONS'
-                              ? moduleEProgressPercent
-                              : mod.code === 'MOD_F_COFOUNDER_TEAM'
-                                ? moduleFProgressPercent
-                                : mod.code === 'MOD_H_REVENUE'
-                                  ? moduleHProgressPercent
-                                  : mod.code === 'MOD_I_MARKETING'
-                                    ? moduleIProgressPercent
-                                    : mod.code === 'MOD_J_FINANCE'
-                                      ? moduleJProgressPercent
-                                      : mod.code === 'MOD_K_GRANTS_FUNDING'
-                                        ? (currentPlan.moduleKData?.completionPercentage || (activeModule === 'MOD_K_GRANTS_FUNDING' ? 15 : 0))
-                                        : mod.code === 'MOD_L_BUSINESS_PLAN'
-                                          ? (currentPlan.moduleLData?.completionPercentage || (activeModule === 'MOD_L_BUSINESS_PLAN' ? 20 : 0))
-                                          : mod.progress;
-
-                  return (
-                    <button
-                      key={mod.code}
-                      type="button"
-                      onClick={() => {
-                        if (!access.allowed) {
-                          setPendingModuleAfterUnlock(mod.code);
-                          setPaywallModalFeature(
-                            `${mod.short}: ${mod.title} — ${access.reason}`
-                          );
-                          return;
-                        }
-                        if (
-                          mod.code === 'MOD_A_IDEATION' ||
-                          mod.code === 'MOD_B_MARKET' ||
-                          mod.code === 'MOD_C_SURVEYS_FEEDBACK' ||
-                          mod.code === 'MOD_D_PRODUCT_BUILD' ||
-                          mod.code === 'MOD_E_OPERATIONS' ||
-                          mod.code === 'MOD_F_COFOUNDER_TEAM' ||
-                          mod.code === 'MOD_G_LAUNCHPAD' ||
-                          mod.code === 'MOD_H_REVENUE' ||
-                          mod.code === 'MOD_I_MARKETING' ||
-                          mod.code === 'MOD_J_FINANCE' ||
-                          mod.code === 'MOD_K_GRANTS_FUNDING' ||
-                          mod.code === 'MOD_L_BUSINESS_PLAN'
-                        ) {
-                          setMobileSidebarOpen(false);
-                          navigateToModuleWithHistory(mod.code);
-                        }
-                      }}
-                      className={`group flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-all ${
-                        isCurrent
-                          ? 'bg-indigo-50/90 ring-1 ring-indigo-200'
-                          : 'hover:bg-slate-50'
-                      }`}
-                    >
-                      <div
-                        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                          isCurrent
-                            ? 'bg-indigo-600 text-white'
-                            : access.allowed
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-slate-100 text-slate-400'
-                        }`}
-                      >
-                        <IconComponent className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <span
-                            className={`text-xs font-bold ${
-                              isCurrent ? 'text-indigo-950' : 'text-slate-800'
-                            }`}
-                          >
-                            {mod.short}: {mod.title}
-                          </span>
-                          {!access.allowed ? (
-                            <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                          ) : isCurrent || modProgress > 0 ? (
-                            <span
-                              className={`text-[10px] font-bold ${
-                                modProgress === 100
-                                  ? 'text-emerald-600'
-                                  : 'text-indigo-600'
-                              }`}
-                            >
-                              {modProgress}%
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                          {mod.subtitle}
-                        </p>
-                        {(isCurrent || modProgress > 0) && access.allowed && (
-                          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-indigo-100">
-                            <div
-                              className={`h-full rounded-full transition-all duration-300 ${
-                                modProgress === 100
-                                  ? 'bg-emerald-500'
-                                  : 'bg-indigo-600'
-                              }`}
-                              style={{ width: `${modProgress}%` }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Dedicated Multi-Version Business Plan Studio Section under Module List */}
-            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50/70 via-white to-indigo-50/40 p-3.5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-violet-950">
-                  <Sparkles className="h-3.5 w-3.5 text-violet-600" />
-                  Business Plan Studio
-                </span>
-                <Badge className="border-violet-300 bg-violet-100 text-[10px] font-bold text-violet-800">
-                  MULTI-VERSION
-                </Badge>
-              </div>
-              <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
-                Create &amp; compile multiple targeted business plans for LEO grants, Innovate UK, commercial bank loans, or angel pitch decks.
-              </p>
-              <div className="mt-2.5 flex items-center justify-between rounded-lg bg-white/80 p-2 text-[11px] border border-violet-100">
-                <span className="text-slate-600 font-medium">Saved Versions:</span>
-                <span className="font-bold text-violet-900">
-                  {currentPlan.moduleLData?.versions?.length || 1} Dossier{(currentPlan.moduleLData?.versions?.length || 1) === 1 ? '' : 's'}
-                </span>
-              </div>
               <Button
                 type="button"
+                variant="outline"
                 size="sm"
-                variant={isBusinessPlanStudioOpen ? "default" : "outline"}
-                onClick={() => {
-                  setIsBusinessPlanStudioOpen(true);
-                  setIsMasterDocumentOpen(false);
-                  setMobileSidebarOpen(false);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className={`mt-2.5 w-full text-xs font-bold transition-all ${
-                  isBusinessPlanStudioOpen
-                    ? 'bg-violet-700 hover:bg-violet-800 text-white shadow-xs'
-                    : 'border-violet-300 bg-white text-violet-700 hover:bg-violet-50 hover:border-violet-400'
-                }`}
+                onClick={openProjectDashboardWithHistory}
+                className="w-full justify-start border-indigo-200 bg-indigo-50/50 text-xs font-bold text-indigo-800 hover:bg-indigo-100/80"
               >
-                {isBusinessPlanStudioOpen ? 'Currently In Studio' : 'Open Business Plan Studio →'}
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                Back to Project Dashboard
               </Button>
-            </div>
-
-            {/* Open Questions Parking Lot Sidebar Card */}
-            <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
-                  <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
-                  Open Questions Parking Lot
-                </span>
-                <Badge
-                  variant="secondary"
-                  className="bg-amber-100 text-[10px] text-amber-900"
+              <div className="mt-2 grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={openMasterDocumentWithHistory}
+                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50/60 hover:text-emerald-800"
                 >
-                  {openQuestions.length} Parked
-                </Badge>
+                  <BookOpen className="h-3 w-3 text-emerald-600" />
+                  Master Doc
+                </button>
+                <button
+                  type="button"
+                  onClick={openBusinessPlanStudioWithHistory}
+                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-colors hover:border-violet-300 hover:bg-violet-50/60 hover:text-violet-800"
+                >
+                  <Sparkles className="h-3 w-3 text-violet-600" />
+                  Plan Studio
+                </button>
               </div>
-              <p className="mt-1 text-[11px] text-amber-900/80">
-                Tricky questions you parked so you never lose momentum:
-              </p>
-              {openQuestions.length === 0 ? (
-                <div className="mt-2.5 rounded-lg border border-dashed border-amber-200/80 bg-white/70 px-2.5 py-2 text-[11px] text-slate-500">
-                  No open questions parked yet. Use &ldquo;Park Question&rdquo; on any step when you want to come back to a detail later.
-                </div>
-              ) : (
-                <>
-                  <ul className="mt-2.5 space-y-1.5 text-xs text-slate-700">
-                    {(showAllOpenQuestions
-                      ? openQuestions
-                      : openQuestions.slice(0, 4)
-                    ).map((q, idx) => (
-                      <li
-                        key={idx}
-                        className="group flex items-start justify-between gap-1.5 rounded-lg border border-amber-200/60 bg-white px-2.5 py-1.5 text-[11px] leading-snug"
-                      >
-                        <span>• {q}</span>
-                        {!activeEntitlement.isVaultReadonly && (
-                          <button
-                            type="button"
-                            onClick={() => handleResolveOpenQuestion(idx)}
-                            title="Mark resolved & remove from Parking Lot"
-                            className="mt-0.5 shrink-0 rounded p-0.5 text-slate-400 opacity-70 transition-opacity hover:bg-amber-100 hover:text-amber-900 group-hover:opacity-100"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  {openQuestions.length > 4 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowAllOpenQuestions(!showAllOpenQuestions)
-                      }
-                      className="mt-2 w-full rounded-lg border border-amber-200/70 bg-white/80 py-1 text-center text-[11px] font-semibold text-amber-900 hover:bg-amber-100/60"
-                    >
-                      {showAllOpenQuestions
-                        ? 'Show Fewer Questions'
-                        : `Show All ${openQuestions.length} Parked Questions`}
-                    </button>
-                  )}
-                </>
-              )}
             </div>
-          </div>
-        </aside>
 
-        {/* CENTER WORKSPACE: Module A, Module B, or Module C */}
-        <main className="space-y-6 lg:col-span-8 xl:col-span-9">
+            {/* Mobile/Tablet Collapsible Module & Parking Lot Toggle (< lg only) */}
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+              className="flex w-full items-center justify-between rounded-xl border border-indigo-200 bg-white px-3.5 py-2.5 text-left shadow-xs transition-colors hover:bg-indigo-50/40 lg:hidden"
+            >
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  {activeModule.replace('MOD_', '').split('_')[0] || 'A'}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-bold text-slate-900">
+                    {activeModuleMeta.short}: {activeModuleMeta.title}
+                  </div>
+                  <div className="text-[11px] text-indigo-700">
+                    {mobileSidebarOpen
+                      ? 'Hide Modules (A–L) & Parked Questions'
+                      : `Tap to Switch Module (A–L) • ${openQuestions.length} Parked`}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-indigo-600 transition-transform ${
+                  mobileSidebarOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            <div
+              className={`${
+                mobileSidebarOpen ? 'block' : 'hidden'
+              } space-y-3.5 sm:space-y-4 lg:block`}
+            >
+              {/* Clean Module A - L Navigation List */}
+              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
+                <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  Founder Workspace (Modules A–L)
+                </div>
+                <div className="space-y-1">
+                  {MODULES_LIST.map((mod) => {
+                    const access = canAccessModule(activeEntitlement, mod.code);
+                    const IconComponent = mod.icon;
+                    const isCurrent = activeModule === mod.code;
+                    const modProgress =
+                      dashboardModuleProgressList.find(
+                        (m) => m.code === mod.code
+                      )?.progress ?? mod.progress;
+
+                    return (
+                      <button
+                        key={mod.code}
+                        type="button"
+                        onClick={() => {
+                          if (!access.allowed) {
+                            setPendingModuleAfterUnlock(mod.code);
+                            setPaywallModalFeature(
+                              `${mod.short}: ${mod.title} — ${access.reason}`
+                            );
+                            return;
+                          }
+                          setMobileSidebarOpen(false);
+                          navigateToModuleWithHistory(mod.code);
+                        }}
+                        className={`group flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-all ${
+                          isCurrent
+                            ? 'bg-indigo-50/90 ring-1 ring-indigo-200'
+                            : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div
+                          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                            isCurrent
+                              ? 'bg-indigo-600 text-white'
+                              : access.allowed
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-slate-100 text-slate-400'
+                          }`}
+                        >
+                          <IconComponent className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span
+                              className={`text-xs font-bold ${
+                                isCurrent ? 'text-indigo-950' : 'text-slate-800'
+                              }`}
+                            >
+                              {mod.short}: {mod.title}
+                            </span>
+                            {!access.allowed ? (
+                              <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                            ) : isCurrent || modProgress > 0 ? (
+                              <span
+                                className={`text-[10px] font-bold ${
+                                  modProgress === 100
+                                    ? 'text-emerald-600'
+                                    : 'text-indigo-600'
+                                }`}
+                              >
+                                {modProgress}%
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                            {mod.subtitle}
+                          </p>
+                          {(isCurrent || modProgress > 0) && access.allowed && (
+                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-indigo-100">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  modProgress === 100
+                                    ? 'bg-emerald-500'
+                                    : 'bg-indigo-600'
+                                }`}
+                                style={{ width: `${modProgress}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Open Questions Parking Lot Sidebar Card */}
+              <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+                    <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
+                    Open Questions Parking Lot
+                  </span>
+                  <Badge
+                    variant="secondary"
+                    className="bg-amber-100 text-[10px] text-amber-900"
+                  >
+                    {openQuestions.length} Parked
+                  </Badge>
+                </div>
+                <p className="mt-1 text-[11px] text-amber-900/80">
+                  Tricky questions you parked so you never lose momentum:
+                </p>
+                {openQuestions.length === 0 ? (
+                  <div className="mt-2.5 rounded-lg border border-dashed border-amber-200/80 bg-white/70 px-2.5 py-2 text-[11px] text-slate-500">
+                    No open questions parked yet. Use &ldquo;Park Question&rdquo; on any step when you want to come back to a detail later.
+                  </div>
+                ) : (
+                  <>
+                    <ul className="mt-2.5 space-y-1.5 text-xs text-slate-700">
+                      {(showAllOpenQuestions
+                        ? openQuestions
+                        : openQuestions.slice(0, 4)
+                      ).map((q, idx) => (
+                        <li
+                          key={idx}
+                          className="group flex items-start justify-between gap-1.5 rounded-lg border border-amber-200/60 bg-white px-2.5 py-1.5 text-[11px] leading-snug"
+                        >
+                          <span>• {q}</span>
+                          {!activeEntitlement.isVaultReadonly && (
+                            <button
+                              type="button"
+                              onClick={() => handleResolveOpenQuestion(idx)}
+                              title="Mark resolved & remove from Parking Lot"
+                              className="mt-0.5 shrink-0 rounded p-0.5 text-slate-400 opacity-70 transition-opacity hover:bg-amber-100 hover:text-amber-900 group-hover:opacity-100"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {openQuestions.length > 4 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowAllOpenQuestions(!showAllOpenQuestions)
+                        }
+                        className="mt-2 w-full rounded-lg border border-amber-200/70 bg-white/80 py-1 text-center text-[11px] font-semibold text-amber-900 hover:bg-amber-100/60"
+                      >
+                        {showAllOpenQuestions
+                          ? 'Show Fewer Questions'
+                          : `Show All ${openQuestions.length} Parked Questions`}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </aside>
+        )}
+
+        {/* CENTER WORKSPACE OR FULL-WIDTH DASHBOARD / MASTER DOC / PLAN STUDIO */}
+        <main
+          className={`space-y-6 ${
+            isDashboardOpen || isBusinessPlanStudioOpen || isMasterDocumentOpen
+              ? 'lg:col-span-12'
+              : 'lg:col-span-8 xl:col-span-9'
+          }`}
+        >
           {/* Read-Only Vault Banner if Expired */}
           {activeEntitlement.isVaultReadonly && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -5460,7 +5425,111 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {isBusinessPlanStudioOpen ? (
+          {/* Full-Width Navigation Strip when in Master Document or Business Plan Studio */}
+          {!isDashboardOpen &&
+            (isMasterDocumentOpen || isBusinessPlanStudioOpen) && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={openProjectDashboardWithHistory}
+                    className="h-8 border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                    Back to Project Dashboard
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => navigateToModuleWithHistory(activeModule)}
+                    className="h-8 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                  >
+                    Open Founder Workspace ({activeModuleMeta.short})
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isMasterDocumentOpen ? 'default' : 'outline'}
+                    onClick={openMasterDocumentWithHistory}
+                    className={`h-8 text-xs font-bold ${
+                      isMasterDocumentOpen
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                    Living Master Document
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isBusinessPlanStudioOpen ? 'default' : 'outline'}
+                    onClick={openBusinessPlanStudioWithHistory}
+                    className={`h-8 text-xs font-bold ${
+                      isBusinessPlanStudioOpen
+                        ? 'bg-violet-600 text-white hover:bg-violet-700'
+                        : 'border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                    Business Plan Studio
+                  </Button>
+                </div>
+              </div>
+            )}
+
+          {isDashboardOpen ? (
+            <ProjectDashboardView
+              founderName={session.user.name}
+              planId={currentPlan.id}
+              planTitle={currentPlan.title}
+              oneLinerSummary={
+                currentPlan.oneLinerSummary ||
+                effectiveCanvas?.proposedSolution
+              }
+              industryCategory={currentPlan.industryCategory}
+              hqCountryCode={selectedCountry}
+              countryName={countryPack.countryName}
+              currencyCode={countryPack.defaultCurrency}
+              isPivot={currentPlan.isPivot}
+              activeModule={activeModule}
+              activeModuleTitle={`${activeModuleMeta.short}: ${activeModuleMeta.title}`}
+              moduleProgressList={dashboardModuleProgressList}
+              masterDocSyncedChaptersCount={syncedChaptersCount}
+              masterDocTotalChaptersCount={masterDocChapterPills.length}
+              masterDocOverallProgressPercent={overallSyncedProgressPercent}
+              savedDossiersCount={currentPlan.moduleLData?.versions?.length || 1}
+              surveyResponsesCount={dashboardSurveyResponsesCount}
+              waitlistLeadsCount={dashboardWaitlistLeadsCount}
+              publicSurveySlug={primaryPublicSurveySlug}
+              matchedGrantsCount={getGrantsForCountry(selectedCountry).length}
+              launchpadStepsCompletedCount={dashboardLaunchpadCompletedCount}
+              launchpadProgressPercent={moduleGProgressPercent}
+              openQuestionsCount={openQuestions.length}
+              openQuestionsPreview={openQuestions}
+              moduleAProgressPercent={moduleAProgressPercent}
+              moduleHProgressPercent={moduleHProgressPercent}
+              onEnterWorkspace={(targetMod, targetStep) => {
+                const modToOpen = targetMod || activeModule;
+                const access = canAccessModule(activeEntitlement, modToOpen);
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock(modToOpen);
+                  setPaywallModalFeature(
+                    `${modToOpen} — ${access.reason || 'Requires an upgraded pass.'}`
+                  );
+                  return;
+                }
+                navigateToModuleWithHistory(modToOpen, targetStep);
+              }}
+              onOpenMasterDocument={openMasterDocumentWithHistory}
+              onOpenBusinessPlanStudio={openBusinessPlanStudioWithHistory}
+            />
+          ) : isBusinessPlanStudioOpen ? (
             <BusinessPlanStudioWorkspace
               key={`bp-studio-${currentPlan.id}`}
               plan={{

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import {
   getDefaultDemoSession,
+  hasActiveBmuSession,
   loadBmuSessionForEmail,
   recoverAllRealPlansFromBrowserStorage,
   saveBmuSession,
@@ -44,6 +45,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (hasActiveBmuSession()) {
+      router.replace('/workspace');
+    }
+  }, [router]);
 
   async function handleStandardLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -93,7 +100,7 @@ export default function LoginPage() {
         if (!mergedSession.user.onboardingCompleted) {
           router.push('/onboarding');
         } else {
-          router.push('/workspace');
+          router.replace('/workspace');
         }
         return;
       }
@@ -112,7 +119,7 @@ export default function LoginPage() {
         }
         saveBmuSession(base);
       }
-      router.push('/workspace');
+      router.replace('/workspace');
     } catch {
       const cachedForEmail = loadBmuSessionForEmail(email);
       if (cachedForEmail && cachedForEmail.plans.length > 0) {
@@ -129,7 +136,7 @@ export default function LoginPage() {
         }
         saveBmuSession(base);
       }
-      router.push('/workspace');
+      router.replace('/workspace');
     }
   }
 
@@ -143,13 +150,13 @@ export default function LoginPage() {
       });
       if (result.ok && result.session) {
         saveBmuSession(result.session);
-        router.push('/workspace');
+        router.replace('/workspace');
         return;
       }
       const cached = loadBmuSessionForEmail('thomaswalsh@google.com');
       if (cached && cached.plans.length > 0) {
         saveBmuSession(cached);
-        router.push('/workspace');
+        router.replace('/workspace');
         return;
       }
       const base = getDefaultDemoSession();
@@ -161,12 +168,12 @@ export default function LoginPage() {
         base.activePlanId = recoveredPlans[0].id;
       }
       saveBmuSession(base);
-      router.push('/workspace');
+      router.replace('/workspace');
     } catch {
       const cached = loadBmuSessionForEmail('thomaswalsh@google.com');
       if (cached && cached.plans.length > 0) {
         saveBmuSession(cached);
-        router.push('/workspace');
+        router.replace('/workspace');
         return;
       }
       const base = getDefaultDemoSession();
@@ -178,7 +185,7 @@ export default function LoginPage() {
         base.activePlanId = recoveredPlans[0].id;
       }
       saveBmuSession(base);
-      router.push('/workspace');
+      router.replace('/workspace');
     } finally {
       setIsSubmitting(false);
     }
@@ -264,7 +271,7 @@ export default function LoginPage() {
       saveBmuSession(session);
     }
 
-    router.push('/workspace');
+    router.replace('/workspace');
   }
 
   return (

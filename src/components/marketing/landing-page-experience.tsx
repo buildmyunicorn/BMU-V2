@@ -254,8 +254,6 @@ export function LandingPageExperience({
 
   // Sync region cookie + auto-detect browser timezone/locale on first visit
   useEffect(() => {
-    clearActiveBmuSession();
-
     if (typeof window === 'undefined') return;
 
     // 1. Persist explicit region cookie when visiting /ie or /uk so Onboarding pre-selects it
