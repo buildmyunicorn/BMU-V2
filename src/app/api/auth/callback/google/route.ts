@@ -8,6 +8,7 @@ import { ensureDefaultTenantId } from '@/app/actions/auth';
 import { calculatePassLimits } from '@/lib/entitlements';
 import { sendSystemEmail } from '@/lib/email/send';
 import { EMAIL_DEFAULTS } from '@/lib/email/resend';
+import { resolvePublicOrigin } from '@/lib/auth/oauth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,8 @@ export async function GET(req: NextRequest) {
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const errorParam = url.searchParams.get('error');
+
+  const origin = resolvePublicOrigin(req);
 
   const cookieStore = await cookies();
   const rawSavedState = cookieStore.get('spf_oauth_state')?.value;
@@ -36,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   // Check if Google returned an error (e.g. user canceled consent)
   if (errorParam) {
-    const redirectUrl = new URL(fallbackPath, req.url);
+    const redirectUrl = new URL(fallbackPath, origin);
     redirectUrl.searchParams.set(
       'error',
       errorParam === 'access_denied' ? 'oauth_denied' : 'oauth_error'
@@ -46,7 +49,7 @@ export async function GET(req: NextRequest) {
 
   // Check state and code
   if (!code || !state || !savedState || savedState.state !== state) {
-    const redirectUrl = new URL(fallbackPath, req.url);
+    const redirectUrl = new URL(fallbackPath, origin);
     redirectUrl.searchParams.set('error', 'invalid_state');
     return NextResponse.redirect(redirectUrl);
   }
@@ -55,17 +58,11 @@ export async function GET(req: NextRequest) {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 
   if (!clientId || !clientSecret) {
-    const redirectUrl = new URL(fallbackPath, req.url);
+    const redirectUrl = new URL(fallbackPath, origin);
     redirectUrl.searchParams.set('error', 'missing_google_keys');
     return NextResponse.redirect(redirectUrl);
   }
 
-  const forwardedProto =
-    req.headers.get('x-forwarded-proto') || req.nextUrl.protocol.replace(':', '');
-  const forwardedHost = req.headers.get('x-forwarded-host') || req.nextUrl.host;
-  const origin =
-    process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '') ||
-    `${forwardedProto}://${forwardedHost}`;
   const redirectUri = `${origin}/api/auth/callback/google`;
 
   // 1. Exchange authorization code for Google access token
@@ -86,7 +83,7 @@ export async function GET(req: NextRequest) {
     if (!tokenRes.ok) {
       const errText = await tokenRes.text();
       console.error('[SPF Google OAuth] Token exchange failed:', errText);
-      const redirectUrl = new URL(fallbackPath, req.url);
+      const redirectUrl = new URL(fallbackPath, origin);
       redirectUrl.searchParams.set('error', 'oauth_exchange_failed');
       return NextResponse.redirect(redirectUrl);
     }
@@ -94,13 +91,13 @@ export async function GET(req: NextRequest) {
     tokenData = await tokenRes.json();
   } catch (err) {
     console.error('[SPF Google OAuth] Network error during token exchange:', err);
-    const redirectUrl = new URL(fallbackPath, req.url);
+    const redirectUrl = new URL(fallbackPath, origin);
     redirectUrl.searchParams.set('error', 'oauth_exchange_failed');
     return NextResponse.redirect(redirectUrl);
   }
 
   if (!tokenData.access_token) {
-    const redirectUrl = new URL(fallbackPath, req.url);
+    const redirectUrl = new URL(fallbackPath, origin);
     redirectUrl.searchParams.set('error', 'oauth_exchange_failed');
     return NextResponse.redirect(redirectUrl);
   }
@@ -121,7 +118,7 @@ export async function GET(req: NextRequest) {
     });
 
     if (!profileRes.ok) {
-      const redirectUrl = new URL(fallbackPath, req.url);
+      const redirectUrl = new URL(fallbackPath, origin);
       redirectUrl.searchParams.set('error', 'oauth_profile_failed');
       return NextResponse.redirect(redirectUrl);
     }
@@ -129,14 +126,14 @@ export async function GET(req: NextRequest) {
     googleProfile = await profileRes.json();
   } catch (err) {
     console.error('[SPF Google OAuth] Error fetching user profile:', err);
-    const redirectUrl = new URL(fallbackPath, req.url);
+    const redirectUrl = new URL(fallbackPath, origin);
     redirectUrl.searchParams.set('error', 'oauth_profile_failed');
     return NextResponse.redirect(redirectUrl);
   }
 
   const cleanEmail = googleProfile.email?.trim().toLowerCase();
   if (!cleanEmail) {
-    const redirectUrl = new URL(fallbackPath, req.url);
+    const redirectUrl = new URL(fallbackPath, origin);
     redirectUrl.searchParams.set('error', 'oauth_no_email');
     return NextResponse.redirect(redirectUrl);
   }
@@ -163,7 +160,7 @@ export async function GET(req: NextRequest) {
         existingUser.status === 'SUSPENDED' ||
         existingUser.status === 'SOFT_DELETED'
       ) {
-        const redirectUrl = new URL(fallbackPath, req.url);
+        const redirectUrl = new URL(fallbackPath, origin);
         redirectUrl.searchParams.set('error', 'account_suspended');
         return NextResponse.redirect(redirectUrl);
       }
@@ -246,7 +243,7 @@ export async function GET(req: NextRequest) {
 
     // 5. Route to onboarding for brand new users or founders without plans
     if (isNewUser) {
-      return NextResponse.redirect(new URL('/onboarding', req.url));
+      return NextResponse.redirect(new URL('/onboarding', origin));
     }
 
     const existingPlans = await db
@@ -256,7 +253,7 @@ export async function GET(req: NextRequest) {
       .limit(1);
 
     if (existingPlans.length === 0) {
-      return NextResponse.redirect(new URL('/onboarding', req.url));
+      return NextResponse.redirect(new URL('/onboarding', origin));
     }
 
     const destination =
@@ -264,10 +261,10 @@ export async function GET(req: NextRequest) {
         ? savedState.returnTo
         : '/workspace';
 
-    return NextResponse.redirect(new URL(destination, req.url));
+    return NextResponse.redirect(new URL(destination, origin));
   } catch (dbErr) {
     console.error('[SPF Google OAuth] Database error processing user:', dbErr);
-    const redirectUrl = new URL(fallbackPath, req.url);
+    const redirectUrl = new URL(fallbackPath, origin);
     redirectUrl.searchParams.set('error', 'db_error');
     return NextResponse.redirect(redirectUrl);
   }
