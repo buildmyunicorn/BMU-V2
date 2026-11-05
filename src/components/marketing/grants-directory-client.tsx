@@ -21,6 +21,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ShareGrantButton } from '@/components/marketing/share-grant-button';
 import type { GrantDirectoryRecord } from '@/app/actions/admin-grants';
 
 interface GrantsDirectoryClientProps {
@@ -217,14 +218,27 @@ export function GrantsDirectoryClient({ initialGrants }: GrantsDirectoryClientPr
                 </CardContent>
 
                 {/* Card Footer Actions */}
-                <div className="border-t border-slate-100 bg-slate-50/50 p-3.5 px-5 flex items-center justify-between">
-                  <Link
-                    href={detailHref}
-                    className="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-700"
-                  >
-                    View Scheme Criteria
-                    <ChevronRight className="ml-1 h-3.5 w-3.5" />
-                  </Link>
+                <div className="border-t border-slate-100 bg-slate-50/50 p-3.5 px-5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={detailHref}
+                      className="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                    >
+                      View Scheme Criteria
+                      <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                    </Link>
+                    <ShareGrantButton
+                      title={`${grant.grantName} (${grant.countryCode})`}
+                      description={grant.summary || `Non-dilutive startup funding from ${grant.providerAgency}`}
+                      slug={grant.slug}
+                      countryCode={grant.countryCode}
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60"
+                      buttonText=""
+                      showLabel={false}
+                    />
+                  </div>
 
                   <Link href="/register">
                     <Button size="sm" variant="outline" className="h-7 text-[11px] font-semibold border-indigo-200 text-indigo-700 hover:bg-indigo-50">

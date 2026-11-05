@@ -6,6 +6,10 @@ import { eq, desc } from 'drizzle-orm';
 import { GrantsDirectoryClient } from '@/components/marketing/grants-directory-client';
 import { MarketingHeader, MarketingFooter } from '@/components/marketing/marketing-layout-nav';
 import type { GrantDirectoryRecord } from '@/app/actions/admin-grants';
+import {
+  ensureDefaultGrantsSeededInDb,
+  getFallbackGrantRecords,
+} from '@/lib/grants/ensure-grants';
 
 export const revalidate = 3600; // Revalidate every hour (ISR)
 
@@ -41,6 +45,8 @@ export default async function GrantsDirectoryPage() {
   let grants: GrantDirectoryRecord[] = [];
 
   try {
+    await ensureDefaultGrantsSeededInDb();
+
     grants = await db
       .select()
       .from(grantsDirectory)
@@ -48,6 +54,11 @@ export default async function GrantsDirectoryPage() {
       .orderBy(desc(grantsDirectory.updatedAt));
   } catch (error) {
     console.error('[GrantsDirectoryPage] Database read error:', error);
+  }
+
+  // Resilient fallback: ensure the grants catalog is NEVER empty on live production
+  if (!grants || grants.length === 0) {
+    grants = getFallbackGrantRecords();
   }
 
   return (

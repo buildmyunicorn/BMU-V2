@@ -1,6 +1,10 @@
 import { MetadataRoute } from 'next';
 import { db, grantsDirectory } from '@/db';
 import { eq } from 'drizzle-orm';
+import {
+  ensureDefaultGrantsSeededInDb,
+  getFallbackGrantRecords,
+} from '@/lib/grants/ensure-grants';
 
 const BASE_URL = 'https://startuppreflight.com';
 
@@ -88,8 +92,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
+  let activeGrants: { slug: string; countryCode: string; updatedAt: Date | null }[] = [];
+
   try {
-    const activeGrants = await db
+    await ensureDefaultGrantsSeededInDb();
+
+    activeGrants = await db
       .select({
         slug: grantsDirectory.slug,
         countryCode: grantsDirectory.countryCode,
@@ -97,29 +105,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })
       .from(grantsDirectory)
       .where(eq(grantsDirectory.status, 'ACTIVE'));
-
-    const grantRoutes: MetadataRoute.Sitemap = activeGrants.flatMap((grant) => {
-      const countrySegment = grant.countryCode.toLowerCase();
-      const lastMod = grant.updatedAt || now;
-      return [
-        {
-          url: `${BASE_URL}/grants/${countrySegment}/${grant.slug}`,
-          lastModified: lastMod,
-          changeFrequency: 'weekly' as const,
-          priority: 0.85,
-        },
-        {
-          url: `${BASE_URL}/grants/${countrySegment}/${grant.slug}/checklist`,
-          lastModified: lastMod,
-          changeFrequency: 'weekly' as const,
-          priority: 0.8,
-        },
-      ];
-    });
-
-    return [...staticRoutes, ...grantRoutes];
   } catch (err) {
     console.error('[Sitemap] Error querying grants catalog for sitemap:', err);
-    return staticRoutes;
   }
+
+  if (activeGrants.length === 0) {
+    activeGrants = getFallbackGrantRecords().map((g) => ({
+      slug: g.slug,
+      countryCode: g.countryCode,
+      updatedAt: g.updatedAt,
+    }));
+  }
+
+  const grantRoutes: MetadataRoute.Sitemap = activeGrants.flatMap((grant) => {
+    const countrySegment = grant.countryCode.toLowerCase();
+    const lastMod = grant.updatedAt || now;
+    return [
+      {
+        url: `${BASE_URL}/grants/${countrySegment}/${grant.slug}`,
+        lastModified: lastMod,
+        changeFrequency: 'weekly' as const,
+        priority: 0.85,
+      },
+      {
+        url: `${BASE_URL}/grants/${countrySegment}/${grant.slug}/checklist`,
+        lastModified: lastMod,
+        changeFrequency: 'weekly' as const,
+        priority: 0.8,
+      },
+    ];
+  });
+
+  return [...staticRoutes, ...grantRoutes];
 }

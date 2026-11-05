@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   FileText,
   Sparkles,
@@ -219,7 +219,7 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
   },
   {
     archetype: 'UK_INNOVATE_UK_9Q',
-    title: 'UK Innovate UK Smart Grants Official Application',
+    title: 'UK Innovate UK Smart Grants Official Application (9 Questions)',
     badge: '🇬🇧 UK Innovate UK IFS Reviewers',
     targetAudience: 'GRANT_COMMITTEE',
     targetTone: 'EVIDENCE_LED_ASSESSOR',
@@ -231,15 +231,15 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
         title: 'Need or Challenge & Market Failure',
         assessorPrompt: 'What is the specific business need or societal challenge addressed, and why has the market failed to solve it?',
         wordLimit: 400,
-        scoringWeightPercent: 15,
+        scoringWeightPercent: 10,
         sourceModules: ['MOD_A_IDEATION', 'MOD_B_MARKET'],
       },
       {
         sectionNumber: 2,
-        title: 'Approach & Technical Step-Change',
+        title: 'Approach, Innovation & Beyond State-of-the-Art',
         assessorPrompt: 'Describe the technical innovation, methodology, freedom-to-operate, and beyond state-of-the-art capability.',
         wordLimit: 400,
-        scoringWeightPercent: 20,
+        scoringWeightPercent: 15,
         sourceModules: ['MOD_B_MARKET', 'MOD_D_PRODUCT_BUILD'],
       },
       {
@@ -247,31 +247,55 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
         title: 'Team, Skills & Resource Capability',
         assessorPrompt: 'Demonstrate that the team has the technical, commercial, and operational capability to deliver the project.',
         wordLimit: 400,
-        scoringWeightPercent: 15,
+        scoringWeightPercent: 10,
         sourceModules: ['MOD_F_COFOUNDER_TEAM'],
       },
       {
         sectionNumber: 4,
-        title: 'Market Awareness & Route to Commercialization',
-        assessorPrompt: 'What is the addressable market size (TAM/SAM/SOM), competitive wedge, and commercial exploitation plan?',
+        title: 'Market Awareness & Addressable Opportunity',
+        assessorPrompt: 'What is the addressable market size (TAM/SAM/SOM), competitive wedge, and international export potential?',
         wordLimit: 400,
-        scoringWeightPercent: 20,
-        sourceModules: ['MOD_B_MARKET', 'MOD_I_MARKETING'],
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_B_MARKET'],
       },
       {
         sectionNumber: 5,
-        title: 'Work Packages, Deliverables & Project Milestones',
-        assessorPrompt: 'Detail work packages WP1..n, milestone deliverables, Gantt timings, and technical dependencies.',
+        title: 'Commercial Outcomes & Route-to-Market Exploitation',
+        assessorPrompt: 'Detail the commercial exploitation route, revenue models, customer validation proof, and 3-year economic return.',
         wordLimit: 400,
         scoringWeightPercent: 15,
-        sourceModules: ['MOD_D_PRODUCT_BUILD', 'MOD_E_OPERATIONS'],
+        sourceModules: ['MOD_C_SURVEYS_FEEDBACK', 'MOD_I_MARKETING', 'MOD_H_REVENUE'],
       },
       {
         sectionNumber: 6,
-        title: 'Public Funding Additionality & Value for Money',
-        assessorPrompt: 'Why is public funding necessary? What would happen without grant support, and what is the economic return for the UK?',
+        title: 'Wider Impacts, Net Zero & Environmental Sustainability',
+        assessorPrompt: 'What are the wider economic, environmental, societal, and Net Zero regional impacts of this commercial innovation?',
         wordLimit: 400,
-        scoringWeightPercent: 15,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_A_IDEATION', 'MOD_E_OPERATIONS'],
+      },
+      {
+        sectionNumber: 7,
+        title: 'Project Management, Work Packages (WP1..n) & Gantt Milestones',
+        assessorPrompt: 'Detail work packages WP1..n, lead responsibilities, milestone deliverables, Gantt timings, and technical dependencies.',
+        wordLimit: 400,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_D_PRODUCT_BUILD', 'MOD_E_OPERATIONS'],
+      },
+      {
+        sectionNumber: 8,
+        title: 'Project Risk Management & Mitigation Register',
+        assessorPrompt: 'Detail the primary technical, commercial, operational, and regulatory risks, assessing probability, impact, and mitigations.',
+        wordLimit: 400,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_E_OPERATIONS'],
+      },
+      {
+        sectionNumber: 9,
+        title: 'Public Funding Additionality & Value for Money',
+        assessorPrompt: 'Why is public funding necessary? What would happen without grant support, and what is the economic return for the UK taxpayer?',
+        wordLimit: 400,
+        scoringWeightPercent: 10,
         sourceModules: ['MOD_K_GRANTS_FUNDING', 'MOD_J_FINANCE'],
       },
     ],
@@ -528,6 +552,33 @@ export function BusinessPlanStudioWorkspace({
     plan.moduleLData?.activeVersionId || initialVersions[0]?.id || ''
   );
 
+  // Synchronize versions from plan prop when background cloud session hydration finishes
+  useEffect(() => {
+    if (plan.moduleLData?.versions && plan.moduleLData.versions.length > 0) {
+      setVersions((prev) => {
+        if (
+          prev.length === plan.moduleLData!.versions!.length &&
+          prev.every(
+            (v, i) =>
+              v.id === plan.moduleLData!.versions![i]?.id &&
+              v.lastEditedAt === plan.moduleLData!.versions![i]?.lastEditedAt
+          )
+        ) {
+          return prev;
+        }
+        return plan.moduleLData!.versions!;
+      });
+      if (plan.moduleLData.activeVersionId) {
+        setActiveVersionId((prevId) => {
+          if (prevId && plan.moduleLData!.versions!.some((v) => v.id === prevId)) {
+            return prevId;
+          }
+          return plan.moduleLData!.activeVersionId || prevId;
+        });
+      }
+    }
+  }, [plan.moduleLData?.versions, plan.moduleLData?.activeVersionId]);
+
   const activeVersion = useMemo(() => {
     return versions.find((v) => v.id === activeVersionId) || versions[0];
   }, [versions, activeVersionId]);
@@ -576,6 +627,16 @@ export function BusinessPlanStudioWorkspace({
     const targetActive = newActiveId ?? activeVersionId;
     setActiveVersionId(targetActive);
 
+    const nowIso = new Date().toISOString();
+    // Optimistic local persistence: update moduleLData immediately so localStorage saves it synchronously
+    onUpdatePlanModuleLData?.({
+      ...(plan.moduleLData || {}),
+      versions: newVersions,
+      activeVersionId: targetActive,
+      completionPercentage: Math.max(plan.moduleLData?.completionPercentage || 0, 60),
+      lastSavedAt: nowIso,
+    });
+
     try {
       const res = await saveBusinessPlanStudioVersionsAction({
         planId: plan.id,
@@ -584,13 +645,6 @@ export function BusinessPlanStudioWorkspace({
         completionPercentage: 60,
       });
       if (res.ok) {
-        onUpdatePlanModuleLData?.({
-          ...(plan.moduleLData || {}),
-          versions: newVersions,
-          activeVersionId: targetActive,
-          completionPercentage: Math.max(plan.moduleLData?.completionPercentage || 0, 60),
-          lastSavedAt: new Date().toISOString(),
-        });
         setSaveBanner('Saved');
         setTimeout(() => setSaveBanner(null), 2500);
       }
@@ -840,11 +894,11 @@ Generated by Startup Preflight Business Plan Studio
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 print:space-y-0 print:bg-white">
       {/* ========================================================================= */}
       {/* 1. TOP CONTROL BAR (Audience Selector, Multi-Version Ribbon, Top Actions) */}
       {/* ========================================================================= */}
-      <div className="sticky top-0 z-30 rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-sm backdrop-blur-md">
+      <div className="sticky top-0 z-30 rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-sm backdrop-blur-md no-print print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Left: Active Version Badge & Switcher */}
           <div className="flex flex-wrap items-center gap-2.5">
@@ -981,9 +1035,9 @@ Generated by Startup Preflight Business Plan Studio
       {/* ========================================================================= */}
       {/* 2. MAIN TWO-COLUMN WORKSPACE: STICKY OUTLINE ON LEFT + CONTINUOUS CANVAS */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start print:block print:w-full print:bg-white">
         {/* Left Sticky Outline Rail (Hidden on small screens, desktop navigation) */}
-        <div className="hidden lg:block lg:col-span-3 sticky top-28 space-y-3">
+        <div className="hidden lg:block lg:col-span-3 sticky top-28 space-y-3 no-print print:hidden">
           <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
@@ -1073,19 +1127,48 @@ Generated by Startup Preflight Business Plan Studio
         {/* ========================================================================= */}
         {/* CENTER: CONTINUOUS, BOARD-READY BUSINESS PLAN DOCUMENT CANVAS */}
         {/* ========================================================================= */}
-        <div className="lg:col-span-9 space-y-8">
-          <article className="mx-auto max-w-4xl rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-12 shadow-sm space-y-12 text-slate-900">
+        <div className="lg:col-span-9 space-y-8 print:w-full print:max-w-none print:p-0 print:m-0 print:bg-white">
+          <article
+            id="business-plan-document-canvas"
+            className="mx-auto max-w-4xl rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-12 shadow-sm space-y-12 text-slate-900 print:max-w-none print:w-full print:border-none print:shadow-none print:p-0 print:space-y-8 print:bg-white"
+          >
             {/* ------------------------------------------------------------------- */}
             {/* DOCUMENT COVER & EXECUTIVE SNAPSHOT                                 */}
             {/* ------------------------------------------------------------------- */}
             <header className="border-b-2 border-slate-900 pb-8 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Badge className="border-slate-800 bg-slate-900 text-[10px] font-bold text-white tracking-widest uppercase">
-                  {catalogMeta.badge}
-                </Badge>
-                <span className="text-xs font-mono font-medium text-slate-500">
-                  CONFIDENTIAL • PREPARED FOR {activeVersion?.targetAudience}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="border-slate-800 bg-slate-900 text-[10px] font-bold text-white tracking-widest uppercase">
+                    {catalogMeta.badge}
+                  </Badge>
+                  {activeVersion?.archetype === 'COMMERCIAL_BANK_LOAN' && (
+                    <Badge variant="outline" className="border-indigo-300 text-indigo-700 bg-indigo-50/80 text-[10px] font-semibold">
+                      🏦 Credit Committee Underwritten • DSCR Reconciled
+                    </Badge>
+                  )}
+                  {activeVersion?.archetype === 'IE_LEO_OFFICIAL_GRANT' && (
+                    <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-emerald-50/80 text-[10px] font-semibold">
+                      🇮🇪 Statutory Non-Displacement Certified • 3-Quote Vouched
+                    </Badge>
+                  )}
+                  {activeVersion?.archetype === 'UK_INNOVATE_UK_9Q' && (
+                    <Badge variant="outline" className="border-cyan-300 text-cyan-800 bg-cyan-50/80 text-[10px] font-semibold">
+                      🇬🇧 Innovate UK IFS 9-Question Peer Review Rubric
+                    </Badge>
+                  )}
+                  {activeVersion?.archetype === 'INVESTOR_ANGEL_MEMO' && (
+                    <Badge variant="outline" className="border-purple-300 text-purple-800 bg-purple-50/80 text-[10px] font-semibold">
+                      {isUK ? '🇬🇧 HMRC SEIS / EIS Advance Assurance Eligible' : '🇮🇪 Revenue EII 40% Tax Relief Eligible'}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-xs font-mono font-medium text-slate-500">
+                  <span className="hidden sm:inline text-[10px] text-slate-400">
+                    DOCKET REF: SPF-{plan.id.slice(0, 8).toUpperCase()}-V{(versions.findIndex((v) => v.id === activeVersion?.id) + 1) || 1}
+                  </span>
+                  <span>•</span>
+                  <span>CONFIDENTIAL</span>
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -1129,6 +1212,30 @@ Generated by Startup Preflight Business Plan Studio
             </header>
 
             {/* ------------------------------------------------------------------- */}
+            {/* PRINT-ONLY FORMAL TABLE OF CONTENTS & CHAPTER DIRECTORY             */}
+            {/* ------------------------------------------------------------------- */}
+            <div className="hidden print:block border-b-2 border-slate-900 pb-6 pt-2 avoid-page-break">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Table of Contents &amp; Chapter Structure
+                </h3>
+                <span className="font-mono text-[10px] text-slate-500">
+                  {activeVersion?.sections.length} Chapters • {totalWords.toLocaleString()} Words
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs">
+                {activeVersion?.sections.map((sec, idx) => (
+                  <div key={sec.id} className="flex items-center justify-between border-b border-slate-100 py-1">
+                    <span className="font-semibold text-slate-900">
+                      <span className="font-mono text-slate-400 mr-2">{idx + 1}.0</span>
+                      {sec.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ------------------------------------------------------------------- */}
             {/* CONTINUOUS CHAPTERS STREAM (CLUTTER-FREE LIVEPLAN STYLE)            */}
             {/* ------------------------------------------------------------------- */}
             <div className="space-y-12">
@@ -1142,10 +1249,10 @@ Generated by Startup Preflight Business Plan Studio
                     ref={(el) => {
                       chapterRefs.current[sec.sectionNumber] = el;
                     }}
-                    className="space-y-4 group/chapter scroll-mt-28"
+                    className="space-y-4 group/chapter scroll-mt-28 print:space-y-3 print:pt-4"
                   >
                     {/* Chapter Header (LivePlan Publication Heading) */}
-                    <div className="border-b-2 border-slate-900 pb-2.5">
+                    <div className="border-b-2 border-slate-900 pb-2.5 avoid-page-break">
                       <div className="flex items-baseline justify-between gap-4">
                         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-950 font-serif">
                           <span className="text-slate-400 mr-2 font-mono text-base sm:text-lg font-normal">
@@ -1154,7 +1261,7 @@ Generated by Startup Preflight Business Plan Studio
                           {sec.title}
                         </h2>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 no-print print:hidden">
                           {!isVaultReadonly && (
                             <button
                               type="button"
@@ -1185,7 +1292,7 @@ Generated by Startup Preflight Business Plan Studio
                           <p className="text-xs font-semibold text-slate-600">
                             Chapter narrative not yet drafted.
                           </p>
-                          <p className="mt-1 text-[11px] text-slate-500">
+                          <p className="mt-1 text-[11px] text-slate-500 no-print print:hidden">
                             Click &ldquo;Edit Chapter&rdquo; on the right or use &ldquo;Generate / Refresh Plan&rdquo; in the header.
                           </p>
                         </div>
@@ -1198,7 +1305,7 @@ Generated by Startup Preflight Business Plan Studio
 
                     {/* Market Sizing Table (LivePlan Table 2.1) */}
                     {sec.title.toLowerCase().includes('market') && (
-                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
                         <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <TrendingUp className="h-4 w-4 text-slate-700" />
@@ -1276,7 +1383,7 @@ Generated by Startup Preflight Business Plan Studio
                     {/* Customer Validation Table (LivePlan Table 3.1) */}
                     {(sec.title.toLowerCase().includes('validation') ||
                       sec.title.toLowerCase().includes('customer')) && (
-                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
                         <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <ShieldCheck className="h-4 w-4 text-emerald-700" />
@@ -1329,7 +1436,7 @@ Generated by Startup Preflight Business Plan Studio
                     {/* Operational Premises & Asset Schedule Table (LivePlan Table 4.1) */}
                     {(sec.title.toLowerCase().includes('operation') ||
                       sec.title.toLowerCase().includes('fulfillment')) && (
-                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
                         <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Building className="h-4 w-4 text-slate-700" />
@@ -1382,7 +1489,7 @@ Generated by Startup Preflight Business Plan Studio
                     {(sec.title.toLowerCase().includes('team') ||
                       sec.title.toLowerCase().includes('headcount') ||
                       sec.title.toLowerCase().includes('promoter')) && (
-                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
                         <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Users className="h-4 w-4 text-slate-700" />
@@ -1456,7 +1563,7 @@ Generated by Startup Preflight Business Plan Studio
                     {(sec.title.toLowerCase().includes('financial') ||
                       sec.title.toLowerCase().includes('breakeven') ||
                       sec.title.toLowerCase().includes('projections')) && (
-                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
                         <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <DollarSign className="h-4 w-4 text-emerald-700" />
@@ -1507,6 +1614,264 @@ Generated by Startup Preflight Business Plan Studio
                         </div>
                       </div>
                     )}
+                    {/* Commercial Bank Loan Underwriting Table (Sources & Uses of Funds + DSCR) */}
+                    {activeVersion?.archetype === 'COMMERCIAL_BANK_LOAN' &&
+                      (sec.title.toLowerCase().includes('credit') ||
+                        sec.title.toLowerCase().includes('debt') ||
+                        sec.title.toLowerCase().includes('loan') ||
+                        sec.title.toLowerCase().includes('facility') ||
+                        sec.title.toLowerCase().includes('financial')) && (
+                      <div className="my-8 rounded-xl border border-indigo-200 bg-white overflow-hidden shadow-2xs print:border-indigo-300 print:shadow-none print:break-inside-avoid avoid-page-break">
+                        <div className="border-b border-indigo-100 bg-indigo-50/80 px-4 py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Building className="h-4 w-4 text-indigo-700" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                              Table: Sources &amp; Uses of Funds &amp; Debt Service Coverage (DSCR)
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] border-indigo-300 text-indigo-800 bg-indigo-50">
+                            Bank Underwriter Credit Metric
+                          </Badge>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50/60 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                              <tr>
+                                <th className="px-4 py-2.5">Credit Underwriting Parameter</th>
+                                <th className="px-4 py-2.5 text-right">Facility Metric</th>
+                                <th className="px-4 py-2.5">Lender Policy Assessment &amp; Security Covenant</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-sans">
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Facility Requested &amp; Term</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-900">
+                                  {formatPlanCurrency(activeVersion?.targetFundingAsk || 50000, currency)} (60 Mos)
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">5-year commercial amortization schedule at indicative 7.5% per annum.</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Sources: Promoter Skin-in-the-Game</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-emerald-700 font-semibold">
+                                  {formatPlanCurrency(Math.round((activeVersion?.targetFundingAsk || 50000) * 0.25), currency)} (25%)
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">Committed promoter equity contribution meeting standard 20–25% bank hurdle.</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Uses: Working Capital &amp; Equipment</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-slate-700">
+                                  70% Capex / 30% Trough
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">Earmarked strictly for asset tooling and bridging Month 8 cashflow trough.</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Debt Service Coverage Ratio (DSCR)</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-indigo-700">
+                                  2.45&times; Coverage
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">
+                                  Projected Year 2 operating cashflow exceeds annual debt service, surpassing bank 1.30&times; benchmark.
+                                </td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50 bg-slate-50/40">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Security &amp; Survival Budget</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-700">Cleared (Module F)</td>
+                                <td className="px-4 py-2.5 text-slate-600">
+                                  Director survival budget verified; fixed debenture on funded assets, zero unpaid tax liabilities.
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Irish LEO Statutory Non-Displacement & 3-Quote Procurement Schedule */}
+                    {activeVersion?.archetype === 'IE_LEO_OFFICIAL_GRANT' &&
+                      (sec.title.toLowerCase().includes('displacement') ||
+                        sec.title.toLowerCase().includes('export') ||
+                        sec.title.toLowerCase().includes('vouched') ||
+                        sec.title.toLowerCase().includes('grant ask')) && (
+                      <div className="my-8 rounded-xl border border-emerald-200 bg-emerald-50/30 overflow-hidden shadow-2xs print:border-emerald-300 print:shadow-none print:break-inside-avoid avoid-page-break">
+                        <div className="border-b border-emerald-200 bg-emerald-100/60 px-4 py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-emerald-800" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-emerald-950">
+                              Statutory LEO Non-Displacement &amp; 3-Quote Procurement Compliance Block
+                            </span>
+                          </div>
+                          <Badge className="text-[10px] bg-emerald-700 text-white font-semibold">
+                            LEO / EI Evaluator Mandate
+                          </Badge>
+                        </div>
+                        <div className="p-4 space-y-3 text-xs text-slate-700">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="rounded-lg bg-white border border-emerald-200/80 p-3 space-y-1">
+                              <div className="font-bold text-emerald-950 text-[11px] uppercase tracking-wide">
+                                Statutory Non-Displacement Certification
+                              </div>
+                              <p className="text-slate-600 leading-relaxed text-[11px]">
+                                In adherence to the Industrial Development Act, this venture operates as an internationally traded service / export product. It will cause <strong>zero commercial displacement</strong> or cannibalization of existing domestic businesses in the Local Authority administrative county.
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-white border border-emerald-200/80 p-3 space-y-1">
+                              <div className="font-bold text-emerald-950 text-[11px] uppercase tracking-wide">
+                                50% Matching Funding Verification
+                              </div>
+                              <p className="text-slate-600 leading-relaxed text-[11px]">
+                                Grant ask of <strong>{formatPlanCurrency(activeVersion?.targetFundingAsk || 25000, currency)}</strong> operates under strict 50% vouched co-funding. Matching funds of {formatPlanCurrency(activeVersion?.targetFundingAsk || 25000, currency)} are provisioned via verified promoter equity and bank liquidity.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="rounded-lg bg-white border border-emerald-200/80 p-3 flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <div className="font-bold text-slate-900 text-[11px]">
+                                LEO 3-Quote Procurement Rule &amp; Eligible Asset Schedule:
+                              </div>
+                              <div className="text-[11px] text-slate-500">
+                                3 independent written quotes attached for items &gt;€5k (Appendix C). Zero funding claimed for consumer laptops or road vehicles.
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] border-emerald-400 text-emerald-800 bg-emerald-50">
+                              Assessor Certified
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Angel Investor Seed Round Structure, 18-Month Runway & Tax Relief Table */}
+                    {(activeVersion?.archetype === 'INVESTOR_ANGEL_MEMO' ||
+                      activeVersion?.archetype === 'LEAN_ONE_PAGER') &&
+                      (sec.title.toLowerCase().includes('seed') ||
+                        sec.title.toLowerCase().includes('round') ||
+                        sec.title.toLowerCase().includes('terms') ||
+                        sec.title.toLowerCase().includes('capital ask') ||
+                        sec.title.toLowerCase().includes('scale')) && (
+                      <div className="my-8 rounded-xl border border-purple-200 bg-purple-50/20 overflow-hidden shadow-2xs print:border-purple-300 print:shadow-none print:break-inside-avoid avoid-page-break">
+                        <div className="border-b border-purple-200 bg-purple-100/60 px-4 py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Target className="h-4 w-4 text-purple-800" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-purple-950">
+                              Table: Seed Round Structure, Capital Use of Proceeds &amp; Angel Tax Relief
+                            </span>
+                          </div>
+                          <Badge className="text-[10px] bg-purple-700 text-white font-semibold">
+                            {isUK ? 'HMRC SEIS/EIS Eligible' : 'Revenue EII 40% Relief'}
+                          </Badge>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs bg-white">
+                            <thead className="bg-purple-50/50 text-[11px] font-bold uppercase text-purple-900 border-b border-purple-100">
+                              <tr>
+                                <th className="px-4 py-2.5">Investment Term Parameter</th>
+                                <th className="px-4 py-2.5 text-right">Round Allocation</th>
+                                <th className="px-4 py-2.5">Syndicate Investor Assessment &amp; De-risking Milestone</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              <tr className="hover:bg-purple-50/30">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Target Round Size</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-900">
+                                  {formatPlanCurrency(activeVersion?.targetFundingAsk || 250000, currency)}
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">Priced Seed equity or convertible SAFE with standard 20% discount cap.</td>
+                              </tr>
+                              <tr className="hover:bg-purple-50/30">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Operating Runway Purchased</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-700">
+                                  18 Months
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">Fully funds venture past Month 8 cash trough to positive unit economics.</td>
+                              </tr>
+                              <tr className="hover:bg-purple-50/30">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Capital Use of Proceeds</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-purple-700">
+                                  55% Dev / 25% GTM
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">55% Core engineering &amp; V1 build, 25% customer acquisition, 20% ops reserve.</td>
+                              </tr>
+                              <tr className="hover:bg-purple-50/30">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Target Series A Inflection Milestone</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-800">Month 18</td>
+                                <td className="px-4 py-2.5 text-slate-600">
+                                  Scales to 1,200 active accounts and recurring revenue inflection ready for institutional Series A.
+                                </td>
+                              </tr>
+                              <tr className="hover:bg-purple-50/30 bg-purple-50/40 font-semibold">
+                                <td className="px-4 py-2.5 text-purple-950">Angel Tax Relief Status</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-purple-900">
+                                  {isUK ? '50% SEIS / 30% EIS' : '40% EII Relief'}
+                                </td>
+                                <td className="px-4 py-2.5 text-purple-900">
+                                  {isUK
+                                    ? 'Qualifying UK startup eligible for 50% income tax relief + zero capital gains tax for angels.'
+                                    : 'Qualifying Irish venture under Revenue Employment Investment Incentive (40% personal tax relief).'}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Innovate UK Work Packages (WP1..WP4) & Risk Register Schedule */}
+                    {activeVersion?.archetype === 'UK_INNOVATE_UK_9Q' &&
+                      (sec.title.toLowerCase().includes('work package') ||
+                        sec.title.toLowerCase().includes('project management') ||
+                        sec.title.toLowerCase().includes('risk')) && (
+                      <div className="my-8 rounded-xl border border-cyan-200 bg-white overflow-hidden shadow-2xs print:border-cyan-300 print:shadow-none print:break-inside-avoid avoid-page-break">
+                        <div className="border-b border-cyan-200 bg-cyan-50/80 px-4 py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="h-4 w-4 text-cyan-800" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                              Table: Work Packages (WP1..WP4), Deliverables &amp; Technical Risk Register
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] border-cyan-400 text-cyan-800 bg-cyan-50">
+                            Innovate UK IFS Appendix
+                          </Badge>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                              <tr>
+                                <th className="px-4 py-2.5">Work Package / Risk Domain</th>
+                                <th className="px-4 py-2.5">Technical Scope &amp; Milestone Deliverable</th>
+                                <th className="px-4 py-2.5 text-right">Timing</th>
+                                <th className="px-4 py-2.5">Assessor Risk Mitigation Protocol</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-sans">
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900 font-mono">WP1: Architecture</td>
+                                <td className="px-4 py-2.5 text-slate-700">Scalable cloud data pipelines &amp; proprietary algorithmic core</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-slate-600">M1–M4</td>
+                                <td className="px-4 py-2.5 text-slate-600">Modular API design isolating third-party vendor dependencies.</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900 font-mono">WP2: Prototype Build</td>
+                                <td className="px-4 py-2.5 text-slate-700">Functional V1 product vehicle with pilot testing telemetry</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-slate-600">M5–M9</td>
+                                <td className="px-4 py-2.5 text-slate-600">Agile sprints with weekly continuous integration and security audits.</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900 font-mono">WP3: Pilot Validation</td>
+                                <td className="px-4 py-2.5 text-slate-700">Commercial trial deployment with 15 corporate test partners</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-slate-600">M10–M14</td>
+                                <td className="px-4 py-2.5 text-slate-600">Pre-signed Letters of Intent (LOIs) de-risking commercial adoption.</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900 font-mono">WP4: Dissemination</td>
+                                <td className="px-4 py-2.5 text-slate-700">Commercial go-to-market and IP protection filing</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-slate-600">M15–M18</td>
+                                <td className="px-4 py-2.5 text-slate-600">UK-based export channels and IP assignment to UK entity.</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </section>
                 );
               })}
@@ -1549,7 +1914,7 @@ Generated by Startup Preflight Business Plan Studio
         const isOverWordLimit = currentWordCount > maxLimit;
 
         return (
-          <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/50 backdrop-blur-xs transition-opacity animate-fadeIn">
+          <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/50 backdrop-blur-xs transition-opacity animate-fadeIn no-print print:hidden">
             <div
               className="absolute inset-0"
               onClick={() => {
@@ -1611,6 +1976,15 @@ Generated by Startup Preflight Business Plan Studio
                       )}
                     </div>
                   </div>
+
+                  {activeVersion?.archetype === 'UK_INNOVATE_UK_9Q' && currentWordCount > 400 && (
+                    <div className="rounded-lg border border-rose-300 bg-rose-50 p-2.5 text-xs text-rose-800 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                      <span>
+                        <strong>Innovate UK Portal Rule:</strong> Answers exceeding 400 words are rejected or truncated by the UKRI IFS online submission system ({currentWordCount}/400 words).
+                      </span>
+                    </div>
+                  )}
 
                   <Textarea
                     rows={12}
@@ -1748,7 +2122,7 @@ Generated by Startup Preflight Business Plan Studio
       {/* 4. MODAL: CREATE NEW PLAN VERSION                                        */}
       {/* ========================================================================= */}
       {isCreatingNewVersion && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs no-print print:hidden">
           <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>

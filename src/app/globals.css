@@ -62,3 +62,98 @@ body {
   animation: attentionHighlight 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   border-radius: 0.75rem;
 }
+
+/* ========================================================================= */
+/* PRINT OPTIMIZATION & DOCUMENT ISOLATION                                  */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm 16mm 14mm 16mm;
+  }
+
+  :root {
+    --background: #ffffff !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10.5pt !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force pure white background on page wrappers during print so no grey tint covers the paper sheet */
+  .min-h-screen,
+  #__next,
+  main,
+  article,
+  [data-print-container="true"] {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Universal hide for non-printable UI chrome */
+  .no-print,
+  .print\:hidden,
+  [data-no-print="true"] {
+    display: none !important;
+  }
+
+  /* When printing the Business Plan Studio canvas, make it 100% full-width on pure white paper without borders or shadows */
+  #business-plan-document-canvas {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Prevent page breaks right after headings */
+  h1, h2, h3, h4, h5, h6, .avoid-page-break {
+    break-after: avoid-page !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Keep tables, data schedules, and figures intact on a single page */
+  table,
+  figure,
+  .table-container,
+  [data-break-inside="avoid"],
+  .avoid-break-inside {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Allow prose sections to flow across pages naturally */
+  section {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  /* Ensure tables stretch to full printable width without clipping */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .overflow-x-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+}
+

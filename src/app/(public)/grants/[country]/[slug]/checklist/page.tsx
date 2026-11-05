@@ -17,6 +17,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MarketingHeader, MarketingFooter } from '@/components/marketing/marketing-layout-nav';
+import { ShareGrantButton } from '@/components/marketing/share-grant-button';
+import {
+  ensureDefaultGrantsSeededInDb,
+  getFallbackGrantRecords,
+} from '@/lib/grants/ensure-grants';
 import {
   GrantChecklistClient,
   type ChecklistItem,
@@ -42,14 +47,20 @@ export async function generateStaticParams() {
       .from(grantsDirectory)
       .where(eq(grantsDirectory.status, 'ACTIVE'));
 
-    return grants.map((g) => ({
-      country: g.countryCode.toLowerCase(),
-      slug: g.slug,
-    }));
+    if (grants.length > 0) {
+      return grants.map((g) => ({
+        country: g.countryCode.toLowerCase(),
+        slug: g.slug,
+      }));
+    }
   } catch (err) {
     console.error('[generateStaticParams Checklist] Failed to prefetch routes:', err);
-    return [];
   }
+
+  return getFallbackGrantRecords().map((g) => ({
+    country: g.countryCode.toLowerCase(),
+    slug: g.slug,
+  }));
 }
 
 // Generate Rich SEO Metadata for Google Search
@@ -60,13 +71,19 @@ export async function generateMetadata({
   const countryCodeUpper = country.toUpperCase();
 
   try {
-    const grant = await db.query.grantsDirectory.findFirst({
+    let grant = await db.query.grantsDirectory.findFirst({
       where: and(
         eq(grantsDirectory.slug, slug),
         eq(grantsDirectory.countryCode, countryCodeUpper),
         eq(grantsDirectory.status, 'ACTIVE')
       ),
     });
+
+    if (!grant) {
+      grant = getFallbackGrantRecords().find(
+        (g) => g.slug === slug && g.countryCode === countryCodeUpper
+      );
+    }
 
     if (!grant) {
       return {
@@ -93,6 +110,15 @@ export async function generateMetadata({
       },
     };
   } catch {
+    const fallback = getFallbackGrantRecords().find(
+      (g) => g.slug === slug && g.countryCode === countryCodeUpper
+    );
+    if (fallback) {
+      return {
+        title: `${fallback.grantName} (${fallback.countryCode}) Application Checklist & Required Documents | Startup Preflight`,
+        description: fallback.summary || '',
+      };
+    }
     return {
       title: 'Grant Application Checklist | Startup Preflight',
     };
@@ -106,6 +132,8 @@ export default async function GrantChecklistPage({ params }: GrantChecklistPageP
   let grant: typeof grantsDirectory.$inferSelect | undefined;
 
   try {
+    await ensureDefaultGrantsSeededInDb();
+
     grant = await db.query.grantsDirectory.findFirst({
       where: and(
         eq(grantsDirectory.slug, slug),
@@ -115,6 +143,12 @@ export default async function GrantChecklistPage({ params }: GrantChecklistPageP
     });
   } catch (error) {
     console.error('[GrantChecklistPage] DB Query Error:', error);
+  }
+
+  if (!grant) {
+    grant = getFallbackGrantRecords().find(
+      (g) => g.slug === slug && g.countryCode === countryCodeUpper
+    );
   }
 
   if (!grant) {
@@ -275,16 +309,29 @@ export default async function GrantChecklistPage({ params }: GrantChecklistPageP
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to {grant.grantName} Scheme Overview
           </Link>
-          <div className="flex items-center gap-2 text-[11px]">
-            <Link href="/grants" className="text-slate-400 hover:text-slate-600">
-              Grants
-            </Link>
-            <span className="text-slate-300">/</span>
-            <Link href={grantDetailHref} className="text-slate-400 hover:text-slate-600 truncate max-w-[140px]">
-              {grant.grantName}
-            </Link>
-            <span className="text-slate-300">/</span>
-            <span className="font-semibold text-slate-700">Application Checklist</span>
+          <div className="flex items-center gap-2.5">
+            <div className="hidden sm:flex items-center gap-2 text-[11px]">
+              <Link href="/grants" className="text-slate-400 hover:text-slate-600">
+                Grants
+              </Link>
+              <span className="text-slate-300">/</span>
+              <Link href={grantDetailHref} className="text-slate-400 hover:text-slate-600 truncate max-w-[140px]">
+                {grant.grantName}
+              </Link>
+              <span className="text-slate-300">/</span>
+              <span className="font-semibold text-slate-700">Application Checklist</span>
+            </div>
+            <ShareGrantButton
+              title={`${grant.grantName} (${grant.countryCode}) Application Checklist`}
+              description={`Official readiness checklist for ${grant.grantName}`}
+              slug={grant.slug}
+              countryCode={grant.countryCode}
+              pathType="checklist"
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs border-slate-200 bg-white hover:bg-slate-50"
+              buttonText="Share"
+            />
           </div>
         </div>
       </div>
@@ -338,6 +385,20 @@ export default async function GrantChecklistPage({ params }: GrantChecklistPageP
               >
                 Funding: {grant.maxAmountFormatted}
               </Badge>
+            </div>
+
+            {/* Quick Share Strip in Hero */}
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <ShareGrantButton
+                title={`${grant.grantName} (${grant.countryCode}) Checklist`}
+                description={`Application documents & eligibility checklist for ${grant.grantName}`}
+                slug={grant.slug}
+                countryCode={grant.countryCode}
+                pathType="checklist"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs"
+                buttonText="Share This Checklist"
+              />
             </div>
           </div>
         </section>

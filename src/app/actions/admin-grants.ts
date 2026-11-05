@@ -4,6 +4,7 @@ import { db, grantsDirectory } from '@/db';
 import { eq, desc } from 'drizzle-orm';
 import { getAdminSessionCookie } from '@/lib/auth/server-auth';
 import { GoogleGenAI, Type } from '@google/genai';
+import { ensureDefaultGrantsSeededInDb } from '@/lib/grants/ensure-grants';
 
 function getGenAiClient(apiKey: string): GoogleGenAI {
   const isVertex =
@@ -66,6 +67,8 @@ export async function listAdminGrantsAction(): Promise<{
     if (!adminSession) {
       return { success: false, grants: [], error: 'Unauthorized admin session' };
     }
+
+    await ensureDefaultGrantsSeededInDb();
 
     const grants = await db
       .select()

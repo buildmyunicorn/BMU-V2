@@ -1,7 +1,7 @@
 'use server';
 
 import { and, eq, sql } from 'drizzle-orm';
-import { db, startupPlans, planModulesData } from '@/db';
+import { db, ensureDatabaseSchemaSynced, startupPlans, planModulesData } from '@/db';
 import type {
   BusinessPlanVersionItem,
   BusinessPlanArchetype,
@@ -56,6 +56,7 @@ export async function saveBusinessPlanStudioVersionsAction(input: {
       return { ok: true, persistedToCloudSql: false };
     }
 
+    await ensureDatabaseSchemaSynced();
     await ensureModuleLEnumInPostgres();
 
     const existingMod = await db

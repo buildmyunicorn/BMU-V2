@@ -25,6 +25,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MarketingHeader, MarketingFooter } from '@/components/marketing/marketing-layout-nav';
+import { ShareGrantButton } from '@/components/marketing/share-grant-button';
+import {
+  ensureDefaultGrantsSeededInDb,
+  getFallbackGrantRecords,
+} from '@/lib/grants/ensure-grants';
 
 export const revalidate = 3600; // Revalidate every hour (ISR)
 
@@ -46,14 +51,20 @@ export async function generateStaticParams() {
       .from(grantsDirectory)
       .where(eq(grantsDirectory.status, 'ACTIVE'));
 
-    return grants.map((g) => ({
-      country: g.countryCode.toLowerCase(),
-      slug: g.slug,
-    }));
+    if (grants.length > 0) {
+      return grants.map((g) => ({
+        country: g.countryCode.toLowerCase(),
+        slug: g.slug,
+      }));
+    }
   } catch (err) {
     console.error('[generateStaticParams] Failed to prefetch grant routes:', err);
-    return [];
   }
+
+  return getFallbackGrantRecords().map((g) => ({
+    country: g.countryCode.toLowerCase(),
+    slug: g.slug,
+  }));
 }
 
 // Generate Rich SEO Metadata for Google
@@ -62,13 +73,19 @@ export async function generateMetadata({ params }: GrantPageProps): Promise<Meta
   const countryCodeUpper = country.toUpperCase();
 
   try {
-    const grant = await db.query.grantsDirectory.findFirst({
+    let grant = await db.query.grantsDirectory.findFirst({
       where: and(
         eq(grantsDirectory.slug, slug),
         eq(grantsDirectory.countryCode, countryCodeUpper),
         eq(grantsDirectory.status, 'ACTIVE')
       ),
     });
+
+    if (!grant) {
+      grant = getFallbackGrantRecords().find(
+        (g) => g.slug === slug && g.countryCode === countryCodeUpper
+      );
+    }
 
     if (!grant) {
       return {
@@ -97,6 +114,15 @@ export async function generateMetadata({ params }: GrantPageProps): Promise<Meta
       },
     };
   } catch {
+    const fallback = getFallbackGrantRecords().find(
+      (g) => g.slug === slug && g.countryCode === countryCodeUpper
+    );
+    if (fallback) {
+      return {
+        title: `${fallback.grantName} (${fallback.countryCode}) — Eligibility, Caps & Checklist | Startup Preflight`,
+        description: fallback.summary || '',
+      };
+    }
     return {
       title: 'Grant Breakdown | Startup Preflight',
     };
@@ -110,6 +136,8 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
   let grant: typeof grantsDirectory.$inferSelect | undefined;
 
   try {
+    await ensureDefaultGrantsSeededInDb();
+
     grant = await db.query.grantsDirectory.findFirst({
       where: and(
         eq(grantsDirectory.slug, slug),
@@ -119,6 +147,12 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
     });
   } catch (error) {
     console.error('[GrantDetailPage] DB Query Error:', error);
+  }
+
+  if (!grant) {
+    grant = getFallbackGrantRecords().find(
+      (g) => g.slug === slug && g.countryCode === countryCodeUpper
+    );
   }
 
   if (!grant) {
@@ -177,12 +211,25 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to All Grants
           </Link>
-          <div className="flex items-center gap-2 text-[11px]">
-            <span className="text-slate-400">Directory</span>
-            <span className="text-slate-300">/</span>
-            <span className="text-slate-400 font-mono uppercase">{grant.countryCode}</span>
-            <span className="text-slate-300">/</span>
-            <span className="font-semibold text-slate-700 truncate max-w-[200px]">{grant.grantName}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="hidden sm:flex items-center gap-2 text-[11px]">
+              <span className="text-slate-400">Directory</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-slate-400 font-mono uppercase">{grant.countryCode}</span>
+              <span className="text-slate-300">/</span>
+              <span className="font-semibold text-slate-700 truncate max-w-[200px]">{grant.grantName}</span>
+            </div>
+            <ShareGrantButton
+              title={`${grant.grantName} (${grant.countryCode})`}
+              description={grant.summary || undefined}
+              slug={grant.slug}
+              countryCode={grant.countryCode}
+              pathType="detail"
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs border-slate-200 bg-white hover:bg-slate-50"
+              buttonText="Share"
+            />
           </div>
         </div>
       </div>
@@ -250,6 +297,16 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
                   Test Grant Fit with AI
                 </Button>
               </Link>
+              <ShareGrantButton
+                title={`${grant.grantName} (${grant.countryCode})`}
+                description={grant.summary || undefined}
+                slug={grant.slug}
+                countryCode={grant.countryCode}
+                pathType="detail"
+                variant="outline"
+                className="h-9 sm:h-10 rounded-xl border-slate-300 bg-white hover:bg-slate-50 text-xs sm:text-sm font-semibold text-slate-700 shadow-2xs"
+                buttonText="Share Grant"
+              />
             </div>
 
             {/* KEY METRICS 4-CARD BENTO GRID MATCHING LANDING PAGE */}
@@ -489,6 +546,18 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
                         <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                       </Button>
                     </Link>
+                    <div className="pt-1">
+                      <ShareGrantButton
+                        title={`${grant.grantName} (${grant.countryCode})`}
+                        description={grant.summary || undefined}
+                        slug={grant.slug}
+                        countryCode={grant.countryCode}
+                        pathType="detail"
+                        variant="ghost"
+                        className="w-full h-9 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 justify-center"
+                        buttonText="Share This Grant"
+                      />
+                    </div>
                     <div className="text-center text-[11px] text-slate-400">
                       100% Free • No credit card required
                     </div>

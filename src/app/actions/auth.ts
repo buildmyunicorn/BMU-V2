@@ -531,11 +531,14 @@ async function buildSessionFromDbUser(
         : undefined,
       moduleLData: modL
         ? {
+            ...modLInputs,
             step1Mode: modLInputs.step1Mode,
             step2Audit: modLInputs.step2Audit,
             step3Compiler: modLInputs.step3Compiler,
             step4Appendices: modLInputs.step4Appendices,
             step5DossierBrief: modLInputs.step5DossierBrief,
+            versions: modLInputs.versions,
+            activeVersionId: modLInputs.activeVersionId,
             completionPercentage:
               modL.completionPercentage ?? modLInputs.completionPercentage,
             thingsToConsider: Array.isArray(modL.aiThingsToConsiderJsonb)

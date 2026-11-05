@@ -165,6 +165,7 @@ import {
   type HiringPlanStep5Data,
   type TeamBlindSpotAuditBriefData,
   type SavedModuleLData,
+  type BusinessPlanVersionItem,
 } from '@/lib/auth/session-store';
 import {
   getCurrentCloudSessionAction,
@@ -1040,18 +1041,118 @@ export default function WorkspacePage() {
                     }
                   : undefined;
 
+              const mergedModuleJData =
+                localPlan.moduleJData || dbPlan.moduleJData
+                  ? {
+                      ...(dbPlan.moduleJData || {}),
+                      ...(localPlan.moduleJData || {}),
+                      lastSavedAt:
+                        pickNewerBySavedAt(
+                          localPlan.moduleJData,
+                          dbPlan.moduleJData
+                        )?.lastSavedAt ||
+                        localPlan.moduleJData?.lastSavedAt ||
+                        dbPlan.moduleJData?.lastSavedAt,
+                    }
+                  : undefined;
+
+              const mergedModuleKData =
+                localPlan.moduleKData || dbPlan.moduleKData
+                  ? {
+                      ...(dbPlan.moduleKData || {}),
+                      ...(localPlan.moduleKData || {}),
+                      lastSavedAt:
+                        pickNewerBySavedAt(
+                          localPlan.moduleKData,
+                          dbPlan.moduleKData
+                        )?.lastSavedAt ||
+                        localPlan.moduleKData?.lastSavedAt ||
+                        dbPlan.moduleKData?.lastSavedAt,
+                    }
+                  : undefined;
+
+              const localModL = localPlan.moduleLData;
+              const dbModL = dbPlan.moduleLData;
+
+              // Merge versions by ID: preserve all versions created locally or in the cloud
+              const versionsById = new Map<string, BusinessPlanVersionItem>();
+              for (const v of dbModL?.versions || []) {
+                if (v?.id) versionsById.set(v.id, v);
+              }
+              for (const v of localModL?.versions || []) {
+                if (v?.id) {
+                  const existing = versionsById.get(v.id);
+                  if (!existing) {
+                    versionsById.set(v.id, v);
+                  } else {
+                    const localTs = v.lastEditedAt ? new Date(v.lastEditedAt).getTime() : 0;
+                    const dbTs = existing.lastEditedAt ? new Date(existing.lastEditedAt).getTime() : 0;
+                    versionsById.set(v.id, localTs >= dbTs ? v : existing);
+                  }
+                }
+              }
+              const mergedVersions = Array.from(versionsById.values());
+
+              const mergedModuleLData: SavedModuleLData | undefined = (localModL || dbModL)
+                ? {
+                    ...(dbModL || {}),
+                    ...(localModL || {}),
+                    step1Mode: pickNewerBySavedAt(
+                      localModL?.step1Mode,
+                      dbModL?.step1Mode
+                    ),
+                    step2Audit: pickNewerBySavedAt(
+                      localModL?.step2Audit,
+                      dbModL?.step2Audit
+                    ),
+                    step3Compiler: pickNewerBySavedAt(
+                      localModL?.step3Compiler,
+                      dbModL?.step3Compiler
+                    ),
+                    step4Appendices: pickNewerBySavedAt(
+                      localModL?.step4Appendices,
+                      dbModL?.step4Appendices
+                    ),
+                    step5DossierBrief: pickNewerBySavedAt(
+                      localModL?.step5DossierBrief,
+                      dbModL?.step5DossierBrief
+                    ),
+                    versions:
+                      mergedVersions.length > 0
+                        ? mergedVersions
+                        : localModL?.versions || dbModL?.versions,
+                    activeVersionId:
+                      localModL?.activeVersionId ||
+                      dbModL?.activeVersionId ||
+                      mergedVersions[0]?.id,
+                    completionPercentage:
+                      localModL?.completionPercentage ?? dbModL?.completionPercentage,
+                    thingsToConsider:
+                      dbModL?.thingsToConsider || localModL?.thingsToConsider,
+                    lastSavedAt:
+                      pickNewerBySavedAt(localModL, dbModL)?.lastSavedAt ||
+                      localModL?.lastSavedAt ||
+                      dbModL?.lastSavedAt,
+                  }
+                : undefined;
+
               const resolvedCurrentStep =
-                localPlan.currentModuleStep?.startsWith('MOD_I') &&
-                !dbPlan.currentModuleStep?.startsWith('MOD_I')
+                localPlan.currentModuleStep === 'BUSINESS_PLAN_STUDIO'
+                  ? 'BUSINESS_PLAN_STUDIO'
+                  : localPlan.currentModuleStep?.startsWith('MOD_L') &&
+                    !dbPlan.currentModuleStep?.startsWith('MOD_L')
+                  ? localPlan.currentModuleStep
+                  : localPlan.currentModuleStep?.startsWith('MOD_I') &&
+                    !dbPlan.currentModuleStep?.startsWith('MOD_I')
                   ? localPlan.currentModuleStep
                   : localPlan.currentModuleStep?.startsWith('MOD_H') &&
-                !dbPlan.currentModuleStep?.startsWith('MOD_H')
+                    !dbPlan.currentModuleStep?.startsWith('MOD_H')
                   ? localPlan.currentModuleStep
                   : localPlan.currentModuleStep?.startsWith('MOD_G') &&
-                !dbPlan.currentModuleStep?.startsWith('MOD_G')
+                    !dbPlan.currentModuleStep?.startsWith('MOD_G')
                   ? localPlan.currentModuleStep
                   : localPlan.currentModuleStep?.startsWith('MOD_F') &&
-                !dbPlan.currentModuleStep?.startsWith('MOD_F')
+                    !dbPlan.currentModuleStep?.startsWith('MOD_F')
                   ? localPlan.currentModuleStep
                   : localPlan.currentModuleStep?.startsWith('MOD_E') &&
                       !dbPlan.currentModuleStep?.startsWith('MOD_E')
@@ -1082,6 +1183,9 @@ export default function WorkspacePage() {
                 moduleGData: mergedModuleGData,
                 moduleHData: mergedModuleHData,
                 moduleIData: mergedModuleIData,
+                moduleJData: mergedModuleJData,
+                moduleKData: mergedModuleKData,
+                moduleLData: mergedModuleLData,
                 masterDocumentData: pickNewerBySavedAt(
                   localPlan.masterDocumentData,
                   dbPlan.masterDocumentData
@@ -4878,7 +4982,7 @@ export default function WorkspacePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 print:bg-white">
       {isSyntheticPersonaPlan(currentPlan) && (
         <div className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-950">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
@@ -4922,7 +5026,7 @@ export default function WorkspacePage() {
         </div>
       )}
       {/* Clean Production Top Navigation Bar with Google Cloud-Style Project Switcher */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur no-print print:hidden">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
@@ -5173,10 +5277,10 @@ export default function WorkspacePage() {
       {/* ========================================================= */}
       {/* MAIN FOUNDER COMMAND CENTER OR WORKSPACE                  */}
       {/* ========================================================= */}
-      <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-4 px-3.5 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-12">
+      <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-4 px-3.5 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-12 print:block print:w-full print:max-w-none print:p-0 print:m-0 print:bg-white">
         {/* LEFT SIDEBAR: Shown ONLY when inside the Step-by-Step Founder Workspace (Modules A–L) */}
         {!isDashboardOpen && !isBusinessPlanStudioOpen && !isMasterDocumentOpen && (
-          <aside className="space-y-3.5 sm:space-y-4 lg:col-span-4 xl:col-span-3">
+          <aside className="space-y-3.5 sm:space-y-4 lg:col-span-4 xl:col-span-3 no-print print:hidden">
             {/* Slim Back to Project Dashboard + Quick Switch Card */}
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
               <Button
@@ -5402,7 +5506,7 @@ export default function WorkspacePage() {
 
         {/* CENTER WORKSPACE OR FULL-WIDTH DASHBOARD / MASTER DOC / PLAN STUDIO */}
         <main
-          className={`space-y-6 ${
+          className={`space-y-6 print:block print:w-full print:max-w-none print:p-0 print:m-0 print:space-y-0 print:bg-white ${
             isDashboardOpen || isBusinessPlanStudioOpen || isMasterDocumentOpen
               ? 'lg:col-span-12'
               : 'lg:col-span-8 xl:col-span-9'
@@ -5410,7 +5514,7 @@ export default function WorkspacePage() {
         >
           {/* Read-Only Vault Banner if Expired */}
           {activeEntitlement.isVaultReadonly && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 no-print print:hidden">
               <div className="flex items-center gap-2.5">
                 <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
                 <div>
@@ -5430,7 +5534,7 @@ export default function WorkspacePage() {
 
           {/* Global Workspace Status / Save Banner */}
           {synthesisBanner && (
-            <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-950 shadow-2xs">
+            <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-950 shadow-2xs no-print print:hidden">
               <span>{synthesisBanner}</span>
               <button
                 type="button"
@@ -5445,7 +5549,7 @@ export default function WorkspacePage() {
           {/* Full-Width Navigation Strip when in Master Document or Business Plan Studio */}
           {!isDashboardOpen &&
             (isMasterDocumentOpen || isBusinessPlanStudioOpen) && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-2xs no-print print:hidden">
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
@@ -10363,7 +10467,7 @@ export default function WorkspacePage() {
       </div>
 
       {/* Clean Production Footer */}
-      <footer className="mt-12 border-t border-slate-200 bg-white text-slate-500">
+      <footer className="mt-12 border-t border-slate-200 bg-white text-slate-500 no-print print:hidden">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-5 text-xs">
           <div className="flex items-center gap-2">
             <PreflightMark size={16} />
@@ -10384,7 +10488,7 @@ export default function WorkspacePage() {
       {/* LAYER 2: SLIDE-OUT "ASK PREFLIGHT AI" SIDEKICK DRAWER     */}
       {/* ========================================================= */}
       {askUnicornOpen && (
-        <div className="fixed bottom-3 left-3 right-3 z-40 rounded-2xl border border-indigo-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96">
+        <div className="fixed bottom-3 left-3 right-3 z-40 rounded-2xl border border-indigo-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96 no-print print:hidden">
           <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
@@ -10506,7 +10610,7 @@ export default function WorkspacePage() {
       {/* PAYWALL / UPGRADE MODAL (WHEN CLICKING LOCKED FEATURES)   */}
       {/* ========================================================= */}
       {paywallModalFeature && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs no-print print:hidden">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
@@ -10675,7 +10779,7 @@ export default function WorkspacePage() {
       {/* DELETE PLAN CONFIRMATION MODAL                            */}
       {/* ========================================================= */}
       {planToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs no-print print:hidden">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">

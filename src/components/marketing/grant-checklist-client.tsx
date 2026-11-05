@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ShareGrantButton } from '@/components/marketing/share-grant-button';
 
 export interface ChecklistItem {
   id: string;
@@ -122,6 +123,17 @@ export function GrantChecklistClient({
           </div>
 
           <div className="flex items-center gap-2">
+            <ShareGrantButton
+              title={`${grant.grantName} (${grant.countryCode}) Checklist`}
+              description={`Zero-defect application checklist for ${grant.grantName} from ${grant.providerAgency}.`}
+              slug={grant.slug}
+              countryCode={grant.countryCode}
+              pathType="checklist"
+              size="sm"
+              variant="outline"
+              className="h-9 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              buttonText="Share"
+            />
             <Button
               type="button"
               variant="outline"
