@@ -2,13 +2,17 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  Sparkles,
   ArrowLeft,
   FileText,
   Scale,
   ShieldCheck,
   Mail,
   LogIn,
+  CheckCircle2,
+  AlertTriangle,
+  CreditCard,
+  Flame,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/ui/brand-logo';
@@ -16,7 +20,7 @@ import { BrandLogo } from '@/components/ui/brand-logo';
 export const metadata: Metadata = {
   title: 'Terms of Service | Startup Preflight',
   description:
-    'Terms of Service and Platform Usage Agreement for Startup Preflight — Supportive AI Co-Founder & Grant Readiness Builder.',
+    'Terms of Service and Platform Usage Agreement for Startup Preflight — AI Co-Founder & Grant Readiness Builder.',
 };
 
 export default function TermsOfServicePage() {
@@ -52,186 +56,217 @@ export default function TermsOfServicePage() {
       {/* Main Content */}
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6 sm:py-14">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs sm:p-10">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-6">
+          {/* Top Banner */}
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-6">
             <div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
                 <Scale className="h-3.5 w-3.5" />
-                Platform Terms &amp; User Agreement
+                Platform Terms of Service &amp; Master Agreement
               </div>
               <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
                 Terms of Service
               </h1>
               <p className="mt-1 text-xs text-slate-500">
-                Effective Date: January 2026 • Last Updated: October 2026
+                Effective Date: 1 January 2026 • Last Reviewed &amp; Updated: November 2026
               </p>
             </div>
 
-            <div className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/60 px-3.5 py-2 text-xs text-indigo-900">
-              <FileText className="h-4 w-4 shrink-0 text-indigo-600" />
+            <div className="flex items-center gap-2.5 rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-2.5 text-xs text-indigo-900">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-600" />
               <span>
-                <strong>100% Founder Ownership:</strong> You own all plans,
-                models, and exports you create.
+                <strong>100% Founder Ownership:</strong> You retain complete ownership of your business ideas, IP, and compiled business plans.
               </span>
             </div>
           </div>
 
-          <div className="mt-8 space-y-7 text-sm leading-relaxed text-slate-700">
-            <section className="space-y-2">
+          <div className="mt-8 space-y-8 text-sm leading-relaxed text-slate-700">
+            {/* 1. Agreement to Terms */}
+            <section className="space-y-2.5">
               <h2 className="text-base font-bold text-slate-900">
-                1. Agreement to Terms
+                1. Agreement to Terms &amp; Parties
               </h2>
               <p>
-                By accessing or using Startup Preflight (&ldquo;the
-                Platform&rdquo;), founded in 2026 and operated from Dublin,
-                Ireland, you agree to be bound by these Terms of Service and our{' '}
+                By accessing, browsing, registering for, or using Startup Preflight (the &ldquo;Platform&rdquo;), operated from Dublin, Ireland, you agree to be bound by these Terms of Service (&ldquo;Terms&rdquo;) and our{' '}
                 <Link
                   href="/privacy"
                   className="font-semibold text-indigo-600 underline hover:text-indigo-800"
                 >
                   Privacy Policy
                 </Link>
-                . If you are using the Platform on behalf of a company,
-                university incubator, or startup team, you represent that you
-                have authority to bind that entity to these Terms.
+                . If you are entering into this agreement on behalf of a company, startup partnership, or university incubator, you confirm that you have the legal authority to bind that entity.
               </p>
             </section>
 
-            <section className="space-y-2">
-              <h2 className="text-base font-bold text-slate-900">
-                2. Description of Service &amp; Non-Advisory Disclaimer
-              </h2>
-              <p>
-                Startup Preflight is an AI-assisted software-as-a-service (SaaS)
-                platform that helps founders structure startup ideas, validate
-                customer demand via hosted surveys, model 36-month financial
-                projections, align co-founders, and compile draft business plans
-                and grant readiness packs across Ireland, the United Kingdom,
-                and international jurisdictions.
+            {/* 2. Non-Advisory Statutory Disclaimer */}
+            <section className="space-y-2.5 rounded-2xl border border-amber-200 bg-amber-50/60 p-5 text-amber-950">
+              <div className="flex items-center gap-2 font-bold">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                <h2 className="text-base text-amber-950">
+                  2. Non-Advisory Disclaimer &amp; Grant Approval Autonomy
+                </h2>
+              </div>
+              <p className="text-xs leading-relaxed sm:text-sm">
+                <strong>Educational &amp; Preparation Software Only:</strong> Startup Preflight is an AI-assisted software tool designed to help founders structure business ideas, test assumptions, and format funding applications. <strong>Startup Preflight is not a law firm, certified public accounting (CPA) firm, or regulated financial advisor.</strong>
               </p>
-              <p>
-                <strong>Important Disclaimer:</strong> Startup Preflight is an
-                educational and productivity software tool—not a law firm,
-                certified accounting practice, or regulated financial advisor.
-                AI-generated blind-spot reviews, financial templates, and grant
-                eligibility scores are provided for informational and
-                preparation purposes only. Final grant, loan, or tax relief
-                approvals remain at the sole discretion of the respective
-                funding bodies (such as Local Enterprise Offices, Enterprise
-                Ireland, Innovate UK, British Business Bank, or HMRC).
+              <p className="text-xs leading-relaxed sm:text-sm">
+                <strong>No Guarantee of Funding:</strong> While our compiler formats business plans to official funding standards (e.g., Ireland Local Enterprise Office Feasibility/Priming grants, Enterprise Ireland PSSF, UK Innovate UK Smart Grants, British Business Bank Start Up Loans, and HMRC SEIS/EIS Advance Assurance), <strong>final grant awards, loans, or equity investments remain at the sole, independent discretion of each respective funding agency</strong>. Startup Preflight makes no representations, warranties, or guarantees that any submitted application will be funded.
               </p>
             </section>
 
-            <section className="space-y-2">
+            {/* 3. Intellectual Property Ownership */}
+            <section className="space-y-2.5">
               <h2 className="text-base font-bold text-slate-900">
-                3. Intellectual Property &amp; Founder Content Ownership
+                3. Intellectual Property Rights &amp; Founder Confidentiality
               </h2>
-              <ul className="list-disc space-y-1.5 pl-5">
+              <ul className="list-disc space-y-2 pl-5">
                 <li>
-                  <strong>Your Content:</strong> You retain 100% ownership and
-                  intellectual property rights in all startup concepts, survey
-                  data, financial assumptions, team profiles, and compiled
-                  documents you create or upload in your Startup Preflight
-                  workspace.
+                  <strong>Your Content &amp; Inventions:</strong> You retain 100% full legal ownership, copyright, patent rights, and intellectual property rights in and to all startup concepts, financial models, team resumes, customer survey results, and compiled PDF/DOCX business plan documents generated through your workspace. Startup Preflight takes zero equity and makes no claim over your venture.
                 </li>
                 <li>
-                  <strong>Platform IP:</strong> Startup Preflight retains all
-                  rights, title, and interest in the underlying software
-                  architecture, 12-module methodology, prompts, user interface,
-                  and branding.
+                  <strong>Platform IP:</strong> Startup Preflight and its licensors retain all rights, title, and interest in the proprietary 12-module preflight methodology, user interfaces, algorithmic scoring heuristics, blind-spot analysis engines, and brand assets.
+                </li>
+                <li>
+                  <strong>AI Privacy Safeguards:</strong> Under our enterprise API architecture, your business data is never sold to third parties or used to train public machine learning foundation models.
                 </li>
               </ul>
             </section>
 
-            <section className="space-y-2">
-              <h2 className="text-base font-bold text-slate-900">
-                4. Accounts, Passes &amp; AI Usage Guardrails
-              </h2>
-              <p>
-                You are responsible for maintaining the confidentiality of your
-                account credentials. Access to Modules B through L, multi-plan
-                workspaces, co-founder alignment seats, and document exports is
-                governed by your active account entitlement (Free Hook, 6-Month
-                Launch Pass, Institutional Cohort Pass, or Lifetime License).
-                To ensure platform stability and fair usage, AI calls are
-                subject to automated rate limits and monthly token allocations.
-              </p>
+            {/* 4. Passes, Billing & Subscriptions */}
+            <section className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-indigo-600" />
+                <h2 className="text-base font-bold text-slate-900">
+                  4. Access Passes, Pricing &amp; Living Vault Subscriptions
+                </h2>
+              </div>
+              <p>Platform access is structured across transparent entitlements:</p>
+              <div className="space-y-2.5 text-xs sm:text-sm">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                  <strong>Module A Free Hook:</strong> Unrestricted free access to ideation, concept canvas, domain checking, and founder-idea fit scoring.
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                  <strong>6-Month Launch Passes:</strong> Paid access (Solo or Co-Founder tier) providing full unlock of Modules B through L, document compiler exports, and grant readouts for 6 months.
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                  <strong>Living Vault Micro-Subscription:</strong> At Month 6, workspaces transition to read-only vault mode. Founders may optionally subscribe to the Living Vault micro-subscription (€9/month or €79/year) to keep all 12 modules editable and receive automated 24/7 Grant Radar alerts. You may cancel anytime via your workspace billing settings or the Stripe Customer Portal.
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                  <strong>Refund Policy:</strong> We offer a 14-day refund window on software passes provided no deep AI Pre-Flight Audits (Module L) or document compiler exports have been executed.
+                </div>
+              </div>
             </section>
 
-            <section className="space-y-2">
-              <h2 className="text-base font-bold text-slate-900">
-                5. Acceptable Use Policy
-              </h2>
-              <p>You agree not to:</p>
-              <ul className="list-disc space-y-1.5 pl-5">
+            {/* 5. Guaranteed Survey Responses & Panel Terms */}
+            <section className="space-y-2.5 rounded-2xl border border-orange-200 bg-gradient-to-br from-amber-50/40 via-orange-50/20 to-white p-5">
+              <div className="flex items-center gap-2">
+                <Flame className="h-5 w-5 text-amber-600" />
+                <h2 className="text-base font-bold text-slate-900">
+                  5. Guaranteed Survey Responses (Survey Boost Packs)
+                </h2>
+              </div>
+              <p className="text-xs sm:text-sm">
+                Founders may purchase Guaranteed Human Response Packs (50, 100, or 250 responses) in Module C powered by verified participant panels (including Prolific Science Ltd):
+              </p>
+              <ul className="list-disc space-y-1.5 pl-5 text-xs sm:text-sm">
                 <li>
-                  Use public validation survey pages for phishing, unlawful data
-                  harvesting, deceptive marketing, or spam.
+                  <strong>Verified Human Participants:</strong> We guarantee the delivery of real, anti-bot verified human responses meeting your selected geographic (Ireland, UK, US) and demographic criteria within a 24–72 hour target delivery window.
                 </li>
                 <li>
-                  Attempt to bypass authentication, rate limits, tenant
-                  isolation, or AI billing circuit breakers via automated
-                  scripts or prompt injection.
+                  <strong>Unbiased Discovery (Mom-Test Policy):</strong> We guarantee the <em>delivery of responses</em>, <strong>not</strong> that respondents will agree with your concept or express willingness to buy. Responses reflect authentic, unvarnished consumer or business sentiment essential for valid proof of market demand.
                 </li>
                 <li>
-                  Upload unlawful, defamatory, or infringing material into any
-                  workspace or public survey.
+                  <strong>Quality Guard &amp; Replacement:</strong> Any response identified as a speeder (completed in unrealistically fast duration) or exhibiting nonsensical text will be automatically scrubbed and replaced at zero extra charge.
+                </li>
+                <li>
+                  <strong>Niche Pool Availability:</strong> Founders can check active participant pool sizes before purchasing. In the event an ultra-niche demographic cannot achieve minimum response fulfillment within 5 business days, founders are entitled to a pro-rata refund or credit.
                 </li>
               </ul>
             </section>
 
-            <section className="space-y-2">
-              <h2 className="text-base font-bold text-slate-900">
-                6. Third-Party Partner Links &amp; Marketplace Referrals
-              </h2>
+            {/* 6. Co-Founder Alignment & Awkward Questions Survey */}
+            <section className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-indigo-600" />
+                <h2 className="text-base font-bold text-slate-900">
+                  6. Co-Founder Alignment Engine (Module F)
+                </h2>
+              </div>
               <p>
-                The Platform may display contextual links or referrals to
-                third-party service providers (such as domain registrars, cloud
-                accounting tools, business banking providers, or quote
-                suppliers). Startup Preflight does not control or endorse
-                third-party terms, and your engagement with any external partner
-                is governed solely by that provider&apos;s agreement.
+                Module F features a multi-seat Blind-Reveal Alignment Survey. Each co-founder agrees to submit honest assessments regarding equity splits, time commitments, and risk thresholds. Responses remain encrypted and hidden from other team members until all invited co-founders complete the interview, whereupon the side-by-side alignment heatmap is revealed.
               </p>
             </section>
 
-            <section className="space-y-2">
+            {/* 7. Partner Slot & Affiliate Transparency */}
+            <section className="space-y-2.5">
               <h2 className="text-base font-bold text-slate-900">
-                7. Limitation of Liability
+                7. Partner Recommendations &amp; Affiliate Disclosure
               </h2>
               <p>
-                To the maximum extent permitted by applicable law, Startup
-                Preflight is provided &ldquo;as is&rdquo; without warranties of
-                any kind, and Startup Preflight shall not be liable for any
-                indirect, incidental, consequential, or special damages,
-                including rejected grant applications, lost funding, or business
-                interruption arising out of your use of the Platform.
+                Across Modules D, E, G, and J, Startup Preflight presents contextual links and introductory forms to vetted startup partners (e.g., CRO/Companies House incorporation concierges, business banks, accounting software, and LEO-compliant 3-quote supplier agencies).
+              </p>
+              <p>
+                <strong>Affiliate Transparency:</strong> Startup Preflight may receive referral fees, bank bounties, or introduction commissions from these partners. These partnerships do not increase the price you pay; in many instances, they provide exclusive startup discounts. Your engagement with any partner is subject solely to that third party&apos;s legal terms.
               </p>
             </section>
 
-            <section className="space-y-2">
+            {/* 8. Acceptable Use Policy */}
+            <section className="space-y-2.5">
               <h2 className="text-base font-bold text-slate-900">
-                8. Governing Law
+                8. Acceptable Use Policy
+              </h2>
+              <p>When using the Platform or public survey routes, you agree not to:</p>
+              <ul className="list-disc space-y-1.5 pl-5">
+                <li>
+                  Use hosted validation surveys (<code className="rounded bg-slate-100 px-1 py-0.5 text-xs">/v/[slug]</code>) for deceptive phishing, unlawful data harvesting, or unsolicited bulk email spam.
+                </li>
+                <li>
+                  Attempt to reverse-engineer, decompile, or tamper with the AI router, bypass entitlement limits, or exceed the daily platform AI safety ceiling.
+                </li>
+                <li>
+                  Submit fraudulent or deliberately falsified financial statements intended to deceive government grant assessment panels.
+                </li>
+              </ul>
+            </section>
+
+            {/* 9. Limitation of Liability */}
+            <section className="space-y-2.5">
+              <h2 className="text-base font-bold text-slate-900">
+                9. Limitation of Liability
               </h2>
               <p>
-                These Terms are governed by and construed in accordance with the
-                laws of Ireland, without regard to conflict of law principles.
+                To the maximum extent permitted by applicable Irish and European law, Startup Preflight and its officers, directors, and employees shall not be liable for any indirect, incidental, punitive, special, or consequential damages, including lost profits, loss of business opportunity, rejected grant applications, loss of investor funding, or data loss arising from your use of the Platform. Our total aggregate liability under these Terms shall not exceed the amount actually paid by you to Startup Preflight in the 12 months preceding the claim.
               </p>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                <Mail className="h-4 w-4 text-indigo-600" />
-                9. Contact Information
+            {/* 10. Governing Law & Dispute Resolution */}
+            <section className="space-y-2.5">
+              <h2 className="text-base font-bold text-slate-900">
+                10. Governing Law &amp; Jurisdiction
               </h2>
-              <p className="mt-1 text-xs text-slate-600">
-                Questions regarding these Terms of Service can be directed to{' '}
+              <p>
+                These Terms and any dispute or claim arising out of or in connection with them shall be governed by and construed in accordance with the laws of Ireland. The courts of Dublin, Ireland shall have exclusive jurisdiction to settle any dispute or claim arising from this agreement.
+              </p>
+            </section>
+
+            {/* 11. Contact Us */}
+            <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <Mail className="h-5 w-5 text-indigo-600" />
+                11. Questions &amp; Support
+              </h2>
+              <p className="mt-1 text-xs text-slate-600 sm:text-sm">
+                If you have questions regarding these Terms of Service or need enterprise/university cohort terms, please contact us at:
+              </p>
+              <div className="mt-3 flex items-center gap-3">
                 <a
                   href="mailto:hello@startuppreflight.com"
-                  className="font-semibold text-indigo-600 underline"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-700"
                 >
+                  <Mail className="h-3.5 w-3.5" />
                   hello@startuppreflight.com
                 </a>
-                .
-              </p>
+                <span className="text-xs text-slate-500">Dublin, Ireland</span>
+              </div>
             </section>
           </div>
         </div>
@@ -245,7 +280,7 @@ export default function TermsOfServicePage() {
             <span>•</span>
             <span>Founding Date: 2026</span>
             <span>•</span>
-            <span>© {new Date().getFullYear()} Startup Preflight</span>
+            <span>© {new Date().getFullYear()} Startup Preflight. All rights reserved.</span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <Link href="/" className="hover:text-white">

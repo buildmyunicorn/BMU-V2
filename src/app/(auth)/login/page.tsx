@@ -24,6 +24,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { GoogleIcon } from '@/components/ui/google-icon';
 import {
   getDefaultDemoSession,
   hasActiveBmuSession,
@@ -47,6 +48,33 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      if (err) {
+        const messages: Record<string, string> = {
+          missing_google_keys:
+            'Google Sign-In is not configured yet. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env file.',
+          oauth_denied: 'Google sign-in was canceled or access was denied.',
+          oauth_exchange_failed:
+            'Failed to verify Google credentials. Please try signing in again.',
+          oauth_profile_failed:
+            'Unable to retrieve your Google profile details. Please try again.',
+          oauth_no_email:
+            'No email address was returned by Google. Please check your Google account permissions.',
+          invalid_state:
+            'Security verification failed (state mismatch). Please try again.',
+          account_suspended:
+            'This account has been suspended. Please contact support.',
+          db_error:
+            'Database error while signing in with Google. Please try again or use email login.',
+          oauth_error:
+            'An error occurred during Google sign-in. Please try again.',
+        };
+        setErrorMsg(messages[err] || 'Authentication error. Please try again.');
+      }
+    }
+
     if (hasActiveBmuSession()) {
       router.replace('/workspace');
     }
@@ -140,55 +168,10 @@ export default function LoginPage() {
     }
   }
 
-  async function handleGoogleLogin() {
+  function handleGoogleLogin() {
     setIsSubmitting(true);
     setErrorMsg(null);
-    try {
-      const result = await loginFounderAction({
-        email: 'thomaswalsh@google.com',
-        password: 'Kepak01!',
-      });
-      if (result.ok && result.session) {
-        saveBmuSession(result.session);
-        router.replace('/workspace');
-        return;
-      }
-      const cached = loadBmuSessionForEmail('thomaswalsh@google.com');
-      if (cached && cached.plans.length > 0) {
-        saveBmuSession(cached);
-        router.replace('/workspace');
-        return;
-      }
-      const base = getDefaultDemoSession();
-      base.user.name = 'Thomas Walsh';
-      base.user.email = 'thomaswalsh@google.com';
-      const recoveredPlans = recoverAllRealPlansFromBrowserStorage();
-      if (recoveredPlans.length > 0) {
-        base.plans = recoveredPlans;
-        base.activePlanId = recoveredPlans[0].id;
-      }
-      saveBmuSession(base);
-      router.replace('/workspace');
-    } catch {
-      const cached = loadBmuSessionForEmail('thomaswalsh@google.com');
-      if (cached && cached.plans.length > 0) {
-        saveBmuSession(cached);
-        router.replace('/workspace');
-        return;
-      }
-      const base = getDefaultDemoSession();
-      base.user.name = 'Thomas Walsh';
-      base.user.email = 'thomaswalsh@google.com';
-      const recoveredPlans = recoverAllRealPlansFromBrowserStorage();
-      if (recoveredPlans.length > 0) {
-        base.plans = recoveredPlans;
-        base.activePlanId = recoveredPlans[0].id;
-      }
-      saveBmuSession(base);
-      router.replace('/workspace');
-    } finally {
-      setIsSubmitting(false);
-    }
+    window.location.href = '/api/auth/google?from=login';
   }
 
   function loginWithDevPersona(
@@ -295,28 +278,21 @@ export default function LoginPage() {
             <CardHeader>
               <CardTitle className="text-lg">Welcome Back</CardTitle>
               <CardDescription>
-                Continue with Google, LinkedIn, or your email address.
+                Continue with Google or your email address.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               {/* OAuth Buttons */}
-              <div className="grid grid-cols-2 gap-3">
+              <div>
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full text-xs"
+                  className="w-full h-10 text-xs font-medium border-slate-200 bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center gap-2.5 shadow-xs transition-colors"
                   onClick={handleGoogleLogin}
                   disabled={isSubmitting}
                 >
-                  Continue with Google
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full text-xs"
-                  onClick={() => loginWithDevPersona('FREE')}
-                >
-                  Continue with LinkedIn
+                  <GoogleIcon className="h-4 w-4 shrink-0" />
+                  <span>Continue with Google</span>
                 </Button>
               </div>
 

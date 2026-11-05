@@ -594,134 +594,151 @@ export default function WorkspacePage() {
 
   // Hydrate from localStorage first, then sync with Cloud SQL PostgreSQL session cookie if present
   useEffect(() => {
-    const hasLocalSession = hasActiveBmuSession();
-    if (!hasLocalSession) {
-      router.replace('/login');
-      return;
-    }
+    function applySessionToWorkspace(loaded: BmuLocalSession) {
+      setSession(loaded);
+      const activePlan =
+        loaded.plans.find((p) => p.id === loaded.activePlanId) || loaded.plans[0];
+      if (activePlan) {
+        setSelectedCountry(activePlan.hqCountryCode);
+        setBrainDumpText(activePlan.brainDumpText ?? '');
+        setConceptCanvas(activePlan.conceptCanvas || null);
+        if (activePlan.founderMotivation) {
+          setFounderMotivation(activePlan.founderMotivation);
+        }
+        if (activePlan.teamAndBudget) {
+          setTeamAndBudget(activePlan.teamAndBudget);
+        } else if (loaded.user.teamStructure) {
+          setTeamAndBudget((prev) => ({
+            ...prev,
+            teamStructureType:
+              loaded.user.teamStructure === 'CO_FOUNDERS'
+                ? 'COFOUNDER_TEAM'
+                : loaded.user.teamStructure === 'LOOKING_FOR_COFOUNDER'
+                  ? 'SEEKING_COFOUNDER'
+                  : 'SOLO_FOUNDER',
+          }));
+        }
+        if (activePlan.founderRealityCheck) {
+          setFounderRealityCheck(activePlan.founderRealityCheck);
+        }
+        setGrantEligibilityCheck(
+          activePlan.grantEligibilityCheck ||
+            getDefaultGrantEligibilityCheck({
+              hqCountryCode: activePlan.hqCountryCode,
+              industryCategory: activePlan.industryCategory,
+              exportPotential: activePlan.exportPotential,
+            })
+        );
+        setThingsToConsider(activePlan.thingsToConsider || []);
+        setOpenQuestions(activePlan.openQuestions || []);
+        // Resolve initial module / view:
+        // Default on login (/workspace with no view/module params) is the Project Dashboard.
+        let resolvedDashboard = true;
+        let resolvedMasterDoc = false;
+        let resolvedBpStudio = false;
+        let resolvedInitialMod: ModuleCode | null = null;
 
-    const loaded = loadBmuSession();
-    setSession(loaded);
-    const activePlan =
-      loaded.plans.find((p) => p.id === loaded.activePlanId) || loaded.plans[0];
-    if (activePlan) {
-      setSelectedCountry(activePlan.hqCountryCode);
-      setBrainDumpText(activePlan.brainDumpText ?? '');
-      setConceptCanvas(activePlan.conceptCanvas || null);
-      if (activePlan.founderMotivation) {
-        setFounderMotivation(activePlan.founderMotivation);
-      }
-      if (activePlan.teamAndBudget) {
-        setTeamAndBudget(activePlan.teamAndBudget);
-      } else if (loaded.user.teamStructure) {
-        setTeamAndBudget((prev) => ({
-          ...prev,
-          teamStructureType:
-            loaded.user.teamStructure === 'CO_FOUNDERS'
-              ? 'COFOUNDER_TEAM'
-              : loaded.user.teamStructure === 'LOOKING_FOR_COFOUNDER'
-                ? 'SEEKING_COFOUNDER'
-                : 'SOLO_FOUNDER',
-        }));
-      }
-      if (activePlan.founderRealityCheck) {
-        setFounderRealityCheck(activePlan.founderRealityCheck);
-      }
-      setGrantEligibilityCheck(
-        activePlan.grantEligibilityCheck ||
-          getDefaultGrantEligibilityCheck({
-            hqCountryCode: activePlan.hqCountryCode,
-            industryCategory: activePlan.industryCategory,
-            exportPotential: activePlan.exportPotential,
-          })
-      );
-      setThingsToConsider(activePlan.thingsToConsider || []);
-      setOpenQuestions(activePlan.openQuestions || []);
-      // Resolve initial module / view:
-      // Default on login (/workspace with no view/module params) is the Project Dashboard.
-      let resolvedDashboard = true;
-      let resolvedMasterDoc = false;
-      let resolvedBpStudio = false;
-      let resolvedInitialMod: ModuleCode | null = null;
+        if (typeof window !== 'undefined') {
+          const searchParams = new URLSearchParams(window.location.search);
+          const viewParam = searchParams.get('view');
+          const moduleParam = searchParams.get('module');
 
-      if (typeof window !== 'undefined') {
-        const searchParams = new URLSearchParams(window.location.search);
-        const viewParam = searchParams.get('view');
-        const moduleParam = searchParams.get('module');
-
-        if (viewParam === 'dashboard') {
-          resolvedDashboard = true;
-        } else if (
-          viewParam === 'business_plan_studio' ||
-          viewParam === 'bp_studio' ||
-          moduleParam === 'business_plan_studio'
-        ) {
-          resolvedDashboard = false;
-          resolvedBpStudio = true;
-        } else if (
-          viewParam === 'master_doc' ||
-          moduleParam === 'master_doc'
-        ) {
-          resolvedDashboard = false;
-          resolvedMasterDoc = true;
-        } else if (moduleParam) {
-          const fromParam = resolveModuleFromParam(moduleParam);
-          if (fromParam) {
+          if (viewParam === 'dashboard') {
+            resolvedDashboard = true;
+          } else if (
+            viewParam === 'business_plan_studio' ||
+            viewParam === 'bp_studio' ||
+            moduleParam === 'business_plan_studio'
+          ) {
             resolvedDashboard = false;
-            resolvedInitialMod = fromParam;
-            const stepParam = searchParams.get('step');
-            if (stepParam) {
-              const parsedStep = parseInt(stepParam, 10);
-              if (!isNaN(parsedStep) && parsedStep > 0) {
-                setModuleNavTarget({ step: parsedStep });
-                if (fromParam === 'MOD_A_IDEATION') {
-                  setOpenStep(parsedStep);
+            resolvedBpStudio = true;
+          } else if (
+            viewParam === 'master_doc' ||
+            moduleParam === 'master_doc'
+          ) {
+            resolvedDashboard = false;
+            resolvedMasterDoc = true;
+          } else if (moduleParam) {
+            const fromParam = resolveModuleFromParam(moduleParam);
+            if (fromParam) {
+              resolvedDashboard = false;
+              resolvedInitialMod = fromParam;
+              const stepParam = searchParams.get('step');
+              if (stepParam) {
+                const parsedStep = parseInt(stepParam, 10);
+                if (!isNaN(parsedStep) && parsedStep > 0) {
+                  setModuleNavTarget({ step: parsedStep });
+                  if (fromParam === 'MOD_A_IDEATION') {
+                    setOpenStep(parsedStep);
+                  }
                 }
               }
+            }
+          }
+
+          if (!resolvedInitialMod) {
+            const storedModule =
+              localStorage.getItem(`spf_active_module_${activePlan.id}`) ||
+              localStorage.getItem('spf_last_active_module');
+            const fromStorage = resolveModuleFromParam(storedModule);
+            if (fromStorage) {
+              resolvedInitialMod = fromStorage;
             }
           }
         }
 
         if (!resolvedInitialMod) {
-          const storedModule =
-            localStorage.getItem(`spf_active_module_${activePlan.id}`) ||
-            localStorage.getItem('spf_last_active_module');
-          const fromStorage = resolveModuleFromParam(storedModule);
-          if (fromStorage) {
-            resolvedInitialMod = fromStorage;
-          }
+          resolvedInitialMod =
+            resolveModuleFromStep(activePlan.currentModuleStep) ||
+            'MOD_A_IDEATION';
         }
+
+        setActiveModule(resolvedInitialMod);
+
+        if (resolvedDashboard) {
+          setIsDashboardOpen(true);
+          setIsBusinessPlanStudioOpen(false);
+          setIsMasterDocumentOpen(false);
+        } else if (resolvedBpStudio) {
+          setIsDashboardOpen(false);
+          setIsBusinessPlanStudioOpen(true);
+          setIsMasterDocumentOpen(false);
+        } else if (resolvedMasterDoc) {
+          setIsDashboardOpen(false);
+          setIsBusinessPlanStudioOpen(false);
+          setIsMasterDocumentOpen(true);
+        } else {
+          setIsDashboardOpen(false);
+          setIsBusinessPlanStudioOpen(false);
+          setIsMasterDocumentOpen(false);
+        }
+
+        hasHydratedLocationRef.current = true;
+        setHasHydratedLocation(true);
       }
-
-      if (!resolvedInitialMod) {
-        resolvedInitialMod =
-          resolveModuleFromStep(activePlan.currentModuleStep) ||
-          'MOD_A_IDEATION';
-      }
-
-      setActiveModule(resolvedInitialMod);
-
-      if (resolvedDashboard) {
-        setIsDashboardOpen(true);
-        setIsBusinessPlanStudioOpen(false);
-        setIsMasterDocumentOpen(false);
-      } else if (resolvedBpStudio) {
-        setIsDashboardOpen(false);
-        setIsBusinessPlanStudioOpen(true);
-        setIsMasterDocumentOpen(false);
-      } else if (resolvedMasterDoc) {
-        setIsDashboardOpen(false);
-        setIsBusinessPlanStudioOpen(false);
-        setIsMasterDocumentOpen(true);
-      } else {
-        setIsDashboardOpen(false);
-        setIsBusinessPlanStudioOpen(false);
-        setIsMasterDocumentOpen(false);
-      }
-
-      hasHydratedLocationRef.current = true;
-      setHasHydratedLocation(true);
     }
+
+    const hasLocalSession = hasActiveBmuSession();
+    if (!hasLocalSession) {
+      // First attempt hydration from Cloud SQL session cookie (e.g. after Google OAuth or fresh browser)
+      getCurrentCloudSessionAction()
+        .then((res) => {
+          setCloudDbConnected(res.dbConnected);
+          if (res.authenticated && res.session) {
+            saveBmuSession(res.session);
+            applySessionToWorkspace(res.session);
+          } else {
+            router.replace('/login');
+          }
+        })
+        .catch(() => {
+          router.replace('/login');
+        });
+      return;
+    }
+
+    const loaded = loadBmuSession();
+    applySessionToWorkspace(loaded);
 
     getCurrentCloudSessionAction()
       .then((res) => {

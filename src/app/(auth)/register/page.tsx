@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { GoogleIcon } from '@/components/ui/google-icon';
 import {
   registerNewFounderSession,
   saveBmuSession,
@@ -40,6 +41,41 @@ export default function RegisterPage() {
   const [voucherCode, setVoucherCode] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      if (err) {
+        const messages: Record<string, string> = {
+          missing_google_keys:
+            'Google Sign-In is not configured yet. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env file.',
+          oauth_denied: 'Google registration was canceled or access was denied.',
+          oauth_exchange_failed:
+            'Failed to verify Google credentials. Please try again.',
+          oauth_profile_failed:
+            'Unable to retrieve your Google profile details. Please try again.',
+          oauth_no_email:
+            'No email address was returned by Google. Please check your Google account permissions.',
+          invalid_state:
+            'Security verification failed (state mismatch). Please try again.',
+          account_suspended:
+            'This account has been suspended. Please contact support.',
+          db_error:
+            'Database error during Google sign-up. Please try again or use standard registration.',
+          oauth_error:
+            'An error occurred during Google registration. Please try again.',
+        };
+        setErrorMsg(messages[err] || 'Authentication error. Please try again.');
+      }
+    }
+  }, []);
+
+  function handleGoogleRegister() {
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    window.location.href = '/api/auth/google?from=register';
+  }
 
   async function handleRegisterSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -172,34 +208,16 @@ export default function RegisterPage() {
             </CardHeader>
             <CardContent className="space-y-5">
               {/* OAuth Quick Buttons */}
-              <div className="grid grid-cols-2 gap-3">
+              <div>
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full text-xs"
-                  onClick={() => {
-                    registerNewFounderSession({
-                      name: 'Sarah Kelly',
-                      email: 'sarah.kelly@founder.ie',
-                    });
-                    router.push('/onboarding');
-                  }}
+                  className="w-full h-10 text-xs font-medium border-slate-200 bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center gap-2.5 shadow-xs transition-colors"
+                  onClick={handleGoogleRegister}
+                  disabled={isSubmitting}
                 >
-                  Continue with Google
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full text-xs"
-                  onClick={() => {
-                    registerNewFounderSession({
-                      name: 'Sarah Kelly',
-                      email: 'sarah.kelly@linkedin.com',
-                    });
-                    router.push('/onboarding');
-                  }}
-                >
-                  Continue with LinkedIn
+                  <GoogleIcon className="h-4 w-4 shrink-0" />
+                  <span>Continue with Google</span>
                 </Button>
               </div>
 

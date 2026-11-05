@@ -33,7 +33,7 @@ import {
   type TeamStructure,
   type IndustryCategory,
 } from '@/lib/auth/session-store';
-import { completeOnboardingAction } from '@/app/actions/auth';
+import { completeOnboardingAction, getCurrentCloudSessionAction } from '@/app/actions/auth';
 import {
   getCountryRulePack,
   getGrantsForCountry,
@@ -113,6 +113,18 @@ export default function OnboardingPage() {
     const session = loadBmuSession();
     if (session?.user?.name) {
       setFounderName(session.user.name);
+    } else {
+      // If arriving straight from Google OAuth callback without local storage pre-existing
+      getCurrentCloudSessionAction()
+        .then((res) => {
+          if (res.authenticated && res.session) {
+            saveBmuSession(res.session);
+            if (res.session.user.name) {
+              setFounderName(res.session.user.name);
+            }
+          }
+        })
+        .catch(() => {});
     }
 
     if (typeof window !== 'undefined') {

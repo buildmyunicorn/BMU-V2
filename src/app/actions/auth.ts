@@ -78,7 +78,7 @@ export interface AuthActionResult {
 /**
  * Ensures the global 'default' tenant exists in PostgreSQL before inserting users/plans.
  */
-async function ensureDefaultTenantId(): Promise<string> {
+export async function ensureDefaultTenantId(): Promise<string> {
   const existing = await db
     .select()
     .from(tenants)
