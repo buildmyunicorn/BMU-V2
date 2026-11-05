@@ -200,6 +200,19 @@ export function ensureDatabaseSchemaSynced(): Promise<void> {
           ALTER TABLE grants_directory
             ADD COLUMN IF NOT EXISTS slug text;
 
+          DO $$ BEGIN
+            CREATE TYPE "public"."voucher_reward_type" AS ENUM('APPSUMO_LTD', 'PASS_SOLO', 'PASS_COFOUNDER');
+          EXCEPTION
+            WHEN duplicate_object THEN null;
+          END $$;
+
+          ALTER TYPE "public"."voucher_source" ADD VALUE IF NOT EXISTS 'PARTNER';
+
+          ALTER TABLE vouchers
+            ADD COLUMN IF NOT EXISTS reward_type "public"."voucher_reward_type" DEFAULT 'APPSUMO_LTD' NOT NULL,
+            ADD COLUMN IF NOT EXISTS duration_months integer DEFAULT 6,
+            ADD COLUMN IF NOT EXISTS notes text;
+
           CREATE TABLE IF NOT EXISTS partner_offers (
             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
             slug text NOT NULL UNIQUE,

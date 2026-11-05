@@ -71,6 +71,10 @@ import {
   saveBmuSession,
 } from '@/lib/auth/session-store';
 import {
+  getPlanTypeDisplayName,
+  getPlanTypeBadgeProps,
+} from '@/lib/entitlements';
+import {
   loadLocalSupportTickets,
   saveLocalSupportTickets,
   upsertLocalSupportTicket,
@@ -1885,8 +1889,14 @@ export default function AdminDashboardPage() {
                                 Lifetime Full Access
                               </span>
                             ) : (
-                              <Badge variant="secondary">
-                                {user.entitlement.planType}
+                              <Badge
+                                variant="secondary"
+                                className={getPlanTypeBadgeProps(user.entitlement.planType, user.entitlement.isVaultReadonly).className}
+                              >
+                                {getPlanTypeDisplayName(user.entitlement.planType, {
+                                  isVaultReadonly: user.entitlement.isVaultReadonly,
+                                  stackedCodesCount: user.entitlement.stackedCodesCount,
+                                })}
                               </Badge>
                             )}
                           </div>

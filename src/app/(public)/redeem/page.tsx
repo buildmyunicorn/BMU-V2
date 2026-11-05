@@ -1,16 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Ticket,
   Sparkles,
   CheckCircle2,
   ArrowLeft,
+  ArrowRight,
   Layers,
   ShieldCheck,
   KeyRound,
-  Wrench,
+  Loader2,
+  AlertCircle,
+  LogIn,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,75 +26,219 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { calculateAppSumoTierLimits } from '@/lib/entitlements';
-
-const VALID_DEMO_CODES = [
-  'SUMO-SPF-1001-ALPHA',
-  'SUMO-SPF-1002-BRAVO',
-  'SUMO-SPF-1003-CHARLIE',
-  'SUMO-SPF-1004-DELTA',
-  'SUMO-SPF-1005-ECHO',
-];
+import {
+  calculateAppSumoTierLimits,
+  calculatePassLimits,
+  getPlanTypeDisplayName,
+  type EntitlementSnapshot,
+} from '@/lib/entitlements';
+import {
+  hasActiveBmuSession,
+  loadBmuSession,
+  saveBmuSession,
+} from '@/lib/auth/session-store';
+import {
+  getFounderVoucherStateAction,
+  redeemVoucherOrCohortCodeAction,
+} from '@/app/actions/vouchers';
 
 export default function RedeemPage() {
-  const [redeemedCodes, setRedeemedCodes] = useState<string[]>([
-    'SUMO-SPF-1001-ALPHA',
-  ]);
+  const [isLoadingState, setIsLoadingState] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeUserId, setActiveUserId] = useState<string>('');
+  const [activeUserEmail, setActiveUserEmail] = useState<string>('');
+  const [entitlement, setEntitlement] = useState<EntitlementSnapshot>(() => {
+    const freeDefaults = calculatePassLimits('FREE_HOOK');
+    return {
+      userId: '',
+      planType: 'FREE_HOOK',
+      stackedCodesCount: 0,
+      maxStartupPlans: freeDefaults.maxStartupPlans,
+      maxSeatsPerPlan: freeDefaults.maxSeatsPerPlan,
+      monthlyAiCreditsLimit: freeDefaults.monthlyAiCreditsLimit,
+      aiCreditsUsedThisMonth: 0,
+      whiteLabelExportEnabled: false,
+      isVaultReadonly: false,
+    };
+  });
+  const [redeemedCodes, setRedeemedCodes] = useState<string[]>([]);
+  const [cohortCode, setCohortCode] = useState<string | undefined>(undefined);
   const [inputCode, setInputCode] = useState('');
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
   } | null>(null);
 
-  const currentTier = calculateAppSumoTierLimits(redeemedCodes.length);
+  useEffect(() => {
+    let cancelled = false;
 
-  function handleRedeemCode(e: React.FormEvent) {
+    async function hydrateVoucherState() {
+      const hasLocal = hasActiveBmuSession();
+      const localSession = hasLocal ? loadBmuSession() : null;
+
+      if (localSession) {
+        setActiveUserId(localSession.user.id);
+        setActiveUserEmail(localSession.user.email);
+        setEntitlement(localSession.entitlement);
+        setRedeemedCodes(localSession.redeemedCodes || []);
+        setCohortCode(localSession.user.cohortCode);
+        setIsAuthenticated(true);
+      }
+
+      try {
+        const res = await getFounderVoucherStateAction(
+          localSession
+            ? {
+                userId: localSession.user.id,
+                email: localSession.user.email,
+              }
+            : undefined
+        );
+
+        if (cancelled) return;
+
+        if (res.ok && res.authenticated && res.entitlement) {
+          setIsAuthenticated(true);
+          setActiveUserId(res.userId || localSession?.user.id || '');
+          setActiveUserEmail(res.userEmail || localSession?.user.email || '');
+          setEntitlement(res.entitlement);
+          setRedeemedCodes(res.redeemedCodes || []);
+          setCohortCode(res.cohortCode);
+
+          // Synchronize localStorage session so /workspace reflects current DB entitlements
+          const currentLocal = loadBmuSession();
+          saveBmuSession({
+            ...currentLocal,
+            user: {
+              ...currentLocal.user,
+              id: res.userId || currentLocal.user.id,
+              email: res.userEmail || currentLocal.user.email,
+              name: res.userName || currentLocal.user.name,
+              cohortCode: res.cohortCode || currentLocal.user.cohortCode,
+            },
+            entitlement: res.entitlement,
+            redeemedCodes: res.redeemedCodes || [],
+          });
+        }
+      } catch {
+        // Keep local session fallback if network/DB is unreachable
+      } finally {
+        if (!cancelled) {
+          setIsLoadingState(false);
+        }
+      }
+    }
+
+    void hydrateVoucherState();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleRedeemCode(e: React.FormEvent) {
     e.preventDefault();
     const cleaned = inputCode.trim().toUpperCase();
 
     if (!cleaned) {
       setFeedback({
         type: 'error',
-        message: 'Please enter a valid AppSumo or Cohort voucher code.',
+        message: 'Please enter a valid AppSumo, Partner, or Cohort voucher code.',
       });
       return;
     }
 
-    if (redeemedCodes.includes(cleaned)) {
+    if (redeemedCodes.includes(cleaned) || cohortCode === cleaned) {
       setFeedback({
         type: 'error',
-        message: `Voucher ${cleaned} has already been stacked on your account.`,
+        message: `Voucher ${cleaned} has already been applied to your account.`,
       });
       return;
     }
 
-    if (
-      !cleaned.startsWith('SUMO-') &&
-      !cleaned.startsWith('SPF-') &&
-      !cleaned.startsWith('BMU-')
-    ) {
+    setIsSubmitting(true);
+    setFeedback(null);
+
+    try {
+      const res = await redeemVoucherOrCohortCodeAction(cleaned, {
+        userId: activeUserId || undefined,
+        email: activeUserEmail || undefined,
+      });
+
+      if (!res.ok) {
+        setFeedback({
+          type: 'error',
+          message:
+            res.error || 'Could not redeem that voucher code. Please try again.',
+        });
+        return;
+      }
+
+      const nextEntitlement = res.entitlement || entitlement;
+      const nextCodes =
+        res.redeemedCodes && res.redeemedCodes.length > 0
+          ? res.redeemedCodes
+          : Array.from(new Set([...redeemedCodes, cleaned]));
+
+      setEntitlement(nextEntitlement);
+      setRedeemedCodes(nextCodes);
+      if (res.cohortCode) {
+        setCohortCode(res.cohortCode);
+      }
+      setInputCode('');
+
+      // Persist immediately to localStorage so returning to /workspace unlocks Modules B–L right away
+      const currentLocal = loadBmuSession();
+      saveBmuSession({
+        ...currentLocal,
+        user: {
+          ...currentLocal.user,
+          cohortCode: res.cohortCode || currentLocal.user.cohortCode,
+        },
+        entitlement: nextEntitlement,
+        redeemedCodes: nextCodes,
+      });
+
+      setFeedback({
+        type: 'success',
+        message:
+          res.message ||
+          `Code ${cleaned} redeemed! Your account is now upgraded to ${
+            res.newTierName ||
+            getPlanTypeDisplayName(nextEntitlement.planType, {
+              isVaultReadonly: nextEntitlement.isVaultReadonly,
+              stackedCodesCount: nextEntitlement.stackedCodesCount,
+            })
+          }.`,
+      });
+    } catch {
       setFeedback({
         type: 'error',
         message:
-          'Unrecognized code format. Use SUMO-SPF-XXXX or SPF-UCD-2027.',
+          'An unexpected network error occurred while redeeming your code. Please try again.',
       });
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const updated = [...redeemedCodes, cleaned];
-    setRedeemedCodes(updated);
-    setInputCode('');
-    const newTier = calculateAppSumoTierLimits(updated.length);
-    setFeedback({
-      type: 'success',
-      message: `Code ${cleaned} redeemed! Your account is now upgraded to ${newTier.tierName}.`,
-    });
   }
+
+  const effectiveStackedCount =
+    entitlement.planType === 'APPSUMO_LTD'
+      ? Math.max(entitlement.stackedCodesCount || 0, redeemedCodes.length)
+      : redeemedCodes.length;
+
+  const displayTierTitle =
+    entitlement.planType === 'APPSUMO_LTD' && effectiveStackedCount > 0
+      ? calculateAppSumoTierLimits(effectiveStackedCount).tierName
+      : getPlanTypeDisplayName(entitlement.planType, {
+          isVaultReadonly: entitlement.isVaultReadonly,
+          stackedCodesCount: entitlement.stackedCodesCount,
+        });
 
   return (
     <div className="flex min-h-screen flex-col justify-between bg-slate-50">
-      <main className="mx-auto w-full max-w-4xl flex-1 space-y-6 px-6 py-10">
-        <div className="flex items-center justify-between">
+      <main className="mx-auto w-full max-w-4xl flex-1 space-y-6 px-4 py-8 sm:px-6 sm:py-10">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
             href="/workspace"
             className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900"
@@ -99,13 +246,40 @@ export default function RedeemPage() {
             <ArrowLeft className="h-4 w-4" />
             Back to Workspace
           </Link>
-          <Badge variant="default">Lifetime Deal &amp; Cohort Redemption</Badge>
+          <div className="flex items-center gap-2">
+            {activeUserEmail && (
+              <span className="text-xs text-slate-500">
+                Signed in as{' '}
+                <strong className="font-semibold text-slate-800">
+                  {activeUserEmail}
+                </strong>
+              </span>
+            )}
+            <Badge variant="default">Lifetime Deal &amp; Cohort Redemption</Badge>
+          </div>
         </div>
+
+        {!isLoadingState && !isAuthenticated && (
+          <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+              <span>
+                You must be signed in to your founder account so your voucher code attaches to your workspace.
+              </span>
+            </div>
+            <Link href="/login">
+              <Button size="sm" className="h-8 text-xs">
+                <LogIn className="mr-1.5 h-3.5 w-3.5" />
+                Sign In / Create Account
+              </Button>
+            </Link>
+          </div>
+        )}
 
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500 text-white">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
                 <Ticket className="h-6 w-6" />
               </div>
               <div>
@@ -123,32 +297,64 @@ export default function RedeemPage() {
           <CardContent className="space-y-6">
             <form onSubmit={handleRedeemCode} className="space-y-3">
               <Label htmlFor="voucher-code">
-                Enter AppSumo Voucher or University Cohort Code
+                Enter AppSumo Voucher, Partner Pass, or University Cohort Code
               </Label>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <Input
                   id="voucher-code"
                   value={inputCode}
                   onChange={(e) => setInputCode(e.target.value)}
-                  placeholder="Enter your voucher code"
-                  className="font-mono uppercase"
+                  placeholder="e.g. SUMO-BMU-1005-ECHO or BMU-UCD-2027"
+                  className="font-mono text-base uppercase sm:text-sm"
+                  disabled={isSubmitting}
                 />
-                <Button type="submit">
-                  <Sparkles className="h-4 w-4" />
-                  Redeem Code
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || isLoadingState}
+                  className="w-full shrink-0 sm:w-auto"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      Redeeming...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1.5 h-4 w-4" />
+                      Redeem Code
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
 
             {feedback && (
               <div
-                className={`rounded-xl border p-3.5 text-sm ${
+                className={`flex flex-col justify-between gap-3 rounded-xl border p-3.5 text-sm sm:flex-row sm:items-center ${
                   feedback.type === 'success'
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
                     : 'border-red-200 bg-red-50 text-red-900'
                 }`}
               >
-                {feedback.message}
+                <div className="flex items-start gap-2">
+                  {feedback.type === 'success' ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  ) : (
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                  )}
+                  <span>{feedback.message}</span>
+                </div>
+                {feedback.type === 'success' && (
+                  <Link href="/workspace" className="shrink-0">
+                    <Button
+                      size="sm"
+                      className="h-8 w-full bg-emerald-700 text-xs text-white hover:bg-emerald-800 sm:w-auto"
+                    >
+                      Open Unlocked Workspace
+                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
+                )}
               </div>
             )}
 
@@ -160,31 +366,48 @@ export default function RedeemPage() {
                     Active Account Entitlement
                   </div>
                   <div className="text-lg font-bold text-slate-900">
-                    {currentTier.tierName}
+                    {isLoadingState ? 'Loading account entitlement...' : displayTierTitle}
                   </div>
                 </div>
                 <Badge variant="default">
-                  {currentTier.stackedCodesCount} Code(s) Stacked
+                  {effectiveStackedCount} Code(s) Stacked
                 </Badge>
               </div>
+
+              {redeemedCodes.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-medium text-slate-500">
+                    Applied Vouchers:
+                  </span>
+                  {redeemedCodes.map((code) => (
+                    <span
+                      key={code}
+                      className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-white px-2 py-0.5 font-mono text-[11px] font-semibold text-indigo-900"
+                    >
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                      {code}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-xl bg-white p-3 shadow-2xs">
                   <div className="text-xs text-slate-500">Startup Plans</div>
                   <div className="mt-1 text-lg font-bold text-slate-900">
-                    {currentTier.maxStartupPlans} Plans
+                    {entitlement.maxStartupPlans} Plans
                   </div>
                 </div>
                 <div className="rounded-xl bg-white p-3 shadow-2xs">
                   <div className="text-xs text-slate-500">Team Seats / Plan</div>
                   <div className="mt-1 text-lg font-bold text-slate-900">
-                    {currentTier.maxSeatsPerPlan} Seats
+                    {entitlement.maxSeatsPerPlan} Seats
                   </div>
                 </div>
                 <div className="rounded-xl bg-white p-3 shadow-2xs">
                   <div className="text-xs text-slate-500">Monthly AI Credits</div>
                   <div className="mt-1 text-lg font-bold text-slate-900">
-                    {currentTier.monthlyAiCreditsLimit} / mo
+                    {entitlement.monthlyAiCreditsLimit} / mo
                   </div>
                 </div>
                 <div className="rounded-xl bg-white p-3 shadow-2xs">
@@ -192,7 +415,7 @@ export default function RedeemPage() {
                     White-Label &amp; BYOK
                   </div>
                   <div className="mt-1 text-sm font-bold text-slate-900">
-                    {currentTier.whiteLabelExportEnabled
+                    {entitlement.whiteLabelExportEnabled
                       ? 'Enabled (Tier 3)'
                       : 'Requires 3 Codes'}
                   </div>
@@ -209,7 +432,7 @@ export default function RedeemPage() {
                   plans: '1 Active Startup Plan',
                   seats: '1 User Seat (Solo)',
                   credits: '150 AI Credits / month',
-                  extras: 'Full Modules A–G + Unlimited Exports',
+                  extras: 'Full Modules A–L + Unlimited Exports',
                 },
                 {
                   codes: 2,
@@ -230,7 +453,7 @@ export default function RedeemPage() {
                     'White-Label PDF Exports + Bring Your Own API Key (BYOK)',
                 },
               ].map((tier) => {
-                const isUnlocked = redeemedCodes.length >= tier.codes;
+                const isUnlocked = effectiveStackedCount >= tier.codes;
                 return (
                   <div
                     key={tier.codes}

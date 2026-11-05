@@ -969,6 +969,26 @@ export const quotePartnerResponses = pgTable(
 );
 
 // ==========================================
+// 7C. COHORT & INSTITUTIONAL INQUIRIES (/cohorts)
+// ==========================================
+export const cohortInquiries = pgTable('cohort_inquiries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  organizationName: text('organization_name').notNull(),
+  organizationType: text('organization_type').notNull(), // 'UNIVERSITY' | 'LEO_GROWTH_HUB' | 'ACCELERATOR' | 'VENTURE_STUDIO' | 'COWORKING' | 'OTHER'
+  cohortSize: text('cohort_size').notNull(), // '10_25' | '25_50' | '50_100' | '100_PLUS'
+  regionalFocus: text('regional_focus').default('IE_UK').notNull(), // 'IE' | 'UK' | 'IE_UK' | 'GLOBAL'
+  targetStartDate: text('target_start_date'),
+  goalsJson: jsonb('goals_json').$type<string[]>().default([]),
+  notes: text('notes'),
+  status: text('status').default('NEW').notNull(), // 'NEW' | 'CONTACTED' | 'DEMO_BOOKED' | 'CONVERTED' | 'ARCHIVED'
+  metadataJson: jsonb('metadata_json').$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ==========================================
 // 8. DRIZZLE RELATIONS
 // ==========================================
 export const tenantsRelations = relations(tenants, ({ many }) => ({

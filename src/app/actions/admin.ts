@@ -3,6 +3,7 @@
 import { eq, desc, inArray, sql } from 'drizzle-orm';
 import {
   db,
+  ensureDatabaseSchemaSynced,
   tenants,
   users,
   userEntitlements,
@@ -426,6 +427,7 @@ export async function listAdminUsersAction(): Promise<AdminDashboardResponse> {
   }
 
   try {
+    await ensureDatabaseSchemaSynced();
     const allUsers = await db
       .select()
       .from(users)

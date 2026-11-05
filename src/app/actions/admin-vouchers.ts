@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { eq, desc, and, sql, inArray } from 'drizzle-orm';
 import {
   db,
+  ensureDatabaseSchemaSynced,
   vouchers,
   cohorts,
   users,
@@ -115,6 +116,7 @@ export async function listAdminVouchersAndCohortsAction(): Promise<{
   }
 
   try {
+    await ensureDatabaseSchemaSynced();
     const rawVouchers = await db
       .select({
         voucher: vouchers,
@@ -233,6 +235,7 @@ export async function generateVoucherBatchAction(params: {
   const prefix = (params.prefix?.trim() || defaultPrefix).toUpperCase();
 
   try {
+    await ensureDatabaseSchemaSynced();
     const generatedCodesSet = new Set<string>();
     while (generatedCodesSet.size < quantity) {
       generatedCodesSet.add(formatVoucherCode(prefix));
@@ -395,6 +398,7 @@ export async function revokeVoucherAction(params: {
   }
 
   try {
+    await ensureDatabaseSchemaSynced();
     let voucherQuery = db.select().from(vouchers);
     if (params.voucherId) {
       voucherQuery = voucherQuery.where(eq(vouchers.id, params.voucherId)) as any;

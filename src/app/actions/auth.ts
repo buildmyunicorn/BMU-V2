@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import {
   db,
   ensureDatabaseSchemaSynced,
@@ -129,7 +129,12 @@ async function buildSessionFromDbUser(
     userVouchers = await db
       .select()
       .from(vouchers)
-      .where(eq(vouchers.redeemedByUserId, dbUser.id));
+      .where(
+        and(
+          eq(vouchers.redeemedByUserId, dbUser.id),
+          eq(vouchers.status, 'REDEEMED')
+        )
+      );
   } catch (err) {
     console.warn('[SPF Auth] Non-fatal error loading user vouchers:', err);
   }
@@ -695,18 +700,62 @@ export async function registerFounderAction(input: {
       };
     }
 
-    let cohortId: string | null = null;
-    if (cleanCode.startsWith('SPF-') || cleanCode.startsWith('BMU-')) {
+    let matchedCohort: (typeof cohorts.$inferSelect) | null = null;
+    let matchedVoucher: (typeof vouchers.$inferSelect) | null = null;
+
+    if (cleanCode) {
+      await ensureDatabaseSchemaSynced();
       const [foundCohort] = await db
         .select()
         .from(cohorts)
         .where(eq(cohorts.inviteCode, cleanCode))
         .limit(1);
+
       if (foundCohort) {
-        cohortId = foundCohort.id;
+        if (
+          foundCohort.expiresAt &&
+          new Date(foundCohort.expiresAt).getTime() < Date.now()
+        ) {
+          return {
+            ok: false,
+            error: `Institutional cohort code ${cleanCode} has expired.`,
+            mode: 'cloud_sql',
+          };
+        }
+        if (foundCohort.seatsUsed >= foundCohort.maxSeats) {
+          return {
+            ok: false,
+            error: `Cohort "${foundCohort.name}" has reached its maximum seat capacity.`,
+            mode: 'cloud_sql',
+          };
+        }
+        matchedCohort = foundCohort;
+      } else {
+        const [foundVoucher] = await db
+          .select()
+          .from(vouchers)
+          .where(eq(vouchers.code, cleanCode))
+          .limit(1);
+
+        if (!foundVoucher) {
+          return {
+            ok: false,
+            error: `Invalid voucher or cohort code "${cleanCode}". Please check your code or leave it blank to start on the Free tier.`,
+            mode: 'cloud_sql',
+          };
+        }
+        if (foundVoucher.status !== 'UNCLAIMED') {
+          return {
+            ok: false,
+            error: `Voucher ${cleanCode} has already been redeemed or is no longer valid.`,
+            mode: 'cloud_sql',
+          };
+        }
+        matchedVoucher = foundVoucher;
       }
     }
 
+    const cohortId: string | null = matchedCohort ? matchedCohort.id : null;
     const passwordHash = hashPassword(input.password);
 
     const [createdUser] = await db
@@ -724,47 +773,9 @@ export async function registerFounderAction(input: {
       })
       .returning();
 
-    if (cleanCode.startsWith('SUMO-')) {
-      const sumoLimits = calculateAppSumoTierLimits(1);
-      await db.insert(userEntitlements).values({
-        userId: createdUser.id,
-        planType: 'APPSUMO_LTD',
-        stackedCodesCount: 1,
-        maxStartupPlans: sumoLimits.maxStartupPlans,
-        maxSeatsPerPlan: sumoLimits.maxSeatsPerPlan,
-        monthlyAiCreditsLimit: sumoLimits.monthlyAiCreditsLimit,
-        aiCreditsUsedThisMonth: 0,
-        whiteLabelExportEnabled: sumoLimits.whiteLabelExportEnabled,
-        isVaultReadonly: false,
-      });
-
-      const [existingVoucher] = await db
-        .select()
-        .from(vouchers)
-        .where(eq(vouchers.code, cleanCode))
-        .limit(1);
-
-      if (existingVoucher && existingVoucher.status === 'UNCLAIMED') {
-        await db
-          .update(vouchers)
-          .set({
-            status: 'REDEEMED',
-            redeemedByUserId: createdUser.id,
-            redeemedAt: new Date(),
-          })
-          .where(eq(vouchers.id, existingVoucher.id));
-      } else if (!existingVoucher) {
-        await db.insert(vouchers).values({
-          code: cleanCode,
-          batchName: 'Cloud_Signup_Redemption',
-          source: 'APPSUMO',
-          status: 'REDEEMED',
-          redeemedByUserId: createdUser.id,
-          redeemedAt: new Date(),
-        });
-      }
-    } else if (cleanCode.startsWith('SPF-') || cleanCode.startsWith('BMU-')) {
-      const cohortLimits = calculatePassLimits('COHORT_PASS', 6);
+    if (matchedCohort) {
+      const durationMonths = matchedCohort.accessDurationMonths || 6;
+      const cohortLimits = calculatePassLimits('COHORT_PASS', durationMonths);
       await db.insert(userEntitlements).values({
         userId: createdUser.id,
         planType: 'COHORT_PASS',
@@ -774,9 +785,60 @@ export async function registerFounderAction(input: {
         monthlyAiCreditsLimit: cohortLimits.monthlyAiCreditsLimit,
         aiCreditsUsedThisMonth: 0,
         whiteLabelExportEnabled: false,
-        accessExpiresAt: cohortLimits.accessExpiresAt,
+        accessExpiresAt:
+          matchedCohort.expiresAt || cohortLimits.accessExpiresAt,
         isVaultReadonly: false,
       });
+
+      await db
+        .update(cohorts)
+        .set({ seatsUsed: sql`${cohorts.seatsUsed} + 1` })
+        .where(eq(cohorts.id, matchedCohort.id));
+    } else if (matchedVoucher) {
+      const rewardType = matchedVoucher.rewardType || 'APPSUMO_LTD';
+      const durationMonths = matchedVoucher.durationMonths || 6;
+
+      if (rewardType === 'APPSUMO_LTD') {
+        const sumoLimits = calculateAppSumoTierLimits(1);
+        await db.insert(userEntitlements).values({
+          userId: createdUser.id,
+          planType: 'APPSUMO_LTD',
+          stackedCodesCount: 1,
+          maxStartupPlans: sumoLimits.maxStartupPlans,
+          maxSeatsPerPlan: sumoLimits.maxSeatsPerPlan,
+          monthlyAiCreditsLimit: sumoLimits.monthlyAiCreditsLimit,
+          aiCreditsUsedThisMonth: 0,
+          whiteLabelExportEnabled: sumoLimits.whiteLabelExportEnabled,
+          isVaultReadonly: false,
+        });
+      } else {
+        const passType =
+          rewardType === 'PASS_COFOUNDER'
+            ? 'SIX_MONTH_COFOUNDER'
+            : 'SIX_MONTH_SOLO';
+        const passLimits = calculatePassLimits(passType, durationMonths);
+        await db.insert(userEntitlements).values({
+          userId: createdUser.id,
+          planType: passType,
+          stackedCodesCount: 0,
+          maxStartupPlans: passLimits.maxStartupPlans,
+          maxSeatsPerPlan: passLimits.maxSeatsPerPlan,
+          monthlyAiCreditsLimit: passLimits.monthlyAiCreditsLimit,
+          aiCreditsUsedThisMonth: 0,
+          whiteLabelExportEnabled: false,
+          accessExpiresAt: passLimits.accessExpiresAt,
+          isVaultReadonly: false,
+        });
+      }
+
+      await db
+        .update(vouchers)
+        .set({
+          status: 'REDEEMED',
+          redeemedByUserId: createdUser.id,
+          redeemedAt: new Date(),
+        })
+        .where(eq(vouchers.id, matchedVoucher.id));
     } else {
       const freeLimits = calculatePassLimits('FREE_HOOK');
       await db.insert(userEntitlements).values({

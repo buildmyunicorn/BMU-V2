@@ -240,8 +240,7 @@ async function sendAdminNotificationEmail(ticket: {
 }) {
   const adminRecipient =
     process.env.ADMIN_NOTIFICATION_EMAIL ||
-    process.env.SUPER_ADMIN_EMAIL ||
-    'admin@startuppreflight.com';
+    'tom@startuppreflight.com';
 
   const originBadge =
     ticket.source === 'FOUNDER_SUPPORT'

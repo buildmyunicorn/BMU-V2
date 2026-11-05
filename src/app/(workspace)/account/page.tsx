@@ -47,6 +47,10 @@ import {
   type AccountProfileData,
 } from '@/app/actions/account';
 import { logoutFounderAction } from '@/app/actions/auth';
+import {
+  getPlanTypeDisplayName,
+  getPlanTypeBadgeProps,
+} from '@/lib/entitlements';
 import type { SupportedCountryCode } from '@/lib/localization';
 import type { StartupHat } from '@/db/schema';
 
@@ -332,16 +336,14 @@ export default function AccountPage() {
             <span className="text-xs font-medium text-slate-600 hidden sm:inline">
               {profile?.email}
             </span>
-            <Badge
-              variant="outline"
-              className={
-                isVaultReadonly
-                  ? 'border-amber-300 bg-amber-50 text-amber-700'
-                  : 'border-emerald-300 bg-emerald-50 text-emerald-700'
-              }
-            >
-              {isVaultReadonly ? 'Vault Read-Only' : planType.replace(/_/g, ' ')}
-            </Badge>
+            {(() => {
+              const badge = getPlanTypeBadgeProps(planType, isVaultReadonly);
+              return (
+                <Badge variant="outline" className={badge.className}>
+                  {badge.label}
+                </Badge>
+              );
+            })()}
           </div>
         </div>
       </header>
@@ -789,7 +791,10 @@ export default function AccountPage() {
                       Current Tier
                     </span>
                     <div className="mt-1 text-lg font-extrabold text-slate-900">
-                      {planType.replace(/_/g, ' ')}
+                      {getPlanTypeDisplayName(planType, {
+                        isVaultReadonly,
+                        stackedCodesCount: entitlement?.stackedCodesCount,
+                      })}
                     </div>
                     <p className="mt-1 text-[11px] text-slate-500">
                       {planType === 'APPSUMO_LTD' && entitlement?.stackedCodesCount

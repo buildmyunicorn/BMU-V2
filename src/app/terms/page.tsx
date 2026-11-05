@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { MarketingHeader, MarketingFooter } from '@/components/marketing/marketing-layout-nav';
 
 export const metadata: Metadata = {
   title: 'Terms of Service | Startup Preflight',
@@ -27,31 +28,7 @@ export default function TermsOfServicePage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       {/* Header */}
-      <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="flex w-full items-center justify-between gap-3 px-4 py-3.5 sm:px-6 lg:px-8 xl:px-12">
-          <Link href="/" className="flex items-center">
-            <BrandLogo variant="full" size="sm" badge="Early Access" theme="light" />
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="h-8 text-xs">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back to Home
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button
-                size="sm"
-                className="h-8 bg-indigo-600 px-3 text-xs text-white hover:bg-indigo-700"
-              >
-                <LogIn className="h-3.5 w-3.5" />
-                Sign In
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <MarketingHeader />
 
       {/* Main Content */}
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6 sm:py-14">
@@ -273,32 +250,7 @@ export default function TermsOfServicePage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-slate-900 py-8 text-xs text-slate-400">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-white">Startup Preflight</span>
-            <span>•</span>
-            <span>Founding Date: 2026</span>
-            <span>•</span>
-            <span>© {new Date().getFullYear()} Startup Preflight. All rights reserved.</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <Link href="/" className="hover:text-white">
-              Home
-            </Link>
-            <Link href="/about-founder" className="hover:text-white">
-              Meet the Founder
-            </Link>
-            <Link href="/privacy" className="inline-flex items-center gap-1 hover:text-white">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Privacy Policy
-            </Link>
-            <a href="mailto:hello@startuppreflight.com" className="hover:text-white">
-              hello@startuppreflight.com
-            </a>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }

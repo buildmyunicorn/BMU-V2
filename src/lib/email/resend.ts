@@ -15,7 +15,7 @@ export const EMAIL_DEFAULTS = {
   notificationsFrom:
     process.env.EMAIL_FROM_NOTIFICATIONS ||
     'Startup Preflight <noreply@startuppreflight.com>',
-  replyTo: process.env.EMAIL_REPLY_TO || 'support@startuppreflight.com',
+  replyTo: process.env.EMAIL_REPLY_TO || 'tom@startuppreflight.com',
   companyName: 'Startup Preflight',
   supportUrl: 'https://startuppreflight.com/admin',
   appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://startuppreflight.com',

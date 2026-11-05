@@ -39,6 +39,7 @@ import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dial
 import { clearActiveBmuSession } from '@/lib/auth/session-store';
 import { logoutFounderAction } from '@/app/actions/auth';
 import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
+import { MarketingHeader } from '@/components/marketing/marketing-layout-nav';
 import {
   HeroInteractiveProductShowcase,
   BentoFeatureVisualCards,
@@ -248,7 +249,6 @@ export function LandingPageExperience({
   const router = useRouter();
   const [showAllModules, setShowAllModules] = useState(false);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const modulesList = getModulesForEdition(edition);
   const faqs = getFaqsForEdition(edition);
@@ -333,268 +333,10 @@ export function LandingPageExperience({
       <StripeSandboxBadge />
 
       {/* Clean, Single-Bar Modern SaaS Navbar */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
-        <div className="flex h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-12">
-          {/* Left: Clean Brand Wordmark */}
-          <Link
-            href={edition === 'IE' ? '/ie' : edition === 'UK' ? '/uk' : '/'}
-            className="flex shrink-0 items-center gap-2.5"
-          >
-            <BrandLogo variant="full" size="sm" theme="light" />
-          </Link>
-
-          {/* Center: Modern Floating Pill Nav (Desktop) */}
-          <nav className="hidden items-center gap-1 rounded-full border border-slate-200/80 bg-slate-100/70 p-1 text-xs font-medium text-slate-600 md:flex">
-            <a
-              href="#platform-preview"
-              className="rounded-full px-3.5 py-1.5 transition hover:bg-white hover:text-slate-900 hover:shadow-2xs"
-            >
-              Product
-            </a>
-            <a
-              href="#why-preflight"
-              className="rounded-full px-3.5 py-1.5 transition hover:bg-white hover:text-slate-900 hover:shadow-2xs"
-            >
-              {edition === 'GLOBAL'
-                ? 'Why Preflight'
-                : edition === 'IE'
-                  ? 'Irish Grants'
-                  : 'UK Grants & Loans'}
-            </a>
-            <a
-              href="#flagship-tools"
-              className="rounded-full px-3.5 py-1.5 transition hover:bg-white hover:text-slate-900 hover:shadow-2xs"
-            >
-              Tools
-            </a>
-            <a
-              href="#how-it-works"
-              className="rounded-full px-3.5 py-1.5 transition hover:bg-white hover:text-slate-900 hover:shadow-2xs"
-            >
-              12 Modules
-            </a>
-            <a
-              href="#pricing"
-              className="rounded-full px-3.5 py-1.5 transition hover:bg-white hover:text-slate-900 hover:shadow-2xs"
-            >
-              Pricing
-            </a>
-            <Link
-              href="/grants"
-              className="rounded-full px-3.5 py-1.5 font-medium text-indigo-600 transition hover:bg-indigo-50 hover:shadow-2xs"
-            >
-              Grants Directory
-            </Link>
-            <Link
-              href="/about-founder"
-              className="rounded-full px-3.5 py-1.5 transition hover:bg-white hover:text-slate-900 hover:shadow-2xs"
-            >
-              Founder
-            </Link>
-          </nav>
-
-          {/* Right: Compact Region Switcher + Auth Actions */}
-          <div className="flex items-center gap-2.5">
-            {/* Compact Edition Switcher */}
-            <div
-              className="hidden items-center rounded-full border border-slate-200 bg-slate-100/80 p-0.5 text-[11px] font-semibold sm:flex"
-              aria-label="Select region edition"
-            >
-              <Link
-                href="/"
-                onClick={() => handleSwitchEdition('GLOBAL')}
-                className={`rounded-full px-2.5 py-1 transition ${
-                  edition === 'GLOBAL'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-                title="Global Edition (Business Plan Builder)"
-              >
-                🌍 Global
-              </Link>
-              <Link
-                href="/ie"
-                onClick={() => handleSwitchEdition('IE')}
-                className={`rounded-full px-2.5 py-1 transition ${
-                  edition === 'IE'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-                title="Ireland Edition (LEO & Enterprise Ireland Grants)"
-              >
-                🇮🇪 IE
-              </Link>
-              <Link
-                href="/uk"
-                onClick={() => handleSwitchEdition('UK')}
-                className={`rounded-full px-2.5 py-1 transition ${
-                  edition === 'UK'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-                title="UK Edition (Start Up Loans, Innovate UK & SEIS)"
-              >
-                🇬🇧 UK
-              </Link>
-            </div>
-
-            <GlobalFeedbackButton variant="nav-link" />
-
-            <Link
-              href="/login"
-              onClick={() => {
-                clearActiveBmuSession();
-                logoutFounderAction().catch(() => {});
-              }}
-              className="hidden px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:text-slate-900 sm:inline-block"
-            >
-              Sign In
-            </Link>
-
-            <Link href="/register">
-              <Button
-                size="sm"
-                className="h-9 rounded-full bg-slate-900 px-4 text-xs font-semibold text-white shadow-2xs transition hover:bg-indigo-600"
-              >
-                Get Started
-                <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </Link>
-
-            {/* Mobile Hamburger Button */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 md:hidden"
-              aria-label="Toggle navigation menu"
-            >
-              {mobileMenuOpen ? (
-                <X className="h-4 w-4" />
-              ) : (
-                <Menu className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Clean Mobile Drawer */}
-        {mobileMenuOpen && (
-          <div className="border-t border-slate-200 bg-white px-4 py-4 shadow-lg md:hidden">
-            <div className="flex flex-col space-y-2 text-sm font-medium text-slate-700">
-              <a
-                href="#platform-preview"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 hover:bg-slate-100"
-              >
-                Product Preview
-              </a>
-              <a
-                href="#why-preflight"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 hover:bg-slate-100"
-              >
-                {edition === 'GLOBAL'
-                  ? 'Why Startup Preflight'
-                  : edition === 'IE'
-                    ? 'Irish Grants Covered'
-                    : 'UK Grants & Loans'}
-              </a>
-              <a
-                href="#flagship-tools"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 hover:bg-slate-100"
-              >
-                Flagship Tools
-              </a>
-              <a
-                href="#how-it-works"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 hover:bg-slate-100"
-              >
-                All 12 Modules
-              </a>
-              <a
-                href="#pricing"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 hover:bg-slate-100"
-              >
-                Pricing
-              </a>
-              <Link
-                href="/about-founder"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 hover:bg-slate-100"
-              >
-                Meet the Founder
-              </Link>
-              <div className="px-3 py-1">
-                <GlobalFeedbackButton variant="nav-link" />
-              </div>
-              <Link
-                href="/login"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  clearActiveBmuSession();
-                  logoutFounderAction().catch(() => {});
-                }}
-                className="rounded-lg px-3 py-2 font-semibold text-indigo-600 hover:bg-indigo-50"
-              >
-                Sign In →
-              </Link>
-            </div>
-
-            <div className="mt-4 border-t border-slate-100 pt-3">
-              <div className="mb-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-                Region Edition
-              </div>
-              <div className="grid grid-cols-3 gap-1.5 text-center text-xs font-semibold">
-                <Link
-                  href="/"
-                  onClick={() => {
-                    handleSwitchEdition('GLOBAL');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`rounded-lg border py-2 ${
-                    edition === 'GLOBAL'
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-900'
-                      : 'border-slate-200 text-slate-600'
-                  }`}
-                >
-                  🌍 Global
-                </Link>
-                <Link
-                  href="/ie"
-                  onClick={() => {
-                    handleSwitchEdition('IE');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`rounded-lg border py-2 ${
-                    edition === 'IE'
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-900'
-                      : 'border-slate-200 text-slate-600'
-                  }`}
-                >
-                  🇮🇪 Ireland
-                </Link>
-                <Link
-                  href="/uk"
-                  onClick={() => {
-                    handleSwitchEdition('UK');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`rounded-lg border py-2 ${
-                    edition === 'UK'
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-900'
-                      : 'border-slate-200 text-slate-600'
-                  }`}
-                >
-                  🇬🇧 UK
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
-      </header>
+      <MarketingHeader
+        edition={edition}
+        onSwitchEdition={handleSwitchEdition}
+      />
 
       <main className="flex-1">
         {/* SECTION 1: HERO + INTERACTIVE LIVE UI PRODUCT SHOWCASE (OPTION 1) */}
@@ -1503,12 +1245,20 @@ export function LandingPageExperience({
                   ?
                 </span>
               </div>
-              <Link
-                href="/redeem"
-                className="font-bold text-indigo-600 hover:underline"
-              >
-                Redeem Your Cohort / Partner Code →
-              </Link>
+              <div className="flex items-center gap-4">
+                <Link
+                  href="/cohorts"
+                  className="font-medium text-slate-500 hover:text-indigo-600 transition"
+                >
+                  Program Licensing ↗
+                </Link>
+                <Link
+                  href="/redeem"
+                  className="font-bold text-indigo-600 hover:underline"
+                >
+                  Redeem Your Cohort Code →
+                </Link>
+              </div>
             </div>
 
             {/* Founder Credibility Banner with Photo & LinkedIn */}
@@ -1745,6 +1495,11 @@ export function LandingPageExperience({
                 <li>
                   <Link href="/redeem" className="hover:text-white">
                     Redeem Cohort / Partner Code
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/cohorts" className="hover:text-white font-medium text-indigo-300">
+                    Preflight for Accelerators &amp; Cohorts
                   </Link>
                 </li>
                 <li>

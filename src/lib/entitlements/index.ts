@@ -432,3 +432,95 @@ export function checkFeatureEntitlement(
       return { allowed: true };
   }
 }
+
+/**
+ * Returns a human-friendly display name for an internal entitlement planType.
+ * Replaces developer codes like 'FREE_HOOK' with user-friendly names like 'Free Plan'.
+ */
+export function getPlanTypeDisplayName(
+  planType: string | null | undefined,
+  options?: {
+    stackedCodesCount?: number;
+    isVaultReadonly?: boolean;
+    short?: boolean;
+  }
+): string {
+  if (options?.isVaultReadonly) {
+    return options.short ? 'Read-Only' : 'Vault (Read-Only)';
+  }
+
+  switch (planType) {
+    case 'FREE_HOOK':
+      return options?.short ? 'Free' : 'Free Plan';
+    case 'SIX_MONTH_SOLO':
+      return options?.short ? 'Solo' : 'Solo Pass';
+    case 'SIX_MONTH_COFOUNDER':
+      return options?.short ? 'Co-Founder' : 'Co-Founder Pass';
+    case 'APPSUMO_LTD':
+      if (options?.stackedCodesCount && options.stackedCodesCount > 1) {
+        return `AppSumo Tier ${options.stackedCodesCount >= 3 ? 3 : options.stackedCodesCount}`;
+      }
+      return options?.short ? 'Lifetime' : 'AppSumo Lifetime';
+    case 'COHORT_PASS':
+      return options?.short ? 'Cohort' : 'Cohort Pass';
+    case 'LIVING_VAULT_MONTHLY':
+      return 'Living Vault';
+    default:
+      if (!planType) return 'Free Plan';
+      return planType
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
+/**
+ * Returns human-friendly label and styling badge classes for an entitlement planType.
+ */
+export function getPlanTypeBadgeProps(
+  planType: string | null | undefined,
+  isVaultReadonly?: boolean
+): {
+  label: string;
+  className: string;
+} {
+  if (isVaultReadonly) {
+    return {
+      label: 'Vault (Read-Only)',
+      className: 'border-amber-300 bg-amber-50 text-amber-800 font-medium',
+    };
+  }
+
+  switch (planType) {
+    case 'FREE_HOOK':
+      return {
+        label: 'Free Plan',
+        className: 'border-slate-200 bg-slate-100 text-slate-700 font-medium',
+      };
+    case 'SIX_MONTH_SOLO':
+      return {
+        label: 'Solo Pass',
+        className: 'border-indigo-200 bg-indigo-50 text-indigo-700 font-semibold',
+      };
+    case 'SIX_MONTH_COFOUNDER':
+      return {
+        label: 'Co-Founder Pass',
+        className: 'border-violet-200 bg-violet-50 text-violet-700 font-semibold',
+      };
+    case 'APPSUMO_LTD':
+      return {
+        label: 'AppSumo Lifetime',
+        className: 'border-amber-300 bg-amber-50 text-amber-900 font-semibold',
+      };
+    case 'COHORT_PASS':
+      return {
+        label: 'Cohort Pass',
+        className: 'border-emerald-200 bg-emerald-50 text-emerald-800 font-semibold',
+      };
+    default:
+      return {
+        label: planType ? getPlanTypeDisplayName(planType) : 'Free Plan',
+        className: 'border-slate-200 bg-slate-100 text-slate-700 font-medium',
+      };
+  }
+}

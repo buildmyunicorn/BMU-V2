@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { MarketingHeader, MarketingFooter } from '@/components/marketing/marketing-layout-nav';
 
 export default function AboutFounderPage() {
   const [imageError, setImageError] = useState(false);
@@ -30,88 +31,9 @@ export default function AboutFounderPage() {
       <StripeSandboxBadge />
 
       {/* ===================================================================== */}
-      {/* MODERN SINGLE-BAR FLOATING-PILL HEADER                                */}
+      {/* UNIFIED MARKETING HEADER                                              */}
       {/* ===================================================================== */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
-        <div className="flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-12">
-          {/* Left: Clean Brand Logo */}
-          <Link href="/" className="group flex items-center">
-            <BrandLogo variant="full" size="sm" theme="light" />
-          </Link>
-
-          {/* Center: Modern Floating Pill Links */}
-          <nav className="hidden items-center gap-1 rounded-full border border-slate-200/80 bg-slate-100/75 p-1 md:flex">
-            <Link
-              href="/#platform-preview"
-              className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-white hover:text-slate-900 hover:shadow-2xs"
-            >
-              Product
-            </Link>
-            <Link
-              href="/#how-it-works"
-              className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-white hover:text-slate-900 hover:shadow-2xs"
-            >
-              12 Modules
-            </Link>
-            <Link
-              href="/#pricing"
-              className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-white hover:text-slate-900 hover:shadow-2xs"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/about-founder"
-              className="rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-900 shadow-2xs transition-all"
-            >
-              Founder
-            </Link>
-          </nav>
-
-          {/* Right: Compact Edition Switcher + Auth Actions */}
-          <div className="flex items-center gap-2.5">
-            <div
-              className="hidden items-center rounded-full border border-slate-200 bg-slate-100/80 p-0.5 text-[11px] font-semibold sm:flex"
-              aria-label="Select Regional Edition"
-            >
-              <Link
-                href="/"
-                className="rounded-full px-2.5 py-1 text-slate-600 transition-colors hover:text-slate-900"
-              >
-                🌍 Global
-              </Link>
-              <Link
-                href="/ie"
-                className="rounded-full px-2.5 py-1 text-slate-600 transition-colors hover:text-slate-900"
-              >
-                🇮🇪 IE
-              </Link>
-              <Link
-                href="/uk"
-                className="rounded-full px-2.5 py-1 text-slate-600 transition-colors hover:text-slate-900"
-              >
-                🇬🇧 UK
-              </Link>
-            </div>
-
-            <Link
-              href="/login"
-              className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900"
-            >
-              Sign In
-            </Link>
-
-            <Link href="/register">
-              <Button
-                size="sm"
-                className="h-9 rounded-full bg-slate-900 px-4 text-xs font-semibold text-white shadow-xs hover:bg-indigo-600"
-              >
-                Get Started
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <MarketingHeader active="founder" />
 
       {/* ===================================================================== */}
       {/* HERO & FOUNDER BIO SECTION                                            */}
@@ -442,93 +364,9 @@ export default function AboutFounderPage() {
       </section>
 
       {/* ===================================================================== */}
-      {/* UNIFIED MODERN FOOTER                                                 */}
+      {/* UNIFIED MARKETING FOOTER                                              */}
       {/* ===================================================================== */}
-      <footer className="border-t border-slate-200 bg-slate-950 py-12 text-slate-400">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid grid-cols-1 gap-8 pb-10 md:grid-cols-4">
-            <div className="md:col-span-2">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
-                  <Rocket className="h-4 w-4" />
-                </div>
-                <span className="text-base font-extrabold text-white">
-                  Startup<span className="text-indigo-400">Preflight</span>
-                </span>
-              </div>
-              <p className="mt-3 max-w-md text-xs leading-relaxed text-slate-400">
-                The Supportive Co-Founder &amp; Blind-Spot Engine. Capture your vision in plain
-                English, validate customer demand, align co-founders, model 3-year Pocket Profit,
-                and compile investor- and grant-ready business plans.
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs font-bold tracking-wider text-white uppercase">
-                Regional Editions
-              </p>
-              <ul className="mt-3 space-y-2 text-xs">
-                <li>
-                  <Link href="/" className="hover:text-white">
-                    🌍 Global Business Plan Edition
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/ie" className="hover:text-white">
-                    🇮🇪 Ireland Grants &amp; LEO Edition (/ie)
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/uk" className="hover:text-white">
-                    🇬🇧 UK Loans, Innovate UK &amp; SEIS Edition (/uk)
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/appsumo" className="hover:text-white">
-                    🌮 AppSumo Lifetime Deal Hub
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-xs font-bold tracking-wider text-white uppercase">Platform</p>
-              <ul className="mt-3 space-y-2 text-xs">
-                <li>
-                  <Link href="/register" className="hover:text-white">
-                    Start Module A Free
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/login" className="hover:text-white">
-                    Founder Sign In
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/redeem" className="hover:text-white">
-                    Redeem Partner / Cohort Code
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/about-founder" className="text-white">
-                    Meet the Founder (Thomas Walsh)
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-800/80 pt-6 text-[11px] text-slate-500 sm:flex-row">
-            <p>© {new Date().getFullYear()} Startup Preflight. All rights reserved.</p>
-            <div className="flex items-center gap-4">
-              <span className="inline-flex items-center gap-1">
-                <Globe className="h-3.5 w-3.5 text-indigo-400" />
-                GDPR Compliant • AES-256 Encrypted Vault
-              </span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }

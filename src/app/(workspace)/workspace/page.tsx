@@ -67,6 +67,8 @@ import {
   canCreateStartupPlan,
   canInviteCollaborator,
   canConsumeAiCredits,
+  getPlanTypeDisplayName,
+  getPlanTypeBadgeProps,
   type EntitlementSnapshot,
   type ModuleCode,
 } from '@/lib/entitlements';
@@ -5517,9 +5519,17 @@ export default function WorkspacePage() {
               <span className="font-semibold text-slate-800">
                 {session.user.name}
               </span>
-              <Badge variant="secondary" className="text-[10px]">
-                {activeEntitlement.planType}
-              </Badge>
+              {(() => {
+                const badge = getPlanTypeBadgeProps(
+                  activeEntitlement.planType,
+                  activeEntitlement.isVaultReadonly
+                );
+                return (
+                  <Badge variant="secondary" className={`text-[10px] ${badge.className}`}>
+                    {badge.label}
+                  </Badge>
+                );
+              })()}
             </div>
 
             <GlobalFeedbackButton

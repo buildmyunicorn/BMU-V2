@@ -12,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
           '/grants',
           '/grants/',
           '/about-founder',
+          '/cohorts',
           '/pricing',
           '/register',
           '/login',
