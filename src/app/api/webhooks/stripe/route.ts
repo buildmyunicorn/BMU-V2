@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe/client';
 import { db } from '@/db';
-import { userEntitlements } from '@/db/schema';
+import { userEntitlements, surveyBoostOrders } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { calculatePassLimits } from '@/lib/entitlements';
 import type Stripe from 'stripe';
@@ -34,6 +34,29 @@ export async function POST(req: NextRequest) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
+      const orderType = session.metadata?.orderType;
+
+      // 1. Handle Survey Boost Order Completion
+      if (orderType === 'SURVEY_BOOST') {
+        const orderId = session.metadata?.orderId;
+        const paymentIntentId =
+          typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : session.payment_intent?.id;
+
+        if (orderId) {
+          console.log(`🚀 Stripe: Survey Boost Order ${orderId} successfully paid!`);
+          await db
+            .update(surveyBoostOrders)
+            .set({
+              status: 'PAID',
+              stripePaymentIntentId: paymentIntentId || null,
+            })
+            .where(eq(surveyBoostOrders.id, orderId as any));
+        }
+        break;
+      }
+
       const userId = session.client_reference_id || session.metadata?.userId;
       const planType = session.metadata?.planType as
         | 'SIX_MONTH_SOLO'

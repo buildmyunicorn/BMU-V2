@@ -31,6 +31,7 @@ import {
   Bug,
   Archive,
   Handshake,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,6 +84,7 @@ import {
 } from '@/lib/support-tracker-store';
 import { SupportBugTrackerTab } from '@/components/admin/support-bug-tracker-tab';
 import { PersonaUxAuditLabTab } from '@/components/admin/persona-ux-audit-lab-tab';
+import { SurveyBoostStudioTab } from '@/components/admin/survey-boost-studio-tab';
 import { VouchersCohortsStudioTab } from '@/components/admin/vouchers-cohorts-studio-tab';
 import { SystemEmailsStudioTab } from '@/components/admin/system-emails-studio-tab';
 import { PartnersReferralsStudioTab } from '@/components/admin/partners-referrals-studio-tab';
@@ -435,6 +437,7 @@ export default function AdminDashboardPage() {
   const [activeAdminSection, setActiveAdminSection] = useState<
     | 'ACCOUNTS_AND_WAITLIST'
     | 'GRANTS_CATALOG'
+    | 'SURVEY_BOOST'
     | 'VOUCHERS_AND_COHORTS'
     | 'PARTNERS_AND_REFERRALS'
     | 'SYSTEM_EMAILS'
@@ -1318,6 +1321,28 @@ export default function AdminDashboardPage() {
 
             <button
               type="button"
+              onClick={() => setActiveAdminSection('SURVEY_BOOST')}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeAdminSection === 'SURVEY_BOOST'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <TrendingUp className="h-4 w-4" />
+              <span>Survey Boost &amp; Panels</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeAdminSection === 'SURVEY_BOOST'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-emerald-100 text-emerald-800'
+                }`}
+              >
+                Prolific API
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveAdminSection('VOUCHERS_AND_COHORTS')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
                 activeAdminSection === 'VOUCHERS_AND_COHORTS'
@@ -1449,6 +1474,15 @@ export default function AdminDashboardPage() {
           <GrantsManagementStudioTab
             initialGrants={grantsList}
             onRefresh={fetchUsers}
+            onNotify={(type, text) =>
+              setBannerMessage({
+                type: type === 'error' ? 'warning' : 'success',
+                text,
+              })
+            }
+          />
+        ) : activeAdminSection === 'SURVEY_BOOST' ? (
+          <SurveyBoostStudioTab
             onNotify={(type, text) =>
               setBannerMessage({
                 type: type === 'error' ? 'warning' : 'success',

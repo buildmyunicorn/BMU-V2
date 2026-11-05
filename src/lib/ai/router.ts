@@ -15522,7 +15522,271 @@ export interface GenerateModuleLStep3SectionResult {
   compiledResponseText: string;
   wordCount: number;
   aiAssessorTip?: string;
-  engineMode: "gemini-2.5-flash" | "smart-synthesizer";
+  engineMode: "gemini-2.5-flash" | "gemini-2.5-pro" | "smart-synthesizer";
+}
+
+/**
+ * Domain-specific Smart Synthesizer for Business Plan & Grant Compiler sections.
+ * Synthesizes comprehensive, authoritative, multi-paragraph text (300+ words)
+ * grounded in real plan metrics when live AI is offline or in local preview.
+ */
+function synthesizeBusinessPlanSectionDraft(
+  params: GenerateModuleLStep3SectionParams
+): { compiledResponseText: string; aiAssessorTip: string } {
+  const isUK = params.hqCountryCode === "GB";
+  const countryName = isUK ? "the United Kingdom" : params.hqCountryCode === "IE" ? "Ireland" : params.hqCountryCode;
+  const currencySymbol = isUK ? "£" : params.hqCountryCode === "IE" ? "€" : "$";
+  const title = (params.sectionTitle || "").toLowerCase();
+  const prompt = (params.assessorPrompt || "").toLowerCase();
+  const summary = params.planContextSummary || "";
+
+  const extractField = (key: string, defaultVal: string) => {
+    const match = summary.match(new RegExp(`${key}:\\s*([^\\n]+)`, "i"));
+    return match && match[1]?.trim() ? match[1].trim() : defaultVal;
+  };
+
+  const ventureName = params.planTitle || "The Venture";
+  const industry = params.industryCategory || "Technology & Services";
+  const problem = extractField("PROBLEM", "acute operational friction, manual bottlenecks, and excessive status-quo expenditure");
+  const solution = extractField("SOLUTION", "a purpose-built, high-reliability commercial architecture and operational workflow");
+  const targetCustomer = extractField("CUSTOMER", "verified commercial buyers seeking immediate workflow efficiency");
+  const marketSizing = extractField("MARKET", `a verified serviceable market exceeding ${currencySymbol}250,000 in Year 1`);
+  const validation = extractField("VALIDATION", "empirical customer discovery confirming high urgency and clear willingness-to-pay");
+
+  // 1. Executive Summary & Facility / Borrowing Request
+  if (
+    title.includes("executive") ||
+    title.includes("summary") ||
+    title.includes("snapshot") ||
+    title.includes("facility") ||
+    prompt.includes("loan facility") ||
+    prompt.includes("purpose of borrowing")
+  ) {
+    const text = `${ventureName} is a high-growth ${industry} enterprise operating in ${countryName}, founded to resolve ${problem}. By deploying ${solution}, the company directly addresses the core operational requirements of ${targetCustomer}, transforming fragmented incumbent workarounds into a streamlined, high-reliability commercial offering.
+
+Our operational model is established on rigorously validated unit economics and documented customer traction. Through primary market validation (${validation}), the business has verified strong commercial pull prior to committing capital. Target market sizing demonstrates ${marketSizing}, establishing a defensible, realistic growth path across our beachhead and adjacent regional segments.
+
+Capital allocated under this submission is strictly targeted toward high-impact development milestones, initial commercial customer acquisition, and working capital cashflow reserves. The promoter team maintains full-time operational commitment and prudent financial governance, ensuring robust cashflow discipline, debt service coverage, and measurable commercial additionality in ${countryName}.`;
+
+    return {
+      compiledResponseText: text,
+      aiAssessorTip: isUK
+        ? "Credit officers and Innovate UK reviewers expect a punchy summary that immediately establishes commercial credibility, market failure, and clear repayment or milestone feasibility."
+        : "LEO assessors look for immediate clarity on promoter commitment, project additionality, and verified local job creation potential.",
+    };
+  }
+
+  // 2. Promoter / Team / Survival Budget / Roles
+  if (
+    title.includes("promoter") ||
+    title.includes("founder") ||
+    title.includes("skill") ||
+    title.includes("resource") ||
+    title.includes("survival") ||
+    prompt.includes("promoter") ||
+    prompt.includes("creditworthiness") ||
+    prompt.includes("track record")
+  ) {
+    const text = `The management team of ${ventureName} brings extensive commercial domain expertise and cross-functional operational experience in ${industry}. The leadership structure has been mapped across key operational hats—including technical architecture, commercial pipeline development, customer fulfillment, and strict regulatory compliance.
+
+Promoter full-time commitment is underpinned by a verified Personal Survival Budget, ensuring lean household overheads and complete alignment with company milestones. Rather than drawing inflated early salaries, leadership compensation is structured to safeguard early company cash reserves, providing substantial operational runway during the initial commercialization horizon.
+
+To support projected growth over the next 36 months, the venture has scheduled a phased hiring plan focused on specialized delivery personnel, account management, and technical support. All planned hires incorporate statutory ${isUK ? "PAYE, Employer NICs, and auto-enrolment pensions" : "Irish PAYE, Employer PRSI, and statutory entitlements"}, maintaining transparent governance and sustainable regional employment.`;
+
+    return {
+      compiledResponseText: text,
+      aiAssessorTip: isUK
+        ? "Underwriters scrutinize the Personal Survival Budget to confirm the promoter can service living expenses without draining startup capital."
+        : "Enterprise Ireland and LEO require evidence of full-time commitment and well-defined management capability to execute the project.",
+    };
+  }
+
+  // 2B. Headcount Schedule / Job Creation / Salary Plan
+  if (
+    title.includes("headcount") ||
+    title.includes("employment") ||
+    title.includes("salary") ||
+    title.includes("hiring") ||
+    title.includes("staffing") ||
+    prompt.includes("headcount") ||
+    prompt.includes("job creation") ||
+    prompt.includes("salary plan")
+  ) {
+    const text = `The 3-year headcount schedule for ${ventureName} has been directly calibrated against operational workload and revenue expansion milestones in ${countryName}. Initial staffing prioritizes core technical execution and customer onboarding, before progressively scaling dedicated operational, client delivery, and regional support roles.
+
+All payroll projections fully account for statutory overheads—including ${isUK ? "Employer Class 1 National Insurance Contributions (NICs) at statutory rates and mandatory auto-enrolment workplace pensions" : "statutory Employer Class A PRSI (11.05%), statutory leave accruals, and workplace pension provisions"}. Founder and early executive remuneration remains tied to milestones to protect cashflow, avoiding unsustainable fixed overhead drag during early market validation.
+
+Over the 36-month horizon, ${ventureName} establishes a disciplined pathway toward sustainable net-new regional job creation. Each incremental hire is supported by clear job specifications, measurable delivery KPIs, and fully accounted working capital allocations.`;
+
+    return {
+      compiledResponseText: text,
+      aiAssessorTip: isUK
+        ? "Assessor bodies and lenders examine headcount schedules to verify that statutory employer on-costs (NICs/pensions) have not been omitted from cashflow forecasts."
+        : "LEO and Enterprise Ireland prioritize verifiable full-time job creation (FTEs) with competitive, sustainable regional wages.",
+    };
+  }
+
+  // 3. Market Opportunity / TAM-SAM-SOM / Export / Additionality
+  if (
+    title.includes("market") ||
+    title.includes("tam") ||
+    title.includes("export") ||
+    title.includes("sizing") ||
+    title.includes("route to") ||
+    prompt.includes("tam/sam/som") ||
+    prompt.includes("addressable market") ||
+    prompt.includes("export")
+  ) {
+    const text = `The commercial opportunity for ${ventureName} addresses a defined, high-urgency market segment characterized by substantial dissatisfaction with incumbent workarounds. Grounded in bottom-up unit metrics, ${marketSizing}. This opportunity is segmented into an immediate beachhead target and wider domestic and international expansion tiers.
+
+Our beachhead focus centers on ${targetCustomer}, where switching friction is minimized due to acute operational pain points. Current market alternatives—ranging from fragmented spreadsheets to costly legacy consultancies—fail to provide an integrated, cost-effective solution, creating an immediate competitive wedge for ${ventureName}.
+
+Furthermore, the expansion strategy emphasizes export additionality with zero economic displacement. By delivering distinctive proprietary value rather than redistributing existing local spend, ${ventureName} generates net-new commercial revenues and creates high-value regional export linkages across ${countryName} and international markets.`;
+
+    return {
+      compiledResponseText: text,
+      aiAssessorTip: isUK
+        ? "Innovate UK assessors require bottom-up market sizing with defensible assumptions rather than top-down multi-billion industry citations."
+        : "LEO committees strictly enforce the Non-Displacement rule: you must prove your business will not take customers from existing local small businesses.",
+    };
+  }
+
+  // 4. Customer Validation / Traction / Mom-Test
+  if (
+    title.includes("validation") ||
+    title.includes("traction") ||
+    title.includes("survey") ||
+    title.includes("discovery") ||
+    title.includes("feedback") ||
+    prompt.includes("willingness-to-pay") ||
+    prompt.includes("customer discovery")
+  ) {
+    const text = `Market demand for ${ventureName} has been validated through rigorous primary customer discovery conducted in strict accordance with 'Mom Test' methodology. Rather than relying on speculative hypotheticals, interviews and structured discovery focused on documented past behavior, active workflow bottlenecks, and verified expenditure on alternative tools.
+
+Validation outcomes confirm ${validation}. Prospective commercial buyers highlighted persistent frustration with incumbent delays, manual error rates, and opaque pricing, establishing strong willingness-to-pay for an authoritative, purpose-built vehicle.
+
+These empirical findings directly informed the commercial roadmap, allowing the team to eliminate low-priority features and refine core value propositions. An active waitlist of qualified early adopters has been compiled, providing a concrete pipeline of conversion-ready accounts for the launch phase.`;
+
+    return {
+      compiledResponseText: text,
+      aiAssessorTip: isUK
+        ? "Assessor rubrics award top marks to founders who show evidence of real customer conversations and quantifiable willingness-to-pay."
+        : "Evidence of customer validation provides independent proof that the proposed grant or loan will lead to genuine commercial trading.",
+    };
+  }
+
+  // 5. Product / Architecture / Work Packages / Technical Step-Change
+  if (
+    title.includes("product") ||
+    title.includes("technical") ||
+    title.includes("work package") ||
+    title.includes("approach") ||
+    title.includes("architecture") ||
+    title.includes("solution") ||
+    prompt.includes("technical step-change") ||
+    prompt.includes("work packages")
+  ) {
+    const text = `${ventureName} delivers a robust, proprietary technical vehicle engineered to provide ${solution}. The architecture adopts a pragmatic 'own-the-core, rent-the-commodity' design posture—integrating proven infrastructure for standard capabilities while investing custom development into proprietary algorithmic and workflow innovations.
+
+Development is organized into discrete Work Packages (WP1: Core Architecture & Ingestion Engine, WP2: Workflow Automation & User Interface, WP3: Integration, Security & Field Pilots). Each work package includes quantifiable technical milestones, automated test coverage gates, and verifiable deliverables that de-risk execution.
+
+This technical step-change delivers substantial improvements over legacy alternatives in both execution speed and error reduction. Intellectual property and key data structures are securely owned by the business, establishing a durable competitive moat and long-term asset value.`;
+
+    return {
+      compiledResponseText: text,
+      aiAssessorTip: isUK
+        ? "Break down project delivery into distinct Work Packages (WP1, WP2, etc.) with explicit deliverable outputs and Gantt chart milestone dependencies."
+        : "Technical merit criteria require a clear explanation of how the product is built and why it represents an innovative advance over standard practices.",
+    };
+  }
+
+  // 6. Operations / Premises / Risk / Supply Chain
+  if (
+    title.includes("operation") ||
+    title.includes("premises") ||
+    title.includes("equipment") ||
+    title.includes("risk") ||
+    title.includes("fulfillment") ||
+    title.includes("resiliency") ||
+    prompt.includes("operating premises") ||
+    prompt.includes("equipment") ||
+    prompt.includes("risk register")
+  ) {
+    const text = `Operating infrastructure for ${ventureName} has been structured for high capital efficiency and fulfillment resilience. Premises requirements utilize a flexible commercial workspace model, keeping fixed lease overheads minimal while ensuring enterprise-grade data security and collaborative operational capacity.
+
+Equipment and capital procurement strictly comply with official procurement guidelines (including statutory 3-quote competitive tender verification and asset depreciation scheduling). Key operational assets are insured under comprehensive Commercial Public and Employer Liability policies, safeguarding the enterprise against unforeseen operational disruptions.
+
+A comprehensive 4-category Risk Register has been implemented covering Technical, Market, Financial, and Governance vectors. Primary mitigation strategies include dual-sourced vendor redundancy, continuous automated cloud backups, strict GDPR/data privacy compliance, and dynamic cashflow monitoring, ensuring operational continuity under all trading conditions.`;
+
+    return {
+      compiledResponseText: text,
+      aiAssessorTip: isUK
+        ? "Ensure equipment procurement rules and supply chain single-point-of-failure risks are clearly mitigated."
+        : "LEO requires 3 independent written quotes for every single equipment item over €5,000, and bans laptops unless specialized for technical R&D.",
+    };
+  }
+
+  // 7. Financial Model / Breakeven / Cashflow / Debt Service / Economics
+  if (
+    title.includes("financial") ||
+    title.includes("projection") ||
+    title.includes("cashflow") ||
+    title.includes("breakeven") ||
+    title.includes("economic") ||
+    title.includes("revenue") ||
+    title.includes("debt service") ||
+    prompt.includes("cashflow trough") ||
+    prompt.includes("breakeven") ||
+    prompt.includes("dscr")
+  ) {
+    const text = `The financial architecture of ${ventureName} is grounded in conservative, bottom-up unit economics modeled through our 3-year Pocket Profit framework. Pricing is calibrated directly against validated customer willingness-to-pay, yielding strong gross contribution margins after accounting for direct delivery costs and third-party payment processing fees.
+
+Breakeven analysis indicates that the business achieves operational profitability upon securing a lean beachhead customer volume, significantly minimizing downside exposure. 36-month projections demonstrate progressive margin expansion as fixed operational overheads are amortized across an expanding subscriber base.
+
+Working capital requirements have been mapped across a detailed 36-month cashflow forecast, specifically identifying the lowest cash trough month. Debt service coverage ratios (DSCR) remain comfortably above conservative banking thresholds (exceeding 1.8x), supported by prudent cash reserves to absorb receivables timing friction and seasonal fluctuations.`;
+
+    return {
+      compiledResponseText: text,
+      aiAssessorTip: isUK
+        ? "Credit underwriters look specifically for the Lowest Cash Trough month to verify that loan proceeds will comfortably cover working capital until cash-positive."
+        : "Financial projections must reconcile exactly with the headcount plan, premises overheads, and vouched matching funding.",
+    };
+  }
+
+  // 8. Additionality / Public Funding / Grants / Value for Money
+  if (
+    title.includes("additionality") ||
+    title.includes("public funding") ||
+    title.includes("grant") ||
+    title.includes("value for money") ||
+    prompt.includes("public funding") ||
+    prompt.includes("why is public funding")
+  ) {
+    const text = `Public funding support is critical to accelerate the development timeline and scale of ${ventureName}. Without grant or funding backing, development would be constrained to a severely protracted timescale, increasing market risk and delaying commercial deployment in ${countryName}.
+
+The additionality of this funding is twofold: technically, it enables comprehensive R&D and rigorous security hardening prior to market release; commercially, it facilitates immediate high-value job creation and accelerated export positioning. The venture maintains secured matching funds to satisfy statutory co-funding obligations.
+
+Value for money is demonstrated through quantifiable economic return on investment. Over the 3-year project horizon, ${ventureName} projects significant net economic output, statutory tax contributions, and skilled job creation, delivering substantial additionality for the regional and national economy.`;
+
+    return {
+      compiledResponseText: text,
+      aiAssessorTip: isUK
+        ? "Innovate UK assessors look for clear proof of 'additionality'—what happens with the grant vs without the grant (the counterfactual)."
+        : "Public funding bodies must verify that state support produces net-new jobs and economic activity that would not happen without state assistance.",
+    };
+  }
+
+  // Fallback for custom or archetype-specific sections
+  const customDraft = `${ventureName} establishes a disciplined operational and commercial posture for ${params.sectionTitle} within ${countryName}. By aligning ${solution} with the verified priorities of ${targetCustomer}, the venture mitigates key commercial risks and ensures high delivery consistency.
+
+Execution in this area is supported by empirical validation and transparent governance. Operational mechanics and financial allocations have been modeled to maintain capital efficiency, satisfy statutory compliance, and deliver measurable commercial additionality.`;
+
+  return {
+    compiledResponseText: customDraft,
+    aiAssessorTip: isUK
+      ? "Ensure all claims are substantiated by empirical references and quantitative data points."
+      : "Assessor committees look for clear operational mechanics and alignment with regional enterprise priorities.",
+  };
 }
 
 export async function generateModuleLStep3SectionViaRouter(
@@ -15532,18 +15796,24 @@ export async function generateModuleLStep3SectionViaRouter(
   const currencySymbol = isUK ? "£" : params.hqCountryCode === "IE" ? "€" : "$";
   const limit = params.wordLimit || 400;
 
+  const smartFallback = synthesizeBusinessPlanSectionDraft(params);
+  // If currentResponseText contains the old generic single-sentence placeholder, purge it so the chapter synthesizer can run
+  const isOldGenericPlaceholder =
+    params.currentResponseText &&
+    params.currentResponseText.includes('directly addresses this section through rigorous execution');
+
   const fallbackDraft =
-    params.currentResponseText && params.currentResponseText.trim().length > 30
+    params.currentResponseText &&
+    params.currentResponseText.trim().length > 30 &&
+    !isOldGenericPlaceholder
       ? params.currentResponseText.trim()
-      : `${params.planTitle} directly addresses this section through rigorous execution across its validated operational model in ${params.hqCountryCode}. By grounding unit economics in empirical willingness-to-pay from customer discovery and provisioning statutory compliance upfront, the venture demonstrates clear commercial additionality with zero unmitigated displacement.`;
+      : smartFallback.compiledResponseText;
 
   const fallback: GenerateModuleLStep3SectionResult = {
     allowed: true,
     compiledResponseText: fallbackDraft,
     wordCount: fallbackDraft.split(/\s+/).filter(Boolean).length,
-    aiAssessorTip: isUK
-      ? "Innovate UK assessors deduct marks for unsupported assertions. Ensure every claim references empirical data or quotes from work packages."
-      : "LEO Evaluation Committees prioritize clear non-displacement defense and verifiable matching funding proofs.",
+    aiAssessorTip: smartFallback.aiAssessorTip,
     engineMode: "smart-synthesizer",
   };
 
@@ -15589,17 +15859,35 @@ Return strictly a JSON object:
   "aiAssessorTip": "1-2 sentence tip on what committee reviewers look for when scoring this specific section"
 }`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
-        },
-      });
+      let rawText = '';
+      let usedModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' = 'gemini-2.5-pro';
 
-      const rawText = response.text?.trim() || "";
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-pro",
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            temperature: 0.2,
+            maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+          },
+        });
+        rawText = response.text?.trim() || "";
+      } catch (geminiProErr: any) {
+        console.warn("[AI Router] gemini-2.5-pro call failed, attempting fallback to gemini-2.5-flash:", geminiProErr?.message || geminiProErr);
+        const fallbackRes = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            temperature: 0.2,
+            maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+          },
+        });
+        rawText = fallbackRes.text?.trim() || "";
+        usedModel = 'gemini-2.5-flash';
+      }
+
       if (rawText) {
         const parsed = JSON.parse(rawText);
         if (
@@ -15612,9 +15900,9 @@ Return strictly a JSON object:
             verifiedUserId: authCtx.verifiedUserId,
             planId: params.planId,
             promptKey: "MOD_L_STEP3_SECTION",
-            modelUsed: "gemini-2.5-flash",
-            inputTokens: response.usageMetadata?.promptTokenCount || 350,
-            outputTokens: response.usageMetadata?.candidatesTokenCount || 280,
+            modelUsed: usedModel,
+            inputTokens: 350,
+            outputTokens: 280,
             usedByokKey: authCtx.usedByokKey,
             fallbackCreditsUsed: authCtx.currentCreditsUsed,
           });
@@ -15628,13 +15916,13 @@ Return strictly a JSON object:
               parsed.aiAssessorTip.trim().length > 15
                 ? parsed.aiAssessorTip.trim()
                 : fallback.aiAssessorTip,
-            engineMode: "gemini-2.5-flash",
+            engineMode: usedModel,
           };
         }
       }
     } catch (err: any) {
       console.warn(
-        "[AI Router] Module L Step 3 Section Gemini call fallback:",
+        "[AI Router] Module L Step 3 Section Gemini call fallback to smart-synthesizer:",
         err?.message || err
       );
     }
@@ -15906,6 +16194,144 @@ Return strictly a JSON object:
     } catch (err: any) {
       console.warn(
         "[AI Router] Module L Step 5 Dossier Gemini call fallback:",
+        err?.message || err
+      );
+    }
+  }
+
+  return fallback;
+}
+
+export interface PolishBusinessPlanTextParams {
+  planId?: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: string;
+  baseCurrency: string;
+  targetTone: string;
+  chapterTitle: string;
+  currentText: string;
+  instruction: string;
+}
+
+export interface PolishBusinessPlanTextResult {
+  allowed: boolean;
+  polishedText: string;
+  summaryOfChanges?: string;
+  engineMode: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'smart-synthesizer';
+}
+
+export async function polishBusinessPlanTextViaRouter(
+  params: PolishBusinessPlanTextParams
+): Promise<PolishBusinessPlanTextResult> {
+  const fallbackDraft = params.currentText?.trim() || '';
+  const fallback: PolishBusinessPlanTextResult = {
+    allowed: true,
+    polishedText: fallbackDraft,
+    summaryOfChanges: 'Text preserved.',
+    engineMode: 'smart-synthesizer',
+  };
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    'MOD_L_STEP3_SECTION',
+    'You are an expert Executive Business Plan Editor and Underwriter.'
+  );
+
+  if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
+    try {
+      const ai = getGenAiClient(authCtx.activeApiKey);
+      const prompt = `You are a world-class Executive Business Plan Editor, Institutional Credit Underwriter, and Grant Assessor.
+Company: "${params.planTitle}"
+Industry: ${params.industryCategory || 'Startup Venture'}
+Country: ${params.hqCountryCode} (${params.baseCurrency})
+Audience Tone / Register: ${params.targetTone}
+
+CHAPTER TITLE: "${params.chapterTitle}"
+
+CURRENT DRAFT PROSE:
+"""
+${sanitizePromptInput(params.currentText, 2500)}
+"""
+
+EDITOR INSTRUCTION / POLISH MANDATE:
+"""
+${sanitizePromptInput(params.instruction, 500)}
+"""
+
+TASK:
+Rewrite and polish this specific chapter's prose strictly adhering to the user's instruction and tone mandate.
+Keep all verified numbers, metric claims, and operational facts intact unless specifically asked to adjust.
+Ensure smooth, professional executive flow without generic marketing hype.
+
+Return strictly a JSON object:
+{
+  "polishedText": "The refined, flowing chapter prose text",
+  "summaryOfChanges": "Brief 1-sentence note on what was sharpened"
+}`;
+
+      let response: any;
+      let modelUsed: 'gemini-2.5-pro' | 'gemini-2.5-flash' = 'gemini-2.5-pro';
+
+      try {
+        response = await ai.models.generateContent({
+          model: 'gemini-2.5-pro',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.25,
+            maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+          },
+        });
+      } catch (proErr: any) {
+        console.warn(
+          '[AI Router] Polish gemini-2.5-pro error, attempting gemini-2.5-flash fallback:',
+          proErr?.message || proErr
+        );
+        modelUsed = 'gemini-2.5-flash';
+        response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.25,
+            maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+          },
+        });
+      }
+
+      const rawText = response.text?.trim() || '';
+      if (rawText) {
+        const parsed = JSON.parse(rawText);
+        if (
+          parsed &&
+          typeof parsed.polishedText === 'string' &&
+          parsed.polishedText.trim().length > 15
+        ) {
+          await recordGeminiUsageAndIncrementCredits({
+            verifiedUserId: authCtx.verifiedUserId,
+            planId: params.planId,
+            promptKey: 'MOD_L_STEP3_SECTION',
+            modelUsed: modelUsed,
+            inputTokens: response.usageMetadata?.promptTokenCount || 380,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 300,
+            usedByokKey: authCtx.usedByokKey,
+            fallbackCreditsUsed: authCtx.currentCreditsUsed,
+          });
+
+          return {
+            allowed: true,
+            polishedText: parsed.polishedText.trim(),
+            summaryOfChanges:
+              typeof parsed.summaryOfChanges === 'string'
+                ? parsed.summaryOfChanges.trim()
+                : undefined,
+            engineMode: modelUsed,
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn(
+        '[AI Router] Polish Business Plan Text Gemini call fallback:',
         err?.message || err
       );
     }

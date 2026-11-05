@@ -5,7 +5,22 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/ie', '/uk', '/about-founder', '/register', '/login', '/redeem', '/appsumo', '/privacy', '/terms', '/v/'],
+        allow: [
+          '/',
+          '/ie',
+          '/uk',
+          '/grants',
+          '/grants/',
+          '/about-founder',
+          '/pricing',
+          '/register',
+          '/login',
+          '/redeem',
+          '/appsumo',
+          '/privacy',
+          '/terms',
+          '/v/',
+        ],
         disallow: ['/admin/', '/api/', '/workspace/', '/account/'],
       },
     ],

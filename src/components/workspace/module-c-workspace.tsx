@@ -48,6 +48,9 @@ import {
   Flame,
   Calendar,
   Mic,
+  Globe,
+  CreditCard,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +103,76 @@ import {
   generateQrCodeMatrix,
   generateQrCodeSvgString,
 } from '@/lib/qr-code';
+import {
+  getSurveyBoostTiersAction,
+  getSurveyBoostOrdersAction,
+  checkSurveyBoostAvailabilityAction,
+  createSurveyBoostCheckoutAction,
+  type SurveyBoostTierItem,
+} from '@/app/actions/survey-boost';
+
+const DEFAULT_BOOST_TIERS: SurveyBoostTierItem[] = [
+  {
+    id: 'starter_50',
+    tierName: 'Starter Pilot',
+    responseCount: 50,
+    priceEurCents: 14900,
+    priceGbpCents: 12900,
+    priceUsdCents: 16900,
+    turnaroundHours: 48,
+    targetAudienceType: 'CONSUMER_OR_B2B',
+    badgeLabel: null,
+    description: 'Perfect for sanity-checking your core problem statement and willingness-to-pay.',
+    features: [
+      'Targeted by country (IE, UK, or US)',
+      '48-hour delivery window',
+      'Anti-bot verified human responses',
+      'Full AI Insights & Mom-Test synthesis',
+    ],
+    isActive: true,
+    displayOrder: 1,
+  },
+  {
+    id: 'grant_ready_100',
+    tierName: 'Grant & Seed Ready',
+    responseCount: 100,
+    priceEurCents: 25900,
+    priceGbpCents: 22900,
+    priceUsdCents: 28900,
+    turnaroundHours: 24,
+    targetAudienceType: 'TARGETED_NICHE',
+    badgeLabel: '⭐ Recommended for Grants',
+    description: 'Meets statistical significance criteria for LEO Feasibility/Priming and Innovate UK IFS proof.',
+    features: [
+      'Industry & job-role targeting',
+      '24–48h priority fulfillment',
+      'Verbatim qualitative quotes included',
+      'Grant-ready Module L export block',
+    ],
+    isActive: true,
+    displayOrder: 2,
+  },
+  {
+    id: 'investor_250',
+    tierName: 'Investor Deep Dive',
+    responseCount: 250,
+    priceEurCents: 49900,
+    priceGbpCents: 44900,
+    priceUsdCents: 54900,
+    turnaroundHours: 48,
+    targetAudienceType: 'EXECUTIVE_DECISION_MAKER',
+    badgeLabel: 'Deep Dive Cohort',
+    description: 'Enterprise-grade cohort segmentation with maximum confidence for pre-seed / seed rounds.',
+    features: [
+      'Hyper-niche decision-maker panel',
+      'Cross-tab cohort comparison analysis',
+      'Opt-in respondent follow-up list',
+      'White-label PDF report for angels & assessors',
+    ],
+    isActive: true,
+    displayOrder: 3,
+  },
+];
 
 export interface ModuleCWorkspaceProps {
   plan: ActiveStartupPlan;
@@ -803,6 +876,134 @@ export function ModuleCWorkspace({
   const [isInterviewModalOpen, setIsInterviewModalOpen] =
     useState<boolean>(false);
 
+  // Guaranteed Responses (Survey Boost) states
+  const [boostTiers, setBoostTiers] = useState<SurveyBoostTierItem[]>(DEFAULT_BOOST_TIERS);
+  const [boostOrders, setBoostOrders] = useState<any[]>([]);
+  const [loadingBoostData, setLoadingBoostData] = useState<boolean>(false);
+  const [checkingAvailability, setCheckingAvailability] = useState<boolean>(false);
+  const [availabilityResult, setAvailabilityResult] = useState<{
+    count?: number;
+    recommendation?: string;
+    checked: boolean;
+    error?: string;
+  } | null>(null);
+  const [boostDemographics, setBoostDemographics] = useState<{
+    countryCode: 'IE' | 'GB' | 'US' | 'ALL';
+    ageBracket: 'ALL' | '18-24' | '25-34' | '35-54' | '55+';
+    gender: 'ANY' | 'FEMALE' | 'MALE';
+    employment: 'ANY' | 'FULL_TIME' | 'PART_TIME';
+  }>({
+    countryCode: (plan.hqCountryCode === 'GB' ? 'GB' : plan.hqCountryCode === 'US' ? 'US' : 'IE') as any,
+    ageBracket: 'ALL',
+    gender: 'ANY',
+    employment: 'ANY',
+  });
+  const [orderingTierId, setOrderingTierId] = useState<string | null>(null);
+  const [boostOrderSuccessMessage, setBoostOrderSuccessMessage] = useState<string | null>(null);
+
+  // Check URL params for Stripe checkout redirect return
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('boost_success') === 'true') {
+        setBoostOrderSuccessMessage(
+          '🎉 Payment confirmed! Your survey responses are being fulfilled by verified panel respondents. Results will update in Tab 4 (Results & AI Insights).'
+        );
+        setIsSurveyStudioOpen(true);
+        setActiveViewTab('AUDIENCE_BOOST');
+        void loadBoostDataForActiveSurvey();
+      }
+    }
+  }, []);
+
+  const loadBoostDataForActiveSurvey = async (targetSurvey?: SavedValidationSurvey) => {
+    const surveyToLoad = targetSurvey || activeSurveyRef.current;
+    if (!surveyToLoad) return;
+    setLoadingBoostData(true);
+    try {
+      const [tiersRes, ordersRes] = await Promise.all([
+        getSurveyBoostTiersAction(),
+        getSurveyBoostOrdersAction(surveyToLoad.publicSlug || surveyToLoad.id, plan.id),
+      ]);
+      if (tiersRes.success && tiersRes.tiers && tiersRes.tiers.length > 0) {
+        setBoostTiers(tiersRes.tiers);
+      }
+      if (ordersRes.success) {
+        setBoostOrders(ordersRes.orders || []);
+      }
+    } catch (err) {
+      console.error('Failed to load boost data:', err);
+    } finally {
+      setLoadingBoostData(false);
+    }
+  };
+
+  const handleCheckAudienceAvailability = async (overrideCountry?: 'IE' | 'GB' | 'US' | 'ALL') => {
+    setCheckingAvailability(true);
+    const countryToUse = overrideCountry || boostDemographics.countryCode;
+    try {
+      const res = await checkSurveyBoostAvailabilityAction({
+        countryCode: countryToUse,
+        ageBracket: boostDemographics.ageBracket === 'ALL' ? undefined : boostDemographics.ageBracket,
+        gender: boostDemographics.gender,
+        employment: boostDemographics.employment,
+      });
+      if (res.success) {
+        setAvailabilityResult({
+          count: res.availableCount,
+          recommendation: res.recommendation,
+          checked: true,
+        });
+      } else {
+        setAvailabilityResult({
+          error: res.error || 'Could not verify participant pool.',
+          checked: true,
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setAvailabilityResult({
+        error: msg,
+        checked: true,
+      });
+    } finally {
+      setCheckingAvailability(false);
+    }
+  };
+
+  const handleOrderBoostTier = async (tier: SurveyBoostTierItem) => {
+    if (isVaultReadonly) return;
+    const currentSurvey = activeSurveyRef.current;
+    if (!currentSurvey) {
+      alert('Please select or create a survey before ordering responses.');
+      return;
+    }
+
+    setOrderingTierId(tier.id);
+    try {
+      const res = await createSurveyBoostCheckoutAction({
+        planId: plan.id,
+        surveyId: currentSurvey.publicSlug || currentSurvey.id,
+        tierId: tier.id,
+        currency: (plan.baseCurrency || 'EUR') as any,
+        targetCountryCode: boostDemographics.countryCode,
+        ageRanges: boostDemographics.ageBracket === 'ALL' ? [] : [boostDemographics.ageBracket],
+        gender: boostDemographics.gender === 'ANY' ? undefined : boostDemographics.gender,
+        employmentStatus: boostDemographics.employment === 'ANY' ? [] : [boostDemographics.employment],
+      });
+      if (res.success && res.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+      } else {
+        alert(res.error || 'Failed to initiate checkout. Please try again.');
+        setOrderingTierId(null);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(msg || 'An error occurred initiating checkout.');
+      setOrderingTierId(null);
+    }
+  };
+
   // Step Accordion State: 0 = all collapsed by default, 1..4 = specific step open, 'ALL' = all open
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 4) {
@@ -843,7 +1044,7 @@ export function ModuleCWorkspace({
 
   const openSurveyInStudio = (
     survey: SavedValidationSurvey,
-    initialTab: 'BUILDER' | 'OUTREACH' | 'INSIGHTS' = 'BUILDER',
+    initialTab: 'BUILDER' | 'OUTREACH' | 'INSIGHTS' | 'AUDIENCE_BOOST' = 'BUILDER',
     openAiSelector = false
   ) => {
     activeSurveyRef.current = survey;
@@ -856,6 +1057,10 @@ export function ModuleCWorkspace({
     if (initialTab === 'INSIGHTS') {
       setTimeout(() => {
         void handleSyncLiveResponses(true);
+      }, 40);
+    } else if (initialTab === 'AUDIENCE_BOOST') {
+      setTimeout(() => {
+        void loadBoostDataForActiveSurvey(survey);
       }, 40);
     }
   };
@@ -3175,7 +3380,7 @@ export function ModuleCWorkspace({
                 </div>
               )}
 
-              {/* 3-STEP PIPELINE NAVIGATION BAR INSIDE SURVEY STUDIO */}
+              {/* 4-STEP PIPELINE NAVIGATION BAR INSIDE SURVEY STUDIO */}
               <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
                 <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                   <button
@@ -3214,31 +3419,9 @@ export function ModuleCWorkspace({
                   <button
                     type="button"
                     onClick={() => {
-                      setActiveViewTab('INSIGHTS');
-                      void handleSyncLiveResponses(true);
+                      setActiveViewTab('AUDIENCE_BOOST');
+                      void loadBoostDataForActiveSurvey();
                     }}
-                    className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
-                      activeViewTab === 'INSIGHTS'
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
-                    }`}
-                  >
-                    <BarChart3 className="h-3.5 w-3.5 shrink-0" />
-                    <span>3. Results &amp; AI Insights</span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] ${
-                        activeViewTab === 'INSIGHTS'
-                          ? 'bg-indigo-800 text-indigo-100'
-                          : 'bg-white text-indigo-700'
-                      }`}
-                    >
-                      {totalResponses}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveViewTab('AUDIENCE_BOOST')}
                     className={`group relative flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
                       activeViewTab === 'AUDIENCE_BOOST'
                         ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-xs'
@@ -3252,7 +3435,7 @@ export function ModuleCWorkspace({
                           : 'text-amber-600'
                       }`}
                     />
-                    <span>4. Guaranteed Responses</span>
+                    <span>3. Guaranteed Responses</span>
                     <span
                       className={`rounded-full px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide ${
                         activeViewTab === 'AUDIENCE_BOOST'
@@ -3261,6 +3444,31 @@ export function ModuleCWorkspace({
                       }`}
                     >
                       Boost
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveViewTab('INSIGHTS');
+                      void handleSyncLiveResponses(true);
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
+                      activeViewTab === 'INSIGHTS'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
+                    }`}
+                  >
+                    <BarChart3 className="h-3.5 w-3.5 shrink-0" />
+                    <span>4. Results &amp; AI Insights</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] ${
+                        activeViewTab === 'INSIGHTS'
+                          ? 'bg-indigo-800 text-indigo-100'
+                          : 'bg-white text-indigo-700'
+                      }`}
+                    >
+                      {totalResponses}
                     </span>
                   </button>
                 </div>
@@ -3301,6 +3509,24 @@ export function ModuleCWorkspace({
                     >
                       <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
                       Refresh Copy from Idea Context
+                    </Button>
+                  )}
+
+                  {activeViewTab === 'AUDIENCE_BOOST' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={checkingAvailability}
+                      onClick={() => handleCheckAudienceAvailability()}
+                      className="border-amber-300 bg-amber-50/80 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 text-amber-700 ${
+                          checkingAvailability ? 'animate-spin' : ''
+                        }`}
+                      />
+                      Check Participant Pool
                     </Button>
                   )}
 
@@ -4275,7 +4501,7 @@ export function ModuleCWorkspace({
                       </Badge>
                     </div>
                     <p className="mt-0.5 text-xs text-slate-600">
-                      If you don&apos;t have time for cold outreach, targeted verified response panels (50–250 respondents) will be available soon.
+                      If you don&apos;t have time for cold outreach, get 50 to 250+ targeted, verified human responses delivered in 24–48 hours.
                     </p>
                   </div>
                 </div>
@@ -4283,10 +4509,14 @@ export function ModuleCWorkspace({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setActiveViewTab('AUDIENCE_BOOST')}
-                  className="shrink-0 border-slate-300 text-xs font-semibold text-slate-700 hover:bg-white"
+                  onClick={() => {
+                    setActiveViewTab('AUDIENCE_BOOST');
+                    void loadBoostDataForActiveSurvey();
+                  }}
+                  className="shrink-0 border-amber-300 bg-amber-50/80 text-xs font-bold text-amber-900 hover:bg-amber-100"
                 >
-                  View Details &amp; Packaging
+                  <Flame className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                  Get Guaranteed Responses
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -4748,7 +4978,560 @@ export function ModuleCWorkspace({
         )}
 
       {/* =================================================================== */}
-      {/* TAB 3: SURVEY RESULTS & AI "SIGNAL VS. NOISE" INSIGHTS ENGINE       */}
+      {/* TAB 3: GUARANTEED RESPONSES & TARGETED PARTICIPANT PANEL           */}
+      {/* =================================================================== */}
+      {activeViewTab === 'AUDIENCE_BOOST' && (
+        <div className="space-y-6">
+          {/* Post-Checkout Success Banner */}
+          {boostOrderSuccessMessage && (
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-emerald-300 bg-emerald-50/95 p-4 text-xs text-emerald-950 shadow-2xs">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <span className="font-semibold">{boostOrderSuccessMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBoostOrderSuccessMessage(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Top Hero Banner */}
+          <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-indigo-500/5 p-6 shadow-xs">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900">
+                    <Flame className="mr-1 h-3.5 w-3.5 text-amber-600" />
+                    Targeted Founder Panel
+                  </Badge>
+                  <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">
+                    Verified Human Respondents
+                  </span>
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-900 sm:text-xl">
+                  Fast-Track Your Customer Validation with Guaranteed Responses
+                </h3>
+                <p className="max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
+                  Don&apos;t have 40 hours to cold-message prospects on LinkedIn? Get 50 to 250+ targeted, Mom-Test-compliant responses in your exact industry to prove market demand for Enterprise Ireland, LEO, Innovate UK, or angel investors.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-300/80 bg-white/80 p-3 text-center shadow-2xs backdrop-blur-xs">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Target Fulfillment
+                </div>
+                <div className="text-xl font-extrabold text-amber-600">
+                  24–48 Hours
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  Zero Bots • 100% Human
+                </div>
+              </div>
+            </div>
+
+            {/* How It Works 3-Step Strip */}
+            <div className="mt-6 grid grid-cols-1 gap-3 border-t border-amber-200/80 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
+                  1
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Check Active Pool Before Paying
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-600">
+                    Filter by country, age, gender, or employment to confirm respondent depth.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
+                  2
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Mom-Test Quality Guard
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-600">
+                    Automated speeder checks, AI bot scrubbing, and quality verification.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
+                  3
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Live Feed to Results &amp; Module L
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-600">
+                    Responses feed straight into your charts, AI insights, and grant appendices.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* STEP 1: AUDIENCE DEMOGRAPHIC CHECKER (BEFORE FOUNDER PAYS) */}
+          <Card className="border-slate-200 shadow-2xs">
+            <CardHeader className="border-b border-slate-100 pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 text-xs font-bold text-amber-800">
+                    1
+                  </div>
+                  <CardTitle className="text-sm font-bold text-slate-900">
+                    Target Demographic &amp; Real-Time Pool Availability
+                  </CardTitle>
+                </div>
+                <Badge variant="outline" className="border-slate-300 text-[11px] text-slate-600">
+                  Pre-Purchase Availability Check
+                </Badge>
+              </div>
+              <CardDescription className="text-xs text-slate-500">
+                Configure your target audience below. Check how many verified respondents match your exact slice in real-time before paying.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {/* Country */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Target Geography</label>
+                  <select
+                    value={boostDemographics.countryCode}
+                    onChange={(e) => {
+                      const val = e.target.value as 'IE' | 'GB' | 'US' | 'ALL';
+                      setBoostDemographics((prev) => ({ ...prev, countryCode: val }));
+                      setAvailabilityResult(null);
+                    }}
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                  >
+                    <option value="IE">Ireland (IE)</option>
+                    <option value="GB">United Kingdom (GB)</option>
+                    <option value="ALL">Ireland + UK (Combined • 20x Larger Pool)</option>
+                    <option value="US">United States (US)</option>
+                  </select>
+                </div>
+
+                {/* Age Bracket */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Age Bracket</label>
+                  <select
+                    value={boostDemographics.ageBracket}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setBoostDemographics((prev) => ({ ...prev, ageBracket: val }));
+                      setAvailabilityResult(null);
+                    }}
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                  >
+                    <option value="ALL">All Adult Ages (18+)</option>
+                    <option value="18-24">18–24 years</option>
+                    <option value="25-34">25–34 years</option>
+                    <option value="35-54">35–54 years</option>
+                    <option value="55+">55+ years</option>
+                  </select>
+                </div>
+
+                {/* Gender */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Gender</label>
+                  <select
+                    value={boostDemographics.gender}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setBoostDemographics((prev) => ({ ...prev, gender: val }));
+                      setAvailabilityResult(null);
+                    }}
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                  >
+                    <option value="ANY">Any Gender</option>
+                    <option value="FEMALE">Female Only</option>
+                    <option value="MALE">Male Only</option>
+                  </select>
+                </div>
+
+                {/* Employment */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Employment Status</label>
+                  <select
+                    value={boostDemographics.employment}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setBoostDemographics((prev) => ({ ...prev, employment: val }));
+                      setAvailabilityResult(null);
+                    }}
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                  >
+                    <option value="ANY">Any Employment Status</option>
+                    <option value="FULL_TIME">Full-Time Employed</option>
+                    <option value="PART_TIME">Part-Time / Self-Employed</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Check Availability CTA */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={checkingAvailability}
+                  onClick={() => void handleCheckAudienceAvailability()}
+                  className="border-amber-400 bg-amber-50/80 text-xs font-bold text-amber-900 hover:bg-amber-100"
+                >
+                  {checkingAvailability ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin text-amber-700" />
+                      Checking Live Prolific Pool...
+                    </>
+                  ) : (
+                    <>
+                      <Users className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
+                      Check Active Participant Pool
+                    </>
+                  )}
+                </Button>
+
+                <span className="text-[11px] text-slate-500">
+                  Real-time query via Prolific Participant Pool API
+                </span>
+              </div>
+
+              {/* AVAILABILITY RESULTS BOX */}
+              {availabilityResult && (
+                <div className="mt-2">
+                  {availabilityResult.error ? (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-3 text-xs text-rose-800">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <AlertTriangle className="h-4 w-4 text-rose-600" />
+                        Pool Query Notice
+                      </div>
+                      <p className="mt-0.5">{availabilityResult.error}</p>
+                    </div>
+                  ) : availabilityResult.count !== undefined && availabilityResult.count >= 100 ? (
+                    <div className="rounded-xl border border-emerald-300 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 font-bold text-emerald-900">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          <span>
+                            Healthy Pool: ~{availabilityResult.count.toLocaleString()} Verified Participants Active
+                          </span>
+                        </div>
+                        <Badge className="bg-emerald-600 text-[10px] font-bold text-white">
+                          Immediate 24–48h Delivery Ready
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-emerald-800">
+                        Excellent participant depth for this demographic slice. All packages (50, 100, 250 responses) can be fulfilled rapidly.
+                      </p>
+                    </div>
+                  ) : availabilityResult.count !== undefined && availabilityResult.count >= 50 ? (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-3.5 text-xs text-amber-950">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 font-bold text-amber-900">
+                          <Users className="h-4 w-4 text-amber-600" />
+                          <span>
+                            Moderate Pool: ~{availabilityResult.count.toLocaleString()} Verified Participants Active
+                          </span>
+                        </div>
+                        <Badge className="bg-amber-600 text-[10px] font-bold text-white">
+                          Starter (50) Ready • 100+ May Take 48h+
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-amber-800">
+                        Sufficient capacity for 50 responses. If ordering 100+, turnaround time may extend to 48–72 hours as participants come online.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 p-3.5 text-xs text-amber-950">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 font-bold text-amber-900">
+                          <AlertTriangle className="h-4 w-4 text-amber-600" />
+                          <span>
+                            Narrow Slice: ~{availabilityResult.count ?? 0} Respondents Currently Matching
+                          </span>
+                        </div>
+                        <Badge variant="outline" className="border-amber-300 text-[10px] font-bold text-amber-900">
+                          High Specificity
+                        </Badge>
+                      </div>
+                      <div className="mt-2 space-y-1.5 text-amber-900/90">
+                        <p>
+                          {availabilityResult.recommendation ||
+                            'High demographic filtering results in a narrow active pool in this country.'}
+                        </p>
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-white/80 p-2.5">
+                          <div className="space-y-0.5">
+                            <span className="font-bold text-slate-900">
+                              💡 LEO &amp; Enterprise Ireland Recommendation:
+                            </span>
+                            <p className="text-[11px] text-slate-600">
+                              Assessors accept combined Ireland + UK sample datasets for market validation. Expanding unlocks 20x–50x larger sample depth.
+                            </p>
+                          </div>
+                          {boostDemographics.countryCode !== 'ALL' && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                setBoostDemographics((prev) => ({ ...prev, countryCode: 'ALL' }));
+                                void handleCheckAudienceAvailability('ALL');
+                              }}
+                              className="bg-amber-600 text-[11px] font-bold text-white hover:bg-amber-700"
+                            >
+                              Expand to IE + UK
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* STEP 2: PRICING & TIER SELECTION (WITH LIVE STRIPE CHECKOUT) */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 text-xs font-bold text-amber-800">
+                  2
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Choose Response Package
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    All responses are 100% human, bot-filtered, and stream directly into Tab 4 (Results &amp; AI Insights).
+                  </p>
+                </div>
+              </div>
+              <Badge variant="outline" className="border-slate-300 text-[11px] text-slate-600">
+                Currency: {plan.baseCurrency || 'EUR'}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {(boostTiers && boostTiers.length > 0 ? boostTiers : DEFAULT_BOOST_TIERS).map((tier) => {
+                const currency = plan.baseCurrency || 'EUR';
+                const priceFormatted =
+                  currency === 'GBP'
+                    ? `£${Math.round(tier.priceGbpCents / 100)}`
+                    : currency === 'USD'
+                    ? `$${Math.round(tier.priceUsdCents / 100)}`
+                    : `€${Math.round(tier.priceEurCents / 100)}`;
+                const isRecommended = Boolean(tier.badgeLabel?.includes('Recommended') || tier.responseCount === 100);
+                const isOrderingThis = orderingTierId === tier.id;
+
+                return (
+                  <div
+                    key={tier.id}
+                    className={`relative flex flex-col justify-between rounded-2xl border p-5 transition-all ${
+                      isRecommended
+                        ? 'border-amber-300 bg-amber-50/20 shadow-xs ring-1 ring-amber-300'
+                        : 'border-slate-200 bg-white shadow-2xs hover:border-slate-300'
+                    }`}
+                  >
+                    {tier.badgeLabel && (
+                      <div className="absolute -top-3 right-4">
+                        <Badge className="bg-amber-600 text-[10px] font-bold text-white shadow-2xs">
+                          {tier.badgeLabel}
+                        </Badge>
+                      </div>
+                    )}
+
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span
+                            className={`text-xs font-bold uppercase tracking-wider ${
+                              isRecommended ? 'text-amber-700' : 'text-slate-500'
+                            }`}
+                          >
+                            {tier.tierName}
+                          </span>
+                          <h5 className="mt-1 text-xl font-extrabold text-slate-900">
+                            {tier.responseCount} Responses
+                          </h5>
+                        </div>
+                        <span
+                          className={`rounded-lg px-2.5 py-1 text-xs font-extrabold ${
+                            isRecommended
+                              ? 'bg-amber-100 text-amber-900'
+                              : 'bg-slate-100 text-slate-800'
+                          }`}
+                        >
+                          {priceFormatted}
+                        </span>
+                      </div>
+
+                      <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                        {tier.description}
+                      </p>
+
+                      <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-700">
+                        {tier.features.map((feat, fIdx) => (
+                          <li key={fIdx} className="flex items-start gap-2">
+                            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="mt-6 border-t border-slate-100 pt-4">
+                      <Button
+                        type="button"
+                        disabled={isVaultReadonly || Boolean(orderingTierId)}
+                        onClick={() => void handleOrderBoostTier(tier)}
+                        className={`w-full text-xs font-bold ${
+                          isRecommended
+                            ? 'bg-amber-600 text-white hover:bg-amber-700'
+                            : 'bg-slate-900 text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        {isOrderingThis ? (
+                          <>
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            Opening Secure Stripe Checkout...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="mr-1.5 h-3.5 w-3.5" />
+                            Order {tier.responseCount} Responses ({priceFormatted})
+                          </>
+                        )}
+                      </Button>
+                      <div className="mt-2 flex items-center justify-center gap-1.5 text-[10px] text-slate-500">
+                        <Clock className="h-3 w-3 text-slate-400" />
+                        <span>Fulfillment window: ~{tier.turnaroundHours} hours</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* STEP 3: ORDERS IN PROGRESS / FULFILLMENT STATUS (IF ORDERS EXIST) */}
+          {boostOrders && boostOrders.length > 0 && (
+            <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50/50 via-white to-violet-50/30 shadow-2xs">
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-indigo-600" />
+                    <CardTitle className="text-sm font-bold text-slate-900">
+                      Your Response Pack Orders ({boostOrders.length})
+                    </CardTitle>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setActiveViewTab('INSIGHTS');
+                      void handleSyncLiveResponses(true);
+                    }}
+                    className="border-indigo-300 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
+                    View in Tab 4 (Results &amp; AI Insights)
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {boostOrders.map((ord: any) => {
+                  const target = ord.targetResponses || 100;
+                  const delivered = ord.deliveredResponses || 0;
+                  const pct = Math.min(100, Math.round((delivered / target) * 100));
+
+                  return (
+                    <div
+                      key={ord.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-slate-900 text-xs">
+                            {ord.tierName || `${target} Responses Package`}
+                          </span>
+                          <Badge
+                            className={`text-[10px] font-bold ${
+                              ord.status === 'COMPLETED'
+                                ? 'bg-emerald-600 text-white'
+                                : ord.status === 'DISPATCHED' || ord.status === 'PAID'
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-amber-100 text-amber-900 border-amber-300'
+                            }`}
+                          >
+                            {ord.status}
+                          </Badge>
+                          <span className="text-[10px] text-slate-400">
+                            ID: {ord.id.slice(0, 8)}...
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Target Country: {ord.targetCountryCode || 'IE'} • Provider: {ord.panelProvider || 'PROLIFIC'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="text-xs font-bold text-slate-900">
+                            {delivered} / {target} Responses ({pct}%)
+                          </div>
+                          <div className="mt-1 h-2 w-32 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-600 rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setActiveViewTab('INSIGHTS');
+                            void handleSyncLiveResponses(true);
+                          }}
+                          className="h-8 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                        >
+                          View Results →
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Non-intrusive Trust & Neutral Status Note */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-xs text-slate-600">
+            <div className="flex items-center gap-2 font-bold text-slate-800">
+              <ShieldCheck className="h-4 w-4 text-indigo-600" />
+              Optional Founder Resource
+            </div>
+            <p className="mt-1">
+              You do not need to purchase responses to complete your validation. The tools in Tab 1 (Build Questions) and Tab 2 (Share &amp; QR Kit) are 100% free and ready to support organic outreach, 1-on-1 interviews, and team surveys. This panel service is an optional convenience for founders needing rapid statistical datasets for grant proof or angel meetings.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* TAB 4: SURVEY RESULTS & AI "SIGNAL VS. NOISE" INSIGHTS ENGINE       */}
       {/* =================================================================== */}
       {activeViewTab === 'INSIGHTS' && (
         <div className="space-y-6">
@@ -5575,283 +6358,89 @@ export function ModuleCWorkspace({
                 )}
 
                 {activeViewTab === 'OUTREACH' && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => {
-                      setActiveViewTab('INSIGHTS');
-                      void handleSyncLiveResponses(true);
-                    }}
-                    className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
-                  >
-                    <BarChart3 className="h-3.5 w-3.5" />
-                    Next: Results &amp; AI Insights ({totalResponses})
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-
-                {activeViewTab === 'INSIGHTS' && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setActiveViewTab('AUDIENCE_BOOST')}
-                    className="bg-gradient-to-r from-amber-600 to-orange-600 text-xs font-bold text-white hover:from-amber-700 hover:to-orange-700"
-                  >
-                    <Flame className="h-3.5 w-3.5" />
-                    Next: Guaranteed Responses
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveViewTab('BUILDER')}
+                      className="text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      Back: Build Questions
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setActiveViewTab('AUDIENCE_BOOST');
+                        void loadBoostDataForActiveSurvey();
+                      }}
+                      className="bg-gradient-to-r from-amber-600 to-orange-600 text-xs font-bold text-white hover:from-amber-700 hover:to-orange-700 shadow-xs"
+                    >
+                      <Flame className="h-3.5 w-3.5" />
+                      Next: Guaranteed Responses
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
                 )}
 
                 {activeViewTab === 'AUDIENCE_BOOST' && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setIsSurveyStudioOpen(false)}
-                    className="bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                    Done — Back to Overview Tiles
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveViewTab('OUTREACH')}
+                      className="text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      Back: Share &amp; QR Kit
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setActiveViewTab('INSIGHTS');
+                        void handleSyncLiveResponses(true);
+                      }}
+                      className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                    >
+                      <BarChart3 className="h-3.5 w-3.5" />
+                      Next: Results &amp; AI Insights ({totalResponses})
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                )}
+
+                {activeViewTab === 'INSIGHTS' && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setActiveViewTab('AUDIENCE_BOOST');
+                        void loadBoostDataForActiveSurvey();
+                      }}
+                      className="text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      Back: Guaranteed Responses
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setIsSurveyStudioOpen(false)}
+                      className="bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      Done — Back to Survey Tiles
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TAB 4: GUARANTEED RESPONSES & TARGETED FOUNDER PANEL PLACEHOLDER    */}
-      {/* =================================================================== */}
-      {activeViewTab === 'AUDIENCE_BOOST' && (
-        <div className="space-y-6">
-          {/* Top Banner */}
-          <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-indigo-500/5 p-6 shadow-xs">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-1.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900">
-                    <Flame className="mr-1 h-3.5 w-3.5 text-amber-600" />
-                    Targeted Founder Panel • Coming Soon
-                  </Badge>
-                  <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">
-                    Early Access Preview
-                  </span>
-                </div>
-                <h3 className="text-lg font-extrabold text-slate-900 sm:text-xl">
-                  Fast-Track Your Customer Validation with Guaranteed Responses
-                </h3>
-                <p className="max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
-                  Don&apos;t have 40 hours to cold-message prospects on LinkedIn? Get 50 to 250+ targeted, Mom-Test-compliant responses in your exact industry to prove market demand for Enterprise Ireland, LEO, Innovate UK, or angel investors.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-amber-300/80 bg-white/80 p-3 text-center shadow-2xs backdrop-blur-xs">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Target Response Time
-                </div>
-                <div className="text-xl font-extrabold text-amber-600">
-                  24–48 Hours
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Zero Bots • 100% Verified
-                </div>
-              </div>
-            </div>
-
-            {/* How It Works 3-Step Strip */}
-            <div className="mt-6 grid grid-cols-1 gap-3 border-t border-amber-200/80 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
-                  1
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-900">
-                    Define Exact Persona
-                  </div>
-                  <p className="mt-0.5 text-[11px] text-slate-600">
-                    Filter by geography (IE / UK / US / EU), job role, company size, or consumer demographic.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
-                  2
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-900">
-                    Mom-Test Quality Guard
-                  </div>
-                  <p className="mt-0.5 text-[11px] text-slate-600">
-                    Automated spam detection, AI bot filtering, and manual response quality verification.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-xl border border-white/60 bg-white/60 p-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-xs font-bold text-white">
-                  3
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-900">
-                    Live Sync to Module C &amp; L
-                  </div>
-                  <p className="mt-0.5 text-[11px] text-slate-600">
-                    Responses feed straight into your charts, AI insights, and official grant application appendices.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Pricing & Tier Placeholders */}
-          <div>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">
-                  Select Response Package (Placeholder Preview)
-                </h4>
-                <p className="text-xs text-slate-500">
-                  These packages are currently in private pilot testing. Join the waitlist to get 25% off when launched.
-                </p>
-              </div>
-              <Badge variant="outline" className="text-[11px] text-slate-600">
-                Currency: {plan.baseCurrency || 'EUR'}
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {/* Tier 1: Starter */}
-              <div className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Starter Pilot
-                    </span>
-                    <h5 className="mt-1 text-xl font-extrabold text-slate-900">
-                      50 Responses
-                    </h5>
-                  </div>
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">
-                    {plan.baseCurrency === 'GBP' ? '£129' : '€149'}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-slate-600">
-                  Perfect for sanity-checking your core problem statement and willingness-to-pay.
-                </p>
-                <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-700">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Targeted by country (IE, UK, or US)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    48-hour delivery window
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Anti-bot quality scrub
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Full AI Insights synthesis
-                  </li>
-                </ul>
-              </div>
-
-              {/* Tier 2: Most Popular */}
-              <div className="relative rounded-2xl border border-amber-300 bg-amber-50/20 p-5 shadow-xs">
-                <div className="absolute -top-3 right-4">
-                  <Badge className="bg-amber-600 text-[10px] font-bold text-white shadow-2xs">
-                    ⭐ Recommended for Grants
-                  </Badge>
-                </div>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-amber-700">
-                      Grant &amp; Seed Ready
-                    </span>
-                    <h5 className="mt-1 text-xl font-extrabold text-slate-900">
-                      100 Responses
-                    </h5>
-                  </div>
-                  <span className="rounded-lg bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">
-                    {plan.baseCurrency === 'GBP' ? '£229' : '€259'}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-slate-600">
-                  Meets statistical sample criteria for LEO Feasibility/Priming and Innovate UK IFS proof.
-                </p>
-                <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-700">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Industry &amp; job-role targeting
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    24-hour priority delivery
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Qualitative verbatim quotes included
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Grant-ready Module L export block
-                  </li>
-                </ul>
-              </div>
-
-              {/* Tier 3: Deep Dive */}
-              <div className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Investor Deep Dive
-                    </span>
-                    <h5 className="mt-1 text-xl font-extrabold text-slate-900">
-                      250 Responses
-                    </h5>
-                  </div>
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">
-                    {plan.baseCurrency === 'GBP' ? '£449' : '€499'}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-slate-600">
-                  Enterprise-grade cohort segmentation with maximum confidence for pre-seed / seed rounds.
-                </p>
-                <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-700">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Hyper-niche decision-maker panel
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Cross-tab cohort comparison analysis
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Opt-in list for follow-up 1-on-1 calls
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    White-label PDF report for angels
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Non-intrusive Trust & Neutral Status Note */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-xs text-slate-600">
-            <div className="flex items-center gap-2 font-bold text-slate-800">
-              <ShieldCheck className="h-4 w-4 text-indigo-600" />
-              Optional Founder Resource
-            </div>
-            <p className="mt-1">
-              You do not need to purchase responses to complete your validation. The tools in tabs 1, 2, and 3 are 100% free and ready to support organic outreach, 1-on-1 interviews, and team surveys. This panel service is an optional convenience currently in development for founders needing rapid statistical datasets.
-            </p>
           </div>
         </div>
       )}

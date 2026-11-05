@@ -16,7 +16,7 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:backup": "tsx src/scripts/backup-db.ts",
     "db:restore": "tsx src/scripts/restore-db.ts",
-    "deploy:cloud": "CLOUDSDK_PYTHON=/Library/GoogleCorpSupport/Python/3.11/bin/python3.11 $HOME/google-cloud-sdk/bin/gcloud run deploy startuppreflight-web --source . --project=startuppreflight --region=europe-west1 --allow-unauthenticated --add-cloudsql-instances=startuppreflight:europe-west1:spf-postgres --set-env-vars=NODE_ENV=production,GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=startuppreflight,GOOGLE_CLOUD_LOCATION=europe-west1,MAX_DAILY_PLATFORM_AI_CALLS=500"
+    "deploy:cloud": "CLOUDSDK_CONTEXT_AWARE_USE_ECP_HTTP_PROXY=false CLOUDSDK_CONTEXT_AWARE_USE_CLIENT_CERTIFICATE=false CLOUDSDK_PYTHON=/Library/GoogleCorpSupport/Python/3.11/bin/python3.11 $HOME/google-cloud-sdk/bin/gcloud run deploy startuppreflight-web --source . --project=startuppreflight --region=europe-west1 --allow-unauthenticated --add-cloudsql-instances=startuppreflight:europe-west1:spf-postgres --set-env-vars=NODE_ENV=production,GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=startuppreflight,GOOGLE_CLOUD_LOCATION=europe-west1,MAX_DAILY_PLATFORM_AI_CALLS=500"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",

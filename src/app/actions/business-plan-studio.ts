@@ -13,8 +13,10 @@ import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
 import {
   generateModuleLStep2AuditViaRouter,
   generateModuleLStep3SectionViaRouter,
+  polishBusinessPlanTextViaRouter,
   type GenerateModuleLStep3SectionResult,
   type GenerateModuleLStep2AuditResult,
+  type PolishBusinessPlanTextResult,
 } from '@/lib/ai/router';
 
 const UUID_REGEX =
@@ -243,4 +245,123 @@ export async function auditBusinessPlanVersionAction(input: {
     moduleJFinanceAndCashflow: input.moduleJFinanceAndCashflow,
     moduleKFundingStackAndBuffer: input.moduleKFundingStackAndBuffer,
   });
+}
+
+/**
+ * Polishes or rewrites an individual chapter's narrative in the continuous document
+ * based on an inline prompt or quick preset using `gemini-2.5-pro`.
+ */
+export async function polishBusinessPlanChapterAction(input: {
+  planId: string;
+  chapterTitle: string;
+  currentText: string;
+  instruction: string;
+  targetTone: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: string;
+  baseCurrency: string;
+}): Promise<PolishBusinessPlanTextResult> {
+  if (UUID_REGEX.test(input.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    if (!authCheck.authorized) {
+      return {
+        allowed: false,
+        polishedText: input.currentText,
+        summaryOfChanges: 'Session unauthorized.',
+        engineMode: 'smart-synthesizer',
+      };
+    }
+  }
+
+  return await polishBusinessPlanTextViaRouter({
+    planId: input.planId,
+    planTitle: input.planTitle,
+    industryCategory: input.industryCategory,
+    hqCountryCode: input.hqCountryCode,
+    baseCurrency: input.baseCurrency,
+    targetTone: input.targetTone,
+    chapterTitle: input.chapterTitle,
+    currentText: input.currentText,
+    instruction: input.instruction,
+  });
+}
+
+/**
+ * Compiles/refreshes all sections of a business plan version in one unified batch using `gemini-2.5-pro`.
+ */
+export async function compileAllBusinessPlanSectionsAction(input: {
+  planId: string;
+  versionId: string;
+  archetype: BusinessPlanArchetype;
+  targetTone: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: string;
+  baseCurrency: string;
+  planContextSummary: string;
+  sections: {
+    sectionNumber: number;
+    title: string;
+    assessorPrompt: string;
+    wordLimit: number;
+    scoringWeightPercent?: number;
+    currentResponseText?: string;
+  }[];
+}): Promise<{
+  ok: boolean;
+  compiledSections: { sectionNumber: number; compiledResponseText: string }[];
+  error?: string;
+}> {
+  if (UUID_REGEX.test(input.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    if (!authCheck.authorized) {
+      return {
+        ok: false,
+        compiledSections: [],
+        error: 'Unauthorized session.',
+      };
+    }
+  }
+
+  const results: { sectionNumber: number; compiledResponseText: string }[] = [];
+
+  for (const sec of input.sections) {
+    try {
+      const res = await generateModuleLStep3SectionViaRouter({
+        planId: input.planId,
+        planTitle: input.planTitle,
+        industryCategory: input.industryCategory,
+        hqCountryCode: input.hqCountryCode,
+        baseCurrency: input.baseCurrency,
+        compilerMode:
+          input.targetTone === 'UNDERWRITER_CONSERVATIVE'
+            ? 'UK_START_UP_LOANS_WORKBOOK'
+            : input.targetTone === 'VENTURE_HIGH_GROWTH'
+              ? 'STANDARD_COMMERCIAL_PLAN'
+              : input.hqCountryCode === 'GB'
+                ? 'UK_INNOVATE_UK_9Q'
+                : 'IE_LEO_OFFICIAL_FORM',
+        sectionNumber: sec.sectionNumber,
+        sectionTitle: sec.title,
+        assessorPrompt: sec.assessorPrompt,
+        scoringWeightPercent: sec.scoringWeightPercent ?? 20,
+        wordLimit: sec.wordLimit,
+        currentResponseText: sec.currentResponseText,
+        planContextSummary: input.planContextSummary,
+      });
+
+      results.push({
+        sectionNumber: sec.sectionNumber,
+        compiledResponseText: res.compiledResponseText,
+      });
+    } catch {
+      results.push({
+        sectionNumber: sec.sectionNumber,
+        compiledResponseText: sec.currentResponseText || '',
+      });
+    }
+  }
+
+  return { ok: true, compiledSections: results };
 }

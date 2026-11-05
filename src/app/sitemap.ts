@@ -2,45 +2,89 @@ import { MetadataRoute } from 'next';
 import { db, grantsDirectory } from '@/db';
 import { eq } from 'drizzle-orm';
 
+const BASE_URL = 'https://startuppreflight.com';
+
+const hreflangAlternates = {
+  languages: {
+    'x-default': `${BASE_URL}/`,
+    en: `${BASE_URL}/`,
+    'en-IE': `${BASE_URL}/ie`,
+    'en-GB': `${BASE_URL}/uk`,
+  },
+};
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://startuppreflight.com';
+  const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
     {
-      url: `${baseUrl}`,
-      lastModified: new Date(),
+      url: `${BASE_URL}/`,
+      lastModified: now,
       changeFrequency: 'daily',
       priority: 1.0,
+      alternates: hreflangAlternates,
     },
     {
-      url: `${baseUrl}/ie`,
-      lastModified: new Date(),
+      url: `${BASE_URL}/ie`,
+      lastModified: now,
       changeFrequency: 'daily',
       priority: 0.95,
+      alternates: hreflangAlternates,
     },
     {
-      url: `${baseUrl}/uk`,
-      lastModified: new Date(),
+      url: `${BASE_URL}/uk`,
+      lastModified: now,
       changeFrequency: 'daily',
       priority: 0.95,
+      alternates: hreflangAlternates,
     },
     {
-      url: `${baseUrl}/grants`,
-      lastModified: new Date(),
+      url: `${BASE_URL}/grants`,
+      lastModified: now,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/about-founder`,
-      lastModified: new Date(),
+      url: `${BASE_URL}/pricing`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: `${BASE_URL}/about-founder`,
+      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/pricing`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
+      url: `${BASE_URL}/register`,
+      lastModified: now,
+      changeFrequency: 'monthly',
       priority: 0.8,
+    },
+    {
+      url: `${BASE_URL}/redeem`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
+      url: `${BASE_URL}/appsumo`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
+      url: `${BASE_URL}/privacy`,
+      lastModified: now,
+      changeFrequency: 'yearly',
+      priority: 0.3,
+    },
+    {
+      url: `${BASE_URL}/terms`,
+      lastModified: now,
+      changeFrequency: 'yearly',
+      priority: 0.3,
     },
   ];
 
@@ -56,16 +100,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const grantRoutes: MetadataRoute.Sitemap = activeGrants.flatMap((grant) => {
       const countrySegment = grant.countryCode.toLowerCase();
-      const lastMod = grant.updatedAt || new Date();
+      const lastMod = grant.updatedAt || now;
       return [
         {
-          url: `${baseUrl}/grants/${countrySegment}/${grant.slug}`,
+          url: `${BASE_URL}/grants/${countrySegment}/${grant.slug}`,
           lastModified: lastMod,
           changeFrequency: 'weekly' as const,
           priority: 0.85,
         },
         {
-          url: `${baseUrl}/grants/${countrySegment}/${grant.slug}/checklist`,
+          url: `${BASE_URL}/grants/${countrySegment}/${grant.slug}/checklist`,
           lastModified: lastMod,
           changeFrequency: 'weekly' as const,
           priority: 0.8,

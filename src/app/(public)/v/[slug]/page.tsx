@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Sparkles,
@@ -15,6 +15,7 @@ import {
   Gift,
   RotateCcw,
   Lock,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,10 +34,27 @@ import {
 
 export default function PublicValidationSurveyPage() {
   const params = useParams<{ slug: string }>();
+  const searchParams = useSearchParams();
   const rawSlug = Array.isArray(params?.slug)
     ? params.slug[0]
     : params?.slug || '';
   const cleanSlug = decodeURIComponent(rawSlug).trim();
+
+  // Prolific or Guaranteed Boost URL params:
+  // e.g., /v/slug?prolific_pid={{%PROLIFIC_PID%}}&study_id={{%STUDY_ID%}}&session_id={{%SESSION_ID%}}&boost_order_id=...
+  const prolificPid =
+    searchParams.get('prolific_pid') ||
+    searchParams.get('PROLIFIC_PID') ||
+    searchParams.get('participant_id') ||
+    '';
+  const studyId =
+    searchParams.get('study_id') ||
+    searchParams.get('STUDY_ID') ||
+    '';
+  const boostOrderId =
+    searchParams.get('boost_order_id') ||
+    searchParams.get('order_id') ||
+    '';
 
   const [loading, setLoading] = useState(true);
   const [survey, setSurvey] = useState<
@@ -47,13 +65,18 @@ export default function PublicValidationSurveyPage() {
   const [answers, setAnswers] = useState<
     Record<string, SurveyResponseAnswerValue>
   >({});
-  const [respondentNameOrRole, setRespondentNameOrRole] = useState('');
+  const [respondentNameOrRole, setRespondentNameOrRole] = useState(
+    prolificPid ? `Verified Prolific Panelist (${prolificPid.slice(0, 8)})` : ''
+  );
   const [respondentEmail, setRespondentEmail] = useState('');
   const [joinedWaitlist, setJoinedWaitlist] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [prolificRedirectTimer, setProlificRedirectTimer] = useState<number | null>(null);
+
+  const PROLIFIC_COMPLETION_URL = 'https://app.prolific.com/submissions/complete?cc=SPF_SURVEY_VERIFIED';
 
   useEffect(() => {
     let active = true;
@@ -207,6 +230,8 @@ export default function PublicValidationSurveyPage() {
     const submitRes = await submitPublicSurveyResponseAction({
       publicSlug: cleanSlug,
       response: newResponse,
+      boostOrderId: boostOrderId || undefined,
+      prolificPid: prolificPid || undefined,
     });
 
     const finalResponse: SavedSurveyResponse = {
@@ -221,6 +246,21 @@ export default function PublicValidationSurveyPage() {
     setSubmitting(false);
     setSubmitted(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // If this respondent is from Prolific, start countdown and auto-redirect to Prolific submission completion URL
+    if (prolificPid) {
+      setProlificRedirectTimer(4);
+      const timer = setInterval(() => {
+        setProlificRedirectTimer((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(timer);
+            window.location.href = PROLIFIC_COMPLETION_URL;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
   };
 
   const handleResetForAnotherResponse = () => {
@@ -303,7 +343,7 @@ export default function PublicValidationSurveyPage() {
             Response Recorded
           </Badge>
           <h1 className="mt-2 text-xl font-bold text-slate-900">
-            Thank you for sharing your honest feedback!
+            {prolificPid ? 'Thank you! Your response is verified.' : 'Thank you for sharing your honest feedback!'}
           </h1>
           <p className="mt-2 text-xs leading-relaxed text-slate-600">
             Your answers help shape{' '}
@@ -316,17 +356,51 @@ export default function PublicValidationSurveyPage() {
             )}
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 border-t border-slate-100 pt-5">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleResetForAnotherResponse}
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Submit Another Response
-            </Button>
-          </div>
+          {/* Prolific Completion Box & Auto-Redirect */}
+          {prolificPid && (
+            <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50/80 p-5 text-left">
+              <div className="flex items-center gap-2 text-xs font-bold text-indigo-900">
+                <Check className="h-4 w-4 text-emerald-600" />
+                Prolific Study Completed (Completion Code:{' '}
+                <span className="font-mono text-indigo-700">SPF_SURVEY_VERIFIED</span>)
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-indigo-800">
+                Participant ID: <code className="rounded bg-white px-1.5 py-0.5 text-indigo-950 font-mono text-[10px]">{prolificPid}</code>.
+                {prolificRedirectTimer !== null && prolificRedirectTimer > 0 ? (
+                  <span className="block mt-1 font-semibold text-indigo-900">
+                    Redirecting back to Prolific in {prolificRedirectTimer} second{prolificRedirectTimer !== 1 ? 's' : ''}...
+                  </span>
+                ) : (
+                  <span className="block mt-1 font-semibold text-indigo-900">
+                    Click the button below to confirm your submission on Prolific:
+                  </span>
+                )}
+              </p>
+              <div className="mt-3">
+                <a
+                  href={PROLIFIC_COMPLETION_URL}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 sm:w-auto"
+                >
+                  Return to Prolific Now
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+          )}
+
+          {!prolificPid && (
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 border-t border-slate-100 pt-5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleResetForAnotherResponse}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Submit Another Response
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );

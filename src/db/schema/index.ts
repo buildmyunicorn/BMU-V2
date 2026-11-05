@@ -584,7 +584,77 @@ export const surveyResponses = pgTable('survey_responses', {
   answersJsonb: jsonb('answers_jsonb').notNull(),
   respondentEmail: text('respondent_email'),
   joinedWaitlist: boolean('joined_waitlist').default(false).notNull(),
+  source: text('source').default('ORGANIC').notNull(), // 'ORGANIC' | 'POLLFISH_PANEL' | 'BOOST_ORDER' | 'ADMIN_INGEST'
+  boostOrderId: text('boost_order_id'), // Link to survey_boost_orders if delivered via boost pack
   submittedAt: timestamp('submitted_at').defaultNow().notNull(),
+});
+
+// ==========================================
+// 6B. SURVEY BOOST ORDERS & CONFIGURABLE PRICING TIERS
+// ==========================================
+export const surveyBoostPricingTiers = pgTable('survey_boost_pricing_tiers', {
+  id: text('id').primaryKey(), // e.g. 'TIER_STARTER_25', 'TIER_ASSESSOR_50', 'TIER_SCALE_100'
+  tierName: text('tier_name').notNull(), // 'Starter Pilot Pack', 'Assessor Proof Pack', 'Market Scale Pack'
+  responseCount: integer('response_count').notNull(), // 25, 50, 100
+  priceEurCents: integer('price_eur_cents').notNull(), // 4900 = €49.00
+  priceGbpCents: integer('price_gbp_cents').notNull(), // 4200 = £42.00
+  priceUsdCents: integer('price_usd_cents').default(5900).notNull(), // 5900 = $59.00
+  turnaroundHours: integer('turnaround_hours').default(48).notNull(), // 24, 48, 72
+  targetAudienceType: text('target_audience_type').default('CONSUMER').notNull(), // 'CONSUMER' | 'CONSUMER_TARGETED' | 'B2B_NICHE'
+  badgeLabel: text('badge_label'), // 'Most Popular for LEO Grants'
+  description: text('description').notNull(),
+  featuresJson: jsonb('features_json').$type<string[]>().default([]).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  displayOrder: integer('display_order').default(0).notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const surveyBoostOrders = pgTable('survey_boost_orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  planId: uuid('plan_id')
+    .references(() => startupPlans.id, { onDelete: 'cascade' })
+    .notNull(),
+  surveyId: uuid('survey_id')
+    .references(() => validationSurveys.id, { onDelete: 'cascade' })
+    .notNull(),
+  userId: text('user_id')
+    .references(() => users.id)
+    .notNull(),
+  tierId: text('tier_id').notNull(),
+  tierName: text('tier_name').notNull(),
+  targetResponses: integer('target_responses').notNull(),
+  deliveredResponses: integer('delivered_responses').default(0).notNull(),
+  amountPaidCents: integer('amount_paid_cents').notNull(),
+  currency: text('currency').default('EUR').notNull(), // 'EUR', 'GBP', 'USD'
+  stripeSessionId: text('stripe_session_id'),
+  stripePaymentIntentId: text('stripe_payment_intent_id'),
+  status: text('status').default('PENDING_PAYMENT').notNull(), // 'PENDING_PAYMENT' | 'PAID' | 'DISPATCHED_TO_PANEL' | 'PARTIALLY_DELIVERED' | 'COMPLETED' | 'REFUNDED'
+  
+  // Demographic and Audience Targeting Details
+  targetCountryCode: text('target_country_code').default('IE').notNull(), // 'IE' | 'GB' | 'US' | 'ALL'
+  targetAudienceType: text('target_audience_type').default('CONSUMER').notNull(), // 'CONSUMER' | 'CONSUMER_TARGETED' | 'B2B_NICHE'
+  targetDemographicsJson: jsonb('target_demographics_json').$type<{
+    ageRanges?: string[];
+    gender?: string;
+    employmentStatus?: string[];
+    livingStatus?: string[];
+    parentalStatus?: string;
+    industrySector?: string;
+    jobTitle?: string;
+    customNotes?: string;
+  }>().default({}).notNull(),
+  screenerQuestion: text('screener_question'), // e.g. "Have you used an AI accounting tool in the last 12 months?"
+  screenerAcceptAnswer: text('screener_accept_answer'), // e.g. "YES"
+
+  // Phase 2: Programmatic Panel Linkage (Pollfish / Prolific)
+  panelProvider: text('panel_provider').default('POLLFISH'), // 'POLLFISH' | 'PROLIFIC' | 'CONCIERGE'
+  panelSurveyId: text('panel_survey_id'),
+  panelStatus: text('panel_status'),
+  adminNotes: text('admin_notes'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  dispatchedAt: timestamp('dispatched_at'),
+  completedAt: timestamp('completed_at'),
 });
 
 // ==========================================
@@ -1020,6 +1090,24 @@ export const surveyResponsesRelations = relations(
     survey: one(validationSurveys, {
       fields: [surveyResponses.surveyId],
       references: [validationSurveys.id],
+    }),
+  })
+);
+
+export const surveyBoostOrdersRelations = relations(
+  surveyBoostOrders,
+  ({ one }) => ({
+    plan: one(startupPlans, {
+      fields: [surveyBoostOrders.planId],
+      references: [startupPlans.id],
+    }),
+    survey: one(validationSurveys, {
+      fields: [surveyBoostOrders.surveyId],
+      references: [validationSurveys.id],
+    }),
+    user: one(users, {
+      fields: [surveyBoostOrders.userId],
+      references: [users.id],
     }),
   })
 );

@@ -163,3 +163,35 @@ DATABASE_URL=postgresql://spf_db_user:CHANGE_ME_SECURE_PASSWORD@localhost/startu
    * Automatically switches to deterministic smart-synthesizer fallback when the daily ceiling is reached.
 3. **Google Cloud Billing Alerts**:
    * Set budget alerts at **€15, €30, and €50/month** in [Google Cloud Console → Billing → Budgets & Alerts](https://console.cloud.google.com/billing/budgets).
+
+---
+
+## Step 7: Custom Domain Setup & WWW Handling
+
+The domain DNS is managed in **Cloudflare** (`coen.ns.cloudflare.com` / `ines.ns.cloudflare.com`).
+
+### 1. Apex Domain (`startuppreflight.com`):
+- Mapped in Cloud Run to `startuppreflight-web` in `europe-west1`.
+- DNS in Cloudflare has 4 A records pointing to Google Frontend IPs (`216.239.32.21`, `216.239.34.21`, `216.239.36.21`, `216.239.38.21`) and 4 AAAA records.
+
+### 2. WWW Subdomain (`www.startuppreflight.com`):
+To ensure `www.startuppreflight.com` resolves cleanly to `startuppreflight.com`:
+
+#### Recommended Approach: Cloudflare 301 Redirect (Canonical Apex)
+Consolidates all SEO authority, cookies, and traffic onto `https://startuppreflight.com`:
+1. In Cloudflare DNS:
+   - Add a CNAME record: `www` pointing to `startuppreflight.com` (Proxy status: **Proxied** / Orange Cloud).
+2. In Cloudflare Rules -> **Redirect Rules**:
+   - Rule name: `Redirect WWW to Apex`
+   - Match: `Hostname equals www.startuppreflight.com`
+   - Target URL (Dynamic): `concat("https://startuppreflight.com", http.request.uri.path)`
+   - Status: `301 Moved Permanently` (Preserve query string: checked).
+
+#### Alternative Approach: Direct Cloud Run Mapping
+1. Cloud Run domain mapping for `www.startuppreflight.com` has been provisioned:
+   ```bash
+   gcloud beta run domain-mappings create --service=startuppreflight-web --domain=www.startuppreflight.com --region=europe-west1 --project=startuppreflight
+   ```
+2. In Cloudflare DNS:
+   - Add CNAME record: Name `www`, Target `ghs.googlehosted.com.`, Proxy status: **DNS Only** (Grey Cloud) until certificate issues.
+

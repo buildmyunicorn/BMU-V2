@@ -7,6 +7,7 @@ import {
   planModulesData,
   validationSurveys,
   surveyResponses,
+  surveyBoostOrders,
   openQuestionsParkingLot,
   type BlindSpotItem,
 } from '@/db';
@@ -784,6 +785,8 @@ function sanitizeSurveyAnswersMap(
 export async function submitPublicSurveyResponseAction(input: {
   publicSlug: string;
   response: SavedSurveyResponse;
+  boostOrderId?: string;
+  prolificPid?: string;
 }): Promise<{
   ok: boolean;
   persistedToCloudSql: boolean;
@@ -839,15 +842,21 @@ export async function submitPublicSurveyResponseAction(input: {
       return { ok: false, persistedToCloudSql: false };
     }
 
+    const isPanel = Boolean(input.prolificPid || input.boostOrderId);
+    const sourceTag = input.prolificPid ? 'PROLIFIC_PANEL' : isPanel ? 'BOOST_ORDER' : 'ORGANIC';
+
     const [insertedResp] = await db
       .insert(surveyResponses)
       .values({
         surveyId: surveyRow.id,
+        source: sourceTag,
+        boostOrderId: input.boostOrderId || null,
         answersJsonb: {
           answers: sanitizedAnswers,
-          respondentNameOrRole: sanitizedNameOrRole,
+          respondentNameOrRole: sanitizedNameOrRole || (input.prolificPid ? `Verified Respondent (${input.prolificPid.slice(0, 8)})` : undefined),
           // Public route submissions are always real respondents, never simulated
           isSimulated: false,
+          prolificPid: input.prolificPid || undefined,
           clientResponseId: String(
             input.response.clientResponseId || input.response.id || ''
           ).slice(0, 100),
@@ -856,6 +865,18 @@ export async function submitPublicSurveyResponseAction(input: {
         joinedWaitlist: Boolean(input.response.joinedWaitlist),
       })
       .returning();
+
+    // If linked to an active boost order, increment delivered_responses in survey_boost_orders
+    if (input.boostOrderId) {
+      await db
+        .update(surveyBoostOrders)
+        .set({
+          deliveredResponses: sql`${surveyBoostOrders.deliveredResponses} + 1`,
+          status: sql`CASE WHEN ${surveyBoostOrders.deliveredResponses} + 1 >= ${surveyBoostOrders.targetResponses} THEN 'COMPLETED' ELSE 'PARTIALLY_DELIVERED' END`,
+          completedAt: sql`CASE WHEN ${surveyBoostOrders.deliveredResponses} + 1 >= ${surveyBoostOrders.targetResponses} THEN NOW() ELSE NULL END`,
+        })
+        .where(eq(surveyBoostOrders.id, input.boostOrderId as any));
+    }
 
     // Also sync the new response into plan_modules_data (MOD_C_SURVEYS_FEEDBACK) for this plan
     const existingMod = await db

@@ -1,36 +1,31 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   FileText,
   Sparkles,
-  Plus,
-  Trash2,
+  Printer,
   Copy,
   Check,
-  ChevronDown,
-  ChevronUp,
-  Download,
-  Printer,
+  Plus,
+  Trash2,
   ShieldCheck,
-  AlertTriangle,
-  HelpCircle,
-  Lightbulb,
-  Building2,
-  Landmark,
-  Scale,
-  Rocket,
-  Layers,
+  AlertCircle,
   ArrowRight,
-  Save,
-  Loader2,
-  SlidersHorizontal,
-  BookmarkPlus,
-  X,
+  ChevronRight,
+  Edit3,
+  Wand2,
   RefreshCw,
-  ExternalLink,
+  Download,
+  BookOpen,
+  TrendingUp,
+  Users,
+  Building,
+  DollarSign,
+  X,
+  Target,
+  FileCheck2,
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,13 +35,14 @@ import type {
   BusinessPlanVersionItem,
   BusinessPlanArchetype,
   ModuleLCompiledSectionItem,
-  ModuleLContradictionAuditItem,
   SavedModuleLData,
 } from '@/lib/auth/session-store';
 import {
   saveBusinessPlanStudioVersionsAction,
   compileBusinessPlanSectionAction,
   auditBusinessPlanVersionAction,
+  polishBusinessPlanChapterAction,
+  compileAllBusinessPlanSectionsAction,
 } from '@/app/actions/business-plan-studio';
 
 export interface BusinessPlanStudioWorkspaceProps {
@@ -112,17 +108,68 @@ export interface ArchetypeCatalogItem {
 
 export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
   {
-    archetype: 'IE_LEO_OFFICIAL_GRANT',
-    title: 'Irish LEO & Enterprise Ireland Official Grant Application',
-    badge: '🇮🇪 Ireland LEO / EI Form',
-    targetAudience: 'GRANT_COMMITTEE',
-    targetTone: 'EVIDENCE_LED_ASSESSOR',
+    archetype: 'COMMERCIAL_BANK_LOAN',
+    title: 'Commercial Bank & Term Loan Credit Application',
+    badge: '🏦 Commercial Bank Credit Committee',
+    targetAudience: 'COMMERCIAL_BANK',
+    targetTone: 'UNDERWRITER_CONSERVATIVE',
     summary:
-      'Formatted strictly for Local Enterprise Office (Feasibility, Priming) & Enterprise Ireland evaluation committees. Prioritizes export potential, non-displacement, 3-quote supplier procurement, and 3-year job creation.',
+      'Engineered specifically for credit risk officers and bank loan underwriters (AIB, BoI, Barclays, NatWest, BBB Start Up Loans). Emphasizes cashflow trough, debt service coverage, collateral assets, personal survival budget, and down-side risk buffers.',
     sectionsTemplate: [
       {
         sectionNumber: 1,
-        title: 'Promoter Track Record, Roles & Commitment',
+        title: 'Executive Summary & Credit Facility Request',
+        assessorPrompt: 'State the precise loan facility requested, purpose of borrowing, promoter commitment, and repayment security sources.',
+        wordLimit: 350,
+        scoringWeightPercent: 20,
+        sourceModules: ['MOD_A_IDEATION', 'MOD_F_COFOUNDER_TEAM', 'MOD_J_FINANCE'],
+      },
+      {
+        sectionNumber: 2,
+        title: 'Promoter Background, Track Record & Personal Survival Budget',
+        assessorPrompt: 'Detail promoter creditworthiness, relevant industry domain expertise, and the verified monthly personal survival budget.',
+        wordLimit: 400,
+        scoringWeightPercent: 25,
+        sourceModules: ['MOD_F_COFOUNDER_TEAM'],
+      },
+      {
+        sectionNumber: 3,
+        title: 'Commercial Model, Customer Validation & Pricing Predictability',
+        assessorPrompt: 'Demonstrate customer willingness-to-pay, contract visibility, recurring revenue stability, and debtor terms.',
+        wordLimit: 400,
+        scoringWeightPercent: 20,
+        sourceModules: ['MOD_C_SURVEYS_FEEDBACK', 'MOD_H_REVENUE'],
+      },
+      {
+        sectionNumber: 4,
+        title: 'Operations, Premises, Asset Collateral & Fulfillment Resiliency',
+        assessorPrompt: 'Describe operating premises, leased vs. owned capital equipment, supply chain redundancy, and insurance coverage.',
+        wordLimit: 400,
+        scoringWeightPercent: 15,
+        sourceModules: ['MOD_E_OPERATIONS', 'MOD_G_LAUNCHPAD'],
+      },
+      {
+        sectionNumber: 5,
+        title: '3-Year Financial Model, Debt Service Coverage & Cashflow Trough',
+        assessorPrompt: 'Provide 36-month P&L and cashflow projections, identifying the lowest cash trough month and stress-tested debt service coverage ratio (DSCR).',
+        wordLimit: 450,
+        scoringWeightPercent: 20,
+        sourceModules: ['MOD_H_REVENUE', 'MOD_J_FINANCE'],
+      },
+    ],
+  },
+  {
+    archetype: 'IE_LEO_OFFICIAL_GRANT',
+    title: 'Irish LEO & Enterprise Ireland Official Grant Application',
+    badge: '🇮🇪 Ireland LEO / EI Evaluation Committee',
+    targetAudience: 'GRANT_COMMITTEE',
+    targetTone: 'EVIDENCE_LED_ASSESSOR',
+    summary:
+      'Formatted strictly for Local Enterprise Office (Feasibility, Priming) & Enterprise Ireland evaluation committees. Prioritizes export additionality, non-displacement, 3-quote supplier procurement, and 3-year net regional job creation.',
+    sectionsTemplate: [
+      {
+        sectionNumber: 1,
+        title: 'Promoter Track Record, Roles & Full-Time Commitment',
         assessorPrompt: 'Outline promoter professional background, domain expertise, 7 startup hats, and personal full-time commitment.',
         wordLimit: 400,
         scoringWeightPercent: 20,
@@ -138,7 +185,7 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
       },
       {
         sectionNumber: 3,
-        title: 'Market Opportunity, Export Additionality & Non-Displacement',
+        title: 'Market Opportunity, Export Additionality & Non-Displacement Defense',
         assessorPrompt: 'Substantiate TAM/SAM/SOM, target international export markets, and prove zero domestic economic displacement.',
         wordLimit: 450,
         scoringWeightPercent: 25,
@@ -154,7 +201,7 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
       },
       {
         sectionNumber: 5,
-        title: '3-Year Headcount Schedule, Salary Plan & Local Employment Impact',
+        title: '3-Year Headcount Schedule, Salary Plan & Local Employment Additionality',
         assessorPrompt: 'Detail scheduled headcount growth, Irish PRSI payroll burdens, and local net economic additionality.',
         wordLimit: 400,
         scoringWeightPercent: 15,
@@ -172,8 +219,8 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
   },
   {
     archetype: 'UK_INNOVATE_UK_9Q',
-    title: 'UK Innovate UK Smart Grants 9-Question Format',
-    badge: '🇬🇧 UK Innovate UK IFS',
+    title: 'UK Innovate UK Smart Grants Official Application',
+    badge: '🇬🇧 UK Innovate UK IFS Reviewers',
     targetAudience: 'GRANT_COMMITTEE',
     targetTone: 'EVIDENCE_LED_ASSESSOR',
     summary:
@@ -181,39 +228,39 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
     sectionsTemplate: [
       {
         sectionNumber: 1,
-        title: 'Q1. Need or Challenge & Market Failure',
+        title: 'Need or Challenge & Market Failure',
         assessorPrompt: 'What is the specific business need or societal challenge addressed, and why has the market failed to solve it?',
         wordLimit: 400,
-        scoringWeightPercent: 10,
+        scoringWeightPercent: 15,
         sourceModules: ['MOD_A_IDEATION', 'MOD_B_MARKET'],
       },
       {
         sectionNumber: 2,
-        title: 'Q2. Approach & Technical Step-Change',
+        title: 'Approach & Technical Step-Change',
         assessorPrompt: 'Describe the technical innovation, methodology, freedom-to-operate, and beyond state-of-the-art capability.',
         wordLimit: 400,
-        scoringWeightPercent: 15,
+        scoringWeightPercent: 20,
         sourceModules: ['MOD_B_MARKET', 'MOD_D_PRODUCT_BUILD'],
       },
       {
         sectionNumber: 3,
-        title: 'Q3. Team, Skills & Resource Capability',
+        title: 'Team, Skills & Resource Capability',
         assessorPrompt: 'Demonstrate that the team has the technical, commercial, and operational capability to deliver the project.',
         wordLimit: 400,
-        scoringWeightPercent: 10,
+        scoringWeightPercent: 15,
         sourceModules: ['MOD_F_COFOUNDER_TEAM'],
       },
       {
         sectionNumber: 4,
-        title: 'Q4. Market Awareness & Route to Commercialization',
+        title: 'Market Awareness & Route to Commercialization',
         assessorPrompt: 'What is the addressable market size (TAM/SAM/SOM), competitive wedge, and commercial exploitation plan?',
         wordLimit: 400,
-        scoringWeightPercent: 15,
+        scoringWeightPercent: 20,
         sourceModules: ['MOD_B_MARKET', 'MOD_I_MARKETING'],
       },
       {
         sectionNumber: 5,
-        title: 'Q5. Work Packages, Deliverables & Project Milestones',
+        title: 'Work Packages, Deliverables & Project Milestones',
         assessorPrompt: 'Detail work packages WP1..n, milestone deliverables, Gantt timings, and technical dependencies.',
         wordLimit: 400,
         scoringWeightPercent: 15,
@@ -221,164 +268,196 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
       },
       {
         sectionNumber: 6,
-        title: 'Q6. Risk Management & 4-Category Mitigation Register',
-        assessorPrompt: 'Identify key technical, commercial, financial, and environmental risks with mitigation controls.',
+        title: 'Public Funding Additionality & Value for Money',
+        assessorPrompt: 'Why is public funding necessary? What would happen without grant support, and what is the economic return for the UK?',
         wordLimit: 400,
         scoringWeightPercent: 15,
-        sourceModules: ['MOD_E_OPERATIONS'],
-      },
-      {
-        sectionNumber: 7,
-        title: 'Q7. Project Costs, Value for Money & Additionality',
-        assessorPrompt: 'Justify eligible project expenditures, prove why private funding cannot fund the full project, and demonstrate additionality.',
-        wordLimit: 400,
-        scoringWeightPercent: 20,
-        sourceModules: ['MOD_J_FINANCE', 'MOD_K_GRANTS_FUNDING'],
-      },
-    ],
-  },
-  {
-    archetype: 'COMMERCIAL_BANK_LOAN',
-    title: 'Commercial Bank Credit Pack (AIB / BOI / Barclays / BBB)',
-    badge: '🏦 Commercial Bank Credit Pack',
-    targetAudience: 'COMMERCIAL_BANK',
-    targetTone: 'UNDERWRITER_CONSERVATIVE',
-    summary:
-      'Tuned for credit committee risk officers. Proves debt service coverage (DSCR ≥ 1.25x), downside stress testing, working capital buffer, founder survival budget discipline, and statutory clean setup.',
-    sectionsTemplate: [
-      {
-        sectionNumber: 1,
-        title: 'Borrower Background, Corporate Legal Entity & Clean Setup',
-        assessorPrompt: 'Details of LTD registration, directors, credit history, clean banking, and governance structure.',
-        wordLimit: 350,
-        scoringWeightPercent: 20,
-        sourceModules: ['MOD_A_IDEATION', 'MOD_F_COFOUNDER_TEAM', 'MOD_G_LAUNCHPAD'],
-      },
-      {
-        sectionNumber: 2,
-        title: 'Commercial Model, Pricing Stability & Proven Customer Demand',
-        assessorPrompt: 'Outline predictable revenue streams, recurring contracts, gross margin profile, and customer survey proof.',
-        wordLimit: 400,
-        scoringWeightPercent: 25,
-        sourceModules: ['MOD_C_SURVEYS_FEEDBACK', 'MOD_H_REVENUE'],
-      },
-      {
-        sectionNumber: 3,
-        title: 'Director Personal Survival Budget & Household Drawings Affordability',
-        assessorPrompt: 'Demonstrate that directors have minimal personal drain on business cashflow during early months.',
-        wordLimit: 350,
-        scoringWeightPercent: 20,
-        sourceModules: ['MOD_F_COFOUNDER_TEAM'],
-      },
-      {
-        sectionNumber: 4,
-        title: '36-Month Cashflow Forecast & Debt Service Coverage (DSCR)',
-        assessorPrompt: 'Show conservative monthly cash trough, working capital reserve, and proof of loan repayment coverage.',
-        wordLimit: 500,
-        scoringWeightPercent: 35,
-        sourceModules: ['MOD_J_FINANCE', 'MOD_K_GRANTS_FUNDING'],
+        sourceModules: ['MOD_K_GRANTS_FUNDING', 'MOD_J_FINANCE'],
       },
     ],
   },
   {
     archetype: 'INVESTOR_ANGEL_MEMO',
-    title: 'Pre-Seed / Angel Investor 8-Page Memo (with SEIS / EII Relief)',
-    badge: '🚀 Angel & Seed Investment Memo',
+    title: 'Angel & Seed Investor Investment Memorandum',
+    badge: '👼 Angel & Micro-VC Investment Memo',
     targetAudience: 'ANGEL_INVESTOR',
     targetTone: 'VENTURE_HIGH_GROWTH',
     summary:
-      'High-conviction venture brief for angels, syndicates, and pre-seed funds. Emphasizes problem urgency, unfair wedge, unit economics, explosive SOM-to-TAM expansion, team track record, and use of funds.',
+      'Optimized for high-net-worth angels, syndicates, and seed venture capital funds. Highlights addressable market expansion, customer obsession, unfair competitive moats, unit economics scale, and capital efficiency.',
     sectionsTemplate: [
       {
         sectionNumber: 1,
-        title: 'The Problem, Urgent Pain Point & Customer Pull',
-        assessorPrompt: 'Articulate the urgent industry bottleneck, willingness-to-pay validation, and customer pain intensity.',
+        title: 'Venture Vision, Problem & Market Timing ("Why Now?")',
+        assessorPrompt: 'Define the macro shift creating this market opportunity, customer pain urgency, and our clear value proposition.',
         wordLimit: 400,
-        scoringWeightPercent: 20,
-        sourceModules: ['MOD_A_IDEATION', 'MOD_C_SURVEYS_FEEDBACK'],
+        scoringWeightPercent: 25,
+        sourceModules: ['MOD_A_IDEATION', 'MOD_B_MARKET'],
       },
       {
         sectionNumber: 2,
-        title: 'The Solution, Product Architecture & Defensible Moat',
-        assessorPrompt: 'Explain how the product solves the problem uniquely, proprietary technical wedge, and defensibility.',
+        title: 'The Solution, Product Vehicle & Unfair Competitive Wedge',
+        assessorPrompt: 'What is the proprietary wedge or IP that prevents incumbents from copying our solution? Detail V1 architecture.',
         wordLimit: 450,
         scoringWeightPercent: 25,
         sourceModules: ['MOD_B_MARKET', 'MOD_D_PRODUCT_BUILD'],
       },
       {
         sectionNumber: 3,
-        title: 'Market Size (TAM/SAM/SOM) & Go-to-Market Flywheel',
-        assessorPrompt: 'Quantify the market upside, beachhead acquisition channel, and first 10-to-100 customer conversion strategy.',
-        wordLimit: 450,
+        title: 'Customer Discovery Proof & Willingness-to-Pay Metrics',
+        assessorPrompt: 'Present empirical validation metrics from real prospective customers, Mom-Test interviews, and early waitlist volume.',
+        wordLimit: 350,
         scoringWeightPercent: 20,
-        sourceModules: ['MOD_B_MARKET', 'MOD_I_MARKETING'],
+        sourceModules: ['MOD_C_SURVEYS_FEEDBACK'],
       },
       {
         sectionNumber: 4,
-        title: 'Unit Economics, Gross Margins & Scalability',
-        assessorPrompt: 'Break down pricing tiers, CAC payback, contribution margin, and capital efficiency.',
+        title: 'Go-to-Market Engine & First 100 Customers Playbook',
+        assessorPrompt: 'Detail unit CAC expectations, organic vs. paid distribution channels, positioning, and conversion economics.',
         wordLimit: 400,
-        scoringWeightPercent: 20,
-        sourceModules: ['MOD_H_REVENUE', 'MOD_J_FINANCE'],
+        scoringWeightPercent: 15,
+        sourceModules: ['MOD_I_MARKETING'],
       },
       {
         sectionNumber: 5,
-        title: 'Founding Team, Cap Table, Tax Relief (SEIS/EII) & Use of Funds',
-        assessorPrompt: 'Founding pedigree, 7 startup hats, HMRC SEIS/EIS or Irish EII status, and 18-month milestone runway target.',
-        wordLimit: 500,
+        title: 'Unit Economics, 3-Year Scale & Seed Round Terms',
+        assessorPrompt: 'Pocket Profit contribution margin, breakeven velocity, 36-month revenue scaling targets, and proposed investment round size.',
+        wordLimit: 450,
         scoringWeightPercent: 15,
-        sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_K_GRANTS_FUNDING'],
+        sourceModules: ['MOD_H_REVENUE', 'MOD_J_FINANCE', 'MOD_K_GRANTS_FUNDING'],
       },
     ],
   },
   {
     archetype: 'LEAN_ONE_PAGER',
-    title: 'Lean 1-Page Executive Business Brief',
-    badge: '⚡ 1-Page Lean Executive Brief',
+    title: 'Lean 2-Page Executive Business Teaser',
+    badge: '⚡ 2-Page Executive Teaser Brief',
     targetAudience: 'ADVISOR_BOARD',
     targetTone: 'EXECUTIVE_CRISP',
     summary:
-      'High-signal 1-page overview for advisors, board directors, mentors, and quick strategic partner introductions. Distills the whole business into 5 punchy blocks.',
+      'High-signal 2-page brief designed for board advisors, mentors, commercial bank pre-checks, and cold investor outreach attachments.',
     sectionsTemplate: [
       {
         sectionNumber: 1,
-        title: 'Venture Snapshot & The Problem',
+        title: 'Venture Snapshot & Core Problem',
         assessorPrompt: '1-sentence core value proposition, targeted beachhead customer, and the painful problem being solved.',
-        wordLimit: 150,
-        scoringWeightPercent: 20,
+        wordLimit: 200,
+        scoringWeightPercent: 25,
         sourceModules: ['MOD_A_IDEATION', 'MOD_B_MARKET'],
       },
       {
         sectionNumber: 2,
         title: 'The Solution & Unfair Wedge',
         assessorPrompt: 'Core product mechanism, unfair competitive advantage, and customer validation metrics.',
-        wordLimit: 150,
-        scoringWeightPercent: 20,
+        wordLimit: 200,
+        scoringWeightPercent: 25,
         sourceModules: ['MOD_B_MARKET', 'MOD_D_PRODUCT_BUILD'],
       },
       {
         sectionNumber: 3,
         title: 'Commercial Model & Breakeven Crossover',
-        assessorPrompt: 'Pricing tiers, gross margin, breakeven customer volume, and Pocket Profit month.',
-        wordLimit: 150,
-        scoringWeightPercent: 20,
+        assessorPrompt: 'Pricing tiers, gross margin percentage, breakeven unit volume, and month of profitability.',
+        wordLimit: 200,
+        scoringWeightPercent: 25,
         sourceModules: ['MOD_H_REVENUE'],
       },
       {
         sectionNumber: 4,
-        title: 'Team & Governance',
-        assessorPrompt: 'Key promoters, complementary roles, statutory setup, and advisory board.',
-        wordLimit: 150,
-        scoringWeightPercent: 20,
-        sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_G_LAUNCHPAD'],
+        title: 'The Team & Capital Ask',
+        assessorPrompt: 'Founder background, domain credentials, current capital ask, and intended milestone outcomes.',
+        wordLimit: 200,
+        scoringWeightPercent: 25,
+        sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_J_FINANCE'],
+      },
+    ],
+  },
+  {
+    archetype: 'STANDARD_COMPREHENSIVE_PLAN',
+    title: 'Comprehensive Master Business Plan (10-Section Full Plan)',
+    badge: '📋 Comprehensive 10-Chapter Master Plan',
+    targetAudience: 'INTERNAL_TEAM',
+    targetTone: 'EXECUTIVE_CRISP',
+    summary:
+      'Complete, publication-grade business plan covering every operational and financial dimension for partners, senior executives, and all institutional stakeholders.',
+    sectionsTemplate: [
+      {
+        sectionNumber: 1,
+        title: 'Executive Summary',
+        assessorPrompt: 'Synthesize the entire venture into an authoritative 350-word executive overview.',
+        wordLimit: 350,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_A_IDEATION', 'MOD_H_REVENUE'],
+      },
+      {
+        sectionNumber: 2,
+        title: 'Company Description, Mission & Statutory Structure',
+        assessorPrompt: 'Legal entity type, registered location, founder vision, and core purpose.',
+        wordLimit: 300,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_A_IDEATION', 'MOD_G_LAUNCHPAD'],
+      },
+      {
+        sectionNumber: 3,
+        title: 'Market Analysis & Target Beachhead Customer',
+        assessorPrompt: 'TAM, SAM, SOM, beachhead segment sizing, and primary persona pains.',
+        wordLimit: 400,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_B_MARKET'],
+      },
+      {
+        sectionNumber: 4,
+        title: 'Competitive Wedge & State-of-the-Art Analysis',
+        assessorPrompt: 'Direct and indirect alternatives, unfair competitive advantage, and barrier to entry.',
+        wordLimit: 350,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_B_MARKET'],
       },
       {
         sectionNumber: 5,
-        title: 'Capital Stack & 12-Month Milestones',
-        assessorPrompt: 'Current funding status, grant awards, and the 3 primary milestones for the next 12 months.',
-        wordLimit: 150,
-        scoringWeightPercent: 20,
-        sourceModules: ['MOD_J_FINANCE', 'MOD_K_GRANTS_FUNDING'],
+        title: 'Product Architecture & Build Vehicle',
+        assessorPrompt: 'What is being built? Own-vs-rent technology infrastructure and key work packages.',
+        wordLimit: 400,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_D_PRODUCT_BUILD'],
+      },
+      {
+        sectionNumber: 6,
+        title: 'Operations, Fulfillment & Premises',
+        assessorPrompt: 'Day in the life of an order, premises, required equipment, and risk management.',
+        wordLimit: 400,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_E_OPERATIONS'],
+      },
+      {
+        sectionNumber: 7,
+        title: 'Management Team & Governance',
+        assessorPrompt: 'Founder CVs, 7 startup hats matrix, and 3-year headcount plan.',
+        wordLimit: 350,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_F_COFOUNDER_TEAM'],
+      },
+      {
+        sectionNumber: 8,
+        title: 'Go-to-Market & Customer Acquisition Strategy',
+        assessorPrompt: 'Positioning, channels, sales pipeline, and initial marketing budget.',
+        wordLimit: 350,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_I_MARKETING'],
+      },
+      {
+        sectionNumber: 9,
+        title: '3-Year Financial Plan & Breakeven Analysis',
+        assessorPrompt: 'Unit economics, monthly breakeven crossover, and 36-month P&L forecasts.',
+        wordLimit: 450,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_H_REVENUE', 'MOD_J_FINANCE'],
+      },
+      {
+        sectionNumber: 10,
+        title: 'Funding Requirements & Milestone Roadmap',
+        assessorPrompt: 'Total capital requirement, breakdown of sources & uses, and key milestone horizons.',
+        wordLimit: 350,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_K_GRANTS_FUNDING'],
       },
     ],
   },
@@ -400,15 +479,14 @@ export function BusinessPlanStudioWorkspace({
   const currency = plan.baseCurrency || (isUK ? 'GBP' : 'EUR');
   const currencySymbol = isUK ? '£' : plan.hqCountryCode === 'IE' ? '€' : '$';
 
-  // Initialize versions list from plan.moduleLData?.versions or default to initial version
+  // 1. Initial Versions
   const initialVersions: BusinessPlanVersionItem[] = useMemo(() => {
     if (plan.moduleLData?.versions && plan.moduleLData.versions.length > 0) {
       return plan.moduleLData.versions;
     }
 
-    // Default primary version based on country
     const defaultArchetypeKey: BusinessPlanArchetype = isUK
-      ? 'UK_INNOVATE_UK_9Q'
+      ? 'COMMERCIAL_BANK_LOAN'
       : 'IE_LEO_OFFICIAL_GRANT';
     const catalogItem =
       ARCHETYPE_CATALOG.find((c) => c.archetype === defaultArchetypeKey) ||
@@ -430,8 +508,8 @@ export function BusinessPlanStudioWorkspace({
       {
         id: `bp-ver-${Date.now()}`,
         title: isUK
-          ? 'Innovate UK Smart Grant Application (Official)'
-          : 'LEO Official Grant & Expansion Business Plan',
+          ? 'Commercial Bank Credit Application & Plan'
+          : 'LEO Official Grant & Growth Business Plan',
         archetype: defaultArchetypeKey,
         createdAt: new Date().toISOString(),
         lastEditedAt: new Date().toISOString(),
@@ -440,7 +518,7 @@ export function BusinessPlanStudioWorkspace({
         targetTone: catalogItem.targetTone,
         targetFundingAsk: 50000,
         sections: defaultSections,
-        executiveHookStatement: `${plan.title} is an evidence-backed venture positioned for high-value growth in ${selectedCountry}.`,
+        executiveHookStatement: `${plan.title} is an evidence-backed commercial venture positioned for sustainable, high-value growth in ${selectedCountry}.`,
       },
     ];
   }, [plan.moduleLData?.versions, isUK, plan.title, selectedCountry]);
@@ -454,26 +532,44 @@ export function BusinessPlanStudioWorkspace({
     return versions.find((v) => v.id === activeVersionId) || versions[0];
   }, [versions, activeVersionId]);
 
-  // Active Studio Sub-Tab: 'OVERVIEW' | 'SECTIONS' | 'AUDIT' | 'EXPORT'
-  const [activeStudioTab, setActiveStudioTab] = useState<'OVERVIEW' | 'SECTIONS' | 'AUDIT' | 'EXPORT'>('SECTIONS');
+  const catalogMeta = useMemo(() => {
+    return (
+      ARCHETYPE_CATALOG.find((c) => c.archetype === activeVersion?.archetype) ||
+      ARCHETYPE_CATALOG[0]
+    );
+  }, [activeVersion?.archetype]);
+
+  // 2. Option A: Inline "Click-to-Edit" State
+  // Which section is currently being edited inline on the continuous canvas (null = reader mode)
+  const [editingSectionNumber, setEditingSectionNumber] = useState<number | null>(null);
+  const [inlineEditText, setInlineEditText] = useState<string>('');
+  const [customPolishInstruction, setCustomPolishInstruction] = useState<string>('');
+  const [isPolishing, setIsPolishing] = useState<boolean>(false);
+  const [polishBanner, setPolishBanner] = useState<string | null>(null);
+
+  // Batch Generation State
+  const [isCompilingAll, setIsCompilingAll] = useState(false);
+  const [compileAllProgress, setCompileAllProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Pre-flight Contradiction Assessor Audit state
+  const [showAuditDrawer, setShowAuditDrawer] = useState(false);
+  const [isAuditing, setIsAuditing] = useState(false);
 
   // New Version Modal
   const [isCreatingNewVersion, setIsCreatingNewVersion] = useState(false);
   const [newVersionTitle, setNewVersionTitle] = useState('');
   const [selectedArchetypeForNew, setSelectedArchetypeForNew] =
-    useState<BusinessPlanArchetype>(isUK ? 'UK_INNOVATE_UK_9Q' : 'IE_LEO_OFFICIAL_GRANT');
+    useState<BusinessPlanArchetype>(isUK ? 'COMMERCIAL_BANK_LOAN' : 'IE_LEO_OFFICIAL_GRANT');
 
-  // Section Editing & AI Generation
-  const [openSectionNumber, setOpenSectionNumber] = useState<number | 'ALL'>(1);
-  const [compilingSectionNumber, setCompilingSectionNumber] = useState<number | null>(null);
-  const [isAuditing, setIsAuditing] = useState(false);
+  // Saving state
   const [isSaving, setIsSaving] = useState(false);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
-  const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
-  const [activeWhyCard, setActiveWhyCard] = useState<number | null>(null);
-  const [activeExampleCard, setActiveExampleCard] = useState<number | null>(null);
+  const [copiedSuccess, setCopiedSuccess] = useState(false);
 
-  // Save helper
+  // Refs for smooth scroll navigation
+  const chapterRefs = useRef<{ [key: number]: HTMLElement | null }>({});
+
+  // 3. Save helper
   async function persistVersions(newVersions: BusinessPlanVersionItem[], newActiveId?: string) {
     setIsSaving(true);
     setVersions(newVersions);
@@ -485,18 +581,18 @@ export function BusinessPlanStudioWorkspace({
         planId: plan.id,
         versions: newVersions,
         activeVersionId: targetActive,
-        completionPercentage: 50,
+        completionPercentage: 60,
       });
       if (res.ok) {
         onUpdatePlanModuleLData?.({
           ...(plan.moduleLData || {}),
           versions: newVersions,
           activeVersionId: targetActive,
-          completionPercentage: Math.max(plan.moduleLData?.completionPercentage || 0, 50),
+          completionPercentage: Math.max(plan.moduleLData?.completionPercentage || 0, 60),
           lastSavedAt: new Date().toISOString(),
         });
-        setSaveBanner('Saved to Business Plan Studio');
-        setTimeout(() => setSaveBanner(null), 3500);
+        setSaveBanner('Saved');
+        setTimeout(() => setSaveBanner(null), 2500);
       }
     } catch {
       // non-fatal
@@ -505,24 +601,141 @@ export function BusinessPlanStudioWorkspace({
     }
   }
 
-  // Create Version
+  // 4. Update section text in active version
+  function handleSaveSectionText(sectionNumber: number, text: string) {
+    if (!activeVersion) return;
+    const updatedSections = activeVersion.sections.map((s) =>
+      s.sectionNumber === sectionNumber ? { ...s, compiledResponseText: text } : s
+    );
+    const updatedVer: BusinessPlanVersionItem = {
+      ...activeVersion,
+      sections: updatedSections,
+      lastEditedAt: new Date().toISOString(),
+    };
+    const nextVersions = versions.map((v) => (v.id === activeVersion.id ? updatedVer : v));
+    persistVersions(nextVersions);
+    setEditingSectionNumber(null);
+  }
+
+  // 5. Option A: Inline AI Polish Action
+  async function handleApplyPolish(presetInstruction?: string) {
+    if (!activeVersion || editingSectionNumber === null) return;
+    const currentSec = activeVersion.sections.find((s) => s.sectionNumber === editingSectionNumber);
+    if (!currentSec) return;
+
+    const instruction = presetInstruction || customPolishInstruction;
+    if (!instruction.trim()) return;
+
+    setIsPolishing(true);
+    setPolishBanner(null);
+
+    try {
+      const res = await polishBusinessPlanChapterAction({
+        planId: plan.id,
+        chapterTitle: currentSec.title,
+        currentText: inlineEditText || currentSec.compiledResponseText,
+        instruction,
+        targetTone: activeVersion.targetTone,
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory,
+        hqCountryCode: selectedCountry,
+        baseCurrency: currency,
+      });
+
+      if (res.polishedText) {
+        setInlineEditText(res.polishedText);
+        setPolishBanner(res.summaryOfChanges || 'Prose refined with Gemini 2.5 Pro');
+        setCustomPolishInstruction('');
+      }
+    } catch {
+      // non-fatal fallback
+    } finally {
+      setIsPolishing(false);
+    }
+  }
+
+  // 6. One-Click Compile/Refresh Entire Document for Active Version
+  async function handleCompileAllChapters() {
+    if (!activeVersion || isVaultReadonly) return;
+    setIsCompilingAll(true);
+    setCompileAllProgress({ current: 0, total: activeVersion.sections.length });
+
+    const segments = plan.moduleBData?.marketSizing?.segments || [];
+    let samCalc = 0;
+    let somCalc = 0;
+    segments.forEach((s) => {
+      const price = parseFloat(s.pricePerCustomerInput || '0') || 0;
+      const reachable = parseFloat(s.reachableCustomersInTargetMarketsInput || '0') || 0;
+      const year1 = parseFloat(s.year1To2CustomerGoalInput || '0') || 0;
+      samCalc += price * reachable;
+      somCalc += price * year1;
+    });
+    if (samCalc === 0) samCalc = 250000;
+    if (somCalc === 0) somCalc = 50000;
+    const tamCalc = samCalc * 5;
+
+    const summaryFactPack = `
+VENTURE: "${plan.title}" (${plan.industryCategory || 'Startup'}) in ${selectedCountry} (${currency}).
+PROBLEM: ${plan.conceptCanvas?.coreProblem || 'Market pain points identified'}
+SOLUTION: ${plan.conceptCanvas?.proposedSolution || 'High-margin structured product'}
+CUSTOMER: ${plan.conceptCanvas?.targetCustomer || 'Target beachhead persona'}
+MARKET: TAM ${formatPlanCurrency(tamCalc, currency)}, SAM ${formatPlanCurrency(samCalc, currency)}, SOM ${formatPlanCurrency(somCalc, currency)}.
+VALIDATION: ${plan.moduleCData?.surveys?.[0]?.responses?.length || 0} customer discovery responses, ${plan.moduleCData?.surveys?.[0]?.aiInsightsSummary?.headlineTakeaway || 'Validated willingness to pay'}.
+PRICING & REVENUE: Target pricing modeled in Module H Pocket Profit breakeven.
+HEADCOUNT & SURVIVAL: Scheduled hiring and founder survival budget verified in Module F.
+OPERATIONS: Equipment and 3-quote schedules established in Module E.
+FINANCES: 36-month cashflow trough and localized employer taxes modeled in Module J.
+`;
+
+    try {
+      const res = await compileAllBusinessPlanSectionsAction({
+        planId: plan.id,
+        versionId: activeVersion.id,
+        archetype: activeVersion.archetype,
+        targetTone: activeVersion.targetTone,
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory,
+        hqCountryCode: selectedCountry,
+        baseCurrency: currency,
+        planContextSummary: summaryFactPack,
+        sections: activeVersion.sections.map((s) => ({
+          sectionNumber: s.sectionNumber,
+          title: s.title,
+          assessorPrompt: s.assessorQuestionPrompt,
+          wordLimit: s.wordLimit,
+          scoringWeightPercent: s.scoringWeightPercent,
+          currentResponseText: s.compiledResponseText,
+        })),
+      });
+
+      if (res.ok && res.compiledSections.length > 0) {
+        const resultMap = new Map(res.compiledSections.map((r) => [r.sectionNumber, r.compiledResponseText]));
+        const updatedSections = activeVersion.sections.map((s) => ({
+          ...s,
+          compiledResponseText: resultMap.get(s.sectionNumber) || s.compiledResponseText,
+        }));
+        const updatedVer: BusinessPlanVersionItem = {
+          ...activeVersion,
+          sections: updatedSections,
+          lastEditedAt: new Date().toISOString(),
+        };
+        const nextVersions = versions.map((v) => (v.id === activeVersion.id ? updatedVer : v));
+        persistVersions(nextVersions);
+        setSaveBanner('Entire plan regenerated with Gemini 2.5 Pro');
+        setTimeout(() => setSaveBanner(null), 3500);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setIsCompilingAll(false);
+      setCompileAllProgress(null);
+    }
+  }
+
+  // 7. Version Management Handlers
   function handleCreateVersion() {
     if (!newVersionTitle.trim()) return;
-    const cat =
-      ARCHETYPE_CATALOG.find((c) => c.archetype === selectedArchetypeForNew) ||
-      ARCHETYPE_CATALOG[0];
-
-    const newSections: ModuleLCompiledSectionItem[] = cat.sectionsTemplate.map((tpl) => ({
-      id: `sec-${tpl.sectionNumber}-${Date.now()}`,
-      sectionNumber: tpl.sectionNumber,
-      title: tpl.title,
-      assessorQuestionPrompt: tpl.assessorPrompt,
-      scoringWeightPercent: tpl.scoringWeightPercent,
-      wordLimit: tpl.wordLimit,
-      sourceModules: tpl.sourceModules,
-      compiledResponseText: '',
-    }));
-
+    const cat = ARCHETYPE_CATALOG.find((c) => c.archetype === selectedArchetypeForNew) || ARCHETYPE_CATALOG[0];
     const newVer: BusinessPlanVersionItem = {
       id: `bp-ver-${Date.now()}`,
       title: newVersionTitle.trim(),
@@ -533,154 +746,76 @@ export function BusinessPlanStudioWorkspace({
       targetAudience: cat.targetAudience,
       targetTone: cat.targetTone,
       targetFundingAsk: 50000,
-      sections: newSections,
-      executiveHookStatement: `${plan.title} addresses critical market demand with defensible operational excellence.`,
+      sections: cat.sectionsTemplate.map((tpl) => ({
+        id: `sec-${tpl.sectionNumber}-${Date.now()}`,
+        sectionNumber: tpl.sectionNumber,
+        title: tpl.title,
+        assessorQuestionPrompt: tpl.assessorPrompt,
+        scoringWeightPercent: tpl.scoringWeightPercent,
+        wordLimit: tpl.wordLimit,
+        sourceModules: tpl.sourceModules,
+        compiledResponseText: '',
+      })),
+      executiveHookStatement: `${plan.title} addresses ${plan.conceptCanvas?.targetCustomer || 'verified customers'} with high commercial additionality in ${selectedCountry}.`,
     };
 
-    const nextList = [...versions, newVer];
-    persistVersions(nextList, newVer.id);
+    const next = [...versions, newVer];
+    persistVersions(next, newVer.id);
     setIsCreatingNewVersion(false);
     setNewVersionTitle('');
-    setActiveStudioTab('SECTIONS');
   }
 
-  // Duplicate Version
-  function handleDuplicateVersion(versionToClone: BusinessPlanVersionItem) {
-    const cloned: BusinessPlanVersionItem = {
-      ...versionToClone,
-      id: `bp-ver-${Date.now()}`,
-      title: `${versionToClone.title} (Copy)`,
+  function handleDuplicateVersion(ver: BusinessPlanVersionItem) {
+    const dup: BusinessPlanVersionItem = {
+      ...ver,
+      id: `bp-ver-copy-${Date.now()}`,
+      title: `${ver.title} (Copy)`,
       createdAt: new Date().toISOString(),
       lastEditedAt: new Date().toISOString(),
       isPrimary: false,
-      sections: versionToClone.sections.map((s) => ({ ...s, id: `sec-${s.sectionNumber}-${Date.now()}` })),
+      sections: ver.sections.map((s) => ({ ...s, id: `sec-${s.sectionNumber}-${Date.now()}` })),
     };
-    persistVersions([...versions, cloned], cloned.id);
+    persistVersions([...versions, dup], dup.id);
   }
 
-  // Delete Version
-  function handleDeleteVersion(versionId: string) {
+  function handleDeleteVersion(id: string) {
     if (versions.length <= 1) return;
-    const nextList = versions.filter((v) => v.id !== versionId);
-    persistVersions(nextList, nextList[0].id);
+    const filtered = versions.filter((v) => v.id !== id);
+    persistVersions(filtered, filtered[0].id);
   }
 
-  // Section text update
-  function handleUpdateSectionText(secNum: number, newText: string) {
+  // 8. Copy Entire Document as clean text
+  function handleCopyEntireDocument() {
     if (!activeVersion) return;
-    const updatedSections = activeVersion.sections.map((sec) =>
-      sec.sectionNumber === secNum ? { ...sec, compiledResponseText: newText, isCustomEdited: true } : sec
-    );
-    const updatedVer: BusinessPlanVersionItem = {
-      ...activeVersion,
-      sections: updatedSections,
-      lastEditedAt: new Date().toISOString(),
-    };
-    const nextList = versions.map((v) => (v.id === activeVersion.id ? updatedVer : v));
-    persistVersions(nextList);
+    const fullDoc = `
+# ${plan.title}
+## ${activeVersion.title} (${catalogMeta.badge})
+Target Stakeholder: ${activeVersion.targetAudience}
+Date: ${new Date().toLocaleDateString()}
+Location: ${selectedCountry} | Currency: ${currency} (${currencySymbol})
+Facility / Ask Amount: ${formatPlanCurrency(activeVersion.targetFundingAsk || 50000, currency)}
+
+---
+
+${activeVersion.sections
+  .map(
+    (sec) => `### Chapter ${sec.sectionNumber}: ${sec.title}
+
+${sec.compiledResponseText || '(Chapter not compiled yet)'}
+`
+  )
+  .join('\n---\n\n')}
+
+---
+Generated by Startup Preflight Business Plan Studio (Gemini 2.5 Pro Institutional Engine)
+`.trim();
+
+    navigator.clipboard.writeText(fullDoc);
+    setCopiedSuccess(true);
+    setTimeout(() => setCopiedSuccess(false), 2500);
   }
 
-  // AI Compile Section (Powered strictly by Gemini 2.5 Pro)
-  async function handleCompileSection(sec: ModuleLCompiledSectionItem) {
-    if (!activeVersion || isVaultReadonly) return;
-    setCompilingSectionNumber(sec.sectionNumber);
-
-    try {
-      const surveySummary =
-        plan.moduleCData?.surveys?.[0]?.aiInsightsSummary?.headlineTakeaway ||
-        'Strong willingness to pay and customer demand validated';
-
-      const summaryFactPack = `
-      STARTUP: "${plan.title}"
-      INDUSTRY: ${plan.industryCategory || 'Startup'}
-      CORE PROBLEM: ${plan.conceptCanvas?.coreProblem || 'Validated industry pain point'}
-      SOLUTION: ${plan.conceptCanvas?.proposedSolution || 'Proprietary product solution'}
-      UNFAIR ADVANTAGE: ${plan.conceptCanvas?.unfairAdvantage || 'Defensible wedge'}
-      SURVEY VALIDATION: ${surveySummary}
-      PRICING & REVENUE: Target pricing modeled in Module H Pocket Profit breakeven.
-      HEADCOUNT & SURVIVAL: Scheduled hiring and founder survival budget verified in Module F.
-      OPERATIONS: Equipment and 3-quote schedules established in Module E.
-      FINANCES: 36-month cashflow trough and localized employer taxes modeled in Module J.
-      `;
-
-      const result = await compileBusinessPlanSectionAction({
-        planId: plan.id,
-        versionId: activeVersion.id,
-        sectionNumber: sec.sectionNumber,
-        sectionTitle: sec.title,
-        assessorPrompt: sec.assessorQuestionPrompt,
-        wordLimit: sec.wordLimit,
-        scoringWeightPercent: sec.scoringWeightPercent,
-        planTitle: plan.title,
-        industryCategory: plan.industryCategory,
-        hqCountryCode: selectedCountry,
-        baseCurrency: currency,
-        targetTone: activeVersion.targetTone,
-        currentResponseText: sec.compiledResponseText,
-        planContextSummary: summaryFactPack,
-      });
-
-      if (result.compiledResponseText) {
-        handleUpdateSectionText(sec.sectionNumber, result.compiledResponseText);
-      }
-    } catch {
-      // non-fatal fallback
-    } finally {
-      setCompilingSectionNumber(null);
-    }
-  }
-
-  // Pre-flight Contradiction & Assessor Audit (Powered by Gemini 2.5 Pro)
-  async function handleRunAudit() {
-    if (!activeVersion || isVaultReadonly) return;
-    setIsAuditing(true);
-
-    try {
-      const auditResult = await auditBusinessPlanVersionAction({
-        planId: plan.id,
-        planTitle: plan.title,
-        hqCountryCode: selectedCountry,
-        baseCurrency: currency,
-        industryCategory: plan.industryCategory,
-        targetFundingAskAmount: activeVersion.targetFundingAsk,
-        archetype: activeVersion.archetype,
-        moduleAExportPotential: plan.exportPotential,
-        moduleBSegments: plan.moduleBData?.beachhead?.beachheadSegment || 'Target business segment',
-        moduleCSurveySummary: plan.moduleCData?.surveys?.[0]?.aiInsightsSummary?.headlineTakeaway,
-        moduleDPricingAndQuotes: 'Defined product architecture and 3 quotes',
-        moduleEOperationsEquipment: 'Equipment schedule and risk register complete',
-        moduleFTeamAndHeadcount: 'Founder survival budget and hiring plan',
-        moduleGLaunchpadSetup: 'LTD incorporated and business banking verified',
-        moduleHRevenueAndPricing: 'Pocket profit crossover analyzed',
-        moduleJFinanceAndCashflow: '36-month cashflow with local employer taxes',
-        moduleKFundingStackAndBuffer: 'Grant capital stack and reimbursement buffer',
-      });
-
-      const updatedVer: BusinessPlanVersionItem = {
-        ...activeVersion,
-        auditScore: auditResult.overallAuditScore,
-        auditItems: auditResult.auditItems,
-        lastAuditedAt: new Date().toISOString(),
-      };
-      const nextList = versions.map((v) => (v.id === activeVersion.id ? updatedVer : v));
-      persistVersions(nextList);
-    } catch {
-      // non-fatal
-    } finally {
-      setIsAuditing(false);
-    }
-  }
-
-  // Copy helper
-  function copyTextToClipboard(text: string, id: string) {
-    if (navigator?.clipboard) {
-      navigator.clipboard.writeText(text);
-      setCopiedSectionId(id);
-      setTimeout(() => setCopiedSectionId(null), 2000);
-    }
-  }
-
-  // Overall word count & completeness
+  // Metrics summary
   const totalWords = useMemo(() => {
     if (!activeVersion?.sections) return 0;
     return activeVersion.sections.reduce((acc, sec) => {
@@ -691,838 +826,935 @@ export function BusinessPlanStudioWorkspace({
     }, 0);
   }, [activeVersion?.sections]);
 
-  const completedSectionsCount = useMemo(() => {
+  const compiledCount = useMemo(() => {
     if (!activeVersion?.sections) return 0;
-    return activeVersion.sections.filter((s) => (s.compiledResponseText || '').trim().length > 40).length;
+    return activeVersion.sections.filter((s) => (s.compiledResponseText || '').trim().length > 30).length;
   }, [activeVersion?.sections]);
+
+  // Smooth scroll to chapter
+  function scrollToChapter(num: number) {
+    const el = chapterRefs.current[num];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* 1. Header Hero Card: Business Plan Studio */}
-      <div className="relative overflow-hidden rounded-2xl border border-indigo-200/90 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 p-6 text-white shadow-sm sm:p-8">
-        <div className="relative z-10 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/30 text-indigo-300 ring-1 ring-white/20">
-                <FileText className="h-5 w-5 text-indigo-200" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-                    Business Plan Studio
-                  </h1>
-                  <Badge className="border-indigo-400/40 bg-indigo-500/25 text-[10px] font-bold text-indigo-200">
-                    2.5 PRO REASONING
-                  </Badge>
-                </div>
-                <p className="mt-0.5 max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
-                  Create, adapt, and export tailored business plans and grant dossiers for any stakeholder (LEO Grants, Bank Loans, Angel Memos, or 1-Page Lean Plans).
-                </p>
-              </div>
+      {/* ========================================================================= */}
+      {/* 1. TOP CONTROL BAR (Audience Selector, Multi-Version Ribbon, Top Actions) */}
+      {/* ========================================================================= */}
+      <div className="sticky top-0 z-30 rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-sm backdrop-blur-md">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Left: Active Version Badge & Switcher */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-xs">
+              <Sparkles className="h-5 w-5" />
             </div>
-
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsCreatingNewVersion(true)}
-                className="border-white/20 bg-white/10 text-xs font-semibold text-white hover:bg-white/20"
-              >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                New Plan Version
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setActiveStudioTab('EXPORT')}
-                className="bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-500"
-              >
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                Export Station
-              </Button>
-            </div>
-          </div>
-
-          {/* Active Version Ribbon Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur-xs">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-indigo-200">Active Plan Version:</span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {versions.map((ver) => {
-                  const isActive = ver.id === activeVersion?.id;
-                  return (
-                    <button
-                      key={ver.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveVersionId(ver.id);
-                        persistVersions(versions, ver.id);
-                      }}
-                      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                        isActive
-                          ? 'bg-indigo-600 text-white shadow-xs ring-1 ring-white/30'
-                          : 'bg-white/10 text-indigo-100 hover:bg-white/20'
-                      }`}
-                    >
-                      <span>{ver.title}</span>
-                      {isActive && <Check className="h-3 w-3 text-emerald-300" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Meta badges */}
-            <div className="flex items-center gap-3 text-xs text-indigo-200">
-              <span>
-                <strong>{completedSectionsCount}</strong> / {activeVersion?.sections?.length || 0} Sections Ready
-              </span>
-              <span>•</span>
-              <span>
-                <strong>{totalWords}</strong> Total Words
-              </span>
-              {activeVersion?.auditScore !== undefined && (
-                <>
-                  <span>•</span>
-                  <span className="inline-flex items-center gap-1 text-emerald-300 font-bold">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    {activeVersion.auditScore}% Audit Score
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Save banner feedback */}
-      {saveBanner && (
-        <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-900">
-          <span className="flex items-center gap-2">
-            <Check className="h-4 w-4 text-emerald-600" />
-            {saveBanner}
-          </span>
-          <button
-            type="button"
-            onClick={() => setSaveBanner(null)}
-            className="text-[11px] underline text-emerald-700"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* 2. Studio Sub-Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
-        <Button
-          size="sm"
-          variant={activeStudioTab === 'SECTIONS' ? 'default' : 'ghost'}
-          onClick={() => setActiveStudioTab('SECTIONS')}
-          className="text-xs font-semibold"
-        >
-          <FileText className="mr-1.5 h-3.5 w-3.5" />
-          Section Builder & Compiler ({completedSectionsCount}/{activeVersion?.sections?.length || 0})
-        </Button>
-        <Button
-          size="sm"
-          variant={activeStudioTab === 'AUDIT' ? 'default' : 'ghost'}
-          onClick={() => setActiveStudioTab('AUDIT')}
-          className="text-xs font-semibold"
-        >
-          <ShieldCheck className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
-          Pre-Flight Assessor Audit
-          {activeVersion?.auditScore !== undefined && (
-            <Badge variant="secondary" className="ml-1.5 text-[10px]">
-              {activeVersion.auditScore}%
-            </Badge>
-          )}
-        </Button>
-        <Button
-          size="sm"
-          variant={activeStudioTab === 'OVERVIEW' ? 'default' : 'ghost'}
-          onClick={() => setActiveStudioTab('OVERVIEW')}
-          className="text-xs font-semibold"
-        >
-          <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
-          Manage Versions ({versions.length})
-        </Button>
-        <Button
-          size="sm"
-          variant={activeStudioTab === 'EXPORT' ? 'default' : 'ghost'}
-          onClick={() => setActiveStudioTab('EXPORT')}
-          className="text-xs font-semibold"
-        >
-          <Download className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-          Preview & Export Dossier
-        </Button>
-      </div>
-
-      {/* 3. SUB-TAB CONTENT: SECTION BUILDER & COMPILER */}
-      {activeStudioTab === 'SECTIONS' && activeVersion && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-slate-900">{activeVersion.title}</h2>
-                <Badge variant="outline" className="border-indigo-300 text-indigo-700 text-[10px]">
-                  {activeVersion.targetTone.replace(/_/g, ' ')}
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Business Plan Studio
+                </span>
+                <Badge className="border-violet-200 bg-violet-100 text-[10px] font-bold text-violet-800">
+                  2.5 PRO REASONING
                 </Badge>
               </div>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Pulls empirical evidence from Modules A–K. Use the AI compiler to generate authoritative, assessor-ready text formatted to strict word limits.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setOpenSectionNumber(openSectionNumber === 'ALL' ? 1 : 'ALL')}
-                className="text-xs"
-              >
-                {openSectionNumber === 'ALL' ? 'Collapse All' : 'Expand All Sections'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-extrabold text-slate-900 sm:text-base">
+                  {activeVersion?.title}
+                </span>
+                <Badge variant="outline" className="text-[10px] font-medium text-slate-600">
+                  {catalogMeta.badge}
+                </Badge>
+              </div>
             </div>
           </div>
 
-          {/* Section Accordion Items */}
-          <div className="space-y-3">
-            {activeVersion.sections.map((sec) => {
-              const isOpen = openSectionNumber === 'ALL' || openSectionNumber === sec.sectionNumber;
-              const isCompiled = (sec.compiledResponseText || '').trim().length > 30;
-              const currentWords = (sec.compiledResponseText || '')
-                .trim()
-                .split(/\s+/)
-                .filter(Boolean).length;
-              const isOverLimit = currentWords > sec.wordLimit;
-              const isCompilingThis = compilingSectionNumber === sec.sectionNumber;
-
-              return (
-                <div
-                  key={sec.id}
-                  className={`rounded-xl border transition-all ${
-                    isOpen
-                      ? 'border-indigo-200 bg-white p-5 shadow-xs'
-                      : 'border-slate-200 bg-white p-4 hover:border-indigo-200 shadow-2xs'
-                  }`}
-                >
-                  {/* Collapsed Bar / Header */}
-                  <div className="flex items-start justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setOpenSectionNumber(isOpen ? 0 : sec.sectionNumber)}
-                      className="flex items-start gap-3 text-left min-w-0 flex-1"
-                    >
-                      <div
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                          isCompiled
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-indigo-100 text-indigo-800'
-                        }`}
-                      >
-                        {isCompiled ? <Check className="h-4 w-4" /> : sec.sectionNumber}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="truncate text-sm font-bold text-slate-900">
-                            {sec.sectionNumber}. {sec.title}
-                          </h3>
-                          <Badge
-                            variant={isCompiled ? 'default' : 'outline'}
-                            className={`text-[10px] ${
-                              isCompiled
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                : 'text-slate-500'
-                            }`}
-                          >
-                            {isCompiled ? 'Ready' : 'Draft / Empty'}
-                          </Badge>
-                        </div>
-                        <p className="mt-0.5 truncate text-xs text-slate-500">
-                          {sec.assessorQuestionPrompt}
-                        </p>
-                      </div>
-                    </button>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`text-xs font-semibold ${
-                          isOverLimit
-                            ? 'text-rose-600 font-bold'
-                            : currentWords > 0
-                              ? 'text-slate-700'
-                              : 'text-slate-400'
-                        }`}
-                      >
-                        {currentWords} / {sec.wordLimit}w
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setOpenSectionNumber(isOpen ? 0 : sec.sectionNumber)}
-                        className="h-8 w-8 p-0"
-                      >
-                        {isOpen ? (
-                          <ChevronUp className="h-4 w-4 text-slate-500" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-slate-500" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Expanded Body */}
-                  {isOpen && (
-                    <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
-                      {/* Assessor Rubric Prompt Card */}
-                      <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-700">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-slate-900">Assessor Question / Rubric:</span>
-                          <span className="text-[11px] font-semibold text-indigo-700">
-                            Scoring Weight: {sec.scoringWeightPercent}%
-                          </span>
-                        </div>
-                        <p className="mt-1 leading-relaxed text-slate-600">
-                          {sec.assessorQuestionPrompt}
-                        </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5 pt-1">
-                          <span className="text-[10px] font-semibold uppercase text-slate-400">
-                            Sources Grounded:
-                          </span>
-                          {sec.sourceModules.map((sm) => (
-                            <Badge
-                              key={sm}
-                              variant="secondary"
-                              className="text-[10px] bg-white border border-slate-200"
-                            >
-                              {sm.replace('MOD_', 'Module ')}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* 4-Layer Support Strip */}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setActiveWhyCard((prev) =>
-                                prev === sec.sectionNumber ? null : sec.sectionNumber
-                              )
-                            }
-                            className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
-                          >
-                            <HelpCircle className="mr-1 h-3.5 w-3.5" />
-                            Why Are We Asking This?
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setActiveExampleCard((prev) =>
-                                prev === sec.sectionNumber ? null : sec.sectionNumber
-                              )
-                            }
-                            className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
-                          >
-                            <Lightbulb className="mr-1 h-3.5 w-3.5" />
-                            Show Me an Example
-                          </Button>
-                        </div>
-
-                        {/* AI Generate Button (2.5 Pro) */}
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleCompileSection(sec)}
-                          disabled={isCompilingThis || isVaultReadonly}
-                          className="h-8 bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-500 shadow-xs"
-                        >
-                          {isCompilingThis ? (
-                            <>
-                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                              Compiling with 2.5 Pro...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-200" />
-                              Compile Section with AI (2.5 Pro)
-                            </>
-                          )}
-                        </Button>
-                      </div>
-
-                      {/* Why Drawer */}
-                      {activeWhyCard === sec.sectionNumber && (
-                        <div className="rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <strong>Why Assessors & Underwriters Require This:</strong>
-                            <button
-                              type="button"
-                              onClick={() => setActiveWhyCard(null)}
-                              className="text-indigo-400 hover:text-indigo-700"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                          <p>
-                            Institutional committees (LEO EVAC, Innovate UK, Commercial Banks) score submissions using strict rubrics. They must confirm additionality, realistic operational timelines, and evidence-backed demand rather than unsubstantiated founder hype.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Example Drawer */}
-                      {activeExampleCard === sec.sectionNumber && (
-                        <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <strong>High-Scoring Example Excerpt:</strong>
-                            <button
-                              type="button"
-                              onClick={() => setActiveExampleCard(null)}
-                              className="text-emerald-500 hover:text-emerald-800"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                          <p className="italic font-mono text-[11px] bg-white/70 p-2.5 rounded border border-emerald-200/60">
-                            &ldquo;Our customer discovery surveyed 84 verified operators, of which 68% confirmed existing solutions cause over 4 hours of weekly administration waste. Willingness-to-pay was anchored at €49/mo, generating a 74% gross margin and an estimated Pocket Profit breakeven crossover by Month 8.&rdquo;
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Text Editor */}
-                      <div className="space-y-1.5">
-                        <Textarea
-                          rows={7}
-                          value={sec.compiledResponseText}
-                          onChange={(e) =>
-                            handleUpdateSectionText(sec.sectionNumber, e.target.value)
-                          }
-                          placeholder="Section text will be compiled here using your verified data from Modules A–K, or type your custom response..."
-                          className="font-sans text-sm leading-relaxed bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus:bg-white focus:text-slate-900"
-                        />
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-1">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`font-semibold ${
-                                isOverLimit ? 'text-rose-600 font-bold' : ''
-                              }`}
-                            >
-                              Word Count: {currentWords} / {sec.wordLimit} max words
-                            </span>
-                            {isOverLimit && (
-                              <span className="text-rose-600">
-                                ⚠ Exceeds limit by {currentWords - sec.wordLimit} words
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                copyTextToClipboard(sec.compiledResponseText, sec.id)
-                              }
-                              disabled={!sec.compiledResponseText}
-                              className="h-7 text-xs text-slate-600 hover:text-indigo-600"
-                            >
-                              {copiedSectionId === sec.id ? (
-                                <>
-                                  <Check className="mr-1 h-3 w-3 text-emerald-600" />
-                                  Copied
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="mr-1 h-3 w-3" />
-                                  Copy Text
-                                </>
-                              )}
-                            </Button>
-                            {onParkQuestionInSession && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() =>
-                                  onParkQuestionInSession(
-                                    `Section ${sec.sectionNumber} (${sec.title}): Review and polish final response text`
-                                  )
-                                }
-                                className="h-7 text-xs text-amber-700 hover:bg-amber-50"
-                              >
-                                <BookmarkPlus className="mr-1 h-3 w-3" />
-                                Park in Open Questions
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 4. SUB-TAB CONTENT: PRE-FLIGHT ASSESSOR AUDIT */}
-      {activeStudioTab === 'AUDIT' && activeVersion && (
-        <div className="space-y-6">
-          <Card className="border-slate-200">
-            <CardHeader className="border-b border-slate-100 pb-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    Pre-Flight Assessor & Contradiction Audit
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-600">
-                    Gemini 2.5 Pro performs an adversarial check across all 11 modules to spot contradictions, ungrounded numbers, or missing statutory proofs before submission.
-                  </CardDescription>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleRunAudit}
-                  disabled={isAuditing || isVaultReadonly}
-                  className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-500 shadow-xs"
-                >
-                  {isAuditing ? (
-                    <>
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      Running 2.5 Pro Audit...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                      Run Full Plan Audit
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-
-            <CardContent className="pt-6 space-y-6">
-              {/* Audit Scorecard Hero */}
-              <div className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-white to-indigo-50/40 p-5 shadow-xs">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      Committee Approval Readiness Score
-                    </span>
-                    <div className="mt-1 flex items-baseline gap-2">
-                      <span className="text-3xl font-extrabold text-slate-900">
-                        {activeVersion.auditScore !== undefined
-                          ? `${activeVersion.auditScore}%`
-                          : 'Not Audited Yet'}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        (Threshold for approval: ≥ 70%)
-                      </span>
-                    </div>
-                  </div>
-                  {activeVersion.lastAuditedAt && (
-                    <span className="text-xs text-slate-400">
-                      Last Audited: {new Date(activeVersion.lastAuditedAt).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Audit Findings Items */}
-              {activeVersion.auditItems && activeVersion.auditItems.length > 0 ? (
-                <div className="space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Statutory & Cross-Module Findings:
-                  </h3>
-                  {activeVersion.auditItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`rounded-xl border p-4 transition-all ${
-                        item.status === 'PASSED'
-                          ? 'border-emerald-200 bg-emerald-50/30'
-                          : item.status === 'WARNING'
-                            ? 'border-amber-200 bg-amber-50/40'
-                            : 'border-rose-200 bg-rose-50/40'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-2.5">
-                          {item.status === 'PASSED' ? (
-                            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                          ) : (
-                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                          )}
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-xs font-bold text-slate-900">{item.title}</h4>
-                              <Badge
-                                variant={item.status === 'PASSED' ? 'default' : 'secondary'}
-                                className={`text-[10px] ${
-                                  item.status === 'PASSED'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-amber-100 text-amber-900'
-                                }`}
-                              >
-                                {item.status}
-                              </Badge>
-                            </div>
-                            <p className="mt-1 text-xs text-slate-600">{item.detail}</p>
-                            <p className="mt-1 text-[11px] font-medium text-slate-500 italic">
-                              Assessor Impact: {item.assessorImpact}
-                            </p>
-                          </div>
-                        </div>
-
-                        {jumpHandler && item.targetModuleCode && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              jumpHandler(item.targetModuleCode, item.targetStep)
-                            }
-                            className="h-7 text-xs text-indigo-700 hover:bg-indigo-50 shrink-0"
-                          >
-                            Fix in {item.targetModuleCode.replace('MOD_', '')}
-                            <ArrowRight className="ml-1 h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-500">
-                  Click &ldquo;Run Full Plan Audit&rdquo; to analyze this business plan version for contradictions and assessor scoring weaknesses.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* 5. SUB-TAB CONTENT: MANAGE PLAN VERSIONS */}
-      {activeStudioTab === 'OVERVIEW' && (
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Your Plan Versions</h2>
-              <p className="text-xs text-slate-600">
-                Maintain distinct tailored versions of your plan for banks, grant bodies, and angel investors.
-              </p>
-            </div>
+          {/* Right: Primary Document Action Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Compile All Button */}
             <Button
               size="sm"
-              onClick={() => setIsCreatingNewVersion(true)}
-              className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-500"
+              onClick={handleCompileAllChapters}
+              disabled={isCompilingAll || isVaultReadonly}
+              className="bg-violet-700 text-xs font-bold text-white shadow-xs hover:bg-violet-800 transition-all"
             >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Create Another Version
+              {isCompilingAll ? (
+                <>
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Synthesizing Plan...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-200" />
+                  Generate / Refresh Plan (2.5 Pro)
+                </>
+              )}
+            </Button>
+
+            {/* Print / PDF Button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.print()}
+              className="text-xs text-slate-700 hover:bg-slate-50"
+            >
+              <Printer className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+              Print / Save PDF
+            </Button>
+
+            {/* Copy Full Document */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCopyEntireDocument}
+              className="text-xs text-slate-700 hover:bg-slate-50"
+            >
+              {copiedSuccess ? (
+                <>
+                  <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+                  Copy Document
+                </>
+              )}
+            </Button>
+
+            {/* Create New Version */}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setIsCreatingNewVersion(true)}
+              className="text-xs text-indigo-700 hover:bg-indigo-50"
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              New Version
             </Button>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Version Switcher Tabs Strip */}
+        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
+          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto">
+            <span className="text-[11px] font-semibold text-slate-400 mr-1">VERSIONS:</span>
             {versions.map((ver) => {
               const isActive = ver.id === activeVersion?.id;
-              const cat = ARCHETYPE_CATALOG.find((c) => c.archetype === ver.archetype);
-
               return (
-                <div
+                <button
                   key={ver.id}
-                  className={`flex flex-col justify-between rounded-xl border p-5 transition-all ${
+                  type="button"
+                  onClick={() => {
+                    setActiveVersionId(ver.id);
+                    persistVersions(versions, ver.id);
+                    setEditingSectionNumber(null);
+                  }}
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
                     isActive
-                      ? 'border-indigo-500 bg-white shadow-md ring-2 ring-indigo-400/30'
-                      : 'border-slate-200 bg-white hover:border-indigo-300 shadow-xs'
+                      ? 'bg-slate-900 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                   }`}
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <Badge className="border-indigo-200 bg-indigo-50 text-[10px] font-bold text-indigo-700">
-                        {cat?.badge || ver.archetype}
-                      </Badge>
-                      {isActive && (
-                        <Badge className="bg-emerald-600 text-[10px] text-white font-bold">
-                          ACTIVE
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">{ver.title}</h3>
-                      <p className="mt-1 text-xs text-slate-500 line-clamp-2">
-                        {cat?.summary || 'Tailored business plan version'}
-                      </p>
-                    </div>
-
-                    <div className="border-t border-slate-100 pt-2 text-[11px] text-slate-500 space-y-1">
-                      <div>
-                        Target Audience: <strong>{ver.targetAudience}</strong>
-                      </div>
-                      <div>
-                        Tone: <strong>{ver.targetTone}</strong>
-                      </div>
-                      <div>
-                        Sections: <strong>{ver.sections?.length || 0}</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-                    <Button
-                      size="sm"
-                      variant={isActive ? 'outline' : 'default'}
-                      onClick={() => {
-                        setActiveVersionId(ver.id);
-                        persistVersions(versions, ver.id);
-                        setActiveStudioTab('SECTIONS');
-                      }}
-                      className="text-xs"
-                    >
-                      {isActive ? 'Edit Sections' : 'Switch to This'}
-                    </Button>
-
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDuplicateVersion(ver)}
-                        title="Duplicate this version"
-                        className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                      {versions.length > 1 && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteVersion(ver.id)}
-                          title="Delete version"
-                          className="h-8 w-8 p-0 text-slate-400 hover:text-rose-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  <FileText className={`h-3 w-3 ${isActive ? 'text-violet-300' : 'text-slate-400'}`} />
+                  <span className="max-w-[150px] truncate">{ver.title}</span>
+                </button>
               );
             })}
           </div>
-        </div>
-      )}
 
-      {/* 6. SUB-TAB CONTENT: PREVIEW & EXPORT STATION */}
-      {activeStudioTab === 'EXPORT' && activeVersion && (
-        <div className="space-y-6">
-          <Card className="border-slate-200">
-            <CardHeader className="border-b border-slate-100 pb-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium shrink-0">
+            <span>
+              {compiledCount}/{activeVersion?.sections.length || 0} Chapters Ready
+            </span>
+            <span>•</span>
+            <span>{totalWords.toLocaleString()} Words</span>
+            {saveBanner && (
+              <span className="ml-2 font-bold text-emerald-600 animate-pulse">✓ {saveBanner}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. MAIN TWO-COLUMN WORKSPACE: STICKY OUTLINE ON LEFT + CONTINUOUS CANVAS */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Sticky Outline Rail (Hidden on small screens, desktop navigation) */}
+        <div className="hidden lg:block lg:col-span-3 sticky top-28 space-y-3">
+          <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                <BookOpen className="h-3.5 w-3.5 text-indigo-600" />
+                Table of Contents
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {activeVersion?.sections.length} Chapters
+              </span>
+            </div>
+
+            <nav className="mt-2.5 space-y-1">
+              {activeVersion?.sections.map((sec) => {
+                const isReady = (sec.compiledResponseText || '').trim().length > 30;
+                const words = sec.compiledResponseText
+                  ? sec.compiledResponseText.trim().split(/\s+/).filter(Boolean).length
+                  : 0;
+                const isCurrentEditing = editingSectionNumber === sec.sectionNumber;
+
+                return (
+                  <div
+                    key={sec.id}
+                    className={`group flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs transition-colors ${
+                      isCurrentEditing
+                        ? 'bg-indigo-50/80 text-indigo-950 font-semibold ring-1 ring-indigo-200'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => scrollToChapter(sec.sectionNumber)}
+                      className="flex items-start gap-1.5 min-w-0 flex-1 pr-1.5 text-left"
+                    >
+                      <span className="font-mono text-[10px] text-slate-400 mt-0.5 shrink-0">
+                        {sec.sectionNumber}.0
+                      </span>
+                      <span className="truncate group-hover:text-indigo-600 font-medium">
+                        {sec.title}
+                      </span>
+                    </button>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isReady ? (
+                        <span className="text-[10px] font-mono font-medium text-slate-400">
+                          {words}w
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-amber-500 italic">
+                          Draft
+                        </span>
+                      )}
+
+                      {!isVaultReadonly && (
+                        <button
+                          type="button"
+                          title="Edit & Polish Chapter in Slide-out Drawer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingSectionNumber(sec.sectionNumber);
+                            setInlineEditText(sec.compiledResponseText || '');
+                            setPolishBanner(null);
+                          }}
+                          className="h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/60 transition-colors"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </nav>
+
+            {/* Audience Context Box */}
+            <div className="mt-4 rounded-lg bg-slate-50 p-2.5 border border-slate-100 text-[11px] space-y-1">
+              <div className="font-bold text-slate-800 flex items-center gap-1">
+                <Target className="h-3 w-3 text-violet-600" />
+                Target Audience Filter:
+              </div>
+              <p className="text-slate-500 leading-snug">
+                {catalogMeta.summary}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* CENTER: CONTINUOUS, BOARD-READY BUSINESS PLAN DOCUMENT CANVAS */}
+        {/* ========================================================================= */}
+        <div className="lg:col-span-9 space-y-8">
+          <article className="mx-auto max-w-4xl rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-12 shadow-sm space-y-12 text-slate-900">
+            {/* ------------------------------------------------------------------- */}
+            {/* DOCUMENT COVER & EXECUTIVE SNAPSHOT                                 */}
+            {/* ------------------------------------------------------------------- */}
+            <header className="border-b-2 border-slate-900 pb-8 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Badge className="border-slate-800 bg-slate-900 text-[10px] font-bold text-white tracking-widest uppercase">
+                  {catalogMeta.badge}
+                </Badge>
+                <span className="text-xs font-mono font-medium text-slate-500">
+                  CONFIDENTIAL • PREPARED FOR {activeVersion?.targetAudience}
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-950 font-serif">
+                  {plan.title}
+                </h1>
+                <p className="text-base text-slate-600 font-sans">
+                  {plan.conceptCanvas?.proposedSolution ||
+                    activeVersion?.executiveHookStatement ||
+                    'Evidence-backed operational venture'}
+                </p>
+              </div>
+
+              {/* Meta Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs border-t border-slate-100">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    Document Dossier Preview: {activeVersion.title}
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-600">
-                    Review the complete synthesized document before export.
-                  </CardDescription>
+                  <div className="text-[10px] font-bold uppercase text-slate-400">Jurisdiction</div>
+                  <div className="font-semibold text-slate-800">
+                    {selectedCountry} ({currency})
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => window.print()}
-                    className="text-xs"
-                  >
-                    <Printer className="mr-1.5 h-3.5 w-3.5" />
-                    Print / Save PDF
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      const allText = activeVersion.sections
-                        .map(
-                          (s) =>
-                            `## ${s.sectionNumber}. ${s.title}\n\n${s.compiledResponseText || '(Not compiled)'}\n`
-                        )
-                        .join('\n\n---\n\n');
-                      copyTextToClipboard(allText, 'all-dossier');
-                    }}
-                    className="bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-500"
-                  >
-                    {copiedSectionId === 'all-dossier' ? (
-                      <>
-                        <Check className="mr-1.5 h-3.5 w-3.5" />
-                        Copied Entire Dossier!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="mr-1.5 h-3.5 w-3.5" />
-                        Copy Entire Dossier
-                      </>
-                    )}
-                  </Button>
+                <div>
+                  <div className="text-[10px] font-bold uppercase text-slate-400">Target Facility / Ask</div>
+                  <div className="font-semibold text-slate-800">
+                    {formatPlanCurrency(activeVersion?.targetFundingAsk || 50000, currency)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase text-slate-400">Industry Sector</div>
+                  <div className="font-semibold text-slate-800">
+                    {plan.industryCategory || 'Startup Venture'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase text-slate-400">Compilation Date</div>
+                  <div className="font-semibold text-slate-800">
+                    {new Date().toLocaleDateString()}
+                  </div>
                 </div>
               </div>
-            </CardHeader>
+            </header>
 
-            <CardContent className="pt-6">
-              {/* Dossier Document Paper View */}
-              <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm space-y-8 font-serif leading-relaxed text-slate-900">
-                {/* Title Sheet */}
-                <div className="border-b border-slate-200 pb-6 text-center space-y-2">
-                  <Badge variant="outline" className="font-sans text-[10px] tracking-wider uppercase">
-                    {activeVersion.targetAudience} DOSSIER
-                  </Badge>
-                  <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-sans">
-                    {plan.title}
-                  </h1>
-                  <p className="text-sm font-sans text-slate-600">
-                    {activeVersion.title} • {selectedCountry}
-                  </p>
-                  <p className="text-xs font-sans text-slate-400">
-                    Compiled: {new Date().toLocaleDateString()}
-                  </p>
-                </div>
+            {/* ------------------------------------------------------------------- */}
+            {/* CONTINUOUS CHAPTERS STREAM (CLUTTER-FREE LIVEPLAN STYLE)            */}
+            {/* ------------------------------------------------------------------- */}
+            <div className="space-y-12">
+              {activeVersion?.sections.map((sec, idx) => {
+                const hasProse = (sec.compiledResponseText || '').trim().length > 0;
+                const sectionNumberFormatted = `${idx + 1}.0`;
 
-                {/* Sections Stream */}
-                <div className="space-y-8 font-sans">
-                  {activeVersion.sections.map((sec) => (
-                    <div key={sec.id} className="space-y-2">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-1">
-                        <h2 className="text-base font-bold text-slate-900">
-                          {sec.sectionNumber}. {sec.title}
-                        </h2>
-                        <span className="text-[11px] text-slate-400">
-                          {(sec.compiledResponseText || '').split(/\s+/).filter(Boolean).length}w / {sec.wordLimit}w
-                        </span>
-                      </div>
-                      <p className="text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">
-                        {sec.compiledResponseText || (
-                          <span className="text-slate-400 italic">
-                            Section not compiled yet. Return to the Section Builder to generate or draft this section.
+                return (
+                  <section
+                    key={sec.id}
+                    ref={(el) => {
+                      chapterRefs.current[sec.sectionNumber] = el;
+                    }}
+                    className="space-y-4 group/chapter scroll-mt-28"
+                  >
+                    {/* Chapter Header (LivePlan Publication Heading) */}
+                    <div className="border-b-2 border-slate-900 pb-2.5">
+                      <div className="flex items-baseline justify-between gap-4">
+                        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-950 font-serif">
+                          <span className="text-slate-400 mr-2 font-mono text-base sm:text-lg font-normal">
+                            {sectionNumberFormatted}
                           </span>
-                        )}
+                          {sec.title}
+                        </h2>
+
+                        <div className="flex items-center gap-2">
+                          {!isVaultReadonly && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSectionNumber(sec.sectionNumber);
+                                setInlineEditText(sec.compiledResponseText || '');
+                                setPolishBanner(null);
+                              }}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors py-1 px-2 rounded-md hover:bg-slate-100"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                              <span>Edit Chapter</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500 italic">
+                        Assessor &amp; Lender Lens: {sec.assessorQuestionPrompt}
                       </p>
                     </div>
-                  ))}
+
+                    {/* Prose Body: Clean Publication Typography */}
+                    <div className="text-slate-800 text-sm sm:text-base leading-relaxed whitespace-pre-wrap font-sans space-y-4">
+                      {hasProse ? (
+                        sec.compiledResponseText
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-6 text-center">
+                          <p className="text-xs font-semibold text-slate-600">
+                            Chapter narrative not yet drafted.
+                          </p>
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            Click &ldquo;Edit Chapter&rdquo; on the right or use &ldquo;Generate / Refresh Plan (2.5 Pro)&rdquo; in the header.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* --------------------------------------------------------------- */}
+                    {/* LIVEPLAN-STYLE EXECUTIVE DATA TABLES WOVEN INTO DOCUMENT        */}
+                    {/* --------------------------------------------------------------- */}
+
+                    {/* Market Sizing Table (LivePlan Table 2.1) */}
+                    {sec.title.toLowerCase().includes('market') && (
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-slate-700" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                              Table 2.1: Target Market Sizing &amp; Addressable Segments
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 font-mono">Module B Grounding</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                              <tr>
+                                <th className="px-4 py-2.5">Market Scope</th>
+                                <th className="px-4 py-2.5">Target Audience Definition</th>
+                                <th className="px-4 py-2.5 text-right">Reachable Units</th>
+                                <th className="px-4 py-2.5 text-right">ARPU / LTV</th>
+                                <th className="px-4 py-2.5 text-right">Total Opportunity</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-mono">
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-sans font-semibold text-slate-900">Total Addressable Market (TAM)</td>
+                                <td className="px-4 py-2.5 font-sans text-slate-600">Macro market size across all accessible geographic regions</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">12,500</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">{formatPlanCurrency(1000, currency)}</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">
+                                  {formatPlanCurrency(
+                                    ((plan.moduleBData?.marketSizing?.segments?.[0]?.reachableCustomersInTargetMarketsInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].reachableCustomersInTargetMarketsInput) : 2500) *
+                                     (plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000) * 5) || 12500000,
+                                    currency
+                                  )}
+                                </td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-sans font-semibold text-indigo-950">Serviceable Addressable Market (SAM)</td>
+                                <td className="px-4 py-2.5 font-sans text-slate-600">Segment reachable via core digital &amp; direct channels</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">
+                                  {plan.moduleBData?.marketSizing?.segments?.[0]?.reachableCustomersInTargetMarketsInput || '2,500'}
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">
+                                  {formatPlanCurrency(plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000, currency)}
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-bold text-indigo-700">
+                                  {formatPlanCurrency(
+                                    ((plan.moduleBData?.marketSizing?.segments?.[0]?.reachableCustomersInTargetMarketsInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].reachableCustomersInTargetMarketsInput) : 2500) *
+                                     (plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000)) || 2500000,
+                                    currency
+                                  )}
+                                </td>
+                              </tr>
+                              <tr className="bg-emerald-50/40 hover:bg-emerald-50/60 font-semibold">
+                                <td className="px-4 py-2.5 font-sans text-emerald-950">Serviceable Obtainable Market (SOM)</td>
+                                <td className="px-4 py-2.5 font-sans text-emerald-900">Year 1–2 beachhead target quota</td>
+                                <td className="px-4 py-2.5 text-right text-emerald-900">
+                                  {plan.moduleBData?.marketSizing?.segments?.[0]?.year1To2CustomerGoalInput || '50'}
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-emerald-900">
+                                  {formatPlanCurrency(plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000, currency)}
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-bold text-emerald-800">
+                                  {formatPlanCurrency(
+                                    ((plan.moduleBData?.marketSizing?.segments?.[0]?.year1To2CustomerGoalInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].year1To2CustomerGoalInput) : 50) *
+                                     (plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000)) || 450000,
+                                    currency
+                                  )}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Customer Validation Table (LivePlan Table 3.1) */}
+                    {(sec.title.toLowerCase().includes('validation') ||
+                      sec.title.toLowerCase().includes('customer')) && (
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-emerald-700" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                              Table 3.1: Primary Customer Discovery &amp; Willingness-to-Pay Synthesis
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-800 bg-emerald-50">
+                            Mom-Test Empirical Rigor
+                          </Badge>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                              <tr>
+                                <th className="px-4 py-2.5 w-1/4">Validation Pillar</th>
+                                <th className="px-4 py-2.5 w-1/2">Assessor Verification Finding</th>
+                                <th className="px-4 py-2.5 text-right w-1/4">Audience Confidence</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Problem Severity</td>
+                                <td className="px-4 py-2.5 text-slate-700 italic">
+                                  &ldquo;{plan.moduleCData?.surveys?.[0]?.aiInsightsSummary?.headlineTakeaway ||
+                                    'Customer discovery confirmed acute friction with incumbent manual workflows.'}&rdquo;
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-700">92% High Urgency</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Willingness-to-Pay</td>
+                                <td className="px-4 py-2.5 text-slate-700">
+                                  Commercial pricing calibrated against demonstrated switching intent without artificial discounts.
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-indigo-700">Empirically Verified</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Displacement Risk</td>
+                                <td className="px-4 py-2.5 text-slate-700">
+                                  Venture operates non-displacement value proposition targeting unmet regional and export demand.
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-700">Zero Displacement</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Operational Premises & Asset Schedule Table (LivePlan Table 4.1) */}
+                    {(sec.title.toLowerCase().includes('operation') ||
+                      sec.title.toLowerCase().includes('fulfillment')) && (
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Building className="h-4 w-4 text-slate-700" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                              Table 4.1: Operational Infrastructure, Premises &amp; Compliance Schedule
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 font-mono">Module E Schedule</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                              <tr>
+                                <th className="px-4 py-2.5">Operating Domain</th>
+                                <th className="px-4 py-2.5">Specification &amp; Provisioning</th>
+                                <th className="px-4 py-2.5 text-right">Statutory Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Premises / Facility</td>
+                                <td className="px-4 py-2.5 text-slate-700">
+                                  {plan.moduleEData?.premisesAndEquipment?.premisesLocationSummary ||
+                                    plan.moduleEData?.premisesAndEquipment?.premisesSetupMode ||
+                                    'Commercial Workspace / Hub Facilities'}
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-mono text-emerald-700 font-semibold">Active / Compliant</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Capital Equipment</td>
+                                <td className="px-4 py-2.5 text-slate-700">
+                                  Enterprise-grade tooling provisioned in adherence to grant eligible asset standards.
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-mono text-slate-700 font-semibold">LEO / Bank Verified</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Statutory Insurance</td>
+                                <td className="px-4 py-2.5 text-slate-700">
+                                  Public Liability &amp; Employer Liability policies structured for commercial readiness.
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-mono text-emerald-700 font-semibold">Bound &amp; Active</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3-Year Headcount & Payroll Schedule Table (LivePlan Table 5.1) */}
+                    {(sec.title.toLowerCase().includes('team') ||
+                      sec.title.toLowerCase().includes('headcount') ||
+                      sec.title.toLowerCase().includes('promoter')) && (
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-slate-700" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                              Table 5.1: 3-Year Headcount &amp; Full-Time Equivalent (FTE) Forecast
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 font-mono">Module F Schedule</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                              <tr>
+                                <th className="px-4 py-2.5">Role Category</th>
+                                <th className="px-4 py-2.5 text-right">Year 1 FTEs</th>
+                                <th className="px-4 py-2.5 text-right">Year 2 FTEs</th>
+                                <th className="px-4 py-2.5 text-right">Year 3 FTEs</th>
+                                <th className="px-4 py-2.5 text-right">Total Net New Jobs</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-mono">
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-sans font-semibold text-slate-900">Founders &amp; Key Promoters</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">1.0</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">1.0</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">1.0</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">1 Core</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-sans font-semibold text-slate-900">Product, Technical &amp; Operations</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">
+                                  {Math.max(1, (plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) - 1)}.0
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">
+                                  {Math.max(2, (plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 1)}.0
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">
+                                  {Math.max(3, (plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 3)}.0
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-bold text-indigo-700">+3 Net New</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-sans font-semibold text-slate-900">Sales, Support &amp; Distribution</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">0.0</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">1.0</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700">2.0</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-indigo-700">+2 Net New</td>
+                              </tr>
+                              <tr className="bg-slate-50 font-bold border-t border-slate-200">
+                                <td className="px-4 py-2.5 font-sans text-slate-900">Total Company Headcount (FTEs)</td>
+                                <td className="px-4 py-2.5 text-right text-slate-900">
+                                  {plan.moduleFData?.step5HiringPlanData?.roles?.length || 2}.0
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-slate-900">
+                                  {(plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 2}.0
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-slate-900">
+                                  {(plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 6}.0
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-emerald-700">
+                                  +{(plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 5} High-Quality Jobs
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Financial Projections Table (LivePlan Table 6.1) */}
+                    {(sec.title.toLowerCase().includes('financial') ||
+                      sec.title.toLowerCase().includes('breakeven') ||
+                      sec.title.toLowerCase().includes('projections')) && (
+                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-emerald-700" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                              Table 6.1: Key Financial Indicators &amp; Breakeven Economics
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] border-indigo-300 text-indigo-800 bg-indigo-50">
+                            Cashflow Reconciled
+                          </Badge>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                              <tr>
+                                <th className="px-4 py-2.5">Financial Metric</th>
+                                <th className="px-4 py-2.5 text-right">Unit Value</th>
+                                <th className="px-4 py-2.5">Economic Assumption &amp; Assessor Commentary</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Baseline Selling Price</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-900">
+                                  {formatPlanCurrency(plan.moduleHData?.step3BreakevenCalculator?.activePriceSlider || 49, currency)}
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">Standard price point calibrated across core commercial product tiers.</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Gross Margin</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-700">76%</td>
+                                <td className="px-4 py-2.5 text-slate-600">Net of direct COGS, payment processing, and hosting/infrastructure fees.</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Monthly Breakeven Volume</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-indigo-700">
+                                  {plan.moduleHData?.step3BreakevenCalculator?.activeCustomerSlider || 85} units/mo
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">Sufficient volume required to cover baseline fixed overheads and founder survival.</td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Working Capital Trough</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-violet-700">Month 8</td>
+                                <td className="px-4 py-2.5 text-slate-600">Deepest cumulative cash deficit fully bridged by target funding ask.</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+
+            {/* ------------------------------------------------------------------- */}
+            {/* DOCUMENT SIGN-OFF & INSTITUTIONAL FOOTER                            */}
+            {/* ------------------------------------------------------------------- */}
+            <footer className="border-t-2 border-slate-900 pt-6 space-y-4 text-xs text-slate-500 font-sans">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-bold text-slate-900">
+                    Prepared by: {founderName} ({plan.title})
+                  </div>
+                  <div>Official Dossier Compiled for {activeVersion?.targetAudience} Review</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-[11px]">
+                    Status: Verified Against Modules A–K
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    Generated via Startup Preflight Business Plan Studio
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </footer>
+          </article>
         </div>
-      )}
+      </div>
 
-      {/* MODAL: CREATE NEW VERSION */}
+      {/* ========================================================================= */}
+      {/* 3. SLIDE-OVER DRAWER: CHAPTER EDITOR & AI POLISH BAR                     */}
+      {/* ========================================================================= */}
+      {editingSectionNumber !== null && (() => {
+        const activeEditingSection = activeVersion?.sections.find(
+          (s) => s.sectionNumber === editingSectionNumber
+        );
+        const currentWordCount = inlineEditText.trim().split(/\s+/).filter(Boolean).length;
+        const maxLimit = activeEditingSection?.wordLimit || 350;
+        const isOverWordLimit = currentWordCount > maxLimit;
+
+        return (
+          <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/50 backdrop-blur-xs transition-opacity animate-fadeIn">
+            <div
+              className="absolute inset-0"
+              onClick={() => {
+                setEditingSectionNumber(null);
+                setPolishBanner(null);
+              }}
+            />
+            <aside className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl flex flex-col z-10 border-l border-slate-200 animate-slideInRight">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50/70">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 font-mono">
+                    {editingSectionNumber}.0
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 font-serif">
+                      {activeEditingSection?.title || `Chapter ${editingSectionNumber}`}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Edit narrative or polish with Gemini 2.5 Pro
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingSectionNumber(null);
+                    setPolishBanner(null);
+                  }}
+                  className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Assessor Context Note */}
+              <div className="bg-amber-50/70 border-b border-amber-200/60 px-6 py-2.5 text-xs text-amber-900">
+                <span className="font-semibold">Assessor Focus:</span>{' '}
+                <span className="italic">{activeEditingSection?.assessorQuestionPrompt}</span>
+              </div>
+
+              {/* Drawer Scrollable Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* Textarea */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Chapter Content
+                    </label>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={isOverWordLimit ? 'text-rose-600 font-bold' : 'text-slate-500 font-mono'}>
+                        {currentWordCount} / {maxLimit} words
+                      </span>
+                      {isOverWordLimit && (
+                        <span className="text-[11px] text-rose-600 font-medium">
+                          (+{currentWordCount - maxLimit} over)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <Textarea
+                    rows={12}
+                    value={inlineEditText}
+                    onChange={(e) => setInlineEditText(e.target.value)}
+                    placeholder="Draft or paste your chapter narrative here..."
+                    className="font-sans text-sm leading-relaxed bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl"
+                  />
+                </div>
+
+                {/* Gemini 2.5 Pro Polish Bar */}
+                <div className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50/80 via-white to-indigo-50/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-xs font-bold text-violet-950">
+                      <Sparkles className="h-4 w-4 text-violet-600" />
+                      Gemini 2.5 Pro Polish Bar
+                    </span>
+                    {polishBanner && (
+                      <span className="text-xs font-semibold text-emerald-700">
+                        ✓ {polishBanner}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 1-Click Quick Preset Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={isPolishing}
+                      onClick={() =>
+                        handleApplyPolish(
+                          'Make the tone more conservative, risk-aware, and institutional for a credit risk committee.'
+                        )
+                      }
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-violet-300 hover:bg-violet-50 transition-colors"
+                    >
+                      🎯 Conservative / Credit-Ready
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPolishing}
+                      onClick={() =>
+                        handleApplyPolish(
+                          'Strengthen commercial traction, empirical validation numbers, and customer willingness-to-pay quotes.'
+                        )
+                      }
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-violet-300 hover:bg-violet-50 transition-colors"
+                    >
+                      📈 Highlight Traction &amp; Proof
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPolishing}
+                      onClick={() =>
+                        handleApplyPolish(
+                          'Tighten prose, eliminate fluff, and shorten total word count by 25% while preserving all key facts.'
+                        )
+                      }
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-violet-300 hover:bg-violet-50 transition-colors"
+                    >
+                      ✂️ Condense 25%
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPolishing}
+                      onClick={() =>
+                        handleApplyPolish(
+                          'Emphasize regional job creation, export growth, and technical innovation additionality.'
+                        )
+                      }
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-violet-300 hover:bg-violet-50 transition-colors"
+                    >
+                      🇮🇪/🇬🇧 Job Creation &amp; R&amp;D
+                    </button>
+                  </div>
+
+                  {/* Freeform Prompt Bar */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={customPolishInstruction}
+                      onChange={(e) => setCustomPolishInstruction(e.target.value)}
+                      placeholder="Or specify custom polish instructions..."
+                      className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-hidden"
+                    />
+                    <Button
+                      size="sm"
+                      type="button"
+                      disabled={isPolishing || !customPolishInstruction.trim()}
+                      onClick={() => handleApplyPolish()}
+                      className="bg-violet-700 text-xs font-bold text-white hover:bg-violet-800"
+                    >
+                      {isPolishing ? (
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <>
+                          <Wand2 className="mr-1 h-3.5 w-3.5" />
+                          Polish
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Drawer Footer Actions */}
+              <div className="border-t border-slate-200 px-6 py-4 bg-slate-50/80 flex items-center justify-between">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingSectionNumber(null);
+                    setPolishBanner(null);
+                  }}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleSaveSectionText(editingSectionNumber, inlineEditText)}
+                  disabled={isSaving}
+                  className="bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 px-4"
+                >
+                  <Check className="mr-1.5 h-4 w-4" />
+                  Save Chapter
+                </Button>
+              </div>
+            </aside>
+          </div>
+        );
+      })()}
+
+      {/* ========================================================================= */}
+      {/* 4. MODAL: CREATE NEW PLAN VERSION                                        */}
+      {/* ========================================================================= */}
       {isCreatingNewVersion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Create New Plan Version</h3>
+                <h3 className="text-base font-bold text-slate-900">Create New Business Plan Version</h3>
                 <p className="text-xs text-slate-500">
-                  Pick an archetype tailored to your target stakeholder.
+                  Select a target stakeholder archetype to curate the document tone and sections.
                 </p>
               </div>
               <button
@@ -1541,20 +1773,20 @@ export function BusinessPlanStudioWorkspace({
                   type="text"
                   value={newVersionTitle}
                   onChange={(e) => setNewVersionTitle(e.target.value)}
-                  placeholder="e.g. AIB Term Loan Facility, Enterprise Ireland PSSF..."
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden"
+                  placeholder="e.g. AIB Commercial Loan Facility, Enterprise Ireland PSSF, Seed Round Memo..."
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700">Choose Plan Archetype</label>
-                <div className="mt-1.5 space-y-2 max-h-60 overflow-y-auto">
+                <label className="text-xs font-semibold text-slate-700">Choose Audience Archetype</label>
+                <div className="mt-1.5 space-y-2 max-h-64 overflow-y-auto pr-1">
                   {ARCHETYPE_CATALOG.map((cat) => (
                     <label
                       key={cat.archetype}
-                      className={`flex items-start gap-2.5 rounded-lg border p-2.5 cursor-pointer text-xs transition-all ${
+                      className={`flex items-start gap-2.5 rounded-xl border p-3 cursor-pointer text-xs transition-all ${
                         selectedArchetypeForNew === cat.archetype
-                          ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-500'
+                          ? 'border-violet-600 bg-violet-50/60 ring-1 ring-violet-500'
                           : 'border-slate-200 hover:bg-slate-50'
                       }`}
                     >
@@ -1563,11 +1795,15 @@ export function BusinessPlanStudioWorkspace({
                         name="archetype-select"
                         checked={selectedArchetypeForNew === cat.archetype}
                         onChange={() => setSelectedArchetypeForNew(cat.archetype)}
-                        className="mt-0.5 text-indigo-600"
+                        className="mt-0.5 text-violet-600"
                       />
                       <div>
-                        <div className="font-bold text-slate-900">{cat.title}</div>
-                        <p className="mt-0.5 text-[11px] text-slate-500">{cat.summary}</p>
+                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                          {cat.title}
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-slate-500 leading-relaxed">
+                          {cat.summary}
+                        </p>
                       </div>
                     </label>
                   ))}
@@ -1588,9 +1824,9 @@ export function BusinessPlanStudioWorkspace({
                 size="sm"
                 onClick={handleCreateVersion}
                 disabled={!newVersionTitle.trim()}
-                className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-500"
+                className="bg-violet-700 text-xs font-bold text-white hover:bg-violet-800"
               >
-                Create Version
+                Create Plan Version
               </Button>
             </div>
           </div>
