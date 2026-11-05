@@ -254,6 +254,7 @@ export const startupPlans = pgTable('startup_plans', {
   // Module J: IE LEO & UK (Innovate UK / Start Up Loans / HMRC SEIS-EIS) Grant & Tax Compliance Metadata
   grantComplianceMetadataJson: jsonb('grant_compliance_metadata_json')
     .$type<{
+      fundingTrackMode?: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY';
       selectedTargetGrants?: string[]; // e.g., ['IE_LEO_PRIMING', 'UK_SEIS_ASSURANCE']
       // Shared IE & UK Corporate Identifiers
       croOrCompaniesHouseNumber?: string;

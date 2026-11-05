@@ -2750,6 +2750,7 @@ export interface ActiveStartupPlan {
   baseCurrency: string;
   targetMarketsArray: string[];
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
+  fundingTrackMode?: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY';
   currentModuleStep: string;
   isPivot?: boolean;
   brainDumpText?: string;
@@ -3125,6 +3126,7 @@ export function createFreshStartupPlan(
   hqCountryCode: SupportedCountryCode = 'IE'
 ): ActiveStartupPlan {
   const pack = getCountryRulePack(hqCountryCode);
+  const isGrantRegion = hqCountryCode === 'IE' || hqCountryCode === 'GB';
   return {
     id: `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     title: 'My Startup Plan',
@@ -3134,6 +3136,7 @@ export function createFreshStartupPlan(
     baseCurrency: pack.defaultCurrency,
     targetMarketsArray: [hqCountryCode],
     exportPotential: 'DOMESTIC_ONLY',
+    fundingTrackMode: isGrantRegion ? 'GRANT_AND_INVESTOR' : 'COMMERCIAL_ONLY',
     currentModuleStep: 'MOD_A_STEP_1',
     brainDumpText: '',
     openQuestions: [],
@@ -3602,6 +3605,7 @@ export function completeFounderOnboarding(params: {
   hqCountryCode: SupportedCountryCode;
   industryCategory: IndustryCategory;
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
+  fundingTrackMode?: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY';
 }): BmuLocalSession {
   const current = loadBmuSession();
   const countryPack = getCountryRulePack(params.hqCountryCode);
@@ -3619,6 +3623,14 @@ export function completeFounderOnboarding(params: {
         ? 'SEEKING_COFOUNDER'
         : 'SOLO_FOUNDER';
 
+  const isGrantRegion =
+    params.hqCountryCode === 'IE' || params.hqCountryCode === 'GB';
+  const resolvedTrack: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY' = isGrantRegion
+    ? params.fundingTrackMode === 'COMMERCIAL_ONLY'
+      ? 'COMMERCIAL_ONLY'
+      : 'GRANT_AND_INVESTOR'
+    : 'COMMERCIAL_ONLY';
+
   const firstPlan: ActiveStartupPlan = {
     id: planId,
     title: params.planTitle.trim() || 'My First Startup Plan',
@@ -3628,6 +3640,7 @@ export function completeFounderOnboarding(params: {
     baseCurrency: countryPack.defaultCurrency,
     targetMarketsArray: Array.from(new Set(targetMarkets)),
     exportPotential: params.exportPotential,
+    fundingTrackMode: resolvedTrack,
     currentModuleStep: 'MOD_A_STEP_1',
     brainDumpText: params.oneLinerSummary.trim(),
     teamAndBudget: {

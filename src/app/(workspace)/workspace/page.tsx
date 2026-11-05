@@ -73,6 +73,7 @@ import {
 import {
   getCountryRulePack,
   getGrantsForCountry,
+  getPlanTrackCapabilities,
   formatPlanCurrency,
   type SupportedCountryCode,
 } from '@/lib/localization';
@@ -4415,7 +4416,12 @@ export default function WorkspacePage() {
     (val) => val.trim().length > 5
   ).length;
 
+  const trackCaps = getPlanTrackCapabilities(
+    selectedCountry,
+    currentPlan.fundingTrackMode
+  );
   const isGrantCheckerSupported =
+    trackCaps.isGrantsEnabled &&
     isGrantCheckerSupportedForCountry(selectedCountry);
   const liveGrantEvaluation = isGrantCheckerSupported
     ? evaluateModuleAGrantEligibility({
@@ -4996,7 +5002,33 @@ export default function WorkspacePage() {
     currentPlan.moduleLData?.completionPercentage ||
     (activeModule === 'MOD_L_BUSINESS_PLAN' ? 20 : 0);
 
-  const dashboardModuleProgressList = MODULES_LIST.map((mod) => {
+  const effectiveModulesList = MODULES_LIST.map((mod) => {
+    if (!trackCaps.isGrantsEnabled) {
+      if (mod.code === 'MOD_E_OPERATIONS') {
+        return {
+          ...mod,
+          subtitle: 'Fulfillment, Premises & Asset Schedule & 4-Category Risk Table',
+        };
+      }
+      if (mod.code === 'MOD_K_GRANTS_FUNDING') {
+        return {
+          ...mod,
+          title: 'Capital & Funding Strategy Hub',
+          subtitle: 'Founder Equity, Bank Loans, Angel Syndicates & Runway Architecture',
+        };
+      }
+      if (mod.code === 'MOD_L_BUSINESS_PLAN') {
+        return {
+          ...mod,
+          title: 'Living Business Plan & Investor Compiler',
+          subtitle: 'Commercial Business Plan, Financial Pack & AI Pre-Flight Audit',
+        };
+      }
+    }
+    return mod;
+  });
+
+  const dashboardModuleProgressList = effectiveModulesList.map((mod) => {
     const access = canAccessModule(activeEntitlement, mod.code);
     const modProgress =
       mod.code === 'MOD_A_IDEATION'
@@ -5035,7 +5067,7 @@ export default function WorkspacePage() {
   });
 
   const activeModuleMeta =
-    MODULES_LIST.find((m) => m.code === activeModule) || MODULES_LIST[0];
+    effectiveModulesList.find((m) => m.code === activeModule) || effectiveModulesList[0];
 
   const allPlanSurveys = currentPlan.moduleCData?.surveys || [];
   const dashboardSurveyResponsesCount = allPlanSurveys.reduce(
@@ -5297,6 +5329,121 @@ export default function WorkspacePage() {
 
                   <div className="my-2 border-t border-slate-100" />
 
+                  {/* Quick Jurisdiction & Funding Track Switcher for Active Venture */}
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Active Venture Jurisdiction &amp; Track
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {(
+                        [
+                          { code: 'IE', flag: '🇮🇪', label: 'IE' },
+                          { code: 'GB', flag: '🇬🇧', label: 'UK' },
+                          { code: 'US', flag: '🇺🇸', label: 'US' },
+                          { code: 'CA', flag: '🇨🇦', label: 'CA' },
+                          { code: 'AU', flag: '🇦🇺', label: 'AU' },
+                          { code: 'EU', flag: '🇪🇺', label: 'EU' },
+                          { code: 'ROW', flag: '🌍', label: 'Global' },
+                        ] as const
+                      ).map((reg) => {
+                        const isSelectedCountry = selectedCountry === reg.code;
+                        return (
+                          <button
+                            key={reg.code}
+                            type="button"
+                            onClick={() => {
+                              const nextRule = getCountryRulePack(reg.code);
+                              const nextTrackMode =
+                                reg.code === 'IE' || reg.code === 'GB'
+                                  ? currentPlan.fundingTrackMode || 'GRANT_AND_INVESTOR'
+                                  : 'COMMERCIAL_ONLY';
+                              setSelectedCountry(reg.code);
+                              setSession((prev) => {
+                                const next = {
+                                  ...prev,
+                                  plans: prev.plans.map((pl) =>
+                                    pl.id === currentPlan.id
+                                      ? {
+                                          ...pl,
+                                          hqCountryCode: reg.code,
+                                          baseCurrency: nextRule.defaultCurrency,
+                                          fundingTrackMode: nextTrackMode,
+                                        }
+                                      : pl
+                                  ),
+                                };
+                                saveBmuSession(next);
+                                return next;
+                              });
+                            }}
+                            className={`rounded-md border px-1.5 py-1 text-[10px] font-semibold transition-all ${
+                              isSelectedCountry
+                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                            }`}
+                          >
+                            {reg.flag} {reg.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {(selectedCountry === 'IE' || selectedCountry === 'GB') && (
+                      <div className="mt-2 grid grid-cols-2 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSession((prev) => {
+                              const next = {
+                                ...prev,
+                                plans: prev.plans.map((pl) =>
+                                  pl.id === currentPlan.id
+                                    ? { ...pl, fundingTrackMode: 'GRANT_AND_INVESTOR' as const }
+                                    : pl
+                                ),
+                              };
+                              saveBmuSession(next);
+                              return next;
+                            });
+                          }}
+                          className={`rounded-md border px-2 py-1 text-[10px] font-semibold transition-all ${
+                            trackCaps.isGrantsEnabled
+                              ? 'border-emerald-600 bg-emerald-600 text-white'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          🏛️ Grants &amp; Investor
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSession((prev) => {
+                              const next = {
+                                ...prev,
+                                plans: prev.plans.map((pl) =>
+                                  pl.id === currentPlan.id
+                                    ? { ...pl, fundingTrackMode: 'COMMERCIAL_ONLY' as const }
+                                    : pl
+                                ),
+                              };
+                              saveBmuSession(next);
+                              return next;
+                            });
+                          }}
+                          className={`rounded-md border px-2 py-1 text-[10px] font-semibold transition-all ${
+                            !trackCaps.isGrantsEnabled
+                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          🚀 Commercial Only
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="my-2 border-t border-slate-100" />
+
                   <button
                     type="button"
                     onClick={() => {
@@ -5504,7 +5651,7 @@ export default function WorkspacePage() {
                   Founder Workspace (Modules A–L)
                 </div>
                 <div className="space-y-1">
-                  {MODULES_LIST.map((mod) => {
+                  {effectiveModulesList.map((mod) => {
                     const access = canAccessModule(activeEntitlement, mod.code);
                     const IconComponent = mod.icon;
                     const isCurrent = activeModule === mod.code;
@@ -7340,10 +7487,10 @@ export default function WorkspacePage() {
                   </div>
                 </div>
 
-                {/* Progress Strip inside Module A Top Tile (7 steps default, 8 steps when in IE or GB) */}
+                {/* Progress Strip inside Module A Top Tile (7 steps default, 8 steps when in IE or GB Grant Track) */}
                 <div
                   className={`mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-4 ${
-                    isGrantCheckerSupportedForCountry(selectedCountry)
+                    isGrantCheckerSupported
                       ? 'lg:grid-cols-8'
                       : 'lg:grid-cols-7'
                   }`}

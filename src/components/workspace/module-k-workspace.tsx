@@ -18,6 +18,10 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  getPlanTrackCapabilities,
+  getGrantsForCountry,
+} from '@/lib/localization';
 import type {
   ActiveStartupPlan,
   ModuleKStep1AuditSavedData,
@@ -104,9 +108,14 @@ export function ModuleKWorkspace({
 }: ModuleKWorkspaceProps) {
   const [openStep, setOpenStep] = useState<number | 'ALL'>(initialStep);
 
-  const isUK = plan.hqCountryCode === 'GB';
-  const countryFlag = isUK ? '🇬🇧' : '🇮🇪';
-  const countryName = isUK ? 'United Kingdom' : 'Ireland';
+  const trackCaps = getPlanTrackCapabilities(
+    plan.hqCountryCode || selectedCountry,
+    plan.fundingTrackMode
+  );
+  const isGrantsEnabled = trackCaps.isGrantsEnabled;
+  const countryFlag = trackCaps.countryFlag;
+  const countryName = trackCaps.countryName;
+  const regionalPerks = getGrantsForCountry(trackCaps.countryCode);
 
   const isStep1Complete = !!plan.moduleKData?.step1Audit?.lastAuditedAt;
   const isStep2Complete = !!plan.moduleKData?.step2CapitalStack?.lastSavedAt;
@@ -114,12 +123,69 @@ export function ModuleKWorkspace({
   const isStep4Complete = !!plan.moduleKData?.step4TaxRelief?.lastSavedAt;
   const isStep5Complete = !!plan.moduleKData?.step5FundingBrief?.lastSavedAt;
 
-  const completedCoreStepsCount =
-    (isStep1Complete ? 1 : 0) +
-    (isStep2Complete ? 1 : 0) +
-    (isStep3Complete ? 1 : 0) +
-    (isStep4Complete ? 1 : 0) +
-    (isStep5Complete ? 1 : 0);
+  const totalCoreSteps = isGrantsEnabled ? 5 : 2;
+  const completedCoreStepsCount = isGrantsEnabled
+    ? (isStep1Complete ? 1 : 0) +
+      (isStep2Complete ? 1 : 0) +
+      (isStep3Complete ? 1 : 0) +
+      (isStep4Complete ? 1 : 0) +
+      (isStep5Complete ? 1 : 0)
+    : (isStep2Complete ? 1 : 0) + (isStep5Complete ? 1 : 0);
+
+  const stepStripItems = isGrantsEnabled
+    ? [
+        {
+          step: 'Step 1',
+          title: '1. Grant Audit & Checklist',
+          done: isStep1Complete,
+          targetId: 'module-k-step-1',
+          stepNum: 1,
+        },
+        {
+          step: 'Step 2',
+          title: '2. Capital Stack & Blend',
+          done: isStep2Complete,
+          targetId: 'module-k-step-2',
+          stepNum: 2,
+        },
+        {
+          step: 'Step 3',
+          title: '3. Reimbursement Bridge',
+          done: isStep3Complete,
+          targetId: 'module-k-step-3',
+          stepNum: 3,
+        },
+        {
+          step: 'Step 4',
+          title: '4. Angel Tax Relief',
+          done: isStep4Complete,
+          targetId: 'module-k-step-4',
+          stepNum: 4,
+        },
+        {
+          step: 'Overview',
+          title: 'Funding Overview Brief',
+          done: isStep5Complete,
+          targetId: 'module-k-step-5',
+          stepNum: 5,
+        },
+      ]
+    : [
+        {
+          step: 'Step 1',
+          title: '1. Capital Stack & Funding Blend',
+          done: isStep2Complete,
+          targetId: 'module-k-step-2',
+          stepNum: 2,
+        },
+        {
+          step: 'Overview',
+          title: 'Funding Strategy Overview Brief',
+          done: isStep5Complete,
+          targetId: 'module-k-step-5',
+          stepNum: 5,
+        },
+      ];
 
   return (
     <div className="space-y-6">
@@ -131,18 +197,23 @@ export function ModuleKWorkspace({
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100 text-[10px] shrink-0">
-                Module K • Flagship Standalone #3
+                Module K • {isGrantsEnabled ? 'Flagship Standalone #3' : 'Capital & Runway Hub'}
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
                 <Sparkles className="mr-1 h-3 w-3" />
-                {countryFlag} {countryName} Grants &amp; Tax Relief Hub
+                {countryFlag} {countryName}{' '}
+                {isGrantsEnabled ? 'Grants & Tax Relief Hub' : 'Capital & Funding Strategy'}
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Module K: Non-Dilutive Grants, Loans &amp; Investor Tax Relief Hub
+              {isGrantsEnabled
+                ? 'Module K: Non-Dilutive Grants, Loans & Investor Tax Relief Hub'
+                : 'Module K: Capital Stack, Runway & Funding Readiness Hub'}
             </h1>
             <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
-              Cross-examine your startup plan against official assessor underwriting criteria, match non-dilutive government capital, and bridge grant cashflow timing lag.
+              {isGrantsEnabled
+                ? 'Cross-examine your startup plan against official assessor underwriting criteria, match non-dilutive government capital, and bridge grant cashflow timing lag.'
+                : 'Structure your funding blend across founder bootstrapping, commercial bank facilities, angel/seed equity, and non-dilutive startup perks.'}
             </p>
           </div>
 
@@ -173,52 +244,20 @@ export function ModuleKWorkspace({
             <div className="text-right text-[11px] text-indigo-200">
               Module K Progress:{' '}
               <strong className="text-white">
-                {Math.round((completedCoreStepsCount / 5) * 100)}%
+                {Math.round((completedCoreStepsCount / totalCoreSteps) * 100)}%
               </strong>{' '}
-              ({completedCoreStepsCount} of 5 Steps Ready)
+              ({completedCoreStepsCount} of {totalCoreSteps} Steps Ready)
             </div>
           </div>
         </div>
 
         {/* Step Navigation Strip (Tile Grid Standard) */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
-          {[
-            {
-              step: 'Step 1',
-              title: '1. Grant Audit & Checklist',
-              done: isStep1Complete,
-              targetId: 'module-k-step-1',
-              stepNum: 1,
-            },
-            {
-              step: 'Step 2',
-              title: '2. Capital Stack & Blend',
-              done: isStep2Complete,
-              targetId: 'module-k-step-2',
-              stepNum: 2,
-            },
-            {
-              step: 'Step 3',
-              title: '3. Reimbursement Bridge',
-              done: isStep3Complete,
-              targetId: 'module-k-step-3',
-              stepNum: 3,
-            },
-            {
-              step: 'Step 4',
-              title: '4. Angel Tax Relief',
-              done: isStep4Complete,
-              targetId: 'module-k-step-4',
-              stepNum: 4,
-            },
-            {
-              step: 'Overview',
-              title: 'Funding Overview Brief',
-              done: isStep5Complete,
-              targetId: 'module-k-step-5',
-              stepNum: 5,
-            },
-          ].map((item, idx, arr) => {
+        <div
+          className={`mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 ${
+            isGrantsEnabled ? 'sm:grid-cols-3 lg:grid-cols-5' : 'sm:grid-cols-2'
+          }`}
+        >
+          {stepStripItems.map((item, idx, arr) => {
             const firstIncompleteIdx = arr.findIndex((s) => !s.done);
             const isStepOpen =
               openStep === 'ALL'
@@ -258,9 +297,37 @@ export function ModuleKWorkspace({
         </div>
       </div>
 
+      {/* Regional Non-Dilutive R&D & Startup Cloud Credits Banner for Non-IE/GB Commercial Plans */}
+      {!isGrantsEnabled && (
+        <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/70 via-white to-emerald-50/50 p-4 shadow-xs">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-indigo-600 text-[10px] text-white">
+                  {countryFlag} {countryName} Commercial Funding Mode
+                </Badge>
+                <span className="text-xs font-bold text-slate-900">
+                  Streamlined Capital Stack (Government Grant Forms Hidden)
+                </span>
+              </div>
+              <p className="text-xs text-slate-600">
+                Your workspace is configured for commercial execution in {countryName}. Below you can model your capital stack across bootstrapping, commercial bank facilities ({trackCaps.exampleBanksLabel}), and angel/seed equity.
+              </p>
+              {regionalPerks.length > 0 && (
+                <p className="text-[11px] font-medium text-emerald-800 pt-1">
+                  💡 <strong>Regional R&amp;D Incentive Note ({countryName}):</strong>{' '}
+                  {regionalPerks[0].grantName} — {regionalPerks[0].maxAmountFormatted}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* 2. STEP 1: AUTOMATED GRANT AUDIT & MULTI-GRANT PREREQUISITE CHECKLIST      */}
       {/* ========================================================================= */}
+      {isGrantsEnabled && (
       <div id="module-k-step-1" className="scroll-mt-24">
         {openStep !== 'ALL' && openStep !== 1 ? (
           // Collapsed Step 1 Card
@@ -362,6 +429,7 @@ export function ModuleKWorkspace({
           </Card>
         )}
       </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 3. STEP 2: CAPITAL STACK & SKIN-IN-THE-GAME BLEND                         */}
@@ -380,14 +448,18 @@ export function ModuleKWorkspace({
                     isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
                   }`}
                 >
-                  {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
+                  {isStep2Complete ? <Check className="h-4 w-4" /> : isGrantsEnabled ? '2' : '1'}
                 </div>
                 <div className="min-w-0">
                   <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
-                    Step 2: Capital Stack &amp; Skin-in-the-Game Blend
+                    {isGrantsEnabled
+                      ? 'Step 2: Capital Stack & Skin-in-the-Game Blend'
+                      : 'Step 1: Capital Stack & Funding Blend'}
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
-                    Architect your funding blend between non-dilutive grants, founder equity, and soft government debt.
+                    {isGrantsEnabled
+                      ? 'Architect your funding blend between non-dilutive grants, founder equity, and soft government debt.'
+                      : 'Architect your commercial funding blend across founder equity, commercial loans, angel investment, and customer revenue.'}
                   </p>
                 </div>
               </div>
@@ -421,14 +493,18 @@ export function ModuleKWorkspace({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
-                    2
+                    {isGrantsEnabled ? '2' : '1'}
                   </div>
                   <div>
                     <CardTitle className="text-base font-bold text-slate-900">
-                      Step 2: Capital Stack &amp; Skin-in-the-Game Blend
+                      {isGrantsEnabled
+                        ? 'Step 2: Capital Stack & Skin-in-the-Game Blend'
+                        : 'Step 1: Capital Stack & Funding Blend'}
                     </CardTitle>
                     <CardDescription className="mt-1 text-xs text-slate-600">
-                      Balance non-dilutive grants, founder matching equity, and soft government loans against your cashflow gap. Assessor rules require 50% skin-in-the-game.
+                      {isGrantsEnabled
+                        ? 'Balance non-dilutive grants, founder matching equity, and soft government loans against your cashflow gap. Assessor rules require 50% skin-in-the-game.'
+                        : 'Model your funding stack across founder capital, commercial credit, angel/VC equity, and early customer revenue against your Module J cashflow trough.'}
                     </CardDescription>
                   </div>
                 </div>
@@ -460,8 +536,8 @@ export function ModuleKWorkspace({
                     });
                   }
                 }}
-                onBackToStep1={() => setOpenStep(1)}
-                onContinueToNextStep={() => setOpenStep(3)}
+                onBackToStep1={() => setOpenStep(isGrantsEnabled ? 1 : 2)}
+                onContinueToNextStep={() => setOpenStep(isGrantsEnabled ? 3 : 5)}
               />
             </CardContent>
           </Card>
@@ -471,6 +547,7 @@ export function ModuleKWorkspace({
       {/* ========================================================================= */}
       {/* 4. STEP 3: GRANT REIMBURSEMENT TIMING BRIDGE                              */}
       {/* ========================================================================= */}
+      {isGrantsEnabled && (
       <div id="module-k-step-3" className="scroll-mt-24">
         {openStep !== 'ALL' && openStep !== 3 ? (
           // Collapsed Step 3 Card
@@ -572,10 +649,12 @@ export function ModuleKWorkspace({
           </Card>
         )}
       </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 5. STEP 4: INVESTOR TAX RELIEF & ANGEL CATALYST (SEIS/EIS & SURE/EII)       */}
       {/* ========================================================================= */}
+      {isGrantsEnabled && (
       <div id="module-k-step-4">
         {openStep !== 'ALL' && openStep !== 4 ? (
           <div
@@ -685,6 +764,7 @@ export function ModuleKWorkspace({
           </Card>
         )}
       </div>
+      )}
 
       {/* Module K Final Overview Brief & Phased Funding Roadmap */}
       <div id="module-k-step-5" className="scroll-mt-24">
@@ -710,8 +790,12 @@ export function ModuleKWorkspace({
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
                     {isStep5Complete
-                      ? 'Phased grant application roadmap and executive funding brief compiled for Module L.'
-                      : 'Generate your phased grant application pipeline, assessor pre-flight audit, and 1-click dossier for Module L.'}
+                      ? isGrantsEnabled
+                        ? 'Phased grant application roadmap and executive funding brief compiled for Module L.'
+                        : 'Phased capital raising roadmap and executive funding brief compiled for Module L.'
+                      : isGrantsEnabled
+                        ? 'Generate your phased grant application pipeline, assessor pre-flight audit, and 1-click dossier for Module L.'
+                        : 'Generate your phased fundraising milestones, capital readiness audit, and 1-click dossier for Module L.'}
                   </p>
                 </div>
               </div>
@@ -763,7 +847,9 @@ export function ModuleKWorkspace({
                       )}
                     </div>
                     <CardDescription className="mt-1 text-xs text-slate-600">
-                      Review your sequenced grant application roadmap (apply for Grant A, then Grant B, then Angel match), underwriter contradiction flags, and 1-click dossier export to Module L.
+                      {isGrantsEnabled
+                        ? 'Review your sequenced grant application roadmap (apply for Grant A, then Grant B, then Angel match), underwriter contradiction flags, and 1-click dossier export to Module L.'
+                        : 'Review your sequenced commercial fundraising roadmap, capital alignment audit, and 1-click dossier export to Module L.'}
                     </CardDescription>
                   </div>
                 </div>
@@ -795,7 +881,7 @@ export function ModuleKWorkspace({
                     });
                   }
                 }}
-                onBackToStep4={() => setOpenStep(4)}
+                onBackToStep4={() => setOpenStep(isGrantsEnabled ? 4 : 2)}
                 onContinueToModuleL={() => {
                   if (onContinueToModuleL) {
                     onContinueToModuleL();

@@ -31,6 +31,7 @@ import {
   type ModuleKStep2CapitalStackSavedData,
 } from '@/lib/auth/session-store';
 import { SUPPORTED_GRANT_PROGRAMS } from '@/lib/grants/module-k-grant-audit';
+import { getPlanTrackCapabilities } from '@/lib/localization';
 import { generateModuleKCapitalStackNarrativeAction } from '@/app/actions/module-k';
 
 export interface ModuleKCapitalStackStepProps {
@@ -48,8 +49,25 @@ export function ModuleKCapitalStackStep({
   onBackToStep1,
   onContinueToNextStep,
 }: ModuleKCapitalStackStepProps) {
-  const isUK = plan.hqCountryCode === 'GB';
-  const currencySymbol = isUK ? '£' : '€';
+  const trackCaps = getPlanTrackCapabilities(
+    plan.hqCountryCode,
+    plan.fundingTrackMode
+  );
+  const isUK = trackCaps.countryCode === 'GB';
+  const isIreland = trackCaps.countryCode === 'IE';
+  const isGrantsEnabled = trackCaps.isGrantsEnabled;
+  const currencyCode =
+    plan.baseCurrency || (isUK ? 'GBP' : isIreland ? 'EUR' : 'USD');
+  const currencySymbol =
+    currencyCode === 'GBP'
+      ? '£'
+      : currencyCode === 'EUR'
+        ? '€'
+        : currencyCode === 'AUD'
+          ? 'A$'
+          : currencyCode === 'CAD'
+            ? 'C$'
+            : '$';
 
   // Selected grant from Step 1 or fallback
   const selectedGrantKey =
@@ -81,6 +99,41 @@ export function ModuleKCapitalStackStep({
     }
 
     const gap = baselineGapFromModJ;
+    if (!isGrantsEnabled) {
+      const founderAlloc = Math.round(gap * 0.4);
+      const bankOrRbfAlloc = Math.round(gap * 0.3);
+      const angelAlloc = Math.max(0, gap - founderAlloc - bankOrRbfAlloc);
+      return [
+        {
+          id: 'tier_founder_cash',
+          sourceKey: 'FOUNDER_SAVINGS_EQUITY',
+          label: 'Founder Savings & Early Customer Pre-Sales',
+          amount: founderAlloc,
+          percentageOfGap: Math.round((founderAlloc / gap) * 100),
+          isDilutive: false,
+          description: 'Non-dilutive founder capital and early customer deposits.',
+        },
+        {
+          id: 'tier_loan_or_debt',
+          sourceKey: 'GOV_BACKED_LOAN',
+          label: `Commercial Bank / Term Loan (${trackCaps.exampleBanksLabel.split(',')[0]})`,
+          amount: bankOrRbfAlloc,
+          percentageOfGap: Math.round((bankOrRbfAlloc / gap) * 100),
+          isDilutive: false,
+          description: 'Working capital credit line or revenue-based financing.',
+        },
+        {
+          id: 'tier_angel_equity',
+          sourceKey: 'ANGEL_INVESTOR_EQUITY',
+          label: 'Angel Syndicate / Pre-Seed SAFE Round',
+          amount: angelAlloc,
+          percentageOfGap: Math.round((angelAlloc / gap) * 100),
+          isDilutive: true,
+          description: 'Strategic angel or pre-seed equity capital to accelerate growth.',
+        },
+      ];
+    }
+
     const grantMax = targetGrantDef?.maxAmountNumeric || (isUK ? 25000 : 40000);
     const grantAlloc = Math.min(gap * 0.5, grantMax);
     const founderAlloc = Math.round(gap * 0.35);
@@ -115,7 +168,7 @@ export function ModuleKCapitalStackStep({
         description: 'Unsecured government-backed lending bridge at fixed interest.',
       },
     ];
-  }, [existingStep2, baselineGapFromModJ, targetGrantDef, isUK]);
+  }, [existingStep2, baselineGapFromModJ, targetGrantDef, isUK, isGrantsEnabled, trackCaps.exampleBanksLabel]);
 
   const [fundingSources, setFundingSources] = useState<CapitalAllocationTierItem[]>(initialSources);
   const [activeWhyCard, setActiveWhyCard] = useState<boolean>(false);

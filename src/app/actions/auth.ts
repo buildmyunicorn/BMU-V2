@@ -422,6 +422,12 @@ async function buildSessionFromDbUser(
         (targetMarkets.length > 1
           ? 'EXPORTING_INTERNATIONALLY'
           : 'DOMESTIC_ONLY'),
+      fundingTrackMode:
+        (plan.grantComplianceMetadataJson as { fundingTrackMode?: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY' } | null)?.fundingTrackMode ||
+        (structuredInputs as { fundingTrackMode?: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY' })?.fundingTrackMode ||
+        (plan.hqCountryCode === 'IE' || plan.hqCountryCode === 'GB'
+          ? 'GRANT_AND_INVESTOR'
+          : 'COMMERCIAL_ONLY'),
       currentModuleStep: plan.currentModuleStep || 'MOD_A_STEP_1',
       isPivot: Boolean(plan.parentPlanId),
       brainDumpText: structuredInputs.brainDumpText || plan.oneLinerSummary || '',
@@ -954,6 +960,7 @@ export async function completeOnboardingAction(input: {
   hqCountryCode: SupportedCountryCode;
   industryCategory: IndustryCategory;
   exportPotential: 'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY';
+  fundingTrackMode?: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY';
 }): Promise<AuthActionResult> {
   try {
     const cookiePayload = await getServerSessionCookie();
@@ -980,6 +987,13 @@ export async function completeOnboardingAction(input: {
     }
 
     const countryPack = getCountryRulePack(input.hqCountryCode);
+    const isGrantRegion =
+      input.hqCountryCode === 'IE' || input.hqCountryCode === 'GB';
+    const resolvedTrack: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY' = isGrantRegion
+      ? input.fundingTrackMode === 'COMMERCIAL_ONLY'
+        ? 'COMMERCIAL_ONLY'
+        : 'GRANT_AND_INVESTOR'
+      : 'COMMERCIAL_ONLY';
     const targetMarkets =
       input.exportPotential === 'EXPORTING_INTERNATIONALLY'
         ? Array.from(new Set([input.hqCountryCode, 'GB', 'EU', 'US']))
@@ -1014,6 +1028,9 @@ export async function completeOnboardingAction(input: {
         hqCountryCode: input.hqCountryCode,
         baseCurrency: countryPack.defaultCurrency,
         targetMarketsArray: targetMarkets,
+        grantComplianceMetadataJson: {
+          fundingTrackMode: resolvedTrack,
+        },
         currentModuleStep: 'MOD_A_STEP_1',
         status: 'ACTIVE',
       })
@@ -1032,6 +1049,7 @@ export async function completeOnboardingAction(input: {
       structuredInputsJsonb: {
         brainDumpText: cleanSummary,
         exportPotential: input.exportPotential,
+        fundingTrackMode: resolvedTrack,
         teamAndBudget: {
           teamStructureType: initialTeamType,
           skillCoverage: 'BUILD_IN_HOUSE',

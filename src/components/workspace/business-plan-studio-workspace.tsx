@@ -29,7 +29,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { formatPlanCurrency } from '@/lib/localization';
+import {
+  formatPlanCurrency,
+  getPlanTrackCapabilities,
+} from '@/lib/localization';
 import type {
   ActiveStartupPlan,
   BusinessPlanVersionItem,
@@ -499,22 +502,124 @@ export function BusinessPlanStudioWorkspace({
   onParkQuestionInSession,
 }: BusinessPlanStudioWorkspaceProps) {
   const jumpHandler = onJumpToModule || onNavigateToModule;
-  const isUK = selectedCountry === 'GB' || plan.hqCountryCode === 'GB';
-  const currency = plan.baseCurrency || (isUK ? 'GBP' : 'EUR');
-  const currencySymbol = isUK ? '£' : plan.hqCountryCode === 'IE' ? '€' : '$';
+  const effectiveCountry = plan.hqCountryCode || selectedCountry || 'IE';
+  const trackCaps = useMemo(
+    () => getPlanTrackCapabilities(effectiveCountry, plan.fundingTrackMode),
+    [effectiveCountry, plan.fundingTrackMode]
+  );
+  const isUK = trackCaps.countryCode === 'GB';
+  const isIreland = trackCaps.countryCode === 'IE';
+  const isGrantsEnabled = trackCaps.isGrantsEnabled;
+  const currency =
+    plan.baseCurrency || (isUK ? 'GBP' : isIreland ? 'EUR' : 'USD');
+  const currencySymbol =
+    currency === 'GBP'
+      ? '£'
+      : currency === 'EUR'
+        ? '€'
+        : currency === 'AUD'
+          ? 'A$'
+          : currency === 'CAD'
+            ? 'C$'
+            : '$';
+
+  // Filter archetypes so international / non-grant plans never see IE/UK grant forms,
+  // and IE/UK plans only see their own country's grant forms.
+  const availableArchetypes = useMemo(() => {
+    return ARCHETYPE_CATALOG.filter((cat) => {
+      if (cat.archetype === 'IE_LEO_OFFICIAL_GRANT') {
+        return isGrantsEnabled && isIreland;
+      }
+      if (cat.archetype === 'UK_INNOVATE_UK_9Q') {
+        return isGrantsEnabled && isUK;
+      }
+      return true;
+    }).map((cat) => {
+      if (cat.archetype === 'COMMERCIAL_BANK_LOAN') {
+        return {
+          ...cat,
+          summary: `Engineered specifically for commercial credit risk officers and bank loan underwriters (${trackCaps.exampleBanksLabel}). Emphasizes cashflow trough, debt service coverage, collateral assets, personal survival budget, and down-side risk buffers.`,
+        };
+      }
+      return cat;
+    });
+  }, [isGrantsEnabled, isIreland, isUK, trackCaps.exampleBanksLabel]);
+
+  const defaultArchetypeForPlan: BusinessPlanArchetype = useMemo(() => {
+    if (isGrantsEnabled && isIreland) return 'IE_LEO_OFFICIAL_GRANT';
+    if (isGrantsEnabled && isUK) return 'COMMERCIAL_BANK_LOAN';
+    return 'STANDARD_COMPREHENSIVE_PLAN';
+  }, [isGrantsEnabled, isIreland, isUK]);
+
+  const defaultTitleForPlan = useMemo(() => {
+    if (isGrantsEnabled && isIreland) {
+      return 'LEO Official Grant & Growth Business Plan';
+    }
+    if (isGrantsEnabled && isUK) {
+      return 'Commercial Bank Credit Application & Plan';
+    }
+    return 'Comprehensive Master Business Plan';
+  }, [isGrantsEnabled, isIreland, isUK]);
+
+  // Helper to sanitize existing versions if a plan switched away from IE/UK grants
+  const normalizeVersionsForTrack = useMemo(() => {
+    return (rawVersions: BusinessPlanVersionItem[]): BusinessPlanVersionItem[] => {
+      return rawVersions
+        .map((ver) => {
+          const isForeignOrDisabledGrant =
+            (ver.archetype === 'IE_LEO_OFFICIAL_GRANT' &&
+              (!isGrantsEnabled || !isIreland)) ||
+            (ver.archetype === 'UK_INNOVATE_UK_9Q' &&
+              (!isGrantsEnabled || !isUK));
+
+          if (!isForeignOrDisabledGrant) return ver;
+
+          // Check if the user has actually written custom content in this grant version
+          const hasCompiledContent = (ver.sections || []).some(
+            (s) => (s.compiledResponseText || '').trim().length > 20
+          );
+
+          // Convert untouched default grant versions to the clean Master Business Plan
+          const replacementCat =
+            ARCHETYPE_CATALOG.find(
+              (c) => c.archetype === defaultArchetypeForPlan
+            ) || ARCHETYPE_CATALOG[5];
+
+          if (!hasCompiledContent) {
+            return {
+              ...ver,
+              title: defaultTitleForPlan,
+              archetype: replacementCat.archetype,
+              targetAudience: replacementCat.targetAudience,
+              targetTone: replacementCat.targetTone,
+              sections: replacementCat.sectionsTemplate.map((tpl) => ({
+                id: `sec-${tpl.sectionNumber}-${Date.now()}`,
+                sectionNumber: tpl.sectionNumber,
+                title: tpl.title,
+                assessorQuestionPrompt: tpl.assessorPrompt,
+                scoringWeightPercent: tpl.scoringWeightPercent,
+                wordLimit: tpl.wordLimit,
+                sourceModules: tpl.sourceModules,
+                compiledResponseText: '',
+              })),
+            };
+          }
+          return null;
+        })
+        .filter((v): v is BusinessPlanVersionItem => v !== null);
+    };
+  }, [defaultArchetypeForPlan, defaultTitleForPlan, isGrantsEnabled, isIreland, isUK]);
 
   // 1. Initial Versions
   const initialVersions: BusinessPlanVersionItem[] = useMemo(() => {
     if (plan.moduleLData?.versions && plan.moduleLData.versions.length > 0) {
-      return plan.moduleLData.versions;
+      const cleaned = normalizeVersionsForTrack(plan.moduleLData.versions);
+      if (cleaned.length > 0) return cleaned;
     }
 
-    const defaultArchetypeKey: BusinessPlanArchetype = isUK
-      ? 'COMMERCIAL_BANK_LOAN'
-      : 'IE_LEO_OFFICIAL_GRANT';
     const catalogItem =
-      ARCHETYPE_CATALOG.find((c) => c.archetype === defaultArchetypeKey) ||
-      ARCHETYPE_CATALOG[0];
+      ARCHETYPE_CATALOG.find((c) => c.archetype === defaultArchetypeForPlan) ||
+      ARCHETYPE_CATALOG[5];
 
     const defaultSections: ModuleLCompiledSectionItem[] =
       catalogItem.sectionsTemplate.map((tpl) => ({
@@ -531,10 +636,8 @@ export function BusinessPlanStudioWorkspace({
     return [
       {
         id: `bp-ver-${Date.now()}`,
-        title: isUK
-          ? 'Commercial Bank Credit Application & Plan'
-          : 'LEO Official Grant & Growth Business Plan',
-        archetype: defaultArchetypeKey,
+        title: defaultTitleForPlan,
+        archetype: defaultArchetypeForPlan,
         createdAt: new Date().toISOString(),
         lastEditedAt: new Date().toISOString(),
         isPrimary: true,
@@ -542,42 +645,46 @@ export function BusinessPlanStudioWorkspace({
         targetTone: catalogItem.targetTone,
         targetFundingAsk: 50000,
         sections: defaultSections,
-        executiveHookStatement: `${plan.title} is an evidence-backed commercial venture positioned for sustainable, high-value growth in ${selectedCountry}.`,
+        executiveHookStatement: `${plan.title} is an evidence-backed commercial venture positioned for sustainable, high-value growth in ${trackCaps.countryName}.`,
       },
     ];
-  }, [plan.moduleLData?.versions, isUK, plan.title, selectedCountry]);
+  }, [
+    plan.moduleLData?.versions,
+    normalizeVersionsForTrack,
+    defaultArchetypeForPlan,
+    defaultTitleForPlan,
+    plan.title,
+    trackCaps.countryName,
+  ]);
 
   const [versions, setVersions] = useState<BusinessPlanVersionItem[]>(initialVersions);
   const [activeVersionId, setActiveVersionId] = useState<string>(
     plan.moduleLData?.activeVersionId || initialVersions[0]?.id || ''
   );
 
-  // Synchronize versions from plan prop when background cloud session hydration finishes
+  // Synchronize versions from plan prop when background cloud session hydration finishes or country/track changes
   useEffect(() => {
     if (plan.moduleLData?.versions && plan.moduleLData.versions.length > 0) {
-      setVersions((prev) => {
-        if (
-          prev.length === plan.moduleLData!.versions!.length &&
-          prev.every(
-            (v, i) =>
-              v.id === plan.moduleLData!.versions![i]?.id &&
-              v.lastEditedAt === plan.moduleLData!.versions![i]?.lastEditedAt
-          )
-        ) {
-          return prev;
-        }
-        return plan.moduleLData!.versions!;
-      });
-      if (plan.moduleLData.activeVersionId) {
+      const cleaned = normalizeVersionsForTrack(plan.moduleLData.versions);
+      if (cleaned.length > 0) {
+        setVersions(cleaned);
         setActiveVersionId((prevId) => {
-          if (prevId && plan.moduleLData!.versions!.some((v) => v.id === prevId)) {
+          if (prevId && cleaned.some((v) => v.id === prevId)) {
             return prevId;
           }
-          return plan.moduleLData!.activeVersionId || prevId;
+          return cleaned[0]?.id || prevId;
         });
       }
+    } else {
+      setVersions(initialVersions);
+      setActiveVersionId(initialVersions[0]?.id || '');
     }
-  }, [plan.moduleLData?.versions, plan.moduleLData?.activeVersionId]);
+  }, [
+    plan.moduleLData?.versions,
+    plan.moduleLData?.activeVersionId,
+    normalizeVersionsForTrack,
+    initialVersions,
+  ]);
 
   const activeVersion = useMemo(() => {
     return versions.find((v) => v.id === activeVersionId) || versions[0];
@@ -585,10 +692,12 @@ export function BusinessPlanStudioWorkspace({
 
   const catalogMeta = useMemo(() => {
     return (
+      availableArchetypes.find((c) => c.archetype === activeVersion?.archetype) ||
       ARCHETYPE_CATALOG.find((c) => c.archetype === activeVersion?.archetype) ||
+      availableArchetypes[0] ||
       ARCHETYPE_CATALOG[0]
     );
-  }, [activeVersion?.archetype]);
+  }, [activeVersion?.archetype, availableArchetypes]);
 
   // 2. Option A: Inline "Click-to-Edit" State
   // Which section is currently being edited inline on the continuous canvas (null = reader mode)
@@ -610,7 +719,11 @@ export function BusinessPlanStudioWorkspace({
   const [isCreatingNewVersion, setIsCreatingNewVersion] = useState(false);
   const [newVersionTitle, setNewVersionTitle] = useState('');
   const [selectedArchetypeForNew, setSelectedArchetypeForNew] =
-    useState<BusinessPlanArchetype>(isUK ? 'COMMERCIAL_BANK_LOAN' : 'IE_LEO_OFFICIAL_GRANT');
+    useState<BusinessPlanArchetype>(defaultArchetypeForPlan);
+
+  useEffect(() => {
+    setSelectedArchetypeForNew(defaultArchetypeForPlan);
+  }, [defaultArchetypeForPlan]);
 
   // Saving state
   const [isSaving, setIsSaving] = useState(false);
@@ -1753,11 +1866,17 @@ Generated by Startup Preflight Business Plan Studio
                           <div className="flex items-center gap-2">
                             <Target className="h-4 w-4 text-purple-800" />
                             <span className="text-xs font-bold uppercase tracking-wider text-purple-950">
-                              Table: Seed Round Structure, Capital Use of Proceeds &amp; Angel Tax Relief
+                              {isGrantsEnabled
+                                ? 'Table: Seed Round Structure, Capital Use of Proceeds & Angel Tax Relief'
+                                : 'Table: Seed Round Structure & Capital Use of Proceeds'}
                             </span>
                           </div>
                           <Badge className="text-[10px] bg-purple-700 text-white font-semibold">
-                            {isUK ? 'HMRC SEIS/EIS Eligible' : 'Revenue EII 40% Relief'}
+                            {isGrantsEnabled
+                              ? isUK
+                                ? 'HMRC SEIS/EIS Eligible'
+                                : 'Revenue EII 40% Relief'
+                              : 'Seed / SAFE Term Sheet'}
                           </Badge>
                         </div>
                         <div className="overflow-x-auto">
@@ -1799,14 +1918,24 @@ Generated by Startup Preflight Business Plan Studio
                                 </td>
                               </tr>
                               <tr className="hover:bg-purple-50/30 bg-purple-50/40 font-semibold">
-                                <td className="px-4 py-2.5 text-purple-950">Angel Tax Relief Status</td>
+                                <td className="px-4 py-2.5 text-purple-950">
+                                  {isGrantsEnabled
+                                    ? 'Angel Tax Relief Status'
+                                    : 'Investor Instrument & Governance'}
+                                </td>
                                 <td className="px-4 py-2.5 text-right text-purple-900">
-                                  {isUK ? '50% SEIS / 30% EIS' : '40% EII Relief'}
+                                  {isGrantsEnabled
+                                    ? isUK
+                                      ? '50% SEIS / 30% EIS'
+                                      : '40% EII Relief'
+                                    : 'SAFE / Priced Equity'}
                                 </td>
                                 <td className="px-4 py-2.5 text-purple-900">
-                                  {isUK
-                                    ? 'Qualifying UK startup eligible for 50% income tax relief + zero capital gains tax for angels.'
-                                    : 'Qualifying Irish venture under Revenue Employment Investment Incentive (40% personal tax relief).'}
+                                  {isGrantsEnabled
+                                    ? isUK
+                                      ? 'Qualifying UK startup eligible for 50% income tax relief + zero capital gains tax for angels.'
+                                      : 'Qualifying Irish venture under Revenue Employment Investment Incentive (40% personal tax relief).'
+                                    : 'Clean corporate cap table with standard 4-year founder vesting (1-year cliff) and 100% IP assignment.'}
                                 </td>
                               </tr>
                             </tbody>
@@ -2052,12 +2181,16 @@ Generated by Startup Preflight Business Plan Studio
                       disabled={isPolishing}
                       onClick={() =>
                         handleApplyPolish(
-                          'Emphasize regional job creation, export growth, and technical innovation additionality.'
+                          isGrantsEnabled
+                            ? 'Emphasize regional job creation, export growth, and technical innovation additionality.'
+                            : 'Emphasize scalable unit economics, competitive defensibility, and technical innovation.'
                         )
                       }
                       className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-violet-300 hover:bg-violet-50 transition-colors"
                     >
-                      🇮🇪/🇬🇧 Job Creation &amp; R&amp;D
+                      {isGrantsEnabled
+                        ? '🇮🇪/🇬🇧 Job Creation & R&D'
+                        : '🚀 Scalability & Defensibility'}
                     </button>
                   </div>
 
@@ -2147,7 +2280,13 @@ Generated by Startup Preflight Business Plan Studio
                   type="text"
                   value={newVersionTitle}
                   onChange={(e) => setNewVersionTitle(e.target.value)}
-                  placeholder="e.g. AIB Commercial Loan Facility, Enterprise Ireland PSSF, Seed Round Memo..."
+                  placeholder={
+                    isGrantsEnabled
+                      ? isIreland
+                        ? 'e.g. AIB Commercial Loan Facility, Enterprise Ireland PSSF, Seed Round Memo...'
+                        : 'e.g. Barclays Commercial Loan Facility, Innovate UK Smart Grant, Seed Round Memo...'
+                      : 'e.g. Master Commercial Plan, Seed Round Memo, Bank Credit Facility...'
+                  }
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden"
                 />
               </div>
@@ -2155,7 +2294,7 @@ Generated by Startup Preflight Business Plan Studio
               <div>
                 <label className="text-xs font-semibold text-slate-700">Choose Audience Archetype</label>
                 <div className="mt-1.5 space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {ARCHETYPE_CATALOG.map((cat) => (
+                  {availableArchetypes.map((cat) => (
                     <label
                       key={cat.archetype}
                       className={`flex items-start gap-2.5 rounded-xl border p-3 cursor-pointer text-xs transition-all ${

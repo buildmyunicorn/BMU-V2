@@ -21,7 +21,10 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatPlanCurrency } from '@/lib/localization';
+import {
+  formatPlanCurrency,
+  getPlanTrackCapabilities,
+} from '@/lib/localization';
 import type {
   ActiveStartupPlan,
   ModuleLStep1ModeSavedData,
@@ -120,14 +123,17 @@ export function ModuleLWorkspace({
 
   const [openStep, setOpenStep] = useState<number | 'ALL'>(defaultOpenStep);
 
-  const isUK = plan.hqCountryCode === 'GB';
-  const countryFlag = isUK ? '🇬🇧' : plan.hqCountryCode === 'IE' ? '🇮🇪' : '🌍';
-  const countryName = isUK
-    ? 'United Kingdom'
-    : plan.hqCountryCode === 'IE'
-      ? 'Ireland'
-      : plan.hqCountryCode;
-  const currency = plan.baseCurrency || (isUK ? 'GBP' : 'EUR');
+  const trackCaps = getPlanTrackCapabilities(
+    plan.hqCountryCode,
+    plan.fundingTrackMode
+  );
+  const isUK = trackCaps.countryCode === 'GB';
+  const isIreland = trackCaps.countryCode === 'IE';
+  const isGrantsEnabled = trackCaps.isGrantsEnabled;
+  const countryFlag = trackCaps.countryFlag;
+  const countryName = trackCaps.countryName;
+  const currency =
+    plan.baseCurrency || (isUK ? 'GBP' : isIreland ? 'EUR' : 'USD');
 
   const completedCoreStepsCount =
     (isStep1Complete ? 1 : 0) +
@@ -136,13 +142,17 @@ export function ModuleLWorkspace({
     (isStep4Complete ? 1 : 0) +
     (isStep5Complete ? 1 : 0);
 
-  const activeCompilerMode =
-    plan.moduleLData?.step1Mode?.compilerMode ||
-    (plan.hqCountryCode === 'IE'
-      ? 'IE_LEO_OFFICIAL_FORM'
-      : plan.hqCountryCode === 'GB'
-        ? 'UK_INNOVATE_UK_9Q'
-        : 'STANDARD_COMMERCIAL_PLAN');
+  const savedCompilerMode = plan.moduleLData?.step1Mode?.compilerMode;
+  const activeCompilerMode = !isGrantsEnabled
+    ? savedCompilerMode === 'OTHER'
+      ? 'OTHER'
+      : 'STANDARD_COMMERCIAL_PLAN'
+    : savedCompilerMode ||
+      (isIreland
+        ? 'IE_LEO_OFFICIAL_FORM'
+        : isUK
+          ? 'UK_INNOVATE_UK_9Q'
+          : 'STANDARD_COMMERCIAL_PLAN');
 
   const activeCatalogItem =
     MODULE_L_COMPILER_MODES.find((m) => m.mode === activeCompilerMode) ||
@@ -170,17 +180,24 @@ export function ModuleLWorkspace({
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
                 <Sparkles className="mr-1 h-3 w-3" />
-                {countryFlag} {countryName} Grant &amp; Business Plan Compiler
+                {countryFlag} {countryName}{' '}
+                {isGrantsEnabled
+                  ? 'Grant & Business Plan Compiler'
+                  : 'Commercial & Investor Plan Compiler'}
               </Badge>
               <Badge className="border-violet-400/30 bg-violet-500/20 text-violet-100 text-[10px] shrink-0">
                 {activeCatalogItem.badge}
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Module L: Interactive Business Plan &amp; Official Grant Compiler
+              {isGrantsEnabled
+                ? 'Module L: Interactive Business Plan & Official Grant Compiler'
+                : 'Module L: Interactive Commercial & Investor Business Plan Compiler'}
             </h1>
             <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
-              Transform your verified answers across Modules A–K into committee-ready IE LEO forms, UK Innovate UK 9-Question applications, Start Up Loan workbooks, or SEIS/EIS/EII investor packs with Appendices A–F.
+              {isGrantsEnabled
+                ? 'Transform your verified answers across Modules A–K into committee-ready IE LEO forms, UK Innovate UK 9-Question applications, Start Up Loan workbooks, or SEIS/EIS/EII investor packs with Appendices A–F.'
+                : 'Transform your verified answers across Modules A–K into bank-ready commercial business plans, angel/seed investor memos, or custom accelerator applications with Appendices A–F.'}
             </p>
           </div>
 

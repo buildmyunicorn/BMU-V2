@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Check,
   ChevronDown,
@@ -27,7 +27,10 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatPlanCurrency } from '@/lib/localization';
+import {
+  formatPlanCurrency,
+  getPlanTrackCapabilities,
+} from '@/lib/localization';
 import type {
   ActiveStartupPlan,
   ModuleLCompilerModeType,
@@ -330,30 +333,85 @@ export function ModuleLModeSelectorStep({
   onJumpToCompilerStep3,
   onParkQuestionInSession,
 }: ModuleLModeSelectorStepProps) {
-  const isUK = plan.hqCountryCode === 'GB';
-  const currency = plan.baseCurrency || (isUK ? 'GBP' : 'EUR');
+  const trackCaps = useMemo(
+    () => getPlanTrackCapabilities(plan.hqCountryCode, plan.fundingTrackMode),
+    [plan.hqCountryCode, plan.fundingTrackMode]
+  );
+  const isUK = trackCaps.countryCode === 'GB';
+  const isIreland = trackCaps.countryCode === 'IE';
+  const isGrantsEnabled = trackCaps.isGrantsEnabled;
+  const currency =
+    plan.baseCurrency || (isUK ? 'GBP' : isIreland ? 'EUR' : 'USD');
+
+  // Filter compiler modes so international & commercial-only plans only see global commercial formats
+  const availableCompilerModes = useMemo(() => {
+    return MODULE_L_COMPILER_MODES.filter((m) => {
+      if (!isGrantsEnabled) {
+        return m.countryTag === 'GLOBAL';
+      }
+      if (isIreland) {
+        return (
+          m.countryTag === 'IE' ||
+          m.countryTag === 'IE_GB' ||
+          m.countryTag === 'GLOBAL'
+        );
+      }
+      if (isUK) {
+        return (
+          m.countryTag === 'GB' ||
+          m.countryTag === 'IE_GB' ||
+          m.countryTag === 'GLOBAL'
+        );
+      }
+      return m.countryTag === 'GLOBAL';
+    });
+  }, [isGrantsEnabled, isIreland, isUK]);
+
+  const availableObjectiveOptions = useMemo(() => {
+    if (isGrantsEnabled) return SUBMISSION_OBJECTIVE_OPTIONS;
+    return [
+      {
+        value: 'BANK_OR_COMMERCIAL_PARTNERSHIP' as ModuleLSubmissionObjectiveType,
+        label: 'Commercial Bank, Lease or Enterprise Approval',
+        subtitle: 'Prove working capital resilience, insurance & operational SLA readiness',
+      },
+      {
+        value: 'TAX_RELIEF_CLEARANCE_AND_SEED' as ModuleLSubmissionObjectiveType,
+        label: 'Angel Syndicate / Pre-Seed Equity Round',
+        subtitle: 'Demonstrate scalable unit economics, TAM/SAM/SOM wedge & 18-month runway',
+      },
+      {
+        value: 'OTHER' as ModuleLSubmissionObjectiveType,
+        label: 'Other Submission Objective',
+        subtitle: 'Specify a custom milestone, accelerator, or board approval goal',
+      },
+    ];
+  }, [isGrantsEnabled]);
 
   // Derive intelligent default mode from Module K or HQ Country
   const syncedRecommendedMode: ModuleLCompilerModeType = useMemo(() => {
+    if (!isGrantsEnabled) {
+      return 'STANDARD_COMMERCIAL_PLAN';
+    }
     const modKMode = plan.moduleKData?.step5FundingBrief?.moduleLGrantMode;
-    if (modKMode === 'IE_LEO') return 'IE_LEO_OFFICIAL_FORM';
-    if (modKMode === 'UK_INNOVATE_UK') return 'UK_INNOVATE_UK_9Q';
-    if (modKMode === 'UK_START_UP_LOANS') return 'UK_START_UP_LOANS_WORKBOOK';
+    if (modKMode === 'IE_LEO' && isIreland) return 'IE_LEO_OFFICIAL_FORM';
+    if (modKMode === 'UK_INNOVATE_UK' && isUK) return 'UK_INNOVATE_UK_9Q';
+    if (modKMode === 'UK_START_UP_LOANS' && isUK) return 'UK_START_UP_LOANS_WORKBOOK';
     if (modKMode === 'HMRC_SEIS') return 'INVESTOR_SEIS_EIS_EII_PACK';
 
     const selectedGrant = plan.moduleKData?.step1Audit?.selectedGrantKey;
-    if (selectedGrant === 'GB_INNOVATE_UK_SMART') return 'UK_INNOVATE_UK_9Q';
-    if (selectedGrant === 'GB_BBB_START_UP_LOAN') return 'UK_START_UP_LOANS_WORKBOOK';
+    if (selectedGrant === 'GB_INNOVATE_UK_SMART' && isUK) return 'UK_INNOVATE_UK_9Q';
+    if (selectedGrant === 'GB_BBB_START_UP_LOAN' && isUK) return 'UK_START_UP_LOANS_WORKBOOK';
     if (
       selectedGrant === 'GB_HMRC_SEIS_ASSURANCE' ||
       selectedGrant === 'IE_EI_EII_INVESTOR_RELIEF'
     ) {
       return 'INVESTOR_SEIS_EIS_EII_PACK';
     }
-    if (plan.hqCountryCode === 'IE') return 'IE_LEO_OFFICIAL_FORM';
-    if (plan.hqCountryCode === 'GB') return 'UK_INNOVATE_UK_9Q';
+    if (isIreland) return 'IE_LEO_OFFICIAL_FORM';
+    if (isUK) return 'UK_INNOVATE_UK_9Q';
     return 'STANDARD_COMMERCIAL_PLAN';
-  }, [plan.hqCountryCode, plan.moduleKData]);
+  }, [isGrantsEnabled, isIreland, isUK, plan.moduleKData]);
 
   // Derive intelligent default ask amount from Module K or Module J
   const syncedDefaultAskAmount = useMemo(() => {
@@ -361,21 +419,31 @@ export function ModuleLModeSelectorStep({
     const modKLoans = plan.moduleKData?.step2CapitalStack?.totalLoansAllocated || 0;
     const modKAngel = plan.moduleKData?.step2CapitalStack?.totalAngelAllocated || 0;
     const modKTotalGap = plan.moduleKData?.step2CapitalStack?.totalTargetFundingGap || 0;
-    if (modKGrants > 0) return modKGrants;
+    if (isGrantsEnabled && modKGrants > 0) return modKGrants;
     if (modKLoans > 0) return modKLoans;
     if (modKAngel > 0) return modKAngel;
     if (modKTotalGap > 0) return modKTotalGap;
-    return isUK ? 25000 : 25000;
-  }, [plan.moduleKData, isUK]);
+    return 25000;
+  }, [plan.moduleKData, isGrantsEnabled]);
 
   const saved = plan.moduleLData?.step1Mode;
+  const resolvedInitialMode: ModuleLCompilerModeType = useMemo(() => {
+    if (
+      saved?.compilerMode &&
+      availableCompilerModes.some((m) => m.mode === saved.compilerMode)
+    ) {
+      return saved.compilerMode;
+    }
+    return syncedRecommendedMode;
+  }, [saved?.compilerMode, availableCompilerModes, syncedRecommendedMode]);
+
   const initialCatalog =
-    MODULE_L_COMPILER_MODES.find(
-      (m) => m.mode === (saved?.compilerMode || syncedRecommendedMode)
-    ) || MODULE_L_COMPILER_MODES[0];
+    availableCompilerModes.find((m) => m.mode === resolvedInitialMode) ||
+    MODULE_L_COMPILER_MODES.find((m) => m.mode === 'STANDARD_COMMERCIAL_PLAN') ||
+    MODULE_L_COMPILER_MODES[0];
 
   const [compilerMode, setCompilerMode] = useState<ModuleLCompilerModeType>(
-    saved?.compilerMode || syncedRecommendedMode
+    resolvedInitialMode
   );
   const [otherCompilerModeText, setOtherCompilerModeText] = useState<string>(
     saved?.otherCompilerModeText || ''
@@ -426,11 +494,27 @@ export function ModuleLModeSelectorStep({
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!availableCompilerModes.some((m) => m.mode === compilerMode)) {
+      const fallback =
+        availableCompilerModes.find((m) => m.mode === syncedRecommendedMode) ||
+        availableCompilerModes[0];
+      if (fallback) {
+        setCompilerMode(fallback.mode);
+        setNarrativeTone(fallback.defaultTone);
+        setSubmissionObjective(fallback.defaultObjective);
+        setTargetAgencyOrCommitteeName(fallback.defaultAgencyName);
+      }
+    }
+  }, [availableCompilerModes, compilerMode, syncedRecommendedMode]);
+
   const activeCatalogItem = useMemo(
     () =>
+      availableCompilerModes.find((m) => m.mode === compilerMode) ||
       MODULE_L_COMPILER_MODES.find((m) => m.mode === compilerMode) ||
+      availableCompilerModes[0] ||
       MODULE_L_COMPILER_MODES[0],
-    [compilerMode]
+    [compilerMode, availableCompilerModes]
   );
 
   // Calculate live cross-module telemetry for the 4-Card Underwriting Diagnostic Grid
@@ -883,7 +967,7 @@ export function ModuleLModeSelectorStep({
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
             <div className="text-xs text-slate-700">
               <span className="font-bold text-slate-900">
-                Synced from Module K &amp; Geo-Profile ({plan.hqCountryCode}):
+                Synced from Geo-Profile ({trackCaps.countryFlag} {trackCaps.countryName}):
               </span>{' '}
               Based on your workspace funding strategy, your recommended compilation format is{' '}
               <strong className="text-indigo-700">
@@ -893,7 +977,7 @@ export function ModuleLModeSelectorStep({
                   )?.title
                 }
               </strong>
-              . You can switch between all 5 official modes at any time without losing data.
+              . You can switch between available modes at any time without losing data.
             </div>
           </div>
           {compilerMode !== syncedRecommendedMode && !isVaultReadonly && (
@@ -910,7 +994,7 @@ export function ModuleLModeSelectorStep({
         </div>
 
         {/* =================================================================== */}
-        {/* 2. PRIMARY COMPILATION MODE SELECTOR (5 Official Modes + "OTHER")   */}
+        {/* 2. PRIMARY COMPILATION MODE SELECTOR                                */}
         {/* =================================================================== */}
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -924,7 +1008,7 @@ export function ModuleLModeSelectorStep({
             </div>
             <span
               className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-600"
-              title="Jargon Tooltip: Each agency uses a specific scoring rubric (e.g., EVAC in Ireland or IFS 9-Question in the UK). Switching modes reformats your data without erasing anything."
+              title="Jargon Tooltip: Each stakeholder uses a specific scoring rubric. Switching modes reformats your data without erasing anything."
             >
               <Info className="h-3 w-3 text-indigo-600" />
               Non-Destructive Mode Switcher
@@ -932,7 +1016,7 @@ export function ModuleLModeSelectorStep({
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {MODULE_L_COMPILER_MODES.map((item) => {
+            {availableCompilerModes.map((item) => {
               const isSelected = compilerMode === item.mode;
               const isRecommended = syncedRecommendedMode === item.mode;
               return (
@@ -1131,7 +1215,7 @@ export function ModuleLModeSelectorStep({
               Primary Committee Approval Objective
             </label>
             <div className="grid grid-cols-1 gap-2">
-              {SUBMISSION_OBJECTIVE_OPTIONS.map((opt) => {
+              {availableObjectiveOptions.map((opt) => {
                 const active = submissionObjective === opt.value;
                 return (
                   <button

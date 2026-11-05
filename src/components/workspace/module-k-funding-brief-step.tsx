@@ -37,6 +37,7 @@ import {
   generateModuleKStep5FundingBriefAction,
   saveModuleKStep5FundingBriefAction,
 } from '@/app/actions/module-k';
+import { getPlanTrackCapabilities } from '@/lib/localization';
 
 interface ModuleKFundingBriefStepProps {
   plan: ActiveStartupPlan;
@@ -53,11 +54,19 @@ export function ModuleKFundingBriefStep({
   onBackToStep4,
   onContinueToModuleL,
 }: ModuleKFundingBriefStepProps) {
-  const isUK = plan.hqCountryCode === 'GB';
-  const currencySymbol = isUK ? '£' : '€';
-  const grantAgency = isUK
-    ? 'Innovate UK & British Business Bank'
-    : 'Local Enterprise Office (LEO) & Enterprise Ireland';
+  const trackCaps = getPlanTrackCapabilities(plan.hqCountryCode, plan.fundingTrackMode);
+  const { isIreland, isUK, isGrantsEnabled } = trackCaps;
+  const currencySymbol =
+    plan.baseCurrency === 'GBP'
+      ? '£'
+      : plan.baseCurrency === 'USD' || plan.baseCurrency === 'CAD' || plan.baseCurrency === 'AUD'
+        ? '$'
+        : '€';
+  const grantAgency = !isGrantsEnabled
+    ? 'Commercial Lenders & Institutional Investors'
+    : isUK
+      ? 'Innovate UK & British Business Bank'
+      : 'Local Enterprise Office (LEO) & Enterprise Ireland';
 
   // Step 1 to 4 derived data
   const step1 = plan.moduleKData?.step1Audit;
@@ -75,68 +84,100 @@ export function ModuleKFundingBriefStep({
 
   const [executiveSummary, setExecutiveSummary] = useState<string>(
     savedStep5?.executiveSummary ||
-      `${plan.title} has assembled an integrated non-dilutive capital stack engineered to withstand ${grantAgency} underwriting scrutiny. By pairing confirmed founder equity with public grant awards, working capital is protected against in-arrears drawdown timing lag.`
+      (isGrantsEnabled
+        ? `${plan.title} has assembled an integrated non-dilutive capital stack engineered to withstand ${grantAgency} underwriting scrutiny. By pairing confirmed founder equity with public grant awards, working capital is protected against in-arrears drawdown timing lag.`
+        : `${plan.title} has architected a balanced commercial capital stack designed to fund early product execution, initial customer acquisition, and working capital runway through to cashflow breakeven.`)
   );
 
-  const defaultRoadmap: GrantRoadmapPhaseItem[] = isUK
+  const defaultRoadmap: GrantRoadmapPhaseItem[] = !isGrantsEnabled
     ? [
         {
           phaseNumber: 1,
-          grantOrFundingName: 'British Business Bank Start Up Loan',
-          agency: 'British Business Bank',
-          amountFormatted: `Up to ${currencySymbol}25,000 (per founder)`,
-          timingTrigger: 'Immediate (Months 1–3) — Pre-Trading / MVP Stage',
-          prerequisites: 'Credit check, personal survival budget, and business plan outline.',
-          unlocksNext: 'Injects unencumbered working capital to build MVP and self-fund early customer acquisition.',
+          grantOrFundingName: 'Founder Capital & Pre-Launch Customer Deposits',
+          agency: 'Internal Equity & Early Commercial Validation',
+          amountFormatted: `${currencySymbol}10,000 – ${currencySymbol}25,000`,
+          timingTrigger: 'Immediate (Months 1–3) — MVP Build & Pilot Validation',
+          prerequisites: 'Entity incorporation, business bank account, and validated customer problem.',
+          unlocksNext: 'Proves early unit economics and commercial demand without premature equity dilution.',
         },
         {
           phaseNumber: 2,
-          grantOrFundingName: 'Innovate UK Smart Grant / Growth Hub Match',
-          agency: 'Innovate UK / Regional Growth Hub',
-          amountFormatted: `${currencySymbol}50,000 – ${currencySymbol}250,000 (70% co-funded)`,
-          timingTrigger: 'Months 4–9 — Post-MVP Commercial Validation',
-          prerequisites: 'Prototype proof of concept, Freedom to Operate (FTO), and 30% matching cash.',
-          unlocksNext: 'Funds deep technical R&D and work packages (WP1–WP4) without founder dilution.',
+          grantOrFundingName: 'Commercial Working Capital / Startup Term Facility',
+          agency: 'Commercial Bank / Revenue-Based Financing',
+          amountFormatted: `${currencySymbol}25,000 – ${currencySymbol}100,000`,
+          timingTrigger: 'Months 4–9 — Early Revenue & Repeatable Sales',
+          prerequisites: '3–6 months of operating history, unit economics ledger, and 36-month cashflow projection.',
+          unlocksNext: 'Funds inventory, marketing scale, and key operational hires with non-dilutive credit.',
         },
         {
           phaseNumber: 3,
-          grantOrFundingName: 'HMRC SEIS Advance Assurance & Angel Syndicate',
-          agency: 'HM Revenue & Customs (HMRC)',
-          amountFormatted: `Up to ${currencySymbol}250,000 (50% Investor Tax Relief)`,
-          timingTrigger: 'Months 9–15 — Seed Commercial Scale-Up',
-          prerequisites: 'HMRC Advance Assurance approval, gross assets < £350k, qualifying trading activity.',
-          unlocksNext: 'Catalyzes private angel capital with 50% tax write-offs to bridge into Series A.',
+          grantOrFundingName: 'Angel Syndicate / Pre-Seed Equity Round',
+          agency: 'Private Angel Investors / Seed Micro-VCs',
+          amountFormatted: `${currencySymbol}100,000 – ${currencySymbol}500,000`,
+          timingTrigger: 'Months 9–18 — Commercial Scale-Up & Market Expansion',
+          prerequisites: 'Proven CAC-to-LTV payback, clean cap table, and investor-ready business plan.',
+          unlocksNext: 'Accelerates multi-market expansion and institutional Series A readiness.',
         },
       ]
-    : [
-        {
-          phaseNumber: 1,
-          grantOrFundingName: 'LEO Feasibility Study Grant / Grow Digital Voucher',
-          agency: 'Local Enterprise Office (LEO Ireland)',
-          amountFormatted: `Up to ${currencySymbol}15,000 (Feasibility) + ${currencySymbol}5,000 (Digital)`,
-          timingTrigger: 'Immediate (Months 1–3) — Concept & Prototype Validation',
-          prerequisites: 'CRO company registration, tax clearance certificate, 50% founder matching cash.',
-          unlocksNext: 'De-risks prototype and market viability to qualify for LEO Priming or Enterprise Ireland.',
-        },
-        {
-          phaseNumber: 2,
-          grantOrFundingName: 'LEO Priming Grant',
-          agency: 'Local Enterprise Office (LEO Ireland)',
-          amountFormatted: `Up to ${currencySymbol}80,000 (50% match, max €150k in Gaeltacht/BMW)`,
-          timingTrigger: 'Months 4–12 — Early Commercial Trading & Hiring',
-          prerequisites: 'Trading under 18 months, internationally traded or high-potential service, 3 supplier quotes.',
-          unlocksNext: 'Subsidizes first 2–4 full-time PAYE hires, marketing expansion, and capital expenditure.',
-        },
-        {
-          phaseNumber: 3,
-          grantOrFundingName: 'Enterprise Ireland Pre-Seed Start Fund (PSSF) / Revenue SURE',
-          agency: 'Enterprise Ireland / Irish Revenue Commissioners',
-          amountFormatted: `${currencySymbol}50,000 – ${currencySymbol}100,000 (CLN) + PAYE Refund`,
-          timingTrigger: 'Months 12–24 — Export Scaling & Seed Acceleration',
-          prerequisites: 'HPSU export commitment, 10+ jobs target within 3 years, founder prior PAYE history.',
-          unlocksNext: 'Institutional-grade validation unlocking follow-on Seed VC and European Horizon grants.',
-        },
-      ];
+    : isUK
+      ? [
+          {
+            phaseNumber: 1,
+            grantOrFundingName: 'British Business Bank Start Up Loan',
+            agency: 'British Business Bank',
+            amountFormatted: `Up to ${currencySymbol}25,000 (per founder)`,
+            timingTrigger: 'Immediate (Months 1–3) — Pre-Trading / MVP Stage',
+            prerequisites: 'Credit check, personal survival budget, and business plan outline.',
+            unlocksNext: 'Injects unencumbered working capital to build MVP and self-fund early customer acquisition.',
+          },
+          {
+            phaseNumber: 2,
+            grantOrFundingName: 'Innovate UK Smart Grant / Growth Hub Match',
+            agency: 'Innovate UK / Regional Growth Hub',
+            amountFormatted: `${currencySymbol}50,000 – ${currencySymbol}250,000 (70% co-funded)`,
+            timingTrigger: 'Months 4–9 — Post-MVP Commercial Validation',
+            prerequisites: 'Prototype proof of concept, Freedom to Operate (FTO), and 30% matching cash.',
+            unlocksNext: 'Funds deep technical R&D and work packages (WP1–WP4) without founder dilution.',
+          },
+          {
+            phaseNumber: 3,
+            grantOrFundingName: 'HMRC SEIS Advance Assurance & Angel Syndicate',
+            agency: 'HM Revenue & Customs (HMRC)',
+            amountFormatted: `Up to ${currencySymbol}250,000 (50% Investor Tax Relief)`,
+            timingTrigger: 'Months 9–15 — Seed Commercial Scale-Up',
+            prerequisites: 'HMRC Advance Assurance approval, gross assets < £350k, qualifying trading activity.',
+            unlocksNext: 'Catalyzes private angel capital with 50% tax write-offs to bridge into Series A.',
+          },
+        ]
+      : [
+          {
+            phaseNumber: 1,
+            grantOrFundingName: 'LEO Feasibility Study Grant / Grow Digital Voucher',
+            agency: 'Local Enterprise Office (LEO Ireland)',
+            amountFormatted: `Up to ${currencySymbol}15,000 (Feasibility) + ${currencySymbol}5,000 (Digital)`,
+            timingTrigger: 'Immediate (Months 1–3) — Concept & Prototype Validation',
+            prerequisites: 'CRO company registration, tax clearance certificate, 50% founder matching cash.',
+            unlocksNext: 'De-risks prototype and market viability to qualify for LEO Priming or Enterprise Ireland.',
+          },
+          {
+            phaseNumber: 2,
+            grantOrFundingName: 'LEO Priming Grant',
+            agency: 'Local Enterprise Office (LEO Ireland)',
+            amountFormatted: `Up to ${currencySymbol}80,000 (50% match, max €150k in Gaeltacht/BMW)`,
+            timingTrigger: 'Months 4–12 — Early Commercial Trading & Hiring',
+            prerequisites: 'Trading under 18 months, internationally traded or high-potential service, 3 supplier quotes.',
+            unlocksNext: 'Subsidizes first 2–4 full-time PAYE hires, marketing expansion, and capital expenditure.',
+          },
+          {
+            phaseNumber: 3,
+            grantOrFundingName: 'Enterprise Ireland Pre-Seed Start Fund (PSSF) / Revenue SURE',
+            agency: 'Enterprise Ireland / Irish Revenue Commissioners',
+            amountFormatted: `${currencySymbol}50,000 – ${currencySymbol}100,000 (CLN) + PAYE Refund`,
+            timingTrigger: 'Months 12–24 — Export Scaling & Seed Acceleration',
+            prerequisites: 'HPSU export commitment, 10+ jobs target within 3 years, founder prior PAYE history.',
+            unlocksNext: 'Institutional-grade validation unlocking follow-on Seed VC and European Horizon grants.',
+          },
+        ];
 
   const [fundingRoadmap, setFundingRoadmap] = useState<GrantRoadmapPhaseItem[]>(
     savedStep5?.fundingRoadmap && savedStep5.fundingRoadmap.length > 0
@@ -146,48 +187,69 @@ export function ModuleKFundingBriefStep({
 
   const [assessorReadinessScore, setAssessorReadinessScore] = useState<number>(
     savedStep5?.assessorReadinessScore ??
-      Math.min(95, Math.max(50, (step1?.overallAssessorReadinessScore || 70) + (step2?.skinInTheGameCash ? 10 : 0)))
+      Math.min(95, Math.max(50, (step1?.overallAssessorReadinessScore || 75) + (step2?.skinInTheGameCash ? 10 : 0)))
   );
 
   const [underwriterContradictionFlags, setUnderwriterContradictionFlags] = useState<string[]>(
-    savedStep5?.underwriterContradictionFlags || [
-      step3 && step3.liquiditySafetySurplusOrDeficit < 0
-        ? `⚠️ Working Capital Deficit: Arrears float exposes a ${currencySymbol}${Math.abs(step3.liquiditySafetySurplusOrDeficit).toLocaleString()} liquidity trough before grant drawdown dispatches.`
-        : `✅ Working Capital Buffer: Confirmed liquidity buffer insulates payroll against standard 8-to-16 week claim audit lag.`,
-      step2 && step2.skinInTheGameCash > 0
-        ? `✅ Skin-in-the-Game: Verified founder cash equity satisfies the 50% matching ratio expectation.`
-        : `⚠️ Founder Equity: Zero skin-in-the-game cash declared; evaluators require verifiable matching proof.`,
-      step4 && step4.advanceAssuranceStatus === 'NOT_STARTED'
-        ? `💡 Advance Assurance Pending: File tax relief application early to de-risk angel investor commitments.`
-        : `✅ Tax Relief Clearance: Angel incentives structured to accelerate private match fundraising.`,
-    ]
+    savedStep5?.underwriterContradictionFlags ||
+      (isGrantsEnabled
+        ? [
+            step3 && step3.liquiditySafetySurplusOrDeficit < 0
+              ? `⚠️ Working Capital Deficit: Arrears float exposes a ${currencySymbol}${Math.abs(step3.liquiditySafetySurplusOrDeficit).toLocaleString()} liquidity trough before grant drawdown dispatches.`
+              : `✅ Working Capital Buffer: Confirmed liquidity buffer insulates payroll against standard 8-to-16 week claim audit lag.`,
+            step2 && step2.skinInTheGameCash > 0
+              ? `✅ Skin-in-the-Game: Verified founder cash equity satisfies the 50% matching ratio expectation.`
+              : `⚠️ Founder Equity: Zero skin-in-the-game cash declared; evaluators require verifiable matching proof.`,
+            step4 && step4.advanceAssuranceStatus === 'NOT_STARTED'
+              ? `💡 Advance Assurance Pending: File tax relief application early to de-risk angel investor commitments.`
+              : `✅ Tax Relief Clearance: Angel incentives structured to accelerate private match fundraising.`,
+          ]
+        : [
+            step2 && step2.skinInTheGameCash > 0
+              ? `✅ Founder Skin-in-the-Game: Verified founder capital contribution (${currencySymbol}${step2.skinInTheGameCash.toLocaleString()}) demonstrates strong alignment to lenders and investors.`
+              : `⚠️ Founder Capital Commitment: Consider documenting a baseline founder equity contribution to strengthen bank and investor confidence.`,
+            `✅ Working Capital Runway: Capital stack is calibrated against your Module J 36-month cashflow trough.`,
+            `✅ Milestone-Driven Deployment: Capital tranches are tied directly to Module D product delivery and Module H revenue breakeven.`,
+          ])
   );
 
   const [recommendedActionChecklist, setRecommendedActionChecklist] = useState<string[]>(
-    savedStep5?.recommendedActionChecklist || [
-      'Collate 3 formal supplier quotes for all capital assets & dev line items (mandatory for voucher/grant claims).',
-      `File pre-application enquiry with your regional development executive (${isUK ? 'Innovate UK KTN / Growth Hub' : 'Local Enterprise Office Business Advisor'}).`,
-      'Submit formal Advance Assurance or tax relief certification pack to lock in private co-funding interest.',
-      'Verify business bank account has separate earmarked ledger line for the mandatory matching funds ratio.',
-    ]
+    savedStep5?.recommendedActionChecklist ||
+      (isGrantsEnabled
+        ? [
+            'Collate 3 formal supplier quotes for all capital assets & dev line items (mandatory for voucher/grant claims).',
+            `File pre-application enquiry with your regional development executive (${isUK ? 'Innovate UK KTN / Growth Hub' : 'Local Enterprise Office Business Advisor'}).`,
+            'Submit formal Advance Assurance or tax relief certification pack to lock in private co-funding interest.',
+            'Verify business bank account has separate earmarked ledger line for the mandatory matching funds ratio.',
+          ]
+        : [
+            'Verify corporate entity registration and dedicated business bank account setup in Module G.',
+            'Reconcile total target capital stack against the 36-month cashflow trough in Module J.',
+            'Prepare vendor and development cost benchmarks from Module D & Module E for investor/lender due diligence.',
+            'Compile the Executive Business Plan & Financial Pack in Module L for prospective lenders or angel investors.',
+          ])
   );
 
   const [moduleLGrantMode, setModuleLGrantMode] = useState<
     'IE_LEO' | 'UK_INNOVATE_UK' | 'UK_START_UP_LOANS' | 'HMRC_SEIS' | 'STANDARD'
   >(
-    savedStep5?.moduleLGrantMode ||
-      (isUK
-        ? step1?.selectedGrantKey === 'GB_BBB_START_UP_LOAN'
-          ? 'UK_START_UP_LOANS'
-          : step1?.selectedGrantKey === 'GB_HMRC_SEIS_ASSURANCE'
-            ? 'HMRC_SEIS'
-            : 'UK_INNOVATE_UK'
-        : 'IE_LEO')
+    !isGrantsEnabled
+      ? 'STANDARD'
+      : savedStep5?.moduleLGrantMode ||
+          (isUK
+            ? step1?.selectedGrantKey === 'GB_BBB_START_UP_LOAN'
+              ? 'UK_START_UP_LOANS'
+              : step1?.selectedGrantKey === 'GB_HMRC_SEIS_ASSURANCE'
+                ? 'HMRC_SEIS'
+                : 'UK_INNOVATE_UK'
+            : 'IE_LEO')
   );
 
   const [aiAssessorTip, setAiAssessorTip] = useState<string>(
     savedStep5?.aiAssessorTip ||
-      'Evaluator Golden Rule: Grant committees never fund ideas—they fund specific, time-bounded work packages executed by credible operators. Ensure every pound/euro in Module K matches line-by-line with Module D work packages and Module J overheads.'
+      (isGrantsEnabled
+        ? 'Evaluator Golden Rule: Grant committees never fund ideas—they fund specific, time-bounded work packages executed by credible operators. Ensure every pound/euro in Module K matches line-by-line with Module D work packages and Module J overheads.'
+        : 'Investor & Lender Golden Rule: Underwriters never fund generic projections—they fund specific, milestone-bound execution plans backed by validated unit economics. Ensure your capital stack in Module K matches your Module D build roadmap and Module J cashflow trough.')
   );
 
   const handleGenerateAi = async () => {
@@ -805,11 +867,11 @@ ${aiAssessorTip}
           <div className="flex items-center gap-2">
             <Landmark className="h-4 w-4 text-indigo-700" />
             <span className="text-xs font-bold text-indigo-950 uppercase tracking-wider">
-              Recommended Module L Grant Compiler Mode
+              {isGrantsEnabled ? 'Recommended Module L Grant Compiler Mode' : 'Recommended Module L Business Plan Mode'}
             </span>
           </div>
           <p className="text-xs text-indigo-900">
-            Based on your selected track ({isUK ? 'United Kingdom' : 'Ireland'}), your business plan compiler will automatically format into:
+            Based on your selected track ({!isGrantsEnabled ? `${plan.hqCountryCode} Commercial Track` : isUK ? 'United Kingdom' : 'Ireland'}), your business plan compiler will automatically format into:
           </p>
           <div className="mt-1 font-bold text-sm text-slate-900">
             {moduleLGrantMode === 'IE_LEO' && '🇮🇪 Local Enterprise Office (LEO Official Form & Appendices A–F)'}
@@ -846,7 +908,7 @@ ${aiAssessorTip}
       {/* Export & Download Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
         <div className="text-xs text-slate-600">
-          📥 <strong>Take your Executive Funding Strategy Dossier with you:</strong> Download a standalone file, print/save as PDF, or copy for grant assessors and bank lenders.
+          📥 <strong>Take your Executive Funding Strategy Dossier with you:</strong> Download a standalone file, print/save as PDF, or copy for {isGrantsEnabled ? 'grant assessors and bank lenders' : 'commercial bank lenders and angel investors'}.
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -902,7 +964,7 @@ ${aiAssessorTip}
           className="text-xs text-slate-600 hover:bg-slate-50"
         >
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-          Back to Step 4 (Angel Tax Relief)
+          {isGrantsEnabled ? 'Back to Step 4 (Angel Tax Relief)' : 'Back to Step 1 (Capital Stack)'}
         </Button>
 
         <div className="flex items-center gap-2">

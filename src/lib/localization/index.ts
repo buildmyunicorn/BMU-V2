@@ -365,3 +365,105 @@ export function formatPlanCurrency(
     maximumFractionDigits: 0,
   }).format(amount);
 }
+
+export type PlanFundingTrackMode = 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY';
+
+export interface PlanTrackCapabilities {
+  countryCode: SupportedCountryCode;
+  countryName: string;
+  countryFlag: string;
+  isIreland: boolean;
+  isUK: boolean;
+  isGrantRegion: boolean;
+  isGrantsEnabled: boolean;
+  fundingTrackMode: PlanFundingTrackMode;
+  registryAgencyLabel: string;
+  taxAuthorityLabel: string;
+  exampleBanksLabel: string;
+  moduleKSidebarTitle: string;
+  moduleKHeaderTitle: string;
+}
+
+export function getPlanTrackCapabilities(
+  countryCode?: string | null,
+  fundingTrackMode?: PlanFundingTrackMode | null
+): PlanTrackCapabilities {
+  const normalized = (countryCode?.toUpperCase() ||
+    'IE') as SupportedCountryCode;
+  const isIreland = normalized === 'IE';
+  const isUK = normalized === 'GB';
+  const isGrantRegion = isIreland || isUK;
+  const effectiveTrack: PlanFundingTrackMode = isGrantRegion
+    ? fundingTrackMode === 'COMMERCIAL_ONLY'
+      ? 'COMMERCIAL_ONLY'
+      : 'GRANT_AND_INVESTOR'
+    : 'COMMERCIAL_ONLY';
+  const isGrantsEnabled =
+    isGrantRegion && effectiveTrack === 'GRANT_AND_INVESTOR';
+
+  const flagMap: Record<SupportedCountryCode, string> = {
+    IE: '🇮🇪',
+    GB: '🇬🇧',
+    US: '🇺🇸',
+    CA: '🇨🇦',
+    AU: '🇦🇺',
+    EU: '🇪🇺',
+    ROW: '🌍',
+  };
+
+  const registryMap: Record<SupportedCountryCode, string> = {
+    IE: 'Companies Registration Office (CRO)',
+    GB: 'Companies House (UK)',
+    US: 'Secretary of State (LLC / C-Corp)',
+    CA: 'Corporations Canada / Provincial Registry',
+    AU: 'ASIC (Australian Securities & Investments Commission)',
+    EU: 'National Commercial Register',
+    ROW: 'Company Registration Authority',
+  };
+
+  const taxAuthorityMap: Record<SupportedCountryCode, string> = {
+    IE: 'Revenue Commissioners (ROS)',
+    GB: 'HM Revenue & Customs (HMRC)',
+    US: 'IRS (EIN & Federal/State Tax)',
+    CA: 'Canada Revenue Agency (CRA)',
+    AU: 'Australian Taxation Office (ATO / ABN)',
+    EU: 'National Tax & VAT Authority',
+    ROW: 'National Tax Authority',
+  };
+
+  const bankExamplesMap: Record<SupportedCountryCode, string> = {
+    IE: 'AIB, Bank of Ireland, Revolut Business',
+    GB: 'Barclays, NatWest, Tide, Monzo Business, BBB Start Up Loans',
+    US: 'Chase, Mercury, Silicon Valley Bank, SBA Lenders',
+    CA: 'RBC, TD, BDC (Business Development Bank of Canada)',
+    AU: 'CommBank, NAB, Westpac, ANZ',
+    EU: 'Revolut Business, Qonto, N26, Local Commercial Banks',
+    ROW: 'Commercial & Digital Business Banks',
+  };
+
+  const rulePack = getCountryRulePack(normalized);
+
+  return {
+    countryCode: rulePack.countryCode,
+    countryName: rulePack.countryName,
+    countryFlag: flagMap[rulePack.countryCode] || '🌍',
+    isIreland,
+    isUK,
+    isGrantRegion,
+    isGrantsEnabled,
+    fundingTrackMode: effectiveTrack,
+    registryAgencyLabel:
+      registryMap[rulePack.countryCode] || 'Company Registration Authority',
+    taxAuthorityLabel:
+      taxAuthorityMap[rulePack.countryCode] || 'National Tax Authority',
+    exampleBanksLabel:
+      bankExamplesMap[rulePack.countryCode] || 'Commercial Business Banks',
+    moduleKSidebarTitle: isGrantsEnabled
+      ? 'Grants & Tax Relief'
+      : 'Funding & Capital Strategy',
+    moduleKHeaderTitle: isGrantsEnabled
+      ? 'Non-Dilutive Grants, Loans & Investor Tax Relief Hub'
+      : 'Capital Stack, Runway & Funding Readiness Hub',
+  };
+}
+

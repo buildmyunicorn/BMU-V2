@@ -56,6 +56,7 @@ import {
 import type { QuoteSupplierCategory } from '@/lib/partners/partner-catalog-store';
 import {
   getCountryRulePack,
+  getPlanTrackCapabilities,
   formatPlanCurrency,
   type SupportedCountryCode,
 } from '@/lib/localization';
@@ -4225,6 +4226,9 @@ export function ModuleEWorkspace({
     (completedModuleEReadinessCount / moduleEReadinessSteps.length) * 100
   );
 
+  const trackCaps = getPlanTrackCapabilities(selectedCountry, plan.fundingTrackMode);
+  const { isGrantsEnabled } = trackCaps;
+
   return (
     <div className="space-y-5">
       {/* ===================================================================== */}
@@ -4243,7 +4247,8 @@ export function ModuleEWorkspace({
                   : selectedCountry === 'GB'
                     ? '🇬🇧'
                     : '🌍'}{' '}
-                {countryPack.countryName} Grant &amp; Ops Rules Active
+                {countryPack.countryName}{' '}
+                {isGrantsEnabled ? 'Grant & Ops Rules Active' : 'Commercial Ops Rules Active'}
               </Badge>
               <Badge className="border-indigo-400/30 bg-white/10 text-indigo-100">
                 {countryPack.countryName} ({plan.baseCurrency})
@@ -4253,12 +4258,14 @@ export function ModuleEWorkspace({
               Module E: How Your Business Actually Runs Day-to-Day
             </h1>
             <p className="max-w-3xl text-xs text-indigo-100/90 sm:text-sm">
-              Map a single customer order from checkout to delivery, calculate hands-on maker/founder minutes and unit delivery COGS, schedule grant-eligible equipment (
-              {selectedCountry === 'IE'
-                ? 'enforcing IE LEO 3-quote & mobile asset / laptop ban rules'
-                : selectedCountry === 'GB'
-                  ? 'enforcing UK Innovate UK 12-month capital usage depreciation & Start Up Loan procurement rules'
-                  : 'enforcing 3-quote procurement & capital grant eligibility rules'}
+              Map a single customer order from checkout to delivery, calculate hands-on maker/founder minutes and unit delivery COGS, schedule equipment &amp; premises (
+              {!isGrantsEnabled
+                ? 'tracking CapEx, depreciation, and 3-quote supplier cost benchmarking'
+                : selectedCountry === 'IE'
+                  ? 'enforcing IE LEO 3-quote & mobile asset / laptop ban rules'
+                  : selectedCountry === 'GB'
+                    ? 'enforcing UK Innovate UK 12-month capital usage depreciation & Start Up Loan procurement rules'
+                    : 'enforcing 3-quote procurement & capital grant eligibility rules'}
               ), and lock in your formal 4-category Risk Register.
             </p>
           </div>

@@ -102,12 +102,19 @@ export default function OnboardingPage() {
   const [oneLinerSummary, setOneLinerSummary] = useState('');
   const [hqCountryCode, setHqCountryCode] =
     useState<SupportedCountryCode>('IE');
+  const [fundingTrackMode, setFundingTrackMode] = useState<
+    'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY'
+  >('GRANT_AND_INVESTOR');
   const [industryCategory, setIndustryCategory] =
     useState<IndustryCategory>('B2B SaaS / AI App');
   const [exportPotential, setExportPotential] = useState<
     'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY'
   >('EXPORTING_INTERNATIONALLY');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isGrantRegion = hqCountryCode === 'IE' || hqCountryCode === 'GB';
+  const effectiveTrackMode: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY' =
+    isGrantRegion ? fundingTrackMode : 'COMMERCIAL_ONLY';
 
   useEffect(() => {
     const session = loadBmuSession();
@@ -182,6 +189,7 @@ export default function OnboardingPage() {
       hqCountryCode,
       industryCategory,
       exportPotential,
+      fundingTrackMode: effectiveTrackMode,
     };
 
     try {
@@ -336,7 +344,9 @@ export default function OnboardingPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="region-county">
-                    City / County / State (For Local LEO / Hub Matching)
+                    {isGrantRegion
+                      ? 'City / County / Region (For Local LEO / Growth Hub Matching)'
+                      : 'City / State / Region'}
                   </Label>
                   <Input
                     id="region-county"
@@ -381,6 +391,46 @@ export default function OnboardingPage() {
                   ))}
                 </div>
 
+                {/* Funding Track Selector for IE & GB (Option 3: Commercial Track Opt-Out) */}
+                {isGrantRegion && (
+                  <div className="mt-3 space-y-2">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Workspace Track Mode ({countryPack.countryName})
+                    </Label>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setFundingTrackMode('GRANT_AND_INVESTOR')}
+                        className={`rounded-xl border p-3 text-left text-xs transition ${
+                          fundingTrackMode === 'GRANT_AND_INVESTOR'
+                            ? 'border-indigo-600 bg-indigo-50/70 font-semibold text-indigo-950 ring-1 ring-indigo-600'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div>🏛️ Grant &amp; Investor Track (Default)</div>
+                        <div className="mt-0.5 text-[11px] font-normal text-slate-500">
+                          Includes {hqCountryCode === 'IE' ? 'LEO, Enterprise Ireland & EII' : 'Start Up Loans, Innovate UK & SEIS/EIS'} grant matching and official compiler forms.
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFundingTrackMode('COMMERCIAL_ONLY')}
+                        className={`rounded-xl border p-3 text-left text-xs transition ${
+                          fundingTrackMode === 'COMMERCIAL_ONLY'
+                            ? 'border-indigo-600 bg-indigo-50/70 font-semibold text-indigo-950 ring-1 ring-indigo-600'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div>🚀 Commercial / Self-Funded Track Only</div>
+                        <div className="mt-0.5 text-[11px] font-normal text-slate-500">
+                          Hides government grant rules and forms; focuses purely on customers, unit economics, and commercial business plans.
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Live Country Rule Pack Confirmation Box */}
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
                   <div className="flex items-center gap-2 font-bold text-emerald-900">
@@ -398,8 +448,16 @@ export default function OnboardingPage() {
                       {countryPack.employerPayrollTaxPercent}%)
                     </div>
                     <div className="rounded-lg bg-white/80 p-2">
-                      <strong>Matched Grants:</strong> {countryGrants.length}{' '}
-                      active ({countryGrants[0]?.grantName ?? 'National R&D'})
+                      {effectiveTrackMode === 'GRANT_AND_INVESTOR' ? (
+                        <>
+                          <strong>Matched Grants:</strong> {countryGrants.length}{' '}
+                          active ({countryGrants[0]?.grantName ?? 'National R&D'})
+                        </>
+                      ) : (
+                        <>
+                          <strong>Workspace Mode:</strong> Commercial &amp; Investor Track (Grant Clutter Hidden)
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -429,11 +487,13 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              {/* Target Selling Geography (Crucial for Export Grants like LEO / EI / EMDG) */}
+              {/* Target Selling Geography */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
                   <Coins className="h-4 w-4 text-indigo-600" />
-                  Where Will Your Customers Live? (Informs Export Grant Eligibility)
+                  {effectiveTrackMode === 'GRANT_AND_INVESTOR'
+                    ? 'Where Will Your Customers Live? (Informs Export Grant Eligibility)'
+                    : 'Where Will Your Customers Live? (Target Market Scope)'}
                 </Label>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <button
@@ -462,9 +522,11 @@ export default function OnboardingPage() {
                         : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
-                    <div>🌍 International / Export Potential (UK, EU, US, Global)</div>
+                    <div>🌍 International / Global Market Potential</div>
                     <div className="mt-0.5 text-[11px] font-normal text-slate-500">
-                      Unlocks export-focused grants (e.g. LEO Feasibility/Priming, Enterprise Ireland PSSF, Austrade EMDG).
+                      {effectiveTrackMode === 'GRANT_AND_INVESTOR'
+                        ? 'Unlocks export-focused grants (e.g. LEO Feasibility/Priming, Enterprise Ireland PSSF).'
+                        : 'Selling across multiple countries or global online markets.'}
                     </div>
                   </button>
                 </div>
