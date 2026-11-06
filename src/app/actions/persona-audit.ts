@@ -4,6 +4,11 @@ import fs from 'fs';
 import path from 'path';
 import type { ModuleCode } from '@/lib/entitlements';
 import {
+  getAdminSessionCookie,
+  getServerSessionCookie,
+  checkRateLimit,
+} from '@/lib/auth/server-auth';
+import {
   PERSONA_ARCHETYPES,
   COMPREHENSION_LEVELS,
   PLATFORM_MODULES_CATALOG,
@@ -94,6 +99,14 @@ export async function runPersonaPlatformAuditAction(input: {
   ok: boolean;
   report: PersonaAuditReport;
 }> {
+  const adminSession = await getAdminSessionCookie();
+  const founderSession = await getServerSessionCookie();
+  const callerId = adminSession?.userId || founderSession?.userId || 'anon';
+  const rl = checkRateLimit(`persona_audit:${callerId}`, 15, 60_000);
+  if (!rl.allowed || (process.env.NODE_ENV === 'production' && !adminSession)) {
+    throw new Error('Unauthorized or rate-limited persona audit request.');
+  }
+
   const persona =
     PERSONA_ARCHETYPES.find((p) => p.id === input.personaId) ||
     PERSONA_ARCHETYPES[0];

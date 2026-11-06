@@ -15,7 +15,11 @@ import type {
   WarmIntroQuestionField,
   PartnerCheckoutAddonField,
 } from '@/db/schema';
-import { getAdminSessionCookie } from '@/lib/auth/server-auth';
+import {
+  getAdminSessionCookie,
+  getServerSessionCookie,
+  checkRateLimit,
+} from '@/lib/auth/server-auth';
 import { resend, EMAIL_DEFAULTS } from '@/lib/email/resend';
 import { stripe } from '@/lib/stripe/client';
 import { headers } from 'next/headers';
@@ -34,6 +38,42 @@ import {
 async function verifyAdminAuth(): Promise<boolean> {
   const session = await getAdminSessionCookie();
   return Boolean(session && session.role === 'SUPER_ADMIN');
+}
+
+function escapeHtml(raw: string | undefined | null): string {
+  if (!raw) return '';
+  return String(raw)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function resolveVerifiedPartnerRecipientEmail(
+  partnerSlug: string,
+  fallbackDefault: string
+): Promise<string> {
+  try {
+    await ensureDatabaseSchemaSynced();
+    const [dbPartner] = await db
+      .select({ warmIntroRecipientEmail: partnerOffers.warmIntroRecipientEmail })
+      .from(partnerOffers)
+      .where(eq(partnerOffers.slug, partnerSlug))
+      .limit(1);
+    if (dbPartner?.warmIntroRecipientEmail?.includes('@')) {
+      return dbPartner.warmIntroRecipientEmail.trim();
+    }
+  } catch {
+    // Fallback to catalog lookup
+  }
+  const catalogMatch = DEFAULT_PARTNER_OFFERS.find(
+    (p) => p.slug === partnerSlug
+  );
+  if (catalogMatch?.warmIntroRecipientEmail?.includes('@')) {
+    return catalogMatch.warmIntroRecipientEmail.trim();
+  }
+  return fallbackDefault;
 }
 
 function mapDbOfferToRecord(
@@ -694,8 +734,27 @@ export async function submitPartnerWarmIntroLeadAction(input: {
   event: PartnerReferralEventRecord;
 }> {
   const nowIso = new Date().toISOString();
-  const recipientEmail =
-    input.warmIntroRecipientEmail?.trim() || 'partners@startuppreflight.com';
+  const founderSession = await getServerSessionCookie();
+  const adminSession = await getAdminSessionCookie();
+  const callerKey =
+    founderSession?.userId ||
+    adminSession?.userId ||
+    input.founderEmail?.trim().toLowerCase() ||
+    'anon';
+
+  const rl = checkRateLimit(`partner_intro:${callerKey}`, 6, 10 * 60_000);
+  // Resolve recipient strictly from verified DB/catalog partner record unless caller is Super Admin
+  const recipientEmail = adminSession
+    ? input.warmIntroRecipientEmail?.trim() ||
+      (await resolveVerifiedPartnerRecipientEmail(
+        input.partnerSlug,
+        'partners@startuppreflight.com'
+      ))
+    : await resolveVerifiedPartnerRecipientEmail(
+        input.partnerSlug,
+        'partners@startuppreflight.com'
+      );
+  const safeFounderEmail = founderSession?.email || input.founderEmail.trim();
 
   const fallbackEvent: PartnerReferralEventRecord = {
     id: `lead-${crypto.randomUUID()}`,
@@ -707,7 +766,7 @@ export async function submitPartnerWarmIntroLeadAction(input: {
     planId: input.planId || null,
     planTitle: input.planTitle || 'Startup Plan',
     founderName: input.founderName.trim(),
-    founderEmail: input.founderEmail.trim(),
+    founderEmail: safeFounderEmail,
     countryCode: input.countryCode || 'IE',
     selectedDomain: input.intakeAnswers['desired_domain_name'] || null,
     destinationUrl: `mailto:${recipientEmail}`,
@@ -718,16 +777,27 @@ export async function submitPartnerWarmIntroLeadAction(input: {
     createdAt: nowIso,
   };
 
+  if (!rl.allowed) {
+    return {
+      ok: false,
+      persistedToDb: false,
+      emailSent: false,
+      event: fallbackEvent,
+    };
+  }
+
   // Build clean HTML dossier table for the partner & founder CC
   const answerRowsHtml = Object.entries(input.intakeAnswers || {})
     .map(
       ([key, val]) => `
       <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#334155;font-size:13px;width:42%;">${key
-          .replace(/_/g, ' ')
-          .replace(/\b\w/g, (c) => c.toUpperCase())}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#334155;font-size:13px;width:42%;">${escapeHtml(
+          key
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase())
+        )}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:13px;">${
-          val || '—'
+          escapeHtml(val) || '—'
         }</td>
       </tr>`
     )
@@ -741,19 +811,19 @@ export async function submitPartnerWarmIntroLeadAction(input: {
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:620px;margin:0 auto;padding:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">
       <div style="background:#1e1b4b;color:#ffffff;padding:18px 22px;border-radius:8px;margin-bottom:20px;">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#a5b4fc;font-weight:700;">Startup Preflight • Verified Partner Warm Intro</div>
-        <h2 style="margin:6px 0 0;font-size:18px;font-weight:700;">Founder Setup Request: ${input.partnerName}</h2>
+        <h2 style="margin:6px 0 0;font-size:18px;font-weight:700;">Founder Setup Request: ${escapeHtml(input.partnerName)}</h2>
       </div>
       <p style="font-size:14px;color:#334155;line-height:1.6;">
-        Hi <strong>${input.partnerName}</strong> team,<br/><br/>
-        Please meet <strong>${input.founderName}</strong> (<a href="mailto:${input.founderEmail}">${input.founderEmail}</a>), who is currently configuring their operational foundations on <strong>Startup Preflight</strong> (${input.countryCode === 'GB' ? 'United Kingdom' : 'Ireland'}) and requested a fast-track warm introduction.
+        Hi <strong>${escapeHtml(input.partnerName)}</strong> team,<br/><br/>
+        Please meet <strong>${escapeHtml(input.founderName)}</strong> (<a href="mailto:${escapeHtml(safeFounderEmail)}">${escapeHtml(safeFounderEmail)}</a>), who is currently configuring their operational foundations on <strong>Startup Preflight</strong> (${input.countryCode === 'GB' ? 'United Kingdom' : 'Ireland'}) and requested a fast-track warm introduction.
       </p>
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin:16px 0;">
         <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;">STARTUP &amp; FOUNDER SNAPSHOT</div>
         <div style="font-size:13px;color:#0f172a;line-height:1.6;">
-          <strong>Venture / Plan:</strong> ${input.planTitle || 'Startup Venture'}<br/>
-          <strong>Founder Contact:</strong> ${input.founderName} (${input.founderEmail})<br/>
+          <strong>Venture / Plan:</strong> ${escapeHtml(input.planTitle || 'Startup Venture')}<br/>
+          <strong>Founder Contact:</strong> ${escapeHtml(input.founderName)} (${escapeHtml(safeFounderEmail)})<br/>
           <strong>Jurisdiction:</strong> ${input.countryCode === 'GB' ? 'United Kingdom (Companies House / HMRC)' : 'Ireland (CRO / Revenue)'}<br/>
-          ${input.oneLinerSummary ? `<strong>Concept Summary:</strong> ${input.oneLinerSummary}<br/>` : ''}
+          ${input.oneLinerSummary ? `<strong>Concept Summary:</strong> ${escapeHtml(input.oneLinerSummary)}<br/>` : ''}
         </div>
       </div>
       <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;margin-top:20px;">Submitted Setup Intake Answers</h3>
@@ -763,7 +833,7 @@ export async function submitPartnerWarmIntroLeadAction(input: {
         </tbody>
       </table>
       <p style="font-size:12px;color:#64748b;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:12px;">
-        <strong>Next Step:</strong> Reply-All to this email to connect directly with ${input.founderName}. Sent via Startup Preflight Partner Concierge Engine.
+        <strong>Next Step:</strong> Reply-All to this email to connect directly with ${escapeHtml(input.founderName)}. Sent via Startup Preflight Partner Concierge Engine.
       </p>
     </div>
   `;
@@ -773,12 +843,12 @@ export async function submitPartnerWarmIntroLeadAction(input: {
   let emailStatus = 'MOCK_DEV';
 
   try {
-    if (resend) {
+    if (resend && (founderSession || adminSession || process.env.NODE_ENV !== 'production')) {
       const response = await resend.emails.send({
         from: EMAIL_DEFAULTS.from,
         to: [recipientEmail],
-        cc: input.founderEmail ? [input.founderEmail] : undefined,
-        replyTo: input.founderEmail || EMAIL_DEFAULTS.replyTo,
+        cc: founderSession?.email ? [founderSession.email] : undefined,
+        replyTo: safeFounderEmail || EMAIL_DEFAULTS.replyTo,
         subject: subjectLine,
         html: emailHtml,
       });
@@ -1102,8 +1172,25 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
   event: PartnerReferralEventRecord;
 }> {
   const nowIso = new Date().toISOString();
-  const recipientEmail =
-    input.warmIntroRecipientEmail?.trim() || 'formations@companyformations.ie';
+  const founderSession = await getServerSessionCookie();
+  const adminSession = await getAdminSessionCookie();
+  const callerKey =
+    founderSession?.userId ||
+    adminSession?.userId ||
+    input.founderEmail?.trim().toLowerCase() ||
+    'anon';
+  const rl = checkRateLimit(`partner_concierge:${callerKey}`, 5, 10 * 60_000);
+
+  const recipientEmail = adminSession
+    ? input.warmIntroRecipientEmail?.trim() ||
+      (await resolveVerifiedPartnerRecipientEmail(
+        input.partnerSlug,
+        'formations@companyformations.ie'
+      ))
+    : await resolveVerifiedPartnerRecipientEmail(
+        input.partnerSlug,
+        'formations@companyformations.ie'
+      );
   const currencySymbol =
     input.currency === 'GBP' ? '£' : input.currency === 'USD' ? '$' : '€';
   const paymentRef =
@@ -1148,13 +1235,23 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
     createdAt: nowIso,
   };
 
+  if (!rl.allowed) {
+    return {
+      ok: false,
+      persistedToDb: false,
+      emailSent: false,
+      paymentRef,
+      event: fallbackEvent,
+    };
+  }
+
   const addonRowsHtml =
     input.selectedAddons && input.selectedAddons.length > 0
       ? input.selectedAddons
           .map(
             (addon) => `
           <tr>
-            <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;color:#065f46;">+ Add-On: <strong>${addon.label}</strong></td>
+            <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;color:#065f46;">+ Add-On: <strong>${escapeHtml(addon.label)}</strong></td>
             <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;font-weight:700;color:#065f46;text-align:right;">${currencySymbol}${addon.priceAmount}</td>
           </tr>`
           )
@@ -1165,11 +1262,13 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
     .map(
       ([key, val]) => `
       <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#334155;font-size:13px;width:42%;">${key
-          .replace(/_/g, ' ')
-          .replace(/\b\w/g, (c) => c.toUpperCase())}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#334155;font-size:13px;width:42%;">${escapeHtml(
+          key
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase())
+        )}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:13px;">${
-          val || '—'
+          escapeHtml(val) || '—'
         }</td>
       </tr>`
     )
@@ -1181,18 +1280,19 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
     'New Company LTD';
 
   const subjectLine = `[PAID INCORPORATION ORDER • ${currencySymbol}${input.totalPaidAmount}] ${companyName1} — ${input.founderName}`;
+  const safeFounderEmail = founderSession?.email || input.founderEmail.trim();
 
   const emailHtml = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">
       <div style="background:#065f46;color:#ffffff;padding:18px 22px;border-radius:8px;margin-bottom:20px;">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#a7f3d0;font-weight:700;">Startup Preflight • Paid Stripe Formation Order</div>
-        <h2 style="margin:6px 0 0;font-size:19px;font-weight:700;">New Paid Company Incorporation: ${companyName1}</h2>
-        <div style="margin-top:6px;font-size:12px;color:#ecfdf5;">Stripe Payment Verified: <strong>${currencySymbol}${input.totalPaidAmount} (${input.currency})</strong> • Ref: <code>${paymentRef}</code></div>
+        <h2 style="margin:6px 0 0;font-size:19px;font-weight:700;">New Paid Company Incorporation: ${escapeHtml(companyName1)}</h2>
+        <div style="margin-top:6px;font-size:12px;color:#ecfdf5;">Stripe Payment Verified: <strong>${currencySymbol}${input.totalPaidAmount} (${escapeHtml(input.currency)})</strong> • Ref: <code>${escapeHtml(paymentRef)}</code></div>
       </div>
 
       <p style="font-size:14px;color:#334155;line-height:1.6;">
-        Hi <strong>${input.partnerName}</strong> Formation Desk,<br/><br/>
-        <strong>${input.founderName}</strong> (<a href="mailto:${input.founderEmail}">${input.founderEmail}</a>) has completed and paid for their company incorporation order on <strong>Startup Preflight</strong>. Please find their payment breakdown and statutory formation questionnaire below to initiate their ${input.countryCode === 'GB' ? 'Companies House IN01' : 'CRO A1'} filing.
+        Hi <strong>${escapeHtml(input.partnerName)}</strong> Formation Desk,<br/><br/>
+        <strong>${escapeHtml(input.founderName)}</strong> (<a href="mailto:${escapeHtml(safeFounderEmail)}">${escapeHtml(safeFounderEmail)}</a>) has completed and paid for their company incorporation order on <strong>Startup Preflight</strong>. Please find their payment breakdown and statutory formation questionnaire below to initiate their ${input.countryCode === 'GB' ? 'Companies House IN01' : 'CRO A1'} filing.
       </p>
 
       <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:14px;margin:16px 0;">
@@ -1200,12 +1300,12 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
         <table style="width:100%;border-collapse:collapse;">
           <tbody>
             <tr>
-              <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;color:#065f46;">Base Package: <strong>${input.partnerName} Incorporation</strong></td>
+              <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;color:#065f46;">Base Package: <strong>${escapeHtml(input.partnerName)} Incorporation</strong></td>
               <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;font-weight:700;color:#065f46;text-align:right;">${currencySymbol}${input.basePriceAmount}</td>
             </tr>
             ${addonRowsHtml}
             <tr>
-              <td style="padding:10px 12px;font-size:14px;font-weight:800;color:#064e3b;">Total Paid via Stripe (${paymentRef})</td>
+              <td style="padding:10px 12px;font-size:14px;font-weight:800;color:#064e3b;">Total Paid via Stripe (${escapeHtml(paymentRef)})</td>
               <td style="padding:10px 12px;font-size:15px;font-weight:800;color:#064e3b;text-align:right;">${currencySymbol}${input.totalPaidAmount}</td>
             </tr>
           </tbody>
@@ -1220,7 +1320,7 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
       </table>
 
       <p style="font-size:12px;color:#64748b;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:12px;">
-        <strong>Action Required:</strong> Reply-All to this email to confirm receipt with ${input.founderName} and issue their statutory signature pages / CRO A1 / Companies House documents.
+        <strong>Action Required:</strong> Reply-All to this email to confirm receipt with ${escapeHtml(input.founderName)} and issue their statutory signature pages / CRO A1 / Companies House documents.
       </p>
     </div>
   `;
@@ -1230,12 +1330,12 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
   let emailStatus = 'MOCK_DEV';
 
   try {
-    if (resend) {
+    if (resend && (founderSession || adminSession || process.env.NODE_ENV !== 'production')) {
       const response = await resend.emails.send({
         from: EMAIL_DEFAULTS.from,
         to: [recipientEmail],
-        cc: input.founderEmail ? [input.founderEmail] : undefined,
-        replyTo: input.founderEmail || EMAIL_DEFAULTS.replyTo,
+        cc: founderSession?.email ? [founderSession.email] : undefined,
+        replyTo: safeFounderEmail || EMAIL_DEFAULTS.replyTo,
         subject: subjectLine,
         html: emailHtml,
       });

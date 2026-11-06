@@ -181,8 +181,16 @@ function isValidUuid(val: string | undefined | null): val is string {
   );
 }
 
+function isValidByokGeminiKey(customKey?: string | null): customKey is string {
+  if (!customKey) return false;
+  const trimmed = customKey.trim();
+  // Real Google AI Studio keys strictly begin with AIza and are ~39 chars.
+  // Never accept 'VERTEX_AI_ACTIVE' or arbitrary strings as a user BYOK key.
+  return /^AIza[0-9A-Za-z_-]{31,}$/.test(trimmed);
+}
+
 function hasConfiguredGeminiKey(customKey?: string | null): string | null {
-  if (customKey && customKey.trim().length > 15) {
+  if (isValidByokGeminiKey(customKey)) {
     return customKey.trim();
   }
   const envKey = process.env.GEMINI_API_KEY?.trim();
@@ -208,8 +216,8 @@ function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
     process.env.VERTEX_AI === 'true';
 
   if (useVertex) {
-    // If founder provided an individual BYOK key from AI Studio, prefer direct key
-    if (activeApiKey && activeApiKey !== 'VERTEX_AI_ACTIVE') {
+    // If founder provided a verified AIza... BYOK key from AI Studio, use direct key
+    if (isValidByokGeminiKey(activeApiKey)) {
       return new GoogleGenAI({ apiKey: activeApiKey });
     }
     // Enterprise Vertex AI (ADC / Cloud Run Service Account)
@@ -223,13 +231,14 @@ function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
   return new GoogleGenAI({ apiKey: activeApiKey || process.env.GEMINI_API_KEY || '' });
 }
 
-interface AuthorizedGeminiCallContext {
+export interface AuthorizedGeminiCallContext {
   canCallLiveGemini: boolean;
   creditCheckBlocked: boolean;
   blockReason?: string;
   activeApiKey: string | null;
   verifiedUserId: string | null;
   usedByokKey: boolean;
+  planType?: string;
   currentCreditsUsed: number;
   systemInstruction: string;
 }
@@ -243,7 +252,7 @@ interface AuthorizedGeminiCallContext {
  * 4. Enforces per-user burst rate limits (max 8 calls/minute, 60 calls/hour).
  * 5. Decrypts BYOK key in server memory only, or enforces the 500/day Global Platform Circuit Breaker on the platform key.
  */
-async function authorizeAndPrepareGeminiCall(
+export async function authorizeAndPrepareGeminiCall(
   promptKey: string,
   defaultSystemInstruction: string = DEFAULT_SYSTEM_PROMPT
 ): Promise<AuthorizedGeminiCallContext> {
@@ -306,7 +315,13 @@ async function authorizeAndPrepareGeminiCall(
       };
     }
 
-    const decryptedByok = decryptByokApiKey(entRow.customApiKeyEncrypted);
+    const rawDecryptedByok = decryptByokApiKey(entRow.customApiKeyEncrypted);
+    const isByokTierEligible =
+      entRow.planType === 'APPSUMO_LTD' && entRow.stackedCodesCount >= 3;
+    const validByokKey =
+      isByokTierEligible && isValidByokGeminiKey(rawDecryptedByok)
+        ? rawDecryptedByok.trim()
+        : null;
 
     const snapshot: EntitlementSnapshot = {
       userId: entRow.userId,
@@ -317,7 +332,7 @@ async function authorizeAndPrepareGeminiCall(
       monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
       aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
       whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
-      customApiKeyEncrypted: decryptedByok,
+      customApiKeyEncrypted: validByokKey,
       accessExpiresAt: entRow.accessExpiresAt,
       isVaultReadonly: entRow.isVaultReadonly,
     };
@@ -331,6 +346,7 @@ async function authorizeAndPrepareGeminiCall(
         activeApiKey: null,
         verifiedUserId,
         usedByokKey: false,
+        planType: entRow.planType,
         currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
         systemInstruction: defaultSystemInstruction,
       };
@@ -349,13 +365,14 @@ async function authorizeAndPrepareGeminiCall(
         activeApiKey: null,
         verifiedUserId,
         usedByokKey: false,
+        planType: entRow.planType,
         currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
         systemInstruction: defaultSystemInstruction,
       };
     }
 
-    const usedByokKey = Boolean(decryptedByok && decryptedByok.length > 15);
-    const activeApiKey = hasConfiguredGeminiKey(decryptedByok);
+    const usedByokKey = Boolean(validByokKey);
+    const activeApiKey = hasConfiguredGeminiKey(validByokKey);
 
     if (!activeApiKey) {
       return {
@@ -364,6 +381,7 @@ async function authorizeAndPrepareGeminiCall(
         activeApiKey: null,
         verifiedUserId,
         usedByokKey: false,
+        planType: entRow.planType,
         currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
         systemInstruction: defaultSystemInstruction,
       };
@@ -396,10 +414,15 @@ async function authorizeAndPrepareGeminiCall(
           activeApiKey: null,
           verifiedUserId,
           usedByokKey: false,
+          planType: entRow.planType,
           currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
           systemInstruction: defaultSystemInstruction,
         };
       }
+
+      // Pre-increment in-memory daily counter immediately upon authorization
+      // so concurrent requests or failed parses cannot bypass the ceiling.
+      cachedDailyPlatformCallCount += 1;
     }
 
     let systemInstruction = defaultSystemInstruction;
@@ -422,6 +445,7 @@ async function authorizeAndPrepareGeminiCall(
       activeApiKey,
       verifiedUserId,
       usedByokKey,
+      planType: entRow.planType,
       currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
       systemInstruction,
     };
@@ -439,7 +463,7 @@ async function authorizeAndPrepareGeminiCall(
   }
 }
 
-async function recordGeminiUsageAndIncrementCredits(params: {
+export async function recordGeminiUsageAndIncrementCredits(params: {
   verifiedUserId: string | null;
   planId?: string;
   promptKey: string;
@@ -449,10 +473,6 @@ async function recordGeminiUsageAndIncrementCredits(params: {
   usedByokKey: boolean;
   fallbackCreditsUsed: number;
 }): Promise<number> {
-  if (params.modelUsed !== 'smart-synthesizer' && !params.usedByokKey) {
-    cachedDailyPlatformCallCount += 1;
-  }
-
   if (!params.verifiedUserId || !isValidUuid(params.verifiedUserId)) {
     return params.fallbackCreditsUsed;
   }
@@ -15301,8 +15321,13 @@ Return strictly a JSON object:
   "aiAssessorTip": "A sharp 2-sentence insider assessor tip specifically addressing how to present these numbers during an oral evaluation or review."
 }`;
 
+      const auditModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' =
+        authCtx.planType && authCtx.planType !== 'FREE_HOOK'
+          ? 'gemini-2.5-pro'
+          : 'gemini-2.5-flash';
+
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: auditModel,
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -15325,7 +15350,7 @@ Return strictly a JSON object:
             verifiedUserId: authCtx.verifiedUserId,
             planId: params.planId,
             promptKey: 'MOD_L_STEP2_AUDIT',
-            modelUsed: 'gemini-2.5-pro',
+            modelUsed: auditModel,
             inputTokens: response.usageMetadata?.promptTokenCount || 450,
             outputTokens: response.usageMetadata?.candidatesTokenCount || 420,
             usedByokKey: authCtx.usedByokKey,
@@ -15342,7 +15367,7 @@ Return strictly a JSON object:
               parsed.aiAssessorTip.trim().length > 15
                 ? parsed.aiAssessorTip.trim()
                 : fallback.aiAssessorTip,
-            engineMode: 'gemini-2.5-pro',
+            engineMode: auditModel,
           };
         }
       }
@@ -15859,34 +15884,17 @@ Return strictly a JSON object:
   "aiAssessorTip": "1-2 sentence tip on what committee reviewers look for when scoring this specific section"
 }`;
 
-      let rawText = '';
-      let usedModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' = 'gemini-2.5-pro';
-
-      try {
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-pro",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            temperature: 0.2,
-            maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
-          },
-        });
-        rawText = response.text?.trim() || "";
-      } catch (geminiProErr: any) {
-        console.warn("[AI Router] gemini-2.5-pro call failed, attempting fallback to gemini-2.5-flash:", geminiProErr?.message || geminiProErr);
-        const fallbackRes = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            temperature: 0.2,
-            maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
-          },
-        });
-        rawText = fallbackRes.text?.trim() || "";
-        usedModel = 'gemini-2.5-flash';
-      }
+      const usedModel: 'gemini-2.5-flash' = 'gemini-2.5-flash';
+      const response = await ai.models.generateContent({
+        model: usedModel,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
+      const rawText = response.text?.trim() || "";
 
       if (rawText) {
         const parsed = JSON.parse(rawText);
@@ -15995,7 +16003,7 @@ Return strictly a JSON object:
 }`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-pro",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -16142,7 +16150,7 @@ Return strictly a JSON object:
 }`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-pro",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -16269,35 +16277,16 @@ Return strictly a JSON object:
   "summaryOfChanges": "Brief 1-sentence note on what was sharpened"
 }`;
 
-      let response: any;
-      let modelUsed: 'gemini-2.5-pro' | 'gemini-2.5-flash' = 'gemini-2.5-pro';
-
-      try {
-        response = await ai.models.generateContent({
-          model: 'gemini-2.5-pro',
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json',
-            temperature: 0.25,
-            maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
-          },
-        });
-      } catch (proErr: any) {
-        console.warn(
-          '[AI Router] Polish gemini-2.5-pro error, attempting gemini-2.5-flash fallback:',
-          proErr?.message || proErr
-        );
-        modelUsed = 'gemini-2.5-flash';
-        response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json',
-            temperature: 0.25,
-            maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
-          },
-        });
-      }
+      const modelUsed: 'gemini-2.5-flash' = 'gemini-2.5-flash';
+      const response = await ai.models.generateContent({
+        model: modelUsed,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.25,
+          maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+        },
+      });
 
       const rawText = response.text?.trim() || '';
       if (rawText) {

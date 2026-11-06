@@ -11,6 +11,15 @@ import {
 } from '@/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { ProlificService } from '@/lib/panels/prolific-service';
+import { getAdminSessionCookie } from '@/lib/auth/server-auth';
+
+async function requireSuperAdmin() {
+  const session = await getAdminSessionCookie();
+  if (!session || session.role !== 'SUPER_ADMIN') {
+    return null;
+  }
+  return session;
+}
 
 export interface AdminSurveyBoostData {
   stats: {
@@ -33,6 +42,10 @@ export async function getAdminSurveyBoostDataAction(): Promise<{
   error?: string;
 }> {
   try {
+    const admin = await requireSuperAdmin();
+    if (!admin) {
+      return { success: false, error: 'Unauthorized: Super Admin session required.' };
+    }
     const [tiers, orders] = await Promise.all([
       db
         .select()
@@ -122,6 +135,10 @@ export async function updateAdminSurveyBoostTierAction(input: {
   isActive: boolean;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const admin = await requireSuperAdmin();
+    if (!admin) {
+      return { success: false, error: 'Unauthorized: Super Admin session required.' };
+    }
     await db
       .update(surveyBoostPricingTiers)
       .set({
@@ -155,6 +172,10 @@ export async function dispatchOrderToProlificAction(orderId: string): Promise<{
   error?: string;
 }> {
   try {
+    const admin = await requireSuperAdmin();
+    if (!admin) {
+      return { success: false, error: 'Unauthorized: Super Admin session required.' };
+    }
     const [order] = await db
       .select({
         order: surveyBoostOrders,
@@ -223,6 +244,10 @@ export async function updateSurveyBoostOrderStatusAction(input: {
   adminNotes?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const admin = await requireSuperAdmin();
+    if (!admin) {
+      return { success: false, error: 'Unauthorized: Super Admin session required.' };
+    }
     const updateData: any = {
       status: input.status,
     };

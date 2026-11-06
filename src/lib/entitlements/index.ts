@@ -302,9 +302,11 @@ export function canConsumeAiCredits(
     };
   }
 
+  const trimmedByok = entitlement.customApiKeyEncrypted?.trim() || '';
   const hasByok = Boolean(
-    entitlement.customApiKeyEncrypted &&
-      entitlement.customApiKeyEncrypted.trim().length > 0
+    /^AIza[0-9A-Za-z_-]{31,}$/.test(trimmedByok) &&
+      entitlement.planType === 'APPSUMO_LTD' &&
+      entitlement.stackedCodesCount >= 3
   );
 
   if (hasByok) {

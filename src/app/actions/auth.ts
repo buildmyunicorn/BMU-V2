@@ -958,7 +958,7 @@ export async function loginFounderAction(input: {
       };
     }
 
-    // If user was seeded before passwordHash was set, allow setting/verifying demo password
+    // Verify password hash strictly. Never allow unauthenticated password overwrite on Google OAuth accounts.
     if (foundUser.passwordHash) {
       const isValid = verifyPassword(input.password, foundUser.passwordHash);
       if (!isValid) {
@@ -968,13 +968,25 @@ export async function loginFounderAction(input: {
           mode: 'cloud_sql',
         };
       }
-    } else {
-      // Upgrade legacy seeded user row with the provided password hash
+    } else if (
+      process.env.NODE_ENV !== 'production' &&
+      (cleanEmail.endsWith('@startuppreflight.com') ||
+        cleanEmail.endsWith('@buildmyunicorn.com') ||
+        cleanEmail.endsWith('@example.com'))
+    ) {
+      // Only allow upgrading seeded demo user rows in local development
       const upgradedHash = hashPassword(input.password);
       await db
         .update(users)
         .set({ passwordHash: upgradedHash, lastActiveAt: new Date() })
         .where(eq(users.id, foundUser.id));
+    } else {
+      return {
+        ok: false,
+        error:
+          'This account was created with Google Sign-In. Please click "Continue with Google" above, or use "Forgot Password" to set a password.',
+        mode: 'cloud_sql',
+      };
     }
 
     await db

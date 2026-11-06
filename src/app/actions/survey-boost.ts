@@ -11,7 +11,12 @@ import {
 } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { stripe, isStripeConfigured } from '@/lib/stripe/client';
-import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
+import {
+  verifyActiveSessionAndPlanOwnership,
+  getServerSessionCookie,
+  getAdminSessionCookie,
+  checkRateLimit,
+} from '@/lib/auth/server-auth';
 import { ProlificService } from '@/lib/panels/prolific-service';
 
 const UUID_REGEX =
@@ -207,6 +212,17 @@ export async function checkSurveyBoostAvailabilityAction(input: {
   error?: string;
 }> {
   try {
+    const founderSession = await getServerSessionCookie();
+    const adminSession = await getAdminSessionCookie();
+    const callerKey =
+      founderSession?.userId || adminSession?.userId || 'anon';
+    const rl = checkRateLimit(`prolific_avail:${callerKey}`, 15, 60_000);
+    if (!rl.allowed) {
+      return {
+        success: false,
+        error: 'Too many panel availability checks. Please wait a moment.',
+      };
+    }
     let ageMin: number | undefined;
     let ageMax: number | undefined;
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dns from 'dns/promises';
+import { checkRateLimit } from '@/lib/auth/server-auth';
 
 export interface DomainCheckItem {
   domain: string;
@@ -136,6 +137,23 @@ function sanitizeBaseLabel(rawInput: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const clientIp =
+    request.headers.get('cf-connecting-ip') ||
+    (forwardedFor ? forwardedFor.split(',')[0].trim() : 'anon');
+
+  const rl = checkRateLimit(`domain_check:${clientIp}`, 30, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Too many domain checks. Please wait ${rl.retryAfterSeconds} seconds.`,
+        results: [],
+      },
+      { status: 429 }
+    );
+  }
+
   const rawQuery = request.nextUrl.searchParams.get('q') || '';
   const countryCode = (
     request.nextUrl.searchParams.get('country') || 'IE'

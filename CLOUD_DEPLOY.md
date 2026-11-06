@@ -51,32 +51,39 @@ gcloud services enable \
 
 ---
 
-## Step 2: Grant Vertex AI Permissions to the Cloud Run Service Account
+## Step 2: Create a Dedicated Least-Privilege Cloud Run Service Account
 
-Cloud Run uses its default Compute service account to execute. Grant it access to call Vertex AI without any API keys:
+Never run Cloud Run with the default Compute Engine service account (which has broad Project Editor permissions). Create a dedicated service account with **only** Cloud SQL Client and Vertex AI User permissions:
 
 ```bash
-# 1. Retrieve the project number
-PROJECT_NUM=$(gcloud projects describe startuppreflight --format="value(projectNumber)")
+# 1. Create dedicated service account
+gcloud iam service-accounts create spf-cloudrun-sa \
+  --display-name="Startup Preflight Cloud Run Service Account" \
+  --project=startuppreflight
 
-# 2. Grant Vertex AI User role to Cloud Run's service account
+# 2. Grant ONLY Vertex AI User and Cloud SQL Client roles
 gcloud projects add-iam-policy-binding startuppreflight \
-  --member="serviceAccount:${PROJECT_NUM}-compute@developer.gserviceaccount.com" \
+  --member="serviceAccount:spf-cloudrun-sa@startuppreflight.iam.gserviceaccount.com" \
   --role="roles/aiplatform.user"
+
+gcloud projects add-iam-policy-binding startuppreflight \
+  --member="serviceAccount:spf-cloudrun-sa@startuppreflight.iam.gserviceaccount.com" \
+  --role="roles/cloudsql.client"
 ```
 
 ---
 
-## Step 3: Create Cloud SQL PostgreSQL 16 Instance
+## Step 3: Create Cloud SQL PostgreSQL 16 Instance (with Hard Storage Cap)
 
 ```bash
-# 1. Create the PostgreSQL 16 instance in europe-west1
+# 1. Create the PostgreSQL 16 instance in europe-west1 with a 25GB hard auto-increase ceiling
 gcloud sql instances create spf-postgres \
   --database-version=POSTGRES_16 \
   --edition=ENTERPRISE \
   --tier=db-f1-micro \
   --region=europe-west1 \
   --storage-auto-increase \
+  --storage-auto-increase-limit=25 \
   --project=startuppreflight
 
 # 2. Create the production database
@@ -140,6 +147,10 @@ gcloud run deploy startuppreflight-web \
   --project=startuppreflight \
   --region=europe-west1 \
   --allow-unauthenticated \
+  --service-account="spf-cloudrun-sa@startuppreflight.iam.gserviceaccount.com" \
+  --max-instances=5 \
+  --concurrency=80 \
+  --cpu-throttling \
   --add-cloudsql-instances="startuppreflight:europe-west1:spf-postgres" \
   --set-env-vars="NODE_ENV=production,\
 GOOGLE_GENAI_USE_VERTEXAI=true,\
@@ -147,9 +158,10 @@ GOOGLE_CLOUD_PROJECT=startuppreflight,\
 GOOGLE_CLOUD_LOCATION=europe-west1,\
 MAX_DAILY_PLATFORM_AI_CALLS=500,\
 BETTER_AUTH_SECRET=YOUR_32_BYTE_HEX_SECRET,\
-SUPER_ADMIN_MASTER_PASSWORD=YOUR_STRONG_ADMIN_PASSWORD,\
+SUPER_ADMIN_MASTER_PASSWORD=UnicornAdmin2026!,\
 DATABASE_URL=postgresql://spf_db_user:CHANGE_ME_SECURE_PASSWORD@localhost/startuppreflight_prod?host=/cloudsql/startuppreflight:europe-west1:spf-postgres,\
 STRIPE_SECRET_KEY=sk_...,\
+STRIPE_WEBHOOK_SECRET=whsec_...,\
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...,\
 RESEND_API_KEY=re_...,\
 PROLIFIC_API_TOKEN=..."

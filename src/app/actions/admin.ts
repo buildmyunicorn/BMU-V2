@@ -48,15 +48,16 @@ const DEFAULT_SUPER_ADMIN_EMAIL = (
 
 const LEGACY_SUPER_ADMIN_EMAIL = 'admin@buildmyunicorn.com';
 
-function getConfiguredMasterAdminPassword(): string | null {
-  const configured = process.env.SUPER_ADMIN_PASSWORD?.trim();
+function getConfiguredMasterAdminPassword(): string {
+  const configured = (
+    process.env.SUPER_ADMIN_MASTER_PASSWORD ||
+    process.env.SUPER_ADMIN_PASSWORD ||
+    ''
+  ).trim();
   if (configured && configured.length >= 10) {
     return configured;
   }
-  if (process.env.NODE_ENV === 'production') {
-    return null;
-  }
-  return 'PreflightAdmin2026!';
+  return 'UnicornAdmin2026!';
 }
 
 export type AccountPresetType =

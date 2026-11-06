@@ -113,20 +113,20 @@ const APPSUMO_FAQS = [
     a: 'Standard customers pay $139–$219 every 6 months (or a recurring monthly vault fee). With an AppSumo Lifetime Deal code, you pay once and unlock permanent lifetime access to all 12 Startup Preflight modules (Modules A–L) with zero recurring subscription fees.',
   },
   {
-    q: 'How many codes should I stack (Tier 1 vs. Tier 2 vs. Tier 3)?',
-    a: '1 Code (Tier 1) is ideal for a solo founder working on a single startup idea (1 Plan, 1 Seat, 150 AI credits/month). 2 Codes (Tier 2 — Most Popular) unlocks 3 Active Startup Plans, 3 Team Seats, 400 AI credits/month, and the flagship Module F Blind-Reveal Co-Founder Alignment Engine. 3+ Codes (Tier 3) is built for serial builders, incubators, and consultants: 10 Active Plans, 5 Team Seats, 1,000 AI credits/month, White-Label Public Surveys & PDF Exports, and Bring-Your-Own-Key (BYOK) for unlimited Gemini AI calls.',
+    q: 'How does stacking work (Tier 1 vs. Tier 2)?',
+    a: '1 Code (Tier 1) is ideal for a solo founder working on a single startup idea (1 Plan, 1 Seat, 150 AI credits/month). 2 Codes (Tier 2 — Most Popular) unlocks 3 Active Startup Plans, 3 Team Seats, 450 AI credits/month, and the flagship Module F Blind-Reveal Co-Founder Alignment Engine with side-by-side alignment heatmap.',
   },
   {
     q: 'Does Startup Preflight work for my country and currency?',
     a: 'Yes! Every startup plan supports USD ($), EUR (€), GBP (£), CAD ($), and AUD ($). You can use the Global Business Plan compiler anywhere in the world, and if you are incorporating or expanding in Ireland or the UK, you also get full access to the localized IE (LEO / Enterprise Ireland) and UK (Start Up Loans / Innovate UK / HMRC SEIS) compilers.',
   },
   {
-    q: 'How do AI credits and Bring-Your-Own-Key (BYOK) work?',
-    a: 'Every AppSumo tier includes a generous monthly allowance of built-in Gemini AI calls that resets automatically every month for life (150/mo on Tier 1, 400/mo on Tier 2, 1,000/mo on Tier 3). On Tier 3 (3+ Codes), you can also optionally paste your own Google Gemini API key (encrypted at rest via AES-256-GCM) for unlimited AI extractions and audits.',
+    q: 'How do monthly AI credits work?',
+    a: 'Every AppSumo tier includes a generous monthly allowance of built-in Gemini AI calls that resets automatically every month for life (150/mo on Tier 1, 450/mo on Tier 2). There are no surprise bills or pay-per-token overage fees.',
   },
   {
     q: 'How do I redeem my AppSumo code?',
-    a: 'Click "Redeem Code" in the top navigation bar (or visit /redeem), create your founder account, and enter your AppSumo code(s). Your account entitlement upgrades immediately and stacks automatically if you enter multiple codes.',
+    a: 'Click "Redeem Code" in the top navigation bar (or visit /redeem), create or sign in to your founder account, and enter your AppSumo code(s). Your account entitlement upgrades immediately and stacks automatically if you enter 2 codes.',
   },
 ];
 
@@ -261,7 +261,7 @@ export function AppSumoClientPage() {
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <a href="#tiers" className="w-full sm:w-auto">
                 <Button className="h-12 w-full rounded-xl bg-indigo-600 px-7 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 sm:w-auto">
-                  Explore Stackable Lifetime Tiers ($59)
+                  Explore Lifetime Deal Tiers ($59)
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </a>
@@ -271,7 +271,7 @@ export function AppSumoClientPage() {
                   className="h-12 w-full rounded-xl border-amber-300 bg-amber-50/70 px-6 text-sm font-bold text-amber-950 hover:bg-amber-100 sm:w-auto"
                 >
                   <KeyRound className="mr-2 h-4 w-4 text-amber-600" />
-                  Already Bought? Redeem Code
+                  Redeem AppSumo Code
                 </Button>
               </Link>
               <button
@@ -296,7 +296,7 @@ export function AppSumoClientPage() {
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                Stack up to 3+ codes for White-Label &amp; BYOK
+                Stack 2 codes for 3 Plans &amp; Co-Founder Alignment
               </span>
             </div>
           </div>
@@ -425,7 +425,7 @@ export function AppSumoClientPage() {
                 <tr>
                   <td className="p-4 font-semibold text-slate-900">Cost Over 3 Years</td>
                   <td className="bg-indigo-50/40 p-4 font-black text-indigo-700">
-                    $59 – $177 Once (Lifetime)
+                    $59 – $118 Once (Lifetime)
                   </td>
                   <td className="p-4 text-slate-500">$720+ ($20/mo recurring)</td>
                   <td className="p-4 text-slate-500">$1,080+ ($30/mo recurring)</td>
@@ -437,7 +437,7 @@ export function AppSumoClientPage() {
       </section>
 
       {/* ===================================================================== */}
-      {/* APPSUMO 3-TIER STACKABLE DEAL BREAKDOWN                               */}
+      {/* APPSUMO 2-TIER STACKABLE DEAL BREAKDOWN                               */}
       {/* ===================================================================== */}
       <section id="tiers" className="scroll-mt-20 py-16 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -446,17 +446,16 @@ export function AppSumoClientPage() {
               Stackable AppSumo Lifetime Tiers
             </Badge>
             <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-4xl">
-              Choose Your Lifetime Tier (Stack Up to 3+ Codes)
+              Choose Your Lifetime Tier (Stack Up to 2 Codes)
             </h2>
             <p className="mt-3 text-sm text-slate-600 sm:text-base">
               Every tier includes lifetime access to all 12 Startup Preflight modules (A–L), the
               hosted Customer Survey &amp; Waitlist engine, and the 3-Year Pocket Profit model.
-              Stack codes to unlock Co-Founder seats, additional Startup Plans, White-Label exports,
-              and BYOK.
+              Stack 2 codes to unlock 3 Active Plans, 3 Co-Founder Seats, and the Blind-Reveal Co-Founder Alignment Engine.
             </p>
           </div>
 
-          <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2">
             {/* TIER 1: 1 CODE */}
             <div className="flex flex-col justify-between rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs sm:p-8">
               <div>
@@ -521,17 +520,17 @@ export function AppSumoClientPage() {
               </div>
 
               <div className="mt-8 space-y-2.5">
-                <Link href="/register?deal=appsumo&tier=1" className="block">
+                <Link href="/redeem?tier=1" className="block">
                   <Button className="h-11 w-full rounded-xl bg-slate-900 text-xs font-bold text-white hover:bg-indigo-600">
-                    Get Started with Tier 1
-                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                    <KeyRound className="mr-1.5 h-4 w-4" />
+                    Redeem Tier 1 Code
                   </Button>
                 </Link>
                 <Link
-                  href="/redeem"
+                  href="/register"
                   className="block text-center text-[11px] font-semibold text-slate-500 hover:text-indigo-600"
                 >
-                  Have a Tier 1 code? Redeem here →
+                  New here? Create account &amp; redeem →
                 </Link>
               </div>
             </div>
@@ -589,7 +588,7 @@ export function AppSumoClientPage() {
                   <li className="flex items-start gap-2.5">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
                     <span>
-                      <strong>400 AI Credits / month</strong> (resets monthly for life)
+                      <strong>450 AI Credits / month</strong> (resets monthly for life)
                     </span>
                   </li>
                   <li className="flex items-start gap-2.5">
@@ -606,99 +605,17 @@ export function AppSumoClientPage() {
               </div>
 
               <div className="mt-8 space-y-2.5">
-                <Link href="/register?deal=appsumo&tier=2" className="block">
+                <Link href="/redeem?tier=2" className="block">
                   <Button className="h-11 w-full rounded-xl bg-indigo-600 text-xs font-bold text-white shadow-md hover:bg-indigo-500">
-                    Stack 2 Codes (Tier 2)
-                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                    <KeyRound className="mr-1.5 h-4 w-4" />
+                    Redeem / Stack 2 Codes (Tier 2)
                   </Button>
                 </Link>
                 <Link
-                  href="/redeem"
+                  href="/register"
                   className="block text-center text-[11px] font-semibold text-indigo-600 hover:underline"
                 >
-                  Have 2 codes? Stack them in /redeem →
-                </Link>
-              </div>
-            </div>
-
-            {/* TIER 3: 3+ CODES (SERIAL BUILDER & ADVISOR) */}
-            <div className="flex flex-col justify-between rounded-3xl border border-amber-300/90 bg-gradient-to-b from-amber-50/40 via-white to-white p-6 shadow-xs sm:p-8">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-full border border-amber-300 bg-amber-100/80 px-3 py-1 text-xs font-bold text-amber-950">
-                    License Tier 3 • 3+ Codes
-                  </span>
-                  <span className="text-xs font-semibold text-slate-400 line-through">
-                    $990/yr value
-                  </span>
-                </div>
-                <h3 className="mt-4 text-xl font-black text-slate-900">
-                  Serial Builder &amp; Advisor LTD
-                </h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  Built for serial entrepreneurs, venture studios, and startup consultants.
-                </p>
-
-                <div className="mt-5 flex items-baseline gap-2 border-b border-slate-100 pb-5">
-                  <span className="text-4xl font-black tracking-tight text-slate-900">$177</span>
-                  <span className="text-xs font-semibold text-slate-500">
-                    3 codes stacked • lifetime access
-                  </span>
-                </div>
-
-                <ul className="mt-5 space-y-3 text-xs text-slate-700">
-                  <li className="flex items-start gap-2.5">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                    <span>
-                      <strong>10 Active Startup Plans</strong> (run multiple ventures or client
-                      projects)
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                    <span>
-                      <strong>5 Collaborator / Team Seats</strong>
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                    <span>
-                      <strong>White-Label Public Surveys &amp; PDF Exports</strong> (remove Startup
-                      Preflight branding)
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                    <span>
-                      <strong>Bring-Your-Own-Key (BYOK) Enabled:</strong> Add your own encrypted
-                      Gemini key for unlimited AI calls
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                    <span>
-                      <strong>1,000 Platform AI Credits / month</strong> included out of the box
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                    <span>Everything in Tier 1 &amp; Tier 2 included</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="mt-8 space-y-2.5">
-                <Link href="/register?deal=appsumo&tier=3" className="block">
-                  <Button className="h-11 w-full rounded-xl bg-amber-500 text-xs font-bold text-slate-950 shadow-sm hover:bg-amber-400">
-                    Unlock Max Tier 3 (3+ Codes)
-                    <ArrowRight className="ml-1.5 h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link
-                  href="/redeem"
-                  className="block text-center text-[11px] font-semibold text-amber-800 hover:underline"
-                >
-                  Have 3+ codes? Stack them in /redeem →
+                  New here? Create account &amp; stack codes →
                 </Link>
               </div>
             </div>

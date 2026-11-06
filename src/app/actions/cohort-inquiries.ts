@@ -92,8 +92,9 @@ export async function submitCohortInquiryAction(
 
   // Rate limiting: max 5 submissions per 10 minutes per IP/email
   const rateLimitKey = `cohort_inquiry:${cleanEmail}`;
-  const allowed = checkRateLimit(rateLimitKey, 5, 10 * 60 * 1000);
-  if (!allowed) {
+  const rateLimit = checkRateLimit(rateLimitKey, 5, 10 * 60 * 1000);
+  const globalLimit = checkRateLimit('cohort_inquiry:global', 25, 10 * 60 * 1000);
+  if (!rateLimit.allowed || !globalLimit.allowed) {
     return {
       ok: false,
       error: 'You have submitted several inquiries recently. Please wait a few minutes before submitting again.',

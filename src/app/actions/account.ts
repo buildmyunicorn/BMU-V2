@@ -14,6 +14,7 @@ import {
 } from '@/db/schema';
 import {
   getServerSessionCookie,
+  getAdminSessionCookie,
   clearServerSessionCookie,
   verifyPassword,
   hashPassword,
@@ -595,6 +596,13 @@ export async function restoreSoftDeletedAccountAction(email: string): Promise<{
   error?: string;
 }> {
   try {
+    const adminSession = await getAdminSessionCookie();
+    if (!adminSession || adminSession.role !== 'SUPER_ADMIN') {
+      return {
+        ok: false,
+        error: 'Unauthorized: Only a Super Administrator can restore a deactivated account.',
+      };
+    }
     const cleanEmail = email.trim().toLowerCase();
     await ensureDatabaseSchemaSynced();
 

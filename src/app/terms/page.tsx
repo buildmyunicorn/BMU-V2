@@ -128,7 +128,10 @@ export default function TermsOfServicePage() {
                   <strong>Living Vault Micro-Subscription:</strong> At Month 6, workspaces transition to read-only vault mode. Founders may optionally subscribe to the Living Vault micro-subscription (€9/month or €79/year) to keep all 12 modules editable and receive automated 24/7 Grant Radar alerts. You may cancel anytime via your workspace billing settings or the Stripe Customer Portal.
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-                  <strong>Refund Policy:</strong> We offer a 14-day refund window on software passes provided no deep AI Pre-Flight Audits (Module L) or document compiler exports have been executed.
+                  <strong>Direct Purchase Refund Policy:</strong> We offer a 14-day refund window on direct software passes provided no deep AI Pre-Flight Audits (Module L) or document compiler exports have been executed.
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                  <strong>AppSumo Marketplace 60-Day Guarantee:</strong> For licenses purchased through AppSumo, AppSumo&apos;s standard 60-day money-back guarantee applies. In the event of an AppSumo refund, the corresponding redeemed voucher code will be revoked in the platform, returning multi-plan limits or transitioning the account to read-only vault mode accordingly.
                 </div>
               </div>
             </section>

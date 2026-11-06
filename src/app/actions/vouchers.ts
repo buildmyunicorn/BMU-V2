@@ -107,27 +107,7 @@ async function resolveAuthenticatedFounderUser(
     }
   }
 
-  // 3. Re-hydrate if client session has both a matching DB UUID and email
-  if (
-    !foundUser &&
-    clientContext?.userId &&
-    UUID_REGEX.test(clientContext.userId) &&
-    clientContext?.email
-  ) {
-    const [byVerifiedPair] = await db
-      .select()
-      .from(users)
-      .where(
-        and(
-          eq(users.id, clientContext.userId),
-          eq(users.email, clientContext.email.trim().toLowerCase())
-        )
-      )
-      .limit(1);
-    foundUser = byVerifiedPair;
-  }
-
-  // 4. Local development fallback for seeded demo personas
+  // 3. Local development fallback for seeded demo personas (never trust clientContext without cookie in production)
   if (
     !foundUser &&
     process.env.NODE_ENV !== 'production' &&

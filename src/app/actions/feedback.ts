@@ -139,8 +139,9 @@ export async function submitFeedbackAction(
 
   // Rate-limiting check for spam prevention (10 submissions per 5 minutes per email/IP)
   const rateLimitKey = `feedback:${finalEmail || 'anonymous'}`;
-  const allowed = checkRateLimit(rateLimitKey, 10, 5 * 60 * 1000);
-  if (!allowed) {
+  const rateLimit = checkRateLimit(rateLimitKey, 10, 5 * 60 * 1000);
+  const globalLimit = checkRateLimit('feedback:global', 40, 5 * 60 * 1000);
+  if (!rateLimit.allowed || !globalLimit.allowed) {
     return {
       ok: false,
       error: 'You have submitted several feedback items recently. Please wait a few minutes before submitting again.',

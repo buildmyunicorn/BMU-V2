@@ -4,7 +4,11 @@ import { AppSumoClientPage } from './appsumo-client-page';
 export const metadata: Metadata = {
   title: 'Startup Preflight × AppSumo Lifetime Deal | Turn Ideas Into Validated Business Plans',
   description:
-    'Exclusive AppSumo Lifetime Deal: Get lifetime access to Startup Preflight — the 12-module AI Business Plan, Customer Survey, Co-Founder Alignment & 3-Year Pocket Profit Engine. Stack up to 3+ codes.',
+    'Exclusive AppSumo Lifetime Deal: Get lifetime access to Startup Preflight — the 12-module AI Business Plan, Customer Survey, Co-Founder Alignment & 3-Year Pocket Profit Engine. Stack up to 2 codes.',
+  robots: {
+    index: false,
+    follow: false,
+  },
   openGraph: {
     title: 'Startup Preflight — AppSumo Lifetime Deal ($59 Once)',
     description:

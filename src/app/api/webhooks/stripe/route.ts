@@ -16,11 +16,23 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    if (webhookSecret && signature) {
+    if (webhookSecret) {
+      if (!signature) {
+        return NextResponse.json(
+          { error: 'Missing stripe-signature header' },
+          { status: 400 }
+        );
+      }
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } else {
-      // In local dev without Stripe CLI webhook signature, parse the event directly
+    } else if (process.env.NODE_ENV !== 'production') {
+      // Only in local dev without STRIPE_WEBHOOK_SECRET configured
       event = JSON.parse(body) as Stripe.Event;
+    } else {
+      console.error('⚠️ STRIPE_WEBHOOK_SECRET is not configured in production!');
+      return NextResponse.json(
+        { error: 'Webhook secret not configured' },
+        { status: 500 }
+      );
     }
   } catch (err: any) {
     console.error('⚠️ Stripe Webhook signature verification failed:', err.message);

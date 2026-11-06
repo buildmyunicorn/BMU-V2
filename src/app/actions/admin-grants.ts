@@ -5,6 +5,11 @@ import { eq, desc } from 'drizzle-orm';
 import { getAdminSessionCookie } from '@/lib/auth/server-auth';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ensureDefaultGrantsSeededInDb } from '@/lib/grants/ensure-grants';
+import {
+  authorizeAndPrepareGeminiCall,
+  recordGeminiUsageAndIncrementCredits,
+  sanitizePromptInput,
+} from '@/lib/ai/router';
 
 function getGenAiClient(apiKey: string): GoogleGenAI {
   const isVertex =
@@ -92,24 +97,35 @@ export async function aiExtractGrantFromPromptAction(input: {
 }> {
   try {
     const adminSession = await getAdminSessionCookie();
-    if (!adminSession) {
-      return { success: false, error: 'Unauthorized: Admin session required' };
+    if (!adminSession || adminSession.role !== 'SUPER_ADMIN') {
+      return { success: false, error: 'Unauthorized: Super Admin session required' };
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || '';
-    if (!apiKey && process.env.GOOGLE_GENAI_USE_VERTEXAI !== 'true') {
-      return { success: false, error: 'Gemini AI API key not configured' };
+    const authCtx = await authorizeAndPrepareGeminiCall(
+      'ADMIN_GRANT_EXTRACT',
+      'You are a Senior Government Grant Assessor & Enterprise Auditor.'
+    );
+    if (!authCtx.canCallLiveGemini || !authCtx.activeApiKey) {
+      return {
+        success: false,
+        error:
+          authCtx.blockReason ||
+          'AI Billing Firewall active (daily platform limit or burst limit reached). Please try again shortly.',
+      };
     }
 
-    const ai = getGenAiClient(apiKey);
+    const ai = getGenAiClient(authCtx.activeApiKey);
 
     const systemInstruction = `You are a Senior Government Grant Assessor & Enterprise Auditor for Ireland (LEO, Enterprise Ireland, Revenue) and the United Kingdom (Innovate UK, British Business Bank, HMRC).
 Your task is to take a natural language request or grant URL from an administrator and extract the complete, rigorous scheme specifications into a structured JSON schema.
 Be realistic, accurate with statutory funding rules, and highlight strict assessor disqualification rules (e.g. LEO three-quote rules, laptop exclusions, de minimis state aid).`;
 
+    const cleanPrompt = sanitizePromptInput(input.prompt, 1200);
+    const cleanUrl = input.officialUrl ? sanitizePromptInput(input.officialUrl, 300) : '';
+
     const userPrompt = `Extract and structure the complete grant specification for this scheme:
-Prompt / Request: "${input.prompt}"
-${input.officialUrl ? `Official Scheme URL: ${input.officialUrl}` : ''}
+Prompt / Request: "${cleanPrompt}"
+${cleanUrl ? `Official Scheme URL: ${cleanUrl}` : ''}
 
 Be precise with:
 - Country Code ('IE' for Ireland, 'GB' for UK, 'ALL' for international)
@@ -178,6 +194,16 @@ Be precise with:
           ],
         },
       },
+    });
+
+    await recordGeminiUsageAndIncrementCredits({
+      verifiedUserId: authCtx.verifiedUserId,
+      promptKey: 'ADMIN_GRANT_EXTRACT',
+      modelUsed: 'gemini-2.5-flash',
+      inputTokens: response.usageMetadata?.promptTokenCount || 250,
+      outputTokens: response.usageMetadata?.candidatesTokenCount || 350,
+      usedByokKey: authCtx.usedByokKey,
+      fallbackCreditsUsed: authCtx.currentCreditsUsed,
     });
 
     const text = response.text?.trim() || '{}';

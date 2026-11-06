@@ -10,6 +10,15 @@ import {
   TemplatePropsMap,
 } from '@/lib/email/send';
 import { EMAIL_DEFAULTS } from '@/lib/email/resend';
+import { getAdminSessionCookie } from '@/lib/auth/server-auth';
+
+async function requireSuperAdmin() {
+  const session = await getAdminSessionCookie();
+  if (!session || session.role !== 'SUPER_ADMIN') {
+    return null;
+  }
+  return session;
+}
 
 export interface EmailLogSummary {
   id: string;
@@ -46,6 +55,15 @@ export async function listAdminEmailLogsAction(
   searchQuery?: string
 ): Promise<ListEmailLogsResult> {
   try {
+    const admin = await requireSuperAdmin();
+    if (!admin) {
+      return {
+        ok: false,
+        logs: [],
+        stats: { totalSent: 0, delivered: 0, bouncedOrFailed: 0, mockDev: 0 },
+        error: 'Unauthorized: Super Admin session required.',
+      };
+    }
     const rows = await db
       .select()
       .from(emailLogs)
@@ -108,6 +126,10 @@ export async function previewAdminEmailAction(
   sampleProps?: Record<string, unknown>
 ): Promise<{ ok: boolean; html?: string; error?: string }> {
   try {
+    const admin = await requireSuperAdmin();
+    if (!admin) {
+      return { ok: false, error: 'Unauthorized: Super Admin session required.' };
+    }
     const props =
       sampleProps || getDefaultSamplePropsForTemplate(template);
     const html = await renderEmailHtml(
@@ -128,6 +150,10 @@ export async function sendAdminTestEmailAction(
   targetEmail: string,
   template: EmailTemplateType
 ): Promise<{ ok: boolean; resendId?: string; isMockDev?: boolean; error?: string }> {
+  const admin = await requireSuperAdmin();
+  if (!admin) {
+    return { ok: false, error: 'Unauthorized: Super Admin session required.' };
+  }
   if (!targetEmail || !targetEmail.includes('@')) {
     return { ok: false, error: 'Please provide a valid destination email address.' };
   }
