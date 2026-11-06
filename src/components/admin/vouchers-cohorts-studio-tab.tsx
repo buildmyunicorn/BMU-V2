@@ -37,6 +37,7 @@ import {
   generateVoucherBatchAction,
   createCohortAction,
   revokeVoucherAction,
+  exportAppSumoPlainCsvAction,
   type AdminVoucherSummary,
   type AdminCohortSummary,
   type VoucherSourceType,
@@ -92,6 +93,13 @@ export function VouchersCohortsStudioTab({
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeReason, setRevokeReason] = useState<string>('');
   const [confirmRevokeModal, setConfirmRevokeModal] = useState<AdminVoucherSummary | null>(null);
+
+  // AppSumo CSV Export state
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportSource, setExportSource] = useState<'APPSUMO' | 'PARTNER' | 'PROMO' | 'ALL'>('APPSUMO');
+  const [exportStatus, setExportStatus] = useState<'UNCLAIMED' | 'ALL'>('UNCLAIMED');
+  const [exportBatch, setExportBatch] = useState<string>('ALL');
 
   // Download CSV from generated batch
   function downloadCsv(content: string, filename: string) {
@@ -149,6 +157,41 @@ export function VouchersCohortsStudioTab({
       onNotify('error', 'Unexpected error generating vouchers.');
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  // Handle Export Plain AppSumo CSV (1 column, randomized, no header, no duplicates)
+  async function handleExportAppSumoCsv() {
+    setIsExportingCsv(true);
+    try {
+      const res = await exportAppSumoPlainCsvAction({
+        source: exportSource,
+        status: exportStatus,
+        batchName: exportBatch === 'ALL' ? undefined : exportBatch,
+      });
+
+      if (!res.ok) {
+        onNotify('error', res.error || 'Failed to export CSV.');
+        setIsExportingCsv(false);
+        return;
+      }
+
+      if (!res.csvContent || res.count === 0) {
+        onNotify('error', 'No voucher codes found matching the selected export criteria.');
+        setIsExportingCsv(false);
+        return;
+      }
+
+      downloadCsv(res.csvContent, res.filename || 'appsumo_codes.csv');
+      onNotify(
+        'success',
+        `Successfully exported ${res.count} randomized codes in AppSumo plain CSV format!`
+      );
+      setShowExportModal(false);
+    } catch {
+      onNotify('error', 'Failed to generate AppSumo CSV export.');
+    } finally {
+      setIsExportingCsv(false);
     }
   }
 
@@ -334,6 +377,15 @@ export function VouchersCohortsStudioTab({
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowExportModal(true)}
+            className="border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+          >
+            <Download className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+            Export AppSumo CSV
+          </Button>
           <Button
             size="sm"
             onClick={() => setShowBatchModal(true)}
@@ -946,6 +998,126 @@ export function VouchersCohortsStudioTab({
                     </>
                   ) : (
                     'Confirm Revoke & Downgrade'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: EXPORT APPSUMO PLAIN CSV                                        */}
+      {/* ========================================================================= */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
+          <Card className="w-full max-w-lg border-emerald-200 bg-white shadow-xl">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2 text-emerald-700">
+                <Download className="h-5 w-5" />
+                <CardTitle className="text-base font-bold text-slate-900">
+                  Export AppSumo-Compliant Plain CSV
+                </CardTitle>
+              </div>
+              <CardDescription className="text-xs">
+                Exports codes in strict plain text, randomized, 1 single column, NO headers, and zero duplicates.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950 space-y-1.5">
+                <div className="font-bold flex items-center gap-1.5 text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  AppSumo Partner Formatting Rules Strictly Enforced:
+                </div>
+                <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-emerald-900/90">
+                  <li><strong>Plain text (.csv):</strong> No extra quotes or trailing commas</li>
+                  <li><strong>Single column:</strong> All codes in column A only</li>
+                  <li><strong>No header row:</strong> Line 1 begins immediately with the first code</li>
+                  <li><strong>Randomized:</strong> Cryptographic Fisher-Yates shuffle applied</li>
+                  <li><strong>No duplicates:</strong> Strict Set deduplication</li>
+                  <li><strong>Code length:</strong> Strictly verified between 3 and 200 characters</li>
+                </ul>
+              </div>
+
+              {/* Source Filter Selector */}
+              <div className="space-y-1.5">
+                <Label htmlFor="export-source" className="text-xs font-semibold text-slate-700">
+                  Voucher Source
+                </Label>
+                <select
+                  id="export-source"
+                  value={exportSource}
+                  onChange={(e) => setExportSource(e.target.value as any)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                >
+                  <option value="APPSUMO">AppSumo Only (Recommended)</option>
+                  <option value="PARTNER">Partner Deals Only</option>
+                  <option value="PROMO">Promo / VIP Only</option>
+                  <option value="ALL">All Sources</option>
+                </select>
+              </div>
+
+              {/* Status Filter Selector */}
+              <div className="space-y-1.5">
+                <Label htmlFor="export-status" className="text-xs font-semibold text-slate-700">
+                  Voucher Status
+                </Label>
+                <select
+                  id="export-status"
+                  value={exportStatus}
+                  onChange={(e) => setExportStatus(e.target.value as any)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                >
+                  <option value="UNCLAIMED">Unclaimed Codes Only (Ready for AppSumo Submission)</option>
+                  <option value="ALL">All Statuses (Unclaimed + Redeemed)</option>
+                </select>
+              </div>
+
+              {/* Batch Filter */}
+              <div className="space-y-1.5">
+                <Label htmlFor="export-batch" className="text-xs font-semibold text-slate-700">
+                  Filter by Specific Batch (Optional)
+                </Label>
+                <select
+                  id="export-batch"
+                  value={exportBatch}
+                  onChange={(e) => setExportBatch(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                >
+                  <option value="ALL">All Batches</option>
+                  {Array.from(new Set(vouchers.map((v) => v.batchName))).map((b) => (
+                    <option key={b} value={b}>
+                      Batch: {b}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowExportModal(false)}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleExportAppSumoCsv}
+                  disabled={isExportingCsv}
+                  className="bg-emerald-600 text-xs text-white hover:bg-emerald-700 font-semibold"
+                >
+                  {isExportingCsv ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Preparing Export...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-1.5 h-3.5 w-3.5" />
+                      Download AppSumo CSV
+                    </>
                   )}
                 </Button>
               </div>

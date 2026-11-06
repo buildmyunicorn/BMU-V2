@@ -454,6 +454,11 @@ export function MarketingFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/media-kit" className="hover:text-white">
+                  Media Kit &amp; Press Assets
+                </Link>
+              </li>
+              <li>
                 <Link href="/privacy" className="hover:text-white">
                   Privacy Policy
                 </Link>

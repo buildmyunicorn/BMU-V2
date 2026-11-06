@@ -49,6 +49,7 @@ import {
   LayoutGrid,
   ArrowLeft,
   Landmark,
+  BrainCircuit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createStripeCheckoutSessionAction } from '@/app/actions/stripe';
@@ -275,6 +276,7 @@ import {
 } from '@/app/actions/module-l';
 import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
 import { GrantApplicationCenterView } from '@/components/workspace/grant-application-center-view';
+import { AskMyStartupView } from '@/components/workspace/ask-my-startup-view';
 import { evaluatePlanGrantReadiness } from '@/lib/grants/grant-readiness-evaluator';
 import type { SavedGrantCenterData } from '@/lib/auth/session-store';
 import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
@@ -521,6 +523,8 @@ export default function WorkspacePage() {
   const [isMasterDocumentOpen, setIsMasterDocumentOpen] = useState(false);
   const [isBusinessPlanStudioOpen, setIsBusinessPlanStudioOpen] = useState(false);
   const [isGrantCenterOpen, setIsGrantCenterOpen] = useState(false);
+  const [isAskStartupOpen, setIsAskStartupOpen] = useState(false);
+  const [askStartupInitialPrompt, setAskStartupInitialPrompt] = useState<string | undefined>(undefined);
   const [hasHydratedLocation, setHasHydratedLocation] = useState(false);
   const hasHydratedLocationRef = useRef(false);
   const sessionRef = useRef(session);
@@ -675,6 +679,7 @@ export default function WorkspacePage() {
         let resolvedMasterDoc = false;
         let resolvedBpStudio = false;
         let resolvedGrantCenter = false;
+        let resolvedAskStartup = false;
         let resolvedInitialMod: ModuleCode | null = null;
 
         if (typeof window !== 'undefined') {
@@ -688,6 +693,7 @@ export default function WorkspacePage() {
             resolvedBpStudio = false;
             resolvedMasterDoc = false;
             resolvedGrantCenter = false;
+            resolvedAskStartup = false;
             resolvedInitialMod = 'MOD_G_LAUNCHPAD';
             const stepParam = searchParams.get('step');
             const stepNum = stepParam ? parseInt(stepParam, 10) : 1;
@@ -697,6 +703,17 @@ export default function WorkspacePage() {
             });
           } else if (viewParam === 'dashboard') {
             resolvedDashboard = true;
+          } else if (
+            viewParam === 'ask_startup' ||
+            viewParam === 'ask_my_startup' ||
+            moduleParam === 'ask_startup'
+          ) {
+            resolvedDashboard = false;
+            resolvedAskStartup = true;
+            const queryParam = searchParams.get('q');
+            if (queryParam) {
+              setAskStartupInitialPrompt(queryParam);
+            }
           } else if (
             (viewParam === 'grant_center' ||
               viewParam === 'grants_apply' ||
@@ -760,26 +777,37 @@ export default function WorkspacePage() {
           setIsBusinessPlanStudioOpen(false);
           setIsMasterDocumentOpen(false);
           setIsGrantCenterOpen(false);
+          setIsAskStartupOpen(false);
+        } else if (resolvedAskStartup) {
+          setIsDashboardOpen(false);
+          setIsBusinessPlanStudioOpen(false);
+          setIsMasterDocumentOpen(false);
+          setIsGrantCenterOpen(false);
+          setIsAskStartupOpen(true);
         } else if (resolvedGrantCenter) {
           setIsDashboardOpen(false);
           setIsBusinessPlanStudioOpen(false);
           setIsMasterDocumentOpen(false);
           setIsGrantCenterOpen(true);
+          setIsAskStartupOpen(false);
         } else if (resolvedBpStudio) {
           setIsDashboardOpen(false);
           setIsBusinessPlanStudioOpen(true);
           setIsMasterDocumentOpen(false);
           setIsGrantCenterOpen(false);
+          setIsAskStartupOpen(false);
         } else if (resolvedMasterDoc) {
           setIsDashboardOpen(false);
           setIsBusinessPlanStudioOpen(false);
           setIsMasterDocumentOpen(true);
           setIsGrantCenterOpen(false);
+          setIsAskStartupOpen(false);
         } else {
           setIsDashboardOpen(false);
           setIsBusinessPlanStudioOpen(false);
           setIsMasterDocumentOpen(false);
           setIsGrantCenterOpen(false);
+          setIsAskStartupOpen(false);
         }
 
         hasHydratedLocationRef.current = true;
@@ -1374,20 +1402,34 @@ export default function WorkspacePage() {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
       url.searchParams.delete('view');
+      url.searchParams.delete('q');
+    } else if (isAskStartupOpen) {
+      url.searchParams.delete('module');
+      url.searchParams.delete('step');
+      url.searchParams.set('view', 'ask_startup');
+      if (askStartupInitialPrompt) {
+        url.searchParams.set('q', askStartupInitialPrompt);
+      } else {
+        url.searchParams.delete('q');
+      }
     } else if (isGrantCenterOpen) {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
+      url.searchParams.delete('q');
       url.searchParams.set('view', 'grant_center');
     } else if (isBusinessPlanStudioOpen) {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
+      url.searchParams.delete('q');
       url.searchParams.set('view', 'business_plan_studio');
     } else if (isMasterDocumentOpen) {
       url.searchParams.delete('module');
       url.searchParams.delete('step');
+      url.searchParams.delete('q');
       url.searchParams.set('view', 'master_doc');
     } else {
       url.searchParams.delete('view');
+      url.searchParams.delete('q');
       url.searchParams.set('module', activeModule);
       if (activeModule === 'MOD_A_IDEATION' && typeof openStep === 'number' && openStep > 0) {
         url.searchParams.set('step', String(openStep));
@@ -1408,6 +1450,11 @@ export default function WorkspacePage() {
         localStorage.setItem('spf_last_active_view', 'dashboard');
         if (activePlanId) {
           localStorage.setItem(`spf_active_view_${activePlanId}`, 'dashboard');
+        }
+      } else if (isAskStartupOpen) {
+        localStorage.setItem('spf_last_active_view', 'ask_startup');
+        if (activePlanId) {
+          localStorage.setItem(`spf_active_view_${activePlanId}`, 'ask_startup');
         }
       } else if (isGrantCenterOpen) {
         localStorage.setItem('spf_last_active_view', 'grant_center');
@@ -1447,6 +1494,8 @@ export default function WorkspacePage() {
     isMasterDocumentOpen,
     isBusinessPlanStudioOpen,
     isGrantCenterOpen,
+    isAskStartupOpen,
+    askStartupInitialPrompt,
     session?.activePlanId,
   ]);
 
@@ -1633,6 +1682,21 @@ export default function WorkspacePage() {
         setIsGrantCenterOpen(false);
         setModuleNavTarget(null);
       } else if (
+        viewParam === 'ask_startup' ||
+        viewParam === 'ask_my_startup' ||
+        moduleParam === 'ask_startup'
+      ) {
+        setIsDashboardOpen(false);
+        setIsBusinessPlanStudioOpen(false);
+        setIsMasterDocumentOpen(false);
+        setIsGrantCenterOpen(false);
+        setIsAskStartupOpen(true);
+        const qParam = searchParams.get('q');
+        if (qParam) {
+          setAskStartupInitialPrompt(qParam);
+        }
+        setModuleNavTarget(null);
+      } else if (
         (viewParam === 'grant_center' ||
           viewParam === 'grants_apply' ||
           moduleParam === 'grant_center') &&
@@ -1708,6 +1772,7 @@ export default function WorkspacePage() {
     setIsGrantCenterOpen(false);
     setIsBusinessPlanStudioOpen(false);
     setIsMasterDocumentOpen(false);
+    setIsAskStartupOpen(false);
     setMobileSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1728,6 +1793,7 @@ export default function WorkspacePage() {
     setIsGrantCenterOpen(false);
     setIsMasterDocumentOpen(true);
     setIsBusinessPlanStudioOpen(false);
+    setIsAskStartupOpen(false);
     setMobileSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1748,6 +1814,7 @@ export default function WorkspacePage() {
     setIsGrantCenterOpen(false);
     setIsBusinessPlanStudioOpen(true);
     setIsMasterDocumentOpen(false);
+    setIsAskStartupOpen(false);
     setMobileSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1774,6 +1841,36 @@ export default function WorkspacePage() {
     setIsGrantCenterOpen(true);
     setIsBusinessPlanStudioOpen(false);
     setIsMasterDocumentOpen(false);
+    setIsAskStartupOpen(false);
+    setMobileSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function openAskStartupWithHistory(initialPrompt?: string) {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('module');
+      url.searchParams.delete('step');
+      url.searchParams.set('view', 'ask_startup');
+      if (initialPrompt) {
+        url.searchParams.set('q', initialPrompt);
+      } else {
+        url.searchParams.delete('q');
+      }
+      const activeId = sessionRef.current?.activePlanId || session.activePlanId;
+      if (activeId) {
+        url.searchParams.set('planId', activeId);
+      }
+      window.history.pushState(null, '', url.toString());
+    }
+    setIsDashboardOpen(false);
+    setIsGrantCenterOpen(false);
+    setIsBusinessPlanStudioOpen(false);
+    setIsMasterDocumentOpen(false);
+    setIsAskStartupOpen(true);
+    if (initialPrompt !== undefined) {
+      setAskStartupInitialPrompt(initialPrompt);
+    }
     setMobileSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1798,6 +1895,7 @@ export default function WorkspacePage() {
     setIsGrantCenterOpen(false);
     setIsBusinessPlanStudioOpen(false);
     setIsMasterDocumentOpen(false);
+    setIsAskStartupOpen(false);
     setActiveModule(modCode);
     if (modCode === 'MOD_A_IDEATION') {
       setOpenStep(stepNum || 0);
@@ -5721,7 +5819,7 @@ export default function WorkspacePage() {
       {/* ========================================================= */}
       <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-4 px-3.5 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-12 print:block print:w-full print:max-w-none print:p-0 print:m-0 print:bg-white">
         {/* LEFT SIDEBAR: Shown ONLY when inside the Step-by-Step Founder Workspace (Modules A–L) */}
-        {!isDashboardOpen && !isBusinessPlanStudioOpen && !isMasterDocumentOpen && !isGrantCenterOpen && (
+        {!isDashboardOpen && !isBusinessPlanStudioOpen && !isMasterDocumentOpen && !isGrantCenterOpen && !isAskStartupOpen && (
           <aside className="space-y-3.5 sm:space-y-4 lg:col-span-4 xl:col-span-3 no-print print:hidden">
             {/* Slim Back to Project Dashboard + Quick Switch Card */}
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
@@ -5738,10 +5836,19 @@ export default function WorkspacePage() {
               <div
                 className={`mt-2 grid ${
                   isGrantCheckerSupportedForCountry(selectedCountry)
-                    ? 'grid-cols-3'
-                    : 'grid-cols-2'
+                    ? 'grid-cols-4'
+                    : 'grid-cols-3'
                 } gap-1`}
               >
+                <button
+                  type="button"
+                  onClick={() => openAskStartupWithHistory()}
+                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-1 py-1.5 text-[10px] font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-800"
+                  title="Ask My Startup (AI Venture Intelligence)"
+                >
+                  <BrainCircuit className="h-3 w-3 text-indigo-600 shrink-0" />
+                  <span className="truncate">Ask AI</span>
+                </button>
                 <button
                   type="button"
                   onClick={openMasterDocumentWithHistory}
@@ -5965,10 +6072,10 @@ export default function WorkspacePage() {
           </aside>
         )}
 
-        {/* CENTER WORKSPACE OR FULL-WIDTH DASHBOARD / MASTER DOC / PLAN STUDIO / GRANT CENTER */}
+        {/* CENTER WORKSPACE OR FULL-WIDTH DASHBOARD / MASTER DOC / PLAN STUDIO / GRANT CENTER / ASK STARTUP */}
         <main
           className={`space-y-6 print:block print:w-full print:max-w-none print:p-0 print:m-0 print:space-y-0 print:bg-white ${
-            isDashboardOpen || isBusinessPlanStudioOpen || isMasterDocumentOpen || isGrantCenterOpen
+            isDashboardOpen || isBusinessPlanStudioOpen || isMasterDocumentOpen || isGrantCenterOpen || isAskStartupOpen
               ? 'lg:col-span-12'
               : 'lg:col-span-8 xl:col-span-9'
           }`}
@@ -6007,9 +6114,9 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {/* Full-Width Navigation Strip when in Master Document, Business Plan Studio, or Grant Center */}
+          {/* Full-Width Navigation Strip when in Master Document, Business Plan Studio, Grant Center, or Ask My Startup */}
           {!isDashboardOpen &&
-            (isMasterDocumentOpen || isBusinessPlanStudioOpen || isGrantCenterOpen) && (
+            (isMasterDocumentOpen || isBusinessPlanStudioOpen || isGrantCenterOpen || isAskStartupOpen) && (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-2xs no-print print:hidden">
                 <div className="flex items-center gap-2">
                   <Button
@@ -6033,6 +6140,20 @@ export default function WorkspacePage() {
                   </Button>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isAskStartupOpen ? 'default' : 'outline'}
+                    onClick={() => openAskStartupWithHistory()}
+                    className={`h-8 text-xs font-bold ${
+                      isAskStartupOpen
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        : 'border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <BrainCircuit className="mr-1.5 h-3.5 w-3.5" />
+                    Ask My Startup
+                  </Button>
                   <Button
                     type="button"
                     size="sm"
@@ -6134,6 +6255,7 @@ export default function WorkspacePage() {
                   ? () => openGrantCenterWithHistory()
                   : undefined
               }
+              onOpenAskStartup={(prompt) => openAskStartupWithHistory(prompt)}
             />
           ) : isGrantCenterOpen ? (
             <GrantApplicationCenterView
@@ -6268,6 +6390,43 @@ export default function WorkspacePage() {
                   return;
                 }
                 navigateToModuleWithHistory(modCode);
+              }}
+            />
+          ) : isAskStartupOpen ? (
+            <AskMyStartupView
+              key={`ask-startup-${currentPlan.id}`}
+              plan={{
+                ...currentPlan,
+                hqCountryCode: selectedCountry,
+                brainDumpText,
+                conceptCanvas: effectiveCanvas,
+                founderMotivation,
+                teamAndBudget,
+                founderRealityCheck,
+                thingsToConsider: liveThingsToConsider,
+                openQuestions,
+              }}
+              founderName={session.user.name}
+              initialPrompt={askStartupInitialPrompt}
+              onNavigateToModule={(modCode, targetStep) => {
+                const access = canAccessModule(activeEntitlement, modCode);
+                if (!access.allowed) {
+                  setPendingModuleAfterUnlock(modCode);
+                  setPaywallModalFeature(
+                    `${modCode} — ${access.reason || 'Requires an upgraded pass.'}`
+                  );
+                  return;
+                }
+                setIsAskStartupOpen(false);
+                navigateToModuleWithHistory(modCode, targetStep);
+              }}
+              onOpenMasterDocument={() => {
+                setIsAskStartupOpen(false);
+                openMasterDocumentWithHistory();
+              }}
+              onOpenBusinessPlanStudio={() => {
+                setIsAskStartupOpen(false);
+                openBusinessPlanStudioWithHistory();
               }}
             />
           ) : activeModule === 'MOD_F_COFOUNDER_TEAM' ? (

@@ -433,10 +433,14 @@ export async function redeemVoucherOrCohortCodeAction(
     }
 
     // 2. Look up Voucher in `vouchers` table
+    // Match either exact code, or alphanumeric match without hyphens
+    const cleanAlpha = cleanCode.replace(/[^A-Z0-9]/gi, '').toUpperCase();
     const [foundVoucher] = await db
       .select()
       .from(vouchers)
-      .where(eq(vouchers.code, cleanCode))
+      .where(
+        sql`UPPER(${vouchers.code}) = ${cleanCode} OR UPPER(REPLACE(${vouchers.code}, '-', '')) = ${cleanAlpha}`
+      )
       .limit(1);
 
     if (!foundVoucher) {

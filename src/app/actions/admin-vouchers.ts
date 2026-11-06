@@ -72,9 +72,16 @@ function generateRandomCodePart(length: number): string {
 }
 
 /**
- * Generates formatted voucher code: e.g. SUMO-SPF-8F92-K41A or PRTN-ALPHA-7B2K-9X4M
+ * Generates voucher code.
+ * If isPureAlphanumeric is true, generates pure alphanumeric (e.g. SPF9K2X7B4M1Q),
+ * which satisfies AppSumo's strict "Code is not alphanumeric" validator (no hyphens/symbols).
  */
-function formatVoucherCode(prefix: string): string {
+function formatVoucherCode(prefix: string, isPureAlphanumeric = false): string {
+  if (isPureAlphanumeric) {
+    const cleanPrefix = prefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const randomPart = generateRandomCodePart(12);
+    return `${cleanPrefix}${randomPart}`;
+  }
   const cleanPrefix = prefix.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
   const part1 = generateRandomCodePart(4);
   const part2 = generateRandomCodePart(4);
@@ -229,7 +236,8 @@ export async function generateVoucherBatchAction(params: {
   const durationMonths =
     rewardType === 'APPSUMO_LTD' ? null : params.durationMonths || 6;
 
-  let defaultPrefix = 'SUMO-SPF-';
+  const isAppSumo = source === 'APPSUMO';
+  let defaultPrefix = isAppSumo ? 'SPF' : 'SUMO-SPF-';
   if (source === 'PARTNER') defaultPrefix = 'PRTN-SPF-';
   if (source === 'PROMO') defaultPrefix = 'PROMO-SPF-';
   const prefix = (params.prefix?.trim() || defaultPrefix).toUpperCase();
@@ -238,7 +246,8 @@ export async function generateVoucherBatchAction(params: {
     await ensureDatabaseSchemaSynced();
     const generatedCodesSet = new Set<string>();
     while (generatedCodesSet.size < quantity) {
-      generatedCodesSet.add(formatVoucherCode(prefix));
+      // AppSumo requires strictly alphanumeric codes (letters and numbers only, no hyphens)
+      generatedCodesSet.add(formatVoucherCode(prefix, isAppSumo));
     }
     const codesArray = Array.from(generatedCodesSet);
 
@@ -542,3 +551,89 @@ export async function revokeVoucherAction(params: {
     };
   }
 }
+
+/**
+ * 4. EXPORT VOUCHERS AS APPSUMO-COMPLIANT PLAIN TEXT CSV
+ * Rules:
+ * - Single column, NO header
+ * - Plain text (.csv)
+ * - Randomized order (Fisher-Yates shuffle)
+ * - Zero duplicates (guaranteed via Set/deduplication)
+ * - Length between 3 and 200 characters per code
+ * - Filterable by source ('APPSUMO', 'PARTNER', 'PROMO', 'ALL'), status, and batch
+ */
+export async function exportAppSumoPlainCsvAction(params: {
+  source?: VoucherSourceType | 'ALL';
+  status?: VoucherStatusType | 'ALL';
+  batchName?: string;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  count?: number;
+  csvContent?: string;
+  filename?: string;
+}> {
+  const isAdmin = await verifyAdminAuth();
+  if (!isAdmin) {
+    return { ok: false, error: 'Unauthorized: Super Admin access required.' };
+  }
+
+  try {
+    await ensureDatabaseSchemaSynced();
+
+    const conditions = [];
+    if (params.source && params.source !== 'ALL') {
+      conditions.push(eq(vouchers.source, params.source));
+    }
+    if (params.status && params.status !== 'ALL') {
+      conditions.push(eq(vouchers.status, params.status));
+    }
+    if (params.batchName && params.batchName.trim()) {
+      conditions.push(eq(vouchers.batchName, params.batchName.trim()));
+    }
+
+    const rows = await db
+      .select({ code: vouchers.code })
+      .from(vouchers)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    // For AppSumo exports, strip any hyphens or special characters to guarantee 100% alphanumeric compliance (A-Z, 0-9)
+    const isAppSumoExport = params.source === 'APPSUMO';
+
+    // Enforce deduplication and valid length (3-200 characters)
+    const processedCodes = rows
+      .map((r) => {
+        const raw = r.code?.trim() || '';
+        return isAppSumoExport ? raw.replace(/[^A-Z0-9]/gi, '').toUpperCase() : raw;
+      })
+      .filter((code): code is string => Boolean(code && code.length >= 3 && code.length <= 200));
+
+    const uniqueCodes = Array.from(new Set(processedCodes));
+
+    // Randomize order (Fisher-Yates shuffle) as strictly required by AppSumo
+    for (let i = uniqueCodes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [uniqueCodes[i], uniqueCodes[j]] = [uniqueCodes[j], uniqueCodes[i]];
+    }
+
+    // Single column, NO headers, plain newline-separated text
+    const csvContent = uniqueCodes.join('\n');
+    const sourceLabel = params.source || 'ALL';
+    const statusLabel = params.status || 'ALL';
+    const filename = `appsumo_codes_${sourceLabel.toLowerCase()}_${statusLabel.toLowerCase()}_${Date.now()}.csv`;
+
+    return {
+      ok: true,
+      count: uniqueCodes.length,
+      csvContent,
+      filename,
+    };
+  } catch (err: unknown) {
+    console.error('[Admin Vouchers] Failed to export AppSumo CSV:', err);
+    return {
+      ok: false,
+      error: 'Failed to export vouchers to CSV.',
+    };
+  }
+}
+
