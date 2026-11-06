@@ -174,6 +174,8 @@ export const users = pgTable('users', {
       primaryHat?: StartupHat;
       regionOrCounty?: string;
       lastActivePlanId?: string;
+      termsAcceptedAt?: string;
+      termsVersion?: string;
     }>()
     .default({}),
   emailVerified: boolean('email_verified').default(false).notNull(),

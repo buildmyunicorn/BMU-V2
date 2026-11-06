@@ -660,10 +660,20 @@ export async function registerFounderAction(input: {
   email: string;
   password: string;
   voucherOrCohortCode?: string;
+  acceptedTerms?: boolean;
 }): Promise<AuthActionResult> {
   const cleanEmail = input.email.trim().toLowerCase();
   const cleanName = input.name.trim() || 'New Founder';
   const cleanCode = input.voucherOrCohortCode?.trim().toUpperCase() || '';
+
+  if (!input.acceptedTerms) {
+    return {
+      ok: false,
+      error:
+        'Please agree to the Terms of Service and Privacy Policy before creating your account.',
+      mode: 'cloud_sql',
+    };
+  }
 
   if (!cleanEmail || !input.password || input.password.length < 6) {
     return {
@@ -769,7 +779,10 @@ export async function registerFounderAction(input: {
         emailVerified: true,
         role: 'FOUNDER',
         status: 'ACTIVE',
-        founderProfileJson: {},
+        founderProfileJson: {
+          termsAcceptedAt: new Date().toISOString(),
+          termsVersion: '2026-04',
+        },
       })
       .returning();
 

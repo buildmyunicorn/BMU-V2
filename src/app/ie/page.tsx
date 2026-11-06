@@ -36,6 +36,23 @@ export const metadata: Metadata = {
     siteName: 'Startup Preflight Ireland',
     locale: 'en_IE',
     type: 'website',
+    images: [
+      {
+        url: '/images/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Startup Preflight Ireland — LEO & Enterprise Ireland Grant Readiness',
+        type: 'image/png',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title:
+      'Startup Preflight Ireland 🇮🇪 — Unlock LEO, Enterprise Ireland & SURE Startup Grants',
+    description:
+      'Turn your raw idea into an official Ireland LEO Application, verified customer survey proof, and 36-month cashflow forecast in plain English.',
+    images: ['/images/og-image.png'],
   },
 };
 

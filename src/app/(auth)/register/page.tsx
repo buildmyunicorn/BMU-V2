@@ -39,6 +39,8 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [showVoucherField, setShowVoucherField] = useState(false);
   const [voucherCode, setVoucherCode] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsHighlightError, setTermsHighlightError] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -48,6 +50,8 @@ export default function RegisterPage() {
       const err = params.get('error');
       if (err) {
         const messages: Record<string, string> = {
+          terms_required:
+            'Please agree to the Terms of Service and Privacy Policy before creating your account.',
           missing_google_keys:
             'Google Sign-In is not configured yet. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env file.',
           oauth_denied: 'Google registration was canceled or access was denied.',
@@ -66,15 +70,30 @@ export default function RegisterPage() {
           oauth_error:
             'An error occurred during Google registration. Please try again.',
         };
+        if (err === 'terms_required') {
+          setTermsHighlightError(true);
+        }
         setErrorMsg(messages[err] || 'Authentication error. Please try again.');
       }
     }
   }, []);
 
   function handleGoogleRegister() {
-    setIsSubmitting(true);
     setErrorMsg(null);
-    window.location.href = '/api/auth/google?from=register';
+    if (!acceptedTerms) {
+      setTermsHighlightError(true);
+      setErrorMsg(
+        'Please tick the box below to agree to the Terms of Service and Privacy Policy before creating your account.'
+      );
+      const el = document.getElementById('accept-terms');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+      }
+      return;
+    }
+    setIsSubmitting(true);
+    window.location.href = '/api/auth/google?from=register&termsAccepted=true';
   }
 
   async function handleRegisterSubmit(e: React.FormEvent) {
@@ -88,6 +107,14 @@ export default function RegisterPage() {
 
     if (password.trim().length < 6) {
       setErrorMsg('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setTermsHighlightError(true);
+      setErrorMsg(
+        'Please agree to the Terms of Service and Privacy Policy before creating your account.'
+      );
       return;
     }
 
@@ -110,6 +137,7 @@ export default function RegisterPage() {
         email,
         password,
         voucherOrCohortCode: voucherCode,
+        acceptedTerms: true,
       });
 
       if (!result.ok) {
@@ -290,6 +318,64 @@ export default function RegisterPage() {
                       />
                     </div>
                   )}
+                </div>
+
+                {/* Mandatory Terms of Service & Privacy Policy Consent */}
+                <div
+                  className={`rounded-xl border p-3.5 transition-colors ${
+                    termsHighlightError && !acceptedTerms
+                      ? 'border-red-300 bg-red-50/70 ring-2 ring-red-100'
+                      : acceptedTerms
+                        ? 'border-indigo-200 bg-indigo-50/40'
+                        : 'border-slate-200 bg-slate-50/60 hover:border-slate-300'
+                  }`}
+                >
+                  <label
+                    htmlFor="accept-terms"
+                    className="flex cursor-pointer items-start gap-2.5 select-none"
+                  >
+                    <input
+                      id="accept-terms"
+                      type="checkbox"
+                      checked={acceptedTerms}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setAcceptedTerms(checked);
+                        if (checked) {
+                          setTermsHighlightError(false);
+                          if (
+                            errorMsg?.toLowerCase().includes('terms of service')
+                          ) {
+                            setErrorMsg(null);
+                          }
+                        }
+                      }}
+                      className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                    />
+                    <span className="text-xs leading-relaxed text-slate-700">
+                      I have read and agree to the Startup Preflight{' '}
+                      <Link
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-semibold text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-800"
+                      >
+                        Terms of Service
+                      </Link>{' '}
+                      and{' '}
+                      <Link
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-semibold text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-800"
+                      >
+                        Privacy Policy
+                      </Link>
+                      . <span className="font-semibold text-red-600">*</span>
+                    </span>
+                  </label>
                 </div>
 
                 {errorMsg && (

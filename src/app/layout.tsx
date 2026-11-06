@@ -2,10 +2,51 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 
+const defaultSiteUrl =
+  process.env.NEXT_PUBLIC_APP_URL || 'https://startuppreflight.com';
+
 export const metadata: Metadata = {
-  title: 'Startup Preflight — Supportive Co-Founder & Blind-Spot Engine',
+  metadataBase: new URL(defaultSiteUrl),
+  title: {
+    default: 'Startup Preflight — Supportive Co-Founder & Blind-Spot Engine',
+    template: '%s | Startup Preflight',
+  },
   description:
     'Turn messy startup ideas into validated, bank-ready, and grant-ready business plans with localized tax, grant, and unit economics intelligence.',
+  applicationName: 'Startup Preflight',
+  keywords: [
+    'startup business plan builder',
+    'AI co-founder',
+    'LEO grants Ireland',
+    'Innovate UK smart grants',
+    'customer validation survey builder',
+    'startup preflight',
+  ],
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: defaultSiteUrl,
+    siteName: 'Startup Preflight',
+    title: 'Startup Preflight — Supportive Co-Founder & Blind-Spot Engine',
+    description:
+      'Turn messy startup ideas into validated, bank-ready, and grant-ready business plans with localized tax, grant, and unit economics intelligence.',
+    images: [
+      {
+        url: '/images/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Startup Preflight — Supportive Co-Founder & Blind-Spot Engine',
+        type: 'image/png',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Startup Preflight — Supportive Co-Founder & Blind-Spot Engine',
+    description:
+      'Turn messy startup ideas into validated, bank-ready, and grant-ready business plans with localized tax, grant, and unit economics intelligence.',
+    images: ['/images/og-image.png'],
+  },
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },

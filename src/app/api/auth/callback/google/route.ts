@@ -190,7 +190,10 @@ export async function GET(req: NextRequest) {
           emailVerified: true,
           role: 'FOUNDER',
           status: 'ACTIVE',
-          founderProfileJson: {},
+          founderProfileJson: {
+            termsAcceptedAt: new Date().toISOString(),
+            termsVersion: '2026-04',
+          },
         })
         .returning();
 

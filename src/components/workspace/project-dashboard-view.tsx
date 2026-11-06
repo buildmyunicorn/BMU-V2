@@ -25,11 +25,13 @@ import {
   CheckCircle2,
   GitBranch,
   Plus,
+  Landmark,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { ModuleCode } from '@/lib/entitlements';
 import type { SupportedCountryCode } from '@/lib/localization';
+import { isGrantCheckerSupportedForCountry } from '@/lib/grants/module-a-grant-checker';
 
 export interface ProjectDashboardModuleProgress {
   code: ModuleCode;
@@ -61,6 +63,9 @@ export interface ProjectDashboardViewProps {
   waitlistLeadsCount: number;
   publicSurveySlug?: string;
   matchedGrantsCount: number;
+  grantReadinessPercent?: number;
+  grantReadinessCompletedCount?: number;
+  grantReadinessTotalCriteria?: number;
   launchpadStepsCompletedCount: number;
   launchpadProgressPercent: number;
   openQuestionsCount: number;
@@ -70,6 +75,7 @@ export interface ProjectDashboardViewProps {
   onEnterWorkspace: (targetModule?: ModuleCode, targetStep?: number) => void;
   onOpenMasterDocument: () => void;
   onOpenBusinessPlanStudio: () => void;
+  onOpenGrantCenter?: () => void;
   onCreateNewPlan?: () => void;
   onClonePlan?: () => void;
   isCloningPlan?: boolean;
@@ -139,6 +145,9 @@ export function ProjectDashboardView({
   waitlistLeadsCount,
   publicSurveySlug,
   matchedGrantsCount,
+  grantReadinessPercent,
+  grantReadinessCompletedCount,
+  grantReadinessTotalCriteria,
   launchpadStepsCompletedCount,
   launchpadProgressPercent,
   openQuestionsCount,
@@ -148,9 +157,11 @@ export function ProjectDashboardView({
   onEnterWorkspace,
   onOpenMasterDocument,
   onOpenBusinessPlanStudio,
+  onOpenGrantCenter,
 }: ProjectDashboardViewProps) {
   const [notifiedFeatures, setNotifiedFeatures] = useState<string[]>([]);
   const [copiedSurveyLink, setCopiedSurveyLink] = useState(false);
+  const isGrantSupported = isGrantCheckerSupportedForCountry(hqCountryCode);
 
   useEffect(() => {
     try {
@@ -339,28 +350,39 @@ export function ProjectDashboardView({
       </div>
 
       {/* =================================================================== */}
-      {/* ROW 1: CORE VENTURE PIPELINE (BUILD -> REVIEW -> COMPILE)           */}
+      {/* ROW 1: CORE VENTURE PIPELINE (BUILD -> REVIEW -> COMPILE -> APPLY)  */}
       {/* =================================================================== */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
           <div>
             <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
-              1. Core Venture Pipeline — Build, Review &amp; Compile
+              {isGrantSupported
+                ? '1. Core Venture Pipeline — Build, Review, Compile & Apply'
+                : '1. Core Venture Pipeline — Build, Review & Compile'}
             </h2>
             <p className="text-xs text-slate-500">
-              Your three primary workspaces for building modules, reviewing the
-              whole blueprint, and compiling targeted business plans.
+              {isGrantSupported
+                ? 'Your guided pathway: build modules, review the master blueprint, compile official dossiers, and walk through grant applications.'
+                : 'Your guided pathway: build modules, review the master blueprint, and compile official investor & commercial dossiers.'}
             </p>
           </div>
           <Badge
             variant="outline"
             className="border-indigo-200 bg-indigo-50/70 text-[10px] font-bold text-indigo-700"
           >
-            BUILD → REVIEW → COMPILE
+            {isGrantSupported
+              ? 'BUILD → REVIEW → COMPILE → APPLY'
+              : 'BUILD → REVIEW → COMPILE'}
           </Badge>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div
+          className={`grid grid-cols-1 gap-4 ${
+            isGrantSupported
+              ? 'sm:grid-cols-2 xl:grid-cols-4'
+              : 'sm:grid-cols-2 lg:grid-cols-3'
+          }`}
+        >
           {/* Card 1: Founder Workspace (Modules A–L) */}
           <div
             onClick={() => onEnterWorkspace(activeModule)}
@@ -402,7 +424,7 @@ export function ProjectDashboardView({
                 }}
                 className="w-full bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
               >
-                Continue Building in Workspace
+                Continue Building
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -453,7 +475,7 @@ export function ProjectDashboardView({
                 }}
                 className="w-full border-emerald-300 bg-white text-xs font-bold text-emerald-800 hover:bg-emerald-50"
               >
-                Open Living Master Document
+                Open Master Document
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -475,12 +497,11 @@ export function ProjectDashboardView({
               </div>
 
               <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-violet-700">
-                Business Plan Studio (Multi-Version)
+                Business Plan Studio
               </h3>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
                 Compile and export tailored business plans for IE LEO Grants, UK
-                Innovate UK, Start Up Loans, commercial banks, or angel
-                investors.
+                Innovate UK, Start Up Loans, commercial banks, or angel investors.
               </p>
             </div>
 
@@ -504,11 +525,60 @@ export function ProjectDashboardView({
                 }}
                 className="w-full border-violet-300 bg-white text-xs font-bold text-violet-800 hover:bg-violet-50"
               >
-                Open Business Plan Studio
+                Open Plan Studio
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
+
+          {/* Card 4: Grant Application Center (IE & GB only) */}
+          {isGrantSupported && (
+            <div
+              onClick={onOpenGrantCenter}
+              className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-amber-200/90 bg-gradient-to-b from-amber-50/40 via-white to-white p-5 shadow-xs transition-all hover:border-amber-400 hover:shadow-md"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs">
+                    <Landmark className="h-5 w-5" />
+                  </div>
+                  <Badge className="border-amber-200 bg-amber-100/80 text-[10px] font-bold text-amber-900">
+                    STEP 4 • APPLY
+                  </Badge>
+                </div>
+
+                <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-amber-800">
+                  Apply for Grants
+                </h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+                  Direct portal links, plan completeness checklist, 31 Irish LEO contacts, and AI portal question answerer.
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-3 border-t border-slate-100 pt-3.5">
+                <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs">
+                  <span className="font-medium text-amber-900">
+                    Plan Readiness:
+                  </span>
+                  <span className="font-bold text-amber-950">
+                    {grantReadinessCompletedCount ?? 0}/{grantReadinessTotalCriteria ?? 10} Ready ({grantReadinessPercent ?? 0}%)
+                  </span>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenGrantCenter?.();
+                  }}
+                  className="w-full bg-amber-600 text-xs font-bold text-white hover:bg-amber-700 shadow-2xs"
+                >
+                  Apply for Grants
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -700,19 +770,34 @@ export function ProjectDashboardView({
                 </span>
               </div>
 
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEnterWorkspace('MOD_K_GRANTS_FUNDING');
-                }}
-                className="w-full border-slate-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
-              >
-                Explore Grants &amp; Readiness
-                <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEnterWorkspace('MOD_K_GRANTS_FUNDING');
+                  }}
+                  className="flex-1 border-slate-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                >
+                  Explore Grants
+                </Button>
+                {isGrantSupported && onOpenGrantCenter && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenGrantCenter();
+                    }}
+                    className="bg-amber-600 text-xs font-bold text-white hover:bg-amber-700"
+                  >
+                    Apply Now
+                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>

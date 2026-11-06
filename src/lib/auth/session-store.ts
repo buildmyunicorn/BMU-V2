@@ -2729,6 +2729,48 @@ export interface BusinessPlanVersionItem {
   appendices?: ModuleLAppendixBinderItem[];
 }
 
+export type GrantApplicationStatusType =
+  | 'NOT_STARTED'
+  | 'PREPARING_PLAN'
+  | 'ADVISOR_CALL_BOOKED'
+  | 'PORTAL_SUBMITTED'
+  | 'APPROVED_WON'
+  | 'UNSUCCESSFUL';
+
+export interface SavedCustomPortalQuestion {
+  id: string;
+  grantSlug?: string;
+  questionText: string;
+  targetLength: 'SHORT' | 'STANDARD' | 'DETAILED';
+  assessorLens: 'ECONOMIC_EXPORT' | 'R_AND_D_INNOVATION' | 'UNDERWRITING_REPAYMENT' | 'COMMERCIAL_INVESTOR';
+  answerText: string;
+  sourceModuleCitations: string[];
+  missingDataWarnings?: string[];
+  askedAt: string;
+  lastEditedAt?: string;
+}
+
+export interface SavedGrantApplicationTracker {
+  grantSlug: string;
+  status: GrantApplicationStatusType;
+  selectedLeoOfficeId?: string;
+  advisorName?: string;
+  advisorCallDate?: string;
+  submissionDate?: string;
+  portalReferenceNumber?: string;
+  targetAskAmount?: number;
+  founderNotes?: string;
+  completedChecklistKeys?: string[];
+  lastUpdatedAt?: string;
+}
+
+export interface SavedGrantCenterData {
+  applications?: Record<string, SavedGrantApplicationTracker>;
+  customQuestions?: SavedCustomPortalQuestion[];
+  activeGrantSlug?: string;
+  lastVisitedAt?: string;
+}
+
 export interface SavedModuleLData {
   step1Mode?: ModuleLStep1ModeSavedData;
   step2Audit?: ModuleLStep2ContradictionAuditSavedData;
@@ -2772,6 +2814,7 @@ export interface ActiveStartupPlan {
   moduleJData?: SavedModuleJData;
   moduleKData?: SavedModuleKData;
   moduleLData?: SavedModuleLData;
+  grantCenterData?: SavedGrantCenterData;
   masterDocumentData?: SavedMasterDocumentData;
   openQuestions: string[];
 }
