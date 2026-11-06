@@ -859,21 +859,78 @@ export async function registerFounderAction(input: {
       email: createdUser.email,
     });
 
+    const now = new Date();
+    const activatedDateStr = new Intl.DateTimeFormat('en-IE', {
+      dateStyle: 'long',
+    }).format(now);
+
+    let emailTierName = 'Free Hook (Module A)';
+    let emailValidUntilStr: string | undefined;
+    let emailMaxPlans: number | undefined;
+    let emailMaxSeats: number | undefined;
+    let emailAiCredits: number | undefined;
+
+    if (matchedCohort) {
+      const durationMonths = matchedCohort.accessDurationMonths || 6;
+      const cohortLimits = calculatePassLimits('COHORT_PASS', durationMonths);
+      const cohortExpires =
+        matchedCohort.expiresAt || cohortLimits.accessExpiresAt;
+      emailTierName = `${matchedCohort.name} Cohort Pass`;
+      emailValidUntilStr = cohortExpires
+        ? new Intl.DateTimeFormat('en-IE', { dateStyle: 'long' }).format(cohortExpires)
+        : 'Active Cohort Term';
+      emailMaxPlans = cohortLimits.maxStartupPlans;
+      emailMaxSeats = cohortLimits.maxSeatsPerPlan;
+      emailAiCredits = cohortLimits.monthlyAiCreditsLimit;
+    } else if (matchedVoucher) {
+      const rewardType = matchedVoucher.rewardType || 'APPSUMO_LTD';
+      const durationMonths = matchedVoucher.durationMonths || 6;
+      if (rewardType === 'APPSUMO_LTD') {
+        const sumoLimits = calculateAppSumoTierLimits(1);
+        emailTierName = sumoLimits.tierName;
+        emailValidUntilStr = 'Lifetime Access (Never Expires)';
+        emailMaxPlans = sumoLimits.maxStartupPlans;
+        emailMaxSeats = sumoLimits.maxSeatsPerPlan;
+        emailAiCredits = sumoLimits.monthlyAiCreditsLimit;
+      } else {
+        const passType =
+          rewardType === 'PASS_COFOUNDER'
+            ? 'SIX_MONTH_COFOUNDER'
+            : 'SIX_MONTH_SOLO';
+        const passLimits = calculatePassLimits(passType, durationMonths);
+        emailTierName =
+          rewardType === 'PASS_COFOUNDER'
+            ? `Partner Co-Founder Pass (${durationMonths} Months)`
+            : `Partner Solo Pass (${durationMonths} Months)`;
+        emailValidUntilStr = passLimits.accessExpiresAt
+          ? new Intl.DateTimeFormat('en-IE', { dateStyle: 'long' }).format(passLimits.accessExpiresAt)
+          : `${durationMonths} Months`;
+        emailMaxPlans = passLimits.maxStartupPlans;
+        emailMaxSeats = passLimits.maxSeatsPerPlan;
+        emailAiCredits = passLimits.monthlyAiCreditsLimit;
+      }
+    }
+
     // Fire asynchronous Welcome Email via Resend without blocking registration
     sendSystemEmail({
       to: createdUser.email,
+      replyTo: 'Tom@startuppreflight.com',
       template: 'WELCOME_FOUNDER',
-      subject: 'Welcome to Startup Preflight — Your Founder Workspace is Ready',
+      subject: matchedVoucher || matchedCohort
+        ? `Pass Activated: Welcome to Startup Preflight — ${emailTierName}`
+        : 'Welcome to Startup Preflight — Your Founder Workspace is Ready',
       props: {
         founderName: createdUser.name || undefined,
         loginEmail: createdUser.email,
         loginUrl: `${EMAIL_DEFAULTS.appUrl}/workspace`,
-        tierName: cleanCode.startsWith('SUMO-')
-          ? 'AppSumo Lifetime Edition'
-          : cohortId
-            ? 'Cohort Partner Pass'
-            : '6-Month Founder Pass',
+        tierName: emailTierName,
         hqCountry: 'IE',
+        activatedDate: activatedDateStr,
+        validUntilDate: emailValidUntilStr,
+        voucherCode: cleanCode || undefined,
+        maxPlans: emailMaxPlans,
+        maxSeats: emailMaxSeats,
+        aiCreditsMonthly: emailAiCredits,
       },
       metadata: {
         userId: createdUser.id,

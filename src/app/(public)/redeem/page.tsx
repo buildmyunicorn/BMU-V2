@@ -143,7 +143,7 @@ export default function RedeemPage() {
     if (!cleaned) {
       setFeedback({
         type: 'error',
-        message: 'Please enter a valid AppSumo, Partner, or Cohort voucher code.',
+        message: 'Please enter a valid Partner, Promo, or Cohort voucher code.',
       });
       return;
     }
@@ -255,7 +255,7 @@ export default function RedeemPage() {
                 </strong>
               </span>
             )}
-            <Badge variant="default">Lifetime Deal &amp; Cohort Redemption</Badge>
+            <Badge variant="default">Voucher &amp; Cohort Redemption</Badge>
           </div>
         </div>
 
@@ -297,14 +297,14 @@ export default function RedeemPage() {
           <CardContent className="space-y-6">
             <form onSubmit={handleRedeemCode} className="space-y-3">
               <Label htmlFor="voucher-code">
-                Enter AppSumo Voucher, Partner Pass, or University Cohort Code
+                Enter Voucher Code, Partner Pass, or University Cohort Code
               </Label>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Input
                   id="voucher-code"
                   value={inputCode}
                   onChange={(e) => setInputCode(e.target.value)}
-                  placeholder="e.g. SUMO-BMU-1005-ECHO or BMU-UCD-2027"
+                  placeholder="e.g. PREFLIGHT-VIP-2027 or LEO-DUBLIN-BATCH"
                   className="font-mono text-base uppercase sm:text-sm"
                   disabled={isSubmitting}
                 />

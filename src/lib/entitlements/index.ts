@@ -60,7 +60,7 @@ export function calculateAppSumoTierLimits(stackedCodesCount: number): {
 
   if (count === 1) {
     return {
-      tierName: 'AppSumo Tier 1 — Solo Founder',
+      tierName: 'Lifetime Tier 1 — Solo Founder',
       stackedCodesCount: 1,
       maxStartupPlans: 1,
       maxSeatsPerPlan: 1,
@@ -72,7 +72,7 @@ export function calculateAppSumoTierLimits(stackedCodesCount: number): {
 
   if (count === 2) {
     return {
-      tierName: 'AppSumo Tier 2 — Co-Founder & Pivot Tier',
+      tierName: 'Lifetime Tier 2 — Co-Founder & Pivot Tier',
       stackedCodesCount: 2,
       maxStartupPlans: 3,
       maxSeatsPerPlan: 3,
@@ -84,7 +84,7 @@ export function calculateAppSumoTierLimits(stackedCodesCount: number): {
 
   // 3+ Codes (Tier 3: Serial Entrepreneur / Advisor Tier)
   return {
-    tierName: `AppSumo Tier 3 — Serial Entrepreneur (${count} Codes)`,
+    tierName: `Lifetime Tier 3 — Serial Entrepreneur (${count} Codes)`,
     stackedCodesCount: count,
     maxStartupPlans: count >= 5 ? 25 : 10,
     maxSeatsPerPlan: 5,
@@ -218,7 +218,7 @@ export function canCreateStartupPlan(
     if (entitlement.planType === 'APPSUMO_LTD') {
       return {
         allowed: false,
-        reason: `You have reached your limit of ${entitlement.maxStartupPlans} active Startup Plan(s). Stack an additional AppSumo code in Billing Settings to unlock up to ${
+        reason: `You have reached your limit of ${entitlement.maxStartupPlans} active Startup Plan(s). Stack an additional voucher code in Settings to unlock up to ${
           entitlement.stackedCodesCount === 1 ? 3 : 10
         } plans!`,
         upgradeRequired: 'APPSUMO_STACK',
@@ -259,7 +259,7 @@ export function canInviteCollaborator(
       allowed: false,
       reason:
         entitlement.planType === 'APPSUMO_LTD'
-          ? 'AppSumo Tier 1 includes 1 founder seat. Stack a 2nd AppSumo code to invite up to 3 Co-Founders and unlock the Blind-Reveal Co-Founder Alignment Interview.'
+          ? 'Lifetime Tier 1 includes 1 founder seat. Stack a 2nd voucher code to invite up to 3 Co-Founders and unlock the Blind-Reveal Co-Founder Alignment Interview.'
           : 'Solo plans include 1 founder seat. Upgrade to the Co-Founder & Pivot Pass to invite up to 3 Co-Founders and unlock the Blind-Reveal Co-Founder Alignment Interview.',
       upgradeRequired:
         entitlement.planType === 'APPSUMO_LTD'
@@ -381,7 +381,7 @@ export function checkFeatureEntitlement(
           allowed: false,
           reason:
             entitlement.planType === 'APPSUMO_LTD'
-              ? 'The Multi-Plan Idea Comparator requires AppSumo Tier 2+ (2+ Stacked Codes).'
+              ? 'The Multi-Plan Idea Comparator requires Lifetime Tier 2+ (2+ Stacked Codes).'
               : 'The Multi-Plan Idea Comparator requires a Multi-Plan tier (Co-Founder & Pivot Pass).',
           upgradeRequired:
             entitlement.planType === 'APPSUMO_LTD'
@@ -404,7 +404,7 @@ export function checkFeatureEntitlement(
           allowed: false,
           reason:
             entitlement.planType === 'APPSUMO_LTD'
-              ? 'Removing the "Powered by Startup Preflight" watermark requires AppSumo Tier 3 (3+ Stacked Codes).'
+              ? 'Removing the "Powered by Startup Preflight" watermark requires Lifetime Tier 3 (3+ Stacked Codes).'
               : 'Removing the "Powered by Startup Preflight" watermark requires an Agency / White-Label tier.',
           upgradeRequired:
             entitlement.planType === 'APPSUMO_LTD'
@@ -423,7 +423,7 @@ export function checkFeatureEntitlement(
           allowed: false,
           reason:
             entitlement.planType === 'APPSUMO_LTD'
-              ? 'Bring Your Own API Key (BYOK) is unlocked on AppSumo Tier 3 (3+ Stacked Codes).'
+              ? 'Bring Your Own API Key (BYOK) is unlocked on Lifetime Tier 3 (3+ Stacked Codes).'
               : 'Bring Your Own API Key (BYOK) requires an Enterprise / Advisor tier.',
           upgradeRequired:
             entitlement.planType === 'APPSUMO_LTD'
@@ -460,9 +460,9 @@ export function getPlanTypeDisplayName(
       return options?.short ? 'Co-Founder' : 'Co-Founder Pass';
     case 'APPSUMO_LTD':
       if (options?.stackedCodesCount && options.stackedCodesCount > 1) {
-        return `AppSumo Tier ${options.stackedCodesCount >= 3 ? 3 : options.stackedCodesCount}`;
+        return `Lifetime Tier ${options.stackedCodesCount >= 3 ? 3 : options.stackedCodesCount}`;
       }
-      return options?.short ? 'Lifetime' : 'AppSumo Lifetime';
+      return options?.short ? 'Lifetime' : 'Lifetime Pass';
     case 'COHORT_PASS':
       return options?.short ? 'Cohort' : 'Cohort Pass';
     case 'LIVING_VAULT_MONTHLY':

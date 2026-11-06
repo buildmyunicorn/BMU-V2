@@ -1674,6 +1674,7 @@ export interface SavedModuleGData {
     registrationDate: string;
     targetFormationTimeline: string;
     incorporationNotes: string;
+    incorporationOrder?: any;
   };
   step2: {
     state: 'ALREADY_HAVE' | 'HELP_SETUP';

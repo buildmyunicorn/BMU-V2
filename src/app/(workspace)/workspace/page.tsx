@@ -675,8 +675,20 @@ export default function WorkspacePage() {
           const searchParams = new URLSearchParams(window.location.search);
           const viewParam = searchParams.get('view');
           const moduleParam = searchParams.get('module');
+          const conciergePaidParam = searchParams.get('concierge_paid');
 
-          if (viewParam === 'dashboard') {
+          if (conciergePaidParam === 'true') {
+            resolvedDashboard = false;
+            resolvedBpStudio = false;
+            resolvedMasterDoc = false;
+            resolvedInitialMod = 'MOD_G_LAUNCHPAD';
+            const stepParam = searchParams.get('step');
+            const stepNum = stepParam ? parseInt(stepParam, 10) : 1;
+            setModuleNavTarget({
+              step: !isNaN(stepNum) && stepNum > 0 ? stepNum : 1,
+              highlightTarget: 'mod-g-step-1',
+            });
+          } else if (viewParam === 'dashboard') {
             resolvedDashboard = true;
           } else if (
             viewParam === 'business_plan_studio' ||
@@ -1019,6 +1031,14 @@ export default function WorkspacePage() {
               const mergedModuleGData = primaryModuleGData
                 ? {
                     ...primaryModuleGData,
+                    step1: {
+                      ...(primaryModuleGData.step1 || {}),
+                      incorporationOrder:
+                        primaryModuleGData.step1?.incorporationOrder ||
+                        dbPlan.moduleGData?.step1?.incorporationOrder ||
+                        localPlan.moduleGData?.step1?.incorporationOrder ||
+                        null,
+                    },
                     completionPercentage:
                       localPlan.moduleGData?.completionPercentage ??
                       dbPlan.moduleGData?.completionPercentage,
@@ -1547,7 +1567,14 @@ export default function WorkspacePage() {
       }
 
       // 2. Synchronize view / module / step with the popped URL state
-      if (viewParam === 'dashboard') {
+      const conciergePaidParam = searchParams.get('concierge_paid');
+      if (conciergePaidParam === 'true') {
+        setIsDashboardOpen(false);
+        setIsBusinessPlanStudioOpen(false);
+        setIsMasterDocumentOpen(false);
+        setActiveModule('MOD_G_LAUNCHPAD');
+        setModuleNavTarget({ step: validStep || 1, highlightTarget: 'mod-g-step-1' });
+      } else if (viewParam === 'dashboard') {
         setIsDashboardOpen(true);
         setIsBusinessPlanStudioOpen(false);
         setIsMasterDocumentOpen(false);

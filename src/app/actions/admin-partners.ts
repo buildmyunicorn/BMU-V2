@@ -844,23 +844,34 @@ export async function submitPartnerWarmIntroLeadAction(input: {
 
   try {
     if (resend && (founderSession || adminSession || process.env.NODE_ENV !== 'production')) {
+      // 1. Send Warm Intro Dossier Email to the Partner Desk
+      const partnerSubject = subjectLine;
       const response = await resend.emails.send({
         from: EMAIL_DEFAULTS.from,
         to: [recipientEmail],
-        cc: founderSession?.email ? [founderSession.email] : undefined,
+        cc:
+          safeFounderEmail &&
+          safeFounderEmail.toLowerCase() !== recipientEmail.toLowerCase()
+            ? [safeFounderEmail]
+            : undefined,
         replyTo: safeFounderEmail || EMAIL_DEFAULTS.replyTo,
-        subject: subjectLine,
+        subject: partnerSubject,
         html: emailHtml,
       });
+
       if (!response.error && response.data?.id) {
         resendId = response.data.id;
         emailStatus = 'SENT';
         emailSent = true;
+      } else if (response.error) {
+        console.error('❌ Resend Warm Intro Partner Email Error:', response.error);
+        emailStatus = 'FAILED';
       }
     } else {
       emailSent = true;
     }
-  } catch {
+  } catch (err) {
+    console.error('❌ Error executing submitPartnerWarmIntroLeadAction:', err);
     emailStatus = 'FAILED';
   }
 
@@ -1331,23 +1342,34 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
 
   try {
     if (resend && (founderSession || adminSession || process.env.NODE_ENV !== 'production')) {
+      // 1. Send Warm Intro Dossier Email to the Partner Desk
+      const partnerSubject = subjectLine;
       const response = await resend.emails.send({
         from: EMAIL_DEFAULTS.from,
         to: [recipientEmail],
-        cc: founderSession?.email ? [founderSession.email] : undefined,
+        cc:
+          safeFounderEmail &&
+          safeFounderEmail.toLowerCase() !== recipientEmail.toLowerCase()
+            ? [safeFounderEmail]
+            : undefined,
         replyTo: safeFounderEmail || EMAIL_DEFAULTS.replyTo,
-        subject: subjectLine,
+        subject: partnerSubject,
         html: emailHtml,
       });
+
       if (!response.error && response.data?.id) {
         resendId = response.data.id;
         emailStatus = 'SENT';
         emailSent = true;
+      } else if (response.error) {
+        console.error('❌ Resend Warm Intro Partner Email Error:', response.error);
+        emailStatus = 'FAILED';
       }
     } else {
       emailSent = true;
     }
-  } catch {
+  } catch (err) {
+    console.error('❌ Error executing submitPartnerWarmIntroLeadAction:', err);
     emailStatus = 'FAILED';
   }
 

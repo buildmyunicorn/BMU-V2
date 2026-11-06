@@ -377,6 +377,47 @@ export async function redeemVoucherOrCohortCodeAction(
           )
         );
 
+      // Fire asynchronous confirmation email
+      const cohortExpires =
+        foundCohort.expiresAt || cohortLimits.accessExpiresAt;
+      const cohortActivatedDate = new Intl.DateTimeFormat('en-IE', {
+        dateStyle: 'long',
+      }).format(new Date());
+      const cohortValidUntilDate = cohortExpires
+        ? new Intl.DateTimeFormat('en-IE', { dateStyle: 'long' }).format(
+            cohortExpires
+          )
+        : 'Active Cohort Term';
+
+      sendSystemEmail({
+        to: user.email,
+        replyTo: 'Tom@startuppreflight.com',
+        template: 'VOUCHER_REDEEMED',
+        subject: `Pass Activated: Enrolled in ${foundCohort.name}!`,
+        props: {
+          founderName: user.name || undefined,
+          recipientEmail: user.email,
+          voucherCode: cleanCode,
+          tierName: `${foundCohort.name} Cohort Pass`,
+          activatedDate: cohortActivatedDate,
+          validUntilDate: cohortValidUntilDate,
+          maxPlans: updatedEntRow.maxStartupPlans,
+          maxSeats: updatedEntRow.maxSeatsPerPlan,
+          aiCreditsMonthly: updatedEntRow.monthlyAiCreditsLimit,
+          loginUrl: `${EMAIL_DEFAULTS.appUrl}/workspace`,
+        },
+        metadata: {
+          userId: user.id,
+          trigger: 'COHORT_CODE_REDEEMED',
+          voucherCode: cleanCode,
+        },
+      }).catch((e) => {
+        console.error(
+          '[SPF Email] Failed to send cohort confirmation email:',
+          e
+        );
+      });
+
       return {
         ok: true,
         message: `Successfully enrolled in "${foundCohort.name}" Institutional Cohort! Full Module A–L access unlocked.`,
@@ -499,9 +540,15 @@ export async function redeemVoucherOrCohortCodeAction(
         updatedEntRow = inserted;
       }
 
+      const activatedDate = new Intl.DateTimeFormat('en-IE', {
+        dateStyle: 'long',
+      }).format(now);
+      const validUntilDate = 'Lifetime Access (Never Expires)';
+
       // Fire asynchronous confirmation email
       sendSystemEmail({
         to: user.email,
+        replyTo: 'Tom@startuppreflight.com',
         template: 'VOUCHER_REDEEMED',
         subject: `Pass Activated: Code ${cleanCode} Redeemed!`,
         props: {
@@ -509,6 +556,8 @@ export async function redeemVoucherOrCohortCodeAction(
           recipientEmail: user.email,
           voucherCode: cleanCode,
           tierName: limits.tierName,
+          activatedDate,
+          validUntilDate,
           maxPlans: limits.maxStartupPlans,
           maxSeats: limits.maxSeatsPerPlan,
           aiCreditsMonthly: limits.monthlyAiCreditsLimit,
@@ -592,6 +641,45 @@ export async function redeemVoucherOrCohortCodeAction(
         rewardType === 'PASS_COFOUNDER'
           ? `Partner Co-Founder Pass (${durationMonths} Months)`
           : `Partner Solo Pass (${durationMonths} Months)`;
+
+      const passActivatedDate = new Intl.DateTimeFormat('en-IE', {
+        dateStyle: 'long',
+      }).format(now);
+      const passValidUntilDate = passLimits.accessExpiresAt
+        ? new Intl.DateTimeFormat('en-IE', { dateStyle: 'long' }).format(
+            passLimits.accessExpiresAt
+          )
+        : `${durationMonths} Months`;
+
+      // Fire asynchronous confirmation email
+      sendSystemEmail({
+        to: user.email,
+        replyTo: 'Tom@startuppreflight.com',
+        template: 'VOUCHER_REDEEMED',
+        subject: `Pass Activated: Code ${cleanCode} Redeemed!`,
+        props: {
+          founderName: user.name || undefined,
+          recipientEmail: user.email,
+          voucherCode: cleanCode,
+          tierName: passLabel,
+          activatedDate: passActivatedDate,
+          validUntilDate: passValidUntilDate,
+          maxPlans: updatedEntRow.maxStartupPlans,
+          maxSeats: updatedEntRow.maxSeatsPerPlan,
+          aiCreditsMonthly: updatedEntRow.monthlyAiCreditsLimit,
+          loginUrl: `${EMAIL_DEFAULTS.appUrl}/workspace`,
+        },
+        metadata: {
+          userId: user.id,
+          trigger: 'PARTNER_PASS_REDEEMED',
+          voucherCode: cleanCode,
+        },
+      }).catch((e) => {
+        console.error(
+          '[SPF Email] Failed to send partner pass confirmation email:',
+          e
+        );
+      });
 
       return {
         ok: true,

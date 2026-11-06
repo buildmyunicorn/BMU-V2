@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Heading, Text, Section, Button } from '@react-email/components';
+import { Heading, Text, Section, Button, Link } from '@react-email/components';
 import { EmailLayout } from './components/layout';
 
 export interface VoucherRedeemedEmailProps {
@@ -11,6 +11,8 @@ export interface VoucherRedeemedEmailProps {
   maxSeats: number;
   aiCreditsMonthly: number;
   loginUrl: string;
+  activatedDate?: string;
+  validUntilDate?: string;
 }
 
 export const VoucherRedeemedEmail: React.FC<VoucherRedeemedEmailProps> = ({
@@ -22,6 +24,8 @@ export const VoucherRedeemedEmail: React.FC<VoucherRedeemedEmailProps> = ({
   maxSeats,
   aiCreditsMonthly,
   loginUrl,
+  activatedDate,
+  validUntilDate,
 }) => {
   const greeting = founderName ? `Hi ${founderName},` : 'Hi Founder,';
 
@@ -39,9 +43,39 @@ export const VoucherRedeemedEmail: React.FC<VoucherRedeemedEmailProps> = ({
 
       {/* Unlocked Entitlements Overview */}
       <Section style={entitlementCardStyle}>
-        <Text style={cardHeaderStyle}>YOUR UNLOCKED ENTITLEMENTS</Text>
+        <Text style={cardHeaderStyle}>SUBSCRIPTION & ENTITLEMENT DETAILS</Text>
         <table width="100%" cellPadding="0" cellSpacing="0" border={0}>
           <tbody>
+            <tr>
+              <td style={statCellLeft}>Voucher Code:</td>
+              <td style={statCellRight}>
+                <span style={codeBadgeStyle}>{voucherCode}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style={statCellLeft}>Plan / Tier:</td>
+              <td style={statCellRight}>
+                <strong>{tierName}</strong>
+              </td>
+            </tr>
+            {activatedDate && (
+              <tr>
+                <td style={statCellLeft}>Activated On:</td>
+                <td style={statCellRight}>
+                  <strong>{activatedDate}</strong>
+                </td>
+              </tr>
+            )}
+            {validUntilDate && (
+              <tr>
+                <td style={statCellLeft}>Valid Until:</td>
+                <td style={statCellRight}>
+                  <strong style={validUntilDate.includes('Lifetime') ? lifetimeStyle : undefined}>
+                    {validUntilDate}
+                  </strong>
+                </td>
+              </tr>
+            )}
             <tr>
               <td style={statCellLeft}>Startup Plans:</td>
               <td style={statCellRight}>
@@ -79,6 +113,14 @@ export const VoucherRedeemedEmail: React.FC<VoucherRedeemedEmailProps> = ({
       <Text style={footerNoteStyle}>
         Need to add co-founders? Open Module F inside your workspace and click
         "Invite Co-Founder" to trigger their blind-reveal alignment interview.
+      </Text>
+
+      <Text style={supportNoteStyle}>
+        Have questions about your subscription, setup, or grants? Reply directly to this email or contact me personally at{' '}
+        <Link href="mailto:Tom@startuppreflight.com" style={linkStyle}>
+          Tom@startuppreflight.com
+        </Link>
+        .
       </Text>
     </EmailLayout>
   );
@@ -139,6 +181,10 @@ const statCellRight: React.CSSProperties = {
   padding: '6px 0',
 };
 
+const lifetimeStyle: React.CSSProperties = {
+  color: '#059669', // emerald green
+};
+
 const ctaSectionStyle: React.CSSProperties = {
   textAlign: 'center',
   margin: '24px 0',
@@ -162,4 +208,21 @@ const footerNoteStyle: React.CSSProperties = {
   lineHeight: '18px',
   color: '#64748b',
   margin: '16px 0 0 0',
+};
+
+const supportNoteStyle: React.CSSProperties = {
+  fontSize: '12px',
+  lineHeight: '18px',
+  color: '#475569',
+  backgroundColor: '#f1f5f9',
+  border: '1px solid #e2e8f0',
+  borderRadius: '6px',
+  padding: '10px 14px',
+  margin: '20px 0 0 0',
+};
+
+const linkStyle: React.CSSProperties = {
+  color: '#4f46e5',
+  textDecoration: 'underline',
+  fontWeight: 600,
 };
