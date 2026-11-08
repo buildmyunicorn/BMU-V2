@@ -117,15 +117,9 @@ export default function RegisterPage() {
       return;
     }
 
-    if (
-      voucherCode.trim() &&
-      !voucherCode.trim().toUpperCase().startsWith('SUMO-') &&
-      !voucherCode.trim().toUpperCase().startsWith('SPF-') &&
-      !voucherCode.trim().toUpperCase().startsWith('BMU-')
-    ) {
-      setErrorMsg(
-        'Please enter a valid Institutional Cohort or Partner Voucher code.'
-      );
+    // Voucher or cohort code is optional; if provided, server validates both vouchers and institutional cohorts.
+    if (voucherCode.trim().length > 64) {
+      setErrorMsg('Voucher or cohort code is too long. Please check the code.');
       return;
     }
 

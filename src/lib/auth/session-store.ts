@@ -3587,7 +3587,8 @@ export function registerNewFounderSession(params: {
       whiteLabelExportEnabled: sumo.whiteLabelExportEnabled,
       isVaultReadonly: false,
     };
-  } else if (cleanCode.startsWith('SPF-') || cleanCode.startsWith('BMU-')) {
+  } else if (cleanCode) {
+    // If a non-Sumo code was provided (e.g. GOOGLE-TESTERS-2006, SPF-..., BMU-..., or custom cohort)
     const cohortLimits = calculatePassLimits('COHORT_PASS', 6);
     redeemedCodes.push(cleanCode);
     entitlement = {
@@ -3623,10 +3624,7 @@ export function registerNewFounderSession(params: {
       name: params.name.trim() || 'New Founder',
       email: params.email.trim().toLowerCase(),
       role: 'FOUNDER',
-      cohortCode:
-        cleanCode.startsWith('SPF-') || cleanCode.startsWith('BMU-')
-          ? cleanCode
-          : undefined,
+      cohortCode: cleanCode || undefined,
       onboardingCompleted: false,
     },
     entitlement,

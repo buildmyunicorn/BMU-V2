@@ -543,7 +543,12 @@ export default function WorkspacePage() {
   const [isCloningPlan, setIsCloningPlan] = useState(false);
   const [clonePlanError, setClonePlanError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [collapsedStages, setCollapsedStages] = useState<Record<number, boolean>>({});
+  const [collapsedStages, setCollapsedStages] = useState<Record<number, boolean>>({
+    1: true,
+    2: true,
+    3: true,
+    4: true,
+  });
 
   function toggleStageCollapse(stageNum: number) {
     setCollapsedStages((prev) => ({

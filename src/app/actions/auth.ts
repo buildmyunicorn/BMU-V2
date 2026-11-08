@@ -564,6 +564,22 @@ async function buildSessionFromDbUser(
     });
   }
 
+  let cohortCode: string | undefined;
+  if (dbUser.cohortId) {
+    try {
+      const [cohortRow] = await db
+        .select({ inviteCode: cohorts.inviteCode })
+        .from(cohorts)
+        .where(eq(cohorts.id, dbUser.cohortId))
+        .limit(1);
+      if (cohortRow) {
+        cohortCode = cohortRow.inviteCode;
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
   const profile = dbUser.founderProfileJson || {};
   const freeDefaults = calculatePassLimits('FREE_HOOK');
 
@@ -602,6 +618,7 @@ async function buildSessionFromDbUser(
       name: dbUser.name,
       email: dbUser.email,
       role: dbUser.role,
+      cohortCode,
       founderStage: (profile.founderStage as FounderStage) || undefined,
       teamStructure: (profile.teamStructure as TeamStructure) || undefined,
       primaryHat: profile.primaryHat || undefined,
@@ -715,10 +732,15 @@ export async function registerFounderAction(input: {
 
     if (cleanCode) {
       await ensureDatabaseSchemaSynced();
+      const cleanAlpha = cleanCode.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+
+      // 1. Check Institutional Cohort (exact match or hyphen-agnostic match)
       const [foundCohort] = await db
         .select()
         .from(cohorts)
-        .where(eq(cohorts.inviteCode, cleanCode))
+        .where(
+          sql`UPPER(${cohorts.inviteCode}) = ${cleanCode} OR UPPER(REPLACE(${cohorts.inviteCode}, '-', '')) = ${cleanAlpha}`
+        )
         .limit(1);
 
       if (foundCohort) {
@@ -728,23 +750,26 @@ export async function registerFounderAction(input: {
         ) {
           return {
             ok: false,
-            error: `Institutional cohort code ${cleanCode} has expired.`,
+            error: `Institutional cohort code "${cleanCode}" has expired.`,
             mode: 'cloud_sql',
           };
         }
         if (foundCohort.seatsUsed >= foundCohort.maxSeats) {
           return {
             ok: false,
-            error: `Cohort "${foundCohort.name}" has reached its maximum seat capacity.`,
+            error: `Cohort "${foundCohort.name}" has reached its maximum capacity (${foundCohort.maxSeats} seats). Please contact your program administrator.`,
             mode: 'cloud_sql',
           };
         }
         matchedCohort = foundCohort;
       } else {
+        // 2. Check Single-Use Voucher (exact match or hyphen-agnostic match)
         const [foundVoucher] = await db
           .select()
           .from(vouchers)
-          .where(eq(vouchers.code, cleanCode))
+          .where(
+            sql`UPPER(${vouchers.code}) = ${cleanCode} OR UPPER(REPLACE(${vouchers.code}, '-', '')) = ${cleanAlpha}`
+          )
           .limit(1);
 
         if (!foundVoucher) {
@@ -754,10 +779,17 @@ export async function registerFounderAction(input: {
             mode: 'cloud_sql',
           };
         }
+        if (foundVoucher.status === 'REDEEMED') {
+          return {
+            ok: false,
+            error: `This voucher code (${cleanCode}) has already been redeemed by another account. Individual voucher codes are single-use. If you are part of an accelerator or testing cohort, please use your shared cohort invite code.`,
+            mode: 'cloud_sql',
+          };
+        }
         if (foundVoucher.status !== 'UNCLAIMED') {
           return {
             ok: false,
-            error: `Voucher ${cleanCode} has already been redeemed or is no longer valid.`,
+            error: `Voucher ${cleanCode} has been revoked or is no longer valid.`,
             mode: 'cloud_sql',
           };
         }

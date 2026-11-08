@@ -419,6 +419,14 @@ export function VouchersCohortsStudioTab({
       {/* ========================================================================= */}
       {subTab === 'VOUCHERS' && (
         <div className="space-y-4">
+          {/* Informative Guidance Banner */}
+          <div className="flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-xs text-sky-900 shadow-2xs">
+            <Ticket className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+            <div>
+              <span className="font-semibold">Single-Use Vouchers:</span> Each code generated in a batch is strictly for <strong>one user only</strong> (e.g. 1 AppSumo customer, partner, or individual invitee). Once claimed, the code cannot be used by a second person. If you want to invite multiple team members, students, or testers using the same shared code, create an <strong>Institutional Cohort</strong>.
+            </div>
+          </div>
+
           {/* Filter Bar */}
           <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs sm:flex-row sm:items-center sm:justify-between">
             <div className="relative flex-1">
@@ -585,6 +593,14 @@ export function VouchersCohortsStudioTab({
       {/* ========================================================================= */}
       {subTab === 'COHORTS' && (
         <div className="space-y-4">
+          {/* Informative Guidance Banner */}
+          <div className="flex items-start gap-2.5 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 text-xs text-indigo-950 shadow-2xs">
+            <Building className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+            <div>
+              <span className="font-semibold">Institutional Cohorts:</span> These provide a <strong>shared, reusable invite code</strong> (e.g. <code className="rounded bg-indigo-100/80 px-1 py-0.5 font-mono font-bold text-indigo-900">GOOGLE-TESTERS-2006</code>) for accelerator batches, university incubators, or testing cohorts. All participants can register or redeem the exact same code until the cohort&apos;s seat limit is reached.
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {cohorts.length === 0 ? (
               <div className="col-span-full rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">

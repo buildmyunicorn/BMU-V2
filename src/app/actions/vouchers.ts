@@ -275,11 +275,15 @@ export async function redeemVoucherOrCohortCodeAction(
       .where(eq(userEntitlements.userId, user.id))
       .limit(1);
 
-    // 1. Check if this is an Institutional Cohort Code
+    const cleanAlpha = cleanCode.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+
+    // 1. Check if this is an Institutional Cohort Code (exact or hyphen-agnostic match)
     const [foundCohort] = await db
       .select()
       .from(cohorts)
-      .where(eq(cohorts.inviteCode, cleanCode))
+      .where(
+        sql`UPPER(${cohorts.inviteCode}) = ${cleanCode} OR UPPER(REPLACE(${cohorts.inviteCode}, '-', '')) = ${cleanAlpha}`
+      )
       .limit(1);
 
     if (foundCohort) {
@@ -432,9 +436,7 @@ export async function redeemVoucherOrCohortCodeAction(
       };
     }
 
-    // 2. Look up Voucher in `vouchers` table
-    // Match either exact code, or alphanumeric match without hyphens
-    const cleanAlpha = cleanCode.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    // 2. Look up Voucher in `vouchers` table (exact or hyphen-agnostic match)
     const [foundVoucher] = await db
       .select()
       .from(vouchers)
@@ -459,7 +461,7 @@ export async function redeemVoucherOrCohortCodeAction(
       }
       return {
         ok: false,
-        error: `Voucher ${cleanCode} has already been claimed by another account.`,
+        error: `Voucher ${cleanCode} has already been claimed by another account. Individual voucher codes are single-use. If you are part of a program or testing cohort, please use your shared cohort invite code.`,
       };
     }
 
