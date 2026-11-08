@@ -1149,7 +1149,7 @@ export async function createPartnerConciergeStripeCheckoutAction(input: {
       error:
         err instanceof Error
           ? err.message
-          : 'Stripe live key not configured — using instant sandbox checkout.',
+          : 'Stripe is currently unreachable. Please try again or contact support.',
     };
   }
 }

@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import {
   HeroInteractiveProductShowcase,
@@ -136,8 +135,6 @@ export function AppSumoClientPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
-      <StripeSandboxBadge />
-
       {/* ===================================================================== */}
       {/* MODERN SINGLE-BAR FLOATING-PILL HEADER                                */}
       {/* ===================================================================== */}

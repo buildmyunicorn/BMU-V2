@@ -14,7 +14,7 @@ export function isStripeConfigured(): boolean {
     key &&
     key !== PLACEHOLDER_BUILD_KEY &&
     !key.includes('placeholder') &&
-    (key.startsWith('sk_test_') || key.startsWith('sk_live_'))
+    (key.startsWith('sk_') || key.startsWith('rk_'))
   );
 }
 

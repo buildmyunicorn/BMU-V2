@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
+import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 import './globals.css';
 
 const defaultSiteUrl =
@@ -65,6 +66,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased print:bg-white">
+        <StripeSandboxBadge />
         {children}
       </body>
       <Script

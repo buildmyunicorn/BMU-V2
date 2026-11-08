@@ -543,6 +543,14 @@ export default function WorkspacePage() {
   const [isCloningPlan, setIsCloningPlan] = useState(false);
   const [clonePlanError, setClonePlanError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [collapsedStages, setCollapsedStages] = useState<Record<number, boolean>>({});
+
+  function toggleStageCollapse(stageNum: number) {
+    setCollapsedStages((prev) => ({
+      ...prev,
+      [stageNum]: !prev[stageNum],
+    }));
+  }
   const [showWhyCard, setShowWhyCard] = useState(true);
   const [showExamples, setShowExamples] = useState(false);
   const [showImStuckHelper, setShowImStuckHelper] = useState(false);
@@ -5914,96 +5922,208 @@ export default function WorkspacePage() {
                 mobileSidebarOpen ? 'block' : 'hidden'
               } space-y-3.5 sm:space-y-4 lg:block`}
             >
-              {/* Clean Module A - L Navigation List */}
-              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
-                <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                  Founder Workspace (Modules A–L)
+              {/* Clean 4-Stage Grouped Navigation List (Collapsible Sections) */}
+              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs space-y-3">
+                <div className="flex items-center justify-between px-1 border-b border-slate-100 pb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Founder Workspace
+                  </span>
+                  <span className="text-[10px] font-semibold text-indigo-700">
+                    4 Stages
+                  </span>
                 </div>
-                <div className="space-y-1">
-                  {effectiveModulesList.map((mod) => {
-                    const access = canAccessModule(activeEntitlement, mod.code);
-                    const IconComponent = mod.icon;
-                    const isCurrent = activeModule === mod.code;
-                    const modProgress =
-                      dashboardModuleProgressList.find(
-                        (m) => m.code === mod.code
-                      )?.progress ?? mod.progress;
 
-                    return (
-                      <button
-                        key={mod.code}
-                        type="button"
-                        onClick={() => {
-                          if (!access.allowed) {
-                            setPendingModuleAfterUnlock(mod.code);
-                            setPaywallModalFeature(
-                              `${mod.short}: ${mod.title} — ${access.reason}`
-                            );
-                            return;
-                          }
-                          setMobileSidebarOpen(false);
-                          navigateToModuleWithHistory(mod.code);
-                        }}
-                        className={`group flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-all ${
-                          isCurrent
-                            ? 'bg-indigo-50/90 ring-1 ring-indigo-200'
-                            : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <div
-                          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                            isCurrent
-                              ? 'bg-indigo-600 text-white'
-                              : access.allowed
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-slate-100 text-slate-400'
-                          }`}
-                        >
-                          <IconComponent className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-1">
-                            <span
-                              className={`text-xs font-bold ${
-                                isCurrent ? 'text-indigo-950' : 'text-slate-800'
-                              }`}
+                {(() => {
+                  const STAGES_CONFIG = [
+                    {
+                      stage: 1,
+                      title: 'Stage 1: Idea & Validation',
+                      moduleCodes: ['MOD_A_IDEATION', 'MOD_B_MARKET', 'MOD_C_SURVEYS_FEEDBACK'],
+                    },
+                    {
+                      stage: 2,
+                      title: 'Stage 2: Product, Team & Setup',
+                      moduleCodes: [
+                        'MOD_D_PRODUCT_BUILD',
+                        'MOD_E_OPERATIONS',
+                        'MOD_F_COFOUNDER_TEAM',
+                        'MOD_G_LAUNCHPAD',
+                      ],
+                    },
+                    {
+                      stage: 3,
+                      title: 'Stage 3: Pricing & 3-Yr Finance',
+                      moduleCodes: ['MOD_H_REVENUE', 'MOD_I_MARKETING', 'MOD_J_FINANCE'],
+                    },
+                    {
+                      stage: 4,
+                      title: isGrantCheckerSupportedForCountry(selectedCountry)
+                        ? 'Stage 4: Grants & Business Plan'
+                        : 'Stage 4: Blueprint & Plan Studio',
+                      moduleCodes: ['MOD_K_GRANTS_FUNDING', 'MOD_L_BUSINESS_PLAN'],
+                    },
+                  ];
+
+                  return (
+                    <div className="space-y-2.5">
+                      {STAGES_CONFIG.map((stg) => {
+                        const isStageCollapsed = Boolean(collapsedStages[stg.stage]);
+                        const stageMods = effectiveModulesList.filter((m) =>
+                          stg.moduleCodes.includes(m.code)
+                        );
+                        const hasActiveMod = stageMods.some((m) => m.code === activeModule);
+                        const stageProgressList = dashboardModuleProgressList.filter((m) =>
+                          stg.moduleCodes.includes(m.code)
+                        );
+                        const avgStageProgress = Math.round(
+                          stageProgressList.reduce((acc, m) => acc + m.progress, 0) /
+                            Math.max(1, stageProgressList.length)
+                        );
+
+                        return (
+                          <div
+                            key={stg.stage}
+                            className={`rounded-lg border transition-all ${
+                              hasActiveMod
+                                ? 'border-indigo-300 bg-indigo-50/20'
+                                : 'border-slate-100 bg-slate-50/30'
+                            }`}
+                          >
+                            {/* Collapsible Stage Header Accordion Button */}
+                            <button
+                              type="button"
+                              onClick={() => toggleStageCollapse(stg.stage)}
+                              className="flex w-full items-center justify-between p-2 text-left transition hover:bg-slate-50 rounded-lg"
                             >
-                              {mod.short}: {mod.title}
-                            </span>
-                            {!access.allowed ? (
-                              <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                            ) : isCurrent || modProgress > 0 ? (
-                              <span
-                                className={`text-[10px] font-bold ${
-                                  modProgress === 100
-                                    ? 'text-emerald-600'
-                                    : 'text-indigo-600'
-                                }`}
-                              >
-                                {modProgress}%
-                              </span>
-                            ) : null}
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span
+                                  className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded text-[10px] font-extrabold ${
+                                    hasActiveMod
+                                      ? 'bg-indigo-600 text-white'
+                                      : avgStageProgress === 100
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-slate-200 text-slate-700'
+                                  }`}
+                                >
+                                  {stg.stage}
+                                </span>
+                                <span className="truncate text-xs font-bold text-slate-800">
+                                  {stg.title}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span
+                                  className={`text-[10px] font-bold ${
+                                    avgStageProgress === 100
+                                      ? 'text-emerald-600'
+                                      : avgStageProgress > 0
+                                        ? 'text-indigo-600'
+                                        : 'text-slate-400'
+                                  }`}
+                                >
+                                  {avgStageProgress}%
+                                </span>
+                                <ChevronDown
+                                  className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${
+                                    isStageCollapsed ? '-rotate-90' : ''
+                                  }`}
+                                />
+                              </div>
+                            </button>
+
+                            {/* Stage Modules List (Collapsible) */}
+                            {!isStageCollapsed && (
+                              <div className="space-y-1 p-1.5 pt-0 border-t border-slate-100/80 mt-1">
+                                {stageMods.map((mod) => {
+                                  const access = canAccessModule(activeEntitlement, mod.code);
+                                  const IconComponent = mod.icon;
+                                  const isCurrent = activeModule === mod.code;
+                                  const modProgress =
+                                    dashboardModuleProgressList.find((m) => m.code === mod.code)
+                                      ?.progress ?? mod.progress;
+
+                                  return (
+                                    <button
+                                      key={mod.code}
+                                      type="button"
+                                      onClick={() => {
+                                        if (!access.allowed) {
+                                          setPendingModuleAfterUnlock(mod.code);
+                                          setPaywallModalFeature(
+                                            `${mod.short}: ${mod.title} — ${access.reason}`
+                                          );
+                                          return;
+                                        }
+                                        setMobileSidebarOpen(false);
+                                        navigateToModuleWithHistory(mod.code);
+                                      }}
+                                      className={`group flex w-full items-start gap-2 rounded-lg p-2 text-left transition-all ${
+                                        isCurrent
+                                          ? 'bg-indigo-50/90 ring-1 ring-indigo-200'
+                                          : 'hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <div
+                                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
+                                          isCurrent
+                                            ? 'bg-indigo-600 text-white'
+                                            : access.allowed
+                                              ? 'bg-emerald-50 text-emerald-700'
+                                              : 'bg-slate-100 text-slate-400'
+                                        }`}
+                                      >
+                                        <IconComponent className="h-3.5 w-3.5" />
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-1">
+                                          <span
+                                            className={`text-xs font-bold truncate ${
+                                              isCurrent ? 'text-indigo-950' : 'text-slate-800'
+                                            }`}
+                                          >
+                                            {mod.title}
+                                          </span>
+                                          {!access.allowed ? (
+                                            <Lock className="h-3 w-3 shrink-0 text-amber-500" />
+                                          ) : isCurrent || modProgress > 0 ? (
+                                            <span
+                                              className={`text-[10px] font-bold ${
+                                                modProgress === 100
+                                                  ? 'text-emerald-600'
+                                                  : 'text-indigo-600'
+                                              }`}
+                                            >
+                                              {modProgress}%
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                        <p className="truncate text-[10px] text-slate-500">
+                                          {mod.subtitle}
+                                        </p>
+                                        {(isCurrent || modProgress > 0) && access.allowed && (
+                                          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-indigo-100">
+                                            <div
+                                              className={`h-full rounded-full transition-all duration-300 ${
+                                                modProgress === 100
+                                                  ? 'bg-emerald-500'
+                                                  : 'bg-indigo-600'
+                                              }`}
+                                              style={{ width: `${modProgress}%` }}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                          <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                            {mod.subtitle}
-                          </p>
-                          {(isCurrent || modProgress > 0) && access.allowed && (
-                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-indigo-100">
-                              <div
-                                className={`h-full rounded-full transition-all duration-300 ${
-                                  modProgress === 100
-                                    ? 'bg-emerald-500'
-                                    : 'bg-indigo-600'
-                                }`}
-                                style={{ width: `${modProgress}%` }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Open Questions Parking Lot Sidebar Card */}

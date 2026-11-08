@@ -38,7 +38,6 @@ import {
   calculatePassLimits,
 } from '@/lib/entitlements';
 import { loginFounderAction } from '@/app/actions/auth';
-import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -259,7 +258,6 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col justify-between bg-slate-50">
-      <StripeSandboxBadge />
       {/* Main Centered Login Card */}
       <main className="flex flex-1 flex-col justify-center px-6 py-12">
         <div className="mx-auto w-full max-w-md space-y-6">
@@ -271,8 +269,6 @@ export default function LoginPage() {
               Sign in to access your Startup Plans and AI Co-Founder Workspace.
             </p>
           </div>
-
-          <StripeSandboxBadge variant="card" />
 
           <Card className="border-slate-200 shadow-md">
             <CardHeader>

@@ -30,7 +30,6 @@ import {
   saveBmuSession,
 } from '@/lib/auth/session-store';
 import { registerFounderAction } from '@/app/actions/auth';
-import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -169,7 +168,6 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen flex-col justify-between bg-slate-50">
-      <StripeSandboxBadge />
       <main className="flex flex-1 flex-col justify-center px-6 py-12">
         <div className="mx-auto grid w-full max-w-5xl grid-cols-1 items-center gap-8 lg:grid-cols-12">
           {/* Left Value Prop Column */}
@@ -220,7 +218,6 @@ export default function RegisterPage() {
 
           {/* Right Sign-Up Card */}
           <div className="space-y-4 lg:col-span-6">
-            <StripeSandboxBadge variant="card" />
             <Card className="border-slate-200 shadow-lg">
             <CardHeader className="space-y-1">
               <div className="flex items-center justify-between">

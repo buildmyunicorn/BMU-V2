@@ -716,7 +716,14 @@ export function ModuleHWorkspace({
 
   const [step4Data, setStep4Data] = useState<SalesAssumptionsStep4Data>(() => {
     const existing = plan.moduleHData?.step4SalesAssumptions;
-    if (existing) return existing;
+    if (existing) {
+      return {
+        ...existing,
+        writtenAssumptionsNarrative: existing.writtenAssumptionsNarrative || '',
+        otherSalesMotionText: existing.otherSalesMotionText || '',
+        assessorTip: existing.assessorTip || '',
+      };
+    }
 
     const initialMotion =
       step1Data.revenueModelVehicle === 'SUBSCRIPTION_RECURRING' ||
@@ -778,7 +785,7 @@ export function ModuleHWorkspace({
     step4Data.expectedConversionRatePercent > 0 &&
     step4Data.salesCycleDays > 0 &&
     step4Data.teamMonthlyCapacityCap > 0 &&
-    step4Data.writtenAssumptionsNarrative.trim().length > 30;
+    Boolean(step4Data.writtenAssumptionsNarrative && step4Data.writtenAssumptionsNarrative.trim().length > 30);
 
   const SALES_MOTION_OPTIONS = [
     {
@@ -5236,7 +5243,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <div className="space-y-1.5">
                 <textarea
                   rows={8}
-                  value={step4Data.writtenAssumptionsNarrative}
+                  value={step4Data.writtenAssumptionsNarrative || ''}
                   onChange={(e) =>
                     setStep4Data((prev) => ({
                       ...prev,
@@ -5250,7 +5257,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <span>
                     Directly exports to Module L Official Business Plan &amp; Grant Appendices.
                   </span>
-                  <span>{step4Data.writtenAssumptionsNarrative.length} characters</span>
+                  <span>{(step4Data.writtenAssumptionsNarrative || '').length} characters</span>
                 </div>
               </div>
             </div>

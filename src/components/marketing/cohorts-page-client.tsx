@@ -30,7 +30,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 import { MarketingHeader, MarketingFooter } from './marketing-layout-nav';
 import { submitCohortInquiryAction } from '@/app/actions/cohort-inquiries';
 
@@ -325,7 +324,6 @@ export function CohortsPageClient() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
-      <StripeSandboxBadge />
       <MarketingHeader active="cohorts" />
 
       {/* ===================================================================== */}

@@ -19,7 +19,6 @@ import {
   Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { MarketingHeader, MarketingFooter } from '@/components/marketing/marketing-layout-nav';
 
@@ -28,8 +27,6 @@ export default function AboutFounderPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
-      <StripeSandboxBadge />
-
       {/* ===================================================================== */}
       {/* UNIFIED MARKETING HEADER                                              */}
       {/* ===================================================================== */}

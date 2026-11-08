@@ -38,7 +38,6 @@ import { Badge } from '@/components/ui/badge';
 import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
 import { clearActiveBmuSession } from '@/lib/auth/session-store';
 import { logoutFounderAction } from '@/app/actions/auth';
-import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
 import { MarketingHeader } from '@/components/marketing/marketing-layout-nav';
 import {
   HeroInteractiveProductShowcase,
@@ -329,9 +328,6 @@ export function LandingPageExperience({
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
-      {/* Keep Stripe Sandbox Environment Notification Banner Intact */}
-      <StripeSandboxBadge />
-
       {/* Clean, Single-Bar Modern SaaS Navbar */}
       <MarketingHeader
         edition={edition}
