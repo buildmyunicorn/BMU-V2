@@ -280,6 +280,7 @@ import { AskMyStartupView } from '@/components/workspace/ask-my-startup-view';
 import { evaluatePlanGrantReadiness } from '@/lib/grants/grant-readiness-evaluator';
 import type { SavedGrantCenterData } from '@/lib/auth/session-store';
 import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
+import { PreflightGuideModal } from '@/components/workspace/preflight-guide-modal';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 import {
   buildModuleAMarkdownBrief,
@@ -525,6 +526,7 @@ export default function WorkspacePage() {
   const [isGrantCenterOpen, setIsGrantCenterOpen] = useState(false);
   const [isAskStartupOpen, setIsAskStartupOpen] = useState(false);
   const [askStartupInitialPrompt, setAskStartupInitialPrompt] = useState<string | undefined>(undefined);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [hasHydratedLocation, setHasHydratedLocation] = useState(false);
   const hasHydratedLocationRef = useRef(false);
   const sessionRef = useRef(session);
@@ -5774,6 +5776,19 @@ export default function WorkspacePage() {
               })()}
             </div>
 
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsGuideOpen(true)}
+              className="h-8 border-amber-200 bg-amber-50/80 px-2.5 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+              title="How to Use Modules, Button Colors & Jargon Key"
+            >
+              <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+              <span className="hidden sm:inline">Module Guide</span>
+              <span className="sm:hidden">Guide</span>
+            </Button>
+
             <GlobalFeedbackButton
               variant="header-pill"
               activeModule={activeModule}
@@ -6381,6 +6396,7 @@ export default function WorkspacePage() {
                   : undefined
               }
               onOpenAskStartup={(prompt) => openAskStartupWithHistory(prompt)}
+              onOpenGuide={() => setIsGuideOpen(true)}
             />
           ) : isGrantCenterOpen ? (
             <GrantApplicationCenterView
@@ -11679,6 +11695,14 @@ export default function WorkspacePage() {
           </div>
         </div>
       )}
+
+      {/* ========================================================= */}
+      {/* HOW TO USE / PREFLIGHT FIELD GUIDE MODAL                  */}
+      {/* ========================================================= */}
+      <PreflightGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+      />
     </div>
   );
 }

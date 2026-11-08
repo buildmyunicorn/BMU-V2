@@ -28,6 +28,7 @@ import {
   Landmark,
   BrainCircuit,
   Map,
+  Lightbulb,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -81,6 +82,7 @@ export interface ProjectDashboardViewProps {
   onOpenBusinessPlanStudio: () => void;
   onOpenGrantCenter?: () => void;
   onOpenAskStartup?: (initialQuery?: string) => void;
+  onOpenGuide?: () => void;
   onCreateNewPlan?: () => void;
   onClonePlan?: () => void;
   isCloningPlan?: boolean;
@@ -164,6 +166,7 @@ export function ProjectDashboardView({
   onOpenBusinessPlanStudio,
   onOpenGrantCenter,
   onOpenAskStartup,
+  onOpenGuide,
 }: ProjectDashboardViewProps) {
   const [dashboardQuery, setDashboardQuery] = useState('');
   const [notifiedFeatures, setNotifiedFeatures] = useState<string[]>([]);
@@ -361,9 +364,21 @@ export function ProjectDashboardView({
                   Jump into any stage at your own pace
                 </span>
               </div>
-              <span className="text-[11px] text-indigo-200/90">
-                {completedModulesCount} of {moduleProgressList.length} Modules Completed • {openQuestionsCount} Parked Question{openQuestionsCount === 1 ? '' : 's'}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                {onOpenGuide && (
+                  <button
+                    type="button"
+                    onClick={onOpenGuide}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/40 bg-amber-400/20 px-2.5 py-1 text-xs font-semibold text-amber-200 transition-colors hover:bg-amber-400/30"
+                  >
+                    <Lightbulb className="h-3.5 w-3.5 text-amber-300" />
+                    <span>How-To &amp; Visual Guide</span>
+                  </button>
+                )}
+                <span className="text-[11px] text-indigo-200/90">
+                  {completedModulesCount} of {moduleProgressList.length} Modules Completed • {openQuestionsCount} Parked Question{openQuestionsCount === 1 ? '' : 's'}
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">

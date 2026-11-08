@@ -220,7 +220,7 @@ export const DEFAULT_GRANTS_DIRECTORY: GrantDirectorySeed[] = [
       monthsTradingMax: 36,
       requiresPersonalSurvivalBudget: true,
     },
-    officialUrl: 'https://www.startuploans.co.uk/',
+    officialUrl: 'https://www.gov.uk/apply-start-up-loan',
     isActive: true,
   },
   {

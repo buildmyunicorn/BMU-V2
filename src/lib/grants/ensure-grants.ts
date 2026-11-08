@@ -61,7 +61,7 @@ export const FULL_DEFAULT_GRANTS_CATALOG: Omit<GrantDirectoryRecord, 'id' | 'cre
       preIncorporationAllowed: true,
       leoThreeQuoteEnforced: true,
     },
-    officialUrl: 'https://www.localenterprise.ie/Discover-Business-Supports/Financial-Supports/Feasibility-Grant/',
+    officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/feasibility-grant/',
     deadlineDate: null,
     status: 'ACTIVE',
     isActive: true,
@@ -128,7 +128,7 @@ export const FULL_DEFAULT_GRANTS_CATALOG: Omit<GrantDirectoryRecord, 'id' | 'cre
       requiresIncorporatedLtd: true,
       leoThreeQuoteEnforced: true,
     },
-    officialUrl: 'https://www.localenterprise.ie/Discover-Business-Supports/Financial-Supports/Priming-Grant/',
+    officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/priming-grant/',
     deadlineDate: null,
     status: 'ACTIVE',
     isActive: true,
@@ -193,7 +193,7 @@ export const FULL_DEFAULT_GRANTS_CATALOG: Omit<GrantDirectoryRecord, 'id' | 'cre
       requiresIncorporatedLtd: true,
       minMatchRatePercent: 10,
     },
-    officialUrl: 'https://www.enterprise-ireland.com/en/funding/pre-seed-start-fund',
+    officialUrl: 'https://www.enterprise-ireland.com/en/supports/pre-seed-start-fund',
     deadlineDate: null,
     status: 'ACTIVE',
     isActive: true,
@@ -257,7 +257,7 @@ export const FULL_DEFAULT_GRANTS_CATALOG: Omit<GrantDirectoryRecord, 'id' | 'cre
       requiresIncorporatedLtd: true,
       founderFullTimeCommitment: true,
     },
-    officialUrl: 'https://www.revenue.ie/en/starting-a-business/relief-for-investment-in-corporate-trades/startup-refunds-for-entrepreneurs/index.aspx',
+    officialUrl: 'https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/investment/relief-corporate/start-up-relief-for-entrepreneurs.aspx',
     deadlineDate: null,
     status: 'ACTIVE',
     isActive: true,
@@ -319,7 +319,7 @@ export const FULL_DEFAULT_GRANTS_CATALOG: Omit<GrantDirectoryRecord, 'id' | 'cre
       requiresIncorporatedLtd: true,
       requiresScientificUncertainty: true,
     },
-    officialUrl: 'https://www.revenue.ie/en/companies-and-organisations/research-and-development-tax-credit/index.aspx',
+    officialUrl: 'https://www.revenue.ie/en/companies-and-charities/reliefs-and-exemptions/research-and-development-rd-tax-credit/index.aspx',
     deadlineDate: null,
     status: 'ACTIVE',
     isActive: true,
@@ -381,7 +381,7 @@ export const FULL_DEFAULT_GRANTS_CATALOG: Omit<GrantDirectoryRecord, 'id' | 'cre
       maxEmployees: 10,
       leoThreeQuoteEnforced: true,
     },
-    officialUrl: 'https://www.localenterprise.ie/Discover-Business-Supports/Digital-Supports/',
+    officialUrl: 'https://www.localenterprise.ie/discover-business-supports/digitalisation/grow-digital/',
     deadlineDate: null,
     status: 'ACTIVE',
     isActive: true,
@@ -446,7 +446,7 @@ export const FULL_DEFAULT_GRANTS_CATALOG: Omit<GrantDirectoryRecord, 'id' | 'cre
       requiresPersonalSurvivalBudget: true,
       fixedInterestRate: 6,
     },
-    officialUrl: 'https://www.startuploans.co.uk/',
+    officialUrl: 'https://www.gov.uk/apply-start-up-loan',
     deadlineDate: null,
     status: 'ACTIVE',
     isActive: true,
@@ -638,7 +638,7 @@ export const FULL_DEFAULT_GRANTS_CATALOG: Omit<GrantDirectoryRecord, 'id' | 'cre
       requiresIncorporatedLtd: true,
       rAndDIntensityThresholdPercent: 30,
     },
-    officialUrl: 'https://www.gov.uk/guidance/claiming-research-and-development-tax-reliefs',
+    officialUrl: 'https://www.gov.uk/guidance/corporation-tax-research-and-development-rd-relief',
     deadlineDate: null,
     status: 'ACTIVE',
     isActive: true,
@@ -874,6 +874,18 @@ export async function ensureDefaultGrantsSeededInDb(): Promise<void> {
               .onConflictDoNothing({ target: grantsDirectory.slug });
           } catch (insertErr) {
             console.warn(`[GrantsSeed] Failed to insert seed grant ${grant.slug}:`, insertErr);
+          }
+        } else {
+          try {
+            await db
+              .update(grantsDirectory)
+              .set({
+                officialUrl: grant.officialUrl,
+                updatedAt: new Date(),
+              })
+              .where(eq(grantsDirectory.slug, grant.slug));
+          } catch (updateErr) {
+            console.warn(`[GrantsSeed] Failed to sync officialUrl for grant ${grant.slug}:`, updateErr);
           }
         }
       }

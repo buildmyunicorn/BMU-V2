@@ -60,7 +60,7 @@ export const SUPPORTED_GRANT_PROGRAMS: Record<SupportedGrantProgramKey, GrantPro
     description:
       'Co-funds prototype development, third-party technical feasibility studies, market research, and foreign travel for export investigation.',
     officialUrl:
-      'https://www.localenterprise.ie/Discover-Business-Supports/Financial-Supports/Feasibility-Grant/',
+      'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/feasibility-grant/',
     underwritingSummary:
       'Requires 50% founder matching funds (or 40% in BMW/Gaeltacht). Retrospective vouched invoices only. Standard laptops excluded.',
   },
@@ -79,7 +79,7 @@ export const SUPPORTED_GRANT_PROGRAMS: Record<SupportedGrantProgramKey, GrantPro
     description:
       'Direct capital and employment support for micro-enterprises under 18 months old with internationally traded or high-potential manufacturing/services models.',
     officialUrl:
-      'https://www.localenterprise.ie/Discover-Business-Supports/Financial-Supports/Priming-Grant/',
+      'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/priming-grant/',
     underwritingSummary:
       'Must commit to creating sustainable PAYE jobs. Requires 3 independent supplier quotes for any purchase item > €5,000.',
   },
@@ -98,7 +98,7 @@ export const SUPPORTED_GRANT_PROGRAMS: Record<SupportedGrantProgramKey, GrantPro
     description:
       'Accelerates cloud software implementation, AI workflow automation, e-commerce storefront enhancements, and digital security upgrades.',
     officialUrl:
-      'https://www.localenterprise.ie/Discover-Business-Supports/Digital-Supports/Grow-Digital/',
+      'https://www.localenterprise.ie/discover-business-supports/digitalisation/grow-digital/',
     underwritingSummary:
       'Super-fast evaluation committee process. Suitable even for domestic/hybrid service businesses implementing digital AI efficiencies.',
   },
@@ -117,7 +117,7 @@ export const SUPPORTED_GRANT_PROGRAMS: Record<SupportedGrantProgramKey, GrantPro
     description:
       'Early-stage equity/CLN funding for early-stage innovative startups targeting €1M+ export sales and 10+ jobs within 3–4 years.',
     officialUrl:
-      'https://www.enterprise-ireland.com/en/funding/pre-seed-start-fund',
+      'https://www.enterprise-ireland.com/en/supports/pre-seed-start-fund',
     underwritingSummary:
       'Strict HPSU criteria. Requires high innovation barrier, international scalability, and full-time leadership commitment.',
   },
@@ -153,7 +153,7 @@ export const SUPPORTED_GRANT_PROGRAMS: Record<SupportedGrantProgramKey, GrantPro
     stageFit: 'Angel / Seed Funding Round',
     description:
       'Gives private Irish investors up to 50% income tax relief on qualifying risk capital investments, dramatically speeding up angel round closes.',
-    officialUrl: 'https://www.revenue.ie/en/investing-in-companies/employment-and-investment-incentive/index.aspx',
+    officialUrl: 'https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/investment/relief-corporate/employment-investment-incentive.aspx',
     underwritingSummary:
       'Company must be an SME with a qualifying trading activity. Enables founders to raise rounds locally with lower valuation friction.',
   },
@@ -171,7 +171,7 @@ export const SUPPORTED_GRANT_PROGRAMS: Record<SupportedGrantProgramKey, GrantPro
     stageFit: 'Trading < 36 Months / Pre-Trading',
     description:
       'Government-backed personal loan for business purposes. Fixed 6% interest rate, 1–5 year term, zero early repayment penalties, 12 months free mentoring.',
-    officialUrl: 'https://www.startuploans.co.uk/',
+    officialUrl: 'https://www.gov.uk/apply-start-up-loan',
     underwritingSummary:
       'Underwritten on the founder’s personal credit and Module F Personal Survival Budget. Up to 4 co-founders can borrow up to £100,000 collectively.',
   },
@@ -225,7 +225,7 @@ export const SUPPORTED_GRANT_PROGRAMS: Record<SupportedGrantProgramKey, GrantPro
     stageFit: 'Pre-Trading or Early Growth',
     description:
       'Regional capital and business support grants administered through England, Scotland (SE), Wales (DBW), or Invest NI for local micro-enterprises.',
-    officialUrl: 'https://www.lepnetwork.net/growth-hubs/',
+    officialUrl: 'https://www.gov.uk/business-finance-support',
     underwritingSummary:
       'Varies by county council / Growth Hub. Strong preference for digital adoption, clean tech, and local employment.',
   },

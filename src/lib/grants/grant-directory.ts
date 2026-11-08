@@ -60,7 +60,7 @@ export const IRELAND_LEO_OFFICES: LeoOfficeDirectoryItem[] = [
     id: 'leo-cork-north-west',
     countyOrCity: 'Cork North & West',
     name: 'LEO Cork North and West',
-    portalUrl: 'https://www.localenterprise.ie/CorkNorthandWest/Financial-Supports/',
+    portalUrl: 'https://www.localenterprise.ie/corknorthandwest/financial-supports/feasibility-grants/',
     generalEmail: 'westcork@leo.corkcoco.ie',
     phone: '023 883 4700',
     bmwRegion: false,

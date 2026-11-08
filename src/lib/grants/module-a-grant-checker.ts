@@ -309,7 +309,7 @@ export function evaluateModuleAGrantEligibility(input: {
           'Module D/E (3 Vetted Prototype/Consultancy Quotes)',
           'Module K (Official LEO Form & Appendices)',
         ],
-        officialUrl: 'https://www.localenterprise.ie/Discover-Business-Supports/Financial-Supports/Feasibility-Grant/',
+        officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/feasibility-grant/',
       });
     } else if (isLocalDomesticOnly) {
       matches.push({
@@ -334,7 +334,7 @@ export function evaluateModuleAGrantEligibility(input: {
           'Module B (Export Wedge & Non-Displacement Matrix)',
           'Module K (LEO Official Application Compiler)',
         ],
-        officialUrl: 'https://www.localenterprise.ie/Discover-Business-Supports/Financial-Supports/Feasibility-Grant/',
+        officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/feasibility-grant/',
       });
     } else {
       matches.push({
@@ -357,7 +357,7 @@ export function evaluateModuleAGrantEligibility(input: {
           'Module D (Work Packages WP1..n)',
           'Module K (LEO Appendix Pack)',
         ],
-        officialUrl: 'https://www.localenterprise.ie/Discover-Business-Supports/Financial-Supports/Feasibility-Grant/',
+        officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/feasibility-grant/',
       });
     }
 
@@ -426,7 +426,7 @@ export function evaluateModuleAGrantEligibility(input: {
           'Module I (36-Month Financial Forecast & LTD Setup)',
           'Module J (SURE Tax Refund Calculator & Unlocker)',
         ],
-        officialUrl: 'https://www.revenue.ie/en/corporate/assist-us/reporting-shadow-economy-activity/startup-refunds-for-entrepreneurs.aspx',
+        officialUrl: 'https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/investment/relief-corporate/start-up-relief-for-entrepreneurs.aspx',
       });
     } else if (!hasPayeHistory) {
       matches.push({
@@ -446,7 +446,7 @@ export function evaluateModuleAGrantEligibility(input: {
         reimbursementAndTrapWarning:
           'If you bring on a co-founder who is leaving a PAYE job, they can claim SURE on their investment into the LTD.',
         preflightModulesToWin: ['Module F (Co-Founder Team & Equity Split)'],
-        officialUrl: 'https://www.revenue.ie/en/corporate/assist-us/reporting-shadow-economy-activity/startup-refunds-for-entrepreneurs.aspx',
+        officialUrl: 'https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/investment/relief-corporate/start-up-relief-for-entrepreneurs.aspx',
       });
     }
 
@@ -481,7 +481,7 @@ export function evaluateModuleAGrantEligibility(input: {
         'Module D (3-Tier Tech Stack & Build-vs-Buy Matrix)',
         'Module E (Operations & Automation Blueprint)',
       ],
-      officialUrl: 'https://www.localenterprise.ie/Discover-Business-Supports/Digital-for-Business/',
+      officialUrl: 'https://www.localenterprise.ie/discover-business-supports/digitalisation/grow-digital/',
     });
 
     // 5. Microfinance Ireland Startup Loan (via LEO)
@@ -545,7 +545,7 @@ export function evaluateModuleAGrantEligibility(input: {
           'Module I (36-Month Cashflow & Funding Gap)',
           'Module K (Official LEO Form & Appendices A–F)',
         ],
-        officialUrl: 'https://www.localenterprise.ie/Discover-Business-Supports/Financial-Supports/Priming-Grant/',
+        officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/priming-grant/',
       });
     } else {
       matches.push({
@@ -565,7 +565,7 @@ export function evaluateModuleAGrantEligibility(input: {
         reimbursementAndTrapWarning:
           'Focus instead on the LEO Digital for Business (€2.7k), Grow Digital Voucher (€5k), and Microfinance Ireland (€25k–€50k) which DO support domestic businesses.',
         preflightModulesToWin: ['Module B (Export & Non-Displacement Analysis)'],
-        officialUrl: 'https://www.localenterprise.ie/Discover-Business-Supports/Financial-Supports/Priming-Grant/',
+        officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/priming-grant/',
       });
     }
 
@@ -663,7 +663,7 @@ export function evaluateModuleAGrantEligibility(input: {
           'Module I (12–36 Month Cashflow Forecast)',
           'Module K (Official UK Start Up Loans 4-Part Workbook)',
         ],
-        officialUrl: 'https://www.startuploans.co.uk/',
+        officialUrl: 'https://www.gov.uk/apply-start-up-loan',
       });
     }
 
@@ -709,7 +709,7 @@ export function evaluateModuleAGrantEligibility(input: {
         val: 10000,
         formatted: '£2,500 – £15,000 (50% Match Digital, Net-Zero & Innovation Vouchers)',
         desc: 'Local Growth Hubs across England distribute UKSPF non-dilutive capital and digital adoption grants for early-stage SMEs.',
-        url: 'https://www.lepnetwork.net/growth-hubs/',
+        url: 'https://www.gov.uk/business-finance-support',
       },
     };
 
