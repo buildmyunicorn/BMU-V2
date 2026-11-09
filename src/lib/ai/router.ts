@@ -184,20 +184,31 @@ function isValidUuid(val: string | undefined | null): val is string {
 function isValidByokGeminiKey(customKey?: string | null): customKey is string {
   if (!customKey) return false;
   const trimmed = customKey.trim();
-  // Real Google AI Studio keys strictly begin with AIza and are ~39 chars.
-  // Never accept 'VERTEX_AI_ACTIVE' or arbitrary strings as a user BYOK key.
-  return /^AIza[0-9A-Za-z_-]{31,}$/.test(trimmed);
+  // Real Google AI Studio keys begin with AIza (~39 chars) or Vertex Express API keys begin with AQ.
+  return /^(AIza[0-9A-Za-z_-]{31,}|AQ\.[0-9A-Za-z_-]{20,})$/.test(trimmed);
+}
+
+function isVertexExpressApiKey(key?: string | null): boolean {
+  return Boolean(key && key.trim().startsWith('AQ.'));
 }
 
 function hasConfiguredGeminiKey(customKey?: string | null): string | null {
   if (isValidByokGeminiKey(customKey)) {
     return customKey.trim();
   }
+  const vertexKey = process.env.VERTEX_API_KEY?.trim();
+  if (vertexKey && isVertexExpressApiKey(vertexKey)) {
+    return vertexKey;
+  }
   const envKey = process.env.GEMINI_API_KEY?.trim();
+  if (envKey && isVertexExpressApiKey(envKey)) {
+    return envKey;
+  }
   if (
     envKey &&
     envKey.length > 15 &&
-    envKey !== 'your_gemini_api_key_here'
+    envKey !== 'your_gemini_api_key_here' &&
+    process.env.GOOGLE_GENAI_USE_VERTEXAI !== 'true'
   ) {
     return envKey;
   }
@@ -207,25 +218,81 @@ function hasConfiguredGeminiKey(customKey?: string | null): string | null {
   ) {
     return 'VERTEX_AI_ACTIVE';
   }
+  if (envKey && envKey.length > 15 && envKey !== 'your_gemini_api_key_here') {
+    return envKey;
+  }
   return null;
+}
+
+/**
+ * Resolves the active Vertex AI Gemini model name.
+ * In GCP project `startuppreflight`, legacy `gemini-2.5-*` models return 404 on Vertex AI,
+ * while `gemini-3.8-flash` and `gemini-3.5-flash` are provisioned and active.
+ */
+function resolveVertexModelName(requestedModel?: string): string {
+  const override = process.env.VERTEX_GEMINI_MODEL?.trim();
+  if (override) return override;
+  if (!requestedModel || requestedModel.startsWith('gemini-2.5') || requestedModel.startsWith('gemini-2.0') || requestedModel.startsWith('gemini-1.5')) {
+    return 'gemini-3.8-flash';
+  }
+  return requestedModel;
 }
 
 export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
   const useVertex =
     process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' ||
-    process.env.VERTEX_AI === 'true';
+    process.env.VERTEX_AI === 'true' ||
+    isVertexExpressApiKey(activeApiKey) ||
+    isVertexExpressApiKey(process.env.VERTEX_API_KEY) ||
+    isVertexExpressApiKey(process.env.GEMINI_API_KEY);
+
+  // If founder provided a verified AIza... BYOK key from AI Studio, use direct AI Studio client
+  if (activeApiKey && activeApiKey.startsWith('AIza') && process.env.GOOGLE_GENAI_USE_VERTEXAI !== 'true') {
+    return new GoogleGenAI({ apiKey: activeApiKey });
+  }
 
   if (useVertex) {
-    // If founder provided a verified AIza... BYOK key from AI Studio, use direct key
-    if (isValidByokGeminiKey(activeApiKey)) {
-      return new GoogleGenAI({ apiKey: activeApiKey });
-    }
-    // Enterprise Vertex AI (ADC / Cloud Run Service Account)
-    return new GoogleGenAI({
+    const vertexApiKey = activeApiKey && isVertexExpressApiKey(activeApiKey)
+      ? activeApiKey.trim()
+      : isVertexExpressApiKey(process.env.VERTEX_API_KEY)
+        ? process.env.VERTEX_API_KEY!.trim()
+        : isVertexExpressApiKey(process.env.GEMINI_API_KEY)
+          ? process.env.GEMINI_API_KEY!.trim()
+          : null;
+
+    const primaryClient = vertexApiKey
+      ? new GoogleGenAI({ vertexai: true, apiKey: vertexApiKey })
+      : new GoogleGenAI({
+          vertexai: true,
+          project: process.env.GOOGLE_CLOUD_PROJECT || 'startuppreflight',
+          location: process.env.GOOGLE_CLOUD_LOCATION || 'global',
+        });
+
+    const adcGlobalFallbackClient = new GoogleGenAI({
       vertexai: true,
       project: process.env.GOOGLE_CLOUD_PROJECT || 'startuppreflight',
-      location: process.env.GOOGLE_CLOUD_LOCATION || 'europe-west1',
+      location: 'global',
     });
+
+    const originalGenerateContent = primaryClient.models.generateContent.bind(primaryClient.models);
+    const fallbackGenerateContent = adcGlobalFallbackClient.models.generateContent.bind(adcGlobalFallbackClient.models);
+
+    primaryClient.models.generateContent = async (params: any) => {
+      const upgradedParams = {
+        ...params,
+        model: resolveVertexModelName(params?.model),
+      };
+      try {
+        return await originalGenerateContent(upgradedParams);
+      } catch (primaryErr) {
+        if (vertexApiKey) {
+          return await fallbackGenerateContent(upgradedParams);
+        }
+        throw primaryErr;
+      }
+    };
+
+    return primaryClient;
   }
 
   return new GoogleGenAI({ apiKey: activeApiKey || process.env.GEMINI_API_KEY || '' });

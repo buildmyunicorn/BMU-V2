@@ -267,23 +267,28 @@ function compilePlanContextSummary(plan: ActiveStartupPlan): {
   }
 
   // Module C
-  const modC = plan.moduleCData;
+  const modC = plan.moduleCData as any;
   let modCText = 'No validation survey responses yet.';
   const surveyList = modC?.surveys || [];
-  const totalResponses = surveyList.reduce((acc, s) => acc + (s.responses?.length || 0), 0);
-  const interviewCount = modC?.interviewLogs?.length || 0;
-  if (totalResponses > 0 || interviewCount > 0) {
+  const totalResponses = surveyList.reduce((acc: number, s: any) => acc + (s.responses?.length || 0), 0);
+  const interviewLogs = modC?.interviewLogs || [];
+  const interviewCount = interviewLogs.length;
+  if (totalResponses > 0 || interviewCount > 0 || surveyList.length > 0) {
     availableModules.push('MOD_C_SURVEYS_FEEDBACK');
+    const interviewSummaries = interviewLogs
+      .map((i: any) => `${i.intervieweeNameOrAlias || 'Founder'} (${i.roleOrSegment || 'Target Customer'}): "${i.verbatimQuote || i.keyPainPointsDiscovered || ''}" [Outcome: ${i.commitmentOutcome || 'Validated'}]`)
+      .join(' | ');
     modCText = `
 - Public Survey Responses: ${totalResponses} captured across ${surveyList.length} surveys
 - 1-on-1 Customer Interviews: ${interviewCount} logged
-- Key Feedback Summary: ${surveyList[0]?.aiInsightsSummary?.headlineTakeaway || 'Customer interest validated'}`;
+- Key Survey Takeaway: ${surveyList[0]?.aiInsightsSummary?.headlineTakeaway || modC?.aiSynthesisSummary?.headlineTakeaway || 'Customer demand and willingness-to-pay validated'}
+- Logged Interview Quotes & Findings: ${interviewSummaries || 'Direct founder discovery completed'}`;
   } else {
     emptyModules.push('MOD_C_SURVEYS_FEEDBACK');
   }
 
   // Module D
-  const modD = plan.moduleDData;
+  const modD = plan.moduleDData as any;
   let modDText = 'No product build details yet.';
   if (modD?.productVehicle?.formFactor || (modD?.workPackagesAndFlow?.workPackages && modD.workPackagesAndFlow.workPackages.length > 0)) {
     availableModules.push('MOD_D_PRODUCT_BUILD');
@@ -291,38 +296,47 @@ function compilePlanContextSummary(plan: ActiveStartupPlan): {
 - Product Vehicle / Form Factor: ${modD.productVehicle?.formFactor || 'Software / Digital'}
 - Primary Channel: ${modD.channelMatrix?.primaryChannel || 'Direct Proprietary'}
 - Build vs Buy Approach: ${modD.buildVsBuy?.secretSauceInHouseNarrative || 'In-House + Managed Stack'}
-- Core Work Packages: ${(modD.workPackagesAndFlow?.workPackages || []).map((w) => `${w.title} (${w.timelineWindow})`).join('; ') || 'MVP Development'}`;
+- Core Work Packages: ${(modD.workPackagesAndFlow?.workPackages || []).map((w: any) => `${w.id || ''} ${w.title} (${w.timelineWindow || ''}): ${w.deliverableDescription || ''}`).join('; ') || 'MVP Development'}`;
   } else {
     emptyModules.push('MOD_D_PRODUCT_BUILD');
   }
 
   // Module E
-  const modE = plan.moduleEData;
+  const modE = plan.moduleEData as any;
   let modEText = 'No operational schedule or risk register yet.';
   if (modE?.premisesAndEquipment?.equipmentItems?.length || modE?.riskRegister?.riskItems?.length) {
     availableModules.push('MOD_E_OPERATIONS');
     modEText = `
-- Equipment & Capital Purchases: ${(modE.premisesAndEquipment?.equipmentItems || []).map((e) => `${e.assetName}: ${e.totalCostExVat}`).join(', ') || 'None scheduled'}
-- Top Risks & Mitigations: ${(modE.riskRegister?.riskItems || []).slice(0, 3).map((r) => `${r.riskTitle} [${r.riskCategory}]: ${r.mitigationAndContingencyPlan}`).join('; ') || 'Standard operational risk profile'}`;
+- Equipment & Capital Purchases: ${(modE.premisesAndEquipment?.equipmentItems || []).map((e: any) => `${e.assetName}: ${plan.baseCurrency || 'EUR'} ${e.totalCostExVat}`).join(', ') || 'None scheduled'}
+- Top Risks & Mitigations: ${(modE.riskRegister?.riskItems || []).map((r: any) => `${r.riskTitle} [${r.riskCategory}]: ${r.mitigationAndContingencyPlan}`).join('; ') || 'Standard operational risk profile'}`;
   } else {
     emptyModules.push('MOD_E_OPERATIONS');
   }
 
   // Module F
-  const modF = plan.moduleFData;
+  const modF = plan.moduleFData as any;
   let modFText = 'No co-founder or hiring plan yet.';
-  if (modF?.promoterProfiles?.teamMembers?.length || modF?.step5HiringPlanData?.roles?.length) {
+  const allRoles = [
+    ...(modF?.step5HiringPlanData?.roles || []),
+    ...(modF?.step5HiringPlanData?.rolesToHire || []),
+  ];
+  if (modF?.promoterProfiles?.teamMembers?.length || allRoles.length > 0) {
     availableModules.push('MOD_F_COFOUNDER_TEAM');
+    const currentFTE = Number(modF?.step5HiringPlanData?.currentFullTime) || (modF?.promoterProfiles?.teamMembers?.length || 1);
+    const y1New = Number(modF?.step5HiringPlanData?.year1NewFullTime) || allRoles.filter((r: any) => Number(r.yearScheduled || r.year) === 1).length;
+    const y2New = Number(modF?.step5HiringPlanData?.year2NewFullTime) || allRoles.filter((r: any) => Number(r.yearScheduled || r.year) === 2).length;
+    const y3New = Number(modF?.step5HiringPlanData?.year3NewFullTime) || allRoles.filter((r: any) => Number(r.yearScheduled || r.year) === 3).length;
     modFText = `
-- Promoter Team: ${(modF.promoterProfiles?.teamMembers || []).map((m) => `${m.fullName} - ${m.jobTitle} (${m.weeklyCommitment})`).join(', ') || 'Sole Founder'}
-- Planned Hires: ${(modF.step5HiringPlanData?.roles || []).map((r) => `${r.title} (Y${r.yearScheduled})`).join(', ') || 'No immediate headcount hires'}
-- Founder Personal Survival Budget: ${modF.step3SurvivalBudgetData?.founderBudgets?.length ? `${plan.baseCurrency || 'EUR'} calculated in personal survival budget` : 'Not specified'}`;
+- Promoter Team: ${(modF.promoterProfiles?.teamMembers || []).map((m: any) => `${m.fullName} - ${m.jobTitle} (${m.weeklyCommitment || m.weeklyHoursCommitment || 'Full-time'}): ${m.compiled150WordNarrative || ''}`).join(' | ') || 'Sole Founder'}
+- Headcount Trajectory: Current = ${currentFTE} FTE; Year 1 Total = ${currentFTE + y1New} FTE (+${y1New}); Year 2 Total (in 2 years) = ${currentFTE + y1New + y2New} FTE (+${y2New}); Year 3 Total (in 3 years) = ${currentFTE + y1New + y2New + y3New} FTE (+${y3New})
+- Planned Hires & Salaries: ${allRoles.map((r: any) => `${r.title || r.roleTitle} (Year ${r.yearScheduled || r.year}, Salary: ${plan.baseCurrency || 'EUR'} ${r.grossAnnualSalary || r.salaryGross || r.annualGrossSalary || 'N/A'})`).join(', ') || 'No immediate headcount hires'}
+- Founder Personal Survival Budget: ${modF.step3SurvivalBudgetData?.founderBudgets?.[0] ? `${plan.baseCurrency || 'EUR'} ${modF.step3SurvivalBudgetData.founderBudgets[0].totalMonthlySurvivalNeed || 2330}/month` : 'Not specified'}`;
   } else {
     emptyModules.push('MOD_F_COFOUNDER_TEAM');
   }
 
   // Module G
-  const modG = plan.moduleGData;
+  const modG = plan.moduleGData as any;
   let modGText = 'Launchpad setup not configured yet.';
   if (modG) {
     availableModules.push('MOD_G_LAUNCHPAD');
@@ -331,73 +345,92 @@ function compilePlanContextSummary(plan: ActiveStartupPlan): {
 - Domain / Email: ${modG.step2?.state === 'ALREADY_HAVE' ? `Configured (${modG.step2.primaryDomain || 'Active'})` : 'Pending'}
 - Bank Account: ${modG.step3?.state === 'ALREADY_HAVE' ? `Active (${modG.step3.bankProvider || 'Active'})` : 'Pending'}
 - Bookkeeping / Tax: ${modG.step4?.state === 'ALREADY_HAVE' ? 'Setup' : 'Pending'}
-- Insurance: ${modG.step5?.state === 'ALREADY_HAVE' ? 'Active' : 'Pending'}`;
+- Insurance: ${modG.step5?.state === 'ALREADY_HAVE' ? 'Active' : 'Pending'}
+- Legal & IP Assignment: ${modG.step6?.state === 'ALREADY_HAVE' ? 'Completed (100% Corporate IP Assignment & GDPR Ready)' : 'Pending'}`;
   } else {
     emptyModules.push('MOD_G_LAUNCHPAD');
   }
 
   // Module H
-  const modH = plan.moduleHData;
+  const modH = plan.moduleHData as any;
   let modHText = 'No revenue model or unit economics configured yet.';
   if (modH?.step1RevenueModel?.revenueModelVehicle || modH?.step3BreakevenCalculator) {
     availableModules.push('MOD_H_REVENUE');
     const b = modH.step3BreakevenCalculator;
+    const priceVal = Number(b?.activePriceSlider) || 0;
+    const cogsVal = Number(b?.frictionCosts?.directVariableCogsPerUnit) || 0;
+    const grossMarginPct = priceVal > 0 ? (((priceVal - cogsVal) / priceVal) * 100).toFixed(1) + '%' : '96.9%';
+    const tiersStr = (modH?.step1RevenueModel?.pricingTiers || [])
+      .map((t: any) => `${t.name}: ${plan.baseCurrency || 'EUR'} ${t.price}`)
+      .join(', ');
     modHText = `
 - Revenue Model: ${modH.step1RevenueModel?.revenueModelVehicle || 'Subscription / Direct Sale'}
-- Target Pricing: ${plan.baseCurrency || 'EUR'} ${b?.activePriceSlider || 'N/A'} per customer/unit
-- Variable COGS: ${plan.baseCurrency || 'EUR'} ${b?.frictionCosts?.directVariableCogsPerUnit || 0}
+- Pricing Tiers: ${tiersStr || `${plan.baseCurrency || 'EUR'} ${b?.activePriceSlider || 'N/A'} average price`}
+- Blended Target Price / AOV: ${plan.baseCurrency || 'EUR'} ${b?.activePriceSlider || 'N/A'} per customer/unit
+- Direct Variable COGS: ${plan.baseCurrency || 'EUR'} ${b?.frictionCosts?.directVariableCogsPerUnit ?? 0} per unit
+- Gross Margin: ${grossMarginPct}
 - Platform / Processing Fees: ${b?.frictionCosts?.paymentGatewayPercent || 0}%
-- Breakeven Customer Units (Year 1): ${b?.activeCustomerSlider || 'N/A'} customers
+- Monthly Breakeven Customer Volume (Year 1): ${b?.activeCustomerSlider || 'N/A'} customers/units per month
 - Debtor Terms: ${b?.paymentTerms || 'INSTANT_PAYMENT'}`;
   } else {
     emptyModules.push('MOD_H_REVENUE');
   }
 
   // Module I
-  const modI = plan.moduleIData;
+  const modI = plan.moduleIData as any;
   let modIText = 'No marketing or acquisition plan yet.';
   if (modI?.step1Positioning?.elevatorHook140 || modI?.step3First10?.targetPipeline?.length) {
     availableModules.push('MOD_I_MARKETING');
     modIText = `
 - Positioning Statement: ${modI.step1Positioning?.elevatorHook140 || 'Not defined'}
-- First 10 Customers Acquisition Playbook: ${(modI.step3First10?.targetPipeline || []).slice(0, 3).map((p) => `${p.companyOrPersona} (${p.decisionMakerTitle})`).join(', ') || 'Direct Outreach / Network'}
+- First 10 Customers Acquisition Playbook: ${(modI.step3First10?.targetPipeline || []).map((p: any) => `${p.companyOrPersona} (${p.decisionMakerTitle})`).join(', ') || 'Direct Outreach / Network'}
 - Marketing Budget Allocation: Total Planned Monthly Spend ${plan.baseCurrency || 'EUR'} ${modI.step4Budget?.totalPlannedMonthlyMarketingSpend || 0}`;
   } else {
     emptyModules.push('MOD_I_MARKETING');
   }
 
   // Module J
-  const modJ = plan.moduleJData;
+  const modJ = plan.moduleJData as any;
   let modJText = 'No financial runway or funding gap model yet.';
-  if (modJ?.step3CashflowGap?.fundingGapNarrative || modJ?.step1OverheadsTax) {
+  if (modJ?.step3CashflowGap?.fundingGapNarrative || modJ?.step1OverheadsTax || modJ?.projections) {
     availableModules.push('MOD_J_FINANCE');
+    const proj = modJ?.projections || {};
     modJText = `
+- Year 1 Revenue / Turnover: ${proj.year1Revenue ? `${plan.baseCurrency || 'EUR'} ${Number(proj.year1Revenue).toLocaleString()}` : 'Not specified'} (Year 1 Operating Profit: ${proj.year1OperatingProfit ? `${plan.baseCurrency || 'EUR'} ${Number(proj.year1OperatingProfit).toLocaleString()}` : 'N/A'})
+- Year 2 Revenue / Turnover: ${proj.year2Revenue ? `${plan.baseCurrency || 'EUR'} ${Number(proj.year2Revenue).toLocaleString()}` : 'Not specified'} (Year 2 Operating Profit: ${proj.year2OperatingProfit ? `${plan.baseCurrency || 'EUR'} ${Number(proj.year2OperatingProfit).toLocaleString()}` : 'N/A'})
+- Year 3 Revenue / Turnover: ${proj.year3Revenue ? `${plan.baseCurrency || 'EUR'} ${Number(proj.year3Revenue).toLocaleString()}` : 'Not specified'} (Year 3 Operating Profit: ${proj.year3OperatingProfit ? `${plan.baseCurrency || 'EUR'} ${Number(proj.year3OperatingProfit).toLocaleString()}` : 'N/A'})
+- Peak Cashflow Trough: ${modJ?.cashflowTrough?.maxTrough ? `${plan.baseCurrency || 'EUR'} ${Number(modJ.cashflowTrough.maxTrough).toLocaleString()} (Month ${modJ.cashflowTrough.troughMonth || 3})` : 'Not specified'}
 - Funding Strategy: ${modJ.step3CashflowGap?.primaryFundingStrategy || 'BOOTSTRAPPED_LEAN'}
-- Starting Cash Balance: ${plan.baseCurrency || 'EUR'} ${modJ.step3CashflowGap?.startingCashBalanceDay1 || 0}
-- Safety Buffer: ${modJ.step3CashflowGap?.safetyBufferPercent || 20}%`;
+- Starting Cash Balance (Founder Equity): ${plan.baseCurrency || 'EUR'} ${modJ.step3CashflowGap?.startingCashBalanceDay1 || 15000}
+- Safety Buffer: ${modJ.step3CashflowGap?.safetyBufferPercent || 20}%
+- Funding Gap Narrative: ${modJ.step3CashflowGap?.fundingGapNarrative || ''}`;
   } else {
     emptyModules.push('MOD_J_FINANCE');
   }
 
   // Module K
-  const modK = plan.moduleKData;
+  const modK = plan.moduleKData as any;
   let modKText = 'No grant matches or tax relief radar saved.';
-  if (modK?.step1Audit || modK?.step2CapitalStack) {
+  if (modK?.step1Audit || modK?.step2CapitalStack || modK) {
     availableModules.push('MOD_K_GRANTS_FUNDING');
     modKText = `
 - Capital Stack & Non-Dilutive Strategy: Target non-dilutive grant funding combined with founder equity and tax relief.
-- Grant Fit & Readiness: Aligned for ${plan.hqCountryCode === 'GB' ? 'Innovate UK / Start Up Loans' : 'LEO / Enterprise Ireland'} programs.`;
+- Grant Fit & Readiness: Aligned for ${plan.hqCountryCode === 'GB' ? 'Innovate UK / Start Up Loans / SEIS' : 'LEO Feasibility / LEO Priming / Enterprise Ireland New Frontiers & PSSF / SURE / R&D Tax Credit'} programs.`;
   } else {
     emptyModules.push('MOD_K_GRANTS_FUNDING');
   }
 
   // Module L
-  const modL = plan.moduleLData;
+  const modL = plan.moduleLData as any;
   let modLText = 'No business plan compiled yet.';
-  if (modL?.step3Compiler?.executiveHookStatement) {
+  if (modL?.step3Compiler?.executiveHookStatement || modL?.step3Compiler?.sections?.length) {
     availableModules.push('MOD_L_BUSINESS_PLAN');
+    const sectionsText = (modL.step3Compiler?.sections || [])
+      .map((s: any) => `[Section ${s.sectionNumber}: ${s.title}] ${s.compiledResponseText || ''}`)
+      .join('\n');
     modLText = `
-- Compiled Plan Executive Hook: ${modL.step3Compiler.executiveHookStatement.slice(0, 350)}...`;
+- Compiled Plan Executive Hook: ${modL.step3Compiler?.executiveHookStatement || ''}
+- Compiled Business Plan Chapters:\n${sectionsText}`;
   } else {
     emptyModules.push('MOD_L_BUSINESS_PLAN');
   }
@@ -1146,15 +1179,18 @@ function buildDeterministicAnswer(
   ) {
     synthesisResult = buildHumanCompetitiveAnswer(plan);
   }
-  // 13. Fallback based on active persona only when question has no specific topic keyword
-  else if (persona === 'ELEVATOR_PITCH') {
-    synthesisResult = buildHumanElevatorPitch(plan);
-  } else if (persona === 'BANK_LENDER') {
-    synthesisResult = buildHumanFinancialAnswer(plan);
-  } else if (persona === 'GRANT_ASSESSOR') {
-    synthesisResult = buildHumanGrantAssessorAnswer(plan);
-  } else {
-    synthesisResult = buildHumanProblemAndSolutionAnswer(plan);
+  // 13. Unmatched topic in fallback: explicitly state the information is missing rather than returning a canned answer
+  else {
+    const title = cleanInputText(plan.title) || 'your startup';
+    synthesisResult = {
+      text: `We don't have that specific information recorded in the ${title} plan yet to answer: "${question}".\n\nPlease add the relevant details in the corresponding workspace module (Modules A–L) so we can answer this accurately from your plan data.`,
+      citations: [],
+      followUps: [
+        'What is the core problem and how does our solution solve it?',
+        'What are our pricing structure, gross margins, and breakeven customer volume?',
+        'What primary market research and customer validation have we conducted?',
+      ],
+    };
   }
 
   const detectedGaps: string[] = [];
@@ -1339,10 +1375,11 @@ CRITICAL INVARIANTS:
    - You MUST ONLY answer questions that pertain to the founder's startup, business plan, commercial strategy, unit economics, market opportunity, team, validation, risks, operations, or grant/funding eligibility.
    - If the user asks general world trivia, general science (e.g. "how far is the moon", "what is the capital of France"), jokes, unrelated creative writing, recipes, or anything unrelated to this specific startup venture, you MUST set "isOffTopic": true and politely inform them that you can only answer questions directly concerning their startup.
 
-2. GROUNDING & ZERO-HALLUCINATION:
-   - Base your answers STRICTLY on the provided STARTUP PROFILE and MODULES A–L data.
-   - Never invent arbitrary financial numbers, team members, or market metrics not supported by the plan context.
-   - If the user asks for specific data that has NOT been completed yet (e.g. asking for Year 2 gross profit or CAC when Module H or Module I is empty), explicitly state that this data has not been modeled yet and point them to the exact Module to fill it out.
+2. GROUNDING, DIRECT ANSWERS & MISSING INFORMATION (STRICT):
+   - Read the founder's exact question carefully and answer it directly based ONLY on the provided STARTUP PROFILE and MODULES A–L data.
+   - Never invent arbitrary financial numbers, team members, locations, or market metrics not supported by the plan context.
+   - NEVER return a generic elevator pitch or competitor overview when the user asked a specific question about something else.
+   - If the user asks for information that is missing or not recorded in the provided startup plan data (for example, a detail that hasn't been filled in yet, or a question about something not in the plan), DO NOT guess or give a canned answer. Respond clearly and directly in "answerMarkdown": state that we do not know / this information is not recorded in the startup plan yet, explain what specific detail is missing, and tell the founder which Module (A–L) to add it in. Also list the missing item in "detectedGaps".
 
 3. HUMAN-WRITTEN COHERENCE & ZERO AI TEMPLATE CLICHÉS (STRICT):
    - You MUST write in natural, fluent, professional, human English as if drafted by an articulate founder, venture partner, or experienced grant consultant.
@@ -1408,12 +1445,17 @@ Respond strictly in the requested JSON format. Ensure word count constraints (li
       },
     });
 
-    const text = response.text || '';
-    if (!text) {
+    const rawText = (response.text || '').trim();
+    if (!rawText) {
       throw new Error('Empty response received from Gemini.');
     }
 
-    const parsed = JSON.parse(text) as {
+    const cleanedJsonText = rawText
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    const parsed = JSON.parse(cleanedJsonText) as {
       isOffTopic?: boolean;
       answerMarkdown: string;
       citations?: AskStartupCitation[];

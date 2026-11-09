@@ -494,8 +494,8 @@ Registration of the ${metrics.title} brand name, logo, and digital domain assets
 Platform data, customer survey logs, and financial projections are isolated through strict row-level tenant security, AES-256-GCM encryption at rest, and zero client-side credential exposure.`;
   }
 
-  // Default: Problem & Solution Overview
-  else {
+  // 12. Problem, Solution, Business Idea & Executive Overview Intent
+  else if (/problem|solution|business\s*idea|describe\s*(your|the|my|our)\s*(business|startup|product|venture|company)|executive\s*summary|overview|what\s*do\s*(you|we)\s*do|value\s*proposition|150\s*word|pitch/i.test(qLower)) {
     citations.push('Module A (Concept Canvas)');
     citations.push('Module L (Executive Summary)');
 
@@ -515,6 +515,11 @@ Platform data, customer survey logs, and financial projections are isolated thro
     }
 
     answer = `1. The Core Problem:\n${cleanProblem}. Today, founders are forced to choose between generic AI chatbots that hallucinate financial figures, complex 40-tab spreadsheets, or expensive boutique consultants charging €3,000–€7,000 upfront.\n\n2. How ${metrics.title} Solves It:\nBuilt specifically for ${cleanCustomer.charAt(0).toLowerCase() + cleanCustomer.slice(1)}, ${metrics.title} is ${cleanOneLiner.charAt(0).toLowerCase() + cleanOneLiner.slice(1)}. Founders are guided step-by-step across 12 structured modules—from Mom Test customer surveys (Module C) and visual Pocket Profit breakeven modeling (Module H) to automated Irish LEO and UK Innovate UK compliance checks (Modules K & L).\n\n3. Commercial & Underwriting Fit:\n${lensContext}`;
+  }
+
+  // Unmatched question in fallback: explicitly state that the information is missing from the plan
+  else {
+    answer = `We don't have that specific information recorded in the ${metrics.title} startup plan yet to answer: "${questionText}".\n\nPlease add the relevant details in the corresponding workspace module (Modules A–L) so we can generate a verified answer directly from your plan data.`;
   }
 
   return {
@@ -718,7 +723,9 @@ CRITICAL RULES FOR ACCURACY AND TONE:
    - Write in confident, articulate, professional, natural English as if written by an experienced founder or grant consultant.
    - Avoid robotic AI clichés like "We address a core friction: [X] facing [Y]".
    - Write in first-person plural ("We", "Our venture", "${metrics.title}").
-3. ACCURACY & EVIDENCE:
+3. ACCURACY, EVIDENCE & MISSING DATA MANDATE:
+   - Base your answer STRICTLY on the STARTUP PLAN STRUCTURED FACTS provided above. Never invent arbitrary numbers, locations, or roles not supported by the plan.
+   - If the portal question asks for specific information that is missing or not recorded in the startup plan data, DO NOT guess and DO NOT return a generic overview. State clearly in "answerText" that we do not know / this specific information is not recorded in the startup plan yet, explain what detail is missing, and tell the founder which Module (A–L) to add it in. Also list it in "missingDataWarnings".
    - Cite the exact module sources where the facts originate.
 4. Output valid JSON matching this schema:
 {
@@ -740,8 +747,11 @@ CRITICAL RULES FOR ACCURACY AND TONE:
       },
     });
 
-    const responseText = response.text?.trim() || '{}';
-    const parsed = JSON.parse(responseText);
+    const rawResponseText = (response.text?.trim() || '{}')
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+    const parsed = JSON.parse(rawResponseText);
 
     const savedQ: SavedCustomPortalQuestion = {
       id: `cq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
