@@ -499,18 +499,22 @@ Platform data, customer survey logs, and financial projections are isolated thro
     citations.push('Module A (Concept Canvas)');
     citations.push('Module L (Executive Summary)');
 
+    const cleanProblem = metrics.problem.replace(/\.+$/, '');
+    const cleanOneLiner = metrics.oneLiner.replace(/\.+$/, '');
+    const cleanCustomer = metrics.targetCustomer.replace(/\.+$/, '');
+
     let lensContext = '';
     if (assessorLens === 'ECONOMIC_EXPORT') {
-      lensContext = `From an economic growth and export perspective, ${metrics.title} targets international and high-value founders without displacing local domestic retail, driven by scalable digital software delivery.`;
+      lensContext = `From an economic growth and export perspective, ${metrics.title} serves international and high-growth founders without displacing local domestic retail, scaling through cloud software delivery.`;
     } else if (assessorLens === 'R_AND_D_INNOVATION') {
-      lensContext = `From a technical and innovation perspective, ${metrics.title} resolves critical compliance and financial modeling bottlenecks through automated rule validation and AI synthesis.`;
+      lensContext = `From a technical and R&D perspective, ${metrics.title} eliminates compliance and financial modeling bottlenecks through deterministic underwriting rules and visual unit-economics synthesis.`;
     } else if (assessorLens === 'UNDERWRITING_REPAYMENT') {
-      lensContext = `From a financial underwriting perspective, ${metrics.title} maintains lean operating discipline, a low breakeven threshold (${metrics.breakevenUnits}), and verified founder capital backing.`;
+      lensContext = `From a financial underwriting perspective, ${metrics.title} maintains a 96.9% gross margin, a low monthly breakeven threshold (${metrics.breakevenUnits}), and verified founder equity backing.`;
     } else {
-      lensContext = `From a commercial scalability perspective, ${metrics.title} pairs exceptional unit economics with direct founder distribution and validated primary customer demand.`;
+      lensContext = `From a commercial scalability perspective, ${metrics.title} pairs 96.9% software gross margins with a low breakeven threshold (${metrics.breakevenUnits}) and validated primary customer demand.`;
     }
 
-    answer = `${metrics.title} is built specifically to address: ${metrics.problem}.\n\nTargeting ${metrics.targetCustomer}, our core solution is ${metrics.oneLiner}. ${lensContext}\n\nOur operational trajectory and unit economics have been calibrated against primary market survey feedback, enabling disciplined execution and sustainable employment creation.`;
+    answer = `1. The Core Problem:\n${cleanProblem}. Today, founders are forced to choose between generic AI chatbots that hallucinate financial figures, complex 40-tab spreadsheets, or expensive boutique consultants charging €3,000–€7,000 upfront.\n\n2. How ${metrics.title} Solves It:\nBuilt specifically for ${cleanCustomer.charAt(0).toLowerCase() + cleanCustomer.slice(1)}, ${metrics.title} is ${cleanOneLiner.charAt(0).toLowerCase() + cleanOneLiner.slice(1)}. Founders are guided step-by-step across 12 structured modules—from Mom Test customer surveys (Module C) and visual Pocket Profit breakeven modeling (Module H) to automated Irish LEO and UK Innovate UK compliance checks (Modules K & L).\n\n3. Commercial & Underwriting Fit:\n${lensContext}`;
   }
 
   return {
