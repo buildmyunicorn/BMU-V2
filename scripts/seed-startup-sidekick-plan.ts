@@ -178,7 +178,7 @@ async function seedStartupSidekick() {
     userId: thomas.id,
     invitedEmail: thomas.email,
     inviteAccepted: true,
-    role: 'FOUNDER',
+    role: 'OWNER',
     promoterBackgroundProfileJson: {
       educationAndQualifications: 'B.Sc. in Computer Science & Software Engineering. Advanced training in full-stack cloud systems, distributed databases, and product UX.',
       relevantTrainingCourses: 'Local Enterprise Office Start Your Own Business (SYOB) Programme, Enterprise Ireland New Frontiers Phase 1 Workshops.',
@@ -226,11 +226,12 @@ async function seedStartupSidekick() {
     .values({
       planId: newPlan.id,
       title: 'Early-Stage Founder Validation & Grant Hurdles Survey',
-      slug: `startup-sidekick-founder-survey-${Date.now().toString(36)}`,
-      focusArea: 'PROBLEM_AND_PAIN',
-      targetAudience: 'Pre-incorporation and early-stage founders in Ireland & the UK applying for grants or pre-seed funding',
-      isPublic: true,
-      questions: [
+      publicSlug: `startup-sidekick-founder-survey-${Date.now().toString(36)}`,
+      introDescription: 'Help us de-risk startup planning and fix the grant consultant racket for early-stage founders.',
+      isActive: true,
+      collectLeadEmails: true,
+      waitlistIncentiveText: 'Get early access to Startup Sidekick + free pre-flight grant checklist',
+      questionsJsonb: [
         {
           id: 'q1',
           questionText: 'When working on your business plan or grant application, what has been your single biggest operational headache?',
@@ -295,54 +296,54 @@ async function seedStartupSidekick() {
           momTestPassed: true,
         },
       ],
-      responses: [],
-      outreachTemplates: {
-        linkedInPost: 'Fellow founders: after watching yet another great team get rejected for a LEO Feasibility grant because of easily avoidable spreadsheet errors and ineligible equipment line items, we built Startup Sidekick. We are stress-testing the flight simulator—would love 3 mins of your honest feedback!',
-        coldEmail: 'Subject: Quick question on your LEO/Innovate UK grant experience\n\nHi [Name],\n\nSaw you are building [Startup] in Dublin. I’m an engineer working on a tool to help founders bypass the €5k grant consultant racket and build audit-proof business plans without spreadsheets.\n\nCould I ask 3 quick questions about your biggest headache with financial forecasts?\n\nBest,\nThomas',
-        whatsappOrDm: 'Hey! Quick favor—building a founder operating system that cuts out the BS in grant applications and financial models. Mind taking 2 mins on this Mom Test survey? Would mean the world: [Link]',
+      outreachTemplatesJsonb: {
+        linkedinDm: 'Fellow founders: after watching yet another great team get rejected for a LEO Feasibility grant because of easily avoidable spreadsheet errors and ineligible equipment line items, we built Startup Sidekick. We are stress-testing the flight simulator—would love 3 mins of your honest feedback!',
+        coldEmailSubject: 'Quick question on your LEO/Innovate UK grant experience',
+        coldEmailBody: 'Hi [Name],\n\nSaw you are building [Startup] in Dublin. I’m an engineer working on a tool to help founders bypass the €5k grant consultant racket and build audit-proof business plans without spreadsheets.\n\nCould I ask 3 quick questions about your biggest headache with financial forecasts?\n\nBest,\nThomas',
+        whatsappBlurb: 'Hey! Quick favor—building a founder operating system that cuts out the BS in grant applications and financial models. Mind taking 2 mins on this Mom Test survey? Would mean the world: [Link]',
       },
-      interviewLogs: [
+      interviewLogsJsonb: [
         {
           id: 'int-1',
           intervieweeNameOrRole: 'Cian Kelly (Founder, MedTech IoT Devices, Galway)',
-          dateConducted: '2026-01-20',
-          channelsUsed: 'Google Meet',
-          rawNotesOrTranscript: 'Cian applied for LEO Feasibility in September. Spent €3,800 on a Dublin grant writer who delivered a 48-page Word doc. The assessor tore it apart in 10 minutes because the cashflow had circular formulas and included iPads which are excluded from LEO equipment claims. Cian said: "If I had a tool that literally gave me a red alert saying \'You cannot claim mobile laptops/iPads in LEO Section 6\', it would have saved me 4 months of wasted time."',
-          extractedInsights: {
-            coreFrustrations: ['Grant writers who don\'t understand technical products', 'Ineligible equipment rejections', 'Circular financial spreadsheets'],
-            currentWorkarounds: ['Paying expensive external consultants', 'Late night Excel surgery'],
-            budgetOrSpendHistory: 'Spent €3,800 out-of-pocket on consulting with zero grant outcome.',
-            actionableFeatureRequests: ['Instant red-flag audit against official LEO rules', 'Interactive Pocket Profit breakeven engine without spreadsheets'],
-          },
+          date: '2026-01-20',
+          channel: 'ZOOM_VIDEO',
+          painScore1To5: 5,
+          commitmentOutcome: 'ASKED_TO_PILOT_OR_BUY',
+          rawNotes: 'Cian applied for LEO Feasibility in September. Spent €3,800 on a Dublin grant writer who delivered a 48-page Word doc. The assessor tore it apart in 10 minutes because the cashflow had circular formulas and included iPads which are excluded from LEO equipment claims.',
+          keyTakeaway: 'Excluding laptops/mobile hardware and validating cashflow integrity are critical must-haves for founders.',
+          verbatimQuote: 'If I had a tool that literally gave me a red alert saying "You cannot claim mobile laptops/iPads in LEO Section 6", it would have saved me 4 months of wasted time.',
+          workaroundAndSpend: 'Spent €3,800 out-of-pocket on consulting with zero grant outcome.',
+          signalBadge: 'STRONG_SIGNAL',
         },
         {
           id: 'int-2',
           intervieweeNameOrRole: 'Aisling Murphy (Co-Founder, Sustainable Packaging SaaS, Dublin)',
-          dateConducted: '2026-01-28',
-          channelsUsed: 'In-person at Dogpatch Labs',
-          rawNotesOrTranscript: 'Aisling and her technical co-founder had a major falling out 6 months in because they never agreed on salary expectations or equity vesting. She assumed they were both working 50 hours a week for free; he needed €2,500/month after month 3 to pay his mortgage. Aisling loved the Blind-Reveal Co-Founder Alignment idea: "Nobody wants to ask the awkward questions out loud. If the software forces both of us to answer secretly and only reveals the heat-map when both submit, that saves startups from imploding."',
-          extractedInsights: {
-            coreFrustrations: ['Awkward co-founder financial conversations', 'Mismatched personal runways', 'Unspoken vesting expectations'],
-            currentWorkarounds: ['Avoided talking about it until cash ran out'],
-            budgetOrSpendHistory: 'Lost 4 months of engineering momentum due to co-founder split.',
-            actionableFeatureRequests: ['12 Awkward Co-Founder Questions Engine', 'Personal survival budget calculator'],
-          },
+          date: '2026-01-28',
+          channel: 'IN_PERSON_COFFEE',
+          painScore1To5: 5,
+          commitmentOutcome: 'SHARED_DEEP_WORKFLOW_PAIN',
+          rawNotes: 'Aisling and her technical co-founder had a major falling out 6 months in because they never agreed on salary expectations or equity vesting. She assumed they were both working 50 hours a week for free; he needed €2,500/month after month 3 to pay his mortgage.',
+          keyTakeaway: 'Blind-reveal co-founder alignment prevents fatal team fallouts before incorporation.',
+          verbatimQuote: 'Nobody wants to ask the awkward questions out loud. If the software forces both of us to answer secretly and only reveals the heat-map when both submit, that saves startups from imploding.',
+          workaroundAndSpend: 'Lost 4 months of engineering momentum due to co-founder split.',
+          signalBadge: 'STRONG_SIGNAL',
         },
         {
           id: 'int-3',
           intervieweeNameOrRole: 'Dr. Liam O’Connor (Programme Director, University Spinout Accelerator)',
-          dateConducted: '2026-02-04',
-          channelsUsed: 'Zoom call',
-          rawNotesOrTranscript: 'Liam oversees 24 spinout teams a year. "The biggest drain on our mentors is reading terrible, contradictory first drafts of business plans where Section 2 says they are B2B enterprise and Section 8 has a €19/month consumer Stripe button. We would happily pay €3,000 to €5,000 per cohort to give all 24 founders access to Startup Sidekick so they arrive at mentor sessions with clean, coherent numbers."',
-          extractedInsights: {
-            coreFrustrations: ['Mentors spending hours fixing basic financial and narrative inconsistencies', 'Founders lacking commercial reality on sales cycles'],
-            currentWorkarounds: ['Mentors marking up Word documents by hand'],
-            budgetOrSpendHistory: 'Accelerator spends €20k/year on external financial modeling workshops.',
-            actionableFeatureRequests: ['Cohort progress dashboard', 'Exportable standard grant appendices binder'],
-          },
-        ],
-      },
-      aiInsightsSummary: {
+          date: '2026-02-04',
+          channel: 'ZOOM_VIDEO',
+          painScore1To5: 4,
+          commitmentOutcome: 'ASKED_TO_PILOT_OR_BUY',
+          rawNotes: 'Liam oversees 24 spinout teams a year. Mentors spend excessive time marking up messy, contradictory business plans where revenue models do not match unit pricing.',
+          keyTakeaway: 'University accelerators are eager to license cohort seats at €2.5k–€5k per batch.',
+          verbatimQuote: 'We would happily pay €3,000 to €5,000 per cohort to give all 24 founders access to Startup Sidekick so they arrive at mentor sessions with clean, coherent numbers.',
+          workaroundAndSpend: 'Accelerator spends €20k/year on external financial modeling workshops.',
+          signalBadge: 'STRONG_SIGNAL',
+        },
+      ],
+      aiInsightsSummaryJsonb: {
         totalResponsesCount: 8,
         analyzedAt: nowIso,
         topThreePainThemes: [
@@ -364,93 +365,93 @@ async function seedStartupSidekick() {
   // Insert realistic survey responses
   const sampleResponses = [
     {
-      answers: {
+      answersJsonb: {
         q1: { selectedOption: 'Dread of building financial projections & cashflow forecasts in Excel' },
         q2: { selectedOption: '€500 – €2,500 (accountants for forecasts, small freelance reviews)' },
         q3: { selectedOption: 'No, we pulled our prices from competitor websites or guessed' },
         q4: { scaleValue: 2 },
         q5: { selectedOption: '€199 – €249 (Co-Founder Pass with multi-seat alignment interviews)' },
       },
-      respondentNameOrRole: 'Tech Founder, B2B SaaS (Cork)',
+      respondentEmail: 'ciara.founder@dublintech.ie',
       joinedWaitlist: true,
-      isSimulated: false,
-      submittedAt: new Date(Date.now() - 86400000 * 6).toISOString(),
+      source: 'ORGANIC',
+      submittedAt: new Date(Date.now() - 86400000 * 6),
     },
     {
-      answers: {
+      answersJsonb: {
         q1: { selectedOption: 'Paying €3k–€8k to grant consultants who write generic AI-generated fluff' },
         q2: { selectedOption: '€2,500 – €7,500+ (professional grant writers or advisory consultancies)' },
         q3: { selectedOption: 'We asked friends and family (who told us it sounded great)' },
         q4: { scaleValue: 1 },
         q5: { selectedOption: '€99 – €149 one-off (Solo Founder Pass)' },
       },
-      respondentNameOrRole: 'D2C Consumer Goods Founder (Dublin)',
+      respondentEmail: 'mark@corkartisans.com',
       joinedWaitlist: true,
-      isSimulated: false,
-      submittedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+      source: 'ORGANIC',
+      submittedAt: new Date(Date.now() - 86400000 * 5),
     },
     {
-      answers: {
+      answersJsonb: {
         q1: { selectedOption: 'Understanding complex grant rules (e.g. LEO match-funding, ineligible laptop costs)' },
         q2: { selectedOption: '€0 (just burning our own late-night hours and stress)' },
         q3: { selectedOption: 'We ran a Mom Test customer survey focused on past spending behaviors' },
         q4: { scaleValue: 3 },
         q5: { selectedOption: '€99 – €149 one-off (Solo Founder Pass)' },
       },
-      respondentNameOrRole: 'FinTech Platform Founder (Belfast)',
+      respondentEmail: 'niamh@belfastfintech.co.uk',
       joinedWaitlist: true,
-      isSimulated: false,
-      submittedAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+      source: 'ORGANIC',
+      submittedAt: new Date(Date.now() - 86400000 * 4),
     },
     {
-      answers: {
+      answersJsonb: {
         q1: { selectedOption: 'Dealing with co-founder role splits and equity vesting conversations' },
         q2: { selectedOption: '€100 – €500 (books, software templates, basic online courses)' },
         q3: { selectedOption: 'No, we pulled our prices from competitor websites or guessed' },
         q4: { scaleValue: 2 },
         q5: { selectedOption: '€199 – €249 (Co-Founder Pass with multi-seat alignment interviews)' },
       },
-      respondentNameOrRole: 'HealthTech Co-Founder (Galway)',
+      respondentEmail: 'conor.health@galwaymed.ie',
       joinedWaitlist: true,
-      isSimulated: false,
-      submittedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+      source: 'ORGANIC',
+      submittedAt: new Date(Date.now() - 86400000 * 3),
     },
     {
-      answers: {
+      answersJsonb: {
         q1: { selectedOption: 'Dread of building financial projections & cashflow forecasts in Excel' },
         q2: { selectedOption: '€500 – €2,500 (accountants for forecasts, small freelance reviews)' },
         q3: { selectedOption: 'Yes, we secured paid pre-orders or signed Letters of Intent' },
         q4: { scaleValue: 4 },
         q5: { selectedOption: 'Would prefer our university incubator or local enterprise office to license it for our cohort' },
       },
-      respondentNameOrRole: 'University Spinout Founder (NovaUCD Dublin)',
+      respondentEmail: 'spinout.lead@ucd.ie',
       joinedWaitlist: true,
-      isSimulated: false,
-      submittedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+      source: 'ORGANIC',
+      submittedAt: new Date(Date.now() - 86400000 * 2),
     },
     {
-      answers: {
+      answersJsonb: {
         q1: { selectedOption: 'Understanding complex grant rules (e.g. LEO match-funding, ineligible laptop costs)' },
         q2: { selectedOption: '€0 (just burning our own late-night hours and stress)' },
         q3: { selectedOption: 'No, we pulled our prices from competitor websites or guessed' },
         q4: { scaleValue: 2 },
         q5: { selectedOption: '€99 – €149 one-off (Solo Founder Pass)' },
       },
-      respondentNameOrRole: 'CleanTech Hardware Founder (Limerick)',
+      respondentEmail: 'eoin@cleantechshannon.ie',
       joinedWaitlist: true,
-      isSimulated: false,
-      submittedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+      source: 'ORGANIC',
+      submittedAt: new Date(Date.now() - 86400000 * 1),
     },
   ];
 
   for (const resp of sampleResponses) {
     await db.insert(surveyResponses).values({
       surveyId: survey.id,
-      answers: resp.answers,
-      respondentNameOrRole: resp.respondentNameOrRole,
+      answersJsonb: resp.answersJsonb,
+      respondentEmail: resp.respondentEmail,
       joinedWaitlist: resp.joinedWaitlist,
-      isSimulated: resp.isSimulated,
-      submittedAt: new Date(resp.submittedAt),
+      source: resp.source,
+      submittedAt: resp.submittedAt,
     });
   }
 
@@ -653,9 +654,35 @@ async function seedStartupSidekick() {
     moduleCode: 'MOD_C_SURVEYS_FEEDBACK',
     completionPercentage: 100,
     structuredInputsJsonb: {
-      surveys: [survey],
+      surveys: [
+        {
+          id: survey.id,
+          planId: newPlan.id,
+          publicSlug: survey.publicSlug,
+          title: survey.title,
+          introDescription: survey.introDescription || '',
+          isActive: true,
+          collectLeadEmails: true,
+          waitlistIncentiveText: survey.waitlistIncentiveText || '',
+          focusAreas: ['PROBLEM_AND_PAIN', 'CURRENT_WORKAROUNDS'],
+          questions: survey.questionsJsonb,
+          responses: sampleResponses.map((r, i) => ({
+            id: `resp-${i + 1}`,
+            surveyId: survey.id,
+            answers: r.answersJsonb,
+            respondentEmail: r.respondentEmail,
+            joinedWaitlist: r.joinedWaitlist,
+            submittedAt: r.submittedAt.toISOString(),
+          })),
+          outreachTemplates: survey.outreachTemplatesJsonb,
+          interviewLogs: survey.interviewLogsJsonb,
+          aiInsightsSummary: survey.aiInsightsSummaryJsonb,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+      ],
       activeSurveyId: survey.id,
-      interviewLogs: survey.interviewLogs,
+      interviewLogs: survey.interviewLogsJsonb,
     },
     aiThingsToConsiderJsonb: [],
   });

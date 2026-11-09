@@ -53,24 +53,36 @@ export function buildDynamicModuleABlindSpots(
       : `${formatPlanCurrency(85, currency)} per order`;
 
   const canvas = input.conceptCanvas || {};
-  const motivation = input.founderMotivation || {
-    primaryMotivation: 'LEAVE_JOB',
-    weeklyHoursAvailable: '15_TO_25_HRS',
-    twelveMonthSuccessVision: '',
+  const motivation = {
+    primaryMotivation: input.founderMotivation?.primaryMotivation || 'LEAVE_JOB',
+    weeklyHoursAvailable: input.founderMotivation?.weeklyHoursAvailable || '15_TO_25_HRS',
+    twelveMonthSuccessVision: input.founderMotivation?.twelveMonthSuccessVision || '',
+    otherMotivationText: input.founderMotivation?.otherMotivationText,
+    otherWeeklyHoursText: input.founderMotivation?.otherWeeklyHoursText,
   };
-  const team = input.teamAndBudget || {
-    teamStructureType: 'SOLO_FOUNDER',
-    skillCoverage: 'BUILD_IN_HOUSE',
-    startingBudgetBracket: '1K_TO_5K',
-    teamAndFundingNotes: '',
+  const team = {
+    teamStructureType: input.teamAndBudget?.teamStructureType || 'SOLO_FOUNDER',
+    skillCoverage: input.teamAndBudget?.skillCoverage || 'BUILD_IN_HOUSE',
+    startingBudgetBracket: input.teamAndBudget?.startingBudgetBracket || '1K_TO_5K',
+    teamAndFundingNotes: input.teamAndBudget?.teamAndFundingNotes || '',
+    otherTeamStructureText: input.teamAndBudget?.otherTeamStructureText,
+    otherSkillCoverageText: input.teamAndBudget?.otherSkillCoverageText,
+    otherStartingBudgetText: input.teamAndBudget?.otherStartingBudgetText,
+    otherBudgetText: input.teamAndBudget?.otherBudgetText,
   };
-  const reality = input.founderRealityCheck || {
-    industryConnection: 'WARM_CONNECTIONS',
-    personalIncomeUrgency: 'MEDIUM_6_TO_12M',
-    dealbreakers: [],
-    growthTradeoff: 'NON_DILUTIVE_GRANTS',
-    biggestWorryPreset: 'FINDING_FIRST_10',
-    biggestWorryNotes: '',
+  const reality = {
+    industryConnection: input.founderRealityCheck?.industryConnection || 'WARM_CONNECTIONS',
+    personalIncomeUrgency: input.founderRealityCheck?.personalIncomeUrgency || 'MEDIUM_6_TO_12M',
+    dealbreakers: Array.isArray(input.founderRealityCheck?.dealbreakers)
+      ? input.founderRealityCheck.dealbreakers
+      : [],
+    growthTradeoff: input.founderRealityCheck?.growthTradeoff || 'NON_DILUTIVE_GRANTS',
+    biggestWorryPreset: input.founderRealityCheck?.biggestWorryPreset || 'FINDING_FIRST_10',
+    biggestWorryNotes: input.founderRealityCheck?.biggestWorryNotes || '',
+    otherDealbreakerText: input.founderRealityCheck?.otherDealbreakerText,
+    otherIncomeUrgencyText: input.founderRealityCheck?.otherIncomeUrgencyText,
+    otherIndustryConnectionText: input.founderRealityCheck?.otherIndustryConnectionText,
+    otherGrowthTradeoffText: input.founderRealityCheck?.otherGrowthTradeoffText,
   };
 
   // ============================================================================
@@ -299,9 +311,10 @@ export function buildDynamicModuleABlindSpots(
           ? reality.otherIncomeUrgencyText.trim()
           : 'have 12+ months of personal runway with no immediate wage pressure';
 
+  const dealbreakersArr = Array.isArray(reality.dealbreakers) ? reality.dealbreakers : [];
   const dealbreakerList =
-    reality.dealbreakers.length > 0
-      ? reality.dealbreakers
+    dealbreakersArr.length > 0
+      ? dealbreakersArr
           .map((d) =>
             d === 'OTHER' && reality.otherDealbreakerText?.trim()
               ? reality.otherDealbreakerText.trim()
@@ -331,9 +344,9 @@ export function buildDynamicModuleABlindSpots(
           ? 'Because you are starting without warm contacts, do not build in secret — use your Module B Validation Survey as a research icebreaker to meet 10 insiders.'
           : 'Your industry access and timeline give you a strong foundation to validate pricing while designing the business around your lifestyle boundaries.'
     }`,
-    suggestedAction: reality.dealbreakers.includes('NO_COLD_SALES')
+    suggestedAction: dealbreakersArr.includes('NO_COLD_SALES')
       ? 'Since you ruled out cold sales, focus Module B & E on warm referrals, local partnerships, or self-serve signups.'
-      : reality.dealbreakers.includes('NO_BIG_TEAM')
+      : dealbreakersArr.includes('NO_BIG_TEAM')
         ? 'Since you don’t want a large staff team, prioritize automation and repeatable digital delivery from Day 1.'
         : 'Message your first 5 target buyers this week to validate the problem before spending budget.',
   };

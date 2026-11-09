@@ -439,7 +439,16 @@ async function buildSessionFromDbUser(
       conceptCanvas: structuredInputs.conceptCanvas,
       founderMotivation: structuredInputs.founderMotivation,
       teamAndBudget: structuredInputs.teamAndBudget,
-      founderRealityCheck: structuredInputs.founderRealityCheck,
+      founderRealityCheck: structuredInputs.founderRealityCheck
+        ? {
+            ...structuredInputs.founderRealityCheck,
+            dealbreakers: Array.isArray(
+              structuredInputs.founderRealityCheck.dealbreakers
+            )
+              ? structuredInputs.founderRealityCheck.dealbreakers
+              : [],
+          }
+        : undefined,
       grantEligibilityCheck: structuredInputs.grantEligibilityCheck,
       thingsToConsider: Array.isArray(modA?.aiThingsToConsiderJsonb)
         ? modA.aiThingsToConsiderJsonb

@@ -676,7 +676,12 @@ export default function WorkspacePage() {
           }));
         }
         if (activePlan.founderRealityCheck) {
-          setFounderRealityCheck(activePlan.founderRealityCheck);
+          setFounderRealityCheck({
+            ...activePlan.founderRealityCheck,
+            dealbreakers: Array.isArray(activePlan.founderRealityCheck.dealbreakers)
+              ? activePlan.founderRealityCheck.dealbreakers
+              : [],
+          });
         }
         setGrantEligibilityCheck(
           activePlan.grantEligibilityCheck ||
@@ -1206,11 +1211,36 @@ export default function WorkspacePage() {
                   } else {
                     const localTs = v.lastEditedAt ? new Date(v.lastEditedAt).getTime() : 0;
                     const dbTs = existing.lastEditedAt ? new Date(existing.lastEditedAt).getTime() : 0;
-                    versionsById.set(v.id, localTs >= dbTs ? v : existing);
+                    const localHasSections = Array.isArray(v.sections) && v.sections.length > 0;
+                    const dbHasSections = Array.isArray(existing.sections) && existing.sections.length > 0;
+                    if (localHasSections && !dbHasSections) {
+                      versionsById.set(v.id, v);
+                    } else if (!localHasSections && dbHasSections) {
+                      versionsById.set(v.id, existing);
+                    } else {
+                      versionsById.set(v.id, localTs >= dbTs ? v : existing);
+                    }
                   }
                 }
               }
-              const mergedVersions = Array.from(versionsById.values());
+
+              const fallbackCompilerSections =
+                Array.isArray(localModL?.step3Compiler?.sections) && (localModL?.step3Compiler?.sections.length ?? 0) > 0
+                  ? localModL.step3Compiler.sections
+                  : Array.isArray(dbModL?.step3Compiler?.sections) && (dbModL?.step3Compiler?.sections.length ?? 0) > 0
+                    ? dbModL.step3Compiler.sections
+                    : undefined;
+
+              const mergedVersions = Array.from(versionsById.values()).map((v) => {
+                if (Array.isArray(v.sections) && v.sections.length > 0) return v;
+                if (
+                  fallbackCompilerSections &&
+                  (v.isPrimary || v.id === (localModL?.activeVersionId || dbModL?.activeVersionId))
+                ) {
+                  return { ...v, sections: fallbackCompilerSections };
+                }
+                return v;
+              });
 
               const mergedModuleLData: SavedModuleLData | undefined = (localModL || dbModL)
                 ? {
@@ -1373,7 +1403,12 @@ export default function WorkspacePage() {
               setTeamAndBudget(dbPlan.teamAndBudget);
             }
             if (dbPlan.founderRealityCheck) {
-              setFounderRealityCheck(dbPlan.founderRealityCheck);
+              setFounderRealityCheck({
+                ...dbPlan.founderRealityCheck,
+                dealbreakers: Array.isArray(dbPlan.founderRealityCheck.dealbreakers)
+                  ? dbPlan.founderRealityCheck.dealbreakers
+                  : [],
+              });
             }
             if (dbPlan.grantEligibilityCheck) {
               setGrantEligibilityCheck(dbPlan.grantEligibilityCheck);
@@ -1561,14 +1596,21 @@ export default function WorkspacePage() {
       }
     );
     setFounderRealityCheck(
-      found.founderRealityCheck || {
-        industryConnection: 'WARM_CONNECTIONS',
-        personalIncomeUrgency: 'MEDIUM_6_TO_12M',
-        dealbreakers: ['NO_PHYSICAL_PREMISES'],
-        growthTradeoff: 'NON_DILUTIVE_GRANTS',
-        biggestWorryPreset: 'FINDING_FIRST_10',
-        biggestWorryNotes: '',
-      }
+      found.founderRealityCheck
+        ? {
+            ...found.founderRealityCheck,
+            dealbreakers: Array.isArray(found.founderRealityCheck.dealbreakers)
+              ? found.founderRealityCheck.dealbreakers
+              : ['NO_PHYSICAL_PREMISES'],
+          }
+        : {
+            industryConnection: 'WARM_CONNECTIONS',
+            personalIncomeUrgency: 'MEDIUM_6_TO_12M',
+            dealbreakers: ['NO_PHYSICAL_PREMISES'],
+            growthTradeoff: 'NON_DILUTIVE_GRANTS',
+            biggestWorryPreset: 'FINDING_FIRST_10',
+            biggestWorryNotes: '',
+          }
     );
     setGrantEligibilityCheck(
       found.grantEligibilityCheck ||
@@ -2973,8 +3015,8 @@ export default function WorkspacePage() {
     channelMatrix: ChannelMatrixStep2Data
   ) {
     const progress =
-      channelMatrix.rentToOwnBridgeStrategy.trim().length > 10 &&
-      channelMatrix.channelWhyItFitsNotes.trim().length > 10
+      (channelMatrix?.rentToOwnBridgeStrategy?.trim()?.length ?? 0) > 10 &&
+      (channelMatrix?.channelWhyItFitsNotes?.trim()?.length ?? 0) > 10
         ? 50
         : 35;
 
@@ -3009,17 +3051,17 @@ export default function WorkspacePage() {
   async function handleSaveModuleDStep3ScopeFilter(
     scopeFilter: ScopeFilterStep3Data
   ) {
-    const v1Count = scopeFilter.items.filter(
+    const v1Count = (scopeFilter?.items || []).filter(
       (i) => i.bucket === 'MUST_HAVE_V1'
     ).length;
-    const deferredCount = scopeFilter.items.filter(
+    const deferredCount = (scopeFilter?.items || []).filter(
       (i) => i.bucket !== 'MUST_HAVE_V1'
     ).length;
     const progress =
       v1Count > 0 &&
       deferredCount > 0 &&
-      scopeFilter.whatWeRefuseToBuildInV1Narrative.trim().length > 10 &&
-      scopeFilter.whyThisLeanV1WinsFasterNarrative.trim().length > 10
+      (scopeFilter?.whatWeRefuseToBuildInV1Narrative?.trim()?.length ?? 0) > 10 &&
+      (scopeFilter?.whyThisLeanV1WinsFasterNarrative?.trim()?.length ?? 0) > 10
         ? 75
         : 60;
 
@@ -3054,13 +3096,13 @@ export default function WorkspacePage() {
   async function handleSaveModuleDStep4BuildVsBuy(
     buildVsBuy: BuildVsBuyStep4Data
   ) {
-    const inHouseCount = buildVsBuy.items.filter(
+    const inHouseCount = (buildVsBuy?.items || []).filter(
       (i) => i.tier === 'BUILD_IN_HOUSE'
     ).length;
     const progress =
       inHouseCount > 0 &&
-      buildVsBuy.secretSauceInHouseNarrative.trim().length > 10 &&
-      buildVsBuy.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10
+      (buildVsBuy?.secretSauceInHouseNarrative?.trim()?.length ?? 0) > 10 &&
+      (buildVsBuy?.whyBuyAndPartnerSavesTimeNarrative?.trim()?.length ?? 0) > 10
         ? 85
         : 75;
 
@@ -3095,12 +3137,11 @@ export default function WorkspacePage() {
   async function handleSaveModuleDStep5WorkPackages(
     workPackagesAndFlow: WorkPackagesStep5Data
   ) {
-    const wpCount = workPackagesAndFlow.workPackages.length;
+    const wpCount = (workPackagesAndFlow?.workPackages || []).length;
     const progress =
       wpCount > 0 &&
-      workPackagesAndFlow.technicalMeritAndInnovationNarrative.trim().length >
-        10 &&
-      workPackagesAndFlow.bottleneckAndDeRiskingNarrative.trim().length > 10
+      (workPackagesAndFlow?.technicalMeritAndInnovationNarrative?.trim()?.length ?? 0) > 10 &&
+      (workPackagesAndFlow?.bottleneckAndDeRiskingNarrative?.trim()?.length ?? 0) > 10
         ? 95
         : 85;
 
@@ -3136,9 +3177,9 @@ export default function WorkspacePage() {
     blindSpotAudit: BlindSpotAuditStep6Data
   ) {
     const progress =
-      blindSpotAudit.readinessConfidence &&
-      (blindSpotAudit.executiveProductBriefSummary.trim().length > 10 ||
-        blindSpotAudit.blindSpots.length > 0)
+      blindSpotAudit?.readinessConfidence &&
+      ((blindSpotAudit?.executiveProductBriefSummary?.trim()?.length ?? 0) > 10 ||
+        (blindSpotAudit?.blindSpots || []).length > 0)
         ? 100
         : 95;
 
@@ -4680,9 +4721,9 @@ export default function WorkspacePage() {
     {
       stepNumber: 1,
       label: 'Raw Idea Capture',
-      isComplete: brainDumpText.trim().length >= 20,
+      isComplete: (brainDumpText?.trim()?.length ?? 0) >= 20,
       summary:
-        brainDumpText.trim().length >= 20
+        (brainDumpText?.trim()?.length ?? 0) >= 20
           ? `${brainDumpText.trim().split(/\s+/).length} words captured`
           : 'Write your raw idea in Step 1 (at least a sentence)',
     },
@@ -4699,54 +4740,54 @@ export default function WorkspacePage() {
       stepNumber: 3,
       label: 'Personal Ambition & Weekly Time',
       isComplete: Boolean(
-        founderMotivation.primaryMotivation &&
-          founderMotivation.weeklyHoursAvailable &&
-          founderMotivation.twelveMonthSuccessVision.trim().length > 5
+        founderMotivation?.primaryMotivation &&
+          founderMotivation?.weeklyHoursAvailable &&
+          (founderMotivation?.twelveMonthSuccessVision?.trim()?.length ?? 0) > 5
       ),
       summary:
-        founderMotivation.twelveMonthSuccessVision.trim().length > 5
-          ? `${MOTIVATION_LABELS[founderMotivation.primaryMotivation].replace(/^[^\w]+/, '')} • ${WEEKLY_HOURS_LABELS[founderMotivation.weeklyHoursAvailable]}`
+        (founderMotivation?.twelveMonthSuccessVision?.trim()?.length ?? 0) > 5
+          ? `${MOTIVATION_LABELS[founderMotivation.primaryMotivation]?.replace(/^[^\w]+/, '') || 'Vision'} • ${WEEKLY_HOURS_LABELS[founderMotivation.weeklyHoursAvailable] || 'Hours'}`
           : 'Add your 12-month success vision note in Step 3',
     },
     {
       stepNumber: 4,
       label: 'Team Structure & Starting Budget',
       isComplete: Boolean(
-        teamAndBudget.teamStructureType &&
-          teamAndBudget.skillCoverage &&
-          teamAndBudget.startingBudgetBracket &&
-          teamAndBudget.teamAndFundingNotes.trim().length > 5
+        teamAndBudget?.teamStructureType &&
+          teamAndBudget?.skillCoverage &&
+          teamAndBudget?.startingBudgetBracket &&
+          (teamAndBudget?.teamAndFundingNotes?.trim()?.length ?? 0) > 5
       ),
       summary:
-        teamAndBudget.teamAndFundingNotes.trim().length > 5
-          ? `${TEAM_STRUCTURE_LABELS[teamAndBudget.teamStructureType].replace(/^[^\w]+/, '')} • ${formatStartingBudgetBracket(teamAndBudget.startingBudgetBracket, countryPack.defaultCurrency)}`
+        (teamAndBudget?.teamAndFundingNotes?.trim()?.length ?? 0) > 5
+          ? `${TEAM_STRUCTURE_LABELS[teamAndBudget.teamStructureType]?.replace(/^[^\w]+/, '') || 'Team'} • ${formatStartingBudgetBracket(teamAndBudget.startingBudgetBracket, countryPack.defaultCurrency)}`
           : 'Add your team & budget plan notes in Step 4',
     },
     {
       stepNumber: 5,
       label: 'Reality Check & Non-Negotiables',
       isComplete: Boolean(
-        founderRealityCheck.industryConnection &&
-          founderRealityCheck.personalIncomeUrgency &&
-          founderRealityCheck.dealbreakers.length > 0 &&
-          founderRealityCheck.growthTradeoff &&
-          founderRealityCheck.biggestWorryPreset &&
-          founderRealityCheck.biggestWorryNotes.trim().length > 5
+        founderRealityCheck?.industryConnection &&
+          founderRealityCheck?.personalIncomeUrgency &&
+          (Array.isArray(founderRealityCheck?.dealbreakers) ? founderRealityCheck.dealbreakers.length : 0) > 0 &&
+          founderRealityCheck?.growthTradeoff &&
+          founderRealityCheck?.biggestWorryPreset &&
+          (founderRealityCheck?.biggestWorryNotes?.trim()?.length ?? 0) > 5
       ),
       summary:
-        founderRealityCheck.biggestWorryNotes.trim().length > 5
-          ? `${founderRealityCheck.dealbreakers.length} dealbreaker(s) • ${GROWTH_TRADEOFF_LABELS[founderRealityCheck.growthTradeoff].replace(/^[^\w]+/, '')}`
+        (founderRealityCheck?.biggestWorryNotes?.trim()?.length ?? 0) > 5
+          ? `${Array.isArray(founderRealityCheck?.dealbreakers) ? founderRealityCheck.dealbreakers.length : 0} dealbreaker(s) • ${GROWTH_TRADEOFF_LABELS[founderRealityCheck?.growthTradeoff]?.replace(/^[^\w]+/, '') || 'Custom Tradeoff'}`
           : 'Write a quick note on your #1 worry in Step 5',
     },
     {
       stepNumber: 6,
       label: 'Co-Founder Blind-Spot Review',
       isComplete:
-        liveThingsToConsider.length >= 6 && filledCanvasBoxesCount === 5,
+        (liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5,
       summary:
         filledCanvasBoxesCount === 5
-          ? `${liveThingsToConsider.length} tailored blind-spot cards reviewed`
-          : `${liveThingsToConsider.length} live cards adapting as you answer Steps 1–5`,
+          ? `${liveThingsToConsider?.length ?? 0} tailored blind-spot cards reviewed`
+          : `${liveThingsToConsider?.length ?? 0} live cards adapting as you answer Steps 1–5`,
     },
     ...(isGrantCheckerSupported && liveGrantEvaluation
       ? [
@@ -4771,26 +4812,26 @@ export default function WorkspacePage() {
 
   // Granular live progress percentage across all 20 required inputs in Module A (Steps 1-6)
   const moduleACheckpoints = [
-    brainDumpText.trim().length >= 20,
-    effectiveCanvas.coreProblem.trim().length > 5,
-    effectiveCanvas.targetCustomer.trim().length > 5,
-    effectiveCanvas.proposedSolution.trim().length > 5,
-    effectiveCanvas.unfairAdvantage.trim().length > 5,
-    effectiveCanvas.revenueAndGrantFit.trim().length > 5,
-    Boolean(founderMotivation.primaryMotivation),
-    Boolean(founderMotivation.weeklyHoursAvailable),
-    founderMotivation.twelveMonthSuccessVision.trim().length > 5,
-    Boolean(teamAndBudget.teamStructureType),
-    Boolean(teamAndBudget.skillCoverage),
-    Boolean(teamAndBudget.startingBudgetBracket),
-    teamAndBudget.teamAndFundingNotes.trim().length > 5,
-    Boolean(founderRealityCheck.industryConnection),
-    Boolean(founderRealityCheck.personalIncomeUrgency),
-    founderRealityCheck.dealbreakers.length > 0,
-    Boolean(founderRealityCheck.growthTradeoff),
-    Boolean(founderRealityCheck.biggestWorryPreset),
-    founderRealityCheck.biggestWorryNotes.trim().length > 5,
-    liveThingsToConsider.length >= 6,
+    (brainDumpText?.trim()?.length ?? 0) >= 20,
+    (effectiveCanvas?.coreProblem?.trim()?.length ?? 0) > 5,
+    (effectiveCanvas?.targetCustomer?.trim()?.length ?? 0) > 5,
+    (effectiveCanvas?.proposedSolution?.trim()?.length ?? 0) > 5,
+    (effectiveCanvas?.unfairAdvantage?.trim()?.length ?? 0) > 5,
+    (effectiveCanvas?.revenueAndGrantFit?.trim()?.length ?? 0) > 5,
+    Boolean(founderMotivation?.primaryMotivation),
+    Boolean(founderMotivation?.weeklyHoursAvailable),
+    (founderMotivation?.twelveMonthSuccessVision?.trim()?.length ?? 0) > 5,
+    Boolean(teamAndBudget?.teamStructureType),
+    Boolean(teamAndBudget?.skillCoverage),
+    Boolean(teamAndBudget?.startingBudgetBracket),
+    (teamAndBudget?.teamAndFundingNotes?.trim()?.length ?? 0) > 5,
+    Boolean(founderRealityCheck?.industryConnection),
+    Boolean(founderRealityCheck?.personalIncomeUrgency),
+    (Array.isArray(founderRealityCheck?.dealbreakers) ? founderRealityCheck.dealbreakers.length : 0) > 0,
+    Boolean(founderRealityCheck?.growthTradeoff),
+    Boolean(founderRealityCheck?.biggestWorryPreset),
+    (founderRealityCheck?.biggestWorryNotes?.trim()?.length ?? 0) > 5,
+    (liveThingsToConsider?.length ?? 0) >= 6,
   ];
   const moduleAProgressPercent = Math.round(
     (moduleACheckpoints.filter(Boolean).length / moduleACheckpoints.length) *
@@ -4804,18 +4845,18 @@ export default function WorkspacePage() {
   const savedStep4CompetitiveWedge = currentPlan.moduleBData?.competitiveWedge;
   const step1ModBScore = savedBeachhead?.beachheadSegment ? 20 : 0;
   const step2ModBScore =
-    savedStep2Competitors?.competitors?.length ||
+    (savedStep2Competitors?.competitors || []).length ||
     savedStep2Competitors?.whySwitchOneSentence
       ? 20
       : 0;
-  const step3ModBScore = savedStep3MarketSizing?.segments?.some(
-    (s) => s.pricePerCustomerInput.trim().length > 0
+  const step3ModBScore = (savedStep3MarketSizing?.segments || []).some(
+    (s) => (s?.pricePerCustomerInput?.trim()?.length ?? 0) > 0
   )
     ? 20
     : 0;
   const step4ModBScore =
     savedStep4CompetitiveWedge?.competitiveEdgeSummary?.trim() ||
-    savedStep4CompetitiveWedge?.unfairAdvantages?.length
+    (savedStep4CompetitiveWedge?.unfairAdvantages || []).length
       ? 20
       : 0;
   const step5ModBScore =
@@ -4835,13 +4876,13 @@ export default function WorkspacePage() {
 
   const savedSurveys = currentPlan.moduleCData?.surveys || [];
   const savedInterviewLogs = currentPlan.moduleCData?.interviewLogs || [];
-  const hasSurveyWithQuestions = savedSurveys.some(
-    (s) => s.questions.length > 0 && s.title.trim().length > 0
+  const hasSurveyWithQuestions = (savedSurveys || []).some(
+    (s) => (s?.questions || []).length > 0 && (s?.title?.trim()?.length ?? 0) > 0
   );
-  const hasLoggedInterviews = savedInterviewLogs.length > 0;
-  const hasSurveyResponses = savedSurveys.some((s) => s.responses.length > 0);
+  const hasLoggedInterviews = (savedInterviewLogs || []).length > 0;
+  const hasSurveyResponses = (savedSurveys || []).some((s) => (s?.responses || []).length > 0);
   const hasSurveyInsightsOrBlindSpots =
-    savedSurveys.some((s) => Boolean(s.aiInsightsSummary)) ||
+    (savedSurveys || []).some((s) => Boolean(s?.aiInsightsSummary)) ||
     (currentPlan.moduleCData?.thingsToConsider?.length ?? 0) > 0;
   const totalModCScore =
     !hasSurveyWithQuestions && !hasLoggedInterviews
@@ -4863,44 +4904,42 @@ export default function WorkspacePage() {
   const savedModDWorkPackages = currentPlan.moduleDData?.workPackagesAndFlow;
   const savedModDBlindSpotAudit = currentPlan.moduleDData?.blindSpotAudit;
   const step1ModDScore = savedModDVehicle
-    ? savedModDVehicle.ahaMomentNarrative.trim().length > 10 &&
-      savedModDVehicle.whyThisVehicleFitsCustomer.trim().length > 10
+    ? (savedModDVehicle.ahaMomentNarrative?.trim()?.length ?? 0) > 10 &&
+      (savedModDVehicle.whyThisVehicleFitsCustomer?.trim()?.length ?? 0) > 10
       ? 18
       : 10
     : 0;
   const step2ModDScore = savedModDChannelMatrix
-    ? savedModDChannelMatrix.rentToOwnBridgeStrategy.trim().length > 10 &&
-      savedModDChannelMatrix.channelWhyItFitsNotes.trim().length > 10
+    ? (savedModDChannelMatrix.rentToOwnBridgeStrategy?.trim()?.length ?? 0) > 10 &&
+      (savedModDChannelMatrix.channelWhyItFitsNotes?.trim()?.length ?? 0) > 10
       ? 16
       : 8
     : 0;
   const step3ModDScore = savedModDScopeFilter
-    ? savedModDScopeFilter.items.some((i) => i.bucket === 'MUST_HAVE_V1') &&
-      savedModDScopeFilter.whatWeRefuseToBuildInV1Narrative.trim().length > 10 &&
-      savedModDScopeFilter.whyThisLeanV1WinsFasterNarrative.trim().length > 10
+    ? (savedModDScopeFilter.items || []).some((i) => i.bucket === 'MUST_HAVE_V1') &&
+      (savedModDScopeFilter.whatWeRefuseToBuildInV1Narrative?.trim()?.length ?? 0) > 10 &&
+      (savedModDScopeFilter.whyThisLeanV1WinsFasterNarrative?.trim()?.length ?? 0) > 10
       ? 16
       : 8
     : 0;
   const step4ModDScore = savedModDBuildVsBuy
-    ? savedModDBuildVsBuy.items.some((i) => i.tier === 'BUILD_IN_HOUSE') &&
-      savedModDBuildVsBuy.secretSauceInHouseNarrative.trim().length > 10 &&
-      savedModDBuildVsBuy.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10
+    ? (savedModDBuildVsBuy.items || []).some((i) => i.tier === 'BUILD_IN_HOUSE') &&
+      (savedModDBuildVsBuy.secretSauceInHouseNarrative?.trim()?.length ?? 0) > 10 &&
+      (savedModDBuildVsBuy.whyBuyAndPartnerSavesTimeNarrative?.trim()?.length ?? 0) > 10
       ? 16
       : 8
     : 0;
   const step5ModDScore = savedModDWorkPackages
-    ? savedModDWorkPackages.workPackages.length > 0 &&
-      savedModDWorkPackages.technicalMeritAndInnovationNarrative.trim().length >
-        10 &&
-      savedModDWorkPackages.bottleneckAndDeRiskingNarrative.trim().length > 10
+    ? (savedModDWorkPackages.workPackages || []).length > 0 &&
+      (savedModDWorkPackages.technicalMeritAndInnovationNarrative?.trim()?.length ?? 0) > 10 &&
+      (savedModDWorkPackages.bottleneckAndDeRiskingNarrative?.trim()?.length ?? 0) > 10
       ? 18
       : 9
     : 0;
   const step6ModDScore = savedModDBlindSpotAudit
     ? savedModDBlindSpotAudit.readinessConfidence &&
-      (savedModDBlindSpotAudit.executiveProductBriefSummary.trim().length >
-        10 ||
-        savedModDBlindSpotAudit.blindSpots.length > 0)
+      ((savedModDBlindSpotAudit.executiveProductBriefSummary?.trim()?.length ?? 0) > 10 ||
+        (savedModDBlindSpotAudit.blindSpots || []).length > 0)
       ? 16
       : 8
     : 0;
@@ -4926,24 +4965,22 @@ export default function WorkspacePage() {
   const savedModECompliance = currentPlan.moduleEData?.permitsAndInsurance;
   const savedModEBlindSpotAudit = currentPlan.moduleEData?.blindSpotAudit;
   const step1ModEScore = savedModEBlueprint
-    ? savedModEBlueprint.orderLifecycleStages.length >= 3 &&
-      savedModEBlueprint.endToEndFulfillmentNarrative.trim().length > 10 &&
-      savedModEBlueprint.scalingAndBottleneckDeRiskingNarrative.trim().length >
-        10
+    ? (savedModEBlueprint.orderLifecycleStages || []).length >= 3 &&
+      (savedModEBlueprint.endToEndFulfillmentNarrative?.trim()?.length ?? 0) > 10 &&
+      (savedModEBlueprint.scalingAndBottleneckDeRiskingNarrative?.trim()?.length ?? 0) > 10
       ? 20
       : 12
     : 0;
   const step2ModEScore = savedModEPremisesEquipment
-    ? savedModEPremisesEquipment.equipmentItems.length >= 1 &&
-      savedModEPremisesEquipment.equipmentRoiAndGrantComplianceNarrative.trim()
-        .length > 10
+    ? (savedModEPremisesEquipment.equipmentItems || []).length >= 1 &&
+      (savedModEPremisesEquipment.equipmentRoiAndGrantComplianceNarrative?.trim()?.length ?? 0) > 10
       ? 20
       : 12
     : 0;
-  const step3ModEScore = savedModERiskRegister?.riskItems?.length ? 15 : 0;
-  const step4ModEScore = savedModESupport?.qcCheckpoints?.length ? 15 : 0;
-  const step5ModEScore = savedModECompliance?.complianceItems?.length ? 15 : 0;
-  const step6ModEScore = savedModEBlindSpotAudit?.blindSpots?.length ? 15 : 0;
+  const step3ModEScore = (savedModERiskRegister?.riskItems || []).length ? 15 : 0;
+  const step4ModEScore = (savedModESupport?.qcCheckpoints || []).length ? 15 : 0;
+  const step5ModEScore = (savedModECompliance?.complianceItems || []).length ? 15 : 0;
+  const step6ModEScore = (savedModEBlindSpotAudit?.blindSpots || []).length ? 15 : 0;
   const totalModEScore =
     step1ModEScore +
     step2ModEScore +
@@ -9959,21 +9996,20 @@ export default function WorkspacePage() {
                       },
                     ] as const
                   ).map((item) => {
-                    const isChecked =
-                      founderRealityCheck.dealbreakers.includes(item.id);
+                    const currentDealbreakers = Array.isArray(founderRealityCheck.dealbreakers)
+                      ? founderRealityCheck.dealbreakers
+                      : [];
+                    const isChecked = currentDealbreakers.includes(item.id);
                     return (
                       <button
                         key={item.id}
                         type="button"
                         disabled={activeEntitlement.isVaultReadonly}
                         onClick={() => {
-                          const exists =
-                            founderRealityCheck.dealbreakers.includes(item.id);
+                          const exists = currentDealbreakers.includes(item.id);
                           const next = exists
-                            ? founderRealityCheck.dealbreakers.filter(
-                                (d) => d !== item.id
-                              )
-                            : [...founderRealityCheck.dealbreakers, item.id];
+                            ? currentDealbreakers.filter((d) => d !== item.id)
+                            : [...currentDealbreakers, item.id];
                           setFounderRealityCheck({
                             ...founderRealityCheck,
                             dealbreakers: next,
@@ -9993,7 +10029,7 @@ export default function WorkspacePage() {
                     );
                   })}
                 </div>
-                {founderRealityCheck.dealbreakers.includes('OTHER') && (
+                {(founderRealityCheck.dealbreakers || []).includes('OTHER') && (
                   <div className="mt-2.5 rounded-xl border border-rose-200 bg-rose-50/40 p-3">
                     <label className="block text-[11px] font-bold text-rose-950">
                       ✨ Write any other boundaries or things you refuse to do:
@@ -10999,7 +11035,7 @@ export default function WorkspacePage() {
                         <span className="text-[11px] font-semibold text-slate-700">
                           Protected Non-Negotiables:
                         </span>
-                        {founderRealityCheck.dealbreakers.map((db) => (
+                        {(founderRealityCheck.dealbreakers || []).map((db) => (
                           <span
                             key={db}
                             className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-medium text-indigo-900 ring-1 ring-indigo-200"

@@ -206,9 +206,12 @@ export function buildModuleAMarkdownBrief(data: ModuleABriefData): string {
     data.founderRealityCheck.otherGrowthTradeoffText?.trim()
       ? `✨ Other: ${data.founderRealityCheck.otherGrowthTradeoffText.trim()}`
       : GROWTH_TRADEOFF_LABELS[data.founderRealityCheck.growthTradeoff];
+  const dealbreakersArr = Array.isArray(data.founderRealityCheck?.dealbreakers)
+    ? data.founderRealityCheck.dealbreakers
+    : [];
   const dealbreakersText =
-    data.founderRealityCheck.dealbreakers.length > 0
-      ? data.founderRealityCheck.dealbreakers
+    dealbreakersArr.length > 0
+      ? dealbreakersArr
           .map((d) =>
             d === 'OTHER' && data.founderRealityCheck.otherDealbreakerText?.trim()
               ? `  - ✨ Other: ${data.founderRealityCheck.otherDealbreakerText.trim()}`
@@ -485,6 +488,7 @@ export function buildModuleAStandaloneHtmlDocument(
         <div class="card-label">Lifestyle Dealbreakers (What I Refuse To Do)</div>
         <div class="pill-list">
           ${
+            Array.isArray(data.founderRealityCheck?.dealbreakers) &&
             data.founderRealityCheck.dealbreakers.length > 0
               ? data.founderRealityCheck.dealbreakers
                   .map(

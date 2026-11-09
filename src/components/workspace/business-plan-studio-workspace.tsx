@@ -564,15 +564,50 @@ export function BusinessPlanStudioWorkspace({
   // Helper to sanitize existing versions if a plan switched away from IE/UK grants
   const normalizeVersionsForTrack = useMemo(() => {
     return (rawVersions: BusinessPlanVersionItem[]): BusinessPlanVersionItem[] => {
-      return rawVersions
+      return (rawVersions || [])
         .map((ver) => {
+          // Helper to ensure sections array is always valid
+          const resolveSectionsForVersion = (v: BusinessPlanVersionItem): ModuleLCompiledSectionItem[] => {
+            if (Array.isArray(v.sections) && v.sections.length > 0) {
+              return v.sections;
+            }
+            if (
+              Array.isArray(plan.moduleLData?.step3Compiler?.sections) &&
+              plan.moduleLData.step3Compiler.sections.length > 0 &&
+              (v.isPrimary ||
+                v.id === plan.moduleLData?.activeVersionId ||
+                v.archetype === plan.moduleLData?.step3Compiler?.modeCompiledFor)
+            ) {
+              return plan.moduleLData.step3Compiler.sections;
+            }
+            const cat =
+              ARCHETYPE_CATALOG.find((c) => c.archetype === v.archetype) ||
+              ARCHETYPE_CATALOG.find((c) => c.archetype === defaultArchetypeForPlan) ||
+              ARCHETYPE_CATALOG[5];
+            return cat.sectionsTemplate.map((tpl) => ({
+              id: `sec-${tpl.sectionNumber}-${Date.now()}`,
+              sectionNumber: tpl.sectionNumber,
+              title: tpl.title,
+              assessorQuestionPrompt: tpl.assessorPrompt,
+              scoringWeightPercent: tpl.scoringWeightPercent,
+              wordLimit: tpl.wordLimit,
+              sourceModules: tpl.sourceModules,
+              compiledResponseText: '',
+            }));
+          };
+
           const isForeignOrDisabledGrant =
             (ver.archetype === 'IE_LEO_OFFICIAL_GRANT' &&
               (!isGrantsEnabled || !isIreland)) ||
             (ver.archetype === 'UK_INNOVATE_UK_9Q' &&
               (!isGrantsEnabled || !isUK));
 
-          if (!isForeignOrDisabledGrant) return ver;
+          if (!isForeignOrDisabledGrant) {
+            return {
+              ...ver,
+              sections: resolveSectionsForVersion(ver),
+            };
+          }
 
           // Check if the user has actually written custom content in this grant version
           const hasCompiledContent = (ver.sections || []).some(
@@ -608,7 +643,16 @@ export function BusinessPlanStudioWorkspace({
         })
         .filter((v): v is BusinessPlanVersionItem => v !== null);
     };
-  }, [defaultArchetypeForPlan, defaultTitleForPlan, isGrantsEnabled, isIreland, isUK]);
+  }, [
+    defaultArchetypeForPlan,
+    defaultTitleForPlan,
+    isGrantsEnabled,
+    isIreland,
+    isUK,
+    plan.moduleLData?.step3Compiler?.sections,
+    plan.moduleLData?.activeVersionId,
+    plan.moduleLData?.step3Compiler?.modeCompiledFor,
+  ]);
 
   // 1. Initial Versions
   const initialVersions: BusinessPlanVersionItem[] = useMemo(() => {
@@ -687,8 +731,45 @@ export function BusinessPlanStudioWorkspace({
   ]);
 
   const activeVersion = useMemo(() => {
-    return versions.find((v) => v.id === activeVersionId) || versions[0];
-  }, [versions, activeVersionId]);
+    const raw = versions.find((v) => v.id === activeVersionId) || versions[0];
+    if (!raw) return raw;
+    if (!Array.isArray(raw.sections) || raw.sections.length === 0) {
+      if (
+        Array.isArray(plan.moduleLData?.step3Compiler?.sections) &&
+        plan.moduleLData.step3Compiler.sections.length > 0 &&
+        (raw.isPrimary ||
+          raw.id === plan.moduleLData?.activeVersionId ||
+          raw.archetype === plan.moduleLData?.step3Compiler?.modeCompiledFor)
+      ) {
+        return { ...raw, sections: plan.moduleLData.step3Compiler.sections };
+      }
+      const cat =
+        ARCHETYPE_CATALOG.find((c) => c.archetype === raw.archetype) ||
+        ARCHETYPE_CATALOG.find((c) => c.archetype === defaultArchetypeForPlan) ||
+        ARCHETYPE_CATALOG[5];
+      return {
+        ...raw,
+        sections: cat.sectionsTemplate.map((tpl) => ({
+          id: `sec-${tpl.sectionNumber}-${Date.now()}`,
+          sectionNumber: tpl.sectionNumber,
+          title: tpl.title,
+          assessorQuestionPrompt: tpl.assessorPrompt,
+          scoringWeightPercent: tpl.scoringWeightPercent,
+          wordLimit: tpl.wordLimit,
+          sourceModules: tpl.sourceModules,
+          compiledResponseText: '',
+        })),
+      };
+    }
+    return raw;
+  }, [
+    versions,
+    activeVersionId,
+    defaultArchetypeForPlan,
+    plan.moduleLData?.step3Compiler?.sections,
+    plan.moduleLData?.activeVersionId,
+    plan.moduleLData?.step3Compiler?.modeCompiledFor,
+  ]);
 
   const catalogMeta = useMemo(() => {
     return (
@@ -771,7 +852,7 @@ export function BusinessPlanStudioWorkspace({
   // 4. Update section text in active version
   function handleSaveSectionText(sectionNumber: number, text: string) {
     if (!activeVersion) return;
-    const updatedSections = activeVersion.sections.map((s) =>
+    const updatedSections = (activeVersion.sections || []).map((s) =>
       s.sectionNumber === sectionNumber ? { ...s, compiledResponseText: text } : s
     );
     const updatedVer: BusinessPlanVersionItem = {
@@ -787,7 +868,7 @@ export function BusinessPlanStudioWorkspace({
   // 5. Option A: Inline AI Polish Action
   async function handleApplyPolish(presetInstruction?: string) {
     if (!activeVersion || editingSectionNumber === null) return;
-    const currentSec = activeVersion.sections.find((s) => s.sectionNumber === editingSectionNumber);
+    const currentSec = (activeVersion.sections || []).find((s) => s.sectionNumber === editingSectionNumber);
     if (!currentSec) return;
 
     const instruction = presetInstruction || customPolishInstruction;
@@ -825,7 +906,7 @@ export function BusinessPlanStudioWorkspace({
   async function handleCompileAllChapters() {
     if (!activeVersion || isVaultReadonly) return;
     setIsCompilingAll(true);
-    setCompileAllProgress({ current: 0, total: activeVersion.sections.length });
+    setCompileAllProgress({ current: 0, total: activeVersion.sections?.length || 0 });
 
     const segments = plan.moduleBData?.marketSizing?.segments || [];
     let samCalc = 0;
@@ -865,7 +946,7 @@ FINANCES: 36-month cashflow trough and localized employer taxes modeled in Modul
         hqCountryCode: selectedCountry,
         baseCurrency: currency,
         planContextSummary: summaryFactPack,
-        sections: activeVersion.sections.map((s) => ({
+        sections: (activeVersion.sections || []).map((s) => ({
           sectionNumber: s.sectionNumber,
           title: s.title,
           assessorPrompt: s.assessorQuestionPrompt,
@@ -877,7 +958,7 @@ FINANCES: 36-month cashflow trough and localized employer taxes modeled in Modul
 
       if (res.ok && res.compiledSections.length > 0) {
         const resultMap = new Map(res.compiledSections.map((r) => [r.sectionNumber, r.compiledResponseText]));
-        const updatedSections = activeVersion.sections.map((s) => ({
+        const updatedSections = (activeVersion.sections || []).map((s) => ({
           ...s,
           compiledResponseText: resultMap.get(s.sectionNumber) || s.compiledResponseText,
         }));
@@ -940,13 +1021,13 @@ FINANCES: 36-month cashflow trough and localized employer taxes modeled in Modul
       createdAt: new Date().toISOString(),
       lastEditedAt: new Date().toISOString(),
       isPrimary: false,
-      sections: ver.sections.map((s) => ({ ...s, id: `sec-${s.sectionNumber}-${Date.now()}` })),
+      sections: (ver.sections || []).map((s) => ({ ...s, id: `sec-${s.sectionNumber}-${Date.now()}` })),
     };
     persistVersions([...versions, dup], dup.id);
   }
 
   function handleDeleteVersion(id: string) {
-    if (versions.length <= 1) return;
+    if ((versions?.length || 0) <= 1) return;
     const filtered = versions.filter((v) => v.id !== id);
     persistVersions(filtered, filtered[0].id);
   }
@@ -964,7 +1045,7 @@ Facility / Ask Amount: ${formatPlanCurrency(activeVersion.targetFundingAsk || 50
 
 ---
 
-${activeVersion.sections
+${(activeVersion.sections || [])
   .map(
     (sec) => `### Chapter ${sec.sectionNumber}: ${sec.title}
 
@@ -986,7 +1067,7 @@ Generated by Startup Preflight Business Plan Studio
   const totalWords = useMemo(() => {
     if (!activeVersion?.sections) return 0;
     return activeVersion.sections.reduce((acc, sec) => {
-      const words = sec.compiledResponseText
+      const words = sec?.compiledResponseText
         ? sec.compiledResponseText.trim().split(/\s+/).filter(Boolean).length
         : 0;
       return acc + words;
@@ -995,7 +1076,7 @@ Generated by Startup Preflight Business Plan Studio
 
   const compiledCount = useMemo(() => {
     if (!activeVersion?.sections) return 0;
-    return activeVersion.sections.filter((s) => (s.compiledResponseText || '').trim().length > 30).length;
+    return activeVersion.sections.filter((s) => (s?.compiledResponseText || '').trim().length > 30).length;
   }, [activeVersion?.sections]);
 
   // Smooth scroll to chapter
@@ -1134,7 +1215,7 @@ Generated by Startup Preflight Business Plan Studio
 
           <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium shrink-0">
             <span>
-              {compiledCount}/{activeVersion?.sections.length || 0} Chapters Ready
+              {compiledCount}/{activeVersion?.sections?.length || 0} Chapters Ready
             </span>
             <span>•</span>
             <span>{totalWords.toLocaleString()} Words</span>
@@ -1158,12 +1239,12 @@ Generated by Startup Preflight Business Plan Studio
                 Table of Contents
               </span>
               <span className="text-[10px] text-slate-400">
-                {activeVersion?.sections.length} Chapters
+                {activeVersion?.sections?.length || 0} Chapters
               </span>
             </div>
 
             <nav className="mt-2.5 space-y-1">
-              {activeVersion?.sections.map((sec) => {
+              {(activeVersion?.sections || []).map((sec) => {
                 const isReady = (sec.compiledResponseText || '').trim().length > 30;
                 const words = sec.compiledResponseText
                   ? sec.compiledResponseText.trim().split(/\s+/).filter(Boolean).length
@@ -1333,11 +1414,11 @@ Generated by Startup Preflight Business Plan Studio
                   Table of Contents &amp; Chapter Structure
                 </h3>
                 <span className="text-[10px] text-slate-500">
-                  {activeVersion?.sections.length} Chapters • {totalWords.toLocaleString()} Words
+                  {activeVersion?.sections?.length || 0} Chapters • {totalWords.toLocaleString()} Words
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs">
-                {activeVersion?.sections.map((sec, idx) => (
+                {(activeVersion?.sections || []).map((sec, idx) => (
                   <div key={sec.id} className="flex items-center justify-between border-b border-slate-100 py-1">
                     <span className="font-semibold text-slate-900">
                       <span className="text-slate-400 mr-2">{idx + 1}.0</span>
@@ -1352,7 +1433,7 @@ Generated by Startup Preflight Business Plan Studio
             {/* CONTINUOUS CHAPTERS STREAM (CLUTTER-FREE LIVEPLAN STYLE)            */}
             {/* ------------------------------------------------------------------- */}
             <div className="space-y-12">
-              {activeVersion?.sections.map((sec, idx) => {
+              {(activeVersion?.sections || []).map((sec, idx) => {
                 const hasProse = (sec.compiledResponseText || '').trim().length > 0;
                 const sectionNumberFormatted = `${idx + 1}.0`;
 
@@ -2035,10 +2116,10 @@ Generated by Startup Preflight Business Plan Studio
       {/* 3. SLIDE-OVER DRAWER: CHAPTER EDITOR & AI POLISH BAR                     */}
       {/* ========================================================================= */}
       {editingSectionNumber !== null && (() => {
-        const activeEditingSection = activeVersion?.sections.find(
+        const activeEditingSection = activeVersion?.sections?.find(
           (s) => s.sectionNumber === editingSectionNumber
         );
-        const currentWordCount = inlineEditText.trim().split(/\s+/).filter(Boolean).length;
+        const currentWordCount = (inlineEditText || '').trim().split(/\s+/).filter(Boolean).length;
         const maxLimit = activeEditingSection?.wordLimit || 350;
         const isOverWordLimit = currentWordCount > maxLimit;
 
