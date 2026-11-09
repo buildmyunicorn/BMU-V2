@@ -67,7 +67,7 @@ interface ExtractedPlanMetrics {
 }
 
 function extractKeyMetrics(
-  plan: ActiveStartupPlan,
+  planInput: any,
   modFOverride?: any,
   modJOverride?: any,
   modHOverride?: any,
@@ -77,6 +77,7 @@ function extractKeyMetrics(
   modDOverride?: any,
   modEOverride?: any
 ): ExtractedPlanMetrics {
+  const plan = planInput || {};
   const title = plan.title || 'Our Venture';
   const oneLiner =
     plan.oneLinerSummary ||
