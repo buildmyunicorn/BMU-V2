@@ -345,26 +345,26 @@ Monthly operational breakeven is achieved at just ${metrics.breakevenUnits}. The
     }
   }
 
-  // 4. Technical Innovation / Work Packages / Architecture / Tech Stack Intent
-  else if (/technical|innovation|r&d|work\s*package|architecture|tech\s*stack|wp1|feasibility|deliver|approach/i.test(qLower)) {
+  // 4. Technical Innovation / Work Packages / Architecture / Tech Stack / Milestones Intent
+  else if (/technical|innovation|r&d|work\s*package|architecture|tech\s*stack|wp1|feasibility|deliver|approach|milestone|timeline|roadmap|schedule/i.test(qLower)) {
     citations.push('Module D (Product Build & Work Packages)');
     citations.push('Module L (Chapter 3: Technical Blueprint)');
 
     if (targetLength === 'SHORT') {
-      answer = `${metrics.title} is engineered across 4 formal Work Packages: WP1 Core Extraction Engine, WP2 Pocket Profit Breakeven Model, WP3 LEO/Innovate UK Regulatory Rules Engine, and WP4 Pre-Flight Audit Compiler. Built on modern enterprise infrastructure using Next.js 15, TypeScript, Drizzle ORM on PostgreSQL, and server-side AI billing circuit breakers (500 calls/day), the platform delivers verified deterministic accuracy while eliminating technical debt.`;
+      answer = `${metrics.title} is engineered across 4 formal Work Packages: WP1 Core Extraction Engine (M1–M2), WP2 Pocket Profit Breakeven Model (M3–M4), WP3 LEO/Innovate UK Regulatory Rules Engine (M5–M7), and WP4 Pre-Flight Audit Compiler (M8–M10). Built on modern enterprise infrastructure using Next.js 15, TypeScript, Drizzle ORM on PostgreSQL, and server-side AI billing circuit breakers (500 calls/day), the platform delivers verified deterministic accuracy while eliminating technical debt.`;
     } else {
-      answer = `${metrics.title} is developed through a disciplined engineering architecture divided into 4 formal Work Packages:
+      answer = `${metrics.title} is developed through a disciplined engineering architecture divided into 4 formal Work Packages and milestones:
 
-• WP1: Core Extraction & Validation Engine:
+• WP1: Core Extraction & Validation Engine (Months 1–2):
 Automated prompt extraction and Mom Test survey builder capturing unstructured founder inputs into structured data models.
 
-• WP2: Pocket Profit & Living Breakeven Synthesizer:
+• WP2: Pocket Profit & Living Breakeven Synthesizer (Months 3–4):
 Real-time financial calculation engine computing dynamic pricing crossover, cashflow troughs, and unit economics without spreadsheets.
 
-• WP3: LEO & Innovate UK Regulatory Rules Engine:
+• WP3: LEO & Innovate UK Regulatory Rules Engine (Months 5–7):
 Comprehensive eligibility checker enforcing state agency rubrics (including 3-quote procurement rules, salary caps, and non-displacement criteria).
 
-• WP4: Pre-Flight Audit Compiler & Living Grant Dossier:
+• WP4: Pre-Flight Audit Compiler & Living Grant Dossier (Months 8–10):
 Automated compilation generating official PDF dossiers and verified answers for online portal submissions.
 
 Technology Stack & Execution:
@@ -444,6 +444,54 @@ Publishing comprehensive guides on LEO Feasibility, Enterprise Ireland New Front
 
 • Conversion Optimization:
 Offering a free Module A concept canvas hook, converting founders into paid passes through immediate value demonstration and instant grant readiness scoring.`;
+  }
+
+  // 10. Funding Requirement / Project Budget / Use of Funds Intent
+  else if (/funding\s*requirement|use\s*of\s*funds|project\s*cost|budget|eligible\s*cost|grant\s*(fund|spend|use|expenditure)|how\s*will.*(fund|money|spend)|capital\s*expenditure|capex|spend\s*the\s*money|finance\s*the\s*project/i.test(qLower)) {
+    citations.push('Module E (Premises, Equipment & 3 Quotes)');
+    citations.push('Module J (Financial Model & Funding Gap)');
+    citations.push('Module K (Grants & Funding Matcher)');
+
+    if (targetLength === 'SHORT') {
+      answer = `Project funding for ${metrics.title} is strictly allocated across 4 eligible expenditure categories: WP1–WP4 technical engineering, development infrastructure compliant with 3-quote procurement rules, customer onboarding/marketing, and working capital buffer covering our peak cashflow trough of ${metrics.troughAmount}. State grant aid is matched 50% by founder cash equity.`;
+    } else {
+      answer = `The project funding for ${metrics.title} will be strictly deployed across 4 eligible, audited expenditure categories:
+
+1. Technical Development & Engineering Delivery (WP1–WP4):
+Direct technical execution of our 4 Work Packages (Extraction Engine, Pocket Profit Breakeven Model, Regulatory Rules Engine, and Pre-Flight Audit Compiler), engaging vetted specialized engineering contractors adhering strictly to state 3-quote procurement rules.
+
+2. Infrastructure & Capital Equipment:
+Procurement of dedicated developer workstations, secure hosting infrastructure, and compliance verification toolchains adhering to statutory capital depreciation criteria (excluding ineligible personal laptops).
+
+3. Customer Onboarding & Pilot Cohorts:
+Direct distribution kits, Mom Test survey scaling, and pilot cohort onboarding with regional enterprise centres and university incubators across Ireland and the UK.
+
+4. Working Capital & Cashflow Trough Protection:
+Capital reserves protecting the venture through its maximum cashflow trough (${metrics.troughAmount}), ensuring seamless runway until monthly operational breakeven (${metrics.breakevenUnits}) is reached.
+
+Matching Funds:
+Grant funding is backed 50% by founder matching equity (€15,000) and reinvested retained cashflow, ensuring zero debt leverage and total solvency.`;
+    }
+  }
+
+  // 11. Intellectual Property (IP) Strategy Intent
+  else if (/intellectual\s*property|\bip\b|patent|trade\s*mark|trademark|proprietary|copyright|protect.*(idea|technology|solution)|ownership/i.test(qLower)) {
+    citations.push('Module G (Launchpad & Legal Setup)');
+    citations.push('Module D (Product Build & Tech Stack)');
+
+    answer = `${metrics.title} maintains a clear, defensible Intellectual Property (IP) and legal protection strategy:
+
+1. 100% Corporate IP Assignment:
+All underlying source code, algorithms, prompt chains, and architecture models created by lead promoter ${metrics.promoterName} are formally assigned to the operating corporate entity via standard Founder IP Assignment Deeds (Module G Step 6), ensuring a clean, unencumbered cap table for future investors and grant bodies.
+
+2. Proprietary Financial Synthesis Engine:
+Our 'Pocket Profit' breakeven calculator and real-time state grant rules engines operate on proprietary algorithmic logic, preventing commoditization by generic language models.
+
+3. Trademark & Brand Protection:
+Registration of the ${metrics.title} brand name, logo, and digital domain assets (.com, .ie, .co.uk) across Ireland, the UK, and Europe.
+
+4. Trade Secrets & Data Security:
+Platform data, customer survey logs, and financial projections are isolated through strict row-level tenant security, AES-256-GCM encryption at rest, and zero client-side credential exposure.`;
   }
 
   // Default: Problem & Solution Overview
