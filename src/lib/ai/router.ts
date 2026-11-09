@@ -210,7 +210,7 @@ function hasConfiguredGeminiKey(customKey?: string | null): string | null {
   return null;
 }
 
-function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
+export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
   const useVertex =
     process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' ||
     process.env.VERTEX_AI === 'true';

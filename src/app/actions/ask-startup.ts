@@ -20,7 +20,7 @@ import type {
 } from '@/lib/auth/session-store';
 import type { SupportedCountryCode } from '@/lib/localization';
 import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
-import { authorizeAndPrepareGeminiCall } from '@/lib/ai/router';
+import { authorizeAndPrepareGeminiCall, getGenAiClient } from '@/lib/ai/router';
 
 export type AskStartupPersona =
   | 'ELEVATOR_PITCH'
@@ -933,7 +933,7 @@ export async function askStartupPlanAction(
 
   // 6. Execute Live Gemini Call with Strict Grounding & Boundary Guardrails
   try {
-    const ai = new GoogleGenAI({ apiKey: geminiAuth.activeApiKey });
+    const ai = getGenAiClient(geminiAuth.activeApiKey);
 
     const systemPrompt = `You are "Ask My Startup", an executive AI Co-Founder and business plan assistant embedded inside the Startup Preflight platform.
 
