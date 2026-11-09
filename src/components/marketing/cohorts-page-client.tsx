@@ -330,7 +330,7 @@ export function CohortsPageClient() {
       {/* 1. HERO SECTION                                                       */}
       {/* ===================================================================== */}
       <section className="relative overflow-hidden border-b border-slate-200/80 bg-linear-to-b from-white via-indigo-50/25 to-slate-50 pt-16 pb-20 sm:pt-24 sm:pb-28">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-35" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-35" />
 
         <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6">
           {/* Eyebrow Pill */}
@@ -406,269 +406,7 @@ export function CohortsPageClient() {
       </section>
 
       {/* ===================================================================== */}
-      {/* 2. THE PROBLEM: "The Cohort Review Bottleneck"                         */}
-      {/* ===================================================================== */}
-      <section className="border-b border-slate-200/80 bg-white py-16 sm:py-24">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="text-center">
-            <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700 text-xs font-bold uppercase tracking-wider">
-              The Cohort Bottleneck
-            </Badge>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Why Running Early-Stage Batches Breaks Down
-            </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
-              Program managers and mentors spend dozens of hours reviewing unstructured materials instead of providing high-leverage strategic advice.
-            </p>
-          </div>
-
-          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 shadow-2xs">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600">
-                <FileText className="h-5 w-5" />
-              </div>
-              <h3 className="mt-4 text-base font-bold text-slate-900">
-                The 40-Page Messy Doc Trap
-              </h3>
-              <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                Every founder submits their plan in a different format. Half the batch skips competitor analysis; the other half has zero realistic financial assumptions. Mentors spend the first month deciphering drafts.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 shadow-2xs">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                <Flame className="h-5 w-5" />
-              </div>
-              <h3 className="mt-4 text-base font-bold text-slate-900">
-                Blind Spots Discovered Too Late
-              </h3>
-              <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                Unresolved equity splits, unvalidated customer willingness-to-pay, or missing 3-quote supplier schedules surface two weeks before Demo Day or statutory grant deadlines.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 shadow-2xs">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-                <Users2 className="h-5 w-5" />
-              </div>
-              <h3 className="mt-4 text-base font-bold text-slate-900">
-                Repetitive, Low-Leverage Mentorship
-              </h3>
-              <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                Mentors spend critical 1-on-1 advisor sessions explaining basic concepts like TAM/SAM/SOM or debugging broken Excel models, instead of focusing on distribution and product traction.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================================================================== */}
-      {/* 3. THE SOLUTION: The 5 Core Pillars for Program Directors              */}
-      {/* ===================================================================== */}
-      <section className="border-b border-slate-200/80 bg-slate-50 py-16 sm:py-24">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="text-center">
-            <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider">
-              The Preflight Platform
-            </Badge>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              5 Pillars That Elevate Your Startup Program
-            </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
-              A complete, standardized infrastructure that turns early-stage batches into high-performing, grant-ready ventures.
-            </p>
-          </div>
-
-          <div className="mt-12 space-y-6">
-            {/* Pillar 1 */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white font-bold">
-                  01
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-bold text-slate-900">
-                      Standardized 12-Module Operating System
-                    </h3>
-                    <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 text-[11px]">
-                      Capture First, Expand Second
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    From Founder Motivations &amp; Beachhead Personas to Ruthless Product Filtering and Go-To-Market playbooks, every founder is guided through an identical, rigorous standard. Advisors receive consistent, clean summaries rather than disparate documents.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Pillar 2 */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold">
-                  02
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-bold text-slate-900">
-                      Automated Ireland &amp; UK Grant Underwriting Engine
-                    </h3>
-                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 text-[11px]">
-                      Zero Rejection Pre-Screening
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    Pre-checks applicant plans against statutory non-displacement criteria, mandatory 3-quote supplier schedules, and laptop expenditure limits for Ireland LEO &amp; Enterprise Ireland, and compiles Innovate UK IFS 9-question responses and British Business Bank workbooks.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Pillar 3 */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white font-bold">
-                  03
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-bold text-slate-900">
-                      Blind-Reveal Co-Founder Alignment (12 Awkward Questions)
-                    </h3>
-                    <Badge variant="secondary" className="bg-violet-50 text-violet-700 text-[11px]">
-                      Team Survival Shield
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    Co-founder disputes are the #1 killer of accelerator teams. Our blind-reveal survey asks co-founders sensitive questions in private (equity splits, financial survival runway, time dedication, IP transfer) and generates a shared heatmap so mentors can mediate before conflict arises.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Pillar 4 */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-600 text-white font-bold">
-                  04
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-bold text-slate-900">
-                      Live Customer Validation &amp; Mom-Test Survey Engine
-                    </h3>
-                    <Badge variant="secondary" className="bg-amber-50 text-amber-700 text-[11px]">
-                      Real Market Proof
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    Every startup can generate a bias-free survey, launch a hosted public page (<code className="rounded bg-slate-100 px-1 py-0.5 text-slate-800">startuppreflight.com/v/[slug]</code>), test willingness-to-pay tiers, and synthesize qualitative feedback into quantifiable demand blocks.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Pillar 5 */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white font-bold">
-                  05
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-bold text-slate-900">
-                      No-Spreadsheet "Pocket Profit" 3-Year Financial Model
-                    </h3>
-                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 text-[11px]">
-                      Stress-Tested Runway
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    Translates operational headcount, platform transaction fees, and survival budgets into a verified 36-month cashflow trough, breakeven crossover graph, and Worst-Case / Aggressive Growth scenario sandboxes.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================================================================== */}
-      {/* 4. WHO WE PARTNER WITH                                                */}
-      {/* ===================================================================== */}
-      <section className="border-b border-slate-200/80 bg-white py-16 sm:py-24">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="text-center">
-            <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider">
-              Ecosystem Archetypes
-            </Badge>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Tailored for Every Stage of Institutional Support
-            </h2>
-          </div>
-
-          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-indigo-300 hover:shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                  <GraduationCap className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900">
-                  University Incubators &amp; Venture Labs
-                </h3>
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-slate-600">
-                Ideal for student entrepreneurs, academic researchers, and university spin-outs. Provides the structured scaffolding needed to turn research into commercial viability without getting lost in jargon.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-emerald-300 hover:shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                  <Building2 className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Regional Enterprise Boards &amp; Growth Hubs
-                </h3>
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-slate-600">
-                Equips Local Enterprise Offices (LEOs) and UK Growth Hubs with an automated feasibility compiler that ensures founders meet strict public grant criteria before submitting funding applications.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-violet-300 hover:shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                  <Target className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Seed Accelerators &amp; Syndicate Networks
-                </h3>
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-slate-600">
-                Accelerates portfolio companies from raw concept to investor-grade pitch within 8–12 weeks. Ensures founders understand their unit economics and customer acquisition channels before pitch day.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-amber-300 hover:shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                  <Layers className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Corporate Venture Studios &amp; Innovation Labs
-                </h3>
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-slate-600">
-                Enables corporate venture teams to run rapid 14-day concept validation sprints across dozens of internal ideas, filtering low-potential initiatives before committing build capital.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================================================================== */}
-      {/* 5. COHORT COMMAND CENTER (INTERACTIVE MOCKUP PREVIEW)                 */}
+      {/* 2. COHORT COMMAND CENTER (REAL-TIME BATCH HEATMAP & STARTUP PROGRESS) */}
       {/* ===================================================================== */}
       <section
         id="cohort-panel-preview"
@@ -1131,6 +869,268 @@ export function CohortsPageClient() {
                   </Button>
                 </a>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 3. THE PROBLEM: "The Cohort Review Bottleneck"                         */}
+      {/* ===================================================================== */}
+      <section className="border-b border-slate-200/80 bg-white py-16 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="text-center">
+            <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700 text-xs font-bold uppercase tracking-wider">
+              The Cohort Bottleneck
+            </Badge>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              Why Running Early-Stage Batches Breaks Down
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
+              Program managers and mentors spend dozens of hours reviewing unstructured materials instead of providing high-leverage strategic advice.
+            </p>
+          </div>
+
+          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 shadow-2xs">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                <FileText className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-base font-bold text-slate-900">
+                The 40-Page Messy Doc Trap
+              </h3>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                Every founder submits their plan in a different format. Half the batch skips competitor analysis; the other half has zero realistic financial assumptions. Mentors spend the first month deciphering drafts.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 shadow-2xs">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                <Flame className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-base font-bold text-slate-900">
+                Blind Spots Discovered Too Late
+              </h3>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                Unresolved equity splits, unvalidated customer willingness-to-pay, or missing 3-quote supplier schedules surface two weeks before Demo Day or statutory grant deadlines.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 shadow-2xs">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                <Users2 className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-base font-bold text-slate-900">
+                Repetitive, Low-Leverage Mentorship
+              </h3>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                Mentors spend critical 1-on-1 advisor sessions explaining basic concepts like TAM/SAM/SOM or debugging broken Excel models, instead of focusing on distribution and product traction.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 4. THE SOLUTION: The 5 Core Pillars for Program Directors              */}
+      {/* ===================================================================== */}
+      <section className="border-b border-slate-200/80 bg-slate-50 py-16 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="text-center">
+            <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider">
+              The Preflight Platform
+            </Badge>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              5 Pillars That Elevate Your Startup Program
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
+              A complete, standardized infrastructure that turns early-stage batches into high-performing, grant-ready ventures.
+            </p>
+          </div>
+
+          <div className="mt-12 space-y-6">
+            {/* Pillar 1 */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white font-bold">
+                  01
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Standardized 12-Module Operating System
+                    </h3>
+                    <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 text-[11px]">
+                      Capture First, Expand Second
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
+                    From Founder Motivations &amp; Beachhead Personas to Ruthless Product Filtering and Go-To-Market playbooks, every founder is guided through an identical, rigorous standard. Advisors receive consistent, clean summaries rather than disparate documents.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Pillar 2 */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold">
+                  02
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Automated Ireland &amp; UK Grant Underwriting Engine
+                    </h3>
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 text-[11px]">
+                      Zero Rejection Pre-Screening
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
+                    Pre-checks applicant plans against statutory non-displacement criteria, mandatory 3-quote supplier schedules, and laptop expenditure limits for Ireland LEO &amp; Enterprise Ireland, and compiles Innovate UK IFS 9-question responses and British Business Bank workbooks.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Pillar 3 */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white font-bold">
+                  03
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Blind-Reveal Co-Founder Alignment (12 Awkward Questions)
+                    </h3>
+                    <Badge variant="secondary" className="bg-violet-50 text-violet-700 text-[11px]">
+                      Team Survival Shield
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
+                    Co-founder disputes are the #1 killer of accelerator teams. Our blind-reveal survey asks co-founders sensitive questions in private (equity splits, financial survival runway, time dedication, IP transfer) and generates a shared heatmap so mentors can mediate before conflict arises.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Pillar 4 */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-600 text-white font-bold">
+                  04
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Live Customer Validation &amp; Mom-Test Survey Engine
+                    </h3>
+                    <Badge variant="secondary" className="bg-amber-50 text-amber-700 text-[11px]">
+                      Real Market Proof
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
+                    Every startup can generate a bias-free survey, launch a hosted public page (<code className="rounded bg-slate-100 px-1 py-0.5 text-slate-800">startuppreflight.com/v/[slug]</code>), test willingness-to-pay tiers, and synthesize qualitative feedback into quantifiable demand blocks.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Pillar 5 */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white font-bold">
+                  05
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-bold text-slate-900">
+                      No-Spreadsheet "Pocket Profit" 3-Year Financial Model
+                    </h3>
+                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 text-[11px]">
+                      Stress-Tested Runway
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
+                    Translates operational headcount, platform transaction fees, and survival budgets into a verified 36-month cashflow trough, breakeven crossover graph, and Worst-Case / Aggressive Growth scenario sandboxes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 5. WHO WE PARTNER WITH                                                */}
+      {/* ===================================================================== */}
+      <section className="border-b border-slate-200/80 bg-white py-16 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="text-center">
+            <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider">
+              Ecosystem Archetypes
+            </Badge>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              Tailored for Every Stage of Institutional Support
+            </h2>
+          </div>
+
+          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-indigo-300 hover:shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">
+                  University Incubators &amp; Venture Labs
+                </h3>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                Ideal for student entrepreneurs, academic researchers, and university spin-outs. Provides the structured scaffolding needed to turn research into commercial viability without getting lost in jargon.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-emerald-300 hover:shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Regional Enterprise Boards &amp; Growth Hubs
+                </h3>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                Equips Local Enterprise Offices (LEOs) and UK Growth Hubs with an automated feasibility compiler that ensures founders meet strict public grant criteria before submitting funding applications.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-violet-300 hover:shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                  <Target className="h-5 w-5" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Seed Accelerators &amp; Syndicate Networks
+                </h3>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                Accelerates portfolio companies from raw concept to investor-grade pitch within 8–12 weeks. Ensures founders understand their unit economics and customer acquisition channels before pitch day.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-amber-300 hover:shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Corporate Venture Studios &amp; Innovation Labs
+                </h3>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                Enables corporate venture teams to run rapid 14-day concept validation sprints across dozens of internal ideas, filtering low-potential initiatives before committing build capital.
+              </p>
             </div>
           </div>
         </div>
