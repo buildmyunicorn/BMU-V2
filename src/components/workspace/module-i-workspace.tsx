@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Megaphone,
   Check,
@@ -464,6 +464,18 @@ export function ModuleIWorkspace({
 
   // Save state
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // Autosave and dirty state tracking refs
+  const isFirstRenderStep1Ref = useRef(true);
+  const isDirtyStep1Ref = useRef(false);
+  const isFirstRenderStep2Ref = useRef(true);
+  const isDirtyStep2Ref = useRef(false);
+  const isFirstRenderStep3Ref = useRef(true);
+  const isDirtyStep3Ref = useRef(false);
+  const isFirstRenderStep4Ref = useRef(true);
+  const isDirtyStep4Ref = useRef(false);
+  const isFirstRenderStep5Ref = useRef(true);
+  const isDirtyStep5Ref = useRef(false);
 
   // AI Generation State
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
@@ -1304,7 +1316,7 @@ export function ModuleIWorkspace({
   ];
 
   // Save Step 1
-  const handleSaveStep1 = async () => {
+  const handleSaveStep1 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatus('saving');
     try {
@@ -1319,6 +1331,7 @@ export function ModuleIWorkspace({
       });
 
       if (res.ok || onSaveStep1Positioning) {
+        isDirtyStep1Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
@@ -1327,6 +1340,7 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 1:', err);
       if (onSaveStep1Positioning) {
+        isDirtyStep1Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
@@ -1596,7 +1610,7 @@ export function ModuleIWorkspace({
   ];
 
   // Save Step 2
-  const handleSaveStep2 = async () => {
+  const handleSaveStep2 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatusStep2('saving');
     try {
@@ -1611,6 +1625,7 @@ export function ModuleIWorkspace({
       });
 
       if (res.ok || onSaveStep2FourPs) {
+        isDirtyStep2Ref.current = false;
         setSaveStatusStep2('saved');
         setTimeout(() => setSaveStatusStep2('idle'), 2500);
       } else {
@@ -1619,6 +1634,7 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 2:', err);
       if (onSaveStep2FourPs) {
+        isDirtyStep2Ref.current = false;
         setSaveStatusStep2('saved');
         setTimeout(() => setSaveStatusStep2('idle'), 2500);
       } else {
@@ -1840,7 +1856,7 @@ export function ModuleIWorkspace({
   }, [plan.moduleCData]);
 
   // Save Step 3
-  const handleSaveStep3 = async () => {
+  const handleSaveStep3 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatusStep3('saving');
     try {
@@ -1855,6 +1871,7 @@ export function ModuleIWorkspace({
       });
 
       if (res.ok || onSaveStep3First10) {
+        isDirtyStep3Ref.current = false;
         setSaveStatusStep3('saved');
         setTimeout(() => setSaveStatusStep3('idle'), 2500);
       } else {
@@ -1863,6 +1880,7 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 3:', err);
       if (onSaveStep3First10) {
+        isDirtyStep3Ref.current = false;
         setSaveStatusStep3('saved');
         setTimeout(() => setSaveStatusStep3('idle'), 2500);
       } else {
@@ -2427,7 +2445,7 @@ export function ModuleIWorkspace({
     }));
   };
 
-  const handleSaveStep4 = async () => {
+  const handleSaveStep4 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatusStep4('saving');
     const updatedStep4: MarketingBudgetStep4Data = {
@@ -2452,6 +2470,7 @@ export function ModuleIWorkspace({
         completionPercentage: 90,
       });
       if (res.ok || onSaveStep4Budget) {
+        isDirtyStep4Ref.current = false;
         setSaveStatusStep4('saved');
         setTimeout(() => setSaveStatusStep4('idle'), 2500);
       } else {
@@ -2460,6 +2479,7 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 4:', err);
       if (onSaveStep4Budget) {
+        isDirtyStep4Ref.current = false;
         setSaveStatusStep4('saved');
         setTimeout(() => setSaveStatusStep4('idle'), 2500);
       } else {
@@ -2796,7 +2816,7 @@ export function ModuleIWorkspace({
     }
   };
 
-  const handleSaveStep5 = async () => {
+  const handleSaveStep5 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatusStep5('saving');
     const updatedStep5: MarketingExecutiveBriefStep5Data = {
@@ -2815,6 +2835,7 @@ export function ModuleIWorkspace({
         completionPercentage: 100,
       });
       if (res.ok || onSaveStep5Brief) {
+        isDirtyStep5Ref.current = false;
         setSaveStatusStep5('saved');
         setTimeout(() => setSaveStatusStep5('idle'), 2500);
       } else {
@@ -2823,6 +2844,7 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 5:', err);
       if (onSaveStep5Brief) {
+        isDirtyStep5Ref.current = false;
         setSaveStatusStep5('saved');
         setTimeout(() => setSaveStatusStep5('idle'), 2500);
       } else {
@@ -2830,6 +2852,97 @@ export function ModuleIWorkspace({
       }
     }
   };
+
+  // Step 1 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep1Ref.current) {
+      isFirstRenderStep1Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep1Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep1Ref.current) {
+        void handleSaveStep1({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step1Data]);
+
+  // Step 2 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep2Ref.current) {
+      isFirstRenderStep2Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep2Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep2Ref.current) {
+        void handleSaveStep2({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step2Data]);
+
+  // Step 3 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep3Ref.current) {
+      isFirstRenderStep3Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep3Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep3Ref.current) {
+        void handleSaveStep3({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step3Data]);
+
+  // Step 4 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep4Ref.current) {
+      isFirstRenderStep4Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep4Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep4Ref.current) {
+        void handleSaveStep4({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step4Data]);
+
+  // Step 5 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep5Ref.current) {
+      isFirstRenderStep5Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep5Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep5Ref.current) {
+        void handleSaveStep5({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step5Data]);
+
+  // Flush on unmount so switching modules never loses changes
+  useEffect(() => {
+    return () => {
+      if (isDirtyStep1Ref.current) void handleSaveStep1({ silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2({ silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3({ silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4({ silent: true });
+      if (isDirtyStep5Ref.current) void handleSaveStep5({ silent: true });
+    };
+  }, []);
 
   const handleAddCustomBlindSpot = () => {
     const newId = `bs-custom-${Date.now()}`;

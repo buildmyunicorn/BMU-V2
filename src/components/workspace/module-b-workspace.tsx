@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   BarChart3,
   Globe2,
@@ -868,6 +868,20 @@ export function ModuleBWorkspace({
   // Saving state
   const [isSaving, setIsSaving] = useState(false);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
+
+  // Background Autosave States & Refs
+  const [step1AutosavedAt, setStep1AutosavedAt] = useState<Date | null>(null);
+  const [step2AutosavedAt, setStep2AutosavedAt] = useState<Date | null>(null);
+  const [step3AutosavedAt, setStep3AutosavedAt] = useState<Date | null>(null);
+  const [step4AutosavedAt, setStep4AutosavedAt] = useState<Date | null>(null);
+  const isDirtyStep1Ref = useRef(false);
+  const isDirtyStep2Ref = useRef(false);
+  const isDirtyStep3Ref = useRef(false);
+  const isDirtyStep4Ref = useRef(false);
+  const isFirstRenderStep1Ref = useRef(true);
+  const isFirstRenderStep2Ref = useRef(true);
+  const isFirstRenderStep3Ref = useRef(true);
+  const isFirstRenderStep4Ref = useRef(true);
 
   // =========================================================================
   // STEP 2 STATE: COMPETITORS & HOW CUSTOMERS DEAL WITH THIS TODAY
@@ -1859,110 +1873,244 @@ export function ModuleBWorkspace({
     );
   }
 
-  async function handleSaveStep1() {
+  async function handleSaveStep1(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     setIsSaving(true);
-    setSaveBanner(null);
-    const payload: BeachheadMarketData = {
-      buyerType: buyerTypes[0] ?? defaultBuyerType,
-      buyerTypes,
-      beachheadSegment: beachheadSegment.trim(),
-      endUserVsDecisionMaker,
-      decisionMakerRole: decisionMakerRole.trim(),
-      buyingTriggerPreset,
-      buyingTriggerNotes: buyingTriggerNotes.trim(),
-      targetMarketsArray: targetMarkets,
-      otherBuyerModelText: otherBuyerModelText.trim() || undefined,
-      otherDecisionMakerSetupText:
-        otherDecisionMakerSetupText.trim() || undefined,
-      otherGeographyText: otherGeographyText.trim() || undefined,
-      lastSavedAt: new Date().toISOString(),
-    };
-    await onSaveStep1Beachhead(
-      payload,
-      Math.max(20, totalModuleBProgress)
-    );
-    setIsSaving(false);
-    setSaveBanner(
-      `✅ Saved Step 1 (First Customer Group & Selling Markets: ${targetMarkets.join(', ')})!`
-    );
+    if (!options?.silent) setSaveBanner(null);
+    try {
+      const payload: BeachheadMarketData = {
+        buyerType: buyerTypes[0] ?? defaultBuyerType,
+        buyerTypes,
+        beachheadSegment: beachheadSegment.trim(),
+        endUserVsDecisionMaker,
+        decisionMakerRole: decisionMakerRole.trim(),
+        buyingTriggerPreset,
+        buyingTriggerNotes: buyingTriggerNotes.trim(),
+        targetMarketsArray: targetMarkets,
+        otherBuyerModelText: otherBuyerModelText.trim() || undefined,
+        otherDecisionMakerSetupText:
+          otherDecisionMakerSetupText.trim() || undefined,
+        otherGeographyText: otherGeographyText.trim() || undefined,
+        lastSavedAt: new Date().toISOString(),
+      };
+      await onSaveStep1Beachhead(
+        payload,
+        Math.max(20, totalModuleBProgress)
+      );
+      setStep1AutosavedAt(new Date());
+      isDirtyStep1Ref.current = false;
+      if (!options?.silent) {
+        setSaveBanner(
+          `✅ Saved Step 1 (First Customer Group & Selling Markets: ${targetMarkets.join(', ')})!`
+        );
+      }
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  async function handleSaveStep2() {
+  async function handleSaveStep2(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     setIsSavingStep2(true);
-    setSaveBanner(null);
-    const payload: CompetitorsAndStatusQuoData = {
-      currentWorkarounds,
-      workaroundFrustrationNotes: workaroundFrustrationNotes.trim(),
-      competitors: competitors.filter(
-        (c) =>
-          c.name.trim() ||
-          c.whatTheyDoWell.trim() ||
-          c.whereTheyFallShort.trim()
-      ),
-      whySwitchEdges,
-      whySwitchOneSentence: whySwitchOneSentence.trim(),
-      otherWorkaroundText: otherWorkaroundText.trim() || undefined,
-      otherWhySwitchEdgeText: otherWhySwitchEdgeText.trim() || undefined,
-      lastSavedAt: new Date().toISOString(),
-    };
-    await onSaveStep2Competitors(
-      payload,
-      Math.max(40, totalModuleBProgress)
-    );
-    setIsSavingStep2(false);
-    setSaveBanner(
-      '✅ Saved Step 2 (Competitors & How Customers Deal With This Today)!'
-    );
+    if (!options?.silent) setSaveBanner(null);
+    try {
+      const payload: CompetitorsAndStatusQuoData = {
+        currentWorkarounds,
+        workaroundFrustrationNotes: workaroundFrustrationNotes.trim(),
+        competitors: competitors.filter(
+          (c) =>
+            c.name.trim() ||
+            c.whatTheyDoWell.trim() ||
+            c.whereTheyFallShort.trim()
+        ),
+        whySwitchEdges,
+        whySwitchOneSentence: whySwitchOneSentence.trim(),
+        otherWorkaroundText: otherWorkaroundText.trim() || undefined,
+        otherWhySwitchEdgeText: otherWhySwitchEdgeText.trim() || undefined,
+        lastSavedAt: new Date().toISOString(),
+      };
+      await onSaveStep2Competitors(
+        payload,
+        Math.max(40, totalModuleBProgress)
+      );
+      setStep2AutosavedAt(new Date());
+      isDirtyStep2Ref.current = false;
+      if (!options?.silent) {
+        setSaveBanner(
+          '✅ Saved Step 2 (Competitors & How Customers Deal With This Today)!'
+        );
+      }
+    } finally {
+      setIsSavingStep2(false);
+    }
   }
 
-  async function handleSaveStep3() {
+  async function handleSaveStep3(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     setIsSavingStep3(true);
-    setSaveBanner(null);
-    const payload: MarketSizingData = {
-      segments: marketSegments,
-      widerMarketMultiplier,
-      otherWiderMarketScaleText:
-        otherWiderMarketScaleText.trim() || undefined,
-      sourceAndAssumptionNotes: sourceAndAssumptionNotes.trim(),
-      lastSavedAt: new Date().toISOString(),
-    };
-    await onSaveStep3MarketSizing(
-      payload,
-      Math.max(60, totalModuleBProgress)
-    );
-    setIsSavingStep3(false);
-    setSaveBanner(
-      `✅ Saved Step 3 (Market Sizing in ${countryPack.defaultCurrency})!`
-    );
+    if (!options?.silent) setSaveBanner(null);
+    try {
+      const payload: MarketSizingData = {
+        segments: marketSegments,
+        widerMarketMultiplier,
+        otherWiderMarketScaleText:
+          otherWiderMarketScaleText.trim() || undefined,
+        sourceAndAssumptionNotes: sourceAndAssumptionNotes.trim(),
+        lastSavedAt: new Date().toISOString(),
+      };
+      await onSaveStep3MarketSizing(
+        payload,
+        Math.max(60, totalModuleBProgress)
+      );
+      setStep3AutosavedAt(new Date());
+      isDirtyStep3Ref.current = false;
+      if (!options?.silent) {
+        setSaveBanner(
+          `✅ Saved Step 3 (Market Sizing in ${countryPack.defaultCurrency})!`
+        );
+      }
+    } finally {
+      setIsSavingStep3(false);
+    }
   }
 
-  async function handleSaveStep4() {
+  async function handleSaveStep4(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     setIsSavingStep4(true);
-    setSaveBanner(null);
-    const payload: CompetitiveWedgeData = {
-      comparisonRows,
-      switchingFrictionReducers,
-      switchingFrictionPlanNotes: switchingFrictionPlanNotes.trim(),
-      otherSwitchingFrictionText:
-        otherSwitchingFrictionText.trim() || undefined,
-      unfairAdvantages,
-      otherUnfairAdvantageText: otherUnfairAdvantageText.trim() || undefined,
-      competitiveEdgeSummary: competitiveEdgeSummary.trim(),
-      lastSavedAt: new Date().toISOString(),
-    };
-    await onSaveStep4CompetitiveWedge(
-      payload,
-      Math.max(80, totalModuleBProgress)
-    );
-    setIsSavingStep4(false);
-    setSaveBanner(
-      '✅ Saved Step 4 (Competitive Edge & How You Stand Out)!'
-    );
+    if (!options?.silent) setSaveBanner(null);
+    try {
+      const payload: CompetitiveWedgeData = {
+        comparisonRows,
+        switchingFrictionReducers,
+        switchingFrictionPlanNotes: switchingFrictionPlanNotes.trim(),
+        otherSwitchingFrictionText:
+          otherSwitchingFrictionText.trim() || undefined,
+        unfairAdvantages,
+        otherUnfairAdvantageText: otherUnfairAdvantageText.trim() || undefined,
+        competitiveEdgeSummary: competitiveEdgeSummary.trim(),
+        lastSavedAt: new Date().toISOString(),
+      };
+      await onSaveStep4CompetitiveWedge(
+        payload,
+        Math.max(80, totalModuleBProgress)
+      );
+      setStep4AutosavedAt(new Date());
+      isDirtyStep4Ref.current = false;
+      if (!options?.silent) {
+        setSaveBanner(
+          '✅ Saved Step 4 (Competitive Edge & How You Stand Out)!'
+        );
+      }
+    } finally {
+      setIsSavingStep4(false);
+    }
   }
+
+  // Step 1 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep1Ref.current) {
+      isFirstRenderStep1Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep1Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep1Ref.current) {
+        void handleSaveStep1({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [
+    buyerTypes,
+    beachheadSegment,
+    endUserVsDecisionMaker,
+    decisionMakerRole,
+    buyingTriggerPreset,
+    buyingTriggerNotes,
+    targetMarkets,
+    otherBuyerModelText,
+    otherDecisionMakerSetupText,
+    otherGeographyText,
+  ]);
+
+  // Step 2 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep2Ref.current) {
+      isFirstRenderStep2Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep2Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep2Ref.current) {
+        void handleSaveStep2({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [
+    currentWorkarounds,
+    workaroundFrustrationNotes,
+    competitors,
+    whySwitchEdges,
+    whySwitchOneSentence,
+    otherWorkaroundText,
+    otherWhySwitchEdgeText,
+  ]);
+
+  // Step 3 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep3Ref.current) {
+      isFirstRenderStep3Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep3Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep3Ref.current) {
+        void handleSaveStep3({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [
+    marketSegments,
+    widerMarketMultiplier,
+    otherWiderMarketScaleText,
+    sourceAndAssumptionNotes,
+  ]);
+
+  // Step 4 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep4Ref.current) {
+      isFirstRenderStep4Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep4Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep4Ref.current) {
+        void handleSaveStep4({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [
+    comparisonRows,
+    switchingFrictionReducers,
+    switchingFrictionPlanNotes,
+    otherSwitchingFrictionText,
+    unfairAdvantages,
+    otherUnfairAdvantageText,
+    competitiveEdgeSummary,
+  ]);
+
+  // Flush on unmount so switching modules never loses changes
+  useEffect(() => {
+    return () => {
+      if (isDirtyStep1Ref.current) void handleSaveStep1({ silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2({ silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3({ silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4({ silent: true });
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -2927,11 +3075,16 @@ export function ModuleBWorkspace({
             </Button>
 
             <div className="flex flex-wrap items-center gap-2">
+              {step1AutosavedAt && !isSaving && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
+                  <Check className="h-3 w-3 stroke-[2.5]" /> Autosaved
+                </span>
+              )}
               <Button
                 type="button"
                 size="sm"
                 disabled={isVaultReadonly || isSaving}
-                onClick={handleSaveStep1}
+                onClick={() => handleSaveStep1()}
                 className="bg-indigo-600 text-white hover:bg-indigo-700"
               >
                 {isSaving ? (
@@ -3614,11 +3767,16 @@ export function ModuleBWorkspace({
             </Button>
 
             <div className="flex flex-wrap items-center gap-2">
+              {step2AutosavedAt && !isSavingStep2 && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
+                  <Check className="h-3 w-3 stroke-[2.5]" /> Autosaved
+                </span>
+              )}
               <Button
                 type="button"
                 size="sm"
                 disabled={isVaultReadonly || isSavingStep2}
-                onClick={handleSaveStep2}
+                onClick={() => handleSaveStep2()}
                 className="bg-indigo-600 text-white hover:bg-indigo-700"
               >
                 {isSavingStep2 ? (
@@ -4581,11 +4739,16 @@ export function ModuleBWorkspace({
             </Button>
 
             <div className="flex flex-wrap items-center gap-2">
+              {step3AutosavedAt && !isSavingStep3 && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
+                  <Check className="h-3 w-3 stroke-[2.5]" /> Autosaved
+                </span>
+              )}
               <Button
                 type="button"
                 size="sm"
                 disabled={isVaultReadonly || isSavingStep3}
-                onClick={handleSaveStep3}
+                onClick={() => handleSaveStep3()}
                 className="bg-indigo-600 text-white hover:bg-indigo-700"
               >
                 {isSavingStep3 ? (
@@ -5344,11 +5507,16 @@ export function ModuleBWorkspace({
             </Button>
 
             <div className="flex flex-wrap items-center gap-2">
+              {step4AutosavedAt && !isSavingStep4 && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
+                  <Check className="h-3 w-3 stroke-[2.5]" /> Autosaved
+                </span>
+              )}
               <Button
                 type="button"
                 size="sm"
                 disabled={isVaultReadonly || isSavingStep4}
-                onClick={handleSaveStep4}
+                onClick={() => handleSaveStep4()}
                 className="bg-indigo-600 text-white hover:bg-indigo-700"
               >
                 {isSavingStep4 ? (

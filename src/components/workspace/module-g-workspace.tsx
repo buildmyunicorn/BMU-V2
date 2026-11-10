@@ -212,6 +212,9 @@ export function ModuleGWorkspace({
     };
   });
   const isFirstRenderRef = React.useRef(true);
+  const dataRef = React.useRef(data);
+  dataRef.current = data;
+  const isDirtyRef = React.useRef(false);
   // Step Accordion View State: 0 = all collapsed by default, 1..7, or 'ALL'
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 7) {
@@ -424,11 +427,22 @@ export function ModuleGWorkspace({
       return;
     }
     if (isVaultReadonly || !onSave) return;
+    isDirtyRef.current = true;
     const timer = setTimeout(() => {
       onSave(data);
+      isDirtyRef.current = false;
     }, 450);
     return () => clearTimeout(timer);
   }, [data, isVaultReadonly, onSave]);
+
+  // Flush dirty state on unmount
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current && onSave && !isVaultReadonly) {
+        onSave(dataRef.current);
+      }
+    };
+  }, [isVaultReadonly, onSave]);
 
   const handleCopyOperationsBrief = () => {
     const brief = `### STARTUP PREFLIGHT — MODULE G: LAUNCHPAD & OPERATIONS BRIEF

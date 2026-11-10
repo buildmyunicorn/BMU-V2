@@ -282,6 +282,10 @@ import { evaluatePlanGrantReadiness } from '@/lib/grants/grant-readiness-evaluat
 import type { SavedGrantCenterData } from '@/lib/auth/session-store';
 import { GlobalFeedbackButton } from '@/components/feedback/global-feedback-dialog';
 import { PreflightGuideModal } from '@/components/workspace/preflight-guide-modal';
+import {
+  AutosaveStatusIndicator,
+  type AutosaveStatus,
+} from '@/components/workspace/autosave-status-indicator';
 import { buildDynamicModuleABlindSpots } from '@/lib/ai/module-a-blindspots';
 import {
   buildModuleAMarkdownBrief,
@@ -576,6 +580,31 @@ export default function WorkspacePage() {
   const [cloudDbConnected, setCloudDbConnected] = useState<boolean | null>(
     null
   );
+
+  // Global Cloud Autosave Status for workspace header indicator
+  const [globalSaveStatus, setGlobalSaveStatus] = useState<AutosaveStatus>('idle');
+  const [globalLastSavedAt, setGlobalLastSavedAt] = useState<Date | null>(null);
+  const isModuleAFirstRenderRef = useRef(true);
+  const isModuleADirtyRef = useRef(false);
+
+  const markSavingStart = () => setGlobalSaveStatus('saving');
+  const markSavingSuccess = () => {
+    setGlobalSaveStatus('saved');
+    setGlobalLastSavedAt(new Date());
+  };
+  const markSavingError = () => setGlobalSaveStatus('error');
+
+  const runWithAutosaveTracking = async <T,>(operation: () => Promise<T>): Promise<T> => {
+    markSavingStart();
+    try {
+      const result = await operation();
+      markSavingSuccess();
+      return result;
+    } catch (err) {
+      markSavingError();
+      throw err;
+    }
+  };
 
   // Module A Step Accordion / Dropdown View State (0 = all collapsed, 1..7, or 'ALL')
   const [openStep, setOpenStep] = useState<number | 'ALL'>(0);
@@ -1934,6 +1963,16 @@ export default function WorkspacePage() {
   }
 
   function navigateToModuleWithHistory(modCode: ModuleCode, stepNum?: number, highlightId?: string) {
+    // If Module A has unsaved dirty changes, flush save immediately before switching
+    if (
+      activeModule === 'MOD_A_IDEATION' &&
+      isModuleADirtyRef.current &&
+      !activeEntitlement.isVaultReadonly
+    ) {
+      isModuleADirtyRef.current = false;
+      void handleSaveCanvasEdits(undefined, { silent: true });
+    }
+
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.searchParams.delete('view');
@@ -2298,37 +2337,39 @@ export default function WorkspacePage() {
     beachhead: BeachheadMarketData,
     progressPercent: number
   ) {
-    const updatedPlans = session.plans.map((p) => {
-      if (p.id !== currentPlan.id) return p;
-      const isExport =
-        beachhead.targetMarketsArray.some((m) => m !== p.hqCountryCode) ||
-        beachhead.targetMarketsArray.includes('EU') ||
-        beachhead.targetMarketsArray.includes('ROW');
-      return {
-        ...p,
-        targetMarketsArray: beachhead.targetMarketsArray,
-        exportPotential: isExport
-          ? ('EXPORTING_INTERNATIONALLY' as const)
-          : ('DOMESTIC_ONLY' as const),
-        currentModuleStep: 'MOD_B_STEP_1',
-        moduleBData: {
-          ...(p.moduleBData || {}),
-          beachhead,
-        },
+    return runWithAutosaveTracking(async () => {
+      const updatedPlans = session.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        const isExport =
+          beachhead.targetMarketsArray.some((m) => m !== p.hqCountryCode) ||
+          beachhead.targetMarketsArray.includes('EU') ||
+          beachhead.targetMarketsArray.includes('ROW');
+        return {
+          ...p,
+          targetMarketsArray: beachhead.targetMarketsArray,
+          exportPotential: isExport
+            ? ('EXPORTING_INTERNATIONALLY' as const)
+            : ('DOMESTIC_ONLY' as const),
+          currentModuleStep: 'MOD_B_STEP_1',
+          moduleBData: {
+            ...(p.moduleBData || {}),
+            beachhead,
+          },
+        };
+      });
+
+      const nextSession: BmuLocalSession = {
+        ...session,
+        plans: updatedPlans,
       };
-    });
+      setSession(nextSession);
+      saveBmuSession(nextSession);
 
-    const nextSession: BmuLocalSession = {
-      ...session,
-      plans: updatedPlans,
-    };
-    setSession(nextSession);
-    saveBmuSession(nextSession);
-
-    await saveModuleBStep1BeachheadAction({
-      planId: currentPlan.id,
-      beachhead,
-      completionPercentage: progressPercent,
+      await saveModuleBStep1BeachheadAction({
+        planId: currentPlan.id,
+        beachhead,
+        completionPercentage: progressPercent,
+      });
     });
   }
 
@@ -2336,29 +2377,31 @@ export default function WorkspacePage() {
     competitorsAndStatusQuo: CompetitorsAndStatusQuoData,
     progressPercent: number
   ) {
-    const updatedPlans = session.plans.map((p) => {
-      if (p.id !== currentPlan.id) return p;
-      return {
-        ...p,
-        currentModuleStep: 'MOD_B_STEP_2',
-        moduleBData: {
-          ...(p.moduleBData || {}),
-          competitorsAndStatusQuo,
-        },
+    return runWithAutosaveTracking(async () => {
+      const updatedPlans = session.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_B_STEP_2',
+          moduleBData: {
+            ...(p.moduleBData || {}),
+            competitorsAndStatusQuo,
+          },
+        };
+      });
+
+      const nextSession: BmuLocalSession = {
+        ...session,
+        plans: updatedPlans,
       };
-    });
+      setSession(nextSession);
+      saveBmuSession(nextSession);
 
-    const nextSession: BmuLocalSession = {
-      ...session,
-      plans: updatedPlans,
-    };
-    setSession(nextSession);
-    saveBmuSession(nextSession);
-
-    await saveModuleBStep2CompetitorsAction({
-      planId: currentPlan.id,
-      competitorsAndStatusQuo,
-      completionPercentage: progressPercent,
+      await saveModuleBStep2CompetitorsAction({
+        planId: currentPlan.id,
+        competitorsAndStatusQuo,
+        completionPercentage: progressPercent,
+      });
     });
   }
 
@@ -2411,29 +2454,31 @@ export default function WorkspacePage() {
     marketSizing: MarketSizingData,
     progressPercent: number
   ) {
-    const updatedPlans = session.plans.map((p) => {
-      if (p.id !== currentPlan.id) return p;
-      return {
-        ...p,
-        currentModuleStep: 'MOD_B_STEP_3',
-        moduleBData: {
-          ...(p.moduleBData || {}),
-          marketSizing,
-        },
+    return runWithAutosaveTracking(async () => {
+      const updatedPlans = session.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_B_STEP_3',
+          moduleBData: {
+            ...(p.moduleBData || {}),
+            marketSizing,
+          },
+        };
+      });
+
+      const nextSession: BmuLocalSession = {
+        ...session,
+        plans: updatedPlans,
       };
-    });
+      setSession(nextSession);
+      saveBmuSession(nextSession);
 
-    const nextSession: BmuLocalSession = {
-      ...session,
-      plans: updatedPlans,
-    };
-    setSession(nextSession);
-    saveBmuSession(nextSession);
-
-    await saveModuleBStep3MarketSizingAction({
-      planId: currentPlan.id,
-      marketSizing,
-      completionPercentage: progressPercent,
+      await saveModuleBStep3MarketSizingAction({
+        planId: currentPlan.id,
+        marketSizing,
+        completionPercentage: progressPercent,
+      });
     });
   }
 
@@ -2485,29 +2530,31 @@ export default function WorkspacePage() {
     competitiveWedge: CompetitiveWedgeData,
     progressPercent: number
   ) {
-    const updatedPlans = session.plans.map((p) => {
-      if (p.id !== currentPlan.id) return p;
-      return {
-        ...p,
-        currentModuleStep: 'MOD_B_STEP_4',
-        moduleBData: {
-          ...(p.moduleBData || {}),
-          competitiveWedge,
-        },
+    return runWithAutosaveTracking(async () => {
+      const updatedPlans = session.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          currentModuleStep: 'MOD_B_STEP_4',
+          moduleBData: {
+            ...(p.moduleBData || {}),
+            competitiveWedge,
+          },
+        };
+      });
+
+      const nextSession: BmuLocalSession = {
+        ...session,
+        plans: updatedPlans,
       };
-    });
+      setSession(nextSession);
+      saveBmuSession(nextSession);
 
-    const nextSession: BmuLocalSession = {
-      ...session,
-      plans: updatedPlans,
-    };
-    setSession(nextSession);
-    saveBmuSession(nextSession);
-
-    await saveModuleBStep4CompetitiveWedgeAction({
-      planId: currentPlan.id,
-      competitiveWedge,
-      completionPercentage: progressPercent,
+      await saveModuleBStep4CompetitiveWedgeAction({
+        planId: currentPlan.id,
+        competitiveWedge,
+        completionPercentage: progressPercent,
+      });
     });
   }
 
@@ -2560,28 +2607,30 @@ export default function WorkspacePage() {
   async function handleSaveModuleBStep5(thingsToConsider: BlindSpotItem[]) {
     if (!session || !currentPlan || activeEntitlement.isVaultReadonly) return;
 
-    const updatedPlans = session.plans.map((p) => {
-      if (p.id !== currentPlan.id) return p;
-      return {
-        ...p,
-        moduleBData: {
-          ...p.moduleBData,
-          thingsToConsider,
-        },
-        updatedAtIso: new Date().toISOString(),
+    return runWithAutosaveTracking(async () => {
+      const updatedPlans = session.plans.map((p) => {
+        if (p.id !== currentPlan.id) return p;
+        return {
+          ...p,
+          moduleBData: {
+            ...p.moduleBData,
+            thingsToConsider,
+          },
+          updatedAtIso: new Date().toISOString(),
+        };
+      });
+
+      const updatedSession: BmuLocalSession = {
+        ...session,
+        plans: updatedPlans,
       };
-    });
+      setSession(updatedSession);
+      saveBmuSession(updatedSession);
 
-    const updatedSession: BmuLocalSession = {
-      ...session,
-      plans: updatedPlans,
-    };
-    setSession(updatedSession);
-    saveBmuSession(updatedSession);
-
-    await saveModuleBStep5CompleteAction({
-      planId: currentPlan.id,
-      thingsToConsider,
+      await saveModuleBStep5CompleteAction({
+        planId: currentPlan.id,
+        thingsToConsider,
+      });
     });
   }
 
@@ -2595,32 +2644,34 @@ export default function WorkspacePage() {
     if (!session || !currentPlan || activeEntitlement.isVaultReadonly) return;
     const planId = currentPlan.id;
 
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== planId) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_C_SURVEYS_FEEDBACK',
-          moduleCData: {
-            ...(p.moduleCData || { surveys: [] }),
-            surveys: allSurveys,
-            activeSurveyId: survey.id,
-          },
-          updatedAtIso: new Date().toISOString(),
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== planId) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_C_SURVEYS_FEEDBACK',
+            moduleCData: {
+              ...(p.moduleCData || { surveys: [] }),
+              surveys: allSurveys,
+              activeSurveyId: survey.id,
+            },
+            updatedAtIso: new Date().toISOString(),
+          };
+        });
+        const nextSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(nextSession);
+        return nextSession;
       });
-      const nextSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(nextSession);
-      return nextSession;
-    });
 
-    await saveValidationSurveyAction({
-      planId,
-      survey,
-      allSurveys,
+      await saveValidationSurveyAction({
+        planId,
+        survey,
+        allSurveys,
+      });
     });
   }
 
@@ -2861,68 +2912,72 @@ export default function WorkspacePage() {
   async function handleSaveModuleCInterviewLogs(
     interviewLogs: SavedCustomerInterviewLog[]
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        const existingModC = p.moduleCData || {
-          surveys: [],
-          activeSurveyId: undefined,
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          const existingModC = p.moduleCData || {
+            surveys: [],
+            activeSurveyId: undefined,
+          };
+          return {
+            ...p,
+            moduleCData: {
+              ...existingModC,
+              interviewLogs,
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
-        return {
-          ...p,
-          moduleCData: {
-            ...existingModC,
-            interviewLogs,
-          },
-        };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveCustomerInterviewLogsAction({
-      planId: currentPlan.id,
-      interviewLogs,
+      await saveCustomerInterviewLogsAction({
+        planId: currentPlan.id,
+        interviewLogs,
+      });
     });
   }
 
   async function handleSaveModuleCBlindSpots(
     modCThingsToConsider: BlindSpotItem[]
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        const existingModC = p.moduleCData || {
-          surveys: [],
-          activeSurveyId: undefined,
-          interviewLogs: [],
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          const existingModC = p.moduleCData || {
+            surveys: [],
+            activeSurveyId: undefined,
+            interviewLogs: [],
+          };
+          const hasValidation =
+            (existingModC.surveys || []).some((s) => s.questions.length > 0) ||
+            (existingModC.interviewLogs || []).length > 0;
+          return {
+            ...p,
+            moduleCData: {
+              ...existingModC,
+              thingsToConsider: hasValidation ? modCThingsToConsider : [],
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
-        const hasValidation =
-          (existingModC.surveys || []).some((s) => s.questions.length > 0) ||
-          (existingModC.interviewLogs || []).length > 0;
-        return {
-          ...p,
-          moduleCData: {
-            ...existingModC,
-            thingsToConsider: hasValidation ? modCThingsToConsider : [],
-          },
-        };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleCBlindSpotsAction({
-      planId: currentPlan.id,
-      thingsToConsider: modCThingsToConsider,
+      await saveModuleCBlindSpotsAction({
+        planId: currentPlan.id,
+        thingsToConsider: modCThingsToConsider,
+      });
     });
   }
 
@@ -2984,31 +3039,33 @@ export default function WorkspacePage() {
     productVehicle: ProductVehicleStep1Data,
     progress: number
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_D_STEP_1',
-          moduleDData: {
-            ...(p.moduleDData || {}),
-            productVehicle,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_D_STEP_1',
+            moduleDData: {
+              ...(p.moduleDData || {}),
+              productVehicle,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleDStep1ProductVehicleAction({
-      planId: currentPlan.id,
-      productVehicle,
-      completionPercentage: progress,
+      await saveModuleDStep1ProductVehicleAction({
+        planId: currentPlan.id,
+        productVehicle,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -3021,31 +3078,33 @@ export default function WorkspacePage() {
         ? 50
         : 35;
 
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_D_STEP_2',
-          moduleDData: {
-            ...(p.moduleDData || {}),
-            channelMatrix,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_D_STEP_2',
+            moduleDData: {
+              ...(p.moduleDData || {}),
+              channelMatrix,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleDStep2ChannelMatrixAction({
-      planId: currentPlan.id,
-      channelMatrix,
-      completionPercentage: progress,
+      await saveModuleDStep2ChannelMatrixAction({
+        planId: currentPlan.id,
+        channelMatrix,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -3066,31 +3125,33 @@ export default function WorkspacePage() {
         ? 75
         : 60;
 
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_D_STEP_3',
-          moduleDData: {
-            ...(p.moduleDData || {}),
-            scopeFilter,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_D_STEP_3',
+            moduleDData: {
+              ...(p.moduleDData || {}),
+              scopeFilter,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleDStep3ScopeFilterAction({
-      planId: currentPlan.id,
-      scopeFilter,
-      completionPercentage: progress,
+      await saveModuleDStep3ScopeFilterAction({
+        planId: currentPlan.id,
+        scopeFilter,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -3107,31 +3168,33 @@ export default function WorkspacePage() {
         ? 85
         : 75;
 
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_D_STEP_4',
-          moduleDData: {
-            ...(p.moduleDData || {}),
-            buildVsBuy,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_D_STEP_4',
+            moduleDData: {
+              ...(p.moduleDData || {}),
+              buildVsBuy,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleDStep4BuildVsBuyAction({
-      planId: currentPlan.id,
-      buildVsBuy,
-      completionPercentage: progress,
+      await saveModuleDStep4BuildVsBuyAction({
+        planId: currentPlan.id,
+        buildVsBuy,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -3146,31 +3209,33 @@ export default function WorkspacePage() {
         ? 95
         : 85;
 
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_D_STEP_5',
-          moduleDData: {
-            ...(p.moduleDData || {}),
-            workPackagesAndFlow,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_D_STEP_5',
+            moduleDData: {
+              ...(p.moduleDData || {}),
+              workPackagesAndFlow,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleDStep5WorkPackagesAction({
-      planId: currentPlan.id,
-      workPackagesAndFlow,
-      completionPercentage: progress,
+      await saveModuleDStep5WorkPackagesAction({
+        planId: currentPlan.id,
+        workPackagesAndFlow,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -3184,31 +3249,33 @@ export default function WorkspacePage() {
         ? 100
         : 95;
 
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_D_STEP_6',
-          moduleDData: {
-            ...(p.moduleDData || {}),
-            blindSpotAudit,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_D_STEP_6',
+            moduleDData: {
+              ...(p.moduleDData || {}),
+              blindSpotAudit,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleDStep6BlindSpotAuditAction({
-      planId: currentPlan.id,
-      blindSpotAudit,
-      completionPercentage: progress,
+      await saveModuleDStep6BlindSpotAuditAction({
+        planId: currentPlan.id,
+        blindSpotAudit,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -3646,31 +3713,33 @@ export default function WorkspacePage() {
     operationsBlueprint: OperationsBlueprintStep1Data,
     progress = 25
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_E_STEP_1',
-          moduleEData: {
-            ...(p.moduleEData || {}),
-            operationsBlueprint,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_E_STEP_1',
+            moduleEData: {
+              ...(p.moduleEData || {}),
+              operationsBlueprint,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleEStep1OperationsBlueprintAction({
-      planId: currentPlan.id,
-      operationsBlueprint,
-      completionPercentage: progress,
+      await saveModuleEStep1OperationsBlueprintAction({
+        planId: currentPlan.id,
+        operationsBlueprint,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -3783,31 +3852,33 @@ export default function WorkspacePage() {
     premisesAndEquipment: PremisesAndEquipmentStep2Data,
     progress = 45
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_E_STEP_2',
-          moduleEData: {
-            ...(p.moduleEData || {}),
-            premisesAndEquipment,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_E_STEP_2',
+            moduleEData: {
+              ...(p.moduleEData || {}),
+              premisesAndEquipment,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleEStep2PremisesEquipmentAction({
-      planId: currentPlan.id,
-      premisesAndEquipment,
-      completionPercentage: progress,
+      await saveModuleEStep2PremisesEquipmentAction({
+        planId: currentPlan.id,
+        premisesAndEquipment,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -3897,31 +3968,33 @@ export default function WorkspacePage() {
     riskRegister: RiskRegisterStep3Data,
     progress = 70
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_E_STEP_3',
-          moduleEData: {
-            ...(p.moduleEData || {}),
-            riskRegister,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_E_STEP_3',
+            moduleEData: {
+              ...(p.moduleEData || {}),
+              riskRegister,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleEStep3RiskRegisterAction({
-      planId: currentPlan.id,
-      riskRegister,
-      completionPercentage: progress,
+      await saveModuleEStep3RiskRegisterAction({
+        planId: currentPlan.id,
+        riskRegister,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -4006,31 +4079,33 @@ export default function WorkspacePage() {
     supportReturnsAndQc: SupportReturnsAndQcStep4Data,
     progress = 80
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_E_STEP_4',
-          moduleEData: {
-            ...(p.moduleEData || {}),
-            supportReturnsAndQc,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_E_STEP_4',
+            moduleEData: {
+              ...(p.moduleEData || {}),
+              supportReturnsAndQc,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleEStep4SupportReturnsAndQcAction({
-      planId: currentPlan.id,
-      supportReturnsAndQc,
-      completionPercentage: progress,
+      await saveModuleEStep4SupportReturnsAndQcAction({
+        planId: currentPlan.id,
+        supportReturnsAndQc,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -4133,31 +4208,33 @@ export default function WorkspacePage() {
     permitsAndInsurance: PermitsComplianceAndInsuranceStep5Data,
     progress = 90
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_E_STEP_5',
-          moduleEData: {
-            ...(p.moduleEData || {}),
-            permitsAndInsurance,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_E_STEP_5',
+            moduleEData: {
+              ...(p.moduleEData || {}),
+              permitsAndInsurance,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleEStep5PermitsAndInsuranceAction({
-      planId: currentPlan.id,
-      permitsAndInsurance,
-      completionPercentage: progress,
+      await saveModuleEStep5PermitsAndInsuranceAction({
+        planId: currentPlan.id,
+        permitsAndInsurance,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -4261,31 +4338,33 @@ export default function WorkspacePage() {
     blindSpotAudit: OperationsBlindSpotAuditStep6Data,
     progress = 100
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_E_STEP_6',
-          moduleEData: {
-            ...(p.moduleEData || {}),
-            blindSpotAudit,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_E_STEP_6',
+            moduleEData: {
+              ...(p.moduleEData || {}),
+              blindSpotAudit,
+              lastSavedAt: new Date().toISOString(),
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveModuleEStep6BlindSpotAuditAction({
-      planId: currentPlan.id,
-      blindSpotAudit,
-      completionPercentage: progress,
+      await saveModuleEStep6BlindSpotAuditAction({
+        planId: currentPlan.id,
+        blindSpotAudit,
+        completionPercentage: progress,
+      });
     });
   }
 
@@ -4541,10 +4620,15 @@ export default function WorkspacePage() {
   }
 
   async function handleSaveCanvasEdits(
-    overrideGrantCheck?: SavedGrantEligibilityCheck | React.MouseEvent
+    overrideGrantCheck?: SavedGrantEligibilityCheck | React.MouseEvent,
+    options?: { silent?: boolean }
   ) {
+    if (activeEntitlement.isVaultReadonly) return;
     setIsSavingCanvas(true);
-    setSynthesisBanner(null);
+    setGlobalSaveStatus('saving');
+    if (!options?.silent) {
+      setSynthesisBanner(null);
+    }
     try {
       const toSave = effectiveCanvas;
       const validOverride =
@@ -4594,15 +4678,69 @@ export default function WorkspacePage() {
       setSession(updatedSession);
       saveBmuSession(updatedSession);
 
-      setSynthesisBanner(
-        validOverride
-          ? '✅ Your Grant Eligibility Check answers have been saved!'
-          : '✅ Your notes and Step 6 Blind-Spot Review have been updated and saved!'
-      );
+      setGlobalSaveStatus('saved');
+      setGlobalLastSavedAt(new Date());
+
+      if (!options?.silent) {
+        setSynthesisBanner(
+          validOverride
+            ? '✅ Your Grant Eligibility Check answers have been saved!'
+            : '✅ Your notes and Step 6 Blind-Spot Review have been updated and saved!'
+        );
+      }
+    } catch (err) {
+      console.error('Failed to autosave Module A canvas edits:', err);
+      setGlobalSaveStatus('error');
     } finally {
       setIsSavingCanvas(false);
     }
   }
+
+  // Module A Automatic Background Autosave (1200ms debounce on keystroke/edits)
+  useEffect(() => {
+    if (isModuleAFirstRenderRef.current) {
+      isModuleAFirstRenderRef.current = false;
+      return;
+    }
+    if (activeEntitlement.isVaultReadonly) return;
+    if (activeModule !== 'MOD_A_IDEATION') return;
+
+    isModuleADirtyRef.current = true;
+    setGlobalSaveStatus('saving');
+
+    const timer = setTimeout(() => {
+      if (isModuleADirtyRef.current) {
+        isModuleADirtyRef.current = false;
+        void handleSaveCanvasEdits(undefined, { silent: true });
+      }
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [
+    brainDumpText,
+    conceptCanvas,
+    founderMotivation,
+    teamAndBudget,
+    founderRealityCheck,
+    grantEligibilityCheck,
+    activeModule,
+    activeEntitlement.isVaultReadonly,
+  ]);
+
+  // Window exit guard if save is actively in flight
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (globalSaveStatus === 'saving' || isModuleADirtyRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [globalSaveStatus]);
 
   async function handleRunAiGrantPositioning(
     overrideGrantCheck?: SavedGrantEligibilityCheck
@@ -5814,6 +5952,17 @@ export default function WorkspacePage() {
               })()}
             </div>
 
+            {/* Live Cloud Autosave Status Pill */}
+            <AutosaveStatusIndicator
+              status={globalSaveStatus}
+              lastSavedAt={globalLastSavedAt}
+              onRetry={() => {
+                if (activeModule === 'MOD_A_IDEATION') {
+                  void handleSaveCanvasEdits(undefined, { silent: true });
+                }
+              }}
+            />
+
             <Button
               type="button"
               variant="outline"
@@ -6661,203 +6810,215 @@ export default function WorkspacePage() {
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               onSaveStep1PromoterProfiles={async (promoterProfiles, progress = 20) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_F_STEP_1',
-                      moduleFData: {
-                        ...(p.moduleFData || {}),
-                        promoterProfiles,
-                        completionPercentage: Math.max(
-                          p.moduleFData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_F_STEP_1',
+                        moduleFData: {
+                          ...(p.moduleFData || {}),
+                          promoterProfiles,
+                          completionPercentage: Math.max(
+                            p.moduleFData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleFStep1PromoterProfilesAction({
-                  planId: currentPlan.id,
-                  promoterProfiles,
-                  completionPercentage: progress,
+                  await saveModuleFStep1PromoterProfilesAction({
+                    planId: currentPlan.id,
+                    promoterProfiles,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep2RoleMatrix={async (step2RoleMatrixData, progress = 40) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_F_STEP_2',
-                      moduleFData: {
-                        ...(p.moduleFData || {}),
-                        step2RoleMatrixData,
-                        completionPercentage: Math.max(
-                          p.moduleFData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_F_STEP_2',
+                        moduleFData: {
+                          ...(p.moduleFData || {}),
+                          step2RoleMatrixData,
+                          completionPercentage: Math.max(
+                            p.moduleFData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleFStep2RoleMatrixAction({
-                  planId: currentPlan.id,
-                  roleMatrix: step2RoleMatrixData,
-                  completionPercentage: progress,
+                  await saveModuleFStep2RoleMatrixAction({
+                    planId: currentPlan.id,
+                    roleMatrix: step2RoleMatrixData,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep3SurvivalBudget={async (step3SurvivalBudgetData, progress = 60) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_F_STEP_3',
-                      moduleFData: {
-                        ...(p.moduleFData || {}),
-                        step3SurvivalBudgetData,
-                        completionPercentage: Math.max(
-                          p.moduleFData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_F_STEP_3',
+                        moduleFData: {
+                          ...(p.moduleFData || {}),
+                          step3SurvivalBudgetData,
+                          completionPercentage: Math.max(
+                            p.moduleFData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleFStep3SurvivalBudgetAction({
-                  planId: currentPlan.id,
-                  survivalBudget: step3SurvivalBudgetData,
-                  completionPercentage: progress,
+                  await saveModuleFStep3SurvivalBudgetAction({
+                    planId: currentPlan.id,
+                    survivalBudget: step3SurvivalBudgetData,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep4Alignment={async (step4AlignmentData, progress = 80) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_F_STEP_4',
-                      moduleFData: {
-                        ...(p.moduleFData || {}),
-                        step4AlignmentData,
-                        completionPercentage: Math.max(
-                          p.moduleFData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_F_STEP_4',
+                        moduleFData: {
+                          ...(p.moduleFData || {}),
+                          step4AlignmentData,
+                          completionPercentage: Math.max(
+                            p.moduleFData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleFStep4AlignmentAction({
-                  planId: currentPlan.id,
-                  step4AlignmentData,
-                  completionPercentage: progress,
+                  await saveModuleFStep4AlignmentAction({
+                    planId: currentPlan.id,
+                    step4AlignmentData,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep5HiringPlan={async (step5HiringPlanData, progress = 90) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_F_STEP_5',
-                      moduleFData: {
-                        ...(p.moduleFData || {}),
-                        step5HiringPlanData,
-                        completionPercentage: Math.max(
-                          p.moduleFData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_F_STEP_5',
+                        moduleFData: {
+                          ...(p.moduleFData || {}),
+                          step5HiringPlanData,
+                          completionPercentage: Math.max(
+                            p.moduleFData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleFStep5HiringPlanAction({
-                  planId: currentPlan.id,
-                  hiringPlan: step5HiringPlanData,
-                  completionPercentage: progress,
+                  await saveModuleFStep5HiringPlanAction({
+                    planId: currentPlan.id,
+                    hiringPlan: step5HiringPlanData,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveBriefOverview={async (step6BlindSpotAuditData, progress = 100) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_F_STEP_6',
-                      moduleFData: {
-                        ...(p.moduleFData || {}),
-                        step6BlindSpotAuditData,
-                        completionPercentage: Math.max(
-                          p.moduleFData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_F_STEP_6',
+                        moduleFData: {
+                          ...(p.moduleFData || {}),
+                          step6BlindSpotAuditData,
+                          completionPercentage: Math.max(
+                            p.moduleFData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleFStep6BlindSpotAuditAction({
-                  planId: currentPlan.id,
-                  blindSpotAudit: step6BlindSpotAuditData,
-                  thingsToConsider: step6BlindSpotAuditData.blindSpots.map((b) => ({
-                    id: b.id,
-                    title: b.title,
-                    category: b.category,
-                    explanation: b.whyItMatters,
-                    suggestedAction: b.recommendedActionOrFix,
-                    severity: b.severity === 'CRITICAL' ? 'WARNING' : 'INFO',
-                  })),
-                  completionPercentage: progress,
+                  await saveModuleFStep6BlindSpotAuditAction({
+                    planId: currentPlan.id,
+                    blindSpotAudit: step6BlindSpotAuditData,
+                    thingsToConsider: step6BlindSpotAuditData.blindSpots.map((b) => ({
+                      id: b.id,
+                      title: b.title,
+                      category: b.category,
+                      explanation: b.whyItMatters,
+                      suggestedAction: b.recommendedActionOrFix,
+                      severity: b.severity === 'CRITICAL' ? 'WARNING' : 'INFO',
+                    })),
+                    completionPercentage: progress,
+                  });
                 });
               }}
               userId={session.user.id}
@@ -6903,58 +7064,60 @@ export default function WorkspacePage() {
               initialStep={moduleNavTarget?.step}
               highlightTarget={moduleNavTarget?.highlightTarget}
               onSave={async (modGData) => {
-                const nowIso = new Date().toISOString();
-                const isS1 =
-                  modGData.step1.state === 'ALREADY_HAVE'
-                    ? !!modGData.step1.registeredEntityName.trim() && !!modGData.step1.registrationNumber.trim()
-                    : !!modGData.step1.targetFormationTimeline;
-                const isS2 =
-                  modGData.step2.state === 'ALREADY_HAVE'
-                    ? !!modGData.step2.primaryDomain.trim() && !!modGData.step2.officialBusinessEmail.trim()
-                    : !!modGData.step2.primaryDomain.trim() || !!modGData.step2.emailProvider;
-                const isS3 =
-                  modGData.step3.state === 'ALREADY_HAVE'
-                    ? !!modGData.step3.bankProvider && (modGData.step3.hasDedicatedIban || !!modGData.step3.ibanLast4.trim())
-                    : !!modGData.step3.targetOpeningTimeline;
-                const isS4 =
-                  modGData.step4.state === 'ALREADY_HAVE'
-                    ? !!modGData.step4.softwareChoice || modGData.step4.hasAccountant
-                    : !!modGData.step4.vatStatus;
-                const isS5 =
-                  modGData.step5.state === 'ALREADY_HAVE'
-                    ? modGData.step5.hasPublicLiability || modGData.step5.hasProfessionalIndemnity || !!modGData.step5.currentInsurerName.trim()
-                    : !!modGData.step5.targetCoverageTimeline;
-                const isS6 =
-                  modGData.step6.state === 'ALREADY_HAVE'
-                    ? modGData.step6.hasIpAssignmentSigned || modGData.step6.hasPrivacyPolicy
-                    : !!modGData.step6.legalAdvisorOrPlatform || modGData.step6.hasIpAssignmentSigned;
-                const doneCount = [isS1, isS2, isS3, isS4, isS5, isS6].filter(Boolean).length;
-                const completionPct = Math.round((doneCount / 6) * 100);
+                return runWithAutosaveTracking(async () => {
+                  const nowIso = new Date().toISOString();
+                  const isS1 =
+                    modGData.step1.state === 'ALREADY_HAVE'
+                      ? !!modGData.step1.registeredEntityName.trim() && !!modGData.step1.registrationNumber.trim()
+                      : !!modGData.step1.targetFormationTimeline;
+                  const isS2 =
+                    modGData.step2.state === 'ALREADY_HAVE'
+                      ? !!modGData.step2.primaryDomain.trim() && !!modGData.step2.officialBusinessEmail.trim()
+                      : !!modGData.step2.primaryDomain.trim() || !!modGData.step2.emailProvider;
+                  const isS3 =
+                    modGData.step3.state === 'ALREADY_HAVE'
+                      ? !!modGData.step3.bankProvider && (modGData.step3.hasDedicatedIban || !!modGData.step3.ibanLast4.trim())
+                      : !!modGData.step3.targetOpeningTimeline;
+                  const isS4 =
+                    modGData.step4.state === 'ALREADY_HAVE'
+                      ? !!modGData.step4.softwareChoice || modGData.step4.hasAccountant
+                      : !!modGData.step4.vatStatus;
+                  const isS5 =
+                    modGData.step5.state === 'ALREADY_HAVE'
+                      ? modGData.step5.hasPublicLiability || modGData.step5.hasProfessionalIndemnity || !!modGData.step5.currentInsurerName.trim()
+                      : !!modGData.step5.targetCoverageTimeline;
+                  const isS6 =
+                    modGData.step6.state === 'ALREADY_HAVE'
+                      ? modGData.step6.hasIpAssignmentSigned || modGData.step6.hasPrivacyPolicy
+                      : !!modGData.step6.legalAdvisorOrPlatform || modGData.step6.hasIpAssignmentSigned;
+                  const doneCount = [isS1, isS2, isS3, isS4, isS5, isS6].filter(Boolean).length;
+                  const completionPct = Math.round((doneCount / 6) * 100);
 
-                const savedPayload = {
-                  ...modGData,
-                  completionPercentage: completionPct,
-                  lastSavedAt: nowIso,
-                };
+                  const savedPayload = {
+                    ...modGData,
+                    completionPercentage: completionPct,
+                    lastSavedAt: nowIso,
+                  };
 
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_G_LAUNCHPAD',
-                      moduleGData: savedPayload,
-                    };
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_G_LAUNCHPAD',
+                        moduleGData: savedPayload,
+                      };
+                    });
+                    const next = { ...prev, plans: updatedPlans };
+                    saveBmuSession(next);
+                    return next;
                   });
-                  const next = { ...prev, plans: updatedPlans };
-                  saveBmuSession(next);
-                  return next;
-                });
 
-                await saveModuleGLaunchpadDataAction({
-                  planId: currentPlan.id,
-                  data: savedPayload,
-                  completionPercentage: completionPct,
+                  await saveModuleGLaunchpadDataAction({
+                    planId: currentPlan.id,
+                    data: savedPayload,
+                    completionPercentage: completionPct,
+                  });
                 });
               }}
               onBackToModuleF={() => {
@@ -6985,134 +7148,144 @@ export default function WorkspacePage() {
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               onSaveStep1RevenueModel={async (step1Data, progress = 20) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_H_STEP_1_REVENUE_MODEL',
-                      moduleHData: {
-                        ...(p.moduleHData || {}),
-                        step1RevenueModel: step1Data,
-                        completionPercentage: Math.max(
-                          p.moduleHData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_H_STEP_1_REVENUE_MODEL',
+                        moduleHData: {
+                          ...(p.moduleHData || {}),
+                          step1RevenueModel: step1Data,
+                          completionPercentage: Math.max(
+                            p.moduleHData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep2PricingTiers={async (step2Data, progress = 40) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_H_STEP_2_PRICING_TIERS',
-                      moduleHData: {
-                        ...(p.moduleHData || {}),
-                        step2PricingTiers: step2Data,
-                        completionPercentage: Math.max(
-                          p.moduleHData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_H_STEP_2_PRICING_TIERS',
+                        moduleHData: {
+                          ...(p.moduleHData || {}),
+                          step2PricingTiers: step2Data,
+                          completionPercentage: Math.max(
+                            p.moduleHData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep3BreakevenCalculator={async (step3Data, progress = 65) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_H_STEP_3_BREAKEVEN_ENGINE',
-                      moduleHData: {
-                        ...(p.moduleHData || {}),
-                        step3BreakevenCalculator: step3Data,
-                        completionPercentage: Math.max(
-                          p.moduleHData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_H_STEP_3_BREAKEVEN_ENGINE',
+                        moduleHData: {
+                          ...(p.moduleHData || {}),
+                          step3BreakevenCalculator: step3Data,
+                          completionPercentage: Math.max(
+                            p.moduleHData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep4SalesAssumptions={async (step4Data, progress = 85) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_H_STEP_4_SALES_ASSUMPTIONS',
-                      moduleHData: {
-                        ...(p.moduleHData || {}),
-                        step4SalesAssumptions: step4Data,
-                        completionPercentage: Math.max(
-                          p.moduleHData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_H_STEP_4_SALES_ASSUMPTIONS',
+                        moduleHData: {
+                          ...(p.moduleHData || {}),
+                          step4SalesAssumptions: step4Data,
+                          completionPercentage: Math.max(
+                            p.moduleHData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep5RevenueBrief={async (step5Data, thingsToConsider, progress = 100) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_H_STEP_5_REVENUE_BRIEF',
-                      moduleHData: {
-                        ...(p.moduleHData || {}),
-                        step5RevenueBrief: step5Data,
-                        thingsToConsider: thingsToConsider ?? p.moduleHData?.thingsToConsider,
-                        completionPercentage: Math.max(
-                          p.moduleHData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_H_STEP_5_REVENUE_BRIEF',
+                        moduleHData: {
+                          ...(p.moduleHData || {}),
+                          step5RevenueBrief: step5Data,
+                          thingsToConsider: thingsToConsider ?? p.moduleHData?.thingsToConsider,
+                          completionPercentage: Math.max(
+                            p.moduleHData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               initialStep={moduleNavTarget?.step}
@@ -7154,134 +7327,144 @@ export default function WorkspacePage() {
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               onSaveStep1Positioning={async (step1Data, progress = 25) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_I_STEP_1_POSITIONING',
-                      moduleIData: {
-                        ...(p.moduleIData || {}),
-                        step1Positioning: step1Data,
-                        completionPercentage: Math.max(
-                          p.moduleIData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_I_STEP_1_POSITIONING',
+                        moduleIData: {
+                          ...(p.moduleIData || {}),
+                          step1Positioning: step1Data,
+                          completionPercentage: Math.max(
+                            p.moduleIData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep2FourPs={async (step2Data, progress = 45) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_I_STEP_2_FOUR_PS',
-                      moduleIData: {
-                        ...(p.moduleIData || {}),
-                        step2FourPs: step2Data,
-                        completionPercentage: Math.max(
-                          p.moduleIData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_I_STEP_2_FOUR_PS',
+                        moduleIData: {
+                          ...(p.moduleIData || {}),
+                          step2FourPs: step2Data,
+                          completionPercentage: Math.max(
+                            p.moduleIData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep3First10={async (step3Data, progress = 65) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_I_STEP_3_FIRST_10',
-                      moduleIData: {
-                        ...(p.moduleIData || {}),
-                        step3First10: step3Data,
-                        completionPercentage: Math.max(
-                          p.moduleIData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_I_STEP_3_FIRST_10',
+                        moduleIData: {
+                          ...(p.moduleIData || {}),
+                          step3First10: step3Data,
+                          completionPercentage: Math.max(
+                            p.moduleIData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep4Budget={async (step4Data, progress = 90) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_I_STEP_4_BUDGET',
-                      moduleIData: {
-                        ...(p.moduleIData || {}),
-                        step4Budget: step4Data,
-                        completionPercentage: Math.max(
-                          p.moduleIData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_I_STEP_4_BUDGET',
+                        moduleIData: {
+                          ...(p.moduleIData || {}),
+                          step4Budget: step4Data,
+                          completionPercentage: Math.max(
+                            p.moduleIData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep5Brief={async (step5Data, progress = 100) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_I_STEP_5_BRIEF',
-                      moduleIData: {
-                        ...(p.moduleIData || {}),
-                        step5MarketingBrief: step5Data,
-                        thingsToConsider: step5Data.blindSpots,
-                        completionPercentage: Math.max(
-                          p.moduleIData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_I_STEP_5_BRIEF',
+                        moduleIData: {
+                          ...(p.moduleIData || {}),
+                          step5MarketingBrief: step5Data,
+                          thingsToConsider: step5Data.blindSpots,
+                          completionPercentage: Math.max(
+                            p.moduleIData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               initialStep={moduleNavTarget?.step}
@@ -7327,133 +7510,143 @@ export default function WorkspacePage() {
               initialStep={moduleNavTarget?.step}
               highlightTarget={moduleNavTarget?.highlightTarget}
               onSaveStep1OverheadsTax={async (step1Data, progress = 25) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_J_STEP_1_OVERHEADS_TAX',
-                      moduleJData: {
-                        ...(p.moduleJData || {}),
-                        step1OverheadsTax: step1Data,
-                        completionPercentage: Math.max(
-                          p.moduleJData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_J_STEP_1_OVERHEADS_TAX',
+                        moduleJData: {
+                          ...(p.moduleJData || {}),
+                          step1OverheadsTax: step1Data,
+                          completionPercentage: Math.max(
+                            p.moduleJData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep2WorkingCapital={async (step2Data, progress = 50) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_J_STEP_2_WORKING_CAPITAL',
-                      moduleJData: {
-                        ...(p.moduleJData || {}),
-                        step2WorkingCapital: step2Data,
-                        completionPercentage: Math.max(
-                          p.moduleJData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_J_STEP_2_WORKING_CAPITAL',
+                        moduleJData: {
+                          ...(p.moduleJData || {}),
+                          step2WorkingCapital: step2Data,
+                          completionPercentage: Math.max(
+                            p.moduleJData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep3CashflowGap={async (step3Data, progress = 65) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_J_STEP_3_CASHFLOW_GAP',
-                      moduleJData: {
-                        ...(p.moduleJData || {}),
-                        step3CashflowGap: step3Data,
-                        completionPercentage: Math.max(
-                          p.moduleJData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_J_STEP_3_CASHFLOW_GAP',
+                        moduleJData: {
+                          ...(p.moduleJData || {}),
+                          step3CashflowGap: step3Data,
+                          completionPercentage: Math.max(
+                            p.moduleJData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep4Statements={async (step4Data, progress = 85) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_J_STEP_4_STATEMENTS_STRESS_TEST',
-                      moduleJData: {
-                        ...(p.moduleJData || {}),
-                        step4Statements: step4Data,
-                        completionPercentage: Math.max(
-                          p.moduleJData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_J_STEP_4_STATEMENTS_STRESS_TEST',
+                        moduleJData: {
+                          ...(p.moduleJData || {}),
+                          step4Statements: step4Data,
+                          completionPercentage: Math.max(
+                            p.moduleJData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep5Brief={async (step5Data, progress = 100) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_J_STEP_5_EXECUTIVE_FINANCE_BRIEF',
-                      moduleJData: {
-                        ...(p.moduleJData || {}),
-                        step5FinanceBrief: step5Data,
-                        completionPercentage: Math.max(
-                          p.moduleJData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_J_STEP_5_EXECUTIVE_FINANCE_BRIEF',
+                        moduleJData: {
+                          ...(p.moduleJData || {}),
+                          step5FinanceBrief: step5Data,
+                          completionPercentage: Math.max(
+                            p.moduleJData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onBackToModuleI={() => {
@@ -7497,133 +7690,143 @@ export default function WorkspacePage() {
               initialStep={moduleNavTarget?.step}
               highlightTarget={moduleNavTarget?.highlightTarget}
               onSaveStep1Audit={async (step1Data, progress = 25) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_K_STEP_1_AUDIT',
-                      moduleKData: {
-                        ...(p.moduleKData || {}),
-                        step1Audit: step1Data,
-                        completionPercentage: Math.max(
-                          p.moduleKData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_K_STEP_1_AUDIT',
+                        moduleKData: {
+                          ...(p.moduleKData || {}),
+                          step1Audit: step1Data,
+                          completionPercentage: Math.max(
+                            p.moduleKData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep2CapitalStack={async (step2Data, progress = 50) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_K_STEP_2_CAPITAL_STACK',
-                      moduleKData: {
-                        ...(p.moduleKData || {}),
-                        step2CapitalStack: step2Data,
-                        completionPercentage: Math.max(
-                          p.moduleKData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_K_STEP_2_CAPITAL_STACK',
+                        moduleKData: {
+                          ...(p.moduleKData || {}),
+                          step2CapitalStack: step2Data,
+                          completionPercentage: Math.max(
+                            p.moduleKData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep3Bridge={async (step3Data, progress = 65) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_K_STEP_3_REIMBURSEMENT_BRIDGE',
-                      moduleKData: {
-                        ...(p.moduleKData || {}),
-                        step3ReimbursementBridge: step3Data,
-                        completionPercentage: Math.max(
-                          p.moduleKData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_K_STEP_3_REIMBURSEMENT_BRIDGE',
+                        moduleKData: {
+                          ...(p.moduleKData || {}),
+                          step3ReimbursementBridge: step3Data,
+                          completionPercentage: Math.max(
+                            p.moduleKData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep4TaxRelief={async (step4Data, progress = 85) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_K_STEP_4_TAX_RELIEF',
-                      moduleKData: {
-                        ...(p.moduleKData || {}),
-                        step4TaxRelief: step4Data,
-                        completionPercentage: Math.max(
-                          p.moduleKData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_K_STEP_4_TAX_RELIEF',
+                        moduleKData: {
+                          ...(p.moduleKData || {}),
+                          step4TaxRelief: step4Data,
+                          completionPercentage: Math.max(
+                            p.moduleKData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onSaveStep5Brief={async (step5Data, progress = 100) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_K_STEP_5_FUNDING_BRIEF',
-                      moduleKData: {
-                        ...(p.moduleKData || {}),
-                        step5FundingBrief: step5Data,
-                        completionPercentage: Math.max(
-                          p.moduleKData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_K_STEP_5_FUNDING_BRIEF',
+                        moduleKData: {
+                          ...(p.moduleKData || {}),
+                          step5FundingBrief: step5Data,
+                          completionPercentage: Math.max(
+                            p.moduleKData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onBackToModuleJ={() => {
@@ -7673,167 +7876,177 @@ export default function WorkspacePage() {
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               initialStep={moduleNavTarget?.step}
               onSaveStep1Mode={async (step1Data, progress = 20) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_L_STEP_1_MODE',
-                      moduleLData: {
-                        ...(p.moduleLData || {}),
-                        step1Mode: step1Data,
-                        completionPercentage: Math.max(
-                          p.moduleLData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_L_STEP_1_MODE',
+                        moduleLData: {
+                          ...(p.moduleLData || {}),
+                          step1Mode: step1Data,
+                          completionPercentage: Math.max(
+                            p.moduleLData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleLStep1ModeAction({
-                  planId: currentPlan.id,
-                  step1Mode: step1Data,
-                  completionPercentage: progress,
+                  await saveModuleLStep1ModeAction({
+                    planId: currentPlan.id,
+                    step1Mode: step1Data,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep2Audit={async (step2Data, progress = 40) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_L_STEP_2_AUDIT',
-                      moduleLData: {
-                        ...(p.moduleLData || {}),
-                        step2Audit: step2Data,
-                        completionPercentage: Math.max(
-                          p.moduleLData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_L_STEP_2_AUDIT',
+                        moduleLData: {
+                          ...(p.moduleLData || {}),
+                          step2Audit: step2Data,
+                          completionPercentage: Math.max(
+                            p.moduleLData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleLPartialDataAction({
-                  planId: currentPlan.id,
-                  stepKey: 'step2Audit',
-                  payload: step2Data,
-                  completionPercentage: progress,
+                  await saveModuleLPartialDataAction({
+                    planId: currentPlan.id,
+                    stepKey: 'step2Audit',
+                    payload: step2Data,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep3Compiler={async (step3Data, progress = 60) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_L_STEP_3_COMPILER',
-                      moduleLData: {
-                        ...(p.moduleLData || {}),
-                        step3Compiler: step3Data,
-                        completionPercentage: Math.max(
-                          p.moduleLData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_L_STEP_3_COMPILER',
+                        moduleLData: {
+                          ...(p.moduleLData || {}),
+                          step3Compiler: step3Data,
+                          completionPercentage: Math.max(
+                            p.moduleLData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleLPartialDataAction({
-                  planId: currentPlan.id,
-                  stepKey: 'step3Compiler',
-                  payload: step3Data,
-                  completionPercentage: progress,
+                  await saveModuleLPartialDataAction({
+                    planId: currentPlan.id,
+                    stepKey: 'step3Compiler',
+                    payload: step3Data,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep4Appendices={async (step4Data, progress = 80) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_L_STEP_4_APPENDICES',
-                      moduleLData: {
-                        ...(p.moduleLData || {}),
-                        step4Appendices: step4Data,
-                        completionPercentage: Math.max(
-                          p.moduleLData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_L_STEP_4_APPENDICES',
+                        moduleLData: {
+                          ...(p.moduleLData || {}),
+                          step4Appendices: step4Data,
+                          completionPercentage: Math.max(
+                            p.moduleLData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleLPartialDataAction({
-                  planId: currentPlan.id,
-                  stepKey: 'step4Appendices',
-                  payload: step4Data,
-                  completionPercentage: progress,
+                  await saveModuleLPartialDataAction({
+                    planId: currentPlan.id,
+                    stepKey: 'step4Appendices',
+                    payload: step4Data,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep5Brief={async (step5Data, progress = 100) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      currentModuleStep: 'MOD_L_STEP_5_BRIEF',
-                      moduleLData: {
-                        ...(p.moduleLData || {}),
-                        step5DossierBrief: step5Data,
-                        completionPercentage: Math.max(
-                          p.moduleLData?.completionPercentage || 0,
-                          progress
-                        ),
-                        lastSavedAt: new Date().toISOString(),
-                      },
+                return runWithAutosaveTracking(async () => {
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        currentModuleStep: 'MOD_L_STEP_5_BRIEF',
+                        moduleLData: {
+                          ...(p.moduleLData || {}),
+                          step5DossierBrief: step5Data,
+                          completionPercentage: Math.max(
+                            p.moduleLData?.completionPercentage || 0,
+                            progress
+                          ),
+                          lastSavedAt: new Date().toISOString(),
+                        },
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
-                });
 
-                await saveModuleLPartialDataAction({
-                  planId: currentPlan.id,
-                  stepKey: 'step5DossierBrief',
-                  payload: step5Data,
-                  completionPercentage: progress,
+                  await saveModuleLPartialDataAction({
+                    planId: currentPlan.id,
+                    stepKey: 'step5DossierBrief',
+                    payload: step5Data,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onParkQuestionInSession={handleParkSpecificQuestion}

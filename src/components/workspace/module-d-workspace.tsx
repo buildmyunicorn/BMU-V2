@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Wrench,
   Sparkles,
@@ -4625,6 +4625,43 @@ export function ModuleDWorkspace({
     };
   });
 
+  // Autosave State & Dirty Tracking for Steps 1–6
+  const isFirstRenderStep1Ref = useRef(true);
+  const isDirtyStep1Ref = useRef(false);
+  const step1DataRef = useRef(step1Data);
+  step1DataRef.current = step1Data;
+  const [step1AutosavedAt, setStep1AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep2Ref = useRef(true);
+  const isDirtyStep2Ref = useRef(false);
+  const step2DataRef = useRef(step2Data);
+  step2DataRef.current = step2Data;
+  const [step2AutosavedAt, setStep2AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep3Ref = useRef(true);
+  const isDirtyStep3Ref = useRef(false);
+  const step3DataRef = useRef(step3Data);
+  step3DataRef.current = step3Data;
+  const [step3AutosavedAt, setStep3AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep4Ref = useRef(true);
+  const isDirtyStep4Ref = useRef(false);
+  const step4DataRef = useRef(step4Data);
+  step4DataRef.current = step4Data;
+  const [step4AutosavedAt, setStep4AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep5Ref = useRef(true);
+  const isDirtyStep5Ref = useRef(false);
+  const step5DataRef = useRef(step5Data);
+  step5DataRef.current = step5Data;
+  const [step5AutosavedAt, setStep5AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep6Ref = useRef(true);
+  const isDirtyStep6Ref = useRef(false);
+  const step6DataRef = useRef(step6Data);
+  step6DataRef.current = step6Data;
+  const [step6AutosavedAt, setStep6AutosavedAt] = useState<Date | null>(null);
+
   // Sync activeTab if active plan switches or when saved moduleDData hydrates from localStorage / Cloud SQL
   useEffect(() => {
     if (plan.currentModuleStep === 'MOD_D_STEP_6') {
@@ -5107,22 +5144,27 @@ export function ModuleDWorkspace({
     }
   };
 
-  const handleSaveStep1 = async (goToStep2After = false) => {
-    if (isVaultReadonly || isSavingStep1) return;
-    setIsSavingStep1(true);
-    setSaveBanner(null);
+  const handleSaveStep1 = async (goToStep2After = false, options?: { silent?: boolean }) => {
+    if (isVaultReadonly || (!options?.silent && isSavingStep1)) return;
+    if (!options?.silent) {
+      setIsSavingStep1(true);
+      setSaveBanner(null);
+    }
     try {
+      const dataToSave = step1DataRef.current || step1Data;
       const hasNarratives =
-        step1Data.ahaMomentNarrative.trim().length > 10 &&
-        step1Data.whyThisVehicleFitsCustomer.trim().length > 10;
+        dataToSave.ahaMomentNarrative.trim().length > 10 &&
+        dataToSave.whyThisVehicleFitsCustomer.trim().length > 10;
       const progress = hasNarratives ? 25 : 15;
       await onSaveStep1ProductVehicle(
         {
-          ...step1Data,
+          ...dataToSave,
           lastSavedAt: new Date().toISOString(),
         },
         progress
       );
+      isDirtyStep1Ref.current = false;
+      setStep1AutosavedAt(new Date());
       if (goToStep2After) {
         setActiveTab('STEP_2');
         setOpenStep(2);
@@ -5133,13 +5175,15 @@ export function ModuleDWorkspace({
         setSaveBanner(
           'Step 1 saved! Now configure Step 2: Own vs. Rent Sales & Delivery Channels tailored to your track.'
         );
-      } else {
+      } else if (!options?.silent) {
         setSaveBanner(
           'Step 1 (Product Track, Form Factor & V1 Launch Vehicle) saved to your Startup Plan!'
         );
       }
     } finally {
-      setIsSavingStep1(false);
+      if (!options?.silent) {
+        setIsSavingStep1(false);
+      }
     }
   };
 
@@ -5173,39 +5217,46 @@ export function ModuleDWorkspace({
     }
   };
 
-  const handleSaveStep2 = async (goToStep3After = false) => {
-    if (isVaultReadonly || isSavingStep2) return;
-    setIsSavingStep2(true);
-    setSaveBanner(null);
+  const handleSaveStep2 = async (goToStep3After = false, options?: { silent?: boolean }) => {
+    if (isVaultReadonly || (!options?.silent && isSavingStep2)) return;
+    if (!options?.silent) {
+      setIsSavingStep2(true);
+      setSaveBanner(null);
+    }
     try {
+      const dataToSave = step2DataRef.current || step2Data;
       const hasNotes =
-        step2Data.rentToOwnBridgeStrategy.trim().length > 10 &&
-        step2Data.channelWhyItFitsNotes.trim().length > 10;
+        dataToSave.rentToOwnBridgeStrategy.trim().length > 10 &&
+        dataToSave.channelWhyItFitsNotes.trim().length > 10;
       const progress = hasNotes ? 45 : 35;
       await onSaveStep2ChannelMatrix(
         {
-          ...step2Data,
+          ...dataToSave,
           lastSavedAt: new Date().toISOString(),
         },
         progress
       );
+      isDirtyStep2Ref.current = false;
+      setStep2AutosavedAt(new Date());
       if (goToStep3After) {
         setActiveTab('STEP_3');
         setOpenStep(3);
         setTimeout(() => {
-          const el = document.getElementById('module-d-step-3');
+          const el = document.getElementById('module-d-step-2');
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 50);
         setSaveBanner(
-          `Step 2 (${step2Data.estimatedBlendedFeePercent}% Blended Fee) saved! Now configure Step 3: Ruthless V1 Scope Filter.`
+          `Step 2 (${dataToSave.estimatedBlendedFeePercent}% Blended Fee) saved! Now configure Step 3: Ruthless V1 Scope Filter.`
         );
-      } else {
+      } else if (!options?.silent) {
         setSaveBanner(
-          `Step 2 (Own vs. Rent Channels & ${step2Data.estimatedBlendedFeePercent}% Blended Fee) saved! Module H Pricing will automatically pull this fee.`
+          `Step 2 (Own vs. Rent Channels & ${dataToSave.estimatedBlendedFeePercent}% Blended Fee) saved! Module H Pricing will automatically pull this fee.`
         );
       }
     } finally {
-      setIsSavingStep2(false);
+      if (!options?.silent) {
+        setIsSavingStep2(false);
+      }
     }
   };
 
@@ -5426,22 +5477,27 @@ export function ModuleDWorkspace({
     }
   };
 
-  const handleSaveStep3 = async (advanceToStep4?: boolean) => {
-    if (isVaultReadonly || isSavingStep3) return;
-    setIsSavingStep3(true);
-    setSaveBanner(null);
+  const handleSaveStep3 = async (advanceToStep4?: boolean, options?: { silent?: boolean }) => {
+    if (isVaultReadonly || (!options?.silent && isSavingStep3)) return;
+    if (!options?.silent) {
+      setIsSavingStep3(true);
+      setSaveBanner(null);
+    }
     try {
+      const dataToSave = step3DataRef.current || step3Data;
       const hasNarratives =
-        step3Data.whatWeRefuseToBuildInV1Narrative.trim().length > 10 &&
-        step3Data.whyThisLeanV1WinsFasterNarrative.trim().length > 10;
+        dataToSave.whatWeRefuseToBuildInV1Narrative.trim().length > 10 &&
+        dataToSave.whyThisLeanV1WinsFasterNarrative.trim().length > 10;
       const progress = hasNarratives ? 65 : 55;
       await onSaveStep3ScopeFilter(
         {
-          ...step3Data,
+          ...dataToSave,
           lastSavedAt: new Date().toISOString(),
         },
         progress
       );
+      isDirtyStep3Ref.current = false;
+      setStep3AutosavedAt(new Date());
       if (advanceToStep4) {
         setActiveTab('STEP_4');
         setOpenStep(4);
@@ -5450,17 +5506,21 @@ export function ModuleDWorkspace({
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 50);
       }
-      setSaveBanner(
-        `Step 3 (Ruthless V1 Scope Filter: ${
-          step3Data.items.filter((i) => i.bucket === 'MUST_HAVE_V1').length
-        } Day-1 Core items vs. ${
-          step3Data.items.filter((i) => i.bucket !== 'MUST_HAVE_V1').length
-        } Deferred/Refused items) saved!${
-          advanceToStep4 ? ' Moved to Step 4 (Build-vs-Buy Matrix).' : ''
-        }`
-      );
+      if (!options?.silent) {
+        setSaveBanner(
+          `Step 3 (Ruthless V1 Scope Filter: ${
+            dataToSave.items.filter((i) => i.bucket === 'MUST_HAVE_V1').length
+          } Day-1 Core items vs. ${
+            dataToSave.items.filter((i) => i.bucket !== 'MUST_HAVE_V1').length
+          } Deferred/Refused items) saved!${
+            advanceToStep4 ? ' Moved to Step 4 (Build-vs-Buy Matrix).' : ''
+          }`
+        );
+      }
     } finally {
-      setIsSavingStep3(false);
+      if (!options?.silent) {
+        setIsSavingStep3(false);
+      }
     }
   };
 
@@ -5829,22 +5889,27 @@ export function ModuleDWorkspace({
     }
   };
 
-  const handleSaveStep4 = async (advanceToStep5?: boolean) => {
-    if (isVaultReadonly || isSavingStep4) return;
-    setIsSavingStep4(true);
-    setSaveBanner(null);
+  const handleSaveStep4 = async (advanceToStep5?: boolean, options?: { silent?: boolean }) => {
+    if (isVaultReadonly || (!options?.silent && isSavingStep4)) return;
+    if (!options?.silent) {
+      setIsSavingStep4(true);
+      setSaveBanner(null);
+    }
     try {
+      const dataToSave = step4DataRef.current || step4Data;
       const hasNarratives =
-        step4Data.secretSauceInHouseNarrative.trim().length > 10 &&
-        step4Data.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10;
+        dataToSave.secretSauceInHouseNarrative.trim().length > 10 &&
+        dataToSave.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10;
       const progress = hasNarratives ? 82 : 72;
       await onSaveStep4BuildVsBuy(
         {
-          ...step4Data,
+          ...dataToSave,
           lastSavedAt: new Date().toISOString(),
         },
         progress
       );
+      isDirtyStep4Ref.current = false;
+      setStep4AutosavedAt(new Date());
       if (advanceToStep5) {
         setActiveTab('STEP_5');
         setOpenStep(5);
@@ -5853,15 +5918,19 @@ export function ModuleDWorkspace({
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 50);
       }
-      setSaveBanner(
-        `Step 4 (3-Tier Build-vs-Buy & Secret Sauce Matrix: ${step4Data.items.length} items) saved!${
-          advanceToStep5
-            ? ' Moved to Step 5 (Work Packages WP1–WP4 & System Flow).'
-            : ''
-        }`
-      );
+      if (!options?.silent) {
+        setSaveBanner(
+          `Step 4 (3-Tier Build-vs-Buy & Secret Sauce Matrix: ${dataToSave.items.length} items) saved!${
+            advanceToStep5
+              ? ' Moved to Step 5 (Work Packages WP1–WP4 & System Flow).'
+              : ''
+          }`
+        );
+      }
     } finally {
-      setIsSavingStep4(false);
+      if (!options?.silent) {
+        setIsSavingStep4(false);
+      }
     }
   };
 
@@ -6326,26 +6395,28 @@ export function ModuleDWorkspace({
     }
   };
 
-  const handleSaveStep5 = async (advanceToStep6?: boolean) => {
-    if (isVaultReadonly || isSavingStep5) return;
-    setIsSavingStep5(true);
-    setSaveBanner(null);
+  const handleSaveStep5 = async (advanceToStep6?: boolean, options?: { silent?: boolean }) => {
+    if (isVaultReadonly || (!options?.silent && isSavingStep5)) return;
+    if (!options?.silent) {
+      setIsSavingStep5(true);
+      setSaveBanner(null);
+    }
     try {
+      const dataToSave = step5DataRef.current || step5Data;
       const hasNarratives =
-        step5Data.technicalMeritAndInnovationNarrative.trim().length > 10 &&
-        step5Data.bottleneckAndDeRiskingNarrative.trim().length > 10;
+        dataToSave.technicalMeritAndInnovationNarrative.trim().length > 10 &&
+        dataToSave.bottleneckAndDeRiskingNarrative.trim().length > 10;
       const progress =
-        step5Data.workPackages.length > 0 && hasNarratives ? 95 : 88;
+        dataToSave.workPackages.length > 0 && hasNarratives ? 95 : 88;
       await onSaveStep5WorkPackages(
         {
-          ...step5Data,
+          ...dataToSave,
           lastSavedAt: new Date().toISOString(),
         },
         progress
       );
-      setSaveBanner(
-        `Step 5 (${step5Data.workPackages.length} Work Packages & ${step5Data.flowStages.length}-Stage Flow Diagram) saved!`
-      );
+      isDirtyStep5Ref.current = false;
+      setStep5AutosavedAt(new Date());
       if (advanceToStep6) {
         setActiveTab('STEP_6');
         setOpenStep(6);
@@ -6354,8 +6425,15 @@ export function ModuleDWorkspace({
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 50);
       }
+      if (!options?.silent) {
+        setSaveBanner(
+          `Step 5 (${dataToSave.workPackages.length} Work Packages & ${dataToSave.flowStages.length}-Stage Flow Diagram) saved!`
+        );
+      }
     } finally {
-      setIsSavingStep5(false);
+      if (!options?.silent) {
+        setIsSavingStep5(false);
+      }
     }
   };
 
@@ -6744,25 +6822,181 @@ export function ModuleDWorkspace({
     setSaveBanner('Cleared Step 6 Blind-Spot Audit & Executive Brief.');
   };
 
-  const handleSaveStep6 = async () => {
-    if (isVaultReadonly || isSavingStep6) return;
-    setIsSavingStep6(true);
-    setSaveBanner(null);
+  const handleSaveStep6 = async (options?: { silent?: boolean }) => {
+    if (isVaultReadonly || (!options?.silent && isSavingStep6)) return;
+    if (!options?.silent) {
+      setIsSavingStep6(true);
+      setSaveBanner(null);
+    }
     try {
+      const dataToSave = step6DataRef.current || step6Data;
       await onSaveStep6BlindSpotAudit(
         {
-          ...step6Data,
+          ...dataToSave,
           lastSavedAt: new Date().toISOString(),
         },
         100
       );
-      setSaveBanner(
-        'Module D Complete! Step 6 Blind-Spot Audit & 1-Page Product Brief saved (100%).'
-      );
+      isDirtyStep6Ref.current = false;
+      setStep6AutosavedAt(new Date());
+      if (!options?.silent) {
+        setSaveBanner(
+          'Module D Complete! Step 6 Blind-Spot Audit & 1-Page Product Brief saved (100%).'
+        );
+      }
     } finally {
-      setIsSavingStep6(false);
+      if (!options?.silent) {
+        setIsSavingStep6(false);
+      }
     }
   };
+
+  // Keep live refs updated for dirty tracking and unmount flushing
+  useEffect(() => {
+    step1DataRef.current = step1Data;
+  }, [step1Data]);
+  useEffect(() => {
+    step2DataRef.current = step2Data;
+  }, [step2Data]);
+  useEffect(() => {
+    step3DataRef.current = step3Data;
+  }, [step3Data]);
+  useEffect(() => {
+    step4DataRef.current = step4Data;
+  }, [step4Data]);
+  useEffect(() => {
+    step5DataRef.current = step5Data;
+  }, [step5Data]);
+  useEffect(() => {
+    step6DataRef.current = step6Data;
+  }, [step6Data]);
+
+  // Debounced Autosave for Step 1
+  useEffect(() => {
+    if (isFirstRenderStep1Ref.current) {
+      isFirstRenderStep1Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep1ProductVehicle) return;
+    isDirtyStep1Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep1(false, { silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step1Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 2
+  useEffect(() => {
+    if (isFirstRenderStep2Ref.current) {
+      isFirstRenderStep2Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep2ChannelMatrix) return;
+    isDirtyStep2Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep2(false, { silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step2Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 3
+  useEffect(() => {
+    if (isFirstRenderStep3Ref.current) {
+      isFirstRenderStep3Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep3ScopeFilter) return;
+    isDirtyStep3Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep3(false, { silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step3Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 4
+  useEffect(() => {
+    if (isFirstRenderStep4Ref.current) {
+      isFirstRenderStep4Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep4BuildVsBuy) return;
+    isDirtyStep4Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep4(false, { silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step4Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 5
+  useEffect(() => {
+    if (isFirstRenderStep5Ref.current) {
+      isFirstRenderStep5Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep5WorkPackages) return;
+    isDirtyStep5Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep5(false, { silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step5Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 6
+  useEffect(() => {
+    if (isFirstRenderStep6Ref.current) {
+      isFirstRenderStep6Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep6BlindSpotAudit) return;
+    isDirtyStep6Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep6({ silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step6Data, isVaultReadonly]);
+
+  // Unmount flush: persist pending changes immediately if user navigates away before debounce fires
+  useEffect(() => {
+    return () => {
+      if (isVaultReadonly) return;
+      if (isDirtyStep1Ref.current && onSaveStep1ProductVehicle) {
+        const d1 = step1DataRef.current;
+        const p1 = d1.ahaMomentNarrative.trim().length > 10 && d1.whyThisVehicleFitsCustomer.trim().length > 10 ? 25 : 15;
+        void onSaveStep1ProductVehicle({ ...d1, lastSavedAt: new Date().toISOString() }, p1);
+      }
+      if (isDirtyStep2Ref.current && onSaveStep2ChannelMatrix) {
+        const d2 = step2DataRef.current;
+        const p2 = d2.rentToOwnBridgeStrategy.trim().length > 10 && d2.channelWhyItFitsNotes.trim().length > 10 ? 45 : 35;
+        void onSaveStep2ChannelMatrix({ ...d2, lastSavedAt: new Date().toISOString() }, p2);
+      }
+      if (isDirtyStep3Ref.current && onSaveStep3ScopeFilter) {
+        const d3 = step3DataRef.current;
+        const p3 = d3.whatWeRefuseToBuildInV1Narrative.trim().length > 10 && d3.whyThisLeanV1WinsFasterNarrative.trim().length > 10 ? 65 : 55;
+        void onSaveStep3ScopeFilter({ ...d3, lastSavedAt: new Date().toISOString() }, p3);
+      }
+      if (isDirtyStep4Ref.current && onSaveStep4BuildVsBuy) {
+        const d4 = step4DataRef.current;
+        const p4 = d4.secretSauceInHouseNarrative.trim().length > 10 && d4.whyBuyAndPartnerSavesTimeNarrative.trim().length > 10 ? 82 : 72;
+        void onSaveStep4BuildVsBuy({ ...d4, lastSavedAt: new Date().toISOString() }, p4);
+      }
+      if (isDirtyStep5Ref.current && onSaveStep5WorkPackages) {
+        const d5 = step5DataRef.current;
+        const p5 = d5.workPackages.length > 0 && d5.technicalMeritAndInnovationNarrative.trim().length > 10 ? 95 : 88;
+        void onSaveStep5WorkPackages({ ...d5, lastSavedAt: new Date().toISOString() }, p5);
+      }
+      if (isDirtyStep6Ref.current && onSaveStep6BlindSpotAudit) {
+        void onSaveStep6BlindSpotAudit({ ...step6DataRef.current, lastSavedAt: new Date().toISOString() }, 100);
+      }
+    };
+  }, [
+    isVaultReadonly,
+    onSaveStep1ProductVehicle,
+    onSaveStep2ChannelMatrix,
+    onSaveStep3ScopeFilter,
+    onSaveStep4BuildVsBuy,
+    onSaveStep5WorkPackages,
+    onSaveStep6BlindSpotAudit,
+  ]);
 
   // =========================================================================
   // 1-PAGE PRODUCT, TECHNICAL & WORK PACKAGE BRIEF EXPORT (MD / HTML / PDF)
@@ -7812,6 +8046,12 @@ export function ModuleDWorkspace({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  {step1AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -9059,6 +9299,12 @@ export function ModuleDWorkspace({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  {step2AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -10473,6 +10719,12 @@ export function ModuleDWorkspace({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  {step3AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -11797,6 +12049,12 @@ export function ModuleDWorkspace({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  {step4AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
                     size="sm"
@@ -13298,6 +13556,12 @@ export function ModuleDWorkspace({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  {step5AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
                     size="sm"
@@ -14399,6 +14663,12 @@ export function ModuleDWorkspace({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  {step6AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
                     size="sm"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Scale,
   Check,
@@ -1008,6 +1008,18 @@ export function ModuleJWorkspace({
   const [activeWhyCard, setActiveWhyCard] = useState<number | null>(null);
   const [activeExampleCard, setActiveExampleCard] = useState<number | null>(null);
   const [showAccountingPartnerDrawer, setShowAccountingPartnerDrawer] = useState(false);
+
+  // Autosave and dirty state tracking refs
+  const isFirstRenderStep1Ref = useRef(true);
+  const isDirtyStep1Ref = useRef(false);
+  const isFirstRenderStep2Ref = useRef(true);
+  const isDirtyStep2Ref = useRef(false);
+  const isFirstRenderStep3Ref = useRef(true);
+  const isDirtyStep3Ref = useRef(false);
+  const isFirstRenderStep4Ref = useRef(true);
+  const isDirtyStep4Ref = useRef(false);
+  const isFirstRenderStep5Ref = useRef(true);
+  const isDirtyStep5Ref = useRef(false);
 
   // Step 1 State
   const [step1Data, setStep1Data] = useState<FinancialOverheadsTaxStep1Data>(() => {
@@ -2255,7 +2267,7 @@ export function ModuleJWorkspace({
   };
 
   // Save Step 1
-  const handleSaveStep1 = async (advanceToStep2 = false) => {
+  const handleSaveStep1 = async (advanceToStep2 = false, options?: { silent?: boolean }) => {
     setSaveStatusStep1('saving');
     try {
       const updatedStep1: FinancialOverheadsTaxStep1Data = {
@@ -2269,6 +2281,7 @@ export function ModuleJWorkspace({
         completionPercentage: 25,
       });
       await onSaveStep1OverheadsTax?.(updatedStep1, 25);
+      isDirtyStep1Ref.current = false;
       setSaveStatusStep1('saved');
       setTimeout(() => setSaveStatusStep1('idle'), 2500);
 
@@ -2390,7 +2403,7 @@ export function ModuleJWorkspace({
     }
   };
 
-  const handleSaveStep2 = async (advanceToStep3 = false) => {
+  const handleSaveStep2 = async (advanceToStep3 = false, options?: { silent?: boolean }) => {
     setSaveStatusStep2('saving');
     try {
       const updatedStep2: WorkingCapitalTimingStep2Data = {
@@ -2404,6 +2417,7 @@ export function ModuleJWorkspace({
         completionPercentage: 50,
       });
       await onSaveStep2WorkingCapital?.(updatedStep2, 50);
+      isDirtyStep2Ref.current = false;
       setSaveStatusStep2('saved');
       setTimeout(() => setSaveStatusStep2('idle'), 2500);
 
@@ -2555,7 +2569,7 @@ export function ModuleJWorkspace({
     }
   };
 
-  const handleSaveStep3 = async (advanceToStep4 = false) => {
+  const handleSaveStep3 = async (advanceToStep4 = false, options?: { silent?: boolean }) => {
     setSaveStatusStep3('saving');
     try {
       const updatedStep3: CashflowFundingGapStep3Data = {
@@ -2569,6 +2583,7 @@ export function ModuleJWorkspace({
         completionPercentage: 75,
       });
       await onSaveStep3CashflowGap?.(updatedStep3, 75);
+      isDirtyStep3Ref.current = false;
       setSaveStatusStep3('saved');
       setTimeout(() => setSaveStatusStep3('idle'), 2500);
 
@@ -2676,7 +2691,7 @@ export function ModuleJWorkspace({
     }
   };
 
-  const handleSaveStep4 = async (advanceToStep5 = false) => {
+  const handleSaveStep4 = async (advanceToStep5 = false, options?: { silent?: boolean }) => {
     setSaveStatusStep4('saving');
     try {
       const updatedStep4: StatementsStressTestStep4Data = {
@@ -2690,6 +2705,7 @@ export function ModuleJWorkspace({
         completionPercentage: 85,
       });
       await onSaveStep4Statements?.(updatedStep4, 85);
+      isDirtyStep4Ref.current = false;
       setSaveStatusStep4('saved');
       setTimeout(() => setSaveStatusStep4('idle'), 2500);
 
@@ -2783,7 +2799,7 @@ export function ModuleJWorkspace({
     }
   };
 
-  const handleSaveStep5 = async (advanceToModK = false) => {
+  const handleSaveStep5 = async (advanceToModK = false, options?: { silent?: boolean }) => {
     setSaveStatusStep5('saving');
     try {
       const updatedStep5: FinanceExecutiveBriefStep5Data = {
@@ -2797,6 +2813,7 @@ export function ModuleJWorkspace({
         completionPercentage: 100,
       });
       await onSaveStep5Brief?.(updatedStep5, 100);
+      isDirtyStep5Ref.current = false;
       setSaveStatusStep5('saved');
       setTimeout(() => setSaveStatusStep5('idle'), 2500);
 
@@ -2808,6 +2825,97 @@ export function ModuleJWorkspace({
       setSaveStatusStep5('error');
     }
   };
+
+  // Step 1 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep1Ref.current) {
+      isFirstRenderStep1Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep1Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep1Ref.current) {
+        void handleSaveStep1(false, { silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step1Data]);
+
+  // Step 2 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep2Ref.current) {
+      isFirstRenderStep2Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep2Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep2Ref.current) {
+        void handleSaveStep2(false, { silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step2Data]);
+
+  // Step 3 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep3Ref.current) {
+      isFirstRenderStep3Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep3Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep3Ref.current) {
+        void handleSaveStep3(false, { silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step3Data]);
+
+  // Step 4 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep4Ref.current) {
+      isFirstRenderStep4Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep4Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep4Ref.current) {
+        void handleSaveStep4(false, { silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step4Data]);
+
+  // Step 5 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep5Ref.current) {
+      isFirstRenderStep5Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep5Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep5Ref.current) {
+        void handleSaveStep5(false, { silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step5Data]);
+
+  // Flush on unmount so switching modules never loses changes
+  useEffect(() => {
+    return () => {
+      if (isDirtyStep1Ref.current) void handleSaveStep1(false, { silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2(false, { silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3(false, { silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4(false, { silent: true });
+      if (isDirtyStep5Ref.current) void handleSaveStep5(false, { silent: true });
+    };
+  }, []);
 
   const buildModuleJExecutiveMarkdown = () => {
     const [y1, y2, y3] = step4Metrics.pnlYears;

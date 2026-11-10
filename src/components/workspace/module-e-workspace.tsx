@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown,
   ChevronUp,
@@ -2434,6 +2434,23 @@ export function ModuleEWorkspace({
 
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
 
+  // Background Autosave States & Refs
+  const [step1AutosavedAt, setStep1AutosavedAt] = useState<Date | null>(null);
+  const [step2AutosavedAt, setStep2AutosavedAt] = useState<Date | null>(null);
+  const [step3AutosavedAt, setStep3AutosavedAt] = useState<Date | null>(null);
+  const [step4AutosavedAt, setStep4AutosavedAt] = useState<Date | null>(null);
+  const [step5AutosavedAt, setStep5AutosavedAt] = useState<Date | null>(null);
+  const isDirtyStep1Ref = useRef(false);
+  const isDirtyStep2Ref = useRef(false);
+  const isDirtyStep3Ref = useRef(false);
+  const isDirtyStep4Ref = useRef(false);
+  const isDirtyStep5Ref = useRef(false);
+  const isFirstRenderStep1Ref = useRef(true);
+  const isFirstRenderStep2Ref = useRef(true);
+  const isFirstRenderStep3Ref = useRef(true);
+  const isFirstRenderStep4Ref = useRef(true);
+  const isFirstRenderStep5Ref = useRef(true);
+
   // Live computed Unit Operations & Weekly Capacity Metrics (Step 1)
   const totalActiveMinutesPerOrder = step1Data.orderLifecycleStages.reduce(
     (sum, st) => sum + (Number(st.activeMinutesPerOrder) || 0),
@@ -2780,10 +2797,11 @@ export function ModuleEWorkspace({
     }
   }
 
-  async function handleSaveStep1() {
+  async function handleSaveStep1(options?: { silent?: boolean } | unknown) {
+    const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
     setIsSavingStep1(true);
-    setSaveBanner(null);
+    if (!isSilent) setSaveBanner(null);
     try {
       const nowIso = new Date().toISOString();
       const nextData: OperationsBlueprintStep1Data = {
@@ -2798,9 +2816,13 @@ export function ModuleEWorkspace({
         nextData.orderLifecycleStages.length >= 3 &&
         nextData.endToEndFulfillmentNarrative.trim().length > 10;
       await onSaveStep1OperationsBlueprint(nextData, isComplete ? 20 : 12);
-      setSaveBanner(
-        '✅ Saved Module E Step 1 ("A Day in the Life of an Order" & Unit Operations Blueprint)!'
-      );
+      setStep1AutosavedAt(new Date());
+      isDirtyStep1Ref.current = false;
+      if (!isSilent) {
+        setSaveBanner(
+          '✅ Saved Module E Step 1 ("A Day in the Life of an Order" & Unit Operations Blueprint)!'
+        );
+      }
     } finally {
       setIsSavingStep1(false);
     }
@@ -3195,10 +3217,11 @@ export function ModuleEWorkspace({
     }
   }
 
-  async function handleSaveStep2() {
+  async function handleSaveStep2(options?: { silent?: boolean } | unknown) {
+    const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
     setIsSavingStep2(true);
-    setSaveBanner(null);
+    if (!isSilent) setSaveBanner(null);
     try {
       const nowIso = new Date().toISOString();
       const nextData: PremisesAndEquipmentStep2Data = {
@@ -3212,9 +3235,13 @@ export function ModuleEWorkspace({
         nextData.equipmentItems.length >= 1 &&
         nextData.equipmentRoiAndGrantComplianceNarrative.trim().length > 10;
       await onSaveStep2PremisesEquipment(nextData, isComplete ? 45 : 32);
-      setSaveBanner(
-        '✅ Saved Module E Step 2 (Premises, Workshop & Grant-Ready Equipment Schedule)!'
-      );
+      setStep2AutosavedAt(new Date());
+      isDirtyStep2Ref.current = false;
+      if (!isSilent) {
+        setSaveBanner(
+          '✅ Saved Module E Step 2 (Premises, Workshop & Grant-Ready Equipment Schedule)!'
+        );
+      }
     } finally {
       setIsSavingStep2(false);
     }
@@ -3409,10 +3436,11 @@ export function ModuleEWorkspace({
     }
   }
 
-  async function handleSaveStep3() {
+  async function handleSaveStep3(options?: { silent?: boolean } | unknown) {
+    const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
     setIsSavingStep3(true);
-    setSaveBanner(null);
+    if (!isSilent) setSaveBanner(null);
     try {
       const nowIso = new Date().toISOString();
       const nextData: RiskRegisterStep3Data = {
@@ -3425,9 +3453,13 @@ export function ModuleEWorkspace({
         nextData.riskItems.length >= 4 &&
         nextData.riskManagementGovernanceNarrative.trim().length > 10;
       await onSaveStep3RiskRegister(nextData, isComplete ? 70 : 58);
-      setSaveBanner(
-        '✅ Saved Module E Step 3 (Supply-Chain Resilience & 4-Category Project Risk Register)!'
-      );
+      setStep3AutosavedAt(new Date());
+      isDirtyStep3Ref.current = false;
+      if (!isSilent) {
+        setSaveBanner(
+          '✅ Saved Module E Step 3 (Supply-Chain Resilience & 4-Category Project Risk Register)!'
+        );
+      }
     } finally {
       setIsSavingStep3(false);
     }
@@ -3601,10 +3633,11 @@ export function ModuleEWorkspace({
     }
   }
 
-  async function handleSaveStep4() {
+  async function handleSaveStep4(options?: { silent?: boolean } | unknown) {
+    const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
     setIsSavingStep4(true);
-    setSaveBanner(null);
+    if (!isSilent) setSaveBanner(null);
     try {
       const nowIso = new Date().toISOString();
       const nextData: SupportReturnsAndQcStep4Data = {
@@ -3619,9 +3652,13 @@ export function ModuleEWorkspace({
         nextData.qcCheckpoints.length >= 2 &&
         nextData.qualityControlAndStandardsNarrative.trim().length > 10;
       await onSaveStep4SupportReturnsAndQc(nextData, isComplete ? 82 : 74);
-      setSaveBanner(
-        '✅ Saved Module E Step 4 (Customer Support, Returns, Warranty & Quality Control SOP)!'
-      );
+      setStep4AutosavedAt(new Date());
+      isDirtyStep4Ref.current = false;
+      if (!isSilent) {
+        setSaveBanner(
+          '✅ Saved Module E Step 4 (Customer Support, Returns, Warranty & Quality Control SOP)!'
+        );
+      }
     } finally {
       setIsSavingStep4(false);
     }
@@ -3835,10 +3872,11 @@ export function ModuleEWorkspace({
     }
   }
 
-  async function handleSaveStep5() {
+  async function handleSaveStep5(options?: { silent?: boolean } | unknown) {
+    const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
     setIsSavingStep5(true);
-    setSaveBanner(null);
+    if (!isSilent) setSaveBanner(null);
     try {
       const nowIso = new Date().toISOString();
       const nextData: PermitsComplianceAndInsuranceStep5Data = {
@@ -3853,13 +3891,108 @@ export function ModuleEWorkspace({
         nextData.complianceItems.length >= 3 &&
         nextData.regulatoryAndComplianceNarrative.trim().length > 10;
       await onSaveStep5PermitsAndInsurance(nextData, isComplete ? 92 : 85);
-      setSaveBanner(
-        '✅ Saved Module E Step 5 (Regulatory, Licensing, Health & Safety, GDPR & Instant Startup Insurance Matcher)!'
-      );
+      setStep5AutosavedAt(new Date());
+      isDirtyStep5Ref.current = false;
+      if (!isSilent) {
+        setSaveBanner(
+          '✅ Saved Module E Step 5 (Regulatory, Licensing, Health & Safety, GDPR & Instant Startup Insurance Matcher)!'
+        );
+      }
     } finally {
       setIsSavingStep5(false);
     }
   }
+
+  // Step 1 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep1Ref.current) {
+      isFirstRenderStep1Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep1Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep1Ref.current) {
+        void handleSaveStep1({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step1Data]);
+
+  // Step 2 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep2Ref.current) {
+      isFirstRenderStep2Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep2Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep2Ref.current) {
+        void handleSaveStep2({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step2Data]);
+
+  // Step 3 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep3Ref.current) {
+      isFirstRenderStep3Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep3Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep3Ref.current) {
+        void handleSaveStep3({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step3Data]);
+
+  // Step 4 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep4Ref.current) {
+      isFirstRenderStep4Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep4Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep4Ref.current) {
+        void handleSaveStep4({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step4Data]);
+
+  // Step 5 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep5Ref.current) {
+      isFirstRenderStep5Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep5Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep5Ref.current) {
+        void handleSaveStep5({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step5Data]);
+
+  // Flush dirty steps on unmount
+  useEffect(() => {
+    return () => {
+      if (isDirtyStep1Ref.current) void handleSaveStep1({ silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2({ silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3({ silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4({ silent: true });
+      if (isDirtyStep5Ref.current) void handleSaveStep5({ silent: true });
+    };
+  }, []);
 
   // =========================================================================
   // STEP 6 COMPUTED METRICS & HANDLERS (BLIND-SPOT ENGINE & EXECUTIVE BRIEF)

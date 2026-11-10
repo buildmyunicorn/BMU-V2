@@ -2132,6 +2132,41 @@ export function ModuleFWorkspace({
   const [isDraftingAuditAi, setIsDraftingAuditAi] = useState(false);
   const [copiedBrief, setCopiedBrief] = useState(false);
 
+  // Autosave State & Dirty Tracking for Steps 1–6
+  const isFirstRenderStep1Ref = useRef(true);
+  const isDirtyStep1Ref = useRef(false);
+  const step1DataRef = useRef(step1Data);
+  step1DataRef.current = step1Data;
+  const [step1AutosavedAt, setStep1AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep2Ref = useRef(true);
+  const isDirtyStep2Ref = useRef(false);
+  const step2DataRef = useRef(step2Data);
+  step2DataRef.current = step2Data;
+  const [step2AutosavedAt, setStep2AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep3Ref = useRef(true);
+  const isDirtyStep3Ref = useRef(false);
+  const step3DataRef = useRef(step3Data);
+  step3DataRef.current = step3Data;
+  const [step3AutosavedAt, setStep3AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep4Ref = useRef(true);
+  const isDirtyStep4Ref = useRef(false);
+  const [step4AutosavedAt, setStep4AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep5Ref = useRef(true);
+  const isDirtyStep5Ref = useRef(false);
+  const step5DataRef = useRef(step5Data);
+  step5DataRef.current = step5Data;
+  const [step5AutosavedAt, setStep5AutosavedAt] = useState<Date | null>(null);
+
+  const isFirstRenderStep6Ref = useRef(true);
+  const isDirtyStep6Ref = useRef(false);
+  const step6DataRef = useRef(step6Data);
+  step6DataRef.current = step6Data;
+  const [step6AutosavedAt, setStep6AutosavedAt] = useState<Date | null>(null);
+
   // Synchronize Step 6 data if incoming plan data updates (e.g. cloud hydration)
   useEffect(() => {
     const cloudStep6 = plan.moduleFData?.step6BlindSpotAuditData;
@@ -2416,19 +2451,23 @@ export function ModuleFWorkspace({
   );
 
   // Step 2 Handlers
-  async function handleSaveStep2() {
+  async function handleSaveStep2(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     try {
-      setIsSavingStep2(true);
+      if (!options?.silent) setIsSavingStep2(true);
       if (onSaveStep2RoleMatrix) {
-        await onSaveStep2RoleMatrix(step2Data, step2Complete ? 40 : 25);
+        await onSaveStep2RoleMatrix(step2DataRef.current || step2Data, step2Complete ? 40 : 25);
       }
-      setSaveBanner(
-        '✅ Saved Module F Step 2 ("7 Startup Hats" Matrix & Strategic Advisory Schedule)!'
-      );
-      setTimeout(() => setSaveBanner(null), 5000);
+      isDirtyStep2Ref.current = false;
+      setStep2AutosavedAt(new Date());
+      if (!options?.silent) {
+        setSaveBanner(
+          '✅ Saved Module F Step 2 ("7 Startup Hats" Matrix & Strategic Advisory Schedule)!'
+        );
+        setTimeout(() => setSaveBanner(null), 5000);
+      }
     } finally {
-      setIsSavingStep2(false);
+      if (!options?.silent) setIsSavingStep2(false);
     }
   }
 
@@ -2544,19 +2583,23 @@ export function ModuleFWorkspace({
   }
 
   // Step 3 Handlers (Founder Personal Survival Budget & Runway)
-  async function handleSaveStep3() {
+  async function handleSaveStep3(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     try {
-      setIsSavingStep3(true);
+      if (!options?.silent) setIsSavingStep3(true);
       if (onSaveStep3SurvivalBudget) {
-        await onSaveStep3SurvivalBudget(step3Data, step3Complete ? 60 : 45);
+        await onSaveStep3SurvivalBudget(step3DataRef.current || step3Data, step3Complete ? 60 : 45);
       }
-      setSaveBanner(
-        '✅ Saved Module F Step 3 (Personal Survival Budget & Living Runway Analysis)!'
-      );
-      setTimeout(() => setSaveBanner(null), 5000);
+      isDirtyStep3Ref.current = false;
+      setStep3AutosavedAt(new Date());
+      if (!options?.silent) {
+        setSaveBanner(
+          '✅ Saved Module F Step 3 (Personal Survival Budget & Living Runway Analysis)!'
+        );
+        setTimeout(() => setSaveBanner(null), 5000);
+      }
     } finally {
-      setIsSavingStep3(false);
+      if (!options?.silent) setIsSavingStep3(false);
     }
   }
 
@@ -2594,22 +2637,26 @@ export function ModuleFWorkspace({
   }
 
   // Step 4 Handlers (20 Awkward Co-Founder Questions & The Founder Prenup Engine)
-  async function handleSaveStep4() {
+  async function handleSaveStep4(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     try {
-      setIsSavingStep4(true);
+      if (!options?.silent) setIsSavingStep4(true);
       const dataToSave = step4DataRef.current || step4Data;
       if (onSaveStep4Alignment) {
         await onSaveStep4Alignment(dataToSave, step4Complete ? 80 : 65);
       }
-      setSaveBanner(
-        isSoloFounderMode
-          ? '✅ Saved Module F Step 4 (The 20 Hard Questions Every Solo Founder Must Answer)!'
-          : '✅ Saved Module F Step 4 (Co-Founder Alignment Survey & Alignment Matrix)!'
-      );
-      setTimeout(() => setSaveBanner(null), 5000);
+      isDirtyStep4Ref.current = false;
+      setStep4AutosavedAt(new Date());
+      if (!options?.silent) {
+        setSaveBanner(
+          isSoloFounderMode
+            ? '✅ Saved Module F Step 4 (The 20 Hard Questions Every Solo Founder Must Answer)!'
+            : '✅ Saved Module F Step 4 (Co-Founder Alignment Survey & Alignment Matrix)!'
+        );
+        setTimeout(() => setSaveBanner(null), 5000);
+      }
     } finally {
-      setIsSavingStep4(false);
+      if (!options?.silent) setIsSavingStep4(false);
     }
   }
 
@@ -2776,19 +2823,23 @@ export function ModuleFWorkspace({
   }
 
   // Step 5 Handlers (3-Year Hiring Plan, Headcount Roadmap & Sweat Equity Architecture)
-  async function handleSaveStep5() {
+  async function handleSaveStep5(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     try {
-      setIsSavingStep5(true);
+      if (!options?.silent) setIsSavingStep5(true);
       if (onSaveStep5HiringPlan) {
-        await onSaveStep5HiringPlan(step5Data, step5Complete ? 100 : 85);
+        await onSaveStep5HiringPlan(step5DataRef.current || step5Data, step5Complete ? 100 : 85);
       }
-      setSaveBanner(
-        '✅ Saved Module F Step 5 (3-Year Job Creation Plan, Headcount Roadmap & Sweat Equity Architecture)!'
-      );
-      setTimeout(() => setSaveBanner(null), 5000);
+      isDirtyStep5Ref.current = false;
+      setStep5AutosavedAt(new Date());
+      if (!options?.silent) {
+        setSaveBanner(
+          '✅ Saved Module F Step 5 (3-Year Job Creation Plan, Headcount Roadmap & Sweat Equity Architecture)!'
+        );
+        setTimeout(() => setSaveBanner(null), 5000);
+      }
     } finally {
-      setIsSavingStep5(false);
+      if (!options?.silent) setIsSavingStep5(false);
     }
   }
 
@@ -2909,12 +2960,12 @@ export function ModuleFWorkspace({
   }
 
   // Overview / Final Brief Handlers
-  async function handleSaveStep6() {
+  async function handleSaveStep6(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     try {
-      setIsSavingStep6(true);
+      if (!options?.silent) setIsSavingStep6(true);
       const updatedData: TeamBlindSpotAuditBriefData = {
-        ...step6Data,
+        ...(step6DataRef.current || step6Data),
         lastSavedAt: new Date().toISOString(),
       };
       setStep6Data(updatedData);
@@ -2922,12 +2973,16 @@ export function ModuleFWorkspace({
       if (onSaveBriefOverview) {
         await onSaveBriefOverview(updatedData, 100);
       }
-      setSaveBanner(
-        '✅ Saved Module F Overview (Team, Governance & Hiring Executive Brief)!'
-      );
-      setTimeout(() => setSaveBanner(null), 5000);
+      isDirtyStep6Ref.current = false;
+      setStep6AutosavedAt(new Date());
+      if (!options?.silent) {
+        setSaveBanner(
+          '✅ Saved Module F Overview (Team, Governance & Hiring Executive Brief)!'
+        );
+        setTimeout(() => setSaveBanner(null), 5000);
+      }
     } finally {
-      setIsSavingStep6(false);
+      if (!options?.silent) setIsSavingStep6(false);
     }
   }
 
@@ -3079,19 +3134,168 @@ export function ModuleFWorkspace({
   }
 
   // Step 1 Handlers
-  async function handleSaveStep1() {
+  async function handleSaveStep1(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
     try {
-      setIsSavingStep1(true);
-      await onSaveStep1PromoterProfiles(step1Data, step1Complete ? 20 : 10);
-      setSaveBanner(
-        '✅ Saved Module F Step 1 (Promoter & Team Profiles with 150-Word Grant Bios & CV Readiness)!'
-      );
-      setTimeout(() => setSaveBanner(null), 5000);
+      if (!options?.silent) setIsSavingStep1(true);
+      await onSaveStep1PromoterProfiles(step1DataRef.current || step1Data, step1Complete ? 20 : 10);
+      isDirtyStep1Ref.current = false;
+      setStep1AutosavedAt(new Date());
+      if (!options?.silent) {
+        setSaveBanner(
+          '✅ Saved Module F Step 1 (Promoter & Team Profiles with 150-Word Grant Bios & CV Readiness)!'
+        );
+        setTimeout(() => setSaveBanner(null), 5000);
+      }
     } finally {
-      setIsSavingStep1(false);
+      if (!options?.silent) setIsSavingStep1(false);
     }
   }
+
+  // Keep live refs updated for dirty tracking and unmount flushing
+  useEffect(() => {
+    step1DataRef.current = step1Data;
+  }, [step1Data]);
+  useEffect(() => {
+    step2DataRef.current = step2Data;
+  }, [step2Data]);
+  useEffect(() => {
+    step3DataRef.current = step3Data;
+  }, [step3Data]);
+  useEffect(() => {
+    step4DataRef.current = step4Data;
+  }, [step4Data]);
+  useEffect(() => {
+    step5DataRef.current = step5Data;
+  }, [step5Data]);
+  useEffect(() => {
+    step6DataRef.current = step6Data;
+  }, [step6Data]);
+
+  // Debounced Autosave for Step 1 (Promoter & Team Profiles)
+  useEffect(() => {
+    if (isFirstRenderStep1Ref.current) {
+      isFirstRenderStep1Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep1PromoterProfiles) return;
+    isDirtyStep1Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep1({ silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step1Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 2 (7 Startup Hats)
+  useEffect(() => {
+    if (isFirstRenderStep2Ref.current) {
+      isFirstRenderStep2Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep2RoleMatrix) return;
+    isDirtyStep2Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep2({ silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step2Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 3 (Personal Survival Budget)
+  useEffect(() => {
+    if (isFirstRenderStep3Ref.current) {
+      isFirstRenderStep3Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep3SurvivalBudget) return;
+    isDirtyStep3Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep3({ silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step3Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 4 (Co-Founder Alignment & Awkward Questions)
+  useEffect(() => {
+    if (isFirstRenderStep4Ref.current) {
+      isFirstRenderStep4Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep4Alignment) return;
+    isDirtyStep4Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep4({ silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step4Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 5 (3-Year Hiring Plan)
+  useEffect(() => {
+    if (isFirstRenderStep5Ref.current) {
+      isFirstRenderStep5Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveStep5HiringPlan) return;
+    isDirtyStep5Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep5({ silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step5Data, isVaultReadonly]);
+
+  // Debounced Autosave for Step 6 (Overview & Blind Spot Audit)
+  useEffect(() => {
+    if (isFirstRenderStep6Ref.current) {
+      isFirstRenderStep6Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly || !onSaveBriefOverview) return;
+    isDirtyStep6Ref.current = true;
+    const timer = setTimeout(() => {
+      void handleSaveStep6({ silent: true });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step6Data, isVaultReadonly]);
+
+  // Unmount flush: persist pending changes immediately if user navigates away before debounce fires
+  useEffect(() => {
+    return () => {
+      if (isVaultReadonly) return;
+      if (isDirtyStep1Ref.current && onSaveStep1PromoterProfiles) {
+        void onSaveStep1PromoterProfiles(step1DataRef.current, step1Complete ? 20 : 10);
+      }
+      if (isDirtyStep2Ref.current && onSaveStep2RoleMatrix) {
+        void onSaveStep2RoleMatrix(step2DataRef.current, step2Complete ? 40 : 25);
+      }
+      if (isDirtyStep3Ref.current && onSaveStep3SurvivalBudget) {
+        void onSaveStep3SurvivalBudget(step3DataRef.current, step3Complete ? 60 : 45);
+      }
+      if (isDirtyStep4Ref.current && onSaveStep4Alignment) {
+        void onSaveStep4Alignment(step4DataRef.current, step4Complete ? 80 : 65);
+      }
+      if (isDirtyStep5Ref.current && onSaveStep5HiringPlan) {
+        void onSaveStep5HiringPlan(step5DataRef.current, step5Complete ? 100 : 85);
+      }
+      if (isDirtyStep6Ref.current && onSaveBriefOverview) {
+        void onSaveBriefOverview(
+          { ...step6DataRef.current, lastSavedAt: new Date().toISOString() },
+          100
+        );
+      }
+    };
+  }, [
+    isVaultReadonly,
+    onSaveStep1PromoterProfiles,
+    onSaveStep2RoleMatrix,
+    onSaveStep3SurvivalBudget,
+    onSaveStep4Alignment,
+    onSaveStep5HiringPlan,
+    onSaveBriefOverview,
+    step1Complete,
+    step2Complete,
+    step3Complete,
+    step4Complete,
+    step5Complete,
+  ]);
 
   function handleAddTeamMember(classification: TeamMemberClassificationType = 'KEY_TEAM_MEMBER') {
     if (isVaultReadonly) return;
@@ -4465,9 +4669,15 @@ export function ModuleFWorkspace({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {step1AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
-                    onClick={handleSaveStep1}
+                    onClick={() => handleSaveStep1()}
                     disabled={isSavingStep1 || isVaultReadonly}
                     className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
                   >
@@ -5557,9 +5767,15 @@ export function ModuleFWorkspace({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {step2AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
-                    onClick={handleSaveStep2}
+                    onClick={() => handleSaveStep2()}
                     disabled={isSavingStep2 || isVaultReadonly}
                     className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
                   >
@@ -6499,9 +6715,15 @@ export function ModuleFWorkspace({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {step3AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
-                    onClick={handleSaveStep3}
+                    onClick={() => handleSaveStep3()}
                     disabled={isSavingStep3 || isVaultReadonly}
                     className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
                   >
@@ -7455,9 +7677,15 @@ export function ModuleFWorkspace({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {step4AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
-                    onClick={handleSaveStep4}
+                    onClick={() => handleSaveStep4()}
                     disabled={isSavingStep4 || isVaultReadonly}
                     className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
                   >
@@ -8700,9 +8928,15 @@ export function ModuleFWorkspace({
                 </Button>
 
                 <div className="flex items-center gap-2">
+                  {step5AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
-                    onClick={handleSaveStep5}
+                    onClick={() => handleSaveStep5()}
                     disabled={isSavingStep5 || isVaultReadonly}
                     className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
                   >
@@ -9439,9 +9673,15 @@ export function ModuleFWorkspace({
                 </Button>
 
                 <div className="flex items-center gap-2">
+                  {step6AutosavedAt && (
+                    <span className="inline-flex items-center text-[11px] font-medium text-emerald-600 mr-1">
+                      <Check className="mr-1 h-3 w-3" />
+                      Autosaved
+                    </span>
+                  )}
                   <Button
                     type="button"
-                    onClick={handleSaveStep6}
+                    onClick={() => handleSaveStep6()}
                     disabled={isSavingStep6 || isVaultReadonly}
                     className="bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold"
                   >

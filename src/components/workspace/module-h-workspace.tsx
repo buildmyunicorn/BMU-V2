@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Coins,
   TrendingUp,
@@ -830,8 +830,20 @@ export function ModuleHWorkspace({
     },
   ];
 
+  // Autosave and dirty state tracking refs
+  const isFirstRenderStep1Ref = useRef(true);
+  const isDirtyStep1Ref = useRef(false);
+  const isFirstRenderStep2Ref = useRef(true);
+  const isDirtyStep2Ref = useRef(false);
+  const isFirstRenderStep3Ref = useRef(true);
+  const isDirtyStep3Ref = useRef(false);
+  const isFirstRenderStep4Ref = useRef(true);
+  const isDirtyStep4Ref = useRef(false);
+  const isFirstRenderStep5Ref = useRef(true);
+  const isDirtyStep5Ref = useRef(false);
+
   // Save Step 1 handler
-  const handleSaveStep1 = async () => {
+  const handleSaveStep1 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatus('saving');
     try {
@@ -844,27 +856,28 @@ export function ModuleHWorkspace({
         completionPercentage: isStep1Complete ? 20 : 10,
       });
       if (res.ok) {
+        isDirtyStep1Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
-        console.warn('saveModuleHStep4SalesAssumptionsAction returned non-ok:', res);
-        // If local state was already saved via onSaveStep4SalesAssumptions, do not show hard error
-        setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
-        if (onSaveStep4SalesAssumptions) {
+        setSaveStatus(onSaveStep1RevenueModel ? 'saved' : 'error');
+        if (onSaveStep1RevenueModel) {
+          isDirtyStep1Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
     } catch (err) {
-      console.error('Error during handleSaveStep4:', err);
-      setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
-      if (onSaveStep4SalesAssumptions) {
+      console.error('Error during handleSaveStep1:', err);
+      setSaveStatus(onSaveStep1RevenueModel ? 'saved' : 'error');
+      if (onSaveStep1RevenueModel) {
+        isDirtyStep1Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
   };
 
   // Save Step 2 handler
-  const handleSaveStep2 = async () => {
+  const handleSaveStep2 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatus('saving');
     try {
@@ -881,27 +894,28 @@ export function ModuleHWorkspace({
         completionPercentage: isStep2Complete ? 40 : 25,
       });
       if (res.ok) {
+        isDirtyStep2Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
-        console.warn('saveModuleHStep4SalesAssumptionsAction returned non-ok:', res);
-        // If local state was already saved via onSaveStep4SalesAssumptions, do not show hard error
-        setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
-        if (onSaveStep4SalesAssumptions) {
+        setSaveStatus(onSaveStep2PricingTiers ? 'saved' : 'error');
+        if (onSaveStep2PricingTiers) {
+          isDirtyStep2Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
     } catch (err) {
-      console.error('Error during handleSaveStep4:', err);
-      setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
-      if (onSaveStep4SalesAssumptions) {
+      console.error('Error during handleSaveStep2:', err);
+      setSaveStatus(onSaveStep2PricingTiers ? 'saved' : 'error');
+      if (onSaveStep2PricingTiers) {
+        isDirtyStep2Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
   };
 
   // Save Step 3 handler
-  const handleSaveStep3 = async () => {
+  const handleSaveStep3 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatus('saving');
     try {
@@ -918,20 +932,21 @@ export function ModuleHWorkspace({
         completionPercentage: isStep3Complete ? 65 : 50,
       });
       if (res.ok) {
+        isDirtyStep3Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
-        console.warn('saveModuleHStep4SalesAssumptionsAction returned non-ok:', res);
-        // If local state was already saved via onSaveStep4SalesAssumptions, do not show hard error
-        setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
-        if (onSaveStep4SalesAssumptions) {
+        setSaveStatus(onSaveStep3BreakevenCalculator ? 'saved' : 'error');
+        if (onSaveStep3BreakevenCalculator) {
+          isDirtyStep3Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
     } catch (err) {
-      console.error('Error during handleSaveStep4:', err);
-      setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
-      if (onSaveStep4SalesAssumptions) {
+      console.error('Error during handleSaveStep3:', err);
+      setSaveStatus(onSaveStep3BreakevenCalculator ? 'saved' : 'error');
+      if (onSaveStep3BreakevenCalculator) {
+        isDirtyStep3Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
@@ -1215,7 +1230,7 @@ export function ModuleHWorkspace({
   };
 
   // Save Step 4 handler
-  const handleSaveStep4 = async () => {
+  const handleSaveStep4 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatus('saving');
     try {
@@ -1233,13 +1248,13 @@ export function ModuleHWorkspace({
         completionPercentage: isStep4Complete ? 80 : 65,
       });
       if (res.ok) {
+        isDirtyStep4Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
-        console.warn('saveModuleHStep4SalesAssumptionsAction returned non-ok:', res);
-        // If local state was already saved via onSaveStep4SalesAssumptions, do not show hard error
         setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
         if (onSaveStep4SalesAssumptions) {
+          isDirtyStep4Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
@@ -1247,6 +1262,7 @@ export function ModuleHWorkspace({
       console.error('Error during handleSaveStep4:', err);
       setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
       if (onSaveStep4SalesAssumptions) {
+        isDirtyStep4Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
@@ -1470,7 +1486,7 @@ export function ModuleHWorkspace({
     (isStep3Complete ? 1 : 0) +
     (isStep4Complete ? 1 : 0);
 
-  const handleSaveStep5 = async () => {
+  const handleSaveStep5 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
     setSaveStatus('saving');
     try {
@@ -1488,12 +1504,13 @@ export function ModuleHWorkspace({
         completionPercentage: 100,
       });
       if (res.ok) {
+        isDirtyStep5Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
-        console.warn('saveModuleHStep5RevenueBriefAction returned non-ok:', res);
         setSaveStatus(onSaveStep5RevenueBrief ? 'saved' : 'error');
         if (onSaveStep5RevenueBrief) {
+          isDirtyStep5Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
@@ -1501,10 +1518,102 @@ export function ModuleHWorkspace({
       console.error('Error during handleSaveStep5:', err);
       setSaveStatus(onSaveStep5RevenueBrief ? 'saved' : 'error');
       if (onSaveStep5RevenueBrief) {
+        isDirtyStep5Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
   };
+
+  // Step 1 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep1Ref.current) {
+      isFirstRenderStep1Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep1Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep1Ref.current) {
+        void handleSaveStep1({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step1Data]);
+
+  // Step 2 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep2Ref.current) {
+      isFirstRenderStep2Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep2Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep2Ref.current) {
+        void handleSaveStep2({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step2Data]);
+
+  // Step 3 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep3Ref.current) {
+      isFirstRenderStep3Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep3Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep3Ref.current) {
+        void handleSaveStep3({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step3Data]);
+
+  // Step 4 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep4Ref.current) {
+      isFirstRenderStep4Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep4Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep4Ref.current) {
+        void handleSaveStep4({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step4Data]);
+
+  // Step 5 Debounced Autosave (1200ms)
+  useEffect(() => {
+    if (isFirstRenderStep5Ref.current) {
+      isFirstRenderStep5Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep5Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep5Ref.current) {
+        void handleSaveStep5({ silent: true });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [step5Data]);
+
+  // Flush on unmount so switching modules never loses changes
+  useEffect(() => {
+    return () => {
+      if (isDirtyStep1Ref.current) void handleSaveStep1({ silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2({ silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3({ silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4({ silent: true });
+      if (isDirtyStep5Ref.current) void handleSaveStep5({ silent: true });
+    };
+  }, []);
 
   const handleGenerateAiRevenueBrief = async () => {
     if (isGeneratingAiBrief || isVaultReadonly) return;
