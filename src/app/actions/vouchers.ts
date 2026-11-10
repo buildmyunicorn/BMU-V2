@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, isNull } from 'drizzle-orm';
 import {
   db,
   ensureDatabaseSchemaSynced,
@@ -8,6 +8,7 @@ import {
   cohorts,
   users,
   userEntitlements,
+  startupPlans,
 } from '@/db';
 import {
   getServerSessionCookie,
@@ -315,6 +316,16 @@ export async function redeemVoucherOrCohortCodeAction(
         .update(users)
         .set({ cohortId: foundCohort.id, updatedAt: new Date() })
         .where(eq(users.id, user.id));
+
+      await db
+        .update(startupPlans)
+        .set({ cohortId: foundCohort.id, updatedAt: new Date() })
+        .where(
+          and(
+            eq(startupPlans.ownerUserId, user.id),
+            isNull(startupPlans.cohortId)
+          )
+        );
 
       if (!isAlreadyInCohort) {
         await db

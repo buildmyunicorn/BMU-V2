@@ -266,6 +266,32 @@ export function ensureDatabaseSchemaSynced(): Promise<void> {
             admin_notes text,
             created_at timestamp NOT NULL DEFAULT now()
           );
+
+          ALTER TABLE cohorts
+            ADD COLUMN IF NOT EXISTS organization_name text,
+            ADD COLUMN IF NOT EXISTS partner_logo_url text,
+            ADD COLUMN IF NOT EXISTS intake_type text DEFAULT 'FIXED_BATCH',
+            ADD COLUMN IF NOT EXISTS milestone_config_json jsonb DEFAULT '{}'::jsonb;
+
+          CREATE TABLE IF NOT EXISTS cohort_staff (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            cohort_id uuid NOT NULL REFERENCES cohorts(id) ON DELETE CASCADE,
+            user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+            email text NOT NULL,
+            name text,
+            role text NOT NULL DEFAULT 'DIRECTOR',
+            created_at timestamp NOT NULL DEFAULT now()
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_cohort_staff_cohort_id ON cohort_staff(cohort_id);
+          CREATE INDEX IF NOT EXISTS idx_cohort_staff_email ON cohort_staff(email);
+
+          ALTER TABLE startup_plans
+            ADD COLUMN IF NOT EXISTS cohort_milestone_status text DEFAULT 'IN_PROGRESS',
+            ADD COLUMN IF NOT EXISTS cohort_milestone_claimed_at timestamp,
+            ADD COLUMN IF NOT EXISTS verified_cohort_domain text,
+            ADD COLUMN IF NOT EXISTS verified_cohort_work_email text,
+            ADD COLUMN IF NOT EXISTS cohort_milestone_claim_data_json jsonb DEFAULT '{}'::jsonb;
         `);
       } catch (err) {
         // Reset promise so a transient connection issue can retry on next request

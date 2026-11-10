@@ -7,9 +7,13 @@ import {
   ensureDatabaseSchemaSynced,
   vouchers,
   cohorts,
+  cohortStaff,
+  cohortInquiries,
   users,
   userEntitlements,
   tenants,
+  type CohortMilestoneConfig,
+  type CohortIntakeType,
 } from '@/db';
 import { getAdminSessionCookie, checkRateLimit } from '@/lib/auth/server-auth';
 import {
@@ -17,6 +21,7 @@ import {
   calculatePassLimits,
 } from '@/lib/entitlements';
 
+export type { CohortMilestoneConfig, CohortIntakeType } from '@/db';
 export type VoucherSourceType = 'APPSUMO' | 'COHORT' | 'PROMO' | 'PARTNER';
 export type VoucherRewardType = 'APPSUMO_LTD' | 'PASS_SOLO' | 'PASS_COFOUNDER';
 export type VoucherStatusType = 'UNCLAIMED' | 'REDEEMED' | 'REFUNDED_REVOKED';
@@ -38,14 +43,27 @@ export interface AdminVoucherSummary {
   createdAt: string;
 }
 
+export interface AdminCohortStaffMember {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'DIRECTOR' | 'MENTOR';
+  createdAt: string;
+}
+
 export interface AdminCohortSummary {
   id: string;
   tenantId: string;
   name: string;
+  organizationName: string | null;
+  partnerLogoUrl: string | null;
+  intakeType: CohortIntakeType;
   inviteCode: string;
   maxSeats: number;
   seatsUsed: number;
   accessDurationMonths: number;
+  milestoneConfig: CohortMilestoneConfig;
+  staff: AdminCohortStaffMember[];
   expiresAt: string | null;
   createdAt: string;
 }
@@ -157,14 +175,39 @@ export async function listAdminVouchersAndCohortsAction(): Promise<{
       .from(cohorts)
       .orderBy(desc(cohorts.createdAt));
 
+    let allStaff: (typeof cohortStaff.$inferSelect)[] = [];
+    try {
+      allStaff = await db.select().from(cohortStaff);
+    } catch {
+      allStaff = [];
+    }
+
+    const staffByCohort = new Map<string, AdminCohortStaffMember[]>();
+    for (const s of allStaff) {
+      const list = staffByCohort.get(s.cohortId) || [];
+      list.push({
+        id: s.id,
+        email: s.email,
+        name: s.name,
+        role: (s.role as 'DIRECTOR' | 'MENTOR') || 'DIRECTOR',
+        createdAt: s.createdAt.toISOString(),
+      });
+      staffByCohort.set(s.cohortId, list);
+    }
+
     const formattedCohorts: AdminCohortSummary[] = rawCohorts.map((c) => ({
       id: c.id,
       tenantId: c.tenantId,
       name: c.name,
+      organizationName: c.organizationName || null,
+      partnerLogoUrl: c.partnerLogoUrl || null,
+      intakeType: (c.intakeType as CohortIntakeType) || 'FIXED_BATCH',
       inviteCode: c.inviteCode,
       maxSeats: c.maxSeats,
       seatsUsed: c.seatsUsed,
       accessDurationMonths: c.accessDurationMonths,
+      milestoneConfig: (c.milestoneConfigJson as CohortMilestoneConfig) || {},
+      staff: staffByCohort.get(c.id) || [],
       expiresAt: c.expiresAt?.toISOString() || null,
       createdAt: c.createdAt.toISOString(),
     }));
@@ -302,6 +345,13 @@ export async function createCohortAction(params: {
   inviteCode: string;
   maxSeats: number;
   accessDurationMonths?: number;
+  organizationName?: string;
+  partnerLogoUrl?: string;
+  intakeType?: CohortIntakeType;
+  milestoneConfig?: CohortMilestoneConfig;
+  directorEmail?: string;
+  directorName?: string;
+  inquiryId?: string;
   tenantSlug?: string;
 }): Promise<{
   ok: boolean;
@@ -312,6 +362,8 @@ export async function createCohortAction(params: {
   if (!isAdmin) {
     return { ok: false, error: 'Unauthorized: Super Admin access required.' };
   }
+
+  await ensureDatabaseSchemaSynced();
 
   const name = params.name?.trim();
   const rawCode = params.inviteCode?.trim().toUpperCase();
@@ -351,13 +403,66 @@ export async function createCohortAction(params: {
       .values({
         tenantId,
         name,
+        organizationName: params.organizationName?.trim() || null,
+        partnerLogoUrl: params.partnerLogoUrl?.trim() || null,
+        intakeType: params.intakeType || 'FIXED_BATCH',
         inviteCode: rawCode,
         maxSeats,
         seatsUsed: 0,
         accessDurationMonths,
+        milestoneConfigJson: params.milestoneConfig || {},
         expiresAt,
       })
       .returning();
+
+    // If converted from an inbound cohort inquiry, update inquiry record status
+    if (params.inquiryId) {
+      try {
+        await db
+          .update(cohortInquiries)
+          .set({ status: 'CONVERTED', updatedAt: new Date() })
+          .where(eq(cohortInquiries.id, params.inquiryId));
+      } catch (inqErr) {
+        console.warn('[Admin Vouchers] Failed to mark inquiry as converted:', inqErr);
+      }
+    }
+
+    const staffMembers: AdminCohortStaffMember[] = [];
+
+    // If a Program Director email was provided, link or create staff record
+    if (params.directorEmail?.trim()) {
+      const cleanEmail = params.directorEmail.trim().toLowerCase();
+      try {
+        const [existingUser] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.email, cleanEmail))
+          .limit(1);
+
+        const [createdStaff] = await db
+          .insert(cohortStaff)
+          .values({
+            cohortId: created.id,
+            userId: existingUser?.id || null,
+            email: cleanEmail,
+            name: params.directorName?.trim() || null,
+            role: 'DIRECTOR',
+          })
+          .returning();
+
+        if (createdStaff) {
+          staffMembers.push({
+            id: createdStaff.id,
+            email: createdStaff.email,
+            name: createdStaff.name,
+            role: 'DIRECTOR',
+            createdAt: createdStaff.createdAt.toISOString(),
+          });
+        }
+      } catch (staffErr) {
+        console.warn('[Admin Vouchers] Failed to insert initial cohort director:', staffErr);
+      }
+    }
 
     return {
       ok: true,
@@ -365,10 +470,15 @@ export async function createCohortAction(params: {
         id: created.id,
         tenantId: created.tenantId,
         name: created.name,
+        organizationName: created.organizationName,
+        partnerLogoUrl: created.partnerLogoUrl,
+        intakeType: (created.intakeType as CohortIntakeType) || 'FIXED_BATCH',
         inviteCode: created.inviteCode,
         maxSeats: created.maxSeats,
         seatsUsed: created.seatsUsed,
         accessDurationMonths: created.accessDurationMonths,
+        milestoneConfig: (created.milestoneConfigJson as CohortMilestoneConfig) || {},
+        staff: staffMembers,
         expiresAt: created.expiresAt?.toISOString() || null,
         createdAt: created.createdAt.toISOString(),
       },
@@ -379,6 +489,128 @@ export async function createCohortAction(params: {
       ok: false,
       error: 'Failed to create cohort. That invite code may already be in use.',
     };
+  }
+}
+
+/**
+ * 3B. UPDATE COHORT & MILESTONE SETTINGS
+ */
+export async function updateCohortAction(params: {
+  cohortId: string;
+  name?: string;
+  organizationName?: string | null;
+  partnerLogoUrl?: string | null;
+  intakeType?: CohortIntakeType;
+  maxSeats?: number;
+  accessDurationMonths?: number;
+  expiresAt?: string | null;
+  milestoneConfig?: CohortMilestoneConfig | null;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+}> {
+  const isAdmin = await verifyAdminAuth();
+  if (!isAdmin) {
+    return { ok: false, error: 'Unauthorized: Super Admin access required.' };
+  }
+
+  await ensureDatabaseSchemaSynced();
+
+  try {
+    const updateData: Record<string, unknown> = {};
+    if (params.name !== undefined) updateData.name = params.name.trim();
+    if (params.organizationName !== undefined) updateData.organizationName = params.organizationName ? params.organizationName.trim() : null;
+    if (params.partnerLogoUrl !== undefined) updateData.partnerLogoUrl = params.partnerLogoUrl ? params.partnerLogoUrl.trim() : null;
+    if (params.intakeType !== undefined) updateData.intakeType = params.intakeType;
+    if (params.maxSeats !== undefined) updateData.maxSeats = Math.max(1, params.maxSeats);
+    if (params.accessDurationMonths !== undefined) updateData.accessDurationMonths = Math.max(1, params.accessDurationMonths);
+    if (params.expiresAt !== undefined) updateData.expiresAt = params.expiresAt ? new Date(params.expiresAt) : null;
+    if (params.milestoneConfig !== undefined) updateData.milestoneConfigJson = params.milestoneConfig;
+
+    await db
+      .update(cohorts)
+      .set(updateData)
+      .where(eq(cohorts.id, params.cohortId));
+
+    return { ok: true };
+  } catch (err) {
+    console.error('[Admin Vouchers] Failed to update cohort:', err);
+    return { ok: false, error: 'Failed to update cohort details.' };
+  }
+}
+
+/**
+ * 3C. MANAGE COHORT STAFF (Directors & Mentors)
+ */
+export async function manageCohortStaffAction(params: {
+  cohortId: string;
+  action: 'ADD' | 'REMOVE';
+  staffId?: string;
+  email?: string;
+  name?: string;
+  role?: 'DIRECTOR' | 'MENTOR';
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  staff?: AdminCohortStaffMember[];
+}> {
+  const isAdmin = await verifyAdminAuth();
+  if (!isAdmin) {
+    return { ok: false, error: 'Unauthorized: Super Admin access required.' };
+  }
+
+  await ensureDatabaseSchemaSynced();
+
+  try {
+    if (params.action === 'REMOVE') {
+      if (!params.staffId) {
+        return { ok: false, error: 'Staff ID required to remove staff member.' };
+      }
+      await db
+        .delete(cohortStaff)
+        .where(and(eq(cohortStaff.id, params.staffId), eq(cohortStaff.cohortId, params.cohortId)));
+    } else {
+      // ADD
+      const cleanEmail = params.email?.trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes('@')) {
+        return { ok: false, error: 'Valid staff email required.' };
+      }
+
+      const [existingUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, cleanEmail))
+        .limit(1);
+
+      await db.insert(cohortStaff).values({
+        cohortId: params.cohortId,
+        userId: existingUser?.id || null,
+        email: cleanEmail,
+        name: params.name?.trim() || null,
+        role: params.role || 'DIRECTOR',
+      });
+    }
+
+    // Return updated staff list
+    const updatedStaff = await db
+      .select()
+      .from(cohortStaff)
+      .where(eq(cohortStaff.cohortId, params.cohortId))
+      .orderBy(desc(cohortStaff.createdAt));
+
+    return {
+      ok: true,
+      staff: updatedStaff.map((s) => ({
+        id: s.id,
+        email: s.email,
+        name: s.name,
+        role: (s.role as 'DIRECTOR' | 'MENTOR') || 'DIRECTOR',
+        createdAt: s.createdAt.toISOString(),
+      })),
+    };
+  } catch (err) {
+    console.error('[Admin Vouchers] Failed to manage cohort staff:', err);
+    return { ok: false, error: 'Failed to update cohort staff.' };
   }
 }
 

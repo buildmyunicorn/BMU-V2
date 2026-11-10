@@ -75,13 +75,27 @@ export default function LoginPage() {
     }
 
     if (hasActiveBmuSession()) {
-      router.replace('/workspace');
+      const returnUrl = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('returnUrl') ||
+          new URLSearchParams(window.location.search).get('redirect')
+        : null;
+      if (returnUrl && returnUrl.startsWith('/')) {
+        router.replace(returnUrl);
+      } else {
+        router.replace('/workspace');
+      }
     }
   }, [router]);
 
   async function handleStandardLogin(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
+
+    const returnUrl = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('returnUrl') ||
+        new URLSearchParams(window.location.search).get('redirect')
+      : null;
+    const destination = returnUrl && returnUrl.startsWith('/') ? returnUrl : '/workspace';
 
     if (!email.trim() || !password.trim()) {
       setErrorMsg('Please enter both your email address and password.');
@@ -124,10 +138,10 @@ export default function LoginPage() {
           : result.session;
 
         saveBmuSession(mergedSession);
-        if (!mergedSession.user.onboardingCompleted) {
+        if (!mergedSession.user.onboardingCompleted && !returnUrl) {
           router.push('/onboarding');
         } else {
-          router.replace('/workspace');
+          router.replace(destination);
         }
         return;
       }
@@ -146,7 +160,7 @@ export default function LoginPage() {
         }
         saveBmuSession(base);
       }
-      router.replace('/workspace');
+      router.replace(destination);
     } catch {
       const cachedForEmail = loadBmuSessionForEmail(email);
       if (cachedForEmail && cachedForEmail.plans.length > 0) {
@@ -163,14 +177,21 @@ export default function LoginPage() {
         }
         saveBmuSession(base);
       }
-      router.replace('/workspace');
+      router.replace(destination);
     }
   }
 
   function handleGoogleLogin() {
     setIsSubmitting(true);
     setErrorMsg(null);
-    window.location.href = '/api/auth/google?from=login';
+    const returnUrl = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('returnUrl') ||
+        new URLSearchParams(window.location.search).get('redirect')
+      : null;
+    const dest = returnUrl && returnUrl.startsWith('/')
+      ? `/api/auth/google?from=login&returnTo=${encodeURIComponent(returnUrl)}`
+      : '/api/auth/google?from=login';
+    window.location.href = dest;
   }
 
   function loginWithDevPersona(

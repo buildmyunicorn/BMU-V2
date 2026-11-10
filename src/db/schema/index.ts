@@ -115,6 +115,20 @@ export type StartupHat =
   | 'OPERATIONS_ADMIN'
   | 'FINANCE_BOOKS';
 
+export type CohortIntakeType = 'FIXED_BATCH' | 'ROLLING';
+
+export type CohortMilestoneConfig = {
+  enabled?: boolean;
+  rewardLabel?: string; // e.g. 'Activate Google Cloud Startup Credits' or 'Qualify for Demo Day'
+  requiredProgressPercent?: number; // e.g. 50
+  requiredModules?: string[]; // e.g. ['MOD_A_IDEATION', 'MOD_B_MARKET', 'MOD_C_SURVEYS_FEEDBACK', 'MOD_D_PRODUCT_BUILD']
+  partnerNotificationEmails?: string[]; // e.g. ['credits-team@google.com']
+  bccSuperAdmin?: boolean; // default true
+  requireOfficialDomain?: boolean; // default true
+  requireWorkEmail?: boolean; // default true (no consumer @gmail)
+  instructionNotes?: string;
+};
+
 export type BlindSpotItem = {
   id: string;
   title: string;
@@ -148,12 +162,30 @@ export const cohorts = pgTable('cohorts', {
   tenantId: uuid('tenant_id')
     .references(() => tenants.id, { onDelete: 'cascade' })
     .notNull(),
-  name: text('name').notNull(), // e.g., 'Spring 2027 Accelerator Batch'
-  inviteCode: text('invite_code').notNull().unique(), // e.g., 'BMU-UCD-2027'
+  name: text('name').notNull(), // e.g., 'Spring 2027 Accelerator Batch' or 'Google for Startups Rolling Onboarding'
+  organizationName: text('organization_name'), // e.g., 'Google for Startups', 'NovaUCD'
+  partnerLogoUrl: text('partner_logo_url'),
+  intakeType: text('intake_type').default('FIXED_BATCH').notNull(), // 'FIXED_BATCH' | 'ROLLING'
+  inviteCode: text('invite_code').notNull().unique(), // e.g., 'BMU-UCD-2027' or 'GOOGLE-STARTUPS'
   maxSeats: integer('max_seats').default(50).notNull(),
   seatsUsed: integer('seats_used').default(0).notNull(),
   accessDurationMonths: integer('access_duration_months').default(6).notNull(),
+  milestoneConfigJson: jsonb('milestone_config_json')
+    .$type<CohortMilestoneConfig>()
+    .default({}),
   expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const cohortStaff = pgTable('cohort_staff', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  cohortId: uuid('cohort_id')
+    .references(() => cohorts.id, { onDelete: 'cascade' })
+    .notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  email: text('email').notNull(),
+  name: text('name'),
+  role: text('role').default('DIRECTOR').notNull(), // 'DIRECTOR' | 'MENTOR'
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -375,6 +407,12 @@ export const startupPlans = pgTable('startup_plans', {
       capitalRequired?: number;
     }>()
     .default({}),
+  // Cohort Milestone & Reward Claim Tracking (e.g. Google for Startups Cloud Credits)
+  cohortMilestoneStatus: text('cohort_milestone_status').default('IN_PROGRESS').notNull(), // 'IN_PROGRESS' | 'ELIGIBLE_TO_CLAIM' | 'CLAIMED_PARTNER_NOTIFIED' | 'REWARD_ACTIVATED'
+  cohortMilestoneClaimedAt: timestamp('cohort_milestone_claimed_at'),
+  verifiedCohortDomain: text('verified_cohort_domain'),
+  verifiedCohortWorkEmail: text('verified_cohort_work_email'),
+  cohortMilestoneClaimDataJson: jsonb('cohort_milestone_claim_data_json').default({}),
   status: planStatusEnum('status').default('ACTIVE').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -1006,6 +1044,18 @@ export const cohortsRelations = relations(cohorts, ({ one, many }) => ({
   }),
   users: many(users),
   startupPlans: many(startupPlans),
+  staff: many(cohortStaff),
+}));
+
+export const cohortStaffRelations = relations(cohortStaff, ({ one }) => ({
+  cohort: one(cohorts, {
+    fields: [cohortStaff.cohortId],
+    references: [cohorts.id],
+  }),
+  user: one(users, {
+    fields: [cohortStaff.userId],
+    references: [users.id],
+  }),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({

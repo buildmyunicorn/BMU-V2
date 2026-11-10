@@ -38,6 +38,9 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [showVoucherField, setShowVoucherField] = useState(false);
   const [voucherCode, setVoucherCode] = useState('');
+  const [detectedCohortParam, setDetectedCohortParam] = useState<string | null>(
+    null
+  );
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsHighlightError, setTermsHighlightError] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -46,6 +49,19 @@ export default function RegisterPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      const cohortOrCode = (
+        params.get('cohort') ||
+        params.get('voucher') ||
+        params.get('code') ||
+        ''
+      )
+        .trim()
+        .toUpperCase();
+      if (cohortOrCode) {
+        setVoucherCode(cohortOrCode);
+        setShowVoucherField(true);
+        setDetectedCohortParam(cohortOrCode);
+      }
       const err = params.get('error');
       if (err) {
         const messages: Record<string, string> = {
@@ -224,6 +240,16 @@ export default function RegisterPage() {
                 Start free on Module A, or enter an Institutional Cohort /
                 Partner code below.
               </CardDescription>
+              {detectedCohortParam && (
+                <div className="mt-2 flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/90 px-3 py-2 text-xs font-medium text-indigo-950">
+                  <Ticket className="h-4 w-4 shrink-0 text-indigo-600" />
+                  <span>
+                    Institutional Cohort Invite Detected:{' '}
+                    <strong className="font-mono">{detectedCohortParam}</strong>{' '}
+                    will be automatically linked to your founder workspace.
+                  </span>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-5">
               {/* OAuth Quick Buttons */}

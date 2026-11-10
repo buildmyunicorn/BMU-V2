@@ -102,6 +102,10 @@ import {
   type AdminVoucherSummary,
   type AdminCohortSummary,
 } from '@/app/actions/admin-vouchers';
+import {
+  listCohortInquiriesAdminAction,
+  type AdminCohortInquiryRecord,
+} from '@/app/actions/cohort-inquiries';
 import { listAdminPartnersAndEventsAction } from '@/app/actions/admin-partners';
 import {
   loadLocalPartnerOffers,
@@ -418,6 +422,9 @@ export default function AdminDashboardPage() {
   >([]);
   const [vouchersList, setVouchersList] = useState<AdminVoucherSummary[]>([]);
   const [cohortsList, setCohortsList] = useState<AdminCohortSummary[]>([]);
+  const [cohortInquiriesList, setCohortInquiriesList] = useState<
+    AdminCohortInquiryRecord[]
+  >([]);
   const [voucherStats, setVoucherStats] = useState<{
     totalVouchers: number;
     unclaimedVouchers: number;
@@ -480,7 +487,7 @@ export default function AdminDashboardPage() {
   async function fetchUsers() {
     setIsLoading(true);
     try {
-      const [res, waitlistRes, supportRes, voucherRes, partnersRes, grantsRes] =
+      const [res, waitlistRes, supportRes, voucherRes, partnersRes, grantsRes, inquiriesRes] =
         await Promise.all([
           listAdminUsersAction(),
           listEarlyAccessWaitlistAction(),
@@ -488,6 +495,7 @@ export default function AdminDashboardPage() {
           listAdminVouchersAndCohortsAction(),
           listAdminPartnersAndEventsAction(),
           listAdminGrantsAction(),
+          listCohortInquiriesAdminAction(),
         ]);
       if (!res.authenticated) {
         router.replace('/admin/login');
@@ -548,6 +556,10 @@ export default function AdminDashboardPage() {
         setVouchersList(voucherRes.vouchers);
         setCohortsList(voucherRes.cohorts);
         setVoucherStats(voucherRes.stats);
+      }
+
+      if (inquiriesRes.ok) {
+        setCohortInquiriesList(inquiriesRes.inquiries);
       }
 
       // Merge server/PostgreSQL partner offers & referral events with local cache
@@ -1498,6 +1510,7 @@ export default function AdminDashboardPage() {
           <VouchersCohortsStudioTab
             vouchers={vouchersList}
             cohorts={cohortsList}
+            inquiries={cohortInquiriesList}
             stats={voucherStats}
             onRefresh={fetchUsers}
             onNotify={(type, text) =>

@@ -2,8 +2,8 @@
 
 import { db } from '@/db';
 import { cohortInquiries, emailLogs } from '@/db/schema';
-import { sql } from 'drizzle-orm';
-import { checkRateLimit } from '@/lib/auth/server-auth';
+import { sql, desc, eq } from 'drizzle-orm';
+import { checkRateLimit, getAdminSessionCookie } from '@/lib/auth/server-auth';
 import { resend, EMAIL_DEFAULTS } from '@/lib/email/resend';
 
 export interface SubmitCohortInquiryInput {
@@ -307,4 +307,98 @@ function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+export interface AdminCohortInquiryRecord {
+  id: string;
+  name: string;
+  email: string;
+  organizationName: string;
+  organizationType: string;
+  cohortSize: string;
+  regionalFocus: string;
+  targetStartDate: string | null;
+  goals: string[];
+  notes: string | null;
+  status: 'NEW' | 'CONTACTED' | 'DEMO_SCHEDULED' | 'CONVERTED' | 'ARCHIVED';
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Super Admin: List all cohort & accelerator inquiries.
+ */
+export async function listCohortInquiriesAdminAction(): Promise<{
+  ok: boolean;
+  inquiries: AdminCohortInquiryRecord[];
+  error?: string;
+}> {
+  try {
+    const session = await getAdminSessionCookie();
+    if (!session || session.role !== 'SUPER_ADMIN') {
+      return { ok: false, inquiries: [], error: 'Unauthorized: Super Admin access required.' };
+    }
+
+    await ensureTableReady();
+
+    const rows = await db
+      .select()
+      .from(cohortInquiries)
+      .orderBy(desc(cohortInquiries.createdAt));
+
+    const inquiries: AdminCohortInquiryRecord[] = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      organizationName: r.organizationName,
+      organizationType: r.organizationType,
+      cohortSize: r.cohortSize,
+      regionalFocus: r.regionalFocus,
+      targetStartDate: r.targetStartDate,
+      goals: Array.isArray(r.goalsJson) ? (r.goalsJson as string[]) : [],
+      notes: r.notes,
+      status: (r.status as AdminCohortInquiryRecord['status']) || 'NEW',
+      metadata: (r.metadataJson as Record<string, unknown>) || {},
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+    }));
+
+    return { ok: true, inquiries };
+  } catch (err) {
+    console.error('[Cohort Inquiries Admin] List failed:', err);
+    return { ok: false, inquiries: [], error: 'Failed to retrieve cohort inquiries.' };
+  }
+}
+
+/**
+ * Super Admin: Update status or internal notes on a cohort inquiry.
+ */
+export async function updateCohortInquiryStatusAdminAction(params: {
+  inquiryId: string;
+  status: AdminCohortInquiryRecord['status'];
+  notes?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const session = await getAdminSessionCookie();
+    if (!session || session.role !== 'SUPER_ADMIN') {
+      return { ok: false, error: 'Unauthorized: Super Admin access required.' };
+    }
+
+    await ensureTableReady();
+
+    await db
+      .update(cohortInquiries)
+      .set({
+        status: params.status,
+        ...(params.notes !== undefined ? { notes: params.notes } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(cohortInquiries.id, params.inquiryId));
+
+    return { ok: true };
+  } catch (err) {
+    console.error('[Cohort Inquiries Admin] Update status failed:', err);
+    return { ok: false, error: 'Failed to update cohort inquiry status.' };
+  }
 }

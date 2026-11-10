@@ -270,6 +270,7 @@ import { ModuleKWorkspace } from '@/components/workspace/module-k-workspace';
 import { ModuleLWorkspace } from '@/components/workspace/module-l-workspace';
 import { BusinessPlanStudioWorkspace } from '@/components/workspace/business-plan-studio-workspace';
 import { ProjectDashboardView } from '@/components/workspace/project-dashboard-view';
+import { CohortMilestoneTracker } from '@/components/workspace/cohort-milestone-tracker';
 import {
   saveModuleLStep1ModeAction,
   saveModuleLPartialDataAction,
@@ -6378,6 +6379,49 @@ export default function WorkspacePage() {
                 </div>
               </div>
             )}
+
+          {/* Institutional Cohort Partner & Milestone Gate Tracker (e.g., Google for Startups / University Incubator) */}
+          <CohortMilestoneTracker
+            planId={currentPlan.id}
+            hqCountryCode={selectedCountry}
+            founderName={session.user.name}
+            founderEmail={session.user.email}
+            cohortCode={session.user.cohortCode}
+            isDashboardOpen={isDashboardOpen}
+            moduleProgressList={dashboardModuleProgressList}
+            prefilledDomainFromLaunchpad={
+              currentPlan.moduleGData?.step2?.primaryDomain
+            }
+            prefilledEmailFromLaunchpad={
+              currentPlan.moduleGData?.step2?.officialBusinessEmail
+            }
+            executiveSummary={{
+              startupTitle: currentPlan.title,
+              oneLiner:
+                currentPlan.oneLinerSummary ||
+                effectiveCanvas?.proposedSolution ||
+                '',
+              industryCategory: currentPlan.industryCategory,
+              hqCountryCode: selectedCountry,
+              coreProblem: effectiveCanvas?.coreProblem,
+              proposedSolution: effectiveCanvas?.proposedSolution,
+              beachheadPersona: savedBeachhead?.beachheadSegment,
+              mvpProductVehicle: savedModDVehicle?.formFactor,
+              surveyRespondentsCount: dashboardSurveyResponsesCount,
+              waitlistLeadsCount: dashboardWaitlistLeadsCount,
+            }}
+            onNavigateToModule={(targetMod) => {
+              const access = canAccessModule(activeEntitlement, targetMod);
+              if (!access.allowed) {
+                setPendingModuleAfterUnlock(targetMod);
+                setPaywallModalFeature(
+                  `${targetMod} — ${access.reason || 'Requires an upgraded pass.'}`
+                );
+                return;
+              }
+              navigateToModuleWithHistory(targetMod);
+            }}
+          />
 
           {isDashboardOpen ? (
             <ProjectDashboardView
