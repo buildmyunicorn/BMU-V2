@@ -526,7 +526,7 @@ function buildHumanElevatorPitch(plan: ActiveStartupPlan): {
       'proprietary multi-jurisdictional underwriting logic and visual unit economics modeling'
   );
   const priceVal = plan.moduleHData?.step3BreakevenCalculator?.activePriceSlider;
-  const price = priceVal ? `${currSym}${priceVal} average pass value` : `${currSym}129–${currSym}199 founder passes`;
+  const price = priceVal ? `${currSym}${priceVal} average pass value` : `${currSym}79–${currSym}129 founder passes`;
   const breakevenVal = plan.moduleHData?.step3BreakevenCalculator?.activeCustomerSlider;
   const breakeven = breakevenVal ? `${breakevenVal} active passes per month` : '19 active passes per month';
   const country = formatCountryName(plan.hqCountryCode);
@@ -659,7 +659,7 @@ function buildHumanFinancialAnswer(plan: ActiveStartupPlan): {
   const text = sanitizeHumanAnswer(
     `${title} operates a high-margin, capital-efficient B2B software model designed for rapid monthly breakeven and strong cash generation.\n\n` +
     `### Pricing Structure & Unit Economics\n\n` +
-    `- Tiered Founder Passes: Solo 6-Month Pass (${currSym}129), Co-Founder 3-Seat Pass (${currSym}199), and Institutional Cohort Licenses (${currSym}2,500–${currSym}5,000 per cohort), plus an optional ${currSym}9/month (${currSym}79/year) Living Vault & Grant Radar micro-subscription.\n` +
+    `- Tiered Founder Passes: Solo 6-Month Pass (${currSym}79), Co-Founder 3-Seat Pass (${currSym}129), and Institutional Cohort Licenses (${currSym}2,500–${currSym}5,000 per cohort), plus an optional ${currSym}7/month (${currSym}59/year) Living Vault & Grant Radar micro-subscription.\n` +
     `- Blended Average Order Value (AOV): ${currSym}${priceNum} per customer.\n` +
     `- Direct Variable Costs & Gross Margin: Direct AI token and Stripe processing friction (${gatewayPct}%) total just ${currSym}${cogsNum} per unit—delivering a ${grossMarginPct}% gross margin (controlled via our hard 500 calls/day AI billing circuit breaker).\n\n` +
     `### Breakeven Volume & 3-Year Trajectory\n\n` +
@@ -707,7 +707,7 @@ function buildHumanValidationAndTractionAnswer(plan: ActiveStartupPlan): {
     `- Over 60% of respondents identified financial spreadsheet modeling, unit economics, and state grant eligibility rules as their single biggest blocker—with multiple founders citing past grant rejections caused by simple compliance errors.\n\n` +
     `### 2. Qualitative 1-on-1 Founder Interviews (${interviewCount} In-Depth Sessions)\n\n` +
     `- Lead promoter ${leadPromoter} conducted structured 1-on-1 discovery interviews focusing on actual past purchasing behavior rather than hypothetical praise.\n` +
-    `- Founders consistently highlighted 'spreadsheet dread' and conflicting advice from expensive consultants, confirming clear willingness to pay ${currSym}129–${currSym}199 for an opinionated, self-service preflight platform.\n\n` +
+    `- Founders consistently highlighted 'spreadsheet dread' and conflicting advice from expensive consultants, confirming clear willingness to pay ${currSym}79–${currSym}129 for an opinionated, self-service preflight platform.\n\n` +
     `### 3. Product & Roadmap Impact\n\n` +
     `- This direct primary evidence shaped our core feature set—specifically our visual Pocket Profit breakeven engine, built-in LEO 3-quote compliance checks, and instant portal Q&A generator.`
   );
@@ -883,7 +883,7 @@ function buildHumanRisksAndMitigationAnswer(plan: ActiveStartupPlan): {
   const text = sanitizeHumanAnswer(
     `${title} maintains a formal 4-category Risk Register with pre-engineered technical, commercial, regulatory, and financial safeguards:\n\n` +
     `- 1. Technical & AI Cost Overrun Risk: Risk of third-party LLM latency, API outages, or runaway token bills. Mitigated via a hard server-side circuit breaker (capped at 500 platform AI calls/day and 8 calls/minute per user) that fails closed to our deterministic smart-synthesizer engine with 100% uptime.\n` +
-    `- 2. Commercial & Customer Adoption Risk: Risk of slow self-serve founder conversion. Mitigated via our free Module A Concept Canvas & Fit Scorecard hook, impulse-friendly pass pricing (${currSym}129–${currSym}199 vs. ${currSym}3,000+ consultants), and B2B cohort licensing with enterprise hubs.\n` +
+    `- 2. Commercial & Customer Adoption Risk: Risk of slow self-serve founder conversion. Mitigated via our free Module A Concept Canvas & Fit Scorecard hook, impulse-friendly pass pricing (${currSym}79–${currSym}129 vs. ${currSym}3,000+ consultants), and B2B cohort licensing with enterprise hubs.\n` +
     `- 3. Regulatory & Grant Rubric Drift: Risk of state agencies updating eligibility criteria (e.g. LEO laptop bans, de minimis limits, or UK MFA caps). Mitigated by isolating all grant rules inside a centralized, parameterized underwriting matrix that updates instantly across all active plans.\n` +
     `- 4. Cashflow & Grant Reimbursement Timing Risk: Since Irish LEO and UK Innovate grants reimburse retrospectively against vouched receipts, we maintain ${currSym}15,000 in day-one founder cash equity and a low ${breakevenUnits}-unit monthly breakeven threshold.`
   );
@@ -968,7 +968,7 @@ function buildHumanCompetitiveAnswer(plan: ActiveStartupPlan): {
     `Unlike existing market alternatives (${compStr}), ${title} is purpose-built around three defensible pillars:\n\n` +
     `- 1. Deterministic Underwriting Guardrails (vs. Generic AI): Generic chatbots hallucinate numbers and ignore statutory grant rules. ${title} embeds ${lowerFirstCharSafe(advantage)}.\n` +
     `- 2. Guided No-Spreadsheet Economics (vs. Legacy Tools): Instead of blank 40-tab spreadsheets, our Pocket Profit engine links survey willingness-to-pay, COGS, and hiring plans into a live visual breakeven model.\n` +
-    `- 3. 20x Cost & Speed Advantage (vs. Boutique Consultants): Founders complete a verified, agency-compliant plan in days for ${currSym}129–${currSym}199 rather than paying ${currSym}3,000–${currSym}7,000 upfront to consultants.`
+    `- 3. 20x Cost & Speed Advantage (vs. Boutique Consultants): Founders complete a verified, agency-compliant plan in days for ${currSym}79–${currSym}129 rather than paying ${currSym}3,000–${currSym}7,000 upfront to consultants.`
   );
 
   const citations: AskStartupCitation[] = [
@@ -1037,7 +1037,7 @@ function buildHumanMarketingAndGtmAnswer(plan: ActiveStartupPlan): {
 
   const text = sanitizeHumanAnswer(
     `${title} executes a capital-efficient, three-channel Go-To-Market (GTM) strategy focused on high-intent founders and institutional multipliers:\n\n` +
-    `- 1. Free Diagnostic Hook & Waitlist Conversion: Founders enter via our free Module A Concept Canvas & Founder-Idea Fit Scorecard and hosted Mom Test survey pages (/v/[slug]), converting into ${currSym}129–${currSym}199 paid passes when unlocking Modules B–L.\n` +
+    `- 1. Free Diagnostic Hook & Waitlist Conversion: Founders enter via our free Module A Concept Canvas & Founder-Idea Fit Scorecard and hosted Mom Test survey pages (/v/[slug]), converting into ${currSym}79–${currSym}129 paid passes when unlocking Modules B–L.\n` +
     `- 2. B2B Institutional & Cohort Licensing: Partnering directly with university incubators, regional LEO training cohorts, and UK growth hubs (${currSym}2,500–${currSym}5,000 per 25-seat cohort pass) so mentors can track standardized founder progress.\n` +
     `- 3. High-Intent Grant SEO & Checklists: Public programmatic SEO pages (/grants/ie/... and /grants/uk/...) capturing founders actively searching for LEO Feasibility, Priming, and Innovate UK application checklists.\n` +
     `- Disciplined CAC & Marketing Budget: Modeled on a lean ${currSym}${monthlySpend}/month digital acquisition budget with a payback period under 30 days on first pass purchase.`

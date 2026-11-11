@@ -27,9 +27,9 @@ export const STRIPE_PASS_PRODUCTS: Record<
       'Full access to all 12 modules (A–L), 1 startup plan, 1 seat, and 250 AI credits/mo.',
     mode: 'payment',
     prices: {
-      EUR: 12900, // €129.00
-      GBP: 10900, // £109.00
-      USD: 14900, // $149.00
+      EUR: 7900, // €79.00
+      GBP: 6900, // £69.00
+      USD: 8900, // $89.00
     },
     features: [
       'Full Access to Modules A–L',
@@ -47,9 +47,9 @@ export const STRIPE_PASS_PRODUCTS: Record<
       'Everything in Solo + 3 plans, 3 seats, and the Blind-Reveal Co-Founder Alignment Engine.',
     mode: 'payment',
     prices: {
-      EUR: 19900, // €199.00
-      GBP: 16900, // £169.00
-      USD: 21900, // $219.00
+      EUR: 12900, // €129.00
+      GBP: 10900, // £109.00
+      USD: 13900, // $139.00
     },
     features: [
       'Full Access to Modules A–L',
@@ -68,9 +68,9 @@ export const STRIPE_PASS_PRODUCTS: Record<
       'Continuous editing for all 12 modules post-Month 6, plus automated Grant & Tax Relief Radar.',
     mode: 'subscription',
     prices: {
-      EUR: 900, // €9.00 / mo
-      GBP: 800, // £8.00 / mo
-      USD: 1000, // $10.00 / mo
+      EUR: 700, // €7.00 / mo
+      GBP: 600, // £6.00 / mo
+      USD: 800, // $8.00 / mo
     },
     features: [
       'Ongoing Editing for All 12 Modules',

@@ -64,6 +64,7 @@ export interface MasterDocumentWorkspaceProps {
   moduleABlindSpots: BlindSpotItem[];
   whiteLabelEnabled?: boolean;
   isVaultReadonly?: boolean;
+  isMentorView?: boolean;
   onJumpToModule: (moduleCode: ModuleCode) => void;
   onSaveMasterDocumentData: (data: SavedMasterDocumentData) => Promise<void>;
   onWeaveStoryWithAi: (
@@ -87,6 +88,7 @@ export function MasterDocumentWorkspace({
   moduleABlindSpots,
   whiteLabelEnabled = false,
   isVaultReadonly = false,
+  isMentorView = false,
   onJumpToModule,
   onSaveMasterDocumentData,
   onWeaveStoryWithAi,
@@ -349,16 +351,18 @@ export function MasterDocumentWorkspace({
 
           {/* Export Action Buttons */}
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
-              className="border-emerald-400/50 bg-emerald-500/20 text-xs font-bold text-emerald-100 hover:bg-emerald-500/30"
-            >
-              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-300" />
-              Open Official Compiler (Mod L)
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
+                className="border-emerald-400/50 bg-emerald-500/20 text-xs font-bold text-emerald-100 hover:bg-emerald-500/30"
+              >
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-300" />
+                Open Official Compiler (Mod L)
+              </Button>
+            )}
             <Button
               type="button"
               size="sm"
@@ -584,32 +588,34 @@ export function MasterDocumentWorkspace({
                   <Compass className="h-4 w-4" />
                   🎯 Concept &amp; Founder Fit (Module A)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_A_IDEATION')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  Edit in Module A
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_A_IDEATION')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit in Module A
+                  </button>
+                )}
               </div>
               <dl className="space-y-2 text-sm text-slate-700">
                 <div>
                   <dt className="inline font-semibold text-slate-900">Problem: </dt>
                   <dd className="inline">
-                    {facts.coreProblem || 'Not yet entered in Module A.'}
+                    {facts.coreProblem || (isMentorView ? 'Not yet completed by founder.' : 'Not yet entered in Module A.')}
                   </dd>
                 </div>
                 <div>
                   <dt className="inline font-semibold text-slate-900">Target Buyer: </dt>
                   <dd className="inline">
-                    {facts.targetCustomer || 'Not yet entered in Module A.'}
+                    {facts.targetCustomer || (isMentorView ? 'Not yet completed by founder.' : 'Not yet entered in Module A.')}
                   </dd>
                 </div>
                 <div>
                   <dt className="inline font-semibold text-slate-900">Proposed Solution: </dt>
                   <dd className="inline">
-                    {facts.proposedSolution || 'Not yet entered in Module A.'}
+                    {facts.proposedSolution || (isMentorView ? 'Not yet completed by founder.' : 'Not yet entered in Module A.')}
                   </dd>
                 </div>
                 <div>
@@ -636,14 +642,16 @@ export function MasterDocumentWorkspace({
                   <BarChart3 className="h-4 w-4" />
                   📊 Market &amp; Wedge (Module B)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_B_MARKET')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleB ? 'Edit in Module B' : 'Start Module B'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_B_MARKET')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleB ? 'Edit in Module B' : 'Start Module B'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleB ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -685,7 +693,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet populated. Complete Module B to add your beachhead persona, competitors, and bottom-up SOM/SAM market sizing.
+                  {isMentorView
+                    ? 'Not yet completed by founder.'
+                    : 'Not yet populated. Complete Module B to add your beachhead persona, competitors, and bottom-up SOM/SAM market sizing.'}
                 </p>
               )}
             </div>
@@ -699,14 +709,16 @@ export function MasterDocumentWorkspace({
                   <MessageSquare className="h-4 w-4" />
                   💬 Validation Proof (Module C)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_C_SURVEYS_FEEDBACK')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleC ? 'Edit in Module C' : 'Start Module C'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_C_SURVEYS_FEEDBACK')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleC ? 'Edit in Module C' : 'Start Module C'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleC ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -754,7 +766,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet populated. Use Module C to launch public validation surveys, collect waitlist leads, and log 1-on-1 customer interviews.
+                  {isMentorView
+                    ? 'Not yet completed by founder.'
+                    : 'Not yet populated. Use Module C to launch public validation surveys, collect waitlist leads, and log 1-on-1 customer interviews.'}
                 </p>
               )}
             </div>
@@ -768,14 +782,16 @@ export function MasterDocumentWorkspace({
                   <Wrench className="h-4 w-4" />
                   🛠️ What We&apos;re Building (Module D)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_D_PRODUCT_BUILD')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleD ? 'Edit in Module D' : 'Start Module D'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_D_PRODUCT_BUILD')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleD ? 'Edit in Module D' : 'Start Module D'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleD ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -818,7 +834,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet populated. Complete Module D to define your product vehicle, channel strategy, V1 feature filter, and work packages.
+                  {isMentorView
+                    ? 'Not yet completed by founder.'
+                    : 'Not yet populated. Complete Module D to define your product vehicle, channel strategy, V1 feature filter, and work packages.'}
                 </p>
               )}
             </div>
@@ -832,14 +850,16 @@ export function MasterDocumentWorkspace({
               <Briefcase className="h-4 w-4" />
               ⚙️ Operations, Equipment &amp; Risk Posture (Module E)
             </span>
-            <button
-              type="button"
-              onClick={() => onJumpToModule('MOD_E_OPERATIONS')}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-            >
-              <Pencil className="h-3 w-3" />
-              {facts.hasModuleE ? 'Edit in Module E' : 'Start Module E'}
-            </button>
+            {!isMentorView && (
+              <button
+                type="button"
+                onClick={() => onJumpToModule('MOD_E_OPERATIONS')}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+              >
+                <Pencil className="h-3 w-3" />
+                {facts.hasModuleE ? 'Edit in Module E' : 'Start Module E'}
+              </button>
+            )}
           </div>
           {facts.hasModuleE ? (
             <div className="grid grid-cols-1 gap-3 text-sm text-slate-700 md:grid-cols-3">
@@ -900,7 +920,9 @@ export function MasterDocumentWorkspace({
             </div>
           ) : (
             <p className="text-sm italic text-slate-500">
-              Not yet populated. Complete Module E to add your order fulfillment stages, equipment schedule, and 4-category project risk register.
+              {isMentorView
+                ? 'Not yet completed by founder.'
+                : 'Not yet populated. Complete Module E to add your order fulfillment stages, equipment schedule, and 4-category project risk register.'}
             </p>
           )}
         </div>
@@ -915,14 +937,16 @@ export function MasterDocumentWorkspace({
                   <Users className="h-4 w-4" />
                   👥 Team, Survival &amp; Hiring (Module F)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_F_COFOUNDER_TEAM')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleF ? 'Edit in Module F' : 'Start Module F'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_F_COFOUNDER_TEAM')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleF ? 'Edit in Module F' : 'Start Module F'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleF ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -948,7 +972,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet populated. Complete Module F to add 150-word promoter profiles, personal survival budgets, 7 Startup Hats, and your 3-year hiring plan.
+                  {isMentorView
+                    ? 'Not yet completed by founder.'
+                    : 'Not yet populated. Complete Module F to add 150-word promoter profiles, personal survival budgets, 7 Startup Hats, and your 3-year hiring plan.'}
                 </p>
               )}
             </div>
@@ -962,14 +988,16 @@ export function MasterDocumentWorkspace({
                   <ShieldCheck className="h-4 w-4" />
                   🚀 Launchpad &amp; Ops Setup (Module G)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_G_LAUNCHPAD')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleG ? 'Edit in Module G' : 'Start Module G'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_G_LAUNCHPAD')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleG ? 'Edit in Module G' : 'Start Module G'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleG ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -998,7 +1026,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet populated. Complete Module G to track your 0–100% Operations Readiness across Incorporation, Domain/Email, Banking, Accounting, Insurance, and Legal/IP.
+                  {isMentorView
+                    ? 'Not yet completed by founder.'
+                    : 'Not yet populated. Complete Module G to track your 0–100% Operations Readiness across Incorporation, Domain/Email, Banking, Accounting, Insurance, and Legal/IP.'}
                 </p>
               )}
             </div>
@@ -1012,14 +1042,16 @@ export function MasterDocumentWorkspace({
                   <DollarSign className="h-4 w-4" />
                   💰 Pricing &amp; Pocket Profit (Module H)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_H_REVENUE')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleH ? 'Edit in Module H' : 'Start Module H'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_H_REVENUE')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleH ? 'Edit in Module H' : 'Start Module H'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleH ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -1047,7 +1079,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet populated. Complete Module H to model your pricing tiers, written sales assumptions, and 3-year Pocket Profit breakeven.
+                  {isMentorView
+                    ? 'Not yet completed by founder.'
+                    : 'Not yet populated. Complete Module H to model your pricing tiers, written sales assumptions, and 3-year Pocket Profit breakeven.'}
                 </p>
               )}
             </div>
@@ -1061,14 +1095,16 @@ export function MasterDocumentWorkspace({
                   <Megaphone className="h-4 w-4" />
                   📣 Marketing, 4Ps &amp; First 10 (Module I)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_I_MARKETING')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleI ? 'Edit in Module I' : 'Start Module I'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_I_MARKETING')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleI ? 'Edit in Module I' : 'Start Module I'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleI ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -1094,7 +1130,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet populated. Complete Module I to build your brand positioning, 4Ps strategy, First 10 Customers tracker, and CAC/LTV marketing budget.
+                  {isMentorView
+                    ? 'Not yet completed by founder.'
+                    : 'Not yet populated. Complete Module I to build your brand positioning, 4Ps strategy, First 10 Customers tracker, and CAC/LTV marketing budget.'}
                 </p>
               )}
             </div>
@@ -1108,14 +1146,16 @@ export function MasterDocumentWorkspace({
                   <Scale className="h-4 w-4" />
                   📈 36-Month Financials &amp; Cashflow (Module J)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_J_FINANCE')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleJ ? 'Edit in Module J' : 'Start Module J'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_J_FINANCE')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleJ ? 'Edit in Module J' : 'Start Module J'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleJ ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -1143,7 +1183,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet populated. Complete Module J to configure localized overheads, working capital timing, and your 36-month cashflow trough.
+                  {isMentorView
+                    ? 'Not yet completed by founder.'
+                    : 'Not yet populated. Complete Module J to configure localized overheads, working capital timing, and your 36-month cashflow trough.'}
                 </p>
               )}
             </div>
@@ -1157,14 +1199,16 @@ export function MasterDocumentWorkspace({
                   <Sparkles className="h-4 w-4" />
                   🏛️ Grants, Loans &amp; Tax Relief (Module K)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_K_GRANTS_FUNDING')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleK ? 'Edit in Module K' : 'Start Module K'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_K_GRANTS_FUNDING')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleK ? 'Edit in Module K' : 'Start Module K'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleK ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -1193,7 +1237,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet populated. Complete Module K to score IE/UK grant readiness, build your non-dilutive capital stack, and verify reimbursement bridge liquidity.
+                  {isMentorView
+                    ? 'Not yet completed by founder.'
+                    : 'Not yet populated. Complete Module K to score IE/UK grant readiness, build your non-dilutive capital stack, and verify reimbursement bridge liquidity.'}
                 </p>
               )}
             </div>
@@ -1207,14 +1253,16 @@ export function MasterDocumentWorkspace({
                   <FileText className="h-4 w-4" />
                   📑 Grant &amp; Plan Compiler (Module L)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {facts.hasModuleL ? 'Edit in Module L' : 'Start Module L'}
-                </button>
+                {!isMentorView && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {facts.hasModuleL ? 'Edit in Module L' : 'Start Module L'}
+                  </button>
+                )}
               </div>
               {facts.hasModuleL ? (
                 <dl className="space-y-2 text-sm text-slate-700">
@@ -1240,7 +1288,9 @@ export function MasterDocumentWorkspace({
                 </dl>
               ) : (
                 <p className="text-sm italic text-slate-500">
-                  Not yet compiled. Complete Module L to run your Pre-Flight Contradiction Audit, auto-compile official submission narratives, and assemble Appendices A–F.
+                  {isMentorView
+                    ? 'Not yet compiled by founder.'
+                    : 'Not yet compiled. Complete Module L to run your Pre-Flight Contradiction Audit, auto-compile official submission narratives, and assemble Appendices A–F.'}
                 </p>
               )}
             </div>
@@ -1276,7 +1326,7 @@ export function MasterDocumentWorkspace({
             </div>
           </div>
 
-          {!isVaultReadonly && (
+          {!isVaultReadonly && !isMentorView && (
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
@@ -1461,16 +1511,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_A_IDEATION')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module A
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_A_IDEATION')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module A
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
@@ -1578,16 +1630,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_B_MARKET')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module B
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_B_MARKET')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module B
+              </Button>
+            )}
           </div>
 
           {/* Market Sizing Trio */}
@@ -1719,16 +1773,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_C_SURVEYS_FEEDBACK')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module C
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_C_SURVEYS_FEEDBACK')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module C
+              </Button>
+            )}
           </div>
 
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -1849,16 +1905,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_D_PRODUCT_BUILD')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module D
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_D_PRODUCT_BUILD')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module D
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
@@ -1974,16 +2032,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_E_OPERATIONS')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module E
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_E_OPERATIONS')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module E
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
@@ -2099,16 +2159,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_F_COFOUNDER_TEAM')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module F
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_F_COFOUNDER_TEAM')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module F
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
@@ -2227,16 +2289,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_G_LAUNCHPAD')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module G
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_G_LAUNCHPAD')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module G
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
@@ -2310,16 +2374,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_H_REVENUE')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module H
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_H_REVENUE')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module H
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
@@ -2418,16 +2484,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_I_MARKETING')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module I
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_I_MARKETING')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module I
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
@@ -2523,16 +2591,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_J_FINANCE')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module J
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_J_FINANCE')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module J
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
@@ -2608,16 +2678,18 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onJumpToModule('MOD_K_GRANTS_FUNDING')}
-              className="w-fit text-xs text-indigo-700"
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit in Module K
-            </Button>
+            {!isMentorView && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onJumpToModule('MOD_K_GRANTS_FUNDING')}
+                className="w-fit text-xs text-indigo-700"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit in Module K
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
@@ -2694,14 +2766,16 @@ export function MasterDocumentWorkspace({
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              Edit in Module L
-            </button>
+            {!isMentorView && (
+              <button
+                type="button"
+                onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit in Module L
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -2764,7 +2838,7 @@ export function MasterDocumentWorkspace({
             </div>
           )}
         </section>
-      ) : (
+      ) : !isMentorView ? (
         <section className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-emerald-50/60 p-5 shadow-xs sm:p-6">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div className="space-y-1">
@@ -2790,7 +2864,7 @@ export function MasterDocumentWorkspace({
             </Button>
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

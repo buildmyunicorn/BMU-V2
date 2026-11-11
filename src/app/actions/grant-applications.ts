@@ -144,7 +144,7 @@ function extractKeyMetrics(
 
   const pricingSummary = modH?.step1RevenueModel?.pricingTiers
     ? modH.step1RevenueModel.pricingTiers.map((t: any) => `${t.name}: ${currSym}${t.price}`).join(', ')
-    : 'Solo Pass (€129) / Co-Founder Pass (€199) / Micro-Subscription (€9/mo)';
+    : 'Solo Pass (€79) / Co-Founder Pass (€129) / Micro-Subscription (€7/mo)';
 
   // Module B data
   const modB = modBOverride || plan.moduleBData;
@@ -254,7 +254,7 @@ function buildDeterministicFallbackAnswer(
 We deployed targeted surveys to pre-seed, pre-incorporation, and grant-seeking founders across Ireland and the UK. Over 60% of respondents identified business plan formatting, spreadsheet modeling, and grant eligibility rules as their single largest operational hurdle, with multiple respondents reporting previous grant application rejections due to unvetted unit economics.
 
 2. Qualitative 1-on-1 Founder Interviews (${metrics.interviewCount} In-Depth Sessions):
-Sole promoter ${metrics.promoterName} conducted structured 1-on-1 interviews applying the 'Mom Test' framework to uncover actual founder behavior rather than speculative opinions. Founders consistently highlighted 'spreadsheet dread' and conflicting advice from boutique advisors as acute pain points, explicitly confirming their willingness to purchase self-service preflight software priced between €129 and €199.
+Sole promoter ${metrics.promoterName} conducted structured 1-on-1 interviews applying the 'Mom Test' framework to uncover actual founder behavior rather than speculative opinions. Founders consistently highlighted 'spreadsheet dread' and conflicting advice from boutique advisors as acute pain points, explicitly confirming their willingness to purchase self-service preflight software priced between €79 and €129.
 
 3. Commercial Demand & Roadmap Alignment:
 This direct primary feedback governed our product architecture, confirming that founders prioritize automated compliance checks, instant breakeven calculations, and portal-ready exports over static consultancy documents.
@@ -276,7 +276,7 @@ By grounding our development in verified customer pain, ${metrics.title} enters 
 
 2. Market Adoption Risk:
 *Risk:* Slower customer conversion during initial launch.
-*Mitigation:* Validated Mom-Test demand, low-friction self-service pricing (€129 pass), and institutional distribution partnerships with enterprise hubs.
+*Mitigation:* Validated Mom-Test demand, low-friction self-service pricing (€79 pass), and institutional distribution partnerships with enterprise hubs.
 
 3. Regulatory & Compliance Risk:
 *Risk:* Updates to state grant guidelines.
@@ -387,7 +387,7 @@ ${metrics.wedge}.
 
 • Key Strategic Advantages:
 1. Deterministic Accuracy: Integrated financial logic eliminates spreadsheet formula errors and guarantees mathematical consistency.
-2. Instant Accessibility: Founders complete an audit-ready plan in days for €129–€199, democratizing access to enterprise supports.
+2. Instant Accessibility: Founders complete an audit-ready plan in days for €79–€129, democratizing access to enterprise supports.
 3. Agency Rule Alignment: Built-in compliance checks automatically enforce Local Enterprise Office and Innovate UK submission rubrics.`;
   }
 

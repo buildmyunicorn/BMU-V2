@@ -7347,8 +7347,8 @@ export function ModuleFWorkspace({
                             </h4>
                             <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-semibold">
                               {selectedCountry === 'GB'
-                                ? '£109 Solo Pass Credit Applied'
-                                : '€129 Solo Pass Credit Applied'}
+                                ? '£69 Solo Pass Credit Applied'
+                                : '€79 Solo Pass Credit Applied'}
                             </Badge>
                           </div>
                           <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
@@ -7360,14 +7360,14 @@ export function ModuleFWorkspace({
                       {/* Upgrade Price Tag */}
                       <div className="rounded-xl bg-white p-3.5 border border-indigo-200 text-right shrink-0 shadow-xs">
                         <span className="text-[11px] text-slate-400 block line-through">
-                          Normally {selectedCountry === 'GB' ? '£169' : '€199'}
+                          Normally {selectedCountry === 'GB' ? '£109' : '€129'}
                         </span>
                         <div className="text-xl font-black text-indigo-700">
-                          {selectedCountry === 'GB' ? '£60' : '€70'}
+                          {selectedCountry === 'GB' ? '£40' : '€50'}
                           <span className="text-xs font-normal text-slate-500"> one-time upgrade</span>
                         </div>
                         <span className="text-[10px] font-bold text-emerald-600 block mt-0.5">
-                          ✓ {selectedCountry === 'GB' ? '£109' : '€129'} Credit Deducted
+                          ✓ {selectedCountry === 'GB' ? '£69' : '€79'} Credit Deducted
                         </span>
                       </div>
                     </div>
@@ -7426,11 +7426,11 @@ export function ModuleFWorkspace({
                         onClick={() => {
                           alert(
                             `Upgrade to Co-Founder Pack! Special discounted upgrade cost: ${
-                              selectedCountry === 'GB' ? '£60' : '€70'
+                              selectedCountry === 'GB' ? '£40' : '€50'
                             } (Normally ${
-                              selectedCountry === 'GB' ? '£169' : '€199'
-                            } with your ${
                               selectedCountry === 'GB' ? '£109' : '€129'
+                            } with your ${
+                              selectedCountry === 'GB' ? '£69' : '€79'
                             } Solo Pass credit applied). Unlocks 3 collaborative seats, blind-reveal heatmap, and cap table tools.`
                           );
                         }}

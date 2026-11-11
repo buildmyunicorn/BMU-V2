@@ -11779,7 +11779,7 @@ export default function WorkspacePage() {
                 <div className="flex items-center justify-between font-bold text-indigo-950">
                   <span className="text-sm">6-Month Co-Founder Pass</span>
                   <span className="rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
-                    {countryPack.defaultCurrency === 'GBP' ? '£169' : '€199'}
+                    {countryPack.defaultCurrency === 'GBP' ? '£109' : '€129'}
                   </span>
                 </div>
                 <p className="mt-1 text-indigo-900/90 text-[11px] leading-relaxed">
@@ -11827,7 +11827,7 @@ export default function WorkspacePage() {
                 <div className="flex items-center justify-between font-bold text-slate-900">
                   <span>6-Month Solo Pass</span>
                   <span className="text-xs font-semibold text-slate-700">
-                    {countryPack.defaultCurrency === 'GBP' ? '£109' : '€129'}
+                    {countryPack.defaultCurrency === 'GBP' ? '£69' : '€79'}
                   </span>
                 </div>
                 <p className="mt-1 text-slate-600 text-[11px]">

@@ -18,6 +18,8 @@ import {
   MessageSquare,
   ShieldCheck,
   ArrowUpRight,
+  ArrowRight,
+  Layers,
   RefreshCw,
   Building2,
   Globe,
@@ -55,6 +57,18 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
   const [selectedStartupId, setSelectedStartupId] = useState<string>(
     currentStartups[0]?.id || ''
   );
+
+  // Group counts of ventures per founder to show multi-venture badges
+  const founderPlanCounts = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of currentStartups) {
+      const key = (s.founderEmail || s.founders || '').toLowerCase().trim();
+      if (key) {
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+    }
+    return map;
+  }, [currentStartups]);
 
   // Sync selected startup if preview mode toggles
   React.useEffect(() => {
@@ -653,6 +667,8 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
               ) : (
                 filteredStartups.map((startup) => {
                   const isSelected = activeStartup && startup.id === activeStartup.id;
+                  const founderKey = (startup.founderEmail || startup.founders || '').toLowerCase().trim();
+                  const ventureCount = founderPlanCounts.get(founderKey) || 1;
                   return (
                     <div
                       key={startup.id}
@@ -677,6 +693,15 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                                 <span className="truncate text-xs font-bold text-white">
                                   {startup.name}
                                 </span>
+                                {ventureCount > 1 && (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded bg-indigo-900/60 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300 border border-indigo-700/50 shrink-0"
+                                    title={`${startup.founders} has ${ventureCount} ventures enrolled in this batch`}
+                                  >
+                                    <Layers className="h-2.5 w-2.5" />
+                                    {ventureCount} Ventures
+                                  </span>
+                                )}
                               </div>
                               <p className="truncate text-[11px] text-slate-400">
                                 {startup.founders}
@@ -1053,14 +1078,16 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                   <div className="text-slate-400 text-[11px]">
                     Founder: <span className="text-slate-200">{activeStartup.founderEmail || activeStartup.founders}</span>
                   </div>
-                  <Link href={`/workspace?planId=${activeStartup.id}`} target="_blank">
+                  <Link
+                    href={`/cohort-portal/${data.cohort.id}/startups/${activeStartup.id}`}
+                  >
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-7 text-xs border-slate-700 bg-slate-900 text-indigo-300 hover:bg-slate-800 hover:text-white"
+                      className="h-8 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
                     >
-                      <span>Open Startup Plan</span>
-                      <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      <span>View Master Document</span>
+                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                     </Button>
                   </Link>
                 </div>

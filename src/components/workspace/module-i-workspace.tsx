@@ -4019,7 +4019,7 @@ export function ModuleIWorkspace({
                       <div className="rounded border border-emerald-200 bg-white/60 p-2.5">
                         <p className="font-bold text-emerald-900">Example A: B2B SaaS (Startup Preflight)</p>
                         <p className="text-emerald-800 mt-0.5"><strong>Product:</strong> Self-serve cloud workspace with automated compliance checks and exportable briefs.</p>
-                        <p className="text-emerald-800"><strong>Price:</strong> €129 one-off pass. Bargain vs. €3,000+ consultant fees.</p>
+                        <p className="text-emerald-800"><strong>Price:</strong> €79 one-off pass. Bargain vs. €3,000+ consultant fees.</p>
                         <p className="text-emerald-800"><strong>Place:</strong> Direct Web self-serve. Mitigation: Pre-filled industry benchmarks.</p>
                         <p className="text-emerald-800"><strong>Promotion:</strong> Founder-Led Organic on LinkedIn with weekly teardown posts.</p>
                       </div>

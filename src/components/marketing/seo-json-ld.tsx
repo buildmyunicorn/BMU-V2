@@ -11,7 +11,7 @@ export function LandingSeoJsonLd({ edition }: { edition: LandingEdition }) {
   const currency =
     edition === 'IE' ? 'EUR' : edition === 'UK' ? 'GBP' : 'USD';
   const soloPrice =
-    edition === 'IE' ? '129.00' : edition === 'UK' ? '109.00' : '139.00';
+    edition === 'IE' ? '79.00' : edition === 'UK' ? '69.00' : '89.00';
   const pageUrl =
     edition === 'IE'
       ? 'https://startuppreflight.com/ie'

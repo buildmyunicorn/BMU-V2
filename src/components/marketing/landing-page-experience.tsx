@@ -321,10 +321,10 @@ export function LandingPageExperience({
   // Pricing values per edition
   const pricingCurrency =
     edition === 'IE'
-      ? { symbol: '€', solo: '129', cofounder: '199', vault: '9' }
+      ? { symbol: '€', solo: '79', cofounder: '129', vault: '7' }
       : edition === 'UK'
-        ? { symbol: '£', solo: '109', cofounder: '169', vault: '8' }
-        : { symbol: '$', solo: '139', cofounder: '219', vault: '9' };
+        ? { symbol: '£', solo: '69', cofounder: '109', vault: '6' }
+        : { symbol: '$', solo: '89', cofounder: '139', vault: '8' };
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
