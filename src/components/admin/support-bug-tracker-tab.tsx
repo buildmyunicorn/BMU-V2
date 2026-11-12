@@ -456,7 +456,7 @@ export function SupportBugTrackerTab({
     }
     if (ticket.ticketType === 'IMPROVEMENT') {
       return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+        <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-emerald-50/70 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
           <Sparkles className="h-3 w-3" />
           {label}
         </span>
@@ -464,7 +464,7 @@ export function SupportBugTrackerTab({
     }
     if (ticket.ticketType === 'AI_PROMPT_TUNING') {
       return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+        <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-emerald-50/70 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
           <Bot className="h-3 w-3" />
           {label}
         </span>
@@ -533,7 +533,7 @@ export function SupportBugTrackerTab({
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+      <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-emerald-50/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
         <Wrench className="h-3 w-3" />
         ADMIN QA
       </span>
@@ -547,11 +547,11 @@ export function SupportBugTrackerTab({
     return (
       <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-mono text-slate-700">
         {isMobile ? (
-          <Smartphone className="h-3 w-3 text-indigo-600 shrink-0" />
+          <Smartphone className="h-3 w-3 text-emerald-700 shrink-0" />
         ) : isTablet ? (
-          <Tablet className="h-3 w-3 text-indigo-600 shrink-0" />
+          <Tablet className="h-3 w-3 text-emerald-700 shrink-0" />
         ) : (
-          <Laptop className="h-3 w-3 text-indigo-600 shrink-0" />
+          <Laptop className="h-3 w-3 text-emerald-700 shrink-0" />
         )}
         <span className="truncate max-w-[240px] sm:max-w-md">{deviceInfo}</span>
       </span>
@@ -562,13 +562,13 @@ export function SupportBugTrackerTab({
     <div className="space-y-6">
       {/* 4 KPI Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50/60 to-white">
+        <Card className="border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 to-white">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-700">
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
                 Active Backlog
               </span>
-              <Bug className="h-4 w-4 text-indigo-600" />
+              <Bug className="h-4 w-4 text-emerald-700" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-bold text-slate-900">
@@ -649,12 +649,12 @@ export function SupportBugTrackerTab({
       </div>
 
       {/* Quick-Capture Form Card Inside Admin */}
-      <Card className="border-indigo-200/80 shadow-xs">
-        <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-indigo-50/60 via-white to-violet-50/40 pb-4">
+      <Card className="border-slate-200 shadow-xs">
+        <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/40 pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4 text-indigo-600" />
+                <Plus className="h-4 w-4 text-emerald-700" />
                 <CardTitle className="text-base sm:text-lg">
                   Log a Bug, UX Improvement, or AI Prompt Note
                 </CardTitle>
@@ -695,7 +695,7 @@ export function SupportBugTrackerTab({
                         onClick={() => setNewType(opt.value)}
                         className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
                           active
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-600/20'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
@@ -737,7 +737,7 @@ export function SupportBugTrackerTab({
                     onChange={(e) =>
                       setNewModuleScope(e.target.value as SupportModuleScope)
                     }
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
                   >
                     {SUPPORT_MODULE_SCOPE_OPTIONS.map((m) => (
                       <option key={m.value} value={m.value}>
@@ -778,7 +778,7 @@ export function SupportBugTrackerTab({
                                 ? 'border-rose-600 bg-rose-600 text-white'
                                 : p.value === 'HIGH'
                                   ? 'border-amber-500 bg-amber-500 text-white'
-                                  : 'border-indigo-600 bg-indigo-600 text-white'
+                                  : 'border-emerald-700 bg-emerald-700 text-white'
                               : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                           }`}
                         >
@@ -831,7 +831,7 @@ export function SupportBugTrackerTab({
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
                     placeholder="Write what happened, what felt clunky during testing, or what you want changed when we come back to this..."
-                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
                   />
                 </div>
               </div>
@@ -845,7 +845,7 @@ export function SupportBugTrackerTab({
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
                 >
                   <Plus className="h-4 w-4" />
                   {isSubmitting ? 'Saving...' : 'Save to Tracker Backlog'}
@@ -877,7 +877,7 @@ export function SupportBugTrackerTab({
                 size="sm"
                 onClick={handleCopyBatchOpenPrompt}
                 disabled={filteredTickets.length === 0}
-                className="border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                className="border-slate-200 bg-emerald-50/70 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
               >
                 <Copy className="h-3.5 w-3.5" />
                 Copy Batch AI Fix Prompt
@@ -959,7 +959,7 @@ export function SupportBugTrackerTab({
                   onClick={() => setOriginFilter('ADMIN_QA')}
                   className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                     originFilter === 'ADMIN_QA'
-                      ? 'bg-violet-600 text-white shadow-2xs'
+                      ? 'bg-emerald-700 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -997,7 +997,7 @@ export function SupportBugTrackerTab({
                       onClick={() => setStatusTab(tab.id)}
                       className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
                         statusTab === tab.id
-                          ? 'bg-indigo-600 text-white shadow-2xs'
+                          ? 'bg-emerald-700 text-white shadow-2xs'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -1007,7 +1007,7 @@ export function SupportBugTrackerTab({
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                  <Filter className="h-3.5 w-3.5 text-indigo-600" />
+                  <Filter className="h-3.5 w-3.5 text-emerald-700" />
                   Kanban Board View
                 </div>
               )}
@@ -1105,7 +1105,7 @@ export function SupportBugTrackerTab({
                           href={ticket.pageUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-mono text-indigo-600 hover:underline"
+                          className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-700 hover:underline"
                         >
                           <ExternalLink className="h-3 w-3" />
                           {ticket.pageUrl}
@@ -1129,7 +1129,7 @@ export function SupportBugTrackerTab({
                           ) : null}
                           <a
                             href={`mailto:${ticket.reporterEmail}`}
-                            className="text-indigo-600 hover:underline"
+                            className="text-emerald-700 hover:underline"
                           >
                             {ticket.reporterEmail}
                           </a>
@@ -1155,8 +1155,8 @@ export function SupportBugTrackerTab({
                     </p>
 
                     {ticket.expectedBehavior && (
-                      <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2 text-xs text-indigo-950">
-                        <strong className="font-semibold text-indigo-700">
+                      <div className="rounded-lg border border-slate-200 bg-emerald-50/70 px-3 py-2 text-xs text-slate-900">
+                        <strong className="font-semibold text-emerald-800">
                           Expected / Ideal:
                         </strong>{' '}
                         {ticket.expectedBehavior}
@@ -1198,7 +1198,7 @@ export function SupportBugTrackerTab({
                               ? st.id === 'RESOLVED'
                                 ? 'bg-emerald-600 text-white'
                                 : st.id === 'IN_PROGRESS'
-                                  ? 'bg-indigo-600 text-white'
+                                  ? 'bg-emerald-700 text-white'
                                   : 'bg-amber-500 text-white'
                               : 'text-slate-600 hover:bg-slate-100'
                           }`}
@@ -1214,7 +1214,7 @@ export function SupportBugTrackerTab({
                         variant="outline"
                         size="sm"
                         onClick={() => handleCopySinglePrompt(ticket)}
-                        className="h-7 border-indigo-200 bg-indigo-50/60 px-2.5 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                        className="h-7 border-slate-200 bg-emerald-50/70 px-2.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
                       >
                         {copiedId === ticket.id ? (
                           <>
@@ -1287,9 +1287,9 @@ export function SupportBugTrackerTab({
                   {
                     status: 'IN_PROGRESS',
                     title: 'In Progress',
-                    icon: <Clock className="h-4 w-4 text-indigo-600" />,
+                    icon: <Clock className="h-4 w-4 text-emerald-700" />,
                     headerClass:
-                      'border-indigo-200 bg-indigo-50/80 text-indigo-950',
+                      'border-slate-200 bg-emerald-50/70 text-slate-900',
                   },
                   {
                     status: 'RESOLVED',
@@ -1344,7 +1344,7 @@ export function SupportBugTrackerTab({
                               {renderTypeBadge(ticket)}
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-indigo-700">
+                            <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-emerald-800">
                               <span>{getModuleScopeLabel(ticket.moduleScope)}</span>
                               {ticket.stepContext ? (
                                 <span className="text-slate-500">• {ticket.stepContext}</span>
@@ -1401,7 +1401,7 @@ export function SupportBugTrackerTab({
                                         status: 'IN_PROGRESS',
                                       })
                                     }
-                                    className="rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                                    className="rounded-md bg-emerald-50/70 px-2 py-1 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
                                   >
                                     In Progress
                                   </button>
@@ -1427,7 +1427,7 @@ export function SupportBugTrackerTab({
                                   type="button"
                                   onClick={() => handleCopySinglePrompt(ticket)}
                                   title="Copy AI Fix Prompt"
-                                  className="rounded-md border border-indigo-200 bg-indigo-50/70 p-1 text-indigo-700 hover:bg-indigo-100"
+                                  className="rounded-md border border-slate-200 bg-emerald-50/70 p-1 text-emerald-800 hover:bg-emerald-100"
                                 >
                                   <Copy className="h-3.5 w-3.5" />
                                 </button>
@@ -1494,7 +1494,7 @@ export function SupportBugTrackerTab({
                 </div>
                 {editingTicket.pageUrl && (
                   <div className="text-[11px] text-slate-500 truncate">
-                    Page URL: <a href={editingTicket.pageUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">{editingTicket.pageUrl}</a>
+                    Page URL: <a href={editingTicket.pageUrl} target="_blank" rel="noreferrer" className="text-emerald-700 hover:underline">{editingTicket.pageUrl}</a>
                   </div>
                 )}
               </div>
@@ -1668,7 +1668,7 @@ export function SupportBugTrackerTab({
                 type="button"
                 size="sm"
                 onClick={handleSaveEdit}
-                className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
               >
                 Save Changes
               </Button>

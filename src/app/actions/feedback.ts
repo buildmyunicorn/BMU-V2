@@ -89,7 +89,7 @@ async function ensureTableReady(): Promise<void> {
 export async function submitFeedbackAction(
   input: SubmitFeedbackInput
 ): Promise<SubmitFeedbackResponse> {
-  const cleanTitle = (input.title || '').trim();
+  const cleanTitle = (input.title || '').replace(/[\r\n\t]+/g, ' ').trim();
   const cleanDesc = (input.description || '').trim();
 
   if (!cleanDesc) {
@@ -148,9 +148,10 @@ export async function submitFeedbackAction(
     };
   }
 
+  const oneLineSnippet = cleanDesc.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
   const effectiveTitle =
     cleanTitle ||
-    `${input.ticketType === 'BUG' ? 'Bug Report' : input.ticketType === 'IMPROVEMENT' ? 'Feature Idea' : 'Feedback'}: ${cleanDesc.slice(0, 60)}...`;
+    `${input.ticketType === 'BUG' ? 'Bug Report' : input.ticketType === 'IMPROVEMENT' ? 'Feature Idea' : 'Feedback'}: ${oneLineSnippet}...`;
 
   const priority: SupportTicketPriority = input.priority || (input.ticketType === 'BUG' ? 'HIGH' : 'MEDIUM');
   const moduleScope: SupportModuleScope = input.moduleScope || 'GLOBAL';
@@ -259,7 +260,8 @@ async function sendAdminNotificationEmail(ticket: {
           ? '💬'
           : '📝';
 
-  const subject = `[Startup Preflight] ${originBadge} ${typeEmoji} ${ticket.title}`;
+  const rawSubject = `[Startup Preflight] ${originBadge} ${typeEmoji} ${ticket.title}`;
+  const subject = rawSubject.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
 
   const html = `
 <!DOCTYPE html>
@@ -366,20 +368,55 @@ async function sendAdminNotificationEmail(ticket: {
         html,
       });
 
-      if (!error && data?.id) {
+      if (error) {
+        console.error('[Feedback Action] Resend returned error:', error);
+        try {
+          await db.insert(emailLogs).values({
+            recipient: adminRecipient,
+            template: 'FOUNDER_FEEDBACK_ALERT',
+            subject,
+            status: 'FAILED',
+            fromEmail: EMAIL_DEFAULTS.notificationsFrom,
+            replyTo: ticket.reporterEmail || EMAIL_DEFAULTS.replyTo,
+            errorMessage: error.message || 'Resend validation/dispatch error',
+            metadataJson: { ticketId: ticket.ticketId, source: ticket.source, error },
+          });
+        } catch (dbLogErr) {
+          console.error('[Feedback Action] Error logging failed email to DB:', dbLogErr);
+        }
+      } else if (data?.id) {
+        try {
+          await db.insert(emailLogs).values({
+            recipient: adminRecipient,
+            template: 'FOUNDER_FEEDBACK_ALERT',
+            subject,
+            status: 'SENT',
+            resendId: data.id,
+            fromEmail: EMAIL_DEFAULTS.notificationsFrom,
+            replyTo: ticket.reporterEmail || EMAIL_DEFAULTS.replyTo,
+            metadataJson: { ticketId: ticket.ticketId, source: ticket.source },
+          });
+        } catch (dbLogErr) {
+          console.error('[Feedback Action] Error logging sent email to DB:', dbLogErr);
+        }
+      }
+    } catch (resendErr: unknown) {
+      console.error('[Feedback Action] Exception sending Resend email:', resendErr);
+      try {
+        const errorMsg = resendErr instanceof Error ? resendErr.message : 'Unknown exception';
         await db.insert(emailLogs).values({
           recipient: adminRecipient,
           template: 'FOUNDER_FEEDBACK_ALERT',
           subject,
-          status: 'SENT',
-          resendId: data.id,
+          status: 'FAILED',
           fromEmail: EMAIL_DEFAULTS.notificationsFrom,
           replyTo: ticket.reporterEmail || EMAIL_DEFAULTS.replyTo,
+          errorMessage: errorMsg,
           metadataJson: { ticketId: ticket.ticketId, source: ticket.source },
         });
+      } catch (dbLogErr) {
+        console.error('[Feedback Action] Error logging failed email exception to DB:', dbLogErr);
       }
-    } catch (resendErr) {
-      console.error('[Feedback Action] Error sending Resend email:', resendErr);
     }
   } else {
     // Dev Mock Logger

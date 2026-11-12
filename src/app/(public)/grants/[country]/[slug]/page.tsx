@@ -234,7 +234,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 antialiased selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 antialiased selection:bg-emerald-100 selection:text-slate-900">
       {/* Inject JSON-LD */}
       <script
         type="application/ld+json"
@@ -249,7 +249,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
         <div className="mx-auto flex max-w-5xl items-center justify-between text-xs text-slate-500">
           <Link
             href="/grants"
-            className="inline-flex items-center gap-1.5 font-medium text-slate-600 hover:text-indigo-600 transition"
+            className="inline-flex items-center gap-1.5 font-medium text-slate-600 hover:text-emerald-700 transition"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to All Grants
@@ -279,7 +279,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
 
       <main className="flex-1">
         {/* HERO SECTION MATCHING LANDING PAGE VISUAL THEME */}
-        <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-indigo-50/20 to-slate-50 px-4 py-10 sm:px-6 sm:py-14">
+        <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-slate-50/20 to-slate-50 px-4 py-10 sm:px-6 sm:py-14">
           <div className="mx-auto max-w-5xl">
             <div className="flex flex-wrap items-center gap-2">
               <Badge
@@ -303,7 +303,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
               </Badge>
               <Badge
                 variant="outline"
-                className="border-indigo-200 bg-indigo-50 text-indigo-800 text-xs px-2.5 py-0.5 capitalize font-medium"
+                className="border-emerald-200 bg-emerald-50 text-emerald-900 text-xs px-2.5 py-0.5 capitalize font-medium"
               >
                 {grant.fundingType.replace(/_/g, ' ').toLowerCase()}
               </Badge>
@@ -328,7 +328,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
             {/* QUICK ACTIONS ROW: DIRECT ACCESS TO PRINTABLE CHECKLIST */}
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link href={`/grants/${country.toLowerCase()}/${grant.slug}/checklist`}>
-                <Button className="h-9 sm:h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs sm:text-sm font-semibold text-white shadow-xs transition">
+                <Button className="h-9 sm:h-10 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-xs sm:text-sm font-semibold text-white shadow-xs transition">
                   <CheckSquare className="mr-2 h-4 w-4" />
                   View Interactive Checklist &amp; Required Documents
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -336,7 +336,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
               </Link>
               <Link href="/register">
                 <Button variant="outline" className="h-9 sm:h-10 rounded-xl border-slate-300 bg-white hover:bg-slate-50 text-xs sm:text-sm font-semibold text-slate-700 shadow-2xs transition">
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                   Test Grant Fit with AI
                 </Button>
               </Link>
@@ -361,7 +361,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
                 <div className="mt-1 text-lg sm:text-xl font-extrabold text-slate-900">
                   {grant.maxAmountFormatted}
                 </div>
-                <div className="mt-0.5 text-xs text-indigo-600 font-semibold">
+                <div className="mt-0.5 text-xs text-emerald-700 font-semibold">
                   {grant.matchRatePercentage ? `${grant.matchRatePercentage}% Match Rate` : 'Non-dilutive'}
                 </div>
               </div>
@@ -414,7 +414,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
               {grant.descriptionMarkdown && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-                    <FileText className="h-5 w-5 text-indigo-600" />
+                    <FileText className="h-5 w-5 text-emerald-700" />
                     Scheme Overview &amp; Underwriting Criteria
                   </h2>
                   <div className="mt-4 prose prose-slate max-w-none text-xs sm:text-sm leading-relaxed text-slate-700">
@@ -542,7 +542,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
 
               {/* Retrospective Reimbursement Warning Box */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex items-start gap-3.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                   <Clock className="h-4 w-4" />
                 </div>
                 <div>
@@ -560,8 +560,8 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
             <div className="space-y-6 lg:col-span-4">
               <div className="sticky top-24 space-y-5">
                 {/* Startup Preflight Audit CTA Card */}
-                <div className="rounded-2xl border border-indigo-200 bg-gradient-to-b from-indigo-50/70 via-white to-indigo-50/30 p-6 shadow-sm">
-                  <div className="flex items-center gap-2 text-indigo-700">
+                <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-emerald-50/50 via-white to-slate-50/50 p-6 shadow-sm">
+                  <div className="flex items-center gap-2 text-emerald-800">
                     <Sparkles className="h-4 w-4" />
                     <span className="text-[11px] font-bold uppercase tracking-wider">
                       Startup Preflight Evaluator
@@ -578,13 +578,13 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
 
                   <div className="mt-5 space-y-2.5">
                     <Link href={`/grants/${country.toLowerCase()}/${grant.slug}/checklist`} className="block w-full">
-                      <Button variant="outline" className="w-full h-10 rounded-xl border-indigo-200 bg-white text-xs font-semibold text-indigo-700 shadow-2xs hover:bg-indigo-50/80 transition">
-                        <CheckSquare className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                      <Button variant="outline" className="w-full h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold text-emerald-800 shadow-2xs hover:bg-emerald-50/80 transition">
+                        <CheckSquare className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Printable Application Checklist
                       </Button>
                     </Link>
                     <Link href="/register" className="block w-full">
-                      <Button className="w-full h-10 rounded-xl bg-slate-900 text-xs font-semibold text-white shadow-sm hover:bg-indigo-600 transition">
+                      <Button className="w-full h-10 rounded-xl bg-slate-900 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition">
                         Pre-Check My Idea Free
                         <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                       </Button>
@@ -615,7 +615,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
                         href={grant.officialUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-2xs transition"
+                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:border-emerald-300 hover:text-emerald-700 shadow-2xs transition"
                       >
                         <span className="truncate">Official Program Portal</span>
                         <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400" />

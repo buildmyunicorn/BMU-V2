@@ -8,6 +8,7 @@ import { ensureDefaultTenantId } from '@/app/actions/auth';
 import { calculatePassLimits } from '@/lib/entitlements';
 import { sendSystemEmail } from '@/lib/email/send';
 import { EMAIL_DEFAULTS } from '@/lib/email/resend';
+import { dispatchAdminSignupAlert } from '@/lib/email/admin-alerts';
 import { resolvePublicOrigin } from '@/lib/auth/oauth-helpers';
 
 export const dynamic = 'force-dynamic';
@@ -234,6 +235,20 @@ export async function GET(req: NextRequest) {
         console.error(
           '[SPF Email] Failed to send welcome email upon Google registration:',
           emailErr
+        );
+      });
+
+      // Fire admin signup alert asynchronously
+      dispatchAdminSignupAlert({
+        founderName: cleanName,
+        founderEmail: cleanEmail,
+        authMethod: 'GOOGLE_OAUTH',
+        tierName: 'Free Ideation Hook',
+        hqCountry: 'IE',
+      }).catch((adminErr) => {
+        console.warn(
+          '[SPF Email] Failed to dispatch admin signup alert for Google registration:',
+          adminErr
         );
       });
     }

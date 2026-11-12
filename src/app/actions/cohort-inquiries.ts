@@ -259,13 +259,15 @@ async function sendAdminNotification(data: {
 </html>
   `;
 
+  const cleanSubject = subject.replace(/[\r\n\t]+/g, ' ').trim();
+
   if (resend) {
     try {
       const result = await resend.emails.send({
         from: EMAIL_DEFAULTS.from,
         to: adminRecipient,
         replyTo: data.email,
-        subject,
+        subject: cleanSubject,
         html,
       });
 
@@ -274,8 +276,9 @@ async function sendAdminNotification(data: {
         .values({
           recipient: adminRecipient,
           template: 'COHORT_INQUIRY',
-          subject,
-          status: 'SENT',
+          subject: cleanSubject,
+          status: result.error ? 'FAILED' : 'SENT',
+          errorMessage: result.error?.message || null,
           resendId: result.data?.id || null,
           fromEmail: EMAIL_DEFAULTS.from,
           replyTo: data.email,
@@ -292,7 +295,7 @@ async function sendAdminNotification(data: {
     // Development fallback
     console.log('[Cohort Inquiry Mock Email]:', {
       to: adminRecipient,
-      subject,
+      subject: cleanSubject,
       inquiryId: data.inquiryId,
       org: data.organizationName,
       contact: data.email,

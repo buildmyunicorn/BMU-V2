@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   FileText,
   Sparkles,
@@ -195,6 +195,8 @@ export function ModuleLSubmissionDossierStep({
 
   // Save Step 5 Data
   const handleSaveDossier = async () => {
+    if (isVaultReadonly) return;
+    isDirtyRef.current = false;
     setIsSaving(true);
     const payload: ModuleLStep5SubmissionBriefSavedData = {
       executiveDossierSummary: dossierSummary,
@@ -213,6 +215,34 @@ export function ModuleLSubmissionDossierStep({
       setIsSaving(false);
     }
   };
+
+  const isFirstRenderRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const handleSaveDossierRef = useRef(handleSaveDossier);
+  handleSaveDossierRef.current = handleSaveDossier;
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyRef.current) {
+        void handleSaveDossierRef.current();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [dossierSummary, readinessScore, checklist, aiTip, isVaultReadonly]);
+
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        void handleSaveDossierRef.current();
+      }
+    };
+  }, []);
 
   // Download Standalone HTML
   const handleDownloadHtml = () => {
@@ -324,7 +354,7 @@ export function ModuleLSubmissionDossierStep({
             size="sm"
             variant="outline"
             onClick={() => setActiveWhyCard((p) => !p)}
-            className="h-7 border-indigo-200 bg-white text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+            className="h-7 border-slate-200 bg-white text-[11px] font-medium text-emerald-800 hover:bg-emerald-50"
           >
             <HelpCircle className="mr-1 h-3.5 w-3.5" />
             Why Are We Asking This?
@@ -347,9 +377,9 @@ export function ModuleLSubmissionDossierStep({
             variant="outline"
             onClick={handleRunAiDossierAudit}
             disabled={isAuditingAi || isVaultReadonly}
-            className="h-7 border-violet-200 bg-violet-50/80 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+            className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isAuditingAi ? 'Auditing Final Dossier...' : 'AI Re-Calibrate Dossier'}
           </Button>
         </div>
@@ -390,7 +420,7 @@ export function ModuleLSubmissionDossierStep({
             type="button"
             size="sm"
             onClick={handleDownloadHtml}
-            className="h-7 bg-indigo-600 text-[11px] font-semibold text-white hover:bg-indigo-700"
+            className="h-7 bg-emerald-700 text-[11px] font-semibold text-white hover:bg-emerald-800"
           >
             <Download className="mr-1 h-3 w-3" />
             Download HTML Dossier
@@ -400,12 +430,12 @@ export function ModuleLSubmissionDossierStep({
 
       {/* Why Drawer */}
       {activeWhyCard && (
-        <div className="rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900 space-y-1.5">
-          <div className="flex items-center justify-between font-bold text-indigo-950">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900 space-y-1.5">
+          <div className="flex items-center justify-between font-bold text-slate-950">
             <span>Why the Final Submission Dossier &amp; Pre-Flight Clearance Matters</span>
             <button
               onClick={() => setActiveWhyCard(false)}
-              className="text-indigo-400 hover:text-indigo-600"
+              className="text-emerald-600 hover:text-emerald-700"
             >
               ✕
             </button>
@@ -435,11 +465,11 @@ export function ModuleLSubmissionDossierStep({
       )}
 
       {/* Hero Committee Readiness Banner */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 p-6 text-white shadow-md">
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white shadow-md">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1 max-w-2xl">
             <div className="flex items-center gap-2">
-              <Badge className="bg-indigo-500/30 text-indigo-200 border-indigo-400/40 text-[10px] font-semibold uppercase tracking-wider">
+              <Badge className="bg-emerald-500/30 text-slate-300 border-emerald-400/40 text-[10px] font-semibold uppercase tracking-wider">
                 Module L Capstone Brief
               </Badge>
               <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30 text-[10px]">
@@ -449,13 +479,13 @@ export function ModuleLSubmissionDossierStep({
             <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
               Official Grant &amp; Business Plan Submission Dossier
             </h2>
-            <p className="text-xs text-indigo-200/90 leading-relaxed">
+            <p className="text-xs text-slate-300/90 leading-relaxed">
               Synthesized from across all 12 modules into the official {compilerMode.replace(/_/g, ' ')} structure.
             </p>
           </div>
 
-          <div className="flex flex-col items-center justify-center rounded-xl border border-indigo-400/30 bg-white/10 px-5 py-3 text-center min-w-[130px]">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-200">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-emerald-400/30 bg-white/10 px-5 py-3 text-center min-w-[130px]">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300">
               Pre-Flight Clearance
             </span>
             <div className="text-3xl font-extrabold text-emerald-400 my-0.5">
@@ -468,41 +498,41 @@ export function ModuleLSubmissionDossierStep({
         </div>
 
         {/* 4-Pillar Diagnostics Grid */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-indigo-800/60 pt-4">
+        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-slate-200 pt-4">
           <div className="rounded-lg bg-white/5 p-2.5 border border-white/10">
-            <div className="text-[10px] text-indigo-300 font-medium">Questions Answered</div>
+            <div className="text-[10px] text-slate-300 font-medium">Questions Answered</div>
             <div className="text-base font-bold text-white mt-0.5">{sections.length} Sections</div>
-            <div className="text-[10px] text-indigo-300/80">{totalWords} words</div>
+            <div className="text-[10px] text-slate-300/80">{totalWords} words</div>
           </div>
           <div className="rounded-lg bg-white/5 p-2.5 border border-white/10">
-            <div className="text-[10px] text-indigo-300 font-medium">Funding Target</div>
+            <div className="text-[10px] text-slate-300 font-medium">Funding Target</div>
             <div className="text-base font-bold text-emerald-300 mt-0.5">
               {currencySymbol}{targetAskAmount.toLocaleString()}
             </div>
-            <div className="text-[10px] text-indigo-300/80">Matched {isUK ? '70%' : '50%'}</div>
+            <div className="text-[10px] text-slate-300/80">Matched {isUK ? '70%' : '50%'}</div>
           </div>
           <div className="rounded-lg bg-white/5 p-2.5 border border-white/10">
-            <div className="text-[10px] text-indigo-300 font-medium">Appendices Attached</div>
+            <div className="text-[10px] text-slate-300 font-medium">Appendices Attached</div>
             <div className="text-base font-bold text-white mt-0.5">{appendices.length} Attached</div>
-            <div className="text-[10px] text-indigo-300/80">Apps A through F</div>
+            <div className="text-[10px] text-slate-300/80">Apps A through F</div>
           </div>
           <div className="rounded-lg bg-white/5 p-2.5 border border-white/10">
-            <div className="text-[10px] text-indigo-300 font-medium">Statutory Sign-Off</div>
+            <div className="text-[10px] text-slate-300 font-medium">Statutory Sign-Off</div>
             <div className="text-base font-bold text-emerald-300 mt-0.5">Certified</div>
-            <div className="text-[10px] text-indigo-300/80">Declaration Confirmed</div>
+            <div className="text-[10px] text-slate-300/80">Declaration Confirmed</div>
           </div>
         </div>
       </div>
 
       {/* Executive Committee Synthesis Callout */}
-      <div className="rounded-xl border border-indigo-200 bg-white p-5 shadow-xs space-y-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Award className="h-4 w-4 text-indigo-600" />
+            <Award className="h-4 w-4 text-emerald-700" />
             <h3 className="text-sm font-bold text-slate-900">
               Executive Committee Evaluation Synthesis
             </h3>
-            <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700">
+            <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800">
               Boardroom Summary
             </Badge>
           </div>
@@ -511,7 +541,7 @@ export function ModuleLSubmissionDossierStep({
             size="sm"
             variant="ghost"
             onClick={() => setDossierSummary(defaultSummary)}
-            className="h-7 text-xs text-indigo-600 hover:bg-indigo-50"
+            className="h-7 text-xs text-emerald-700 hover:bg-emerald-50"
           >
             <RotateCcw className="mr-1 h-3 w-3" />
             Reset Summary
@@ -523,7 +553,7 @@ export function ModuleLSubmissionDossierStep({
           value={dossierSummary}
           onChange={(e) => setDossierSummary(e.target.value)}
           disabled={isVaultReadonly}
-          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
           placeholder="Enter executive committee evaluation synthesis..."
         />
       </div>
@@ -548,7 +578,7 @@ export function ModuleLSubmissionDossierStep({
             onClick={() => setActivePreviewTab('OVERVIEW')}
             className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all ${
               activePreviewTab === 'OVERVIEW'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-emerald-700 text-emerald-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -558,7 +588,7 @@ export function ModuleLSubmissionDossierStep({
             onClick={() => setActivePreviewTab('QUESTIONS')}
             className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all ${
               activePreviewTab === 'QUESTIONS'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-emerald-700 text-emerald-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -568,7 +598,7 @@ export function ModuleLSubmissionDossierStep({
             onClick={() => setActivePreviewTab('APPENDICES')}
             className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all ${
               activePreviewTab === 'APPENDICES'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-emerald-700 text-emerald-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -578,7 +608,7 @@ export function ModuleLSubmissionDossierStep({
             onClick={() => setActivePreviewTab('CHECKLIST')}
             className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all ${
               activePreviewTab === 'CHECKLIST'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-emerald-700 text-emerald-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -603,8 +633,8 @@ export function ModuleLSubmissionDossierStep({
               </div>
 
               {plan.moduleLData?.step3Compiler?.executiveHookStatement && (
-                <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3.5 space-y-1">
-                  <span className="text-[11px] font-bold uppercase text-indigo-700">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 p-3.5 space-y-1">
+                  <span className="text-[11px] font-bold uppercase text-emerald-800">
                     Master Executive Hook &amp; Pre-Flight Defense
                   </span>
                   <p className="text-xs leading-relaxed text-slate-800">
@@ -678,7 +708,7 @@ export function ModuleLSubmissionDossierStep({
                     type="checkbox"
                     checked={Boolean(checkedItems[idx])}
                     onChange={() => toggleChecklistItem(idx)}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                   />
                   <span className="text-xs text-slate-800 leading-snug">{item}</span>
                 </label>
@@ -756,7 +786,7 @@ export function ModuleLSubmissionDossierStep({
             size="sm"
             onClick={handleSaveDossier}
             disabled={isSaving || isVaultReadonly}
-            className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+            className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
           >
             <Save className="mr-1.5 h-3.5 w-3.5" />
             {isSaving ? 'Saving Dossier...' : 'Save Final Dossier & Complete Module L'}

@@ -91,7 +91,7 @@ export function PreflightMark({
       aria-hidden="true"
     >
       <defs>
-        {/* Upper Wing Gradient: Indigo to Electric Violet */}
+        {/* Upper Wing Gradient: Sovereign Forest to Emerald */}
         <linearGradient
           id={`spf-top-${uniqueId}`}
           x1="11"
@@ -100,12 +100,12 @@ export function PreflightMark({
           y2="9"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%" stopColor="#4F46E5" />
-          <stop offset="50%" stopColor="#6366F1" />
-          <stop offset="100%" stopColor="#8B5CF6" />
+          <stop offset="0%" stopColor="#047857" />
+          <stop offset="50%" stopColor="#059669" />
+          <stop offset="100%" stopColor="#10B981" />
         </linearGradient>
 
-        {/* Lower Wing Gradient: Deep Aerospace Indigo */}
+        {/* Lower Wing Gradient: Deep Capital Spruce */}
         <linearGradient
           id={`spf-bot-${uniqueId}`}
           x1="23"
@@ -114,9 +114,9 @@ export function PreflightMark({
           y2="9"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%" stopColor="#312E81" />
-          <stop offset="50%" stopColor="#3730A3" />
-          <stop offset="100%" stopColor="#4F46E5" />
+          <stop offset="0%" stopColor="#022C22" />
+          <stop offset="50%" stopColor="#064E3B" />
+          <stop offset="100%" stopColor="#047857" />
         </linearGradient>
 
         {/* Fuselage / Keel Spine Highlight */}
@@ -128,9 +128,9 @@ export function PreflightMark({
           y2="9"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%" stopColor="#38BDF8" />
-          <stop offset="60%" stopColor="#818CF8" />
-          <stop offset="100%" stopColor="#C7D2FE" />
+          <stop offset="0%" stopColor="#34D399" />
+          <stop offset="60%" stopColor="#6EE7B7" />
+          <stop offset="100%" stopColor="#D1FAE5" />
         </linearGradient>
 
         {/* Preflight Guidance Trajectory Arc */}
@@ -142,9 +142,9 @@ export function PreflightMark({
           y2="28"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%" stopColor="#06B6D4" stopOpacity="0.25" />
-          <stop offset="50%" stopColor="#0EA5E9" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#6366F1" stopOpacity="0.95" />
+          <stop offset="0%" stopColor="#059669" stopOpacity="0.25" />
+          <stop offset="50%" stopColor="#10B981" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#047857" stopOpacity="0.95" />
         </linearGradient>
 
         {/* Subtle Apex Glow */}
@@ -264,8 +264,8 @@ export function BrandLogo({
               <span
                 className={
                   theme === 'dark'
-                    ? 'ml-1 text-indigo-400'
-                    : 'ml-1 text-indigo-600'
+                    ? 'ml-1 text-emerald-400'
+                    : 'ml-1 text-emerald-800'
                 }
               >
                 Preflight
@@ -276,8 +276,8 @@ export function BrandLogo({
               <span
                 className={`rounded-full font-bold uppercase tracking-wider ${conf.badge} ${
                   theme === 'dark'
-                    ? 'border border-indigo-400/30 bg-indigo-500/20 text-indigo-300'
-                    : 'border border-indigo-200 bg-indigo-50 text-indigo-700'
+                    ? 'border border-emerald-400/30 bg-emerald-500/20 text-emerald-300'
+                    : 'border border-emerald-200 bg-emerald-50 text-emerald-800'
                 }`}
               >
                 {badge}
@@ -303,7 +303,7 @@ export function BrandLogo({
     return (
       <Link
         href={href}
-        className="inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg"
+        className="inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded-lg"
       >
         {content}
       </Link>

@@ -188,7 +188,7 @@ export function ModuleAGrantCheckerStep({
       <div
         id="mod-a-step-7"
         onClick={onExpandStep}
-        className="group scroll-mt-24 cursor-pointer rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50/60 via-white to-indigo-50/40 p-4 shadow-xs transition-all hover:border-emerald-400 hover:shadow-sm"
+        className="group scroll-mt-24 cursor-pointer rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50/60 via-white to-slate-50/40 p-4 shadow-xs transition-all hover:border-emerald-400 hover:shadow-sm"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -196,7 +196,7 @@ export function ModuleAGrantCheckerStep({
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                 isGrantsRevealed
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-indigo-600 text-white'
+                  : 'bg-slate-900 text-white'
               }`}
             >
               {isGrantsRevealed ? <Check className="h-4 w-4" /> : '7'}
@@ -293,7 +293,7 @@ export function ModuleAGrantCheckerStep({
             onClick={() => setShowWhyAsking((prev) => !prev)}
             className="h-8 border-slate-200 text-xs text-slate-700"
           >
-            <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+            <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             Why We Ask This
           </Button>
           <Button
@@ -328,8 +328,8 @@ export function ModuleAGrantCheckerStep({
       {(showWhyAsking || showExample) && (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {showWhyAsking && (
-            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3.5 text-xs text-slate-700">
-              <div className="font-bold text-indigo-950">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-700">
+              <div className="font-bold text-slate-950">
                 🎯 Why Are We Asking These 4 Micro-Questions?
               </div>
               <p className="mt-1 leading-relaxed">
@@ -358,7 +358,7 @@ export function ModuleAGrantCheckerStep({
       {/* STAGE 1: LAUNCHPAD CARD (BEFORE CHECKING GRANTS)                  */}
       {/* ================================================================= */}
       {!isGrantsRevealed ? (
-        <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-slate-900 via-indigo-950 to-emerald-950 p-6 text-white shadow-sm sm:p-8">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-6 text-white shadow-sm sm:p-8">
           <div className="mx-auto max-w-3xl text-center">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-400/30">
               <Award className="h-4 w-4" />
@@ -453,7 +453,7 @@ export function ModuleAGrantCheckerStep({
           {/* ================================================================= */}
           {/* STAGE 3: REVEALED GRANT VALUE POOL & ELIGIBILITY DASHBOARD        */}
           {/* ================================================================= */}
-          <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-slate-900 via-indigo-950 to-emerald-950 p-5 text-white shadow-sm">
+          <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-5 text-white shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-2xl">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-400/30">
@@ -508,14 +508,14 @@ export function ModuleAGrantCheckerStep({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-indigo-400/30 bg-indigo-950/60 px-3.5 py-2.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                <div className="rounded-xl border border-emerald-400/30 bg-slate-950/60 px-3.5 py-2.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
                     🚀 Combined Potential
                   </div>
                   <div className="mt-1 text-base font-extrabold text-white sm:text-lg">
                     {evaluation.totalCombinedPotentialFormatted}
                   </div>
-                  <div className="text-[11px] text-indigo-200/80">
+                  <div className="text-[11px] text-slate-300/80">
                     Total {evaluation.currency} support ceiling
                   </div>
                 </div>
@@ -537,7 +537,7 @@ export function ModuleAGrantCheckerStep({
           <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-950">
                   Your 4 Eligibility Answers (Click Any Pill to Update in Pop-Out)
                 </h3>
                 <p className="text-[11px] text-slate-500">
@@ -549,7 +549,7 @@ export function ModuleAGrantCheckerStep({
                 size="sm"
                 variant="outline"
                 onClick={() => handleOpenWizardModal(1)}
-                className="h-8 border-indigo-200 bg-white text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                className="h-8 border-slate-200 bg-white text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Retake 4-Question Check
@@ -560,7 +560,7 @@ export function ModuleAGrantCheckerStep({
               <button
                 type="button"
                 onClick={() => handleOpenWizardModal(1)}
-                className="rounded-xl border border-slate-200 bg-white p-2.5 text-left transition-all hover:border-indigo-300 hover:shadow-2xs"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-left transition-all hover:border-emerald-300 hover:shadow-2xs"
               >
                 <div className="text-[10px] font-bold uppercase text-slate-400">
                   1. Legal Entity Stage
@@ -576,7 +576,7 @@ export function ModuleAGrantCheckerStep({
               <button
                 type="button"
                 onClick={() => handleOpenWizardModal(2)}
-                className="rounded-xl border border-slate-200 bg-white p-2.5 text-left transition-all hover:border-indigo-300 hover:shadow-2xs"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-left transition-all hover:border-emerald-300 hover:shadow-2xs"
               >
                 <div className="text-[10px] font-bold uppercase text-slate-400">
                   2. Commercial Activity
@@ -594,7 +594,7 @@ export function ModuleAGrantCheckerStep({
               <button
                 type="button"
                 onClick={() => handleOpenWizardModal(3)}
-                className="rounded-xl border border-slate-200 bg-white p-2.5 text-left transition-all hover:border-indigo-300 hover:shadow-2xs"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-left transition-all hover:border-emerald-300 hover:shadow-2xs"
               >
                 <div className="text-[10px] font-bold uppercase text-slate-400">
                   3. Tax &amp; PAYE History
@@ -610,7 +610,7 @@ export function ModuleAGrantCheckerStep({
               <button
                 type="button"
                 onClick={() => handleOpenWizardModal(4)}
-                className="rounded-xl border border-slate-200 bg-white p-2.5 text-left transition-all hover:border-indigo-300 hover:shadow-2xs"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-left transition-all hover:border-emerald-300 hover:shadow-2xs"
               >
                 <div className="text-[10px] font-bold uppercase text-slate-400">
                   4. Regional Match Tier
@@ -733,18 +733,18 @@ export function ModuleAGrantCheckerStep({
           {/* ================================================================= */}
           {/* AI GRANT POSITIONING ADVISOR & STRATEGY NOTES                      */}
           {/* ================================================================= */}
-          <div className="mt-6 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50/70 via-white to-emerald-50/50 p-4 sm:p-5">
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-emerald-50/50 p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-indigo-600" />
+                  <Sparkles className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-sm font-bold text-slate-900">
                     Tailored Grant Positioning Strategy for {planTitle}
                   </h3>
                   {isRunningAiAdvisor ? (
                     <Badge
                       variant="outline"
-                      className="border-indigo-300 bg-indigo-50 text-[10px] text-indigo-700"
+                      className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
                     >
                       <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                       AI Tailoring Your Grant Pitch...
@@ -753,7 +753,7 @@ export function ModuleAGrantCheckerStep({
                     grantCheck.aiEngineUsed && (
                       <Badge
                         variant="outline"
-                        className="text-[10px] text-indigo-700"
+                        className="text-[10px] text-emerald-800"
                       >
                         {grantCheck.aiEngineUsed === 'gemini-2.5-flash'
                           ? '✨ Gemini 2.5 Flash'
@@ -778,7 +778,7 @@ export function ModuleAGrantCheckerStep({
                   variant="outline"
                   disabled={isRunningAiAdvisor}
                   onClick={() => onRunAiGrantPositioning(grantCheck)}
-                  className="border-indigo-300 bg-white text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                  className="border-emerald-300 bg-white text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
                 >
                   {isRunningAiAdvisor ? (
                     <>
@@ -787,7 +787,7 @@ export function ModuleAGrantCheckerStep({
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       Refresh AI Grant Pitch &amp; Sync Canvas
                     </>
                   )}
@@ -799,7 +799,7 @@ export function ModuleAGrantCheckerStep({
               {displayedPositioningTips.map((tip, idx) => (
                 <div
                   key={idx}
-                  className="rounded-xl border border-indigo-100 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-2xs"
+                  className="rounded-xl border border-slate-100 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-2xs"
                 >
                   {tip}
                 </div>
@@ -826,7 +826,7 @@ export function ModuleAGrantCheckerStep({
                     ? 'e.g., Book initial mentor call with local LEO office; check New Frontiers Phase 1 intake dates at TU Dublin / ATU / MTU...'
                     : 'e.g., Prepare Personal Survival Budget for £25k Start Up Loan; apply for HMRC SEIS Advance Assurance after incorporating Ltd...'
                 }
-                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none sm:text-xs"
+                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none sm:text-xs"
               />
             </div>
           </div>
@@ -859,7 +859,7 @@ export function ModuleAGrantCheckerStep({
                   </>
                 ) : (
                   <>
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Park Grant Timing Question
                   </>
                 )}
@@ -885,7 +885,7 @@ export function ModuleAGrantCheckerStep({
                   variant="outline"
                   disabled={isSaving}
                   onClick={() => onSaveGrantCheck(grantCheck)}
-                  className="border-indigo-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                  className="border-slate-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
                 >
                   {isSaving ? (
                     <>
@@ -928,7 +928,7 @@ export function ModuleAGrantCheckerStep({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Top Header */}
-            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-900 via-indigo-950 to-emerald-950 px-5 py-4 text-white">
+            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950 px-5 py-4 text-white">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
@@ -989,7 +989,7 @@ export function ModuleAGrantCheckerStep({
               {wizardStep === 1 && (
                 <div className="space-y-4">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                       Question 1 of 4 • Legal &amp; Incorporation Stage
                     </span>
                     <h4 className="mt-1 text-base font-bold text-slate-900">
@@ -1026,15 +1026,15 @@ export function ModuleAGrantCheckerStep({
                           }
                           className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-xs font-medium transition-all ${
                             selected
-                              ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 shadow-2xs ring-1 ring-indigo-600'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50'
+                              ? 'border-emerald-700 bg-emerald-50/90 text-slate-950 shadow-2xs ring-1 ring-emerald-700'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-slate-50'
                           }`}
                         >
                           <span>{GRANT_LEGAL_ENTITY_LABELS[stage]}</span>
                           <span
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                               selected
-                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
                                 : 'border-slate-300 bg-white'
                             }`}
                           >
@@ -1061,7 +1061,7 @@ export function ModuleAGrantCheckerStep({
                           }))
                         }
                         placeholder="e.g., DAC, CLG, UK LLP, University Spin-Out..."
-                        className="mt-1.5 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none sm:text-xs"
+                        className="mt-1.5 w-full rounded-xl border border-emerald-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none sm:text-xs"
                       />
                     </div>
                   )}
@@ -1072,7 +1072,7 @@ export function ModuleAGrantCheckerStep({
               {wizardStep === 2 && (
                 <div className="space-y-4">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                       Question 2 of 4 • Commercial Activity &amp; Non-Displacement Test
                     </span>
                     <h4 className="mt-1 text-base font-bold text-slate-900">
@@ -1109,15 +1109,15 @@ export function ModuleAGrantCheckerStep({
                           }
                           className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-xs font-medium transition-all ${
                             selected
-                              ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 shadow-2xs ring-1 ring-indigo-600'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50'
+                              ? 'border-emerald-700 bg-emerald-50/90 text-slate-950 shadow-2xs ring-1 ring-emerald-700'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-slate-50'
                           }`}
                         >
                           <span>{GRANT_ACTIVITY_TYPE_LABELS[act]}</span>
                           <span
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                               selected
-                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
                                 : 'border-slate-300 bg-white'
                             }`}
                           >
@@ -1144,7 +1144,7 @@ export function ModuleAGrantCheckerStep({
                           }))
                         }
                         placeholder="Describe what you sell and who buys it..."
-                        className="mt-1.5 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none sm:text-xs"
+                        className="mt-1.5 w-full rounded-xl border border-emerald-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none sm:text-xs"
                       />
                     </div>
                   )}
@@ -1155,7 +1155,7 @@ export function ModuleAGrantCheckerStep({
               {wizardStep === 3 && (
                 <div className="space-y-4">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                       Question 3 of 4 • Founder Employment &amp; Tax Background
                     </span>
                     <h4 className="mt-1 text-base font-bold text-slate-900">
@@ -1192,15 +1192,15 @@ export function ModuleAGrantCheckerStep({
                           }
                           className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-xs font-medium transition-all ${
                             selected
-                              ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 shadow-2xs ring-1 ring-indigo-600'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50'
+                              ? 'border-emerald-700 bg-emerald-50/90 text-slate-950 shadow-2xs ring-1 ring-emerald-700'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-slate-50'
                           }`}
                         >
                           <span>{GRANT_PAYE_STATUS_LABELS[status]}</span>
                           <span
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                               selected
-                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
                                 : 'border-slate-300 bg-white'
                             }`}
                           >
@@ -1227,7 +1227,7 @@ export function ModuleAGrantCheckerStep({
                           }))
                         }
                         placeholder="Describe your employment situation..."
-                        className="mt-1.5 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none sm:text-xs"
+                        className="mt-1.5 w-full rounded-xl border border-emerald-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none sm:text-xs"
                       />
                     </div>
                   )}
@@ -1238,7 +1238,7 @@ export function ModuleAGrantCheckerStep({
               {wizardStep === 4 && (
                 <div className="space-y-4">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                       Question 4 of 4 • Regional Co-Funding &amp; Agency Tier
                     </span>
                     <h4 className="mt-1 text-base font-bold text-slate-900">
@@ -1269,15 +1269,15 @@ export function ModuleAGrantCheckerStep({
                           }
                           className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-xs font-medium transition-all ${
                             selected
-                              ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 shadow-2xs ring-1 ring-indigo-600'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50'
+                              ? 'border-emerald-700 bg-emerald-50/90 text-slate-950 shadow-2xs ring-1 ring-emerald-700'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-slate-50'
                           }`}
                         >
                           <span>{GRANT_REGIONAL_TIER_LABELS[tier]}</span>
                           <span
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                               selected
-                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
                                 : 'border-slate-300 bg-white'
                             }`}
                           >
@@ -1304,7 +1304,7 @@ export function ModuleAGrantCheckerStep({
                           }))
                         }
                         placeholder="e.g., Galway, Cork, Manchester, Belfast..."
-                        className="mt-1.5 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none sm:text-xs"
+                        className="mt-1.5 w-full rounded-xl border border-emerald-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none sm:text-xs"
                       />
                     </div>
                   )}
@@ -1353,7 +1353,7 @@ export function ModuleAGrantCheckerStep({
                         (prev) => Math.min(4, prev + 1) as 1 | 2 | 3 | 4
                       )
                     }
-                    className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                    className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                   >
                     Next Question ({wizardStep + 1} of 4)
                     <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -1466,7 +1466,7 @@ function GrantMatchCard({ grant }: { grant: EvaluatedGrantMatch }) {
             {grant.preflightModulesToWin.map((mod) => (
               <span
                 key={mod}
-                className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-800"
+                className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-900"
               >
                 {mod}
               </span>
@@ -1476,7 +1476,7 @@ function GrantMatchCard({ grant }: { grant: EvaluatedGrantMatch }) {
             href={grant.officialUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 hover:underline"
           >
             Official Guide
             <ExternalLink className="h-3 w-3" />

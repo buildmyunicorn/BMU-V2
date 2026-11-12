@@ -2592,25 +2592,25 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {/* MODULE C TOP HEADER BANNER (GEMINI.md SECTION 6 STANDARD)           */}
       {/* =================================================================== */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200">
                 Module C • Customer Surveys, 1-on-1 Calls &amp; Validation Brief
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200">
                 <ShieldCheck className="mr-1 h-3 w-3" />
                 Zero-Login Shareable Survey Links
               </Badge>
-              <Badge className="border-white/20 bg-white/10 text-xs text-indigo-100">
+              <Badge className="border-white/20 bg-white/10 text-xs text-slate-200">
                 {completedCoreStepsCount} of 3 Core Steps Ready
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
               Module C: Customer Validation Surveys &amp; 1-on-1 Discovery Hub
             </h1>
-            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
               Launch focused <em>Mom-Test</em> customer surveys in their own
               studio window for{' '}
               <strong className="text-white">{plan.title}</strong>, log live
@@ -2635,9 +2635,9 @@ export function ModuleCWorkspace({
                       : 'ALL'
                   )
                 }
-                className="shrink-0 border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="shrink-0 border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
-                <SlidersHorizontal className="h-3.5 w-3.5 text-indigo-200" />
+                <SlidersHorizontal className="h-3.5 w-3.5 text-slate-300" />
                 {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
               </Button>
               {openStep !== 0 && (
@@ -2646,9 +2646,9 @@ export function ModuleCWorkspace({
                   variant="outline"
                   size="sm"
                   onClick={() => setOpenStep(0)}
-                  className="shrink-0 border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                  className="shrink-0 border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
-                  <ChevronUp className="h-3.5 w-3.5 text-indigo-200" />
+                  <ChevronUp className="h-3.5 w-3.5 text-slate-300" />
                   Collapse All
                 </Button>
               )}
@@ -2658,28 +2658,28 @@ export function ModuleCWorkspace({
                   variant="outline"
                   size="sm"
                   onClick={onBackToModuleB}
-                  className="shrink-0 border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                  className="shrink-0 border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                   Back to Module B
                 </Button>
               )}
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Module C Progress: <strong>{Math.round((completedCoreStepsCount / 3) * 100)}%</strong> ({completedCoreStepsCount} of 3 Core Steps Ready)
             </div>
           </div>
         </div>
 
         {showWhyCard && (
-          <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-indigo-700/70 bg-indigo-950/60 p-4 text-xs text-indigo-100 md:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-950/60 p-4 text-xs text-slate-200 md:grid-cols-3">
             <div className="flex items-start gap-2.5">
               <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
               <div>
                 <strong className="text-white">
                   Rule #1: Never ask &ldquo;Would you buy my app?&rdquo;
                 </strong>
-                <p className="mt-0.5 text-[11px] text-indigo-200/90">
+                <p className="mt-0.5 text-[11px] text-slate-300/90">
                   Friends and strangers will say &ldquo;Yes!&rdquo; just to be
                   polite. Ask about their past 30 days of real behavior instead.
                 </p>
@@ -2691,7 +2691,7 @@ export function ModuleCWorkspace({
                 <strong className="text-white">
                   Rule #2: Uncover current workarounds &amp; spend
                 </strong>
-                <p className="mt-0.5 text-[11px] text-indigo-200/90">
+                <p className="mt-0.5 text-[11px] text-slate-300/90">
                   If someone isn&apos;t already spending time, money, or
                   spreadsheet effort working around the problem, they rarely pay
                   for a new solution.
@@ -2699,12 +2699,12 @@ export function ModuleCWorkspace({
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-indigo-300" />
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
               <div>
                 <strong className="text-white">
                   Rule #3: Keep it under 60 seconds (No Login)
                 </strong>
-                <p className="mt-0.5 text-[11px] text-indigo-200/90">
+                <p className="mt-0.5 text-[11px] text-slate-300/90">
                   4 to 6 sharp questions on a single page gets 3× higher
                   completion rates than long multi-page forms.
                 </p>
@@ -2714,12 +2714,12 @@ export function ModuleCWorkspace({
         )}
 
         {showParkInput && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400/40 bg-indigo-950/80 p-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400/40 bg-slate-950/80 p-3">
             <Input
               value={parkQuestionDraft}
               onChange={(e) => setParkQuestionDraft(e.target.value)}
               placeholder="e.g., Should we survey clinic receptionists separately from clinic owners?"
-              className="flex-1 border-indigo-700 bg-white text-base text-slate-900 sm:text-xs"
+              className="flex-1 border-slate-200 bg-white text-base text-slate-900 sm:text-xs"
             />
             <Button
               type="button"
@@ -2741,7 +2741,7 @@ export function ModuleCWorkspace({
         )}
 
         {/* 4-Step Navigation Strip (Matches Module B & Module D 100%) */}
-        <div className="mt-5 grid grid-cols-1 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-5 grid grid-cols-1 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
               step: 'Step 1',
@@ -2789,7 +2789,7 @@ export function ModuleCWorkspace({
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
@@ -2809,12 +2809,12 @@ export function ModuleCWorkspace({
 
       {/* Status Notification Banner */}
       {statusBanner && (
-        <div className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50/90 px-4 py-2.5 text-xs font-medium text-indigo-950">
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-emerald-50/90 px-4 py-2.5 text-xs font-medium text-slate-950">
           <span>{statusBanner}</span>
           <button
             type="button"
             onClick={() => setStatusBanner(null)}
-            className="text-indigo-500 hover:text-indigo-800"
+            className="text-emerald-700 hover:text-emerald-900"
           >
             <X className="h-4 w-4" />
           </button>
@@ -2828,7 +2828,7 @@ export function ModuleCWorkspace({
         <div
           id="module-c-step-1"
           onClick={() => setOpenStep(1)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -2836,14 +2836,14 @@ export function ModuleCWorkspace({
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                   isStep1Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 1: Customer Validation Surveys
                   </h2>
                   {isStep1Complete ? (
@@ -2868,7 +2868,7 @@ export function ModuleCWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 Edit Step
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -2888,7 +2888,7 @@ export function ModuleCWorkspace({
                 className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                   isStep1Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
@@ -2923,7 +2923,7 @@ export function ModuleCWorkspace({
                 size="sm"
                 disabled={isVaultReadonly}
                 onClick={() => void handleCreateNewBlankSurvey(true)}
-                className="shrink-0 bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
+                className="shrink-0 bg-slate-950 text-white border-b border-slate-800 text-xs text-white hover:from-emerald-800 hover:to-teal-900"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Build New Survey with AI
@@ -2934,9 +2934,9 @@ export function ModuleCWorkspace({
                 size="sm"
                 disabled={isVaultReadonly}
                 onClick={() => void handleCreateNewBlankSurvey(false)}
-                className="shrink-0 border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+                className="shrink-0 border-slate-200 bg-slate-50 text-xs font-semibold text-emerald-900 hover:bg-slate-100"
               >
-                <Plus className="h-3.5 w-3.5 text-indigo-600" />
+                <Plus className="h-3.5 w-3.5 text-emerald-700" />
                 New Blank Survey
               </Button>
               <Button
@@ -2974,13 +2974,13 @@ export function ModuleCWorkspace({
                 <div
                   key={s.id}
                   onClick={() => openSurveyInStudio(s, 'BUILDER')}
-                  className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-indigo-50/25 p-5 shadow-2xs transition-all hover:border-indigo-400 hover:shadow-md"
+                  className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50/25 p-5 shadow-2xs transition-all hover:border-emerald-400 hover:shadow-md"
                 >
                   <div className="space-y-3">
                     {/* Top Row: Badges + Active Toggle + Delete */}
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge className="bg-indigo-100 text-[10px] font-bold text-indigo-900">
+                        <Badge className="bg-slate-100 text-[10px] font-bold text-slate-900">
                           Survey #{idx + 1}
                         </Badge>
                         {s.isPublished ? (
@@ -3026,7 +3026,7 @@ export function ModuleCWorkspace({
 
                     {/* Title & Subtitle */}
                     <div>
-                      <h3 className="text-base font-bold text-slate-900 group-hover:text-indigo-700">
+                      <h3 className="text-base font-bold text-slate-900 group-hover:text-emerald-800">
                         {s.title.trim() || `Survey #${idx + 1} (Untitled Draft)`}
                       </h3>
                       <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">
@@ -3042,7 +3042,7 @@ export function ModuleCWorkspace({
                       onClick={(e) => e.stopPropagation()}
                       className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-slate-50/90 px-3 py-1.5 text-xs"
                     >
-                      <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-indigo-700">
+                      <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-emerald-800">
                         <Share2 className="h-3 w-3 shrink-0 text-slate-400" />
                         <span className="truncate font-semibold">
                           Survey Link: {s.publicSlug}
@@ -3052,7 +3052,7 @@ export function ModuleCWorkspace({
                         <button
                           type="button"
                           onClick={() => handleCopyPublicLink(s.publicSlug)}
-                          className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-indigo-50 hover:text-indigo-700"
+                          className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-emerald-800"
                         >
                           {copiedLinkSlug === s.publicSlug ? (
                             <>
@@ -3070,7 +3070,7 @@ export function ModuleCWorkspace({
                           href={`/v/${s.publicSlug}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-slate-200 hover:bg-indigo-50"
+                          className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-slate-200 hover:bg-emerald-50"
                         >
                           <ExternalLink className="h-3 w-3" />
                           Open Page
@@ -3089,7 +3089,7 @@ export function ModuleCWorkspace({
                         </div>
                       </div>
                       <div className="rounded-xl border border-slate-200/80 bg-white px-2.5 py-2 text-center">
-                        <div className="text-sm font-extrabold text-indigo-700">
+                        <div className="text-sm font-extrabold text-emerald-800">
                           {sResponses}
                         </div>
                         <div className="text-[10px] font-medium text-slate-500">
@@ -3107,7 +3107,7 @@ export function ModuleCWorkspace({
                         </div>
                       </div>
                       <div className="hidden rounded-xl border border-slate-200/80 bg-white px-2.5 py-2 text-center sm:block">
-                        <div className="text-sm font-extrabold text-violet-700">
+                        <div className="text-sm font-extrabold text-emerald-800">
                           {sSignalScore !== null ? `${sSignalScore}/100` : '—'}
                         </div>
                         <div className="text-[10px] font-medium text-slate-500">
@@ -3126,7 +3126,7 @@ export function ModuleCWorkspace({
                       type="button"
                       size="sm"
                       onClick={() => openSurveyInStudio(s, 'BUILDER')}
-                      className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
                     >
                       <SlidersHorizontal className="h-3.5 w-3.5" />
                       Open Survey Studio
@@ -3138,9 +3138,9 @@ export function ModuleCWorkspace({
                         variant="outline"
                         size="sm"
                         onClick={() => openSurveyInStudio(s, 'OUTREACH')}
-                        className="h-8 border-violet-200 bg-violet-50/70 px-2.5 text-xs font-semibold text-violet-800 hover:bg-violet-100"
+                        className="h-8 border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-emerald-900 hover:bg-slate-100"
                       >
-                        <QrCode className="h-3.5 w-3.5 text-violet-700" />
+                        <QrCode className="h-3.5 w-3.5 text-emerald-800" />
                         Share &amp; QR
                       </Button>
                       <Button
@@ -3160,8 +3160,8 @@ export function ModuleCWorkspace({
             })}
 
             {/* + Create New Survey Overview Tile */}
-            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-6 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50/60">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-emerald-400 hover:bg-slate-50">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-emerald-800">
                 <Plus className="h-5 w-5" />
               </div>
               <h3 className="mt-3 text-sm font-bold text-slate-900">
@@ -3177,7 +3177,7 @@ export function ModuleCWorkspace({
                   size="sm"
                   disabled={isVaultReadonly}
                   onClick={() => void handleCreateNewBlankSurvey(true)}
-                  className="bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
+                  className="bg-slate-950 text-white border-b border-slate-800 text-xs text-white hover:from-emerald-800 hover:to-teal-900"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   Build with AI Co-Pilot
@@ -3188,9 +3188,9 @@ export function ModuleCWorkspace({
                   size="sm"
                   disabled={isVaultReadonly}
                   onClick={() => void handleCreateNewBlankSurvey(false)}
-                  className="bg-white text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+                  className="bg-white text-xs font-semibold text-emerald-900 hover:bg-emerald-50"
                 >
-                  <Plus className="h-3.5 w-3.5 text-indigo-600" />
+                  <Plus className="h-3.5 w-3.5 text-emerald-700" />
                   Start Blank Survey
                 </Button>
               </div>
@@ -3208,7 +3208,7 @@ export function ModuleCWorkspace({
                 type="button"
                 size="sm"
                 onClick={() => scrollToStep(2)}
-                className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
               >
                 Next Step: 1-on-1 Interviews
                 <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -3223,7 +3223,7 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {isSurveyStudioOpen && activeSurvey && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-2 backdrop-blur-xs sm:p-4 lg:p-6">
-          <div className="relative flex max-h-[94vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-indigo-200 bg-slate-50 shadow-2xl">
+          <div className="relative flex max-h-[94vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl">
             {/* STUDIO STICKY TOP HEADER BAR */}
             <div className="border-b border-slate-200 bg-white px-4 py-3.5 shadow-2xs sm:px-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3254,7 +3254,7 @@ export function ModuleCWorkspace({
                           setShowPublishConfirm(false);
                         }
                       }}
-                      className="rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-1.5 text-base font-bold text-indigo-950 focus:outline-hidden sm:text-xs"
+                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-base font-bold text-slate-950 focus:outline-hidden sm:text-xs"
                     >
                       {surveys.map((s, idx) => (
                         <option key={s.id} value={s.id}>
@@ -3282,7 +3282,7 @@ export function ModuleCWorkspace({
                           publicSlug: clean || 'survey',
                         }));
                       }}
-                      className="w-36 bg-transparent font-mono text-base font-semibold text-indigo-700 focus:outline-hidden disabled:cursor-not-allowed disabled:text-slate-500 sm:w-48 sm:text-xs"
+                      className="w-36 bg-transparent font-mono text-base font-semibold text-emerald-800 focus:outline-hidden disabled:cursor-not-allowed disabled:text-slate-500 sm:w-48 sm:text-xs"
                     />
                   </div>
 
@@ -3364,7 +3364,7 @@ export function ModuleCWorkspace({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="border-indigo-200 bg-indigo-50/70 text-xs text-indigo-700 hover:bg-indigo-100"
+                      className="border-slate-200 bg-slate-50 text-xs text-emerald-800 hover:bg-slate-100"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       {isSurveyPublished ? 'Open Live Survey' : 'Preview Survey'}
@@ -3435,7 +3435,7 @@ export function ModuleCWorkspace({
                     onClick={() => setActiveViewTab('BUILDER')}
                     className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
                       activeViewTab === 'BUILDER'
-                        ? 'bg-indigo-600 text-white shadow-xs'
+                        ? 'bg-emerald-700 text-white shadow-xs'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
                     }`}
                   >
@@ -3455,7 +3455,7 @@ export function ModuleCWorkspace({
                     onClick={() => setActiveViewTab('OUTREACH')}
                     className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
                       activeViewTab === 'OUTREACH'
-                        ? 'bg-indigo-600 text-white shadow-xs'
+                        ? 'bg-emerald-700 text-white shadow-xs'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
                     }`}
                   >
@@ -3502,7 +3502,7 @@ export function ModuleCWorkspace({
                     }}
                     className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all sm:justify-start ${
                       activeViewTab === 'INSIGHTS'
-                        ? 'bg-indigo-600 text-white shadow-xs'
+                        ? 'bg-emerald-700 text-white shadow-xs'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
                     }`}
                   >
@@ -3511,8 +3511,8 @@ export function ModuleCWorkspace({
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] ${
                         activeViewTab === 'INSIGHTS'
-                          ? 'bg-indigo-800 text-indigo-100'
-                          : 'bg-white text-indigo-700'
+                          ? 'bg-slate-800 text-slate-200'
+                          : 'bg-white text-emerald-800'
                       }`}
                     >
                       {totalResponses}
@@ -3529,7 +3529,7 @@ export function ModuleCWorkspace({
                       onClick={() =>
                         setShowAiFocusSelector(!showAiFocusSelector)
                       }
-                      className="bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
+                      className="bg-slate-950 text-white border-b border-slate-800 text-xs text-white hover:from-emerald-800 hover:to-teal-900"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
                       {showAiFocusSelector
@@ -3554,7 +3554,7 @@ export function ModuleCWorkspace({
                       onClick={handleRegenerateOutreachTemplates}
                       className="text-xs"
                     >
-                      <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
+                      <Wand2 className="h-3.5 w-3.5 text-emerald-700" />
                       Refresh Copy from Idea Context
                     </Button>
                   )}
@@ -3651,11 +3651,11 @@ export function ModuleCWorkspace({
           )}
           {/* AI FOCUS SELECTOR MODAL / CARD (WHEN USER CLICKS "BUILD WITH AI") */}
           {showAiFocusSelector && (
-            <Card className="border-2 border-indigo-400 bg-gradient-to-b from-indigo-50/90 via-white to-white shadow-md">
+            <Card className="border-2 border-emerald-400 bg-gradient-to-b from-slate-50 via-white to-white shadow-md">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <Badge className="bg-indigo-600 text-white">
+                    <Badge className="bg-emerald-700 text-white">
                       <Sparkles className="mr-1 h-3 w-3" />
                       Mom-Test AI Survey Builder
                     </Badge>
@@ -3681,9 +3681,9 @@ export function ModuleCWorkspace({
 
               <CardContent className="space-y-4">
                 {/* Live Module A + Module B Context Pill Card */}
-                <div className="rounded-xl border border-indigo-200 bg-white/95 p-3 shadow-2xs">
+                <div className="rounded-xl border border-slate-200 bg-white/95 p-3 shadow-2xs">
                   <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold tracking-wide text-indigo-700 uppercase">
+                    <span className="text-[11px] font-bold tracking-wide text-emerald-800 uppercase">
                       Tailored to Your Module 1 &amp; Module 2 Context
                     </span>
                     <Badge
@@ -3756,8 +3756,8 @@ export function ModuleCWorkspace({
                         onClick={() => handleToggleFocusArea(item.code)}
                         className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/90 ring-1 ring-indigo-600'
-                            : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/70'
+                            ? 'border-emerald-700 bg-emerald-50/90 ring-1 ring-emerald-700'
+                            : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/70'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -3767,7 +3767,7 @@ export function ModuleCWorkspace({
                           <span
                             className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                               isSelected
-                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
                                 : 'border-slate-300 bg-white'
                             }`}
                           >
@@ -3784,8 +3784,8 @@ export function ModuleCWorkspace({
 
                 {/* Inline custom input when 'OTHER' focus is selected */}
                 {selectedFocusAreas.includes('OTHER') && (
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3">
-                    <label className="mb-1 block text-xs font-bold text-indigo-950">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="mb-1 block text-xs font-bold text-slate-950">
                       Describe your custom focus area:
                     </label>
                     <Input
@@ -3828,7 +3828,7 @@ export function ModuleCWorkspace({
                           onClick={() => setDesiredQuestionCount(opt.count)}
                           className={`rounded-lg border py-2 text-xs font-bold transition-all ${
                             desiredQuestionCount === opt.count
-                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              ? 'border-emerald-700 bg-emerald-700 text-white'
                               : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                           }`}
                         >
@@ -3839,7 +3839,7 @@ export function ModuleCWorkspace({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-indigo-100 pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
                   <span className="text-[11px] text-slate-500">
                     💡 All generated questions are 100% editable afterwards.
                   </span>
@@ -3857,7 +3857,7 @@ export function ModuleCWorkspace({
                       size="sm"
                       disabled={isGeneratingSurveyWithAi}
                       onClick={handleRunGenerateWithAi}
-                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-white hover:bg-emerald-800"
                     >
                       {isGeneratingSurveyWithAi ? (
                         <>
@@ -3937,7 +3937,7 @@ export function ModuleCWorkspace({
                     }));
                   }}
                   placeholder="e.g., Hi! We're researching how people handle this workflow today and what causes the biggest headaches. Takes ~60 seconds — no login or sales pitch!"
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600"
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600"
                 />
               </div>
             </CardContent>
@@ -3945,8 +3945,8 @@ export function ModuleCWorkspace({
 
           {/* BLANK SURVEY CANVAS STATE (WHEN QUESTIONS === 0) */}
           {activeSurvey.questions.length === 0 ? (
-            <div className="rounded-2xl border-2 border-dashed border-indigo-200 bg-gradient-to-b from-white to-indigo-50/40 p-8 text-center shadow-2xs">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+            <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-gradient-to-b from-white to-slate-50/40 p-8 text-center shadow-2xs">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-emerald-800">
                 <MessageSquare className="h-6 w-6" />
               </div>
               <h3 className="mt-3 text-base font-bold text-slate-900">
@@ -3981,14 +3981,14 @@ export function ModuleCWorkspace({
                     className={`border-slate-200 transition-all ${
                       isSurveyPublished
                         ? 'bg-slate-50/40'
-                        : 'hover:border-indigo-200'
+                        : 'hover:border-emerald-300'
                     }`}
                   >
                     <CardContent className="space-y-4 p-5">
                       {/* Question Card Top Row: Number, Question Type Selector Pills & Reorder/Delete */}
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold text-white">
                             {qIdx + 1}
                           </span>
                           <div className="flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1">
@@ -4006,7 +4006,7 @@ export function ModuleCWorkspace({
                                   }
                                   className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all disabled:cursor-not-allowed ${
                                     activeType
-                                      ? 'bg-white text-indigo-700 shadow-2xs'
+                                      ? 'bg-white text-emerald-800 shadow-2xs'
                                       : 'text-slate-600 hover:text-slate-900'
                                   }`}
                                 >
@@ -4029,7 +4029,7 @@ export function ModuleCWorkspace({
                                 !q.questionText.trim()
                               }
                               onClick={() => handleCheckQuestionMomTest(q)}
-                              className="h-7 border-indigo-200 bg-indigo-50/70 px-2.5 text-[11px] text-indigo-700 hover:bg-indigo-100"
+                              className="h-7 border-slate-200 bg-slate-50 px-2.5 text-[11px] text-emerald-800 hover:bg-slate-100"
                             >
                               {isCheckingThis ? (
                                 <>
@@ -4158,7 +4158,7 @@ export function ModuleCWorkspace({
                                       momTestSuggestedRewrite: undefined,
                                     })
                                   }
-                                  className="h-7 bg-indigo-600 text-[11px] text-white hover:bg-indigo-700"
+                                  className="h-7 bg-emerald-700 text-[11px] text-white hover:bg-emerald-800"
                                 >
                                   <Wand2 className="h-3 w-3" />
                                   Use This Rewrite
@@ -4180,7 +4180,7 @@ export function ModuleCWorkspace({
                                 : 'Respondents pick one'}
                               ):
                             </span>
-                            <label className="flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-indigo-700">
+                            <label className="flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-emerald-800">
                               <input
                                 type="checkbox"
                                 disabled={isSurveyLocked}
@@ -4190,7 +4190,7 @@ export function ModuleCWorkspace({
                                     allowOther: e.target.checked,
                                   })
                                 }
-                                className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600"
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-700"
                               />
                               <span>
                                 Include &ldquo;Other (write-in)&rdquo; option
@@ -4317,7 +4317,7 @@ export function ModuleCWorkspace({
 
               {/* ADD QUESTION / SUGGEST NEXT QUESTION TOOLBAR (ONLY WHEN IN DRAFT MODE) */}
               {!isSurveyPublished && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
@@ -4370,7 +4370,7 @@ export function ModuleCWorkspace({
                     size="sm"
                     disabled={isSurveyLocked || isSuggestingQuestion}
                     onClick={handleSuggestOneMoreQuestion}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700"
+                    className="bg-emerald-700 text-white hover:bg-emerald-800"
                   >
                     {isSuggestingQuestion ? (
                       <>
@@ -4405,7 +4405,7 @@ export function ModuleCWorkspace({
                         collectLeadEmails: e.target.checked,
                       }));
                     }}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-700"
                   />
                   <span>
                     Ask respondents to join your Early-Bird Waitlist at the end
@@ -4482,13 +4482,13 @@ export function ModuleCWorkspace({
       {activeViewTab === 'OUTREACH' && effectiveOutreachTemplates && (
           <div className="space-y-6">
             {/* Top Guidance Banner */}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-4 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50 p-4 shadow-2xs">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-slate-900">
                     Outreach Distribution Kit &amp; Printable QR Code Studio
                   </span>
-                  <Badge className="bg-indigo-100 text-[10px] font-bold text-indigo-800">
+                  <Badge className="bg-slate-100 text-[10px] font-bold text-emerald-900">
                     Tailored to {plan.title}
                   </Badge>
                 </div>
@@ -4523,7 +4523,7 @@ export function ModuleCWorkspace({
                   type="button"
                   size="sm"
                   onClick={handlePrintQrFlyer}
-                  className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
                 >
                   <Printer className="h-3.5 w-3.5" />
                   Print 1-Page QR Flyer
@@ -4579,7 +4579,7 @@ export function ModuleCWorkspace({
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
-                          <Send className="h-4 w-4 text-indigo-600" />
+                          <Send className="h-4 w-4 text-emerald-700" />
                           1. Ready-to-Send Outreach Messages
                         </CardTitle>
                         <CardDescription className="text-xs text-slate-600">
@@ -4596,7 +4596,7 @@ export function ModuleCWorkspace({
                         onClick={handleRegenerateOutreachTemplates}
                         className="text-xs"
                       >
-                        <RefreshCw className="h-3.5 w-3.5 text-indigo-600" />
+                        <RefreshCw className="h-3.5 w-3.5 text-emerald-700" />
                         Reset to Smart Defaults
                       </Button>
                     </div>
@@ -4613,8 +4613,8 @@ export function ModuleCWorkspace({
                             onClick={() => setSelectedOutreachChannel(ch.code)}
                             className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
                               isSelected
-                                ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-600/20'
-                                : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
+                                ? 'border-emerald-700 bg-emerald-50/80 ring-2 ring-emerald-700/20'
+                                : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                             }`}
                           >
                             <div className="flex w-full items-center justify-between gap-2">
@@ -4624,7 +4624,7 @@ export function ModuleCWorkspace({
                               <span
                                 className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                                   isSelected
-                                    ? 'bg-indigo-600 text-white'
+                                    ? 'bg-emerald-700 text-white'
                                     : 'bg-slate-100 text-slate-600'
                                 }`}
                               >
@@ -4674,15 +4674,15 @@ export function ModuleCWorkspace({
                           : injectLiveLink(currentRawText);
 
                       return (
-                        <div className="space-y-3 rounded-2xl border border-indigo-200 bg-slate-50/70 p-4">
+                        <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div>
-                              <div className="text-xs font-bold text-indigo-950 sm:text-sm">
+                              <div className="text-xs font-bold text-slate-950 sm:text-sm">
                                 {activeMeta.label}
                               </div>
                               <div className="text-[11px] text-slate-600">
                                 Use{' '}
-                                <code className="rounded bg-white px-1 py-0.5 font-mono text-[10px] text-indigo-700">
+                                <code className="rounded bg-white px-1 py-0.5 font-mono text-[10px] text-emerald-800">
                                   {'{{SURVEY_LINK}}'}
                                 </code>{' '}
                                 anywhere in your message to auto-insert your
@@ -4706,7 +4706,7 @@ export function ModuleCWorkspace({
                                   textToCopy
                                 );
                               }}
-                              className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                              className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
                             >
                               {copiedChannelCode === selectedOutreachChannel ? (
                                 <>
@@ -4813,13 +4813,13 @@ export function ModuleCWorkspace({
                                   });
                                 }
                               }}
-                              className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                              className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
 
                           {/* Live Preview Box showing injected URL */}
-                          <div className="rounded-xl border border-indigo-200/80 bg-white p-3">
-                            <div className="mb-1 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                          <div className="rounded-xl border border-slate-200/80 bg-white p-3">
+                            <div className="mb-1 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                               <span>
                                 Live Preview (What Your Recipient Sees)
                               </span>
@@ -4842,12 +4842,12 @@ export function ModuleCWorkspace({
               {/* RIGHT COLUMN (5 COLS): PRINTABLE QR CODE & FLYER STUDIO       */}
               {/* ============================================================= */}
               <div className="space-y-4 lg:col-span-5">
-                <Card className="border-indigo-200 shadow-2xs">
+                <Card className="border-slate-200 shadow-2xs">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between gap-2">
                       <div>
                         <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
-                          <QrCode className="h-4 w-4 text-indigo-600" />
+                          <QrCode className="h-4 w-4 text-emerald-700" />
                           2. Printable QR Code &amp; Event Flyer
                         </CardTitle>
                         <CardDescription className="text-xs text-slate-600">
@@ -4864,8 +4864,8 @@ export function ModuleCWorkspace({
 
                   <CardContent className="space-y-4">
                     {/* Live Printable Flyer Preview Card */}
-                    <div className="flex flex-col items-center rounded-2xl border-2 border-indigo-950 bg-gradient-to-b from-white via-slate-50/50 to-indigo-50/40 p-5 text-center shadow-xs">
-                      <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-800">
+                    <div className="flex flex-col items-center rounded-2xl border-2 border-slate-200 bg-gradient-to-b from-white via-slate-50/50 to-slate-50/40 p-5 text-center shadow-xs">
+                      <span className="rounded-full border border-slate-200 bg-emerald-50 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-900">
                         {plan.title} • Customer Research
                       </span>
 
@@ -4884,7 +4884,7 @@ export function ModuleCWorkspace({
                       </p>
 
                       {/* Crisp Vector SVG QR Code */}
-                      <div className="my-4 flex flex-col items-center rounded-2xl border-2 border-dashed border-indigo-300 bg-white p-4 shadow-2xs">
+                      <div className="my-4 flex flex-col items-center rounded-2xl border-2 border-dashed border-emerald-300 bg-white p-4 shadow-2xs">
                         {(() => {
                           const fullUrl = getPublicSurveyFullUrl(
                             activeSurvey.publicSlug
@@ -4923,12 +4923,12 @@ export function ModuleCWorkspace({
                             </svg>
                           );
                         })()}
-                        <span className="mt-2 text-[11px] font-bold text-indigo-900">
+                        <span className="mt-2 text-[11px] font-bold text-slate-900">
                           📱 Point Phone Camera to Open Survey
                         </span>
                       </div>
 
-                      <div className="rounded-lg border border-slate-200 bg-white px-3 py-1 font-mono text-[11px] font-semibold text-indigo-900">
+                      <div className="rounded-lg border border-slate-200 bg-white px-3 py-1 font-mono text-[11px] font-semibold text-slate-900">
                         {getPublicSurveyFullUrl(activeSurvey.publicSlug)}
                       </div>
 
@@ -4992,7 +4992,7 @@ export function ModuleCWorkspace({
                         onClick={handleDownloadQrPng}
                         className="w-full text-xs font-semibold"
                       >
-                        <Download className="h-3.5 w-3.5 text-indigo-600" />
+                        <Download className="h-3.5 w-3.5 text-emerald-700" />
                         Download PNG
                       </Button>
 
@@ -5003,7 +5003,7 @@ export function ModuleCWorkspace({
                         onClick={handleDownloadQrSvg}
                         className="w-full text-xs font-semibold"
                       >
-                        <Download className="h-3.5 w-3.5 text-violet-600" />
+                        <Download className="h-3.5 w-3.5 text-emerald-700" />
                         Download SVG
                       </Button>
 
@@ -5011,7 +5011,7 @@ export function ModuleCWorkspace({
                         type="button"
                         size="sm"
                         onClick={handlePrintQrFlyer}
-                        className="w-full bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                        className="w-full bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                       >
                         <Printer className="h-3.5 w-3.5" />
                         Print Flyer
@@ -5047,7 +5047,7 @@ export function ModuleCWorkspace({
           )}
 
           {/* Top Hero Banner */}
-          <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-indigo-500/5 p-6 shadow-xs">
+          <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-slate-500/5 p-6 shadow-xs">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
@@ -5158,7 +5158,7 @@ export function ModuleCWorkspace({
                       setBoostDemographics((prev) => ({ ...prev, countryCode: val }));
                       setAvailabilityResult(null);
                     }}
-                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                   >
                     <option value="IE">Ireland (IE)</option>
                     <option value="GB">United Kingdom (GB)</option>
@@ -5177,7 +5177,7 @@ export function ModuleCWorkspace({
                       setBoostDemographics((prev) => ({ ...prev, ageBracket: val }));
                       setAvailabilityResult(null);
                     }}
-                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                   >
                     <option value="ALL">All Adult Ages (18+)</option>
                     <option value="18-24">18–24 years</option>
@@ -5197,7 +5197,7 @@ export function ModuleCWorkspace({
                       setBoostDemographics((prev) => ({ ...prev, gender: val }));
                       setAvailabilityResult(null);
                     }}
-                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                   >
                     <option value="ANY">Any Gender</option>
                     <option value="FEMALE">Female Only</option>
@@ -5215,7 +5215,7 @@ export function ModuleCWorkspace({
                       setBoostDemographics((prev) => ({ ...prev, employment: val }));
                       setAvailabilityResult(null);
                     }}
-                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                   >
                     <option value="ANY">Any Employment Status</option>
                     <option value="FULL_TIME">Full-Time Employed</option>
@@ -5471,11 +5471,11 @@ export function ModuleCWorkspace({
 
           {/* STEP 3: ORDERS IN PROGRESS / FULFILLMENT STATUS (IF ORDERS EXIST) */}
           {boostOrders && boostOrders.length > 0 && (
-            <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50/50 via-white to-violet-50/30 shadow-2xs">
+            <Card className="border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/30 shadow-2xs">
               <CardHeader className="pb-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Flame className="h-4 w-4 text-indigo-600" />
+                    <Flame className="h-4 w-4 text-emerald-700" />
                     <CardTitle className="text-sm font-bold text-slate-900">
                       Your Response Pack Orders ({boostOrders.length})
                     </CardTitle>
@@ -5488,7 +5488,7 @@ export function ModuleCWorkspace({
                       setActiveViewTab('INSIGHTS');
                       void handleSyncLiveResponses(true);
                     }}
-                    className="border-indigo-300 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                    className="border-emerald-300 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
                   >
                     <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
                     View in Tab 4 (Results &amp; AI Insights)
@@ -5516,7 +5516,7 @@ export function ModuleCWorkspace({
                               ord.status === 'COMPLETED'
                                 ? 'bg-emerald-600 text-white'
                                 : ord.status === 'DISPATCHED' || ord.status === 'PAID'
-                                ? 'bg-indigo-600 text-white'
+                                ? 'bg-emerald-700 text-white'
                                 : 'bg-amber-100 text-amber-900 border-amber-300'
                             }`}
                           >
@@ -5538,7 +5538,7 @@ export function ModuleCWorkspace({
                           </div>
                           <div className="mt-1 h-2 w-32 rounded-full bg-slate-100 overflow-hidden">
                             <div
-                              className="h-full bg-indigo-600 rounded-full transition-all"
+                              className="h-full bg-emerald-700 rounded-full transition-all"
                               style={{ width: `${pct}%` }}
                             />
                           </div>
@@ -5552,7 +5552,7 @@ export function ModuleCWorkspace({
                             setActiveViewTab('INSIGHTS');
                             void handleSyncLiveResponses(true);
                           }}
-                          className="h-8 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                          className="h-8 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
                         >
                           View Results →
                         </Button>
@@ -5567,7 +5567,7 @@ export function ModuleCWorkspace({
           {/* Non-intrusive Trust & Neutral Status Note */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-xs text-slate-600">
             <div className="flex items-center gap-2 font-bold text-slate-800">
-              <ShieldCheck className="h-4 w-4 text-indigo-600" />
+              <ShieldCheck className="h-4 w-4 text-emerald-700" />
               Optional Founder Resource
             </div>
             <p className="mt-1">
@@ -5583,7 +5583,7 @@ export function ModuleCWorkspace({
       {activeViewTab === 'INSIGHTS' && (
         <div className="space-y-6">
           {/* Top Simulation & AI Action Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-4 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50 p-4 shadow-2xs">
             <div className="space-y-0.5">
               <div className="text-sm font-bold text-slate-900">
                 Survey &amp; Interview Results — Mom-Test Insights Engine
@@ -5604,7 +5604,7 @@ export function ModuleCWorkspace({
                   isVaultReadonly || activeSurvey.questions.length === 0
                 }
                 onClick={handleSimulateSampleResponses}
-                className="border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50"
+                className="border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50"
               >
                 <FlaskConical className="h-3.5 w-3.5" />
                 Simulate 5 Sample Responses
@@ -5632,7 +5632,7 @@ export function ModuleCWorkspace({
                   isAnalyzingInsights
                 }
                 onClick={handleRunAiAnalysis}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-white hover:bg-emerald-800"
               >
                 {isAnalyzingInsights ? (
                   <>
@@ -5653,7 +5653,7 @@ export function ModuleCWorkspace({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Card
               onClick={() => setActiveInsightsSubTab('QUESTIONS')}
-              className="cursor-pointer border-slate-200 shadow-2xs transition-colors hover:border-indigo-300"
+              className="cursor-pointer border-slate-200 shadow-2xs transition-colors hover:border-emerald-300"
             >
               <CardContent className="p-4">
                 <div className="text-[11px] font-bold uppercase text-slate-400">
@@ -5691,13 +5691,13 @@ export function ModuleCWorkspace({
 
             <Card
               onClick={() => setActiveInsightsSubTab('QUESTIONS')}
-              className="cursor-pointer border-slate-200 shadow-2xs transition-colors hover:border-indigo-300"
+              className="cursor-pointer border-slate-200 shadow-2xs transition-colors hover:border-emerald-300"
             >
               <CardContent className="p-4">
                 <div className="text-[11px] font-bold uppercase text-slate-400">
                   Avg Pain / Urgency (1–5)
                 </div>
-                <div className="mt-1 text-2xl font-extrabold text-indigo-700">
+                <div className="mt-1 text-2xl font-extrabold text-emerald-800">
                   {overallAvgScale !== null ? `${overallAvgScale} / 5.0` : '—'}
                 </div>
                 <div className="mt-0.5 text-[11px] text-slate-500">
@@ -5710,13 +5710,13 @@ export function ModuleCWorkspace({
 
             <Card
               onClick={() => setActiveInsightsSubTab('SUMMARY')}
-              className="cursor-pointer border-slate-200 shadow-2xs transition-colors hover:border-violet-300"
+              className="cursor-pointer border-slate-200 shadow-2xs transition-colors hover:border-emerald-300"
             >
               <CardContent className="p-4">
                 <div className="text-[11px] font-bold uppercase text-slate-400">
                   AI Signal Score
                 </div>
-                <div className="mt-1 text-2xl font-extrabold text-violet-700">
+                <div className="mt-1 text-2xl font-extrabold text-emerald-800">
                   {activeSurvey.aiInsightsSummary
                     ? `${activeSurvey.aiInsightsSummary.signalScoreOutOf100}/100`
                     : '—'}
@@ -5731,7 +5731,7 @@ export function ModuleCWorkspace({
           {/* EMPTY RESPONSES STATE */}
           {totalResponses === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-8 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
                 <BarChart3 className="h-6 w-6" />
               </div>
               <h3 className="mt-3 text-base font-bold text-slate-900">
@@ -5753,7 +5753,7 @@ export function ModuleCWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-indigo-200 text-indigo-700"
+                    className="border-slate-200 text-emerald-800"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     Open Public Survey Page
@@ -5764,7 +5764,7 @@ export function ModuleCWorkspace({
                   size="sm"
                   disabled={activeSurvey.questions.length === 0}
                   onClick={handleSimulateSampleResponses}
-                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-white hover:bg-emerald-800"
                 >
                   <FlaskConical className="h-3.5 w-3.5" />
                   Simulate 5 Sample Responses
@@ -5813,8 +5813,8 @@ export function ModuleCWorkspace({
                     <span
                       className={`rounded-full px-1.5 py-0.5 text-[10px] ${
                         activeInsightsSubTab === 'SUMMARY'
-                          ? 'bg-indigo-500 text-white'
-                          : 'bg-indigo-50 text-indigo-700'
+                          ? 'bg-emerald-700 text-white'
+                          : 'bg-emerald-50 text-emerald-800'
                       }`}
                     >
                       {activeSurvey.aiInsightsSummary.signalScoreOutOf100}/100
@@ -5849,11 +5849,11 @@ export function ModuleCWorkspace({
               {activeInsightsSubTab === 'SUMMARY' && (
                 <div>
                   {activeSurvey.aiInsightsSummary ? (
-                    <Card className="border-indigo-200 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 text-white shadow-md">
+                    <Card className="border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-900 text-white shadow-md">
                       <CardContent className="space-y-4 p-6">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
-                            <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
+                            <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200">
                               <Sparkles className="mr-1 h-3 w-3" />
                               AI &ldquo;Signal vs. Polite Noise&rdquo; Synthesis
                             </Badge>
@@ -5861,8 +5861,8 @@ export function ModuleCWorkspace({
                               {activeSurvey.aiInsightsSummary.headlineTakeaway}
                             </h3>
                           </div>
-                          <div className="rounded-2xl border border-indigo-400/30 bg-white/10 px-4 py-2 text-center">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">
+                          <div className="rounded-2xl border border-emerald-400/30 bg-white/10 px-4 py-2 text-center">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
                               Validation Signal
                             </div>
                             <div className="text-xl font-extrabold text-emerald-300">
@@ -5882,7 +5882,7 @@ export function ModuleCWorkspace({
                               <CheckCircle2 className="h-4 w-4" />
                               Validated Pain &amp; Workflow Signals
                             </div>
-                            <ul className="mt-2.5 space-y-2 text-xs text-indigo-100">
+                            <ul className="mt-2.5 space-y-2 text-xs text-slate-200">
                               {activeSurvey.aiInsightsSummary.validatedPainPoints.map(
                                 (pt, idx) => (
                                   <li key={idx} className="leading-relaxed">
@@ -5899,7 +5899,7 @@ export function ModuleCWorkspace({
                               <AlertTriangle className="h-4 w-4" />
                               Mom-Test Politeness &amp; Blind-Spot Checks
                             </div>
-                            <ul className="mt-2.5 space-y-2 text-xs text-indigo-100">
+                            <ul className="mt-2.5 space-y-2 text-xs text-slate-200">
                               {activeSurvey.aiInsightsSummary.politenessAlertOrRisks.map(
                                 (warn, idx) => (
                                   <li key={idx} className="leading-relaxed">
@@ -5911,11 +5911,11 @@ export function ModuleCWorkspace({
                           </div>
                         </div>
 
-                        <div className="rounded-xl border border-indigo-400/30 bg-white/10 p-3.5 text-xs">
+                        <div className="rounded-xl border border-emerald-400/30 bg-white/10 p-3.5 text-xs">
                           <span className="font-bold text-emerald-300">
                             Recommended Next Action:{' '}
                           </span>
-                          <span className="text-indigo-100">
+                          <span className="text-slate-200">
                             {
                               activeSurvey.aiInsightsSummary
                                 .recommendedNextAction
@@ -5925,9 +5925,9 @@ export function ModuleCWorkspace({
                       </CardContent>
                     </Card>
                   ) : (
-                    <Card className="border-dashed border-indigo-200 bg-white">
+                    <Card className="border-dashed border-slate-200 bg-white">
                       <CardContent className="p-8 text-center">
-                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
                           <Sparkles className="h-5 w-5" />
                         </div>
                         <h4 className="mt-3 text-sm font-bold text-slate-900">
@@ -5942,7 +5942,7 @@ export function ModuleCWorkspace({
                           size="sm"
                           disabled={isVaultReadonly || isAnalyzingInsights}
                           onClick={handleRunAiAnalysis}
-                          className="mt-4 bg-indigo-600 text-white hover:bg-indigo-700"
+                          className="mt-4 bg-emerald-700 text-white hover:bg-emerald-800"
                         >
                           <Sparkles className="h-3.5 w-3.5" />
                           Analyze Results with AI
@@ -6015,7 +6015,7 @@ export function ModuleCWorkspace({
                         <CardContent className="space-y-3 p-5">
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="flex items-start gap-2.5">
-                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-800">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-emerald-900">
                                 {qIdx + 1}
                               </span>
                               <div>
@@ -6050,7 +6050,7 @@ export function ModuleCWorkspace({
                                   </div>
                                   <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
                                     <div
-                                      className="h-full rounded-full bg-indigo-600 transition-all duration-300"
+                                      className="h-full rounded-full bg-emerald-700 transition-all duration-300"
                                       style={{ width: `${pct}%` }}
                                     />
                                   </div>
@@ -6061,10 +6061,10 @@ export function ModuleCWorkspace({
                             {otherCount > 0 && (
                               <div className="space-y-1.5 pt-1">
                                 <div className="flex items-center justify-between text-xs">
-                                  <span className="font-medium text-indigo-800">
+                                  <span className="font-medium text-emerald-900">
                                     ✨ Other (Write-in answers)
                                   </span>
-                                  <span className="font-bold text-indigo-800">
+                                  <span className="font-bold text-emerald-900">
                                     {otherCount} (
                                     {answeredTotal > 0
                                       ? Math.round(
@@ -6079,7 +6079,7 @@ export function ModuleCWorkspace({
                                     {otherTexts.map((txt, idx) => (
                                       <span
                                         key={idx}
-                                        className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-950"
+                                        className="rounded-lg border border-slate-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-slate-950"
                                       >
                                         &ldquo;{txt}&rdquo;
                                       </span>
@@ -6120,7 +6120,7 @@ export function ModuleCWorkspace({
                         <CardContent className="space-y-3 p-5">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-start gap-2.5">
-                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-800">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-emerald-900">
                                 {qIdx + 1}
                               </span>
                               <div>
@@ -6133,7 +6133,7 @@ export function ModuleCWorkspace({
                               </div>
                             </div>
 
-                            <Badge className="bg-indigo-600 px-3 py-1 text-xs font-bold text-white">
+                            <Badge className="bg-emerald-700 px-3 py-1 text-xs font-bold text-white">
                               Avg: {avg} / 5.0
                             </Badge>
                           </div>
@@ -6153,7 +6153,7 @@ export function ModuleCWorkspace({
                                   <div className="text-xs font-bold text-slate-700">
                                     Score {score}
                                   </div>
-                                  <div className="mt-1 text-base font-extrabold text-indigo-700">
+                                  <div className="mt-1 text-base font-extrabold text-emerald-800">
                                     {tally}
                                   </div>
                                   <div className="text-[10px] text-slate-500">
@@ -6182,7 +6182,7 @@ export function ModuleCWorkspace({
                     <Card key={q.id} className="border-slate-200 shadow-2xs">
                       <CardContent className="space-y-3 p-5">
                         <div className="flex items-start gap-2.5">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-800">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-emerald-900">
                             {qIdx + 1}
                           </span>
                           <div>
@@ -6310,7 +6310,7 @@ export function ModuleCWorkspace({
                                 {lead.respondentNameOrRole || 'Early-Bird Lead'}
                               </span>
                               {lead.respondentEmail && (
-                                <span className="font-mono text-indigo-700">
+                                <span className="font-mono text-emerald-800">
                                   {lead.respondentEmail}
                                 </span>
                               )}
@@ -6342,9 +6342,9 @@ export function ModuleCWorkspace({
                                 onClick={() =>
                                   handleStartInterviewFromWaitlistLead(lead)
                                 }
-                                className="h-7 border-indigo-200 bg-indigo-50/70 px-2.5 text-[11px] font-semibold text-indigo-800 hover:bg-indigo-100"
+                                className="h-7 border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-emerald-900 hover:bg-slate-100"
                               >
-                                <Mic className="h-3 w-3 text-indigo-600" />
+                                <Mic className="h-3 w-3 text-emerald-700" />
                                 Log 1-on-1 Call
                               </Button>
                             </div>
@@ -6396,7 +6396,7 @@ export function ModuleCWorkspace({
                     type="button"
                     size="sm"
                     onClick={() => setActiveViewTab('OUTREACH')}
-                    className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                    className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
                   >
                     <QrCode className="h-3.5 w-3.5" />
                     Next: Share &amp; QR Kit
@@ -6451,7 +6451,7 @@ export function ModuleCWorkspace({
                         setActiveViewTab('INSIGHTS');
                         void handleSyncLiveResponses(true);
                       }}
-                      className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
                     >
                       <BarChart3 className="h-3.5 w-3.5" />
                       Next: Results &amp; AI Insights ({totalResponses})
@@ -6499,13 +6499,13 @@ export function ModuleCWorkspace({
         <div
           id="module-c-step-2"
           onClick={() => setOpenStep(2)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                  isStep2Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                  isStep2Complete ? 'bg-emerald-600' : 'bg-emerald-700'
                 }`}
               >
                 {isStep2Complete ? (
@@ -6516,7 +6516,7 @@ export function ModuleCWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 2: 1-on-1 Customer Discovery Interviews
                   </h2>
                   <Badge
@@ -6546,7 +6546,7 @@ export function ModuleCWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 Edit Step
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -6564,7 +6564,7 @@ export function ModuleCWorkspace({
             <div className="flex min-w-0 flex-1 items-start gap-3">
               <span
                 className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                  isStep2Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                  isStep2Complete ? 'bg-emerald-600' : 'bg-emerald-700'
                 }`}
               >
                 {isStep2Complete ? (
@@ -6620,7 +6620,7 @@ export function ModuleCWorkspace({
                   resetInterviewForm();
                   setIsInterviewModalOpen(true);
                 }}
-                className="shrink-0 bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                className="shrink-0 bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Log 1-on-1 Interview
@@ -6644,7 +6644,7 @@ export function ModuleCWorkspace({
 
           <div className="mt-5 space-y-5">
             {/* Quick Action Bar: Live Call Cheat Sheet + Simulate Sample Calls */}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200/80 bg-indigo-50/40 p-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50 p-3.5">
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
@@ -6653,9 +6653,9 @@ export function ModuleCWorkspace({
                   onClick={() =>
                     setShowLiveCallCheatSheet(!showLiveCallCheatSheet)
                   }
-                  className="border-indigo-200 bg-white text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+                  className="border-slate-200 bg-white text-xs font-semibold text-emerald-900 hover:bg-emerald-50"
                 >
-                  <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                  <FileText className="h-3.5 w-3.5 text-emerald-700" />
                   {showLiveCallCheatSheet
                     ? 'Hide Live Call Cheat Sheet'
                     : 'Show 5 Mom-Test Call Prompts'}
@@ -6679,7 +6679,7 @@ export function ModuleCWorkspace({
                   size="sm"
                   disabled={isVaultReadonly}
                   onClick={handleSimulateSampleInterviews}
-                  className="border-indigo-300 bg-white text-xs text-indigo-700 hover:bg-indigo-50"
+                  className="border-emerald-300 bg-white text-xs text-emerald-800 hover:bg-emerald-50"
                 >
                   <FlaskConical className="h-3.5 w-3.5" />
                   Simulate 3 Sample Calls
@@ -6701,9 +6701,9 @@ export function ModuleCWorkspace({
             </div>
 
             {showLiveCallCheatSheet && (
-              <div className="rounded-xl border border-indigo-200/80 bg-white p-4 shadow-2xs">
+              <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
                 <div className="mb-2.5 flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
                     🎙️ Live Call Cheat Sheet — 5 Questions to Ask on Your Call
                   </span>
                   <span className="text-[11px] text-slate-500">
@@ -6718,7 +6718,7 @@ export function ModuleCWorkspace({
                         className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs"
                       >
                         <div className="space-y-1.5">
-                          <div className="font-bold text-indigo-950">
+                          <div className="font-bold text-slate-950">
                             {item.title}
                           </div>
                           <p className="font-medium italic leading-relaxed text-slate-800">
@@ -6754,7 +6754,7 @@ export function ModuleCWorkspace({
                 return (
                   <div
                     key={log.id}
-                    className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-indigo-300 hover:shadow-md"
+                    className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-emerald-300 hover:shadow-md"
                   >
                     <div className="space-y-2.5">
                       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -6793,7 +6793,7 @@ export function ModuleCWorkspace({
                                 ? '⚠️ Polite Fluff'
                                 : '⚖️ Mixed Signal'}
                           </Badge>
-                          <Badge className="bg-indigo-50 text-[10px] font-bold text-indigo-800">
+                          <Badge className="bg-emerald-50 text-[10px] font-bold text-emerald-900">
                             Pain: {log.painScore1To5}/5
                           </Badge>
                         </div>
@@ -6817,14 +6817,14 @@ export function ModuleCWorkspace({
                       </div>
 
                       {log.momTestCoachingNote && (
-                        <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-1.5 text-[11px] text-indigo-950">
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-950">
                           💡 {log.momTestCoachingNote}
                         </div>
                       )}
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
-                      <span className="text-[11px] font-semibold text-indigo-900">
+                      <span className="text-[11px] font-semibold text-slate-900">
                         {commitmentLabel}
                       </span>
                       <div className="flex items-center gap-1.5">
@@ -6834,7 +6834,7 @@ export function ModuleCWorkspace({
                           size="sm"
                           disabled={isVaultReadonly}
                           onClick={() => handleEditInterviewLog(log)}
-                          className="h-7 px-2.5 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                          className="h-7 px-2.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50"
                         >
                           Edit in Logger
                         </Button>
@@ -6860,9 +6860,9 @@ export function ModuleCWorkspace({
                   resetInterviewForm();
                   setIsInterviewModalOpen(true);
                 }}
-                className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-6 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50/40 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-6 text-center transition-all hover:border-emerald-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-emerald-800">
                   <Mic className="h-6 w-6" />
                 </div>
                 <div className="space-y-1">
@@ -6902,9 +6902,9 @@ export function ModuleCWorkspace({
                     openSurveyInStudio(activeSurvey, 'INSIGHTS', false);
                     void handleRunAiAnalysis();
                   }}
-                  className="border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+                  className="border-slate-200 bg-slate-50 text-xs font-semibold text-emerald-900 hover:bg-slate-100"
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
                   Synthesize Calls in Survey Insights
                 </Button>
               )}
@@ -6913,7 +6913,7 @@ export function ModuleCWorkspace({
                 type="button"
                 size="sm"
                 onClick={() => scrollToStep(3)}
-                className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
               >
                 Next Step: Validation Brief &amp; Blind Spots
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -6928,11 +6928,11 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {isInterviewModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-2 backdrop-blur-xs sm:p-4 lg:p-6">
-          <div className="relative flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-indigo-200 bg-white shadow-2xl">
+          <div className="relative flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             {/* Modal Sticky Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white">
                   <Mic className="h-4 w-4" />
                 </div>
                 <div>
@@ -7023,8 +7023,8 @@ export function ModuleCWorkspace({
                         onClick={() => setInterviewChannel(ch.code)}
                         className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
-                            : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                            ? 'border-emerald-700 bg-emerald-50/90 text-slate-950 ring-1 ring-emerald-700'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
                         }`}
                       >
                         <span className="text-xs font-bold">{ch.label}</span>
@@ -7045,17 +7045,17 @@ export function ModuleCWorkspace({
                         setOtherInterviewChannelText(e.target.value)
                       }
                       placeholder="Specify custom channel (e.g., Trade Show Floor, WhatsApp Call, Slack Huddle)..."
-                      className="border-indigo-300 bg-indigo-50/30 text-base sm:text-xs"
+                      className="border-emerald-300 bg-slate-50 text-base sm:text-xs"
                     />
                   </div>
                 )}
               </div>
 
               {/* Row 3: Raw Messy Call Notes + AI Mom-Test Extractor Button */}
-              <div className="space-y-2 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3.5">
+              <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <label className="block text-xs font-bold text-indigo-950">
+                    <label className="block text-xs font-bold text-slate-950">
                       1. Brain-Dump Raw Call Notes or Transcript
                     </label>
                     <p className="text-[11px] text-slate-600">
@@ -7074,7 +7074,7 @@ export function ModuleCWorkspace({
                       isExtractingInterviewAi
                     }
                     onClick={handleExtractInterviewWithAi}
-                    className="bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
+                    className="bg-slate-950 text-white border-b border-slate-800 text-xs text-white hover:from-emerald-800 hover:to-teal-900"
                   >
                     {isExtractingInterviewAi ? (
                       <>
@@ -7096,7 +7096,7 @@ export function ModuleCWorkspace({
                   value={interviewRawNotes}
                   onChange={(e) => setInterviewRawNotes(e.target.value)}
                   placeholder="e.g., Spoke with Sarah for 15 mins. Last Tuesday her clinic lost 3 hours chasing patient intake forms across email and Excel. They pay €140/mo for an older tool but staff hate using it. She asked if she can test our V1 next month with 2 receptionists..."
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
                 />
               </div>
 
@@ -7173,7 +7173,7 @@ export function ModuleCWorkspace({
                         setInterviewVerbatimQuote(e.target.value)
                       }
                       placeholder='"Last Tuesday we spent 3 hours fixing a single batch by hand..."'
-                      className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                   <div>
@@ -7188,7 +7188,7 @@ export function ModuleCWorkspace({
                         setInterviewWorkaroundAndSpend(e.target.value)
                       }
                       placeholder="e.g., Shared Excel tracker + €140/mo legacy software + 3 hrs/wk admin."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 </div>
@@ -7208,8 +7208,8 @@ export function ModuleCWorkspace({
                         onClick={() => setInterviewPainScore(score)}
                         className={`rounded-xl border py-2 text-center text-xs font-bold transition-all ${
                           interviewPainScore === score
-                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
-                            : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                            ? 'border-emerald-700 bg-emerald-700 text-white shadow-2xs'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
                         }`}
                       >
                         {score} / 5
@@ -7237,8 +7237,8 @@ export function ModuleCWorkspace({
                           }}
                           className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
                             isSelected
-                              ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                              ? 'border-emerald-700 bg-emerald-50/90 text-slate-950 ring-1 ring-emerald-700'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
                           }`}
                         >
                           <span className="text-xs font-bold">{opt.label}</span>
@@ -7259,14 +7259,14 @@ export function ModuleCWorkspace({
                           setOtherInterviewCommitmentText(e.target.value)
                         }
                         placeholder="Describe custom outcome or commitment (e.g., Invited us to observe their team workflow next Tuesday)..."
-                        className="border-indigo-300 bg-white text-base sm:text-xs"
+                        className="border-emerald-300 bg-white text-base sm:text-xs"
                       />
                     </div>
                   )}
                 </div>
 
                 {interviewMomTestCoachingNote && (
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/80 p-3 text-xs text-indigo-950">
+                  <div className="rounded-xl border border-slate-200 bg-emerald-50/80 p-3 text-xs text-slate-950">
                     <span className="font-bold">
                       💡 AI Mom-Test Coaching Note:{' '}
                     </span>
@@ -7301,7 +7301,7 @@ export function ModuleCWorkspace({
                     !interviewKeyTakeaway.trim())
                 }
                 onClick={handleSaveInterviewLog}
-                className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 {editingInterviewId
@@ -7321,20 +7321,20 @@ export function ModuleCWorkspace({
         <div
           id="module-c-step-3"
           onClick={() => setOpenStep(3)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                  isStep3Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                  isStep3Complete ? 'bg-emerald-600' : 'bg-emerald-700'
                 }`}
               >
                 {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 3: Constructive &ldquo;Things to Consider&rdquo; (Blind-Spot Review)
                   </h2>
                   {isStep3Complete ? (
@@ -7359,7 +7359,7 @@ export function ModuleCWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 Edit Step
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -7377,7 +7377,7 @@ export function ModuleCWorkspace({
             <div className="flex min-w-0 flex-1 items-start gap-3">
               <span
                 className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                  isStep3Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                  isStep3Complete ? 'bg-emerald-600' : 'bg-emerald-700'
                 }`}
               >
                 {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
@@ -7443,9 +7443,9 @@ export function ModuleCWorkspace({
                   variant="outline"
                   size="sm"
                   onClick={() => scrollToStep(1)}
-                  className="border-indigo-200 bg-white text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+                  className="border-slate-200 bg-white text-xs font-semibold text-emerald-900 hover:bg-emerald-50"
                 >
-                  <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                  <FileText className="h-3.5 w-3.5 text-emerald-700" />
                   Go to Step 1: Surveys
                 </Button>
                 <Button
@@ -7456,7 +7456,7 @@ export function ModuleCWorkspace({
                     resetInterviewForm();
                     setIsInterviewModalOpen(true);
                   }}
-                  className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
                 >
                   <Mic className="h-3.5 w-3.5" />
                   Log a 1-on-1 Interview
@@ -7495,8 +7495,8 @@ export function ModuleCWorkspace({
                   </div>
 
                   {item.suggestedAction && (
-                    <div className="mt-3 rounded-lg bg-indigo-50/70 px-3 py-2 text-xs text-indigo-950">
-                      <strong className="font-semibold text-indigo-700">
+                    <div className="mt-3 rounded-lg bg-emerald-50/70 px-3 py-2 text-xs text-slate-950">
+                      <strong className="font-semibold text-emerald-800">
                         Suggested Action:{' '}
                       </strong>
                       {item.suggestedAction}
@@ -7580,7 +7580,7 @@ export function ModuleCWorkspace({
         <div
           id="module-c-step-4"
           onClick={() => setOpenStep(4)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -7588,14 +7588,14 @@ export function ModuleCWorkspace({
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
                   completedCoreStepsCount === 3
                     ? 'bg-emerald-600'
-                    : 'bg-indigo-600'
+                    : 'bg-emerald-700'
                 }`}
               >
                 <FileText className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Customer Validation &amp; Interview Brief (Executive Summary)
                   </h2>
                   <Badge
@@ -7619,7 +7619,7 @@ export function ModuleCWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 Open Overview
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -7630,16 +7630,16 @@ export function ModuleCWorkspace({
       ) : (
         <Card
           id="module-c-step-4"
-          className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
         >
           {/* Overview Step Header */}
-          <div className="flex items-start justify-between gap-4 border-b border-indigo-100 pb-4">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
             <div className="flex min-w-0 flex-1 items-start gap-3">
               <span
                 className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
                   completedCoreStepsCount === 3
                     ? 'bg-emerald-600'
-                    : 'bg-indigo-600'
+                    : 'bg-emerald-700'
                 }`}
               >
                 <FileText className="h-3.5 w-3.5" />
@@ -7676,7 +7676,7 @@ export function ModuleCWorkspace({
                   onClick={() => setShowBriefPreview(!showBriefPreview)}
                   className="text-xs"
                 >
-                  <Eye className="h-3.5 w-3.5 text-indigo-600" />
+                  <Eye className="h-3.5 w-3.5 text-emerald-700" />
                   {showBriefPreview
                     ? 'Hide Live Preview'
                     : 'Show Live Preview'}
@@ -7700,13 +7700,13 @@ export function ModuleCWorkspace({
 
           <CardContent className="space-y-5 px-0 pb-0 pt-4">
             {/* Readiness Checklist Strip */}
-            <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
+            <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-2xs">
               <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="font-bold uppercase tracking-wider text-slate-700">
                   Module C Validation Readiness Checklist (Steps 1–3 Included in
                   Your Brief)
                 </span>
-                <span className="font-semibold text-indigo-700">
+                <span className="font-semibold text-emerald-800">
                   {moduleCReadinessSteps.filter((s) => s.isComplete).length}/4
                   Validation Pillars Active
                 </span>
@@ -7752,7 +7752,7 @@ export function ModuleCWorkspace({
                     variant="outline"
                     size="sm"
                     onClick={() => scrollToStep(1)}
-                    className="border-indigo-200 bg-white text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+                    className="border-slate-200 bg-white text-xs font-semibold text-emerald-900 hover:bg-emerald-50"
                   >
                     Go to Step 1: Surveys
                   </Button>
@@ -7764,7 +7764,7 @@ export function ModuleCWorkspace({
                       resetInterviewForm();
                       setIsInterviewModalOpen(true);
                     }}
-                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                    className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
                   >
                     Log a 1-on-1 Interview
                   </Button>
@@ -7776,10 +7776,10 @@ export function ModuleCWorkspace({
                 {showBriefPreview && (
                   <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
                     {/* Document Top Header Bar */}
-                    <div className="border-b-2 border-indigo-600 bg-slate-50/70 px-6 py-5">
+                    <div className="border-b-2 border-emerald-700 bg-slate-50/70 px-6 py-5">
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                          <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                             {whiteLabelEnabled
                               ? 'MODULE C CUSTOMER VALIDATION & INTERVIEW BRIEF'
                               : 'STARTUP PREFLIGHT • MODULE C CUSTOMER VALIDATION & INTERVIEW BRIEF'}
@@ -7810,19 +7810,19 @@ export function ModuleCWorkspace({
                     <div className="divide-y divide-slate-200 px-6 py-5 text-xs">
                       {/* Section 1: Primary Market Validation Snapshot */}
                       <div className="pb-5">
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                           1. Primary Market Validation Snapshot
                         </div>
                         <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                          <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
-                            <div className="text-[10px] font-bold uppercase text-indigo-700">
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="text-[10px] font-bold uppercase text-emerald-800">
                               Customer Surveys
                             </div>
-                            <div className="mt-1 text-sm font-extrabold text-indigo-950">
+                            <div className="mt-1 text-sm font-extrabold text-slate-950">
                               {validSurveys.length} Survey
                               {validSurveys.length === 1 ? '' : 's'}
                             </div>
-                            <div className="mt-1 text-[11px] text-indigo-900/80">
+                            <div className="mt-1 text-[11px] text-slate-900/80">
                               {validSurveys.filter((s) => s.isPublished).length}{' '}
                               Published &amp; Locked
                             </div>
@@ -7843,14 +7843,14 @@ export function ModuleCWorkspace({
                             </div>
                           </div>
 
-                          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
-                            <div className="text-[10px] font-bold uppercase text-violet-700">
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="text-[10px] font-bold uppercase text-emerald-800">
                               1-on-1 Discovery Calls
                             </div>
-                            <div className="mt-1 text-sm font-extrabold text-violet-950">
+                            <div className="mt-1 text-sm font-extrabold text-slate-950">
                               {interviewLogs.length} Logged
                             </div>
-                            <div className="mt-1 text-[11px] text-violet-900/80">
+                            <div className="mt-1 text-[11px] text-slate-900/80">
                               Avg Customer Pain:{' '}
                               {interviewLogs.length > 0
                                 ? `${(
@@ -7880,7 +7880,7 @@ export function ModuleCWorkspace({
 
                       {/* Section 2: Customer Validation Surveys */}
                       <div className="py-5">
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                           2. Customer Validation Surveys &amp; AI Signal Synthesis
                         </div>
                         {validSurveys.length === 0 ? (
@@ -7906,7 +7906,7 @@ export function ModuleCWorkspace({
                                 >
                                   <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div>
-                                      <span className="text-[10px] font-bold uppercase text-indigo-600">
+                                      <span className="text-[10px] font-bold uppercase text-emerald-700">
                                         Survey #{sIdx + 1}
                                       </span>
                                       <div className="text-sm font-bold text-slate-900">
@@ -7937,7 +7937,7 @@ export function ModuleCWorkspace({
                                   </div>
 
                                   {survey.aiInsightsSummary && (
-                                    <div className="mt-2.5 rounded-lg border border-indigo-200 bg-indigo-50/70 p-2.5 text-[11px] text-indigo-950">
+                                    <div className="mt-2.5 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[11px] text-slate-950">
                                       <div>
                                         <strong>
                                           AI Signal Score (
@@ -7952,7 +7952,7 @@ export function ModuleCWorkspace({
                                             .headlineTakeaway
                                         }
                                       </div>
-                                      <div className="mt-1 text-indigo-900/90">
+                                      <div className="mt-1 text-slate-900/90">
                                         <strong>
                                           Recommended V1 Action (Feeds Module D):
                                         </strong>{' '}
@@ -7972,7 +7972,7 @@ export function ModuleCWorkspace({
 
                       {/* Section 3: 1-on-1 Customer Discovery Interviews */}
                       <div className="py-5">
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                           3. 1-on-1 Customer Discovery Interview Log (
                           {interviewLogs.length})
                         </div>
@@ -8018,7 +8018,7 @@ export function ModuleCWorkspace({
                                     &ldquo;{log.verbatimQuote.trim()}&rdquo;
                                   </p>
                                 )}
-                                <div className="mt-1.5 text-[10px] font-semibold text-indigo-700">
+                                <div className="mt-1.5 text-[10px] font-semibold text-emerald-800">
                                   Outcome: {formatInterviewCommitment(log)}
                                 </div>
                               </div>
@@ -8029,7 +8029,7 @@ export function ModuleCWorkspace({
 
                       {/* Section 4: Co-Founder Blind-Spot Takeaways */}
                       <div className="pt-5">
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                           4. Co-Founder Blind-Spot Review (&ldquo;Things to
                           Consider&rdquo;)
                         </div>
@@ -8054,7 +8054,7 @@ export function ModuleCWorkspace({
                 )}
 
                 {/* Bottom Action Bar: Copy, Download HTML, Print/Save PDF */}
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-2xs">
                   <div className="text-xs text-slate-600">
                     📥{' '}
                     <strong>
@@ -8090,7 +8090,7 @@ export function ModuleCWorkspace({
                       size="sm"
                       onClick={handleDownloadModuleCBriefHtml}
                     >
-                      <Download className="h-3.5 w-3.5 text-indigo-600" />
+                      <Download className="h-3.5 w-3.5 text-emerald-700" />
                       Download Brief (.html)
                     </Button>
 
@@ -8098,7 +8098,7 @@ export function ModuleCWorkspace({
                       type="button"
                       size="sm"
                       onClick={handlePrintModuleCBriefPdf}
-                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-white hover:bg-emerald-800"
                     >
                       <Printer className="h-3.5 w-3.5" />
                       Print / Save as PDF
@@ -8111,7 +8111,7 @@ export function ModuleCWorkspace({
             {/* Handoff Footer CTA into Module D (Matches Module B Dark Footer Bar 100%) */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
               <div className="text-xs">
-                <span className="font-semibold text-indigo-300">
+                <span className="font-semibold text-slate-300">
                   Ready to scope V1 of {plan.title} based on real customer
                   evidence?
                 </span>{' '}
@@ -8142,7 +8142,7 @@ export function ModuleCWorkspace({
                       await handleSaveModuleCComplete();
                       onContinueToModuleD();
                     }}
-                    className="bg-indigo-600 text-white hover:bg-indigo-500"
+                    className="bg-emerald-700 text-white hover:bg-emerald-500"
                   >
                     Continue to Module D
                     <ArrowRight className="h-3.5 w-3.5" />

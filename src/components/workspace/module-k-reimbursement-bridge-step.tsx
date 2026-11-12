@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Clock,
   ShieldCheck,
@@ -168,6 +168,7 @@ export function ModuleKReimbursementBridgeStep({
 
   const handleSaveStep3 = async () => {
     if (isVaultReadonly) return;
+    isDirtyRef.current = false;
     setIsSaving(true);
     try {
       const payload: ModuleKStep3ReimbursementBridgeSavedData = {
@@ -193,6 +194,45 @@ export function ModuleKReimbursementBridgeStep({
     }
   };
 
+  const isFirstRenderRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const handleSaveStep3Ref = useRef(handleSaveStep3);
+  handleSaveStep3Ref.current = handleSaveStep3;
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyRef.current) {
+        void handleSaveStep3Ref.current();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    grantEligibleVouchedBudget,
+    expectedGrantDrawdownAmount,
+    estimatedClaimTurnaroundWeeks,
+    bridgeStrategy,
+    otherBridgeStrategyText,
+    vendorPaymentTermsDays,
+    actualConfirmedBridgeLiquidity,
+    bridgeRiskMitigationNarrative,
+    aiAssessorTip,
+    isVaultReadonly,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        void handleSaveStep3Ref.current();
+      }
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* 4-Layer Support Strip: Why & Example */}
@@ -202,7 +242,7 @@ export function ModuleKReimbursementBridgeStep({
           size="sm"
           variant="outline"
           onClick={() => setActiveWhyCard((prev) => !prev)}
-          className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+          className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
         >
           <HelpCircle className="mr-1 h-3.5 w-3.5" />
           Why Are We Asking This?
@@ -223,22 +263,22 @@ export function ModuleKReimbursementBridgeStep({
           variant="outline"
           onClick={handleGenerateAiNarrative}
           disabled={isGeneratingAi || isVaultReadonly}
-          className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+          className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
           {isGeneratingAi ? 'Synthesizing Bridge Plan...' : 'Auto-Generate Bridge Plan with AI'}
         </Button>
       </div>
 
       {activeWhyCard && (
-        <div className="relative rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+        <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
           <button
             onClick={() => setActiveWhyCard(false)}
-            className="absolute right-2 top-2 text-indigo-400 hover:text-indigo-600"
+            className="absolute right-2 top-2 text-emerald-600 hover:text-emerald-700"
           >
             ✕
           </button>
-          <p className="font-semibold text-indigo-950">
+          <p className="font-semibold text-slate-950">
             The #1 Reason Funded Startups Fail: The Arrears Reimbursement Lag
           </p>
           <p className="mt-1 leading-relaxed">
@@ -276,7 +316,7 @@ export function ModuleKReimbursementBridgeStep({
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="space-y-0.5">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-indigo-600" />
+              <Clock className="h-4 w-4 text-emerald-700" />
               Grant Reimbursement Timing Timeline ({claimLagDays} Days Cash Lag)
             </h3>
             <p className="text-xs text-slate-500">
@@ -321,15 +361,15 @@ export function ModuleKReimbursementBridgeStep({
             </div>
           </div>
 
-          <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 space-y-1">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
               Phase 3: Days {vendorPaymentTermsDays}–{claimLagDays}
             </div>
-            <div className="text-xs font-bold text-indigo-950">Assessor Review Float</div>
-            <p className="text-[11px] text-indigo-900">
+            <div className="text-xs font-bold text-slate-950">Assessor Review Float</div>
+            <p className="text-[11px] text-slate-900">
               {targetGrantDef?.agency || 'Agency'} reviews tax clearance, timesheets, and cleared bank lines.
             </p>
-            <div className="pt-1 text-xs font-semibold text-indigo-800">
+            <div className="pt-1 text-xs font-semibold text-emerald-900">
               Wait: ~{netFloatLagDays} Days Float
             </div>
           </div>
@@ -354,7 +394,7 @@ export function ModuleKReimbursementBridgeStep({
       {/* ========================================================================= */}
       <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 sm:p-6 shadow-xs space-y-5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200/60 text-indigo-700">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 border border-slate-200/60 text-emerald-800">
             <Layers className="h-4 w-4" />
           </div>
           <div>
@@ -552,13 +592,13 @@ export function ModuleKReimbursementBridgeStep({
                   onClick={() => !isVaultReadonly && setBridgeStrategy(st.id)}
                   className={`cursor-pointer rounded-xl border p-3 transition-all ${
                     isSelected
-                      ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
+                      ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">{st.title}</span>
-                    {isSelected && <CheckCircle2 className="h-4 w-4 text-indigo-600" />}
+                    {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-700" />}
                   </div>
                   <p className="mt-1 text-[11px] leading-relaxed text-slate-600">{st.desc}</p>
                 </div>
@@ -628,9 +668,9 @@ export function ModuleKReimbursementBridgeStep({
             variant="outline"
             onClick={handleGenerateAiNarrative}
             disabled={isGeneratingAi || isVaultReadonly}
-            className="h-7 border-violet-200 bg-violet-50 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+            className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Bridge Plan with AI'}
           </Button>
         </div>
@@ -641,7 +681,7 @@ export function ModuleKReimbursementBridgeStep({
             setBridgeRiskMitigationNarrative(e.target.value)
           }
           placeholder={`e.g., Grant reimbursement for the ${targetGrantDef?.name || 'LEO Priming Grant'} operates on an arrears basis with an estimated ${claimLagDays}-day turnaround post-milestone delivery. To eliminate liquidity strain, ${plan.title} maintains a dedicated ${currencySymbol}${actualConfirmedBridgeLiquidity.toLocaleString()} working capital buffer backed by ${bridgeStrategy.replace(/_/g, ' ').toLowerCase()}, comfortably absorbing invoice clearance cycles prior to claim release...`}
-          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
           disabled={isVaultReadonly}
         />
 
@@ -694,7 +734,7 @@ export function ModuleKReimbursementBridgeStep({
                 await handleSaveStep3();
                 onContinueToNextStep();
               }}
-              className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+              className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
             >
               Continue to Step 4: Angel Tax Relief
               <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

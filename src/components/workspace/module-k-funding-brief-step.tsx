@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileCheck2,
   CheckCircle2,
@@ -323,6 +323,7 @@ export function ModuleKFundingBriefStep({
 
   const handleSaveStep5 = async () => {
     if (isVaultReadonly) return;
+    isDirtyRef.current = false;
     setIsSaving(true);
     try {
       const dataToSave: ModuleKStep5FundingBriefSavedData = {
@@ -352,6 +353,43 @@ export function ModuleKFundingBriefStep({
       setIsSaving(false);
     }
   };
+
+  const isFirstRenderRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const handleSaveStep5Ref = useRef(handleSaveStep5);
+  handleSaveStep5Ref.current = handleSaveStep5;
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyRef.current) {
+        void handleSaveStep5Ref.current();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    executiveSummary,
+    fundingRoadmap,
+    assessorReadinessScore,
+    underwriterContradictionFlags,
+    recommendedActionChecklist,
+    moduleLGrantMode,
+    aiAssessorTip,
+    isVaultReadonly,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        void handleSaveStep5Ref.current();
+      }
+    };
+  }, []);
 
   const handleCopyBrief = () => {
     const textToCopy = `EXECUTIVE FUNDING STRATEGY DOSSIER: ${plan.title.toUpperCase()}
@@ -454,7 +492,7 @@ ${aiAssessorTip}
           size="sm"
           variant="outline"
           onClick={() => setActiveWhyCard((prev) => !prev)}
-          className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+          className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
         >
           <HelpCircle className="mr-1 h-3.5 w-3.5" />
           Why Are We Asking This?
@@ -475,24 +513,24 @@ ${aiAssessorTip}
           variant="outline"
           onClick={handleGenerateAi}
           disabled={isGeneratingAi || isVaultReadonly}
-          className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+          className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
           {isGeneratingAi ? 'Synthesizing Assessor Dossier...' : 'AI Pre-Flight Audit & Brief Synthesis'}
         </Button>
       </div>
 
       {/* Collapsible Micro-Coaching Drawers */}
       {activeWhyCard && (
-        <div className="relative rounded-lg border border-indigo-100 bg-indigo-50/70 p-4 text-xs text-indigo-900 shadow-xs">
+        <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-900 shadow-xs">
           <button
             type="button"
             onClick={() => setActiveWhyCard(false)}
-            className="absolute right-2.5 top-2.5 text-indigo-400 hover:text-indigo-700"
+            className="absolute right-2.5 top-2.5 text-emerald-600 hover:text-emerald-800"
           >
             ✕
           </button>
-          <p className="font-semibold text-indigo-950">Why an Executive Funding Dossier Matters:</p>
+          <p className="font-semibold text-slate-950">Why an Executive Funding Dossier Matters:</p>
           <p className="mt-1 leading-relaxed">
             Public grant committees ({isUK ? 'Innovate UK assessors' : 'LEO evaluation committees'}) review dozens of applications in each batch. They do not have time to dig through fragmented tables to reconcile if your matching money is real, if your grant reimbursement float is funded, or if your private investors have tax assurance. This final brief combines all 4 previous steps into a clean, unassailable 1-page commercial dossier ready for Module L.
           </p>
@@ -519,7 +557,7 @@ ${aiAssessorTip}
       <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 sm:p-6 shadow-xs space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200/60 text-indigo-700">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 border border-slate-200/60 text-emerald-800">
               <Scale className="h-4 w-4" />
             </div>
             <div>
@@ -552,7 +590,7 @@ ${aiAssessorTip}
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Readiness Score
                 </span>
-                <span className="text-xs font-bold text-indigo-600">{assessorReadinessScore}%</span>
+                <span className="text-xs font-bold text-emerald-700">{assessorReadinessScore}%</span>
               </div>
               <div className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
                 {assessorReadinessScore}
@@ -600,7 +638,7 @@ ${aiAssessorTip}
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Arrears Float Buffer
                 </span>
-                <span className="text-xs font-bold text-violet-600">Step 3</span>
+                <span className="text-xs font-bold text-emerald-700">Step 3</span>
               </div>
               <div className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
                 {currencySymbol}
@@ -645,7 +683,7 @@ ${aiAssessorTip}
       <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200/60 text-indigo-700">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 border border-slate-200/60 text-emerald-800">
               <Milestone className="h-4 w-4" />
             </div>
             <div>
@@ -657,7 +695,7 @@ ${aiAssessorTip}
               </p>
             </div>
           </div>
-          <Badge variant="outline" className="border-indigo-300 text-indigo-700 bg-indigo-50/50 text-[10px] font-semibold">
+          <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-slate-50 text-[10px] font-semibold">
             {fundingRoadmap.length} Phased Funding Milestones
           </Badge>
         </div>
@@ -666,14 +704,14 @@ ${aiAssessorTip}
           {fundingRoadmap.map((phase) => (
             <div
               key={phase.phaseNumber}
-              className="relative rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 shadow-xs flex flex-col justify-between space-y-3.5 hover:border-indigo-300 transition-colors"
+              className="relative rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 shadow-xs flex flex-col justify-between space-y-3.5 hover:border-emerald-300 transition-colors"
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <Badge className="bg-indigo-600 text-white font-bold text-[10px] px-2 py-0.5">
+                  <Badge className="bg-emerald-700 text-white font-bold text-[10px] px-2 py-0.5">
                     Phase {phase.phaseNumber}
                   </Badge>
-                  <span className="text-[11px] font-bold text-indigo-900 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] font-bold text-slate-900 bg-emerald-50 border border-slate-100 px-2 py-0.5 rounded-full">
                     {phase.amountFormatted}
                   </span>
                 </div>
@@ -689,7 +727,7 @@ ${aiAssessorTip}
               <div className="space-y-2 text-xs border-t border-slate-200/60 pt-3">
                 <div className="rounded-lg bg-white border border-slate-200/60 p-2.5 space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-indigo-500" />
+                    <Calendar className="h-3 w-3 text-emerald-700" />
                     When to Apply
                   </div>
                   <div className="text-[11px] font-medium text-slate-800">
@@ -730,7 +768,7 @@ ${aiAssessorTip}
               <h3 className="text-sm font-bold text-slate-900">
                 1-Page Executive Funding Strategy Dossier
               </h3>
-              <Badge variant="outline" className="border-indigo-200 bg-indigo-50/70 text-[10px] font-medium text-indigo-700">
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-[10px] font-medium text-emerald-800">
                 Committee &amp; Investor Ready
               </Badge>
             </div>
@@ -746,9 +784,9 @@ ${aiAssessorTip}
               variant="outline"
               onClick={handleGenerateAi}
               disabled={isGeneratingAi || isVaultReadonly}
-              className="h-8 border-violet-200 bg-violet-50/80 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+              className="h-8 border-slate-200 bg-slate-50/80 text-xs font-semibold text-emerald-800 hover:bg-slate-100"
             >
-              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-600" />
+              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
               {isGeneratingAi ? 'Synthesizing...' : 'Calibrate AI Overview'}
             </Button>
 
@@ -777,9 +815,9 @@ ${aiAssessorTip}
               size="sm"
               variant="outline"
               onClick={handleDownloadHtmlBrief}
-              className="h-8 border-slate-200 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+              className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50"
             >
-              <Download className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+              <Download className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
               Download Brief (.html)
             </Button>
 
@@ -787,7 +825,7 @@ ${aiAssessorTip}
               type="button"
               size="sm"
               onClick={handlePrintPdfBrief}
-              className="h-8 bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700"
+              className="h-8 bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800"
             >
               <Printer className="mr-1.5 h-3.5 w-3.5" />
               Print / Save as PDF
@@ -800,7 +838,7 @@ ${aiAssessorTip}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setExecutiveSummary(e.target.value)}
           rows={6}
           disabled={isVaultReadonly}
-          className="w-full rounded-lg border border-slate-200 bg-white p-3.5 font-sans text-xs sm:text-sm leading-relaxed text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded-lg border border-slate-200 bg-white p-3.5 font-sans text-xs sm:text-sm leading-relaxed text-slate-900 shadow-xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-700"
           placeholder="Craft or calibrate the executive funding strategy narrative..."
         />
       </div>
@@ -808,7 +846,7 @@ ${aiAssessorTip}
       {/* Pre-Flight Contradiction & Underwriter Audit Checks */}
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-indigo-600" />
+          <ShieldCheck className="h-4 w-4 text-emerald-700" />
           <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
             Pre-Flight Evaluator Contradiction Flags
           </h4>
@@ -825,7 +863,7 @@ ${aiAssessorTip}
                 flag.startsWith('⚠️')
                   ? 'border-amber-200 bg-amber-50/70 text-amber-900'
                   : flag.startsWith('💡')
-                    ? 'border-indigo-200 bg-indigo-50/70 text-indigo-900'
+                    ? 'border-slate-200 bg-slate-50 text-slate-900'
                     : 'border-emerald-200 bg-emerald-50/70 text-emerald-900'
               }`}
             >
@@ -853,7 +891,7 @@ ${aiAssessorTip}
               <input
                 type="checkbox"
                 defaultChecked={idx === 0}
-                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
               />
               <span>{action}</span>
             </div>
@@ -862,15 +900,15 @@ ${aiAssessorTip}
       </div>
 
       {/* Target Module L Compiler Mode Recommendation */}
-      <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/70 via-white to-violet-50/50 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/50 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Landmark className="h-4 w-4 text-indigo-700" />
-            <span className="text-xs font-bold text-indigo-950 uppercase tracking-wider">
+            <Landmark className="h-4 w-4 text-emerald-800" />
+            <span className="text-xs font-bold text-slate-950 uppercase tracking-wider">
               {isGrantsEnabled ? 'Recommended Module L Grant Compiler Mode' : 'Recommended Module L Business Plan Mode'}
             </span>
           </div>
-          <p className="text-xs text-indigo-900">
+          <p className="text-xs text-slate-900">
             Based on your selected track ({!isGrantsEnabled ? `${plan.hqCountryCode} Commercial Track` : isUK ? 'United Kingdom' : 'Ireland'}), your business plan compiler will automatically format into:
           </p>
           <div className="mt-1 font-bold text-sm text-slate-900">
@@ -885,7 +923,7 @@ ${aiAssessorTip}
         <Button
           type="button"
           onClick={onContinueToModuleL}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+          className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
         >
           Open in Module L Compiler
           <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
@@ -906,7 +944,7 @@ ${aiAssessorTip}
       )}
 
       {/* Export & Download Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-2xs">
         <div className="text-xs text-slate-600">
           📥 <strong>Take your Executive Funding Strategy Dossier with you:</strong> Download a standalone file, print/save as PDF, or copy for {isGrantsEnabled ? 'grant assessors and bank lenders' : 'commercial bank lenders and angel investors'}.
         </div>
@@ -938,7 +976,7 @@ ${aiAssessorTip}
             onClick={handleDownloadHtmlBrief}
             className="text-xs"
           >
-            <Download className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+            <Download className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             Download Brief (.html)
           </Button>
 
@@ -946,7 +984,7 @@ ${aiAssessorTip}
             type="button"
             size="sm"
             onClick={handlePrintPdfBrief}
-            className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
+            className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs"
           >
             <Printer className="mr-1 h-3.5 w-3.5" />
             Print / Save as PDF
@@ -987,7 +1025,7 @@ ${aiAssessorTip}
               onContinueToModuleL();
             }}
             disabled={isSaving || isVaultReadonly}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
           >
             Complete Module K &amp; Compile Plan in Module L
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

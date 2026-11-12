@@ -149,8 +149,8 @@ export function HeroInteractiveProductShowcase({
           onClick={() => setActiveTab('CANVAS')}
           className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all sm:text-sm ${
             activeTab === 'CANVAS'
-              ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700'
+              ? 'border-emerald-700 bg-emerald-700 text-white shadow-sm'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
           }`}
         >
           <Compass className="h-4 w-4" />
@@ -171,8 +171,8 @@ export function HeroInteractiveProductShowcase({
           onClick={() => setActiveTab('SURVEY')}
           className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all sm:text-sm ${
             activeTab === 'SURVEY'
-              ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700'
+              ? 'border-emerald-700 bg-emerald-700 text-white shadow-sm'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
           }`}
         >
           <MessageSquare className="h-4 w-4" />
@@ -184,8 +184,8 @@ export function HeroInteractiveProductShowcase({
           onClick={() => setActiveTab('COFOUNDER')}
           className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all sm:text-sm ${
             activeTab === 'COFOUNDER'
-              ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700'
+              ? 'border-emerald-700 bg-emerald-700 text-white shadow-sm'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
           }`}
         >
           <Users className="h-4 w-4" />
@@ -197,8 +197,8 @@ export function HeroInteractiveProductShowcase({
           onClick={() => setActiveTab('BREAKEVEN')}
           className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all sm:text-sm ${
             activeTab === 'BREAKEVEN'
-              ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700'
+              ? 'border-emerald-700 bg-emerald-700 text-white shadow-sm'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
           }`}
         >
           <TrendingUp className="h-4 w-4" />
@@ -299,7 +299,7 @@ export function HeroInteractiveProductShowcase({
                     onClick={() => setActiveTab(item.id)}
                     className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left transition ${
                       isSelected
-                        ? 'bg-indigo-600 font-semibold text-white shadow-2xs'
+                        ? 'bg-emerald-700 font-semibold text-white shadow-2xs'
                         : 'text-slate-700 hover:bg-slate-200/70'
                     }`}
                   >
@@ -309,7 +309,7 @@ export function HeroInteractiveProductShowcase({
                     </span>
                     <CheckCircle2
                       className={`h-3.5 w-3.5 shrink-0 ${
-                        isSelected ? 'text-indigo-200' : 'text-emerald-600'
+                        isSelected ? 'text-emerald-300' : 'text-emerald-600'
                       }`}
                     />
                   </button>
@@ -317,12 +317,12 @@ export function HeroInteractiveProductShowcase({
               })}
             </div>
 
-            <div className="mt-4 rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-3 text-left">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-950">
-                <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+            <div className="mt-4 rounded-xl border border-emerald-200/80 bg-emerald-50/60 p-3 text-left">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-950">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
                 Ask Preflight AI Sidekick
               </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-indigo-900/90">
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-900/90">
                 &ldquo;Stuck on a number? Click <strong>Park It</strong> or use
                 an <strong>Industry Benchmark</strong> so you never lose
                 momentum.&rdquo;
@@ -364,7 +364,7 @@ export function HeroInteractiveProductShowcase({
                 {/* 3 Concept Cards */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
-                    <div className="text-[11px] font-bold text-indigo-700 uppercase">
+                    <div className="text-[11px] font-bold text-emerald-800 uppercase">
                       Problem Extracted
                     </div>
                     <p className="mt-1 text-xs leading-relaxed text-slate-700">
@@ -373,7 +373,7 @@ export function HeroInteractiveProductShowcase({
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
-                    <div className="text-[11px] font-bold text-indigo-700 uppercase">
+                    <div className="text-[11px] font-bold text-emerald-800 uppercase">
                       First Beachhead Buyer
                     </div>
                     <p className="mt-1 text-xs leading-relaxed text-slate-700">
@@ -383,7 +383,7 @@ export function HeroInteractiveProductShowcase({
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
-                    <div className="text-[11px] font-bold text-indigo-700 uppercase">
+                    <div className="text-[11px] font-bold text-emerald-800 uppercase">
                       Revenue &amp; Domain Check
                     </div>
                     <p className="mt-1 text-xs leading-relaxed text-slate-700">
@@ -397,7 +397,7 @@ export function HeroInteractiveProductShowcase({
                 </div>
 
                 {/* Constructive Blind-Spot Engine Output */}
-                <div className="rounded-xl border border-amber-200/90 bg-gradient-to-r from-amber-50/80 via-white to-indigo-50/40 p-4">
+                <div className="rounded-xl border border-amber-200/90 bg-gradient-to-r from-amber-50/80 via-white to-slate-50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -418,7 +418,7 @@ export function HeroInteractiveProductShowcase({
                       Tradespeople rarely sit at a desktop. Make sure V1 works
                       via 1-tap voice-note or SMS quote links on mobile.
                     </div>
-                    <div className="rounded-lg border border-indigo-200/60 bg-white p-2.5">
+                    <div className="rounded-lg border border-slate-200/60 bg-white p-2.5">
                       <strong className="text-slate-900">
                         2.{' '}
                         {edition === 'IE'
@@ -453,8 +453,8 @@ export function HeroInteractiveProductShowcase({
                       Engine
                     </h3>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3 py-1.5 text-xs font-semibold text-indigo-900">
-                    <QrCode className="h-4 w-4 text-indigo-600" />
+                  <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-1.5 text-xs font-semibold text-slate-900">
+                    <QrCode className="h-4 w-4 text-emerald-700" />
                     <span>startuppreflight.com/v/fieldflow-ai</span>
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   </div>
@@ -464,7 +464,7 @@ export function HeroInteractiveProductShowcase({
                   {/* Left: Public Survey Preview */}
                   <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:col-span-7">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-indigo-700 uppercase">
+                      <span className="text-[11px] font-bold text-emerald-800 uppercase">
                         Auto-Generated Non-Leading Questions
                       </span>
                       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
@@ -479,10 +479,10 @@ export function HeroInteractiveProductShowcase({
                         </div>
                         <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-600">
                           <span>Top answer: &ldquo;3 to 5 evenings&rdquo;</span>
-                          <span className="font-bold text-indigo-700">67%</span>
+                          <span className="font-bold text-emerald-800">67%</span>
                         </div>
                         <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100">
-                          <div className="h-1.5 w-2/3 rounded-full bg-indigo-600" />
+                          <div className="h-1.5 w-2/3 rounded-full bg-emerald-700" />
                         </div>
                       </div>
 
@@ -557,8 +557,8 @@ export function HeroInteractiveProductShowcase({
                       Calculator
                     </h3>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-900">
-                    <Lock className="h-3.5 w-3.5 text-violet-700" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-slate-900">
+                    <Lock className="h-3.5 w-3.5 text-emerald-800" />
                     Answered Privately Before Reveal
                   </span>
                 </div>
@@ -670,7 +670,7 @@ export function HeroInteractiveProductShowcase({
                         onClick={() => setSandboxPreset(preset.id)}
                         className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
                           sandboxPreset === preset.id
-                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            ? 'bg-emerald-700 text-white shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
@@ -710,14 +710,14 @@ export function HeroInteractiveProductShowcase({
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
-                    <div className="text-[10px] font-bold text-indigo-800 uppercase">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                    <div className="text-[10px] font-bold text-emerald-900 uppercase">
                       Breakeven Point
                     </div>
-                    <div className="mt-1 text-xl font-extrabold text-indigo-950">
+                    <div className="mt-1 text-xl font-extrabold text-slate-950">
                       {breakevenCustomers} customers
                     </div>
-                    <div className="mt-0.5 text-[11px] text-indigo-700">
+                    <div className="mt-0.5 text-[11px] text-emerald-800">
                       Covers 100% of overheads
                     </div>
                   </div>
@@ -737,7 +737,7 @@ export function HeroInteractiveProductShowcase({
                 </div>
 
                 {/* Export Compiler Strip */}
-                <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 via-white to-indigo-50/50 p-4">
+                <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 via-white to-slate-50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-emerald-700" />
@@ -777,10 +777,10 @@ export function BentoFeatureVisualCards({
   return (
     <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
       {/* Card 1: Module C Customer Validation & Waitlist */}
-      <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs transition hover:border-indigo-200 hover:shadow-md">
+      <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs transition hover:border-slate-200 hover:shadow-md">
         <div>
           <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">
               <MessageSquare className="h-3.5 w-3.5" />
               Module C • Flagship #1
             </span>
@@ -794,7 +794,7 @@ export function BentoFeatureVisualCards({
             app?&rdquo;) and get polite lies. We generate bias-free{' '}
             <strong>&ldquo;Mom Test&rdquo; questions</strong>, host your public
             survey &amp; waitlist page at{' '}
-            <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-indigo-700">
+            <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-emerald-800">
               startuppreflight.com/v/your-slug
             </code>
             , and synthesize customer willingness-to-pay automatically.
@@ -812,7 +812,7 @@ export function BentoFeatureVisualCards({
           <div className="mt-2 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-lg bg-white p-2 shadow-2xs">
               <div className="text-[10px] text-slate-500">Acute Pain</div>
-              <div className="text-sm font-extrabold text-indigo-700">78%</div>
+              <div className="text-sm font-extrabold text-emerald-800">78%</div>
             </div>
             <div className="rounded-lg bg-white p-2 shadow-2xs">
               <div className="text-[10px] text-slate-500">Sweet-Spot Price</div>
@@ -830,10 +830,10 @@ export function BentoFeatureVisualCards({
       </div>
 
       {/* Card 2: Module F Co-Founder Alignment */}
-      <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs transition hover:border-indigo-200 hover:shadow-md">
+      <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs transition hover:border-slate-200 hover:shadow-md">
         <div>
           <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700">
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">
               <Users className="h-3.5 w-3.5" />
               Module F • Flagship #2
             </span>
@@ -873,7 +873,7 @@ export function BentoFeatureVisualCards({
       </div>
 
       {/* Card 3: Module G Getting Set Up Launchpad */}
-      <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs transition hover:border-indigo-200 hover:shadow-md">
+      <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs transition hover:border-slate-200 hover:shadow-md">
         <div>
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
@@ -912,7 +912,7 @@ export function BentoFeatureVisualCards({
       </div>
 
       {/* Card 4: Module H/J/K/L Numbers & Export */}
-      <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs transition hover:border-indigo-200 hover:shadow-md">
+      <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs transition hover:border-slate-200 hover:shadow-md">
         <div>
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">
@@ -942,7 +942,7 @@ export function BentoFeatureVisualCards({
         <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs">
           <div className="flex items-center justify-between font-semibold text-slate-800">
             <span>Pre-Flight Contradiction Check</span>
-            <span className="text-indigo-700">
+            <span className="text-emerald-800">
               Narrative ↔ 36-Mo Cashflow Synced
             </span>
           </div>

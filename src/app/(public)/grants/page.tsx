@@ -84,10 +84,10 @@ export default async function GrantsDirectoryPage() {
 
       <main className="flex-1">
         {/* HERO SECTION MATCHING LANDING PAGE VISUAL SYSTEM */}
-        <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-indigo-50/35 to-slate-50 px-4 pt-12 pb-14 sm:px-6 lg:pt-16 lg:pb-18">
+        <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-slate-50/50 to-slate-100/40 px-4 pt-12 pb-14 sm:px-6 lg:pt-16 lg:pb-18">
           <div className="mx-auto max-w-4xl text-center">
             {/* Pill Badge */}
-            <div className="inline-flex items-center justify-center gap-2 rounded-full border border-indigo-200 bg-white px-3.5 py-1 text-xs font-semibold text-indigo-950 shadow-2xs">
+            <div className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1 text-xs font-semibold text-slate-950 shadow-2xs">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
@@ -98,7 +98,7 @@ export default async function GrantsDirectoryPage() {
             {/* Headline */}
             <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:leading-[1.12]">
               Non-dilutive funding, grants &amp; vouchers{' '}
-              <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+              <span className="text-slate-950 font-extrabold">
                 demystified for founders.
               </span>
             </h1>

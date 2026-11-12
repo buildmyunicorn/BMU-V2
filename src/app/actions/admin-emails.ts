@@ -167,6 +167,7 @@ export async function sendAdminTestEmailAction(
     QUOTE_RFP_PARTNER_INVITE: '⚡ [New RFP] Quote Request [TEST]',
     QUOTE_RFP_FOUNDER_RECEIPT: '⚡ 3-Quote Request Dispatched [TEST]',
     QUOTE_RECEIVED_FOUNDER: '🎉 Official Supplier Quote Received! [TEST]',
+    ADMIN_NEW_SIGNUP: '⚡ New Founder Signup: test.founder@example.com [TEST]',
   };
 
   const result = await sendSystemEmail({
@@ -257,7 +258,86 @@ function getDefaultSamplePropsForTemplate(
         quoteFileUrl: 'https://example.com/quote.pdf',
         workspaceUrl: `${appUrl}/workspace`,
       };
+    case 'ADMIN_NEW_SIGNUP':
+      return {
+        founderName: 'Maeve Brennan',
+        founderEmail: 'maeve.brennan@greentech.ie',
+        authMethod: 'GOOGLE_OAUTH',
+        tierName: 'Cohort Pass: NovaUCD 2026',
+        hqCountry: 'IE',
+        registeredAt: new Intl.DateTimeFormat('en-IE', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+          timeZone: 'UTC',
+        }).format(new Date()) + ' (UTC)',
+        voucherCode: 'NOVAUCD-SPRING26',
+        cohortName: 'NovaUCD Founder Accelerator Batch 4',
+        adminDashboardUrl: `${appUrl}/admin`,
+      };
     default:
       return {};
+  }
+}
+
+/**
+ * Super Admin Action: Retrieve current Admin Notification Settings
+ */
+export async function getAdminNotificationSettingsAction(): Promise<{
+  ok: boolean;
+  settings?: {
+    notifyOnNewSignup: boolean;
+    recipientEmail: string;
+    updatedAt?: string;
+  };
+  error?: string;
+}> {
+  try {
+    const admin = await requireSuperAdmin();
+    if (!admin) {
+      return { ok: false, error: 'Unauthorized: Super Admin session required.' };
+    }
+    const { getAdminNotificationSettings } = await import('@/lib/email/admin-alerts');
+    const settings = await getAdminNotificationSettings();
+    return { ok: true, settings };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Failed to load settings',
+    };
+  }
+}
+
+/**
+ * Super Admin Action: Save Admin Notification Settings
+ */
+export async function saveAdminNotificationSettingsAction(payload: {
+  notifyOnNewSignup: boolean;
+  recipientEmail: string;
+}): Promise<{
+  ok: boolean;
+  settings?: {
+    notifyOnNewSignup: boolean;
+    recipientEmail: string;
+    updatedAt?: string;
+  };
+  error?: string;
+}> {
+  try {
+    const admin = await requireSuperAdmin();
+    if (!admin) {
+      return { ok: false, error: 'Unauthorized: Super Admin session required.' };
+    }
+    if (!payload.recipientEmail || !payload.recipientEmail.includes('@')) {
+      return { ok: false, error: 'Please enter a valid recipient email address.' };
+    }
+
+    const { saveAdminNotificationSettings } = await import('@/lib/email/admin-alerts');
+    const saved = await saveAdminNotificationSettings(payload);
+    return { ok: true, settings: saved };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Failed to save settings',
+    };
   }
 }

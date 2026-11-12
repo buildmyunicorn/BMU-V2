@@ -181,16 +181,16 @@ export function CohortMilestoneTracker({
   if (!milestoneConfig.enabled) {
     if (!isDashboardOpen) return null;
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-3 text-xs text-indigo-950 no-print print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-950 no-print print:hidden">
         <div className="flex items-center gap-2.5">
-          <Building2 className="h-4 w-4 shrink-0 text-indigo-600" />
+          <Building2 className="h-4 w-4 shrink-0 text-emerald-700" />
           <span>
             Enrolled in <strong>{cohort.organizationName}</strong> —{' '}
             <strong>{cohort.name}</strong> (Code:{' '}
             <code className="font-mono font-bold">{cohort.inviteCode}</code>)
           </span>
         </div>
-        <Badge className="bg-indigo-600 text-[10px] text-white">
+        <Badge className="bg-emerald-700 text-[10px] text-white">
           Institutional Cohort Pass Active
         </Badge>
       </div>
@@ -206,8 +206,8 @@ export function CohortMilestoneTracker({
             isClaimed
               ? 'border-emerald-300 bg-gradient-to-r from-emerald-50/90 via-white to-teal-50/60'
               : isEligibleToClaim
-                ? 'border-emerald-400 bg-gradient-to-r from-indigo-950 via-indigo-900 to-emerald-950 text-white shadow-md'
-                : 'border-indigo-200/90 bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 text-white'
+                ? 'border-emerald-400 bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950 text-white shadow-md'
+                : 'border-slate-200/90 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white'
           }`}
         >
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -219,7 +219,7 @@ export function CohortMilestoneTracker({
                       ? 'bg-emerald-600 text-[10px] font-bold text-white'
                       : isEligibleToClaim
                         ? 'border-emerald-400/50 bg-emerald-500/20 text-[10px] font-bold text-emerald-200'
-                        : 'border-indigo-400/40 bg-indigo-500/20 text-[10px] font-bold text-indigo-200'
+                        : 'border-emerald-400/40 bg-emerald-500/20 text-[10px] font-bold text-slate-300'
                   }
                 >
                   {isClaimed
@@ -230,7 +230,7 @@ export function CohortMilestoneTracker({
                 </Badge>
                 <span
                   className={`text-xs font-medium ${
-                    isClaimed ? 'text-slate-600' : 'text-indigo-200'
+                    isClaimed ? 'text-slate-600' : 'text-slate-300'
                   }`}
                 >
                   {cohort.name} • Code:{' '}
@@ -250,7 +250,7 @@ export function CohortMilestoneTracker({
 
               <p
                 className={`max-w-2xl text-xs leading-relaxed ${
-                  isClaimed ? 'text-slate-600' : 'text-indigo-100/90'
+                  isClaimed ? 'text-slate-600' : 'text-slate-200/90'
                 }`}
               >
                 {isClaimed ? (
@@ -319,7 +319,7 @@ export function CohortMilestoneTracker({
                     onClick={() =>
                       onNavigateToModule(nextIncompleteModuleCode)
                     }
-                    className="bg-white px-4 text-xs font-bold text-indigo-950 hover:bg-indigo-50"
+                    className="bg-white px-4 text-xs font-bold text-slate-950 hover:bg-emerald-50"
                   >
                     Continue{' '}
                     {SHORT_MOD_NAMES[nextIncompleteModuleCode] ||
@@ -340,7 +340,7 @@ export function CohortMilestoneTracker({
             <div className="mb-2 flex items-center justify-between text-xs">
               <span
                 className={`font-semibold ${
-                  isClaimed ? 'text-slate-700' : 'text-indigo-100'
+                  isClaimed ? 'text-slate-700' : 'text-slate-200'
                 }`}
               >
                 Milestone Gate Readiness:{' '}
@@ -349,7 +349,7 @@ export function CohortMilestoneTracker({
               </span>
               <span
                 className={`text-[11px] font-medium ${
-                  isClaimed ? 'text-emerald-700' : 'text-indigo-200'
+                  isClaimed ? 'text-emerald-700' : 'text-slate-300'
                 }`}
               >
                 {completedRequiredModules.length} / {requiredModules.length}{' '}
@@ -366,7 +366,7 @@ export function CohortMilestoneTracker({
                 className={`h-full rounded-full transition-all duration-500 ${
                   isClaimed || isEligibleToClaim
                     ? 'bg-emerald-400'
-                    : 'bg-indigo-400'
+                    : 'bg-emerald-600'
                 }`}
                 style={{
                   width: `${Math.min(100, Math.max(6, overallMilestoneProgress))}%`,
@@ -388,7 +388,7 @@ export function CohortMilestoneTracker({
                         ? 'border-emerald-200 bg-white text-emerald-900 hover:bg-emerald-50'
                         : isModQualified
                           ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30'
-                          : 'border-white/15 bg-white/10 text-indigo-100 hover:bg-white/20'
+                          : 'border-white/15 bg-white/10 text-slate-200 hover:bg-white/20'
                     }`}
                   >
                     {isModQualified ? (
@@ -411,8 +411,8 @@ export function CohortMilestoneTracker({
             isClaimed
               ? 'border-emerald-200 bg-emerald-50/90 text-emerald-950'
               : isEligibleToClaim
-                ? 'border-emerald-300 bg-gradient-to-r from-indigo-950 to-emerald-950 text-white'
-                : 'border-indigo-200 bg-indigo-50/75 text-indigo-950'
+                ? 'border-emerald-300 bg-gradient-to-r from-slate-950 to-emerald-950 text-white'
+                : 'border-slate-200 bg-emerald-50/75 text-slate-950'
           }`}
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -423,7 +423,7 @@ export function CohortMilestoneTracker({
                     ? 'text-emerald-600'
                     : isEligibleToClaim
                       ? 'text-emerald-300'
-                      : 'text-indigo-600'
+                      : 'text-emerald-700'
                 }`}
               />
               <span className="truncate text-xs font-bold">
@@ -436,7 +436,7 @@ export function CohortMilestoneTracker({
                     ? 'bg-emerald-100 text-emerald-800'
                     : isEligibleToClaim
                       ? 'bg-emerald-500/25 text-emerald-200'
-                      : 'bg-white text-indigo-800'
+                      : 'bg-white text-emerald-900'
                 }`}
               >
                 {isClaimed
@@ -469,7 +469,7 @@ export function CohortMilestoneTracker({
                 <button
                   type="button"
                   onClick={() => setIsCompactExpanded(!isCompactExpanded)}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100/70"
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100/70"
                 >
                   <span>
                     {completedRequiredModules.length}/{requiredModules.length}{' '}
@@ -486,7 +486,7 @@ export function CohortMilestoneTracker({
           </div>
 
           {isCompactExpanded && !isClaimed && (
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-indigo-200/60 pt-2.5">
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-slate-200/60 pt-2.5">
               {requiredModules.map((modCode) => {
                 const pct = moduleProgressMap[modCode] ?? 0;
                 const isModQualified = pct >= 50;
@@ -498,7 +498,7 @@ export function CohortMilestoneTracker({
                     className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${
                       isModQualified
                         ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                        : 'border-indigo-200 bg-white text-indigo-900 hover:bg-indigo-50'
+                        : 'border-slate-200 bg-white text-slate-900 hover:bg-emerald-50'
                     }`}
                   >
                     {isModQualified && (

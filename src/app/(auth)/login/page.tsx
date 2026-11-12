@@ -335,7 +335,7 @@ export default function LoginPage() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="login-password">Password</Label>
-                    <span className="cursor-pointer text-xs font-medium text-indigo-600 hover:underline">
+                    <span className="cursor-pointer text-xs font-medium text-emerald-700 hover:underline">
                       Forgot password?
                     </span>
                   </div>
@@ -378,7 +378,7 @@ export default function LoginPage() {
                 <span>New to Startup Preflight?</span>
                 <Link
                   href="/register"
-                  className="font-semibold text-indigo-600 hover:underline"
+                  className="font-semibold text-emerald-700 hover:underline"
                 >
                   Create a free account →
                 </Link>

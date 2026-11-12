@@ -183,7 +183,7 @@ function FormattedAnswerBlock({ text }: { text: string }) {
                 const bulletClean = line.trim().replace(/^([-*•]|\d+\.)\s+/, '');
                 return (
                   <li key={lIdx} className="flex items-start gap-2.5">
-                    <span className="text-indigo-600 font-bold shrink-0 mt-0.5">•</span>
+                    <span className="text-emerald-700 font-bold shrink-0 mt-0.5">•</span>
                     <span>{renderInline(bulletClean)}</span>
                   </li>
                 );
@@ -305,15 +305,15 @@ export function AskMyStartupView({
   return (
     <div className="space-y-8 pb-16">
       {/* 1. Header Banner */}
-      <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
+      <div className="rounded-2xl border border-emerald-600/20 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-xl sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-indigo-500/30 text-indigo-200 border-indigo-400/40 px-2.5 py-0.5 text-xs font-semibold">
-                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-300" />
+              <Badge className="bg-emerald-500/30 text-slate-300 border-emerald-400/40 px-2.5 py-0.5 text-xs font-semibold">
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-slate-300" />
                 Executive Co-Pilot
               </Badge>
-              <Badge variant="outline" className="border-indigo-300/30 text-indigo-200 text-xs">
+              <Badge variant="outline" className="border-emerald-300/30 text-slate-300 text-xs">
                 Zero-Hallucination Grounding
               </Badge>
               <Badge variant="outline" className="border-emerald-400/40 text-emerald-300 text-xs">
@@ -323,7 +323,7 @@ export function AskMyStartupView({
             <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
               Ask My Startup
             </h1>
-            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm leading-relaxed">
+            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm leading-relaxed">
               Query anything about your business plan, pricing models, market validation, or grant
               readiness. Answers are strictly grounded in your active plan data across Modules A–L.
             </p>
@@ -335,7 +335,7 @@ export function AskMyStartupView({
                 variant="outline"
                 size="sm"
                 onClick={onBackToDashboard}
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20 hover:text-white"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20 hover:text-white"
               >
                 ← Return to Dashboard
               </Button>
@@ -350,7 +350,7 @@ export function AskMyStartupView({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Bot className="h-5 w-5 text-indigo-600" />
+                <Bot className="h-5 w-5 text-emerald-700" />
                 Founder Query Console
               </CardTitle>
               <CardDescription className="text-xs text-slate-500 mt-0.5">
@@ -373,7 +373,7 @@ export function AskMyStartupView({
                     onClick={() => setSelectedPersona(p.id)}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
                       isSelected
-                        ? 'bg-indigo-600 text-white shadow-xs'
+                        ? 'bg-emerald-700 text-white shadow-xs'
                         : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
@@ -388,14 +388,14 @@ export function AskMyStartupView({
 
         <CardContent className="p-5 sm:p-6 space-y-5">
           {/* Active Lens Description Strip */}
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-2.5 text-xs text-indigo-900 flex items-center justify-between">
+          <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-xs text-slate-900 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <activePersonaConfig.icon className="h-4 w-4 text-indigo-600 shrink-0" />
+              <activePersonaConfig.icon className="h-4 w-4 text-emerald-700 shrink-0" />
               <span>
                 <strong>{activePersonaConfig.label}:</strong> {activePersonaConfig.description}
               </span>
             </div>
-            <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] hidden md:inline-flex">
+            <Badge className="bg-slate-100 text-emerald-800 border-slate-200 text-[10px] hidden md:inline-flex">
               {activePersonaConfig.badge}
             </Badge>
           </div>
@@ -421,14 +421,14 @@ export function AskMyStartupView({
                 placeholder="Ask anything (e.g. 'Describe my startup in 150 words', 'What is our Year 2 breakeven customer count?', or 'What is our defensibility?')..."
                 rows={3}
                 disabled={isLoading}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20 transition-all resize-none"
               />
 
               <div className="absolute right-3 bottom-3 flex items-center gap-2">
                 <Button
                   type="submit"
                   disabled={isLoading || !questionInput.trim()}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 h-9 rounded-lg shadow-sm"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 h-9 rounded-lg shadow-sm"
                 >
                   {isLoading ? (
                     <>
@@ -467,15 +467,15 @@ export function AskMyStartupView({
                     setSelectedPersona(p.persona);
                     handleAsk(p.prompt, p.persona);
                   }}
-                  className="flex flex-col text-left rounded-xl border border-slate-200/90 bg-white p-3 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group shadow-2xs"
+                  className="flex flex-col text-left rounded-xl border border-slate-200/90 bg-white p-3 hover:border-emerald-300 hover:bg-slate-50 transition-all group shadow-2xs"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
                       {p.category}
                     </span>
-                    <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-indigo-600 transition-colors" />
+                    <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-emerald-800 transition-colors" />
                   </div>
-                  <span className="text-xs font-semibold text-slate-800 group-hover:text-indigo-700 mt-1 line-clamp-2">
+                  <span className="text-xs font-semibold text-slate-800 group-hover:text-emerald-800 mt-1 line-clamp-2">
                     {p.title}
                   </span>
                 </button>
@@ -503,11 +503,11 @@ export function AskMyStartupView({
             className={`rounded-2xl border shadow-md overflow-hidden ${
               activeAnswer.isOffTopic
                 ? 'border-amber-300 bg-amber-50/20'
-                : 'border-indigo-200/80 bg-white'
+                : 'border-slate-200/80 bg-white'
             }`}
           >
             {/* Top Toolbar */}
-            <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-indigo-50/40 p-5 sm:p-6">
+            <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50/40 p-5 sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -517,8 +517,8 @@ export function AskMyStartupView({
                         Boundary Guardrail Alert
                       </Badge>
                     ) : (
-                      <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-xs font-semibold">
-                        <Sparkles className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                      <Badge className="bg-slate-100 text-emerald-900 border-slate-200 text-xs font-semibold">
+                        <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                         Grounded Startup Answer
                       </Badge>
                     )}
@@ -607,7 +607,7 @@ export function AskMyStartupView({
                 <div className="rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                      <Layers className="h-3.5 w-3.5 text-indigo-600" />
+                      <Layers className="h-3.5 w-3.5 text-emerald-700" />
                       Plan Citations & Data Sources
                     </span>
                     <span className="text-[11px] text-slate-400">Click to jump into module</span>
@@ -618,15 +618,15 @@ export function AskMyStartupView({
                       <div
                         key={i}
                         onClick={() => onNavigateToModule(c.moduleCode as any)}
-                        className="cursor-pointer rounded-lg border border-slate-200 bg-white p-3 hover:border-indigo-400 hover:shadow-xs transition-all flex items-start justify-between group"
+                        className="cursor-pointer rounded-lg border border-slate-200 bg-white p-3 hover:border-emerald-400 hover:shadow-xs transition-all flex items-start justify-between group"
                       >
                         <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-emerald-800 transition-colors">
                             {c.moduleName}
                           </p>
                           <p className="text-[11px] text-slate-500">{c.relevance}</p>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-600 shrink-0 mt-0.5 transition-colors" />
+                        <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-800 shrink-0 mt-0.5 transition-colors" />
                       </div>
                     ))}
                   </div>
@@ -652,7 +652,7 @@ export function AskMyStartupView({
               {activeAnswer.suggestedFollowUps && activeAnswer.suggestedFollowUps.length > 0 && (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                    <Lightbulb className="h-3.5 w-3.5 text-indigo-500" />
+                    <Lightbulb className="h-3.5 w-3.5 text-emerald-700" />
                     Recommended Next Questions:
                   </span>
                   <div className="flex flex-wrap gap-2">
@@ -664,7 +664,7 @@ export function AskMyStartupView({
                           setQuestionInput(prompt);
                           handleAsk(prompt);
                         }}
-                        className="rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-1.5 text-xs text-indigo-800 hover:bg-indigo-100 hover:text-indigo-900 transition-all text-left"
+                        className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs text-emerald-900 hover:bg-slate-100 hover:text-slate-900 transition-all text-left"
                       >
                         + {prompt}
                       </button>
@@ -689,7 +689,7 @@ export function AskMyStartupView({
               <div
                 key={item.id}
                 onClick={() => setActiveAnswer(item)}
-                className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 hover:border-indigo-300 hover:bg-slate-50 transition-all flex items-center justify-between"
+                className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 hover:border-emerald-300 hover:bg-slate-50 transition-all flex items-center justify-between"
               >
                 <div className="space-y-0.5 truncate pr-4">
                   <p className="text-xs font-bold text-slate-800 truncate">&ldquo;{item.question}&rdquo;</p>
@@ -697,7 +697,7 @@ export function AskMyStartupView({
                     Lens: {item.persona} · {item.wordCount} words · {item.citations.length} cited modules
                   </p>
                 </div>
-                <Button size="sm" variant="ghost" className="h-7 text-xs text-indigo-600 shrink-0">
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-emerald-700 shrink-0">
                   View Answer →
                 </Button>
               </div>

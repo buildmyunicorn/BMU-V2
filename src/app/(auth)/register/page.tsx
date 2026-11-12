@@ -241,8 +241,8 @@ export default function RegisterPage() {
                 Partner code below.
               </CardDescription>
               {detectedCohortParam && (
-                <div className="mt-2 flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/90 px-3 py-2 text-xs font-medium text-indigo-950">
-                  <Ticket className="h-4 w-4 shrink-0 text-indigo-600" />
+                <div className="mt-2 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/90 px-3 py-2 text-xs font-medium text-slate-950">
+                  <Ticket className="h-4 w-4 shrink-0 text-emerald-700" />
                   <span>
                     Institutional Cohort Invite Detected:{' '}
                     <strong className="font-mono">{detectedCohortParam}</strong>{' '}
@@ -312,7 +312,7 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => setShowVoucherField(!showVoucherField)}
-                    className="flex w-full items-center justify-between text-left text-xs font-semibold text-indigo-700"
+                    className="flex w-full items-center justify-between text-left text-xs font-semibold text-emerald-800"
                   >
                     <span className="flex items-center gap-1.5">
                       <Ticket className="h-4 w-4 text-amber-600" />
@@ -343,7 +343,7 @@ export default function RegisterPage() {
                     termsHighlightError && !acceptedTerms
                       ? 'border-red-300 bg-red-50/70 ring-2 ring-red-100'
                       : acceptedTerms
-                        ? 'border-indigo-200 bg-indigo-50/40'
+                        ? 'border-emerald-200 bg-emerald-50/40'
                         : 'border-slate-200 bg-slate-50/60 hover:border-slate-300'
                   }`}
                 >
@@ -367,7 +367,7 @@ export default function RegisterPage() {
                           }
                         }
                       }}
-                      className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                      className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                     />
                     <span className="text-xs leading-relaxed text-slate-700">
                       I have read and agree to the Startup Preflight{' '}
@@ -376,7 +376,7 @@ export default function RegisterPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="font-semibold text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-800"
+                        className="font-semibold text-emerald-700 underline decoration-emerald-400 underline-offset-2 hover:text-emerald-900"
                       >
                         Terms of Service
                       </Link>{' '}
@@ -386,7 +386,7 @@ export default function RegisterPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="font-semibold text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-800"
+                        className="font-semibold text-emerald-700 underline decoration-emerald-400 underline-offset-2 hover:text-emerald-900"
                       >
                         Privacy Policy
                       </Link>
@@ -425,7 +425,7 @@ export default function RegisterPage() {
                 <span>Already have an account?</span>
                 <Link
                   href="/login"
-                  className="font-semibold text-indigo-600 hover:underline"
+                  className="font-semibold text-emerald-700 hover:underline"
                 >
                   Log in here →
                 </Link>

@@ -171,11 +171,11 @@ export function ModuleLWorkspace({
       {/* ========================================================================= */}
       {/* 1. TOP HEADER MODULE CARD (Strict GEMINI.md Section 6.1 Standard)         */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100 text-[10px] shrink-0">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200 text-[10px] shrink-0">
                 Module L • Capstone Official Compiler
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
@@ -185,7 +185,7 @@ export function ModuleLWorkspace({
                   ? 'Grant & Business Plan Compiler'
                   : 'Commercial & Investor Plan Compiler'}
               </Badge>
-              <Badge className="border-violet-400/30 bg-violet-500/20 text-violet-100 text-[10px] shrink-0">
+              <Badge className="border-emerald-600/40 bg-slate-500/20 text-slate-200 text-[10px] shrink-0">
                 {activeCatalogItem.badge}
               </Badge>
             </div>
@@ -194,7 +194,7 @@ export function ModuleLWorkspace({
                 ? 'Module L: Interactive Business Plan & Official Grant Compiler'
                 : 'Module L: Interactive Commercial & Investor Business Plan Compiler'}
             </h1>
-            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
               {isGrantsEnabled
                 ? 'Transform your verified answers across Modules A–K into committee-ready IE LEO forms, UK Innovate UK 9-Question applications, Start Up Loan workbooks, or SEIS/EIS/EII investor packs with Appendices A–F.'
                 : 'Transform your verified answers across Modules A–K into bank-ready commercial business plans, angel/seed investor memos, or custom accelerator applications with Appendices A–F.'}
@@ -209,7 +209,7 @@ export function ModuleLWorkspace({
                   variant="outline"
                   size="sm"
                   onClick={onBackToModuleK}
-                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                  className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Module K
@@ -234,12 +234,12 @@ export function ModuleLWorkspace({
                 onClick={() =>
                   setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
                 }
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
               </Button>
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Module L Progress:{' '}
               <strong className="text-white">
                 {Math.round((completedCoreStepsCount / 5) * 100)}%
@@ -250,7 +250,7 @@ export function ModuleLWorkspace({
         </div>
 
         {/* Step Navigation Strip (Tile Grid Standard) */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-3 lg:grid-cols-5">
           {[
             {
               step: 'Step 1',
@@ -305,7 +305,7 @@ export function ModuleLWorkspace({
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/50 bg-emerald-500/20 text-white'
-                      : 'border-indigo-700/60 bg-indigo-950/40 text-indigo-200'
+                      : 'border-slate-200 bg-slate-950/40 text-slate-300'
                 }`}
               >
                 <div className="flex items-center justify-between gap-1">
@@ -321,10 +321,10 @@ export function ModuleLWorkspace({
                       Open
                     </span>
                   ) : (
-                    <span className="text-[10px] text-indigo-300">Pending</span>
+                    <span className="text-[10px] text-slate-300">Pending</span>
                   )}
                 </div>
-                <div className="mt-0.5 truncate text-[11px] text-indigo-100/80">
+                <div className="mt-0.5 truncate text-[11px] text-slate-200/80">
                   {item.title}
                 </div>
               </button>
@@ -357,7 +357,7 @@ export function ModuleLWorkspace({
         <div
           id="module-l-step-2"
           onClick={() => setOpenStep(2)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -365,14 +365,14 @@ export function ModuleLWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   isStep2Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     2. Cross-Module Contradiction &amp; Grant Audit (Pre-Flight Gatekeeper)
                   </h2>
                   <Badge
@@ -391,7 +391,7 @@ export function ModuleLWorkspace({
               type="button"
               size="sm"
               variant="ghost"
-              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
             >
               {isStep2Complete ? 'Edit Step' : 'Open Step'}
               <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -406,7 +406,7 @@ export function ModuleLWorkspace({
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                   2
                 </div>
                 <div className="min-w-0 flex-1">
@@ -416,7 +416,7 @@ export function ModuleLWorkspace({
                     </CardTitle>
                     <Badge
                       variant="outline"
-                      className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                      className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px] font-medium"
                     >
                       Synced to {activeCatalogItem.badge}
                     </Badge>
@@ -471,7 +471,7 @@ export function ModuleLWorkspace({
         <div
           id="module-l-step-3"
           onClick={() => setOpenStep(3)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -479,14 +479,14 @@ export function ModuleLWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   isStep3Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     3. Interactive Section-by-Section Narrative &amp; Question Compiler
                   </h2>
                   <Badge
@@ -505,7 +505,7 @@ export function ModuleLWorkspace({
               type="button"
               size="sm"
               variant="ghost"
-              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
             >
               {isStep3Complete ? 'Edit Step' : 'Open Step'}
               <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -520,7 +520,7 @@ export function ModuleLWorkspace({
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                   3
                 </div>
                 <div className="min-w-0 flex-1">
@@ -530,7 +530,7 @@ export function ModuleLWorkspace({
                     </CardTitle>
                     <Badge
                       variant="outline"
-                      className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                      className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px] font-medium"
                     >
                       {activeCatalogItem.sectionStructureLabel}
                     </Badge>
@@ -585,7 +585,7 @@ export function ModuleLWorkspace({
         <div
           id="module-l-step-4"
           onClick={() => setOpenStep(4)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -593,14 +593,14 @@ export function ModuleLWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   isStep4Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     4. Mandatory Appendices &amp; Verifiable Proof Binder (Appendices A–F)
                   </h2>
                   <Badge
@@ -619,7 +619,7 @@ export function ModuleLWorkspace({
               type="button"
               size="sm"
               variant="ghost"
-              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
             >
               {isStep4Complete ? 'Edit Step' : 'Open Step'}
               <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -634,7 +634,7 @@ export function ModuleLWorkspace({
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                   4
                 </div>
                 <div className="min-w-0 flex-1">
@@ -644,7 +644,7 @@ export function ModuleLWorkspace({
                     </CardTitle>
                     <Badge
                       variant="outline"
-                      className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                      className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px] font-medium"
                     >
                       Appendices A–F
                     </Badge>
@@ -699,7 +699,7 @@ export function ModuleLWorkspace({
         <div
           id="module-l-step-5"
           onClick={() => setOpenStep(5)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -707,19 +707,19 @@ export function ModuleLWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   isStep5Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep5Complete ? <Check className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     5. Official Submission Dossier &amp; Executive Brief
                   </h2>
                   <Badge
                     variant="outline"
-                    className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                    className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px] font-medium"
                   >
                     {completedCoreStepsCount}/5 Sections Ready
                   </Badge>
@@ -733,7 +733,7 @@ export function ModuleLWorkspace({
               type="button"
               size="sm"
               variant="ghost"
-              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
             >
               <span>{isStep5Complete ? 'Open Overview' : 'Review Overview'}</span>
               <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -743,12 +743,12 @@ export function ModuleLWorkspace({
       ) : (
         <Card
           id="module-l-step-5"
-          className="scroll-mt-24 rounded-xl border border-indigo-200 bg-white shadow-xs"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs"
         >
-          <CardHeader className="border-b border-indigo-100 bg-gradient-to-r from-indigo-50/50 via-white to-violet-50/30 pb-4">
+          <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/30 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                   5
                 </div>
                 <div className="min-w-0 flex-1">
@@ -758,7 +758,7 @@ export function ModuleLWorkspace({
                     </CardTitle>
                     <Badge
                       variant="outline"
-                      className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                      className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px] font-medium"
                     >
                       Final Capstone &amp; Submission
                     </Badge>

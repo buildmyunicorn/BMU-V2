@@ -509,10 +509,7 @@ export function ModuleIWorkspace({
   // STEP 1 STATE
   // -------------------------------------------------------------
   const [step1Data, setStep1Data] = useState<BrandPositioningStep1Data>(() => {
-    const existing = plan.moduleIData?.step1Positioning;
-    if (existing) return existing;
-
-    return {
+    const defaultStep1: BrandPositioningStep1Data = {
       elevatorHook140: `${planTitle} helps ${beachheadPersona.slice(0, 35)} eliminate ${customerProblem.slice(0, 30)} with ${solutionConcept.slice(0, 35)}.`.slice(0, 140),
       positioningFormula: {
         targetCustomer: beachheadPersona,
@@ -533,18 +530,40 @@ export function ModuleIWorkspace({
         'Zero-Friction Founder Experience',
       ],
     };
+
+    const existing = plan.moduleIData?.step1Positioning;
+    if (existing) {
+      return {
+        ...defaultStep1,
+        ...existing,
+        positioningFormula: {
+          ...defaultStep1.positioningFormula,
+          ...(existing.positioningFormula || {}),
+        },
+        toneOfVoiceBoundary: {
+          ...defaultStep1.toneOfVoiceBoundary,
+          ...(existing.toneOfVoiceBoundary || {}),
+        },
+        corePillars:
+          Array.isArray(existing.corePillars) && existing.corePillars.length >= 3
+            ? existing.corePillars
+            : defaultStep1.corePillars,
+      };
+    }
+
+    return defaultStep1;
   });
 
   const isStep1Complete = Boolean(
-    step1Data.elevatorHook140.trim().length > 10 &&
-      step1Data.positioningFormula.targetCustomer.trim() &&
-      step1Data.positioningFormula.customerProblem.trim() &&
-      step1Data.positioningFormula.solutionCategory.trim() &&
-      step1Data.positioningFormula.primaryBenefit.trim() &&
-      step1Data.positioningFormula.competitiveWedge.trim() &&
-      step1Data.corePillars[0].trim() &&
-      step1Data.corePillars[1].trim() &&
-      step1Data.corePillars[2].trim()
+    (step1Data?.elevatorHook140?.trim()?.length ?? 0) > 10 &&
+      Boolean(step1Data?.positioningFormula?.targetCustomer?.trim()) &&
+      Boolean(step1Data?.positioningFormula?.customerProblem?.trim()) &&
+      Boolean(step1Data?.positioningFormula?.solutionCategory?.trim()) &&
+      Boolean(step1Data?.positioningFormula?.primaryBenefit?.trim()) &&
+      Boolean(step1Data?.positioningFormula?.competitiveWedge?.trim()) &&
+      Boolean(step1Data?.corePillars?.[0]?.trim()) &&
+      Boolean(step1Data?.corePillars?.[1]?.trim()) &&
+      Boolean(step1Data?.corePillars?.[2]?.trim())
   );
 
   // -------------------------------------------------------------
@@ -570,29 +589,7 @@ export function ModuleIWorkspace({
   })();
 
   const [step2Data, setStep2Data] = useState<Modern4PsStep2Data>(() => {
-    const existing = plan.moduleIData?.step2FourPs;
-    if (existing) {
-      // Auto-adopt upstream price if existing headline is empty or an uncustomized default fallback
-      const existingPrice = existing.priceP2?.headlinePricePoint?.trim() || '';
-      const isGenericDefault =
-        !existingPrice ||
-        existingPrice === '€49 / month' ||
-        existingPrice === '£49 / month' ||
-        existingPrice === '$49 / month';
-
-      if (isGenericDefault && resolvedUpstreamPrice.isFromUpstream) {
-        return {
-          ...existing,
-          priceP2: {
-            ...existing.priceP2,
-            headlinePricePoint: resolvedUpstreamPrice.priceHeadline,
-          },
-        };
-      }
-      return existing;
-    }
-
-    return {
+    const defaultStep2: Modern4PsStep2Data = {
       productP1: {
         packagingType: defaultPackagingType,
         otherPackagingTypeText: '',
@@ -637,26 +634,69 @@ export function ModuleIWorkspace({
       },
       strategicRationale: '',
     };
+
+    const existing = plan.moduleIData?.step2FourPs;
+    if (existing) {
+      const merged: Modern4PsStep2Data = {
+        ...defaultStep2,
+        ...existing,
+        productP1: {
+          ...defaultStep2.productP1,
+          ...(existing.productP1 || {}),
+        },
+        priceP2: {
+          ...defaultStep2.priceP2,
+          ...(existing.priceP2 || {}),
+        },
+        placeP3: {
+          ...defaultStep2.placeP3,
+          ...(existing.placeP3 || {}),
+          secondaryChannels:
+            Array.isArray(existing.placeP3?.secondaryChannels)
+              ? existing.placeP3.secondaryChannels
+              : defaultStep2.placeP3.secondaryChannels,
+        },
+        promotionP4: {
+          ...defaultStep2.promotionP4,
+          ...(existing.promotionP4 || {}),
+        },
+        digitalPresenceChecklist: {
+          ...defaultStep2.digitalPresenceChecklist,
+          ...(existing.digitalPresenceChecklist || {}),
+        },
+      };
+
+      // Auto-adopt upstream price if existing headline is empty or an uncustomized default fallback
+      const existingPrice = merged.priceP2?.headlinePricePoint?.trim() || '';
+      const isGenericDefault =
+        !existingPrice ||
+        existingPrice === '€49 / month' ||
+        existingPrice === '£49 / month' ||
+        existingPrice === '$49 / month';
+
+      if (isGenericDefault && resolvedUpstreamPrice.isFromUpstream) {
+        merged.priceP2.headlinePricePoint = resolvedUpstreamPrice.priceHeadline;
+      }
+      return merged;
+    }
+
+    return defaultStep2;
   });
 
   const isStep2Complete = Boolean(
-    step2Data.productP1.coreDeliverableSummary.trim().length > 5 &&
-    (step2Data.productP1.packagingType !== 'OTHER' || (step2Data.productP1.otherPackagingTypeText?.trim() ?? '').length > 0) &&
-    step2Data.priceP2.headlinePricePoint.trim().length > 0 &&
-    step2Data.priceP2.priceJustification.trim().length > 5 &&
-    (step2Data.priceP2.pricingStance !== 'OTHER' || (step2Data.priceP2.otherPricingStanceText?.trim() ?? '').length > 0) &&
-    step2Data.placeP3.customerJourneyFrictionPoint.trim().length > 5 &&
-    (step2Data.placeP3.primaryChannel !== 'OTHER' || (step2Data.placeP3.otherPrimaryChannelText?.trim() ?? '').length > 0) &&
-    step2Data.promotionP4.beachheadChannelTactics.trim().length > 5 &&
-    (step2Data.promotionP4.primaryAcquisitionEngine !== 'OTHER' || (step2Data.promotionP4.otherAcquisitionEngineText?.trim() ?? '').length > 0)
+    (step2Data?.productP1?.coreDeliverableSummary?.trim()?.length ?? 0) > 5 &&
+    (step2Data?.productP1?.packagingType !== 'OTHER' || (step2Data?.productP1?.otherPackagingTypeText?.trim() ?? '').length > 0) &&
+    (step2Data?.priceP2?.headlinePricePoint?.trim()?.length ?? 0) > 0 &&
+    (step2Data?.priceP2?.priceJustification?.trim()?.length ?? 0) > 5 &&
+    (step2Data?.priceP2?.pricingStance !== 'OTHER' || (step2Data?.priceP2?.otherPricingStanceText?.trim() ?? '').length > 0) &&
+    (step2Data?.placeP3?.customerJourneyFrictionPoint?.trim()?.length ?? 0) > 5 &&
+    (step2Data?.placeP3?.primaryChannel !== 'OTHER' || (step2Data?.placeP3?.otherPrimaryChannelText?.trim() ?? '').length > 0) &&
+    (step2Data?.promotionP4?.beachheadChannelTactics?.trim()?.length ?? 0) > 5 &&
+    (step2Data?.promotionP4?.primaryAcquisitionEngine !== 'OTHER' || (step2Data?.promotionP4?.otherAcquisitionEngineText?.trim() ?? '').length > 0)
   );
 
   // Step 3 Data State
   const [step3Data, setStep3Data] = useState<First10PlaybookStep3Data>(() => {
-    if (plan.moduleIData?.step3First10) {
-      return plan.moduleIData.step3First10;
-    }
-
     const defaultPrice =
       step2Data?.priceP2?.headlinePricePoint ||
       resolvedUpstreamPrice.priceHeadline ||
@@ -678,7 +718,7 @@ export function ModuleIWorkspace({
       baseCurrency: plan.baseCurrency || 'EUR',
     });
 
-    return {
+    const defaultStep3: First10PlaybookStep3Data = {
       acquisitionArchetype: 'ACCOUNT_BASED_SNIPER',
       otherAcquisitionArchetypeText: '',
       pilotOffer: {
@@ -760,18 +800,52 @@ export function ModuleIWorkspace({
         generatedLoiMarkdown: initialLoi,
       },
     };
+
+    const existing = plan.moduleIData?.step3First10;
+    if (existing) {
+      return {
+        ...defaultStep3,
+        ...existing,
+        pilotOffer: {
+          ...defaultStep3.pilotOffer,
+          ...(existing.pilotOffer || {}),
+        },
+        targetPipeline:
+          Array.isArray(existing.targetPipeline) && existing.targetPipeline.length > 0
+            ? existing.targetPipeline
+            : defaultStep3.targetPipeline,
+        outreachScripts: {
+          ...defaultStep3.outreachScripts,
+          ...(existing.outreachScripts || {}),
+        },
+        followUpCadence: {
+          ...defaultStep3.followUpCadence,
+          ...(existing.followUpCadence || {}),
+        },
+        objectionBusters: {
+          ...defaultStep3.objectionBusters,
+          ...(existing.objectionBusters || {}),
+        },
+        letterOfIntent: {
+          ...defaultStep3.letterOfIntent,
+          ...(existing.letterOfIntent || {}),
+        },
+      };
+    }
+
+    return defaultStep3;
   });
 
   const isStep3Complete = Boolean(
-    (step3Data.acquisitionArchetype !== 'OTHER' || (step3Data.otherAcquisitionArchetypeText?.trim() ?? '').length > 0) &&
-    step3Data.pilotOffer.pilotStructure.trim().length > 5 &&
-    step3Data.pilotOffer.quidProQuoFounderAsk.trim().length > 5 &&
-    step3Data.targetPipeline.length >= 3 &&
-    step3Data.outreachScripts.advisoryScript.trim().length > 20 &&
-    step3Data.followUpCadence.day14Breakup.trim().length > 10 &&
-    step3Data.objectionBusters.vendorRisk.trim().length > 10 &&
-    step3Data.letterOfIntent.targetCompanyName.trim().length > 1 &&
-    step3Data.letterOfIntent.primarySuccessKpi.trim().length > 5
+    (step3Data?.acquisitionArchetype !== 'OTHER' || (step3Data?.otherAcquisitionArchetypeText?.trim() ?? '').length > 0) &&
+    (step3Data?.pilotOffer?.pilotStructure?.trim()?.length ?? 0) > 5 &&
+    (step3Data?.pilotOffer?.quidProQuoFounderAsk?.trim()?.length ?? 0) > 5 &&
+    (step3Data?.targetPipeline?.length ?? 0) >= 3 &&
+    (step3Data?.outreachScripts?.advisoryScript?.trim()?.length ?? 0) > 20 &&
+    (step3Data?.followUpCadence?.day14Breakup?.trim()?.length ?? 0) > 10 &&
+    (step3Data?.objectionBusters?.vendorRisk?.trim()?.length ?? 0) > 10 &&
+    (step3Data?.letterOfIntent?.targetCompanyName?.trim()?.length ?? 0) > 1 &&
+    (step3Data?.letterOfIntent?.primarySuccessKpi?.trim()?.length ?? 0) > 5
   );
 
   // -------------------------------------------------------------
@@ -783,11 +857,6 @@ export function ModuleIWorkspace({
   );
 
   const [step4Data, setStep4Data] = useState<MarketingBudgetStep4Data>(() => {
-    const existing = plan.moduleIData?.step4Budget;
-    if (existing && typeof existing === 'object' && Array.isArray(existing.budgetLineItems)) {
-      return existing;
-    }
-
     const isIE = (plan.hqCountryCode || 'IE') !== 'GB';
     const cat = (plan.industryCategory || '').toLowerCase();
     const isDtc = cat.includes('e-commerce') || cat.includes('food') || cat.includes('brick');
@@ -797,10 +866,10 @@ export function ModuleIWorkspace({
     const defaultLeadConv = upstreamEconomics.leadConversionPercentFromModH;
     const defaultVisitorConv = isService ? 6.0 : isDtc ? 3.0 : 4.0;
     const defaultPaidShare =
-      step2Data.promotionP4.primaryAcquisitionEngine === 'PAID_PERFORMANCE_ADS'
+      step2Data?.promotionP4?.primaryAcquisitionEngine === 'PAID_PERFORMANCE_ADS'
         ? 65
-        : step2Data.promotionP4.primaryAcquisitionEngine === 'FOUNDER_LED_ORGANIC' ||
-          step2Data.promotionP4.primaryAcquisitionEngine === 'OUTBOUND_ACCOUNT_BASED'
+        : step2Data?.promotionP4?.primaryAcquisitionEngine === 'FOUNDER_LED_ORGANIC' ||
+          step2Data?.promotionP4?.primaryAcquisitionEngine === 'OUTBOUND_ACCOUNT_BASED'
         ? 25
         : 35;
     const defaultCpc = isDtc ? 1.1 : 2.1;
@@ -855,7 +924,7 @@ export function ModuleIWorkspace({
         ? Number((cashCac / upstreamEconomics.pocketProfitPerCustomer).toFixed(1))
         : 1.5;
 
-    return {
+    const defaultStep4: MarketingBudgetStep4Data = {
       goalPreset: 'MOD_H_Y1_BREAKEVEN',
       otherGoalPresetText: '',
       targetMonthlyNewCustomers: defaultTargetCustomers,
@@ -882,6 +951,20 @@ export function ModuleIWorkspace({
       syncedToModuleJOverheads: false,
       cacAndBudgetNarrative: `To reach our Module H breakeven target of ${defaultTargetCustomers} paying customers per month, our reverse-engineered funnel requires ${reqLeads.toLocaleString()} qualified leads (${defaultLeadConv}% conversion) from ${reqTouches.toLocaleString()} top-of-funnel visitors/outreach touches (${defaultVisitorConv}% visitor-to-lead conversion). Blending ${100 - defaultPaidShare}% founder-led organic outreach with ${defaultPaidShare}% paid acquisition (${currencySymbol}${totalSpend.toLocaleString()}/mo budget) yields a Cash CAC of ${currencySymbol}${cashCac} against an LTV of ${currencySymbol}${ltv.toLocaleString()} (${ltvCac}x LTV:CAC), paying back acquisition cost in ${payback} months.`,
     };
+
+    const existing = plan.moduleIData?.step4Budget;
+    if (existing && typeof existing === 'object') {
+      return {
+        ...defaultStep4,
+        ...existing,
+        budgetLineItems:
+          Array.isArray(existing.budgetLineItems) && existing.budgetLineItems.length > 0
+            ? existing.budgetLineItems
+            : defaultStep4.budgetLineItems,
+      };
+    }
+
+    return defaultStep4;
   });
 
   const [lastActivePaidShare, setLastActivePaidShare] = useState<number>(() => {
@@ -1200,20 +1283,20 @@ export function ModuleIWorkspace({
     };
   }, [
     step4Data,
-    step3Data.targetPipeline.length,
+    step3Data?.targetPipeline?.length,
     upstreamEconomics.pocketProfitPerCustomer,
     upstreamEconomics.defaultLtvPurchaseModel,
     currencySymbol,
   ]);
 
   const isStep4Complete = Boolean(
-    step4Data.targetMonthlyNewCustomers >= 1 &&
-      (step4Data.goalPreset !== 'OTHER' ||
-        (step4Data.otherGoalPresetText?.trim() ?? '').length > 0) &&
-      (step4Data.ltvPurchaseModel !== 'OTHER' ||
-        (step4Data.otherLtvPurchaseModelText?.trim() ?? '').length > 0) &&
-      step4Data.budgetLineItems.length >= 1 &&
-      step4Data.cacAndBudgetNarrative.trim().length > 15
+    (Number(step4Data?.targetMonthlyNewCustomers) || 0) >= 1 &&
+      (step4Data?.goalPreset !== 'OTHER' ||
+        (step4Data?.otherGoalPresetText?.trim() ?? '').length > 0) &&
+      (step4Data?.ltvPurchaseModel !== 'OTHER' ||
+        (step4Data?.otherLtvPurchaseModelText?.trim() ?? '').length > 0) &&
+      (step4Data?.budgetLineItems?.length ?? 0) >= 1 &&
+      (step4Data?.cacAndBudgetNarrative?.trim()?.length ?? 0) > 15
   );
 
   const completedCoreStepsCount =
@@ -1318,20 +1401,24 @@ export function ModuleIWorkspace({
   // Save Step 1
   const handleSaveStep1 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep1Ref.current = false;
     setSaveStatus('saving');
     try {
+      const updatedStep1: BrandPositioningStep1Data = {
+        ...step1Data,
+        lastSavedAt: new Date().toISOString(),
+      };
       if (onSaveStep1Positioning) {
-        await onSaveStep1Positioning(step1Data, isStep1Complete ? 25 : 15);
+        await onSaveStep1Positioning(updatedStep1, isStep1Complete ? 25 : 15);
       }
 
       const res = await saveModuleIStep1PositioningAction({
         planId: plan.id,
-        positioning: step1Data,
+        positioning: updatedStep1,
         completionPercentage: isStep1Complete ? 25 : 15,
       });
 
       if (res.ok || onSaveStep1Positioning) {
-        isDirtyStep1Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
@@ -1340,7 +1427,6 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 1:', err);
       if (onSaveStep1Positioning) {
-        isDirtyStep1Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
@@ -1612,20 +1698,24 @@ export function ModuleIWorkspace({
   // Save Step 2
   const handleSaveStep2 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep2Ref.current = false;
     setSaveStatusStep2('saving');
     try {
+      const updatedStep2: Modern4PsStep2Data = {
+        ...step2Data,
+        lastSavedAt: new Date().toISOString(),
+      };
       if (onSaveStep2FourPs) {
-        await onSaveStep2FourPs(step2Data, isStep2Complete ? 45 : 30);
+        await onSaveStep2FourPs(updatedStep2, isStep2Complete ? 45 : 30);
       }
 
       const res = await saveModuleIStep2FourPsAction({
         planId: plan.id,
-        fourPs: step2Data,
+        fourPs: updatedStep2,
         completionPercentage: isStep2Complete ? 45 : 30,
       });
 
       if (res.ok || onSaveStep2FourPs) {
-        isDirtyStep2Ref.current = false;
         setSaveStatusStep2('saved');
         setTimeout(() => setSaveStatusStep2('idle'), 2500);
       } else {
@@ -1634,7 +1724,6 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 2:', err);
       if (onSaveStep2FourPs) {
-        isDirtyStep2Ref.current = false;
         setSaveStatusStep2('saved');
         setTimeout(() => setSaveStatusStep2('idle'), 2500);
       } else {
@@ -1809,9 +1898,9 @@ export function ModuleIWorkspace({
     },
     PILOT_AGREED: {
       label: 'Pilot Agreed (LOI)',
-      bg: 'bg-indigo-50',
-      text: 'text-indigo-700',
-      border: 'border-indigo-200',
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-800',
+      border: 'border-slate-200',
     },
     CONVERTED_PAID: {
       label: 'Converted Paid',
@@ -1858,20 +1947,24 @@ export function ModuleIWorkspace({
   // Save Step 3
   const handleSaveStep3 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep3Ref.current = false;
     setSaveStatusStep3('saving');
     try {
+      const updatedStep3: First10PlaybookStep3Data = {
+        ...step3Data,
+        lastSavedAt: new Date().toISOString(),
+      };
       if (onSaveStep3First10) {
-        await onSaveStep3First10(step3Data, isStep3Complete ? 65 : 50);
+        await onSaveStep3First10(updatedStep3, isStep3Complete ? 65 : 50);
       }
 
       const res = await saveModuleIStep3First10Action({
         planId: plan.id,
-        first10: step3Data,
+        first10: updatedStep3,
         completionPercentage: isStep3Complete ? 65 : 50,
       });
 
       if (res.ok || onSaveStep3First10) {
-        isDirtyStep3Ref.current = false;
         setSaveStatusStep3('saved');
         setTimeout(() => setSaveStatusStep3('idle'), 2500);
       } else {
@@ -1880,7 +1973,6 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 3:', err);
       if (onSaveStep3First10) {
-        isDirtyStep3Ref.current = false;
         setSaveStatusStep3('saved');
         setTimeout(() => setSaveStatusStep3('idle'), 2500);
       } else {
@@ -2447,6 +2539,7 @@ export function ModuleIWorkspace({
 
   const handleSaveStep4 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep4Ref.current = false;
     setSaveStatusStep4('saving');
     const updatedStep4: MarketingBudgetStep4Data = {
       ...step4Data,
@@ -2457,12 +2550,12 @@ export function ModuleIWorkspace({
       calculatedLtvToCacRatio: step4LiveMetrics.ltvToCacRatio,
       calculatedPaybackMonths: step4LiveMetrics.paybackMonths,
       weeklyFounderMarketingHours: step4LiveMetrics.weeklyFounderHours,
+      lastSavedAt: new Date().toISOString(),
     };
-    setStep4Data(updatedStep4);
 
     try {
       if (onSaveStep4Budget) {
-        onSaveStep4Budget(updatedStep4, 90);
+        await onSaveStep4Budget(updatedStep4, 90);
       }
       const res = await saveModuleIStep4BudgetAction({
         planId: plan.id,
@@ -2470,7 +2563,6 @@ export function ModuleIWorkspace({
         completionPercentage: 90,
       });
       if (res.ok || onSaveStep4Budget) {
-        isDirtyStep4Ref.current = false;
         setSaveStatusStep4('saved');
         setTimeout(() => setSaveStatusStep4('idle'), 2500);
       } else {
@@ -2479,7 +2571,6 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 4:', err);
       if (onSaveStep4Budget) {
-        isDirtyStep4Ref.current = false;
         setSaveStatusStep4('saved');
         setTimeout(() => setSaveStatusStep4('idle'), 2500);
       } else {
@@ -2655,7 +2746,7 @@ export function ModuleIWorkspace({
   };
 
   // Assembled live positioning sentence for review
-  const livePositioningSentence = `For ${step1Data.positioningFormula.targetCustomer || '[Target Customer]'} who struggle with ${step1Data.positioningFormula.customerProblem || '[Problem]'}, ${planTitle} is a ${step1Data.positioningFormula.solutionCategory || '[Category]'} that provides ${step1Data.positioningFormula.primaryBenefit || '[Primary Benefit]'}. Unlike ${step1Data.positioningFormula.competitiveWedge || '[Alternatives]'}, our product delivers defensible advantage.`;
+  const livePositioningSentence = `For ${step1Data?.positioningFormula?.targetCustomer || '[Target Customer]'} who struggle with ${step1Data?.positioningFormula?.customerProblem || '[Problem]'}, ${planTitle} is a ${step1Data?.positioningFormula?.solutionCategory || '[Category]'} that provides ${step1Data?.positioningFormula?.primaryBenefit || '[Primary Benefit]'}. Unlike ${step1Data?.positioningFormula?.competitiveWedge || '[Alternatives]'}, our product delivers defensible advantage.`;
 
   // -------------------------------------------------------------
   // STEP 5 / OVERVIEW STATE: EXECUTIVE MARKETING BRIEF
@@ -2675,21 +2766,21 @@ export function ModuleIWorkspace({
               id: 'bs-cac-payback',
               category: 'Marketing & Customer Acquisition',
               title:
-                step4Data.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
+                step4Data?.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
                   ? 'Paid Ads Opt-Out & Low-Cost Engine Focus'
                   : 'Payback Velocity & CAC Margin Protection',
               severity:
-                step4Data.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
+                step4Data?.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
                   ? 'INFO'
-                  : step4LiveMetrics.paybackMonths > 6
+                  : (step4LiveMetrics?.paybackMonths ?? 0) > 6
                   ? 'WARNING'
                   : 'INFO',
               explanation:
-                step4Data.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
-                  ? `Unit economics indicate paid advertising is unprofitable at the current headline price (${currencySymbol}${step4LiveMetrics.cashCac} CAC vs ${currencySymbol}${step4LiveMetrics.pocketProfit} pocket profit). Paid ads are formally excluded, conserving cash and focusing 100% on organic/direct distribution.`
-                  : `Current estimated payback velocity is ${step4LiveMetrics.paybackMonths} months. Underwriters and grant committees scrutinize payback timelines exceeding 6 months.`,
+                step4Data?.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
+                  ? `Unit economics indicate paid advertising is unprofitable at the current headline price (${currencySymbol}${step4LiveMetrics?.cashCac ?? 0} CAC vs ${currencySymbol}${step4LiveMetrics?.pocketProfit ?? 0} pocket profit). Paid ads are formally excluded, conserving cash and focusing 100% on organic/direct distribution.`
+                  : `Current estimated payback velocity is ${step4LiveMetrics?.paybackMonths ?? 0} months. Underwriters and grant committees scrutinize payback timelines exceeding 6 months.`,
               suggestedAction:
-                step4Data.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
+                step4Data?.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
                   ? 'Channel all focus into founder-led organic outreach, high-conviction partnerships, and product-led word of mouth before revisiting paid channels.'
                   : 'Introduce annual upfront billing incentives or onboarding deposits to accelerate cash payback to under 3 months.',
             },
@@ -2698,7 +2789,7 @@ export function ModuleIWorkspace({
               category: 'Marketing & Customer Acquisition',
               title: 'Warm Pipeline Cliff After First 10 Customers',
               severity: 'WARNING',
-              explanation: `Step 3 targets ${step3Data.targetPipeline.length} high-probability warm accounts. Once these initial pilot partners convert, customer acquisition must successfully transition into cold outreach and systematic inbound channels.`,
+              explanation: `Step 3 targets ${step3Data?.targetPipeline?.length ?? 0} high-probability warm accounts. Once these initial pilot partners convert, customer acquisition must successfully transition into cold outreach and systematic inbound channels.`,
               suggestedAction:
                 'Integrate referral triggers and case study permissions directly into pilot Letter of Intent milestones so initial users feed your subsequent pipeline.',
             },
@@ -2707,7 +2798,7 @@ export function ModuleIWorkspace({
               category: 'Marketing & Customer Acquisition',
               title: 'Grant Compliance: Software vs Ad Media Separation',
               severity: 'INFO',
-              explanation: `LEO and Innovate UK grants co-fund software tools (${currencySymbol}${step4LiveMetrics.toolsBucketSpend.toLocaleString()}/mo), digital consultancy, and creative assets, but strictly prohibit ongoing paid advertising media spend.`,
+              explanation: `LEO and Innovate UK grants co-fund software tools (${currencySymbol}${(step4LiveMetrics?.toolsBucketSpend ?? 0).toLocaleString()}/mo), digital consultancy, and creative assets, but strictly prohibit ongoing paid advertising media spend.`,
               suggestedAction:
                 'Keep marketing tools and web infrastructure isolated from recurring ad budgets in your Module J grant schedule.',
             },
@@ -2716,9 +2807,9 @@ export function ModuleIWorkspace({
     return {
       blindSpots: initialBlindSpots,
       marketingReadinessConfidence:
-        step4Data.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
+        step4Data?.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE'
           ? 'BOOTSTRAPPED_ZERO_AD_SPEND'
-          : step3Data.targetPipeline.length >= 5
+          : (step3Data?.targetPipeline?.length ?? 0) >= 5
           ? 'ORGANIC_FIRST_10_READY'
           : 'NEEDS_CONVERSION_TESTING',
       otherReadinessConfidenceText: '',
@@ -2727,14 +2818,14 @@ export function ModuleIWorkspace({
   });
 
   const isStep5Complete = Boolean(
-    step5Data.executiveMarketingSummaryNarrative.trim().length > 40 &&
-      step5Data.blindSpots.length >= 1
+    (step5Data?.executiveMarketingSummaryNarrative?.trim()?.length ?? 0) > 40 &&
+      (step5Data?.blindSpots?.length ?? 0) >= 1
   );
 
   const isOptedOutOfPaid = Boolean(
-    step4Data.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE' ||
-    Number(step4Data.paidTrafficSharePercent) === 0 ||
-    step4Data.excludePaidAdsFromModuleJ
+    step4Data?.paidAdsViabilityDecision === 'OPTED_OUT_UNPROFITABLE' ||
+    Number(step4Data?.paidTrafficSharePercent) === 0 ||
+    Boolean(step4Data?.excludePaidAdsFromModuleJ)
   );
 
   const [saveStatusStep5, setSaveStatusStep5] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -2818,16 +2909,16 @@ export function ModuleIWorkspace({
 
   const handleSaveStep5 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep5Ref.current = false;
     setSaveStatusStep5('saving');
     const updatedStep5: MarketingExecutiveBriefStep5Data = {
       ...step5Data,
       lastSavedAt: new Date().toISOString(),
     };
-    setStep5Data(updatedStep5);
 
     try {
       if (onSaveStep5Brief) {
-        onSaveStep5Brief(updatedStep5, 100);
+        await onSaveStep5Brief(updatedStep5, 100);
       }
       const res = await saveModuleIStep5BriefAction({
         planId: plan.id,
@@ -2835,7 +2926,6 @@ export function ModuleIWorkspace({
         completionPercentage: 100,
       });
       if (res.ok || onSaveStep5Brief) {
-        isDirtyStep5Ref.current = false;
         setSaveStatusStep5('saved');
         setTimeout(() => setSaveStatusStep5('idle'), 2500);
       } else {
@@ -2844,7 +2934,6 @@ export function ModuleIWorkspace({
     } catch (err) {
       console.error('Error saving Module I Step 5:', err);
       if (onSaveStep5Brief) {
-        isDirtyStep5Ref.current = false;
         setSaveStatusStep5('saved');
         setTimeout(() => setSaveStatusStep5('idle'), 2500);
       } else {
@@ -2853,7 +2942,18 @@ export function ModuleIWorkspace({
     }
   };
 
-  // Step 1 Debounced Autosave (1200ms)
+  const handleSaveStep1Ref = useRef(handleSaveStep1);
+  handleSaveStep1Ref.current = handleSaveStep1;
+  const handleSaveStep2Ref = useRef(handleSaveStep2);
+  handleSaveStep2Ref.current = handleSaveStep2;
+  const handleSaveStep3Ref = useRef(handleSaveStep3);
+  handleSaveStep3Ref.current = handleSaveStep3;
+  const handleSaveStep4Ref = useRef(handleSaveStep4);
+  handleSaveStep4Ref.current = handleSaveStep4;
+  const handleSaveStep5Ref = useRef(handleSaveStep5);
+  handleSaveStep5Ref.current = handleSaveStep5;
+
+  // Step 1 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep1Ref.current) {
       isFirstRenderStep1Ref.current = false;
@@ -2863,13 +2963,13 @@ export function ModuleIWorkspace({
     isDirtyStep1Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep1Ref.current) {
-        void handleSaveStep1({ silent: true });
+        void handleSaveStep1Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step1Data]);
 
-  // Step 2 Debounced Autosave (1200ms)
+  // Step 2 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep2Ref.current) {
       isFirstRenderStep2Ref.current = false;
@@ -2879,13 +2979,13 @@ export function ModuleIWorkspace({
     isDirtyStep2Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep2Ref.current) {
-        void handleSaveStep2({ silent: true });
+        void handleSaveStep2Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step2Data]);
 
-  // Step 3 Debounced Autosave (1200ms)
+  // Step 3 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep3Ref.current) {
       isFirstRenderStep3Ref.current = false;
@@ -2895,13 +2995,13 @@ export function ModuleIWorkspace({
     isDirtyStep3Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep3Ref.current) {
-        void handleSaveStep3({ silent: true });
+        void handleSaveStep3Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step3Data]);
 
-  // Step 4 Debounced Autosave (1200ms)
+  // Step 4 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep4Ref.current) {
       isFirstRenderStep4Ref.current = false;
@@ -2911,13 +3011,13 @@ export function ModuleIWorkspace({
     isDirtyStep4Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep4Ref.current) {
-        void handleSaveStep4({ silent: true });
+        void handleSaveStep4Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step4Data]);
 
-  // Step 5 Debounced Autosave (1200ms)
+  // Step 5 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep5Ref.current) {
       isFirstRenderStep5Ref.current = false;
@@ -2927,20 +3027,20 @@ export function ModuleIWorkspace({
     isDirtyStep5Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep5Ref.current) {
-        void handleSaveStep5({ silent: true });
+        void handleSaveStep5Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step5Data]);
 
   // Flush on unmount so switching modules never loses changes
   useEffect(() => {
     return () => {
-      if (isDirtyStep1Ref.current) void handleSaveStep1({ silent: true });
-      if (isDirtyStep2Ref.current) void handleSaveStep2({ silent: true });
-      if (isDirtyStep3Ref.current) void handleSaveStep3({ silent: true });
-      if (isDirtyStep4Ref.current) void handleSaveStep4({ silent: true });
-      if (isDirtyStep5Ref.current) void handleSaveStep5({ silent: true });
+      if (isDirtyStep1Ref.current) void handleSaveStep1Ref.current({ silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2Ref.current({ silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3Ref.current({ silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4Ref.current({ silent: true });
+      if (isDirtyStep5Ref.current) void handleSaveStep5Ref.current({ silent: true });
     };
   }, []);
 
@@ -3075,11 +3175,11 @@ export function ModuleIWorkspace({
       {/* ------------------------------------------------------------- */}
       {/* MODULE I TOP HEADER BANNER (Strict GEMINI.md Rule 6 Standard) */}
       {/* ------------------------------------------------------------- */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100 text-[10px] shrink-0">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200 text-[10px] shrink-0">
                 Module I • Go-To-Market &amp; Customer Acquisition
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
@@ -3090,7 +3190,7 @@ export function ModuleIWorkspace({
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module I: Marketing, 4Ps &amp; First 10 Customers
             </h1>
-            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
               Craft an unforgettable 3-second hook, lock your 4Ps strategy, execute your day-1 hustle to win your first 10 customers, and reverse-engineer your marketing budget to prove CAC payback.
             </p>
           </div>
@@ -3103,7 +3203,7 @@ export function ModuleIWorkspace({
                   variant="outline"
                   size="sm"
                   onClick={onBackToModuleH}
-                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                  className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Module H
@@ -3114,12 +3214,12 @@ export function ModuleIWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))}
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
               </Button>
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Module I Progress:{' '}
               <strong className="text-white">
                 {Math.round((completedCoreStepsCount / 4) * 100)}%
@@ -3130,7 +3230,7 @@ export function ModuleIWorkspace({
         </div>
 
         {/* Step Navigation Strip (Tile Grid Standard) */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-3 lg:grid-cols-5">
           {[
             { step: 'Step 1', title: '1. Brand Hook', done: isStep1Complete, targetId: 'module-i-step-1', stepNum: 1 },
             { step: 'Step 2', title: '2. 4Ps & Channels', done: isStep2Complete, targetId: 'module-i-step-2', stepNum: 2 },
@@ -3159,7 +3259,7 @@ export function ModuleIWorkspace({
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
@@ -3185,19 +3285,19 @@ export function ModuleIWorkspace({
         <div
           id="module-i-step-1"
           onClick={() => setOpenStep(1)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 1: Brand Positioning, Value Proposition &amp; 3-Second Hook
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -3223,7 +3323,7 @@ export function ModuleIWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep1Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -3239,7 +3339,7 @@ export function ModuleIWorkspace({
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
@@ -3286,7 +3386,7 @@ export function ModuleIWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 1 ? null : 1))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -3309,7 +3409,7 @@ export function ModuleIWorkspace({
                 variant="outline"
                 onClick={handleGenerateAiPositioning}
                 disabled={isGeneratingAi}
-                className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
                 {isGeneratingAi ? (
                   <>
@@ -3318,7 +3418,7 @@ export function ModuleIWorkspace({
                   </>
                 ) : (
                   <>
-                    <Wand2 className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                    <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Generate Hook &amp; Pillars with AI
                   </>
                 )}
@@ -3327,14 +3427,14 @@ export function ModuleIWorkspace({
 
             {/* Micro-Coaching Card (Collapsible) */}
             {activeWhyCard === 1 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start gap-2">
-                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                   <div className="space-y-1">
-                    <p className="font-semibold text-indigo-950">
+                    <p className="font-semibold text-slate-950">
                       Why does positioning come before spending marketing money?
                     </p>
-                    <p className="text-indigo-800">
+                    <p className="text-emerald-900">
                       Most early-stage founders waste money on Facebook or Google ads before they can clearly explain their product in one sentence. If a customer or grant assessor doesn’t understand what you do in 3 seconds, they bounce. A rigorous positioning formula forces clarity, aligns all landing pages, and prevents you from competing on price alone.
                     </p>
                   </div>
@@ -3440,7 +3540,7 @@ export function ModuleIWorkspace({
                     Auto-synthesizes your competitive wedge into a bulletproof commercial statement for investors and grant evaluators.
                   </p>
                 </div>
-                <Badge variant="outline" className="border-indigo-200 text-indigo-700 text-[10px]">
+                <Badge variant="outline" className="border-slate-200 text-emerald-800 text-[10px]">
                   Investor Standard
                 </Badge>
               </div>
@@ -3553,11 +3653,11 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Live Rendered Synthesis Box */}
-              <div className="rounded-lg border border-indigo-200/80 bg-indigo-50/50 p-3 text-xs text-indigo-950">
-                <span className="font-semibold text-indigo-900 block mb-1">
+              <div className="rounded-lg border border-slate-200/80 bg-slate-50 p-3 text-xs text-slate-950">
+                <span className="font-semibold text-slate-900 block mb-1">
                   🔍 Live Rendered Positioning Statement:
                 </span>
-                <p className="italic leading-relaxed text-indigo-900">
+                <p className="italic leading-relaxed text-slate-900">
                   &ldquo;{livePositioningSentence}&rdquo;
                 </p>
               </div>
@@ -3590,7 +3690,7 @@ export function ModuleIWorkspace({
                       }
                       className={`cursor-pointer rounded-xl border p-3 text-left transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/40 shadow-xs ring-1 ring-indigo-500'
+                          ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
                           : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
                       }`}
                     >
@@ -3599,7 +3699,7 @@ export function ModuleIWorkspace({
                           {tone.title}
                         </span>
                         {isSelected && (
-                          <div className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-white">
+                          <div className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-white">
                             <Check className="h-2.5 w-2.5" />
                           </div>
                         )}
@@ -3618,8 +3718,8 @@ export function ModuleIWorkspace({
 
               {/* Edge Case: Mandatory "OTHER" text input */}
               {step1Data.toneOfVoice === 'OTHER' && (
-                <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-3 space-y-1.5">
-                  <Label className="text-xs font-semibold text-indigo-950">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-950">
                     Describe your custom tone of voice:
                   </Label>
                   <Input
@@ -3800,7 +3900,7 @@ export function ModuleIWorkspace({
                   size="sm"
                   onClick={handleSaveStep1}
                   disabled={saveStatus === 'saving' || isVaultReadonly}
-                  className="bg-indigo-600 text-xs font-medium text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs font-medium text-white hover:bg-emerald-800"
                 >
                   {saveStatus === 'saving' ? (
                     <>
@@ -3850,19 +3950,19 @@ export function ModuleIWorkspace({
         <div
           id="module-i-step-2"
           onClick={() => setOpenStep(2)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 2: The Modern 4Ps Strategy &amp; Channel Distribution Matrix
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -3887,7 +3987,7 @@ export function ModuleIWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep2Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -3903,7 +4003,7 @@ export function ModuleIWorkspace({
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
@@ -3950,7 +4050,7 @@ export function ModuleIWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 2 ? null : 2))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -3973,7 +4073,7 @@ export function ModuleIWorkspace({
                 variant="outline"
                 onClick={handleGenerateAiFourPs}
                 disabled={isGeneratingAiStep2}
-                className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
                 {isGeneratingAiStep2 ? (
                   <>
@@ -3982,7 +4082,7 @@ export function ModuleIWorkspace({
                   </>
                 ) : (
                   <>
-                    <Wand2 className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                    <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Generate 4Ps with AI
                   </>
                 )}
@@ -3991,14 +4091,14 @@ export function ModuleIWorkspace({
 
             {/* Micro-Coaching Card (Collapsible) */}
             {activeWhyCard === 2 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start gap-2">
-                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                   <div className="space-y-1">
-                    <p className="font-semibold text-indigo-950">
+                    <p className="font-semibold text-slate-950">
                       Why does the 4Ps model matter to grant bodies (LEO, Innovate UK) and early investors?
                     </p>
-                    <p className="text-indigo-800">
+                    <p className="text-emerald-900">
                       Assessors want proof that you have a viable commercial route to market, not just a product idea. Most failed startups build something and then try 5 different channels with no focus or budget. The modern 4Ps strategy forces you to commit to ONE primary beachhead channel, identify your biggest checkout friction point, and articulate why your price is a total bargain compared to the cost of customer inaction.
                     </p>
                   </div>
@@ -4063,7 +4163,7 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                <Package className="h-4 w-4 text-indigo-600 shrink-0" />
+                <Package className="h-4 w-4 text-emerald-700 shrink-0" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
                     2.1 Product (P1): Packaging Format &amp; Tangible Deliverable
@@ -4096,12 +4196,12 @@ export function ModuleIWorkspace({
                         }
                         className={`cursor-pointer rounded-lg border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/40 shadow-xs ring-1 ring-indigo-600'
+                            ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className={`text-xs font-semibold ${isSelected ? 'text-indigo-950' : 'text-slate-900'}`}>
+                          <span className={`text-xs font-semibold ${isSelected ? 'text-slate-950' : 'text-slate-900'}`}>
                             {pkg.label}
                           </span>
                           <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-slate-200 text-slate-600 shrink-0">
@@ -4118,8 +4218,8 @@ export function ModuleIWorkspace({
 
                 {/* Inline "OTHER" Custom Packaging Input */}
                 {step2Data.productP1.packagingType === 'OTHER' && (
-                  <div className="mt-2.5 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
-                    <Label className="text-xs font-semibold text-indigo-950">
+                  <div className="mt-2.5 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <Label className="text-xs font-semibold text-slate-950">
                       Specify Custom Packaging Format
                     </Label>
                     <Input
@@ -4162,7 +4262,7 @@ export function ModuleIWorkspace({
                       }))
                     }
                     placeholder="e.g. Instant web app login with 3 workflow templates, auto-generated audit report, and founder onboarding checklist."
-                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   />
                   <p className="text-[11px] text-slate-400">
                     Be concrete. Avoid vague marketing buzzwords; tell the buyer exactly what they unlock or open.
@@ -4186,7 +4286,7 @@ export function ModuleIWorkspace({
                       }))
                     }
                     placeholder="e.g. 1-on-1 founder walkthrough call, proprietary benchmark database, and 30-day money-back guarantee."
-                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   />
                   <p className="text-[11px] text-slate-400">
                     The single feature, guarantee, or service touchpoint that creates disproportionate customer delight.
@@ -4309,7 +4409,7 @@ export function ModuleIWorkspace({
                               },
                             }))
                           }
-                          className="inline-flex items-center gap-1 text-[10px] font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded px-1.5 py-0.5 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-800 bg-emerald-50 hover:bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 transition-colors cursor-pointer"
                           title={`Click to sync from ${resolvedUpstreamPrice.sourceLabel}`}
                         >
                           <RefreshCw className="h-2.5 w-2.5" />
@@ -4384,7 +4484,7 @@ export function ModuleIWorkspace({
                     }))
                   }
                   placeholder="e.g. Doing this manually takes 15 hours of senior executive time (€600+ cost). At €49/month, the customer recovers their investment on day two."
-                  className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                  className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                 />
                 <p className="text-[11px] text-slate-400">
                   Explain why a rational buyer views this price as an absolute bargain compared to the cost of doing nothing.
@@ -4539,7 +4639,7 @@ export function ModuleIWorkspace({
                       }))
                     }
                     placeholder="e.g. Hesitation around connecting their real data, or fear of complex migration effort."
-                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   />
                   <p className="text-[11px] text-slate-400">
                     Where are potential customers most likely to abandon before paying?
@@ -4563,7 +4663,7 @@ export function ModuleIWorkspace({
                       }))
                     }
                     placeholder="e.g. 1-click sample dataset demo mode, pre-built templates, and personal onboarding assistance."
-                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   />
                   <p className="text-[11px] text-slate-400">
                     The concrete workflow mechanism you implement to remove that friction completely.
@@ -4577,7 +4677,7 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                <Megaphone className="h-4 w-4 text-violet-600 shrink-0" />
+                <Megaphone className="h-4 w-4 text-emerald-700 shrink-0" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
                     2.4 Promotion (P4): The Beachhead Acquisition Engine — Your First Core Customer Group (Who buys first?)
@@ -4610,17 +4710,17 @@ export function ModuleIWorkspace({
                         }
                         className={`cursor-pointer rounded-lg border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-violet-600 bg-violet-50/40 shadow-xs ring-1 ring-violet-600'
+                            ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                         }`}
                       >
-                        <span className={`text-xs font-semibold ${isSelected ? 'text-violet-950' : 'text-slate-900'}`}>
+                        <span className={`text-xs font-semibold ${isSelected ? 'text-slate-950' : 'text-slate-900'}`}>
                           {engine.label}
                         </span>
                         <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
                           {engine.description}
                         </p>
-                        <p className="mt-1.5 text-[10px] font-medium text-violet-700">
+                        <p className="mt-1.5 text-[10px] font-medium text-emerald-800">
                           Best for: {engine.bestFit}
                         </p>
                       </div>
@@ -4630,8 +4730,8 @@ export function ModuleIWorkspace({
 
                 {/* Inline "OTHER" Custom Acquisition Engine */}
                 {step2Data.promotionP4.primaryAcquisitionEngine === 'OTHER' && (
-                  <div className="mt-2.5 rounded-lg border border-violet-200 bg-violet-50/40 p-3">
-                    <Label className="text-xs font-semibold text-violet-950">
+                  <div className="mt-2.5 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <Label className="text-xs font-semibold text-slate-950">
                       Specify Custom Acquisition Engine
                     </Label>
                     <Input
@@ -4719,7 +4819,7 @@ export function ModuleIWorkspace({
                     }))
                   }
                   placeholder="e.g. Post 3 practical breakdowns per week on LinkedIn dissecting real founder mistakes; send a personalized message offering our free checklist to anyone who comments."
-                  className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                  className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                 />
                 <p className="text-[11px] text-slate-400">
                   Detail your weekly execution cadence. Consistency on one channel beats sporadic attempts across ten.
@@ -4817,12 +4917,12 @@ export function ModuleIWorkspace({
 
             {/* AI Strategic Rationale Review Callout */}
             {step2Data.strategicRationale && (
-              <div className="rounded-lg border border-violet-200 bg-violet-50/50 p-3.5 text-xs text-violet-950">
+              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5 text-xs text-slate-950">
                 <div className="flex items-start gap-2">
-                  <Lightbulb className="h-4 w-4 text-violet-600 shrink-0 mt-0.5" />
+                  <Lightbulb className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold">AI Strategic Commercial Rationale: </span>
-                    <span className="text-violet-900">{step2Data.strategicRationale}</span>
+                    <span className="text-slate-900">{step2Data.strategicRationale}</span>
                   </div>
                 </div>
               </div>
@@ -4884,7 +4984,7 @@ export function ModuleIWorkspace({
                   size="sm"
                   onClick={handleSaveStep2}
                   disabled={saveStatusStep2 === 'saving' || isVaultReadonly}
-                  className="bg-indigo-600 text-xs font-medium text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs font-medium text-white hover:bg-emerald-800"
                 >
                   {saveStatusStep2 === 'saving' ? (
                     <>
@@ -4934,19 +5034,19 @@ export function ModuleIWorkspace({
         <div
           id="module-i-step-3"
           onClick={() => setOpenStep(3)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 3: The &quot;First 10 Customers&quot; Playbook &amp; Day-1 Hustle CRM
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -4969,7 +5069,7 @@ export function ModuleIWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep3Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -4985,7 +5085,7 @@ export function ModuleIWorkspace({
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
@@ -5032,7 +5132,7 @@ export function ModuleIWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 3 ? null : 3))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -5055,7 +5155,7 @@ export function ModuleIWorkspace({
                 variant="outline"
                 onClick={handleGenerateAiFirst10}
                 disabled={isGeneratingAiStep3 || isVaultReadonly}
-                className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
                 {isGeneratingAiStep3 ? (
                   <>
@@ -5073,18 +5173,18 @@ export function ModuleIWorkspace({
 
             {/* Micro-Coaching: Why Are We Asking This? */}
             {activeWhyCard === 3 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div className="space-y-1">
-                      <p className="font-semibold text-indigo-950">
+                      <p className="font-semibold text-slate-950">
                         Why the First 10 Customers Matter (More Than 10,000 Social Followers)
                       </p>
-                      <p className="text-indigo-800">
+                      <p className="text-emerald-900">
                         Paul Graham famously noted that the best startups always <strong>&quot;do things that don&#39;t scale&quot;</strong> in the early days. You do not win your first 10 paying customers with generic Facebook ads or automated blasts; you win them through obsessive founder hustle, high-touch consultation, and customized problem-solving.
                       </p>
-                      <p className="text-indigo-800">
+                      <p className="text-emerald-900">
                         <strong>Irish LEO &amp; UK Innovate UK assessors:</strong> Every experienced grant evaluator knows that early product ideas are easy to invent. What separates a funded venture from a rejected one is <em>commercial evidence</em>. Showing a structured list of 10 named targets, personalized outreach hooks, and a signed non-binding Letter of Intent (LOI) proves that real humans are waiting to buy your solution.
                       </p>
                     </div>
@@ -5092,7 +5192,7 @@ export function ModuleIWorkspace({
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-500 hover:text-indigo-800 text-xs px-1"
+                    className="text-emerald-700 hover:text-emerald-900 text-xs px-1"
                   >
                     ✕
                   </button>
@@ -5158,15 +5258,15 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.0: MODULE C LEAD HARVESTING BRIDGE                      */}
             {/* --------------------------------------------------------- */}
-            <div className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/50 via-white to-violet-50/50 p-4.5 shadow-2xs">
+            <div className="rounded-xl border border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/50 p-4.5 shadow-2xs">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-indigo-600 shrink-0" />
+                    <Users className="h-4 w-4 text-emerald-700 shrink-0" />
                     <h3 className="text-sm font-bold text-slate-900">
                       Module C Validation Bridge: Harvest Discovery Leads
                     </h3>
-                    <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700">
+                    <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800">
                       Connected to Module C
                     </Badge>
                   </div>
@@ -5182,7 +5282,7 @@ export function ModuleIWorkspace({
                       size="sm"
                       onClick={handleHarvestModuleCLeads}
                       disabled={isHarvestingLeads || isVaultReadonly}
-                      className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs h-8 px-3"
+                      className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs h-8 px-3"
                     >
                       {isHarvestingLeads ? (
                         <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -5197,7 +5297,7 @@ export function ModuleIWorkspace({
                       size="sm"
                       variant="outline"
                       onClick={() => onNavigateToModule?.('MOD_C_SURVEYS_FEEDBACK')}
-                      className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs h-8 px-3"
+                      className="border-slate-200 text-emerald-800 hover:bg-emerald-50 text-xs h-8 px-3"
                     >
                       <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
                       Launch Module C Survey &amp; Waitlist
@@ -5207,20 +5307,20 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Status metrics bar */}
-              <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-3 border-t border-indigo-100/60 text-xs">
-                <div className="rounded-lg bg-white/80 p-2 border border-indigo-50">
+              <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-3 border-t border-slate-100/60 text-xs">
+                <div className="rounded-lg bg-white/80 p-2 border border-slate-200">
                   <span className="text-[11px] text-slate-500">Live Surveys</span>
                   <div className="text-sm font-bold text-slate-900">{moduleCStats.totalSurveys}</div>
                 </div>
-                <div className="rounded-lg bg-white/80 p-2 border border-indigo-50">
+                <div className="rounded-lg bg-white/80 p-2 border border-slate-200">
                   <span className="text-[11px] text-slate-500">Waitlist Signups</span>
-                  <div className="text-sm font-bold text-indigo-600">{moduleCStats.totalWaitlistLeads}</div>
+                  <div className="text-sm font-bold text-emerald-700">{moduleCStats.totalWaitlistLeads}</div>
                 </div>
-                <div className="rounded-lg bg-white/80 p-2 border border-indigo-50">
+                <div className="rounded-lg bg-white/80 p-2 border border-slate-200">
                   <span className="text-[11px] text-slate-500">Discovery Interviews</span>
                   <div className="text-sm font-bold text-slate-900">{moduleCStats.totalInterviews}</div>
                 </div>
-                <div className="rounded-lg bg-white/80 p-2 border border-indigo-50">
+                <div className="rounded-lg bg-white/80 p-2 border border-slate-200">
                   <span className="text-[11px] text-slate-500">High-Intent Leads</span>
                   <div className="text-sm font-bold text-emerald-600">{moduleCStats.highIntentInterviews.length}</div>
                 </div>
@@ -5240,7 +5340,7 @@ export function ModuleIWorkspace({
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-indigo-600" />
+                  <Target className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-sm font-bold text-slate-900">
                     3.1 Choose Your First 10 Customer Acquisition Archetype
                   </h3>
@@ -5266,7 +5366,7 @@ export function ModuleIWorkspace({
                       }}
                       className={`cursor-pointer rounded-xl border p-4 transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-500'
+                          ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
                           : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
                       }`}
                     >
@@ -5274,7 +5374,7 @@ export function ModuleIWorkspace({
                         <span className="text-xs font-bold text-slate-900">{opt.label}</span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {isSelected && (
-                            <div className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-white">
+                            <div className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-white">
                               <Check className="h-2.5 w-2.5" />
                             </div>
                           )}
@@ -5282,7 +5382,7 @@ export function ModuleIWorkspace({
                             variant="secondary"
                             className={`text-[9px] px-1.5 py-0.5 shrink-0 ${
                               isSelected
-                                ? 'bg-indigo-600 text-white'
+                                ? 'bg-emerald-700 text-white'
                                 : 'bg-slate-100 text-slate-700'
                             }`}
                           >
@@ -5298,7 +5398,7 @@ export function ModuleIWorkspace({
                           <span className="font-semibold text-slate-700">Best for: </span>
                           {opt.bestFit}
                         </div>
-                        <div className="text-[10px] text-indigo-700">
+                        <div className="text-[10px] text-emerald-800">
                           <span className="font-semibold">Grant Proof: </span>
                           {opt.grantAssessorProof}
                         </div>
@@ -5310,7 +5410,7 @@ export function ModuleIWorkspace({
 
               {/* Edge-Case "OTHER" input (Strict GEMINI.md Rule 1.5) */}
               {step3Data.acquisitionArchetype === 'OTHER' && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                   <Label className="text-xs font-bold text-slate-900">
                     Describe Your Custom Customer Acquisition Archetype
                   </Label>
@@ -5346,7 +5446,7 @@ export function ModuleIWorkspace({
                   rows={2}
                   disabled={isVaultReadonly}
                   placeholder="Explain why this approach is the fastest and least risky path to 10 customers..."
-                  className="w-full rounded-md border border-slate-300 p-2.5 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                  className="w-full rounded-md border border-slate-300 p-2.5 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                 />
               </div>
             </div>
@@ -5357,7 +5457,7 @@ export function ModuleIWorkspace({
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Handshake className="h-4 w-4 text-indigo-600" />
+                  <Handshake className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-sm font-bold text-slate-900">
                     3.2 Craft Your Irresistible Pilot Offer &amp; Risk Reversal
                   </h3>
@@ -5373,7 +5473,7 @@ export function ModuleIWorkspace({
                     <Label className="text-xs font-bold text-slate-900">
                       Headline Commercial Price Point
                     </Label>
-                    <span className="text-[10px] text-indigo-600 font-medium">
+                    <span className="text-[10px] text-emerald-700 font-medium">
                       Synced from Step 2 / Upstream
                     </span>
                   </div>
@@ -5482,7 +5582,7 @@ export function ModuleIWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-indigo-600" />
+                    <UserCheck className="h-4 w-4 text-emerald-700" />
                     <h3 className="text-sm font-bold text-slate-900">
                       3.3 The &quot;Dream 10&quot; Target Customer Pipeline Tracker
                     </h3>
@@ -5497,7 +5597,7 @@ export function ModuleIWorkspace({
                   size="sm"
                   onClick={handleAddProspect}
                   disabled={isVaultReadonly}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8 px-3 shrink-0"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-8 px-3 shrink-0"
                 >
                   <Plus className="mr-1.5 h-3.5 w-3.5" />
                   Add Target Prospect
@@ -5522,9 +5622,9 @@ export function ModuleIWorkspace({
                     {step3Data.targetPipeline.filter((p) => p.status === 'MEETING_SET').length}
                   </div>
                 </div>
-                <div className="rounded-lg bg-indigo-50/70 p-2 border border-indigo-200">
-                  <span className="text-[10px] text-indigo-700">Pilot Agreed (LOI)</span>
-                  <div className="text-sm font-bold text-indigo-900">
+                <div className="rounded-lg bg-emerald-50/70 p-2 border border-slate-200">
+                  <span className="text-[10px] text-emerald-800">Pilot Agreed (LOI)</span>
+                  <div className="text-sm font-bold text-slate-900">
                     {step3Data.targetPipeline.filter((p) => p.status === 'PILOT_AGREED').length}
                   </div>
                 </div>
@@ -5691,7 +5791,7 @@ export function ModuleIWorkspace({
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-indigo-600" />
+                  <Mail className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-sm font-bold text-slate-900">
                     3.4 Cold &amp; Warm Outreach Script Engine (3 High-Converting Approaches)
                   </h3>
@@ -5708,7 +5808,7 @@ export function ModuleIWorkspace({
                   onClick={() => setActiveOutreachTab('APPROACH_A')}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     activeOutreachTab === 'APPROACH_A'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-emerald-700 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
@@ -5719,7 +5819,7 @@ export function ModuleIWorkspace({
                   onClick={() => setActiveOutreachTab('APPROACH_B')}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     activeOutreachTab === 'APPROACH_B'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-emerald-700 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
@@ -5730,7 +5830,7 @@ export function ModuleIWorkspace({
                   onClick={() => setActiveOutreachTab('APPROACH_C')}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     activeOutreachTab === 'APPROACH_C'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-emerald-700 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
@@ -5742,7 +5842,7 @@ export function ModuleIWorkspace({
               <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="border-indigo-300 bg-indigo-50 text-[10px] text-indigo-700">
+                    <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800">
                       {activeOutreachTab === 'APPROACH_A' && 'Zero Sales Pitch • High Ego Appeal'}
                       {activeOutreachTab === 'APPROACH_B' && 'Upfront Value Proof • 3-Min Video/PDF'}
                       {activeOutreachTab === 'APPROACH_C' && 'Artificial Scarcity • Founder Access'}
@@ -5795,7 +5895,7 @@ export function ModuleIWorkspace({
                     }
                     rows={8}
                     disabled={isVaultReadonly}
-                    className="w-full rounded-md border border-slate-300 bg-white p-3 font-mono text-base sm:text-xs text-slate-900 leading-relaxed focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-300 bg-white p-3 font-mono text-base sm:text-xs text-slate-900 leading-relaxed focus:border-emerald-600 focus:outline-hidden"
                   />
                 )}
 
@@ -5813,7 +5913,7 @@ export function ModuleIWorkspace({
                     }
                     rows={8}
                     disabled={isVaultReadonly}
-                    className="w-full rounded-md border border-slate-300 bg-white p-3 font-mono text-base sm:text-xs text-slate-900 leading-relaxed focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-300 bg-white p-3 font-mono text-base sm:text-xs text-slate-900 leading-relaxed focus:border-emerald-600 focus:outline-hidden"
                   />
                 )}
 
@@ -5831,7 +5931,7 @@ export function ModuleIWorkspace({
                     }
                     rows={8}
                     disabled={isVaultReadonly}
-                    className="w-full rounded-md border border-slate-300 bg-white p-3 font-mono text-base sm:text-xs text-slate-900 leading-relaxed focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-300 bg-white p-3 font-mono text-base sm:text-xs text-slate-900 leading-relaxed focus:border-emerald-600 focus:outline-hidden"
                   />
                 )}
               </div>
@@ -5843,7 +5943,7 @@ export function ModuleIWorkspace({
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-indigo-600" />
+                  <Clock className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-sm font-bold text-slate-900">
                     3.5 The 4-Touch Follow-Up Cadence &amp; Polite Breakup Email
                   </h3>
@@ -5873,7 +5973,7 @@ export function ModuleIWorkspace({
                     rows={4}
                     disabled={isVaultReadonly}
                     placeholder="Short 2-sentence icebreaker mentioning specific trigger event..."
-                    className="w-full rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-800 leading-snug focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-800 leading-snug focus:border-emerald-600 focus:outline-hidden"
                   />
                 </div>
 
@@ -5896,7 +5996,7 @@ export function ModuleIWorkspace({
                     rows={4}
                     disabled={isVaultReadonly}
                     placeholder="Sharing a 1-page benchmark or teardown insight with zero sales ask..."
-                    className="w-full rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-800 leading-snug focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-800 leading-snug focus:border-emerald-600 focus:outline-hidden"
                   />
                 </div>
 
@@ -5919,7 +6019,7 @@ export function ModuleIWorkspace({
                     rows={4}
                     disabled={isVaultReadonly}
                     placeholder="Low-friction single-line question (e.g. 'Is this even a priority for Q1?')..."
-                    className="w-full rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-800 leading-snug focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-800 leading-snug focus:border-emerald-600 focus:outline-hidden"
                   />
                 </div>
 
@@ -5942,7 +6042,7 @@ export function ModuleIWorkspace({
                     rows={4}
                     disabled={isVaultReadonly}
                     placeholder="Permission to close their file..."
-                    className="w-full rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-800 leading-snug focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-800 leading-snug focus:border-emerald-600 focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -5996,7 +6096,7 @@ export function ModuleIWorkspace({
                     }
                     rows={4}
                     disabled={isVaultReadonly}
-                    className="w-full mt-1 rounded-md border border-slate-300 bg-white p-2.5 font-mono text-base sm:text-xs text-slate-900 leading-relaxed focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full mt-1 rounded-md border border-slate-300 bg-white p-2.5 font-mono text-base sm:text-xs text-slate-900 leading-relaxed focus:border-emerald-600 focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -6009,7 +6109,7 @@ export function ModuleIWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <ShieldAlert className="h-4 w-4 text-indigo-600" />
+                    <ShieldAlert className="h-4 w-4 text-emerald-700" />
                     <h3 className="text-sm font-bold text-slate-900">
                       3.6 Top 3 Early-Stage Objection Busters &amp; Rebuttals
                     </h3>
@@ -6024,16 +6124,16 @@ export function ModuleIWorkspace({
                   size="sm"
                   onClick={handleGenerateAllObjections}
                   disabled={isGeneratingObjections || isVaultReadonly}
-                  className="h-8 gap-1.5 border-indigo-200 bg-indigo-50/60 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 shrink-0"
+                  className="h-8 gap-1.5 border-slate-200 bg-slate-50 text-xs font-semibold text-emerald-800 hover:bg-slate-100 hover:text-emerald-900 shrink-0"
                 >
                   {isGeneratingObjections ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
                       <span>Generating Objections...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                      <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
                       <span>✨ AI Suggest Objections &amp; Rebuttals</span>
                     </>
                   )}
@@ -6062,16 +6162,16 @@ export function ModuleIWorkspace({
                       variant="ghost"
                       onClick={() => handleGenerateSingleRebuttal(1)}
                       disabled={generatingSingleRebuttalIndex === 1 || isVaultReadonly}
-                      className="h-6 px-2 text-[10px] font-medium text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 shrink-0 gap-1"
+                      className="h-6 px-2 text-[10px] font-medium text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 shrink-0 gap-1"
                     >
                       {generatingSingleRebuttalIndex === 1 ? (
                         <>
-                          <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
+                          <Loader2 className="h-3 w-3 animate-spin text-emerald-700" />
                           <span>Suggesting...</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles className="h-3 w-3 text-indigo-600" />
+                          <Sparkles className="h-3 w-3 text-emerald-700" />
                           <span>Suggest Rebuttal</span>
                         </>
                       )}
@@ -6120,7 +6220,7 @@ export function ModuleIWorkspace({
                       rows={2}
                       disabled={isVaultReadonly}
                       placeholder="e.g. You're an unproven early-stage startup..."
-                      className="w-full mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-2 text-base sm:text-xs italic text-slate-700 leading-relaxed focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+                      className="w-full mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-2 text-base sm:text-xs italic text-slate-700 leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                     />
                   </div>
 
@@ -6142,7 +6242,7 @@ export function ModuleIWorkspace({
                       rows={5}
                       disabled={isVaultReadonly}
                       placeholder="e.g. Data export guarantee, founder direct WhatsApp access, and month-to-month rolling commitment..."
-                      className="w-full mt-1 rounded-md border border-slate-300 p-2 text-base sm:text-xs text-slate-900 leading-relaxed focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full mt-1 rounded-md border border-slate-300 p-2 text-base sm:text-xs text-slate-900 leading-relaxed focus:border-emerald-600 focus:outline-hidden"
                     />
                   </div>
                 </div>
@@ -6162,16 +6262,16 @@ export function ModuleIWorkspace({
                       variant="ghost"
                       onClick={() => handleGenerateSingleRebuttal(2)}
                       disabled={generatingSingleRebuttalIndex === 2 || isVaultReadonly}
-                      className="h-6 px-2 text-[10px] font-medium text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 shrink-0 gap-1"
+                      className="h-6 px-2 text-[10px] font-medium text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 shrink-0 gap-1"
                     >
                       {generatingSingleRebuttalIndex === 2 ? (
                         <>
-                          <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
+                          <Loader2 className="h-3 w-3 animate-spin text-emerald-700" />
                           <span>Suggesting...</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles className="h-3 w-3 text-indigo-600" />
+                          <Sparkles className="h-3 w-3 text-emerald-700" />
                           <span>Suggest Rebuttal</span>
                         </>
                       )}
@@ -6220,7 +6320,7 @@ export function ModuleIWorkspace({
                       rows={2}
                       disabled={isVaultReadonly}
                       placeholder="e.g. Our existing spreadsheet / manual routine isn't perfect..."
-                      className="w-full mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-2 text-base sm:text-xs italic text-slate-700 leading-relaxed focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+                      className="w-full mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-2 text-base sm:text-xs italic text-slate-700 leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                     />
                   </div>
 
@@ -6242,17 +6342,17 @@ export function ModuleIWorkspace({
                       rows={5}
                       disabled={isVaultReadonly}
                       placeholder="e.g. Concierge white-glove migration where the founder does 100% of the manual onboarding setup..."
-                      className="w-full mt-1 rounded-md border border-slate-300 p-2 text-base sm:text-xs text-slate-900 leading-relaxed focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full mt-1 rounded-md border border-slate-300 p-2 text-base sm:text-xs text-slate-900 leading-relaxed focus:border-emerald-600 focus:outline-hidden"
                     />
                   </div>
                 </div>
 
                 {/* Objection 3: Missing Feature Gap */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs hover:border-indigo-200 transition-colors">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs hover:border-emerald-300 transition-colors">
                   <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <Sparkles className="h-4 w-4 shrink-0 text-indigo-600" />
-                      <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] font-semibold text-indigo-700">
+                      <Sparkles className="h-4 w-4 shrink-0 text-emerald-700" />
+                      <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] font-semibold text-emerald-800">
                         Friction #3: Feature Gap
                       </Badge>
                     </div>
@@ -6262,16 +6362,16 @@ export function ModuleIWorkspace({
                       variant="ghost"
                       onClick={() => handleGenerateSingleRebuttal(3)}
                       disabled={generatingSingleRebuttalIndex === 3 || isVaultReadonly}
-                      className="h-6 px-2 text-[10px] font-medium text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 shrink-0 gap-1"
+                      className="h-6 px-2 text-[10px] font-medium text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 shrink-0 gap-1"
                     >
                       {generatingSingleRebuttalIndex === 3 ? (
                         <>
-                          <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
+                          <Loader2 className="h-3 w-3 animate-spin text-emerald-700" />
                           <span>Suggesting...</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles className="h-3 w-3 text-indigo-600" />
+                          <Sparkles className="h-3 w-3 text-emerald-700" />
                           <span>Suggest Rebuttal</span>
                         </>
                       )}
@@ -6320,7 +6420,7 @@ export function ModuleIWorkspace({
                       rows={2}
                       disabled={isVaultReadonly}
                       placeholder="e.g. We really like the concept, but we cannot adopt unless..."
-                      className="w-full mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-2 text-base sm:text-xs italic text-slate-700 leading-relaxed focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+                      className="w-full mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-2 text-base sm:text-xs italic text-slate-700 leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                     />
                   </div>
 
@@ -6342,7 +6442,7 @@ export function ModuleIWorkspace({
                       rows={5}
                       disabled={isVaultReadonly}
                       placeholder="e.g. Founding advisory board influence over the Q2 product roadmap, plus a Zapier / webhook bridge..."
-                      className="w-full mt-1 rounded-md border border-slate-300 p-2 text-base sm:text-xs text-slate-900 leading-relaxed focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full mt-1 rounded-md border border-slate-300 p-2 text-base sm:text-xs text-slate-900 leading-relaxed focus:border-emerald-600 focus:outline-hidden"
                     />
                   </div>
                 </div>
@@ -6356,7 +6456,7 @@ export function ModuleIWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-indigo-600" />
+                    <FileText className="h-4 w-4 text-emerald-700" />
                     <h3 className="text-sm font-bold text-slate-900">
                       3.7 1-Click Non-Binding Letter of Intent (LOI) / Pilot Agreement Generator
                     </h3>
@@ -6379,7 +6479,7 @@ export function ModuleIWorkspace({
                       setCopiedLoi(true);
                       setTimeout(() => setCopiedLoi(false), 2500);
                     }}
-                    className="h-8 border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs px-3"
+                    className="h-8 border-slate-200 text-emerald-800 hover:bg-emerald-50 text-xs px-3"
                   >
                     {copiedLoi ? (
                       <>
@@ -6388,7 +6488,7 @@ export function ModuleIWorkspace({
                       </>
                     ) : (
                       <>
-                        <Copy className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        <Copy className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Copy LOI Text
                       </>
                     )}
@@ -6399,7 +6499,7 @@ export function ModuleIWorkspace({
                     size="sm"
                     variant="default"
                     onClick={handlePrintLoiPdf}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white h-8 text-xs px-3 shadow-xs font-semibold"
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white h-8 text-xs px-3 shadow-xs font-semibold"
                   >
                     <Printer className="mr-1.5 h-3.5 w-3.5" />
                     Download / Save as PDF
@@ -6542,11 +6642,11 @@ export function ModuleIWorkspace({
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-indigo-600" />
+                    <FileText className="h-4 w-4 text-emerald-700" />
                     <span className="text-xs font-bold text-slate-900">
                       Live Agreement Document Preview
                     </span>
-                    <Badge variant="outline" className="border-indigo-200 bg-indigo-50/70 text-[10px] text-indigo-700 font-mono">
+                    <Badge variant="outline" className="border-slate-200 bg-slate-50 text-[10px] text-emerald-800 font-mono">
                       Letter_of_Intent_Agreement.pdf
                     </Badge>
                   </div>
@@ -6554,16 +6654,16 @@ export function ModuleIWorkspace({
 
                 {/* Formal Executive Document Preview */}
                 <div className="rounded-xl border border-slate-300 bg-white p-5 sm:p-7 text-slate-800 shadow-sm space-y-4">
-                  <div className="border-b-2 border-indigo-600 pb-3.5 flex flex-wrap items-start justify-between gap-3">
+                  <div className="border-b-2 border-emerald-700 pb-3.5 flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 block">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
                         Startup Preflight • Commercial Validation Framework
                       </span>
                       <h4 className="text-base sm:text-lg font-extrabold text-slate-900 mt-0.5">
                         Non-Binding Early Adopter Letter of Intent (LOI)
                       </h4>
                     </div>
-                    <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] shrink-0">
+                    <Badge className="bg-emerald-50 text-emerald-800 border-slate-200 text-[10px] shrink-0">
                       A4 PDF &amp; Print Ready
                     </Badge>
                   </div>
@@ -6592,8 +6692,8 @@ export function ModuleIWorkspace({
                     <p>
                       This non-binding Letter of Intent confirms that <strong>{step3Data.letterOfIntent.targetCompanyName || 'Prospective Customer Partner'}</strong> intends to participate as an early design and pilot partner in the structured evaluation program of <strong>{planTitle || 'Our Startup'}</strong> to test and validate the following operational outcome:
                     </p>
-                    <div className="rounded-r-xl border-l-4 border-indigo-600 bg-indigo-50/70 p-3 text-xs font-medium text-indigo-950">
-                      <span className="text-[10px] font-bold uppercase text-indigo-700 block mb-0.5">Agreed Milestone Success KPI</span>
+                    <div className="rounded-r-xl border-l-4 border-emerald-700 bg-emerald-50/70 p-3 text-xs font-medium text-slate-950">
+                      <span className="text-[10px] font-bold uppercase text-emerald-800 block mb-0.5">Agreed Milestone Success KPI</span>
                       &ldquo;{step3Data.letterOfIntent.primarySuccessKpi || 'Demonstrate 30% time reduction and 95% user satisfaction'}&rdquo;
                     </div>
                   </div>
@@ -6667,7 +6767,7 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                <Bookmark className="h-4 w-4 text-indigo-600" />
+                <Bookmark className="h-4 w-4 text-emerald-700" />
                 <span>Uncertain About Your First 10 Strategy? Park It in Open Questions</span>
               </div>
               <p className="text-xs text-slate-600">
@@ -6692,7 +6792,7 @@ export function ModuleIWorkspace({
                   {isParkingQuestionStep3 ? (
                     <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <Bookmark className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                    <Bookmark className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   )}
                   Park Question
                 </Button>
@@ -6714,7 +6814,7 @@ export function ModuleIWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiFirst10}
                   disabled={isGeneratingAiStep3 || isVaultReadonly}
-                  className="border-indigo-200 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                  className="border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50"
                 >
                   {isGeneratingAiStep3 ? (
                     <>
@@ -6723,7 +6823,7 @@ export function ModuleIWorkspace({
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       Regenerate with AI
                     </>
                   )}
@@ -6736,7 +6836,7 @@ export function ModuleIWorkspace({
                   variant="default"
                   onClick={handleSaveStep3}
                   disabled={saveStatusStep3 === 'saving' || isVaultReadonly}
-                  className="bg-indigo-600 text-xs font-medium text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs font-medium text-white hover:bg-emerald-800"
                 >
                   {saveStatusStep3 === 'saving' ? (
                     <>
@@ -6779,19 +6879,19 @@ export function ModuleIWorkspace({
         <div
           id="module-i-step-4"
           onClick={() => setOpenStep(4)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 4: Reverse-Engineered Marketing Budget, CAC &amp; Funnel Calculator
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -6816,7 +6916,7 @@ export function ModuleIWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep4Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -6831,7 +6931,7 @@ export function ModuleIWorkspace({
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
@@ -6854,7 +6954,7 @@ export function ModuleIWorkspace({
                     {step4Data.aiEngineUsed && (
                       <Badge
                         variant="outline"
-                        className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px]"
+                        className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px]"
                       >
                         <Sparkles className="mr-1 h-2.5 w-2.5" />
                         {step4Data.aiEngineUsed === 'gemini-2.5-flash'
@@ -6891,7 +6991,7 @@ export function ModuleIWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 4 ? null : 4))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -6914,16 +7014,16 @@ export function ModuleIWorkspace({
                 variant="outline"
                 onClick={handleGenerateAiStep4}
                 disabled={isGeneratingAiStep4 || isVaultReadonly}
-                className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
                 {isGeneratingAiStep4 ? (
                   <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin text-violet-600" />
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin text-emerald-700" />
                     Calibrating Funnel &amp; CAC...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-600" />
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Calibrate with Preflight AI
                   </>
                 )}
@@ -6932,18 +7032,18 @@ export function ModuleIWorkspace({
 
             {/* Micro-Coaching: Why Are We Asking This? */}
             {activeWhyCard === 4 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div className="space-y-1.5">
-                      <p className="font-semibold text-indigo-950">
+                      <p className="font-semibold text-slate-950">
                         Why Reverse-Engineering Your Marketing Budget Prevents the #1 Startup Cash Trap
                       </p>
-                      <p className="text-indigo-800">
+                      <p className="text-emerald-900">
                         Most early-stage business plans pick an arbitrary marketing number out of thin air (e.g., <em>&ldquo;We will spend {currencySymbol}500/month on ads and acquire 100 customers&rdquo;</em>). Grant assessors (IE Local Enterprise Office, Enterprise Ireland, UK Start Up Loans &amp; Innovate UK) and angel investors immediately test whether the funnel math holds up.
                       </p>
-                      <ul className="list-disc pl-4 space-y-1 text-indigo-900/90">
+                      <ul className="list-disc pl-4 space-y-1 text-slate-900/90">
                         <li>
                           <strong>Pocket-Profit LTV vs. Gross Revenue LTV:</strong> You cannot pay for customer acquisition using money that goes to Stripe fees or variable COGS. We anchor your `LTV : CAC` and `Payback Months` strictly on your <strong>Module H Pocket Profit per Customer ({currencySymbol}{upstreamEconomics.pocketProfitPerCustomer})</strong>.
                         </li>
@@ -6959,7 +7059,7 @@ export function ModuleIWorkspace({
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-500 hover:text-indigo-800 text-xs px-1"
+                    className="text-emerald-700 hover:text-emerald-900 text-xs px-1"
                   >
                     ✕
                   </button>
@@ -7009,12 +7109,12 @@ export function ModuleIWorkspace({
 
             {/* AI Assessor Insight Tip */}
             {aiAssessorTipStep4 && (
-              <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/80 p-3 text-xs text-indigo-950">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-emerald-50/80 p-3 text-xs text-slate-950">
                 <div className="flex items-start gap-2">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                   <div>
-                    <span className="font-semibold text-indigo-950">Grant &amp; Investor Assessor Tip: </span>
-                    <span className="text-indigo-900">{aiAssessorTipStep4}</span>
+                    <span className="font-semibold text-slate-950">Grant &amp; Investor Assessor Tip: </span>
+                    <span className="text-slate-900">{aiAssessorTipStep4}</span>
                   </div>
                 </div>
               </div>
@@ -7023,9 +7123,9 @@ export function ModuleIWorkspace({
 
           <CardContent className="space-y-8 pt-6">
             {/* AI Auto-Synthesize Banner */}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-white to-violet-50/80 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/80 p-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-xs">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-xs">
                   <Wand2 className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -7042,7 +7142,7 @@ export function ModuleIWorkspace({
                 size="sm"
                 onClick={handleGenerateAiStep4}
                 disabled={isGeneratingAiStep4 || isVaultReadonly}
-                className="shrink-0 bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                className="shrink-0 bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
               >
                 {isGeneratingAiStep4 ? (
                   <>
@@ -7066,8 +7166,8 @@ export function ModuleIWorkspace({
             )}
 
             {aiAssessorTipStep4 && (
-              <div className="rounded-lg border border-indigo-200 bg-indigo-50/80 px-3.5 py-2.5 text-xs text-indigo-950 flex items-start gap-2">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+              <div className="rounded-lg border border-slate-200 bg-emerald-50/80 px-3.5 py-2.5 text-xs text-slate-950 flex items-start gap-2">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                 <div>
                   <span className="font-bold">Grant &amp; Investor Assessor Tip: </span>
                   {aiAssessorTipStep4}
@@ -7081,7 +7181,7 @@ export function ModuleIWorkspace({
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-indigo-600 text-white text-[10px]">
+                  <Badge className="bg-emerald-700 text-white text-[10px]">
                     Upstream Intelligence Bridge
                   </Badge>
                   <span className="text-xs font-bold text-slate-900">
@@ -7105,7 +7205,7 @@ export function ModuleIWorkspace({
                   <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
                     Mod H Y1 Breakeven
                   </div>
-                  <div className="mt-1 text-base font-bold text-indigo-700">
+                  <div className="mt-1 text-base font-bold text-emerald-800">
                     {upstreamEconomics.y1BreakevenCustomers.toLocaleString()}{' '}
                     <span className="text-xs font-normal text-slate-500">cust/mo</span>
                   </div>
@@ -7145,10 +7245,10 @@ export function ModuleIWorkspace({
                     Primary Channel (Step 2)
                   </div>
                   <div className="mt-1 truncate text-xs font-bold text-slate-900">
-                    {step2Data.promotionP4.primaryAcquisitionEngine.replace(/_/g, ' ')}
+                    {(step2Data?.promotionP4?.primaryAcquisitionEngine || '').replace(/_/g, ' ')}
                   </div>
                   <div className="mt-0.5 truncate text-[11px] text-slate-500">
-                    Place: {step2Data.placeP3.primaryChannel.replace(/_/g, ' ')}
+                    Place: {(step2Data?.placeP3?.primaryChannel || '').replace(/_/g, ' ')}
                   </div>
                 </div>
 
@@ -7156,7 +7256,7 @@ export function ModuleIWorkspace({
                   <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
                     Warm Pipeline (Step 3)
                   </div>
-                  <div className="mt-1 text-base font-bold text-violet-700">
+                  <div className="mt-1 text-base font-bold text-emerald-800">
                     {step4LiveMetrics.warmPipelineCount}{' '}
                     <span className="text-xs font-normal text-slate-500">prospects</span>
                   </div>
@@ -7170,18 +7270,18 @@ export function ModuleIWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* 4.2 TARGET CUSTOMER GOAL PRESET & INTERACTIVE SLIDER           */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-4 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/20 to-violet-50/20 p-5">
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-gradient-to-br from-white via-slate-50/20 to-slate-50/20 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Target className="h-4 w-4 text-indigo-600" />
+                    <Target className="h-4 w-4 text-emerald-700" />
                     4.2 Step 1 of Funnel: How Many New Customers Do You Need Per Month?
                   </h3>
                   <p className="mt-0.5 text-xs text-slate-600">
                     Start with your Module H Year 1 Breakeven target ({upstreamEconomics.y1BreakevenCustomers} customers/mo) or drag the slider to stress-test any monthly acquisition milestone.
                   </p>
                 </div>
-                <Badge className="bg-indigo-100 text-indigo-900 border-indigo-300 text-xs font-bold px-3 py-1">
+                <Badge className="bg-slate-100 text-slate-900 border-emerald-300 text-xs font-bold px-3 py-1">
                   {step4Data.targetMonthlyNewCustomers.toLocaleString()} New Customers / Month
                 </Badge>
               </div>
@@ -7235,8 +7335,8 @@ export function ModuleIWorkspace({
                         onClick={() => handleSelectGoalPreset(preset.id)}
                         className={`rounded-lg border p-2.5 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/90 ring-1 ring-indigo-600'
-                            : 'border-slate-200 bg-white hover:border-indigo-300'
+                            ? 'border-emerald-700 bg-emerald-50/90 ring-1 ring-emerald-700'
+                            : 'border-slate-200 bg-white hover:border-emerald-300'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1">
@@ -7244,7 +7344,7 @@ export function ModuleIWorkspace({
                             {preset.label}
                           </span>
                           {isSelected && (
-                            <div className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
+                            <div className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
                               <Check className="h-2 w-2" />
                             </div>
                           )}
@@ -7258,7 +7358,7 @@ export function ModuleIWorkspace({
                 </div>
 
                 {step4Data.goalPreset === 'OTHER' && (
-                  <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <Label className="text-xs font-semibold text-slate-800">
                       Describe Your Custom Acquisition Milestone (Required for &ldquo;Other&rdquo;):
                     </Label>
@@ -7285,7 +7385,7 @@ export function ModuleIWorkspace({
                     <span className="font-medium text-slate-700">
                       Drag Slider to Adjust Monthly New Paying Customers:
                     </span>
-                    <span className="font-bold text-indigo-700">
+                    <span className="font-bold text-emerald-800">
                       Generates {currencySymbol}
                       {(
                         Math.max(1, step4Data.targetMonthlyNewCustomers || 1) *
@@ -7312,7 +7412,7 @@ export function ModuleIWorkspace({
                         })
                       );
                     }}
-                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-indigo-200 accent-indigo-600"
+                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-emerald-100 accent-emerald-700"
                   />
                   <div className="flex justify-between text-[11px] text-slate-400">
                     <span>1 customer/mo</span>
@@ -7384,7 +7484,7 @@ export function ModuleIWorkspace({
                       )
                     }
                     className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden mt-0.5 ${
-                      step4Data.deductWarmPipelineLeads ? 'bg-indigo-600' : 'bg-slate-300'
+                      step4Data.deductWarmPipelineLeads ? 'bg-emerald-700' : 'bg-slate-300'
                     }`}
                   >
                     <span
@@ -7418,7 +7518,7 @@ export function ModuleIWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Sliders className="h-4 w-4 text-indigo-600" />
+                    <Sliders className="h-4 w-4 text-emerald-700" />
                     4.3 Interactive Funnel Conversion &amp; Paid vs. Sweat-Equity Sliders
                   </h3>
                   <p className="mt-0.5 text-xs text-slate-600">
@@ -7439,7 +7539,7 @@ export function ModuleIWorkspace({
                         % of qualified leads, demos, or cart checkouts that become paying customers.
                       </p>
                     </div>
-                    <Badge className="bg-indigo-50 text-indigo-800 border-indigo-200 text-xs font-bold shrink-0">
+                    <Badge className="bg-emerald-50 text-emerald-900 border-slate-200 text-xs font-bold shrink-0">
                       {step4Data.leadToCustomerConversionPercent}%
                     </Badge>
                   </div>
@@ -7459,7 +7559,7 @@ export function ModuleIWorkspace({
                         })
                       )
                     }
-                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-indigo-600"
+                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-emerald-700"
                   />
 
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
@@ -7483,7 +7583,7 @@ export function ModuleIWorkspace({
                           })
                         )
                       }
-                      className="h-7 px-2 text-[11px] border-slate-200 text-indigo-700 hover:bg-indigo-50"
+                      className="h-7 px-2 text-[11px] border-slate-200 text-emerald-800 hover:bg-emerald-50"
                     >
                       Use Industry Benchmark ({upstreamEconomics.leadConversionPercentFromModH || 10}%)
                     </Button>
@@ -7501,7 +7601,7 @@ export function ModuleIWorkspace({
                         % of website visitors, ad clicks, or cold outreach messages that become a lead.
                       </p>
                     </div>
-                    <Badge className="bg-indigo-50 text-indigo-800 border-indigo-200 text-xs font-bold shrink-0">
+                    <Badge className="bg-emerald-50 text-emerald-900 border-slate-200 text-xs font-bold shrink-0">
                       {step4Data.visitorToLeadConversionPercent}%
                     </Badge>
                   </div>
@@ -7521,7 +7621,7 @@ export function ModuleIWorkspace({
                         })
                       )
                     }
-                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-indigo-600"
+                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-emerald-700"
                   />
 
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
@@ -7544,7 +7644,7 @@ export function ModuleIWorkspace({
                           })
                         )
                       }
-                      className="h-7 px-2 text-[11px] border-slate-200 text-indigo-700 hover:bg-indigo-50"
+                      className="h-7 px-2 text-[11px] border-slate-200 text-emerald-800 hover:bg-emerald-50"
                     >
                       Use Industry Benchmark (4.0%)
                     </Button>
@@ -7566,7 +7666,7 @@ export function ModuleIWorkspace({
                       className={`text-xs font-bold shrink-0 ${
                         isOptedOutOfPaid
                           ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                          : 'bg-violet-50 text-violet-800 border-violet-200'
+                          : 'bg-slate-50 text-emerald-900 border-slate-200'
                       }`}
                     >
                       {isOptedOutOfPaid
@@ -7585,7 +7685,7 @@ export function ModuleIWorkspace({
                         disabled={isVaultReadonly}
                         onClick={() => handleTogglePaidAdsStrategy(isOptedOutOfPaid)}
                         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                          !isOptedOutOfPaid ? 'bg-indigo-600' : 'bg-slate-300'
+                          !isOptedOutOfPaid ? 'bg-emerald-700' : 'bg-slate-300'
                         }`}
                       >
                         <span
@@ -7615,7 +7715,7 @@ export function ModuleIWorkspace({
                         onClick={() => handleTogglePaidAdsStrategy(true)}
                         className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
                           !isOptedOutOfPaid
-                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            ? 'bg-emerald-700 text-white shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
@@ -7662,7 +7762,7 @@ export function ModuleIWorkspace({
                       }
                     }}
                     className={`h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 ${
-                      isOptedOutOfPaid ? 'opacity-40 cursor-not-allowed' : 'accent-violet-600'
+                      isOptedOutOfPaid ? 'opacity-40 cursor-not-allowed' : 'accent-emerald-700'
                     }`}
                   />
 
@@ -7854,7 +7954,7 @@ export function ModuleIWorkspace({
                               averageCustomerRetentionMonths: 2.5,
                             }))
                           }
-                          className="text-[11px] font-semibold text-indigo-700 hover:underline shrink-0"
+                          className="text-[11px] font-semibold text-emerald-800 hover:underline shrink-0"
                         >
                           Model Repeat / Upsell Orders →
                         </button>
@@ -7956,7 +8056,7 @@ export function ModuleIWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-indigo-400" />
+                    <TrendingUp className="h-4 w-4 text-emerald-600" />
                     4.4 Live Reverse-Engineered Monthly Acquisition Funnel
                   </h3>
                   <p className="text-xs text-slate-300">
@@ -7971,7 +8071,7 @@ export function ModuleIWorkspace({
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge className="bg-indigo-500/30 border-indigo-400/40 text-indigo-200 text-[10px]">
+                  <Badge className="bg-emerald-500/30 border-emerald-400/40 text-slate-300 text-[10px]">
                     1 Cold Sale per{' '}
                     {Math.max(
                       1,
@@ -7995,7 +8095,7 @@ export function ModuleIWorkspace({
                 <div className="rounded-xl border border-slate-700 bg-slate-800/90 p-4 flex flex-col justify-between space-y-3">
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-300">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">
                         Stage 1 • Top of Funnel
                       </span>
                       <Badge className="bg-slate-700 text-slate-200 text-[10px]">
@@ -8010,11 +8110,11 @@ export function ModuleIWorkspace({
                   </div>
 
                   <div className="space-y-1.5 pt-1 border-t border-slate-700/80 text-[11px]">
-                    <div className="flex items-center justify-between rounded bg-indigo-500/20 px-2.5 py-1.5 text-indigo-100">
+                    <div className="flex items-center justify-between rounded bg-emerald-500/20 px-2.5 py-1.5 text-slate-200">
                       <span>
                         <strong>{step4LiveMetrics.paidTouches.toLocaleString()}</strong> Paid Clicks
                       </span>
-                      <span className="font-semibold text-indigo-200">
+                      <span className="font-semibold text-slate-300">
                         {currencySymbol}
                         {step4LiveMetrics.impliedPaidMediaSpend.toLocaleString()}/mo (@{' '}
                         {currencySymbol}
@@ -8034,24 +8134,24 @@ export function ModuleIWorkspace({
                 </div>
 
                 {/* Stage 2: Middle of Funnel (Qualified Leads) */}
-                <div className="rounded-xl border border-indigo-500/40 bg-indigo-950/60 p-4 flex flex-col justify-between space-y-3">
+                <div className="rounded-xl border border-emerald-600/40 bg-slate-950/60 p-4 flex flex-col justify-between space-y-3">
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-300">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">
                         Stage 2 • Qualified Leads
                       </span>
-                      <Badge className="bg-indigo-500/30 text-indigo-100 text-[10px]">
+                      <Badge className="bg-emerald-500/30 text-slate-200 text-[10px]">
                         {step4Data.visitorToLeadConversionPercent}% Touch-to-Lead
                       </Badge>
                     </div>
                     <div className="mt-2 text-xl font-bold text-white">
                       {step4LiveMetrics.requiredQualifiedLeads.toLocaleString()}{' '}
-                      <span className="text-xs font-normal text-indigo-200">leads / mo</span>
+                      <span className="text-xs font-normal text-slate-300">leads / mo</span>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 pt-1 border-t border-indigo-500/30 text-[11px]">
-                    <div className="flex items-center justify-between rounded bg-indigo-900/60 px-2.5 py-1.5 text-indigo-100">
+                  <div className="space-y-1.5 pt-1 border-t border-emerald-600/30 text-[11px]">
+                    <div className="flex items-center justify-between rounded bg-slate-900/60 px-2.5 py-1.5 text-slate-200">
                       <span>Lead Source Mix:</span>
                       <span className="font-semibold">
                         {step4LiveMetrics.paidLeads.toLocaleString()} Paid •{' '}
@@ -8059,9 +8159,9 @@ export function ModuleIWorkspace({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between rounded bg-indigo-900/60 px-2.5 py-1.5 text-indigo-100">
+                    <div className="flex items-center justify-between rounded bg-slate-900/60 px-2.5 py-1.5 text-slate-200">
                       <span>Cost Per Lead (CPL):</span>
-                      <span className="font-semibold text-indigo-200">
+                      <span className="font-semibold text-slate-300">
                         {currencySymbol}
                         {step4LiveMetrics.cashCostPerLead.toLocaleString()} Cash CPL
                       </span>
@@ -8126,7 +8226,7 @@ export function ModuleIWorkspace({
 
               {/* Conversion Leverage Insight Callout */}
               {step4LiveMetrics.monthlyAdSavingsFromCro > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-indigo-400/30 bg-indigo-950/80 px-3.5 py-2.5 text-xs text-indigo-100">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-400/30 bg-slate-950/80 px-3.5 py-2.5 text-xs text-slate-200">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 shrink-0 text-amber-400" />
                     <span>
@@ -8143,7 +8243,7 @@ export function ModuleIWorkspace({
                     ? 'border-emerald-300 bg-emerald-50/90 text-emerald-950'
                     : step4LiveMetrics.isUnitEconomicsUnderwater
                     ? 'border-rose-300 bg-rose-50/90 text-rose-950'
-                    : 'border-indigo-200 bg-indigo-50/70 text-indigo-950'
+                    : 'border-slate-200 bg-slate-50 text-slate-950'
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -8153,7 +8253,7 @@ export function ModuleIWorkspace({
                     ) : step4LiveMetrics.isUnitEconomicsUnderwater ? (
                       <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
                     ) : (
-                      <Zap className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
+                      <Zap className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
                     )}
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -8170,7 +8270,7 @@ export function ModuleIWorkspace({
                               ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                               : step4LiveMetrics.isUnitEconomicsUnderwater
                               ? 'bg-rose-100 text-rose-900 border-rose-300'
-                              : 'bg-indigo-100 text-indigo-900 border-indigo-300'
+                              : 'bg-slate-100 text-slate-900 border-emerald-300'
                           }`}
                         >
                           {isOptedOutOfPaid
@@ -8208,7 +8308,7 @@ export function ModuleIWorkspace({
                       disabled={isVaultReadonly}
                       onClick={() => handleTogglePaidAdsStrategy(isOptedOutOfPaid)}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                        !isOptedOutOfPaid ? 'bg-indigo-600' : 'bg-slate-300'
+                        !isOptedOutOfPaid ? 'bg-emerald-700' : 'bg-slate-300'
                       }`}
                     >
                       <span
@@ -8226,7 +8326,7 @@ export function ModuleIWorkspace({
                         onClick={() => handleTogglePaidAdsStrategy(true)}
                         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
                           !isOptedOutOfPaid
-                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            ? 'bg-emerald-700 text-white shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
@@ -8259,7 +8359,7 @@ export function ModuleIWorkspace({
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3.5">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200/60 text-indigo-700 shadow-2xs">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 border border-slate-200/60 text-emerald-800 shadow-2xs">
                       <DollarSign className="h-4 w-4" />
                     </div>
                     <h3 className="text-sm font-bold text-slate-900 tracking-tight sm:text-base">
@@ -8291,7 +8391,7 @@ export function ModuleIWorkspace({
                       </span>
                       <Badge
                         variant="outline"
-                        className="text-[10px] border-indigo-200 bg-indigo-50/80 text-indigo-700 font-semibold"
+                        className="text-[10px] border-slate-200 bg-emerald-50/80 text-emerald-800 font-semibold"
                       >
                         Real Cash Cost
                       </Badge>
@@ -8349,7 +8449,7 @@ export function ModuleIWorkspace({
                           Grant Sweet Spot (3x+)
                         </Badge>
                       ) : (
-                        <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 text-[10px] font-semibold">
+                        <Badge className="bg-slate-100 text-emerald-900 border-emerald-300 text-[10px] font-semibold">
                           High Organic Leverage
                         </Badge>
                       )}
@@ -8549,7 +8649,7 @@ export function ModuleIWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-indigo-600" />
+                    <Layers className="h-4 w-4 text-emerald-700" />
                     4.6 Monthly Marketing Budget Builder &amp; Grant Eligibility Guardrail
                   </h3>
                   <p className="mt-0.5 text-xs text-slate-600">
@@ -8566,7 +8666,7 @@ export function ModuleIWorkspace({
                       variant="outline"
                       disabled={isVaultReadonly}
                       onClick={handleSyncPaidAdLineItemToSlider}
-                      className="h-8 border-indigo-300 bg-indigo-50 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                      className="h-8 border-emerald-300 bg-emerald-50 text-xs font-medium text-emerald-800 hover:bg-slate-100"
                     >
                       <RefreshCw className="mr-1.5 h-3 w-3" />
                       Sync Ad Row to Slider ({currencySymbol}
@@ -8728,7 +8828,7 @@ export function ModuleIWorkspace({
                     </div>
 
                     {item.bucket === 'OTHER' && (
-                      <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-2.5">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                         <Label className="text-[11px] font-semibold text-slate-700">
                           Specify Custom Marketing Bucket Category:
                         </Label>
@@ -8764,7 +8864,7 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Summary Footer & Module J Sync Toggle */}
-              <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-indigo-200 bg-white p-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4">
                 <div className="flex flex-wrap items-center gap-6">
                   <div>
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -8780,7 +8880,7 @@ export function ModuleIWorkspace({
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                       Annualized Year 1 Marketing Spend
                     </div>
-                    <div className="text-lg font-bold text-indigo-700">
+                    <div className="text-lg font-bold text-emerald-800">
                       {currencySymbol}
                       {(step4LiveMetrics.lineItemsTotalSpend * 12).toLocaleString()}
                       <span className="text-xs font-normal text-slate-500">/yr</span>
@@ -8842,13 +8942,13 @@ export function ModuleIWorkspace({
                   className={`flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
                     step4Data.syncedToModuleJOverheads
                       ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                      : 'border-indigo-200 bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100'
+                      : 'border-slate-200 bg-slate-50 text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   {step4Data.syncedToModuleJOverheads ? (
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   ) : (
-                    <ArrowRight className="h-4 w-4 text-indigo-600" />
+                    <ArrowRight className="h-4 w-4 text-emerald-700" />
                   )}
                   <span>
                     {step4Data.syncedToModuleJOverheads
@@ -8880,7 +8980,7 @@ export function ModuleIWorkspace({
                   variant="outline"
                   disabled={isVaultReadonly}
                   onClick={handleGenerateRefreshStep4Narrative}
-                  className="h-7 border-indigo-200 bg-indigo-50/60 px-2.5 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                  className="h-7 border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
                 >
                   <RefreshCw className="mr-1 h-3 w-3" />
                   Sync Narrative with Current Sliders
@@ -8898,7 +8998,7 @@ export function ModuleIWorkspace({
                   }))
                 }
                 placeholder="Summarize your reverse-engineered funnel, Cash CAC, Pocket-Profit LTV, and payback period..."
-                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
               />
             </div>
 
@@ -8906,7 +9006,7 @@ export function ModuleIWorkspace({
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Bookmark className="h-4 w-4 text-indigo-600" />
+                  <Bookmark className="h-4 w-4 text-emerald-700" />
                   <span className="text-xs font-bold text-slate-900">
                     Unsure about your exact CPC or conversion rate? Park It in Open Questions
                   </span>
@@ -8963,7 +9063,7 @@ export function ModuleIWorkspace({
                   size="sm"
                   onClick={handleSaveStep4}
                   disabled={saveStatusStep4 === 'saving' || isVaultReadonly}
-                  className="bg-indigo-600 text-xs font-medium text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs font-medium text-white hover:bg-emerald-800"
                 >
                   {saveStatusStep4 === 'saving' ? (
                     <>
@@ -9007,15 +9107,15 @@ export function ModuleIWorkspace({
         <div
           id="module-i-step-5"
           onClick={() => setOpenStep(5)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold bg-indigo-600 text-white">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold bg-emerald-700 text-white">
                 <FileText className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 5: Marketing &amp; Customer Acquisition Executive Brief
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -9030,7 +9130,7 @@ export function ModuleIWorkspace({
                 className={`text-[10px] shrink-0 ${
                   completedCoreStepsCount === 4
                     ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                    : 'border-indigo-200 text-indigo-700'
+                    : 'border-slate-200 text-emerald-800'
                 }`}
               >
                 {completedCoreStepsCount}/4 Sections Ready
@@ -9038,7 +9138,7 @@ export function ModuleIWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {completedCoreStepsCount === 4 ? 'Review Overview' : 'Open Overview'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -9047,7 +9147,7 @@ export function ModuleIWorkspace({
           </div>
         </div>
       ) : (
-        <Card id="module-i-step-5" className="scroll-mt-24 rounded-xl border border-indigo-200 bg-white shadow-xs">
+        <Card id="module-i-step-5" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs">
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -9055,7 +9155,7 @@ export function ModuleIWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     completedCoreStepsCount === 4 && isStep5Complete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   <FileText className="h-4 w-4" />
@@ -9065,7 +9165,7 @@ export function ModuleIWorkspace({
                     <CardTitle className="text-base font-bold text-slate-900">
                       Marketing &amp; Customer Acquisition Executive Brief (Overview)
                     </CardTitle>
-                    <Badge className="bg-indigo-100 text-indigo-800 text-[10px] shrink-0">
+                    <Badge className="bg-slate-100 text-emerald-900 text-[10px] shrink-0">
                       Module I Overview
                     </Badge>
                     <Badge
@@ -9108,7 +9208,7 @@ export function ModuleIWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 5 ? null : 5))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -9129,16 +9229,16 @@ export function ModuleIWorkspace({
                 variant="outline"
                 onClick={handleGenerateAiMarketingBrief}
                 disabled={isGeneratingAiBrief || isVaultReadonly}
-                className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
                 {isGeneratingAiBrief ? (
                   <>
-                    <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-violet-600" />
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-emerald-700" />
                     Auditing Marketing Blind Spots...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-600" />
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Generate / Audit Commercial Defense with AI
                   </>
                 )}
@@ -9147,16 +9247,16 @@ export function ModuleIWorkspace({
 
             {/* Micro-Coaching Drawers */}
             {activeWhyCard === 5 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
-                    <p className="font-semibold text-indigo-950">
+                    <p className="font-semibold text-slate-950">
                       Why Underwriters &amp; Grant Assessors Scrutinize Your Go-To-Market Brief:
                     </p>
-                    <p className="leading-relaxed text-indigo-900/90">
+                    <p className="leading-relaxed text-slate-900/90">
                       Early-stage startup failure is rarely caused by failure to build product; it is caused by failure to acquire customers profitably. Grant committees (LEO Feasibility/Priming, Enterprise Ireland, UK Innovate UK) and seed investors review your marketing brief for four critical signals:
                     </p>
-                    <ul className="mt-1 list-disc pl-4 space-y-0.5 text-indigo-900/90">
+                    <ul className="mt-1 list-disc pl-4 space-y-0.5 text-slate-900/90">
                       <li>
                         <strong>Realistic Customer Acquisition Engine:</strong> Over-reliance on paid Facebook/Google ads before achieving product-market fit is the #1 reason grant assessors mark marketing plans down as high-risk.
                       </li>
@@ -9174,7 +9274,7 @@ export function ModuleIWorkspace({
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-400 hover:text-indigo-700"
+                    className="text-emerald-600 hover:text-emerald-800"
                   >
                     ✕
                   </button>
@@ -9254,7 +9354,7 @@ export function ModuleIWorkspace({
                 {/* Pillar 1: Positioning */}
                 <div
                   onClick={() => setOpenStep(1)}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">
@@ -9269,7 +9369,7 @@ export function ModuleIWorkspace({
                   <p className="mt-1 text-[11px] text-slate-600 line-clamp-2">
                     {step1Data.elevatorHook140 || 'Elevator hook not defined yet'}
                   </p>
-                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                  <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                     Edit Positioning →
                   </span>
                 </div>
@@ -9277,7 +9377,7 @@ export function ModuleIWorkspace({
                 {/* Pillar 2: Modern 4Ps */}
                 <div
                   onClick={() => setOpenStep(2)}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">
@@ -9292,7 +9392,7 @@ export function ModuleIWorkspace({
                   <p className="mt-1 text-[11px] text-slate-600 line-clamp-2">
                     {step2Data.priceP2.headlinePricePoint || resolvedUpstreamPrice.priceHeadline} • {step2Data.placeP3.primaryChannel} • {step2Data.promotionP4.primaryAcquisitionEngine}
                   </p>
-                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                  <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                     Edit 4Ps →
                   </span>
                 </div>
@@ -9300,7 +9400,7 @@ export function ModuleIWorkspace({
                 {/* Pillar 3: First 10 Customers */}
                 <div
                   onClick={() => setOpenStep(3)}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">
@@ -9315,7 +9415,7 @@ export function ModuleIWorkspace({
                   <p className="mt-1 text-[11px] text-slate-600">
                     {step3Data.targetPipeline.length} warm accounts • LOI for {step3Data.letterOfIntent.targetCompanyName || 'Pilot Partner'}
                   </p>
-                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                  <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                     Edit Playbook →
                   </span>
                 </div>
@@ -9323,7 +9423,7 @@ export function ModuleIWorkspace({
                 {/* Pillar 4: Budget & CAC */}
                 <div
                   onClick={() => setOpenStep(4)}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">
@@ -9340,7 +9440,7 @@ export function ModuleIWorkspace({
                       ? `Paid Ads Excluded • ${currencySymbol}${step4LiveMetrics.cashCac} CAC • ${currencySymbol}${step4LiveMetrics.effectiveModuleJMonthlySpend.toLocaleString()}/mo sync`
                       : `${currencySymbol}${step4LiveMetrics.cashCac} CAC • ${step4LiveMetrics.ltvToCacRatio}:1 LTV:CAC • ${currencySymbol}${step4LiveMetrics.effectiveModuleJMonthlySpend.toLocaleString()}/mo`}
                   </p>
-                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                  <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                     Edit Budget &amp; CAC →
                   </span>
                 </div>
@@ -9350,7 +9450,7 @@ export function ModuleIWorkspace({
             {/* ============================================================= */}
             {/* SECTION 2: 1-PAGE EXECUTIVE GTM SNAPSHOT & FUNNEL WATERFALL   */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+            <div className="space-y-3 border-t border-slate-100/80 pt-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                   2. Executive GTM Snapshot &amp; Funnel Waterfall Table
@@ -9382,12 +9482,12 @@ export function ModuleIWorkspace({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3 shadow-2xs">
-                  <div className="text-[11px] font-medium text-indigo-800">Payback Velocity</div>
-                  <div className="mt-1 text-lg font-bold text-indigo-900">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-2xs">
+                  <div className="text-[11px] font-medium text-emerald-900">Payback Velocity</div>
+                  <div className="mt-1 text-lg font-bold text-slate-900">
                     {step4LiveMetrics.paybackMonths} <span className="text-xs font-normal">months</span>
                   </div>
-                  <div className="text-[10px] text-indigo-600">
+                  <div className="text-[10px] text-emerald-700">
                     {step4LiveMetrics.paybackMonths <= 6 ? 'Within underwriter 6m target' : 'Payback buffer required'}
                   </div>
                 </div>
@@ -9400,7 +9500,7 @@ export function ModuleIWorkspace({
                   <div className="text-[11px] font-medium text-slate-700">
                     Module J Synced Overheads
                   </div>
-                  <div className="mt-1 text-lg font-bold text-indigo-950">
+                  <div className="mt-1 text-lg font-bold text-slate-950">
                     {currencySymbol}{step4LiveMetrics.effectiveModuleJMonthlySpend.toLocaleString()}{' '}
                     <span className="text-xs font-normal text-slate-600">/ month</span>
                   </div>
@@ -9440,10 +9540,10 @@ export function ModuleIWorkspace({
                         {step3Data.targetPipeline.length} warm accounts identified in Step 3
                       </td>
                     </tr>
-                    <tr className="font-semibold text-slate-900 bg-indigo-50/20">
+                    <tr className="font-semibold text-slate-900 bg-slate-50">
                       <td className="py-2 px-3">Net Cold Customers Needed Monthly</td>
-                      <td className="py-2 px-3 text-right font-bold text-indigo-950">{step4LiveMetrics.netColdCustomersNeeded} customers/mo</td>
-                      <td className="py-2 px-3 text-right text-indigo-900 text-[11px]">Cold acquisition</td>
+                      <td className="py-2 px-3 text-right font-bold text-slate-950">{step4LiveMetrics.netColdCustomersNeeded} customers/mo</td>
+                      <td className="py-2 px-3 text-right text-slate-900 text-[11px]">Cold acquisition</td>
                       <td className="py-2 px-3 text-slate-600 text-[11px] hidden sm:table-cell">
                         Volume that must be produced through marketing outreach
                       </td>
@@ -9536,7 +9636,7 @@ export function ModuleIWorkspace({
             {/* ============================================================= */}
             {/* SECTION 3: AUDIT READINESS POSTURE SELECTOR                   */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+            <div className="space-y-3 border-t border-slate-100/80 pt-4">
               <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
                   3. Marketing &amp; GTM Readiness Posture (Grant &amp; Investor Diligence)
@@ -9593,8 +9693,8 @@ export function ModuleIWorkspace({
                       }
                       className={`flex flex-col justify-between rounded-xl border p-3 text-left transition ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20'
-                          : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/60'
+                          ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
+                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                       }`}
                     >
                       <div className="space-y-1">
@@ -9606,7 +9706,7 @@ export function ModuleIWorkspace({
                             variant="outline"
                             className={
                               isSelected
-                                ? 'border-indigo-300 bg-indigo-100 text-[10px] text-indigo-900 font-bold'
+                                ? 'border-emerald-300 bg-slate-100 text-[10px] text-slate-900 font-bold'
                                 : 'border-slate-200 bg-slate-50 text-[10px] text-slate-600'
                             }
                           >
@@ -9623,8 +9723,8 @@ export function ModuleIWorkspace({
               </div>
 
               {step5Data.marketingReadinessConfidence === 'OTHER' && (
-                <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-3 space-y-1.5">
-                  <label className="block text-xs font-semibold text-indigo-950">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-950">
                     Describe Your Custom Marketing Posture:
                   </label>
                   <input
@@ -9647,7 +9747,7 @@ export function ModuleIWorkspace({
             {/* ============================================================= */}
             {/* SECTION 4: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT AUDIT */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+            <div className="space-y-3 border-t border-slate-100/80 pt-4">
               <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -9665,16 +9765,16 @@ export function ModuleIWorkspace({
                     variant="outline"
                     disabled={isGeneratingAiBrief || isVaultReadonly}
                     onClick={handleGenerateAiMarketingBrief}
-                    className="h-8 text-xs font-semibold border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100/80"
+                    className="h-8 text-xs font-semibold border-slate-200 bg-slate-50 text-emerald-800 hover:bg-slate-100/80"
                   >
                     {isGeneratingAiBrief ? (
                       <>
-                        <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-indigo-600" />
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-emerald-700" />
                         Auditing Marketing Blind Spots...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Audit Marketing Blind Spots with AI
                       </>
                     )}
@@ -9707,7 +9807,7 @@ export function ModuleIWorkspace({
                           ? 'border-rose-200 bg-rose-50/30'
                           : isWarning
                           ? 'border-amber-200 bg-amber-50/30'
-                          : 'border-indigo-200 bg-indigo-50/30'
+                          : 'border-slate-200 bg-slate-50'
                       }`}
                     >
                       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
@@ -9723,7 +9823,7 @@ export function ModuleIWorkspace({
                                 ? 'border-rose-300 bg-rose-100 text-rose-800'
                                 : isWarning
                                 ? 'border-amber-300 bg-amber-100 text-amber-800'
-                                : 'border-indigo-300 bg-indigo-100 text-indigo-800'
+                                : 'border-emerald-300 bg-slate-100 text-emerald-900'
                             }`}
                           >
                             {item.severity}
@@ -9736,7 +9836,7 @@ export function ModuleIWorkspace({
                             size="sm"
                             variant="ghost"
                             onClick={() => handleParkBlindSpotInOpenQuestions(item)}
-                            className="h-7 text-[11px] text-slate-600 hover:text-indigo-600 hover:bg-slate-100"
+                            className="h-7 text-[11px] text-slate-600 hover:text-emerald-700 hover:bg-slate-100"
                           >
                             Park in Open Questions
                           </Button>
@@ -9762,7 +9862,7 @@ export function ModuleIWorkspace({
                       </p>
 
                       <div className="mt-2.5 rounded-lg border border-slate-200/80 bg-white/80 p-2.5 text-xs">
-                        <span className="font-semibold text-indigo-950">Recommended Action: </span>
+                        <span className="font-semibold text-slate-950">Recommended Action: </span>
                         <span className="text-slate-700">{item.suggestedAction}</span>
                       </div>
                     </div>
@@ -9774,7 +9874,7 @@ export function ModuleIWorkspace({
             {/* ============================================================= */}
             {/* SECTION 5: EXECUTIVE MARKETING DEFENSE NARRATIVE (3 PARAS)    */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+            <div className="space-y-3 border-t border-slate-100/80 pt-4">
               <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -9793,16 +9893,16 @@ export function ModuleIWorkspace({
                     variant="outline"
                     onClick={handleGenerateAiMarketingBrief}
                     disabled={isGeneratingAiBrief || isVaultReadonly}
-                    className="h-7.5 border-violet-200 bg-violet-50/70 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                    className="h-7.5 border-slate-200 bg-slate-50 text-xs font-semibold text-emerald-800 hover:bg-slate-100"
                   >
                     {isGeneratingAiBrief ? (
                       <>
-                        <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-violet-600" />
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-emerald-700" />
                         Generating Narrative...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-600" />
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Generate with AI
                       </>
                     )}
@@ -9812,10 +9912,10 @@ export function ModuleIWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={handlePrintModuleIBriefPdf}
-                    className="h-7.5 border-indigo-200 bg-white text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                    className="h-7.5 border-slate-200 bg-white text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
                     title="Print or save PDF of this complete brief"
                   >
-                    <Printer className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <Printer className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Print / Save PDF
                   </Button>
                   <Button
@@ -9834,10 +9934,10 @@ export function ModuleIWorkspace({
 
               {/* Assessor Tip Callout */}
               {(aiBriefAssessorTip || step5Data.aiAssessorTip) && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5 text-xs text-indigo-950 flex items-start gap-2.5">
-                  <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950 flex items-start gap-2.5">
+                  <Lightbulb className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-indigo-900">Assessor Tip: </span>
+                    <span className="font-bold text-slate-900">Assessor Tip: </span>
                     <span className="text-slate-700">{aiBriefAssessorTip || step5Data.aiAssessorTip}</span>
                   </div>
                 </div>
@@ -9856,7 +9956,7 @@ export function ModuleIWorkspace({
                     {isOptedOutOfPaid ? (
                       <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                     ) : (
-                      <Zap className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                      <Zap className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
                     )}
                     <div>
                       <div className="flex items-center gap-2">
@@ -9869,7 +9969,7 @@ export function ModuleIWorkspace({
                           className={`text-[10px] font-semibold ${
                             isOptedOutOfPaid
                               ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                              : 'bg-indigo-100 text-indigo-900 border-indigo-300'
+                              : 'bg-slate-100 text-slate-900 border-emerald-300'
                           }`}
                         >
                           {isOptedOutOfPaid ? '100% Organic Strategy' : 'Blended Paid & Organic'}
@@ -9892,7 +9992,7 @@ export function ModuleIWorkspace({
                         onClick={() => handleTogglePaidAdsStrategy(true)}
                         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
                           !isOptedOutOfPaid
-                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            ? 'bg-emerald-700 text-white shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
@@ -9929,9 +10029,9 @@ export function ModuleIWorkspace({
                     variant="outline"
                     disabled={isGeneratingAiBrief || isVaultReadonly}
                     onClick={handleGenerateAiMarketingBrief}
-                    className="h-7 text-xs border-indigo-200 bg-white font-medium text-indigo-700 hover:bg-indigo-50"
+                    className="h-7 text-xs border-slate-200 bg-white font-medium text-emerald-800 hover:bg-emerald-50"
                   >
-                    <Sparkles className="mr-1.5 h-3 w-3 text-indigo-600" />
+                    <Sparkles className="mr-1.5 h-3 w-3 text-emerald-700" />
                     {isOptedOutOfPaid ? 'Regenerate Brief (Opt-Out Mode)' : 'Regenerate Brief (Blended Mode)'}
                   </Button>
                 </div>
@@ -9949,7 +10049,7 @@ export function ModuleIWorkspace({
                     }))
                   }
                   placeholder="Click 'Generate with AI' above or compose your 3 structured defense paragraphs..."
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 leading-relaxed shadow-2xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 leading-relaxed shadow-2xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-700"
                 />
                 <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
                   <div className="flex items-center gap-2">
@@ -9999,7 +10099,7 @@ export function ModuleIWorkspace({
                             return { ...prev, executiveMarketingSummaryNarrative: `${cur}\n\n${activePaidParagraph}` };
                           });
                         }}
-                        className="text-indigo-700 hover:text-indigo-800 font-semibold underline decoration-indigo-300"
+                        className="text-emerald-800 hover:text-emerald-900 font-semibold underline decoration-emerald-400"
                       >
                         Sync Blended Paid Strategy into Paragraph 3
                       </button>
@@ -10011,7 +10111,7 @@ export function ModuleIWorkspace({
             </div>
 
             {/* Save Overview Action */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-indigo-100/80 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100/80 pt-4">
               <Button
                 type="button"
                 variant="outline"
@@ -10029,7 +10129,7 @@ export function ModuleIWorkspace({
                   size="sm"
                   variant="outline"
                   onClick={handleCopyMarkdownBrief}
-                  className="h-8 text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 font-semibold"
+                  className="h-8 text-xs border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50 font-semibold"
                 >
                   {copiedBrief ? (
                     <>
@@ -10060,7 +10160,7 @@ export function ModuleIWorkspace({
                   type="button"
                   size="sm"
                   onClick={handlePrintModuleIBriefPdf}
-                  className="h-8 text-xs bg-indigo-600 text-white hover:bg-indigo-700 font-semibold shadow-xs"
+                  className="h-8 text-xs bg-emerald-700 text-white hover:bg-emerald-800 font-semibold shadow-xs"
                   title="Open formatted printable Module I Executive Brief"
                 >
                   <Printer className="mr-1.5 h-3.5 w-3.5" />
@@ -10106,7 +10206,7 @@ export function ModuleIWorkspace({
             {onContinueToModuleJ && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
                 <div className="text-xs min-w-0 flex-1">
-                  <span className="font-semibold text-indigo-300">
+                  <span className="font-semibold text-slate-300">
                     Module I Complete! Go-To-Market strategy, First 10 Playbook, and acquisition unit economics verified for {planTitle}.
                   </span>{' '}
                   <span className="text-slate-300">
@@ -10121,7 +10221,7 @@ export function ModuleIWorkspace({
                     await handleSaveStep5();
                     onContinueToModuleJ();
                   }}
-                  className="shrink-0 bg-indigo-600 text-white hover:bg-indigo-500 text-xs font-semibold"
+                  className="shrink-0 bg-emerald-700 text-white hover:bg-emerald-500 text-xs font-semibold"
                 >
                   Advance to Module J: Finance
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

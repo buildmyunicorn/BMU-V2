@@ -237,13 +237,13 @@ export function ThreeQuoteConciergeModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-3 sm:p-4 backdrop-blur-xs">
       <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* Modal Header */}
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 px-6 py-4 text-white">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 border border-slate-800 bg-slate-950 text-white shadow-xs px-6 py-4 text-white">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500/30 text-white font-bold text-xs border border-indigo-400/40">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/30 text-white font-bold text-xs border border-emerald-400/40">
                 ⚡
               </span>
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-[10px] text-indigo-100">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-[10px] text-slate-200">
                 {isUK ? '🇬🇧 UK Innovate & BBB Ready' : '🇮🇪 IE LEO Appendix C Ready'}
               </Badge>
               <Badge className="border-emerald-400/40 bg-emerald-500/30 text-[10px] text-emerald-100">
@@ -253,7 +253,7 @@ export function ThreeQuoteConciergeModal({
             <h3 className="text-base font-bold text-white">
               3-Quote Concierge Marketplace
             </h3>
-            <p className="text-xs text-indigo-200/90 max-w-lg">
+            <p className="text-xs text-slate-300/90 max-w-lg">
               {sourceModule === 'MOD_E_OPERATIONS'
                 ? `State grant assessors (LEO / Enterprise Ireland / Innovate UK) mandate 3 written independent quotes. Our automated engine dispatches this brief to vetted suppliers.`
                 : `Dispatches your Work Packages and technical requirements to vetted software studios. You will receive 3 standardized net ex-VAT quotes on company letterhead.`}
@@ -263,7 +263,7 @@ export function ThreeQuoteConciergeModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-indigo-300 hover:bg-white/10 hover:text-white transition"
+            className="rounded-lg p-1.5 text-slate-300 hover:bg-white/10 hover:text-white transition"
           >
             <X className="h-5 w-5" />
           </button>
@@ -284,9 +284,9 @@ export function ThreeQuoteConciergeModal({
             </div>
 
             {dispatchResult.partnerNames && dispatchResult.partnerNames.length > 0 && (
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 max-w-md mx-auto text-left">
-                <div className="text-[11px] font-bold text-indigo-900 mb-2 flex items-center gap-1.5">
-                  <Building2 className="h-3.5 w-3.5 text-indigo-700" />
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 max-w-md mx-auto text-left">
+                <div className="text-[11px] font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 text-emerald-800" />
                   Invited Supplier Partners:
                 </div>
                 <ul className="space-y-1.5">
@@ -322,7 +322,7 @@ export function ThreeQuoteConciergeModal({
                 setDispatchResult(null);
                 onClose();
               }}
-              className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs px-6"
+              className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs px-6"
             >
               Done & Return to Workspace
             </Button>
@@ -357,8 +357,8 @@ export function ThreeQuoteConciergeModal({
                     onClick={() => setRfpCategory(cat.id as QuoteSupplierCategory)}
                     className={`rounded-lg border p-2 text-left text-xs transition ${
                       rfpCategory === cat.id
-                        ? 'border-indigo-600 bg-indigo-50 font-bold text-indigo-900 ring-2 ring-indigo-500/20'
-                        : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                        ? 'border-emerald-700 bg-emerald-50 font-bold text-slate-900 ring-2 ring-emerald-700/20'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
                     }`}
                   >
                     <div className="text-base">{cat.icon}</div>
@@ -380,7 +380,7 @@ export function ThreeQuoteConciergeModal({
                   value={projectTitle}
                   onChange={(e) => setProjectTitle(e.target.value)}
                   placeholder="e.g. V1 Mobile App MVP or 1325 CNC Router"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                 />
               </div>
 
@@ -394,7 +394,7 @@ export function ThreeQuoteConciergeModal({
                   value={budgetRange}
                   onChange={(e) => setBudgetRange(e.target.value)}
                   placeholder="e.g. €7,000 - €12,000 ex-VAT"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                 />
               </div>
             </div>
@@ -412,8 +412,8 @@ export function ThreeQuoteConciergeModal({
                     onClick={() => setTargetDeliveryTimeline(t)}
                     className={`rounded-lg border px-2.5 py-1.5 text-xs text-center transition ${
                       targetDeliveryTimeline === t
-                        ? 'border-indigo-600 bg-indigo-50 font-bold text-indigo-900'
-                        : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                        ? 'border-emerald-700 bg-emerald-50 font-bold text-slate-900'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
                     }`}
                   >
                     {t}
@@ -433,7 +433,7 @@ export function ThreeQuoteConciergeModal({
                 value={scopeSummary}
                 onChange={(e) => setScopeSummary(e.target.value)}
                 placeholder="Describe key features, technical requirements, materials, or required standards..."
-                className="w-full rounded-lg border border-slate-300 bg-white p-3 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                className="w-full rounded-lg border border-slate-300 bg-white p-3 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
               />
             </div>
 
@@ -448,7 +448,7 @@ export function ThreeQuoteConciergeModal({
                   variant="outline"
                   size="sm"
                   onClick={handleAddWorkPackage}
-                  className="h-6 border-indigo-200 text-[11px] text-indigo-700 hover:bg-indigo-50"
+                  className="h-6 border-slate-200 text-[11px] text-emerald-800 hover:bg-emerald-50"
                 >
                   <Plus className="mr-1 h-3 w-3" />
                   Add Package / Item
@@ -461,7 +461,7 @@ export function ThreeQuoteConciergeModal({
                     key={wp.id || idx}
                     className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/70 p-2.5"
                   >
-                    <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-800 shrink-0 mt-1">
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-900 shrink-0 mt-1">
                       {wp.name.split(':')[0] || `WP${idx + 1}`}
                     </span>
                     <div className="flex-1 space-y-1.5">
@@ -495,9 +495,9 @@ export function ThreeQuoteConciergeModal({
             </div>
 
             {/* Founder Contact Information */}
-            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3.5 space-y-3">
-              <div className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5 text-indigo-700" />
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 space-y-3">
+              <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 text-emerald-800" />
                 Where should official quotes be delivered?
               </div>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -571,7 +571,7 @@ export function ThreeQuoteConciergeModal({
                 type="submit"
                 size="sm"
                 disabled={isSubmitting}
-                className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs px-5 shadow-xs"
+                className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs px-5 shadow-xs"
               >
                 {isSubmitting ? (
                   <>
@@ -657,17 +657,17 @@ export function PlanQuotesTrackerCard({
   if (loading) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs flex items-center justify-center gap-2 text-xs text-slate-500">
-        <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+        <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
         Checking active supplier quotes...
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-indigo-200 bg-white shadow-xs overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-white to-indigo-50/30 px-4 py-3">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/50 via-white to-slate-50/50 px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-600 text-white font-bold text-xs">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-700 text-white font-bold text-xs">
             ⚡
           </span>
           <div>
@@ -675,7 +675,7 @@ export function PlanQuotesTrackerCard({
               <h4 className="text-xs font-bold text-slate-900">
                 Active 3-Quote Concierge RFPs ({rfps.length})
               </h4>
-              <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700">
+              <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800">
                 Grant Compliance Bench
               </Badge>
             </div>
@@ -690,7 +690,7 @@ export function PlanQuotesTrackerCard({
             type="button"
             size="sm"
             onClick={onRequestNewQuotes}
-            className="h-7 border border-indigo-300 bg-white text-xs font-semibold text-indigo-700 hover:bg-indigo-50 shadow-xs"
+            className="h-7 border border-emerald-300 bg-white text-xs font-semibold text-emerald-800 hover:bg-emerald-50 shadow-xs"
           >
             <Plus className="mr-1 h-3.5 w-3.5" />
             Request 3 Quotes
@@ -710,7 +710,7 @@ export function PlanQuotesTrackerCard({
                 type="button"
                 size="sm"
                 onClick={onRequestNewQuotes}
-                className="bg-indigo-600 text-white text-xs hover:bg-indigo-700"
+                className="bg-emerald-700 text-white text-xs hover:bg-emerald-800"
               >
                 <Zap className="mr-1.5 h-3.5 w-3.5" />
                 Request 3 Quotes Now
@@ -755,7 +755,7 @@ export function PlanQuotesTrackerCard({
                       </div>
                     </div>
 
-                    <div className="text-[11px] font-semibold text-indigo-700">
+                    <div className="text-[11px] font-semibold text-emerald-800">
                       RFP ID: {rfp.id.slice(0, 8)}
                     </div>
                   </div>
@@ -828,7 +828,7 @@ export function PlanQuotesTrackerCard({
                                 href={resp.quoteFileUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                               >
                                 <FileText className="h-3 w-3" />
                                 View Quote PDF

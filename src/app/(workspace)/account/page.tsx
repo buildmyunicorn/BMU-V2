@@ -294,7 +294,7 @@ export default function AccountPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="h-8 w-8 animate-spin text-indigo-600" />
+          <RefreshCw className="h-8 w-8 animate-spin text-emerald-700" />
           <p className="text-sm font-medium text-slate-600">Loading account settings...</p>
         </div>
       </div>
@@ -351,11 +351,11 @@ export default function AccountPage() {
       {/* Main Content Area */}
       <main className="mx-auto mt-6 max-w-5xl px-4 sm:px-8">
         {/* Page Hero Card */}
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-sm sm:p-8">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-6 text-white shadow-sm sm:p-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-300">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-slate-300">
                   <User className="h-5 w-5" />
                 </span>
                 <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
@@ -394,7 +394,7 @@ export default function AccountPage() {
             onClick={() => setActiveTab('profile')}
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-semibold transition-colors ${
               activeTab === 'profile'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-emerald-700 text-emerald-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -406,7 +406,7 @@ export default function AccountPage() {
             onClick={() => setActiveTab('billing')}
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-semibold transition-colors ${
               activeTab === 'billing'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-emerald-700 text-emerald-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -505,7 +505,7 @@ export default function AccountPage() {
                         onChange={(e) =>
                           setDefaultCountry(e.target.value as SupportedCountryCode)
                         }
-                        className="mt-1.5 flex h-9 w-full rounded-md border border-slate-300 bg-white px-3 py-1 text-base text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-xs"
+                        className="mt-1.5 flex h-9 w-full rounded-md border border-slate-300 bg-white px-3 py-1 text-base text-slate-900 shadow-xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-700 sm:text-xs"
                       >
                         <option value="IE">🇮🇪 Ireland (EUR € — LEO & Enterprise Ireland)</option>
                         <option value="GB">🇬🇧 United Kingdom (GBP £ — Innovate UK & BBB Loans)</option>
@@ -562,11 +562,11 @@ export default function AccountPage() {
                             onClick={() => setPrimaryHat(hat.id as StartupHat)}
                             className={`flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs font-medium transition-all ${
                               isSelected
-                                ? 'border-indigo-600 bg-indigo-50/70 text-indigo-950 font-bold'
+                                ? 'border-emerald-700 bg-emerald-50/70 text-slate-950 font-bold'
                                 : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                             }`}
                           >
-                            <Icon className={`h-4 w-4 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
+                            <Icon className={`h-4 w-4 ${isSelected ? 'text-emerald-700' : 'text-slate-400'}`} />
                             <span className="truncate">{hat.label}</span>
                           </button>
                         );
@@ -585,7 +585,7 @@ export default function AccountPage() {
                           type="checkbox"
                           checked={notifySurvey}
                           onChange={(e) => setNotifySurvey(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                         />
                         <div>
                           <div className="text-xs font-medium text-slate-800">
@@ -602,7 +602,7 @@ export default function AccountPage() {
                           type="checkbox"
                           checked={notifyGrants}
                           onChange={(e) => setNotifyGrants(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                         />
                         <div>
                           <div className="text-xs font-medium text-slate-800">
@@ -620,7 +620,7 @@ export default function AccountPage() {
                     <Button
                       type="submit"
                       disabled={savingProfile}
-                      className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                     >
                       {savingProfile ? (
                         <>
@@ -841,33 +841,33 @@ export default function AccountPage() {
                 </div>
 
                 {/* AI Quota Meter */}
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-indigo-600" />
-                      <span className="text-xs font-bold text-indigo-950">
+                      <Sparkles className="h-4 w-4 text-emerald-700" />
+                      <span className="text-xs font-bold text-slate-950">
                         Monthly AI Assistant Allowance
                       </span>
                     </div>
-                    <span className="text-xs font-semibold text-indigo-900">
+                    <span className="text-xs font-semibold text-slate-900">
                       {aiUsed} / {aiLimit} calls used ({aiPercent}%)
                     </span>
                   </div>
 
                   {/* Progress bar */}
-                  <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-indigo-100">
+                  <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
                         aiPercent >= 90
                           ? 'bg-red-500'
                           : aiPercent >= 70
                           ? 'bg-amber-500'
-                          : 'bg-indigo-600'
+                          : 'bg-emerald-700'
                       }`}
                       style={{ width: `${aiPercent}%` }}
                     />
                   </div>
-                  <p className="mt-2 text-[11px] text-indigo-900/80">
+                  <p className="mt-2 text-[11px] text-slate-900/80">
                     Platform AI credits refresh on the 1st of every month. Enforces our daily ceiling to protect your account.
                   </p>
                 </div>
@@ -929,7 +929,7 @@ export default function AccountPage() {
             {/* Read-Only Vault Mode Reassurance Card */}
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                <Shield className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
                 <div className="text-xs text-slate-600 space-y-1">
                   <div className="font-bold text-slate-900">
                     The Startup Preflight Vault Guarantee
@@ -954,7 +954,7 @@ export default function AccountPage() {
             <Card className="rounded-xl border border-slate-200 bg-white shadow-xs">
               <CardHeader className="border-b border-slate-100 pb-4">
                 <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Download className="h-4 w-4 text-indigo-600" />
+                  <Download className="h-4 w-4 text-emerald-700" />
                   Data Portability (GDPR Article 20)
                 </CardTitle>
                 <CardDescription className="text-xs text-slate-500">
@@ -979,7 +979,7 @@ export default function AccountPage() {
                     type="button"
                     onClick={handleExportData}
                     disabled={exportingData}
-                    className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700 shrink-0"
+                    className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 shrink-0"
                   >
                     {exportingData ? (
                       <>

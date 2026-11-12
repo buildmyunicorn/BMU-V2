@@ -318,7 +318,7 @@ export default async function GrantChecklistPage({ params }: GrantChecklistPageP
   const grantDetailHref = `/grants/${countrySegment}/${grant.slug}`;
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 antialiased selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 antialiased selection:bg-emerald-100 selection:text-slate-900">
       {/* Inject Schema.org HowTo JSON-LD */}
       <script
         type="application/ld+json"
@@ -332,7 +332,7 @@ export default async function GrantChecklistPage({ params }: GrantChecklistPageP
         <div className="mx-auto flex max-w-5xl items-center justify-between text-xs text-slate-500">
           <Link
             href={grantDetailHref}
-            className="inline-flex items-center gap-1.5 font-medium text-slate-600 hover:text-indigo-600 transition"
+            className="inline-flex items-center gap-1.5 font-medium text-slate-600 hover:text-emerald-700 transition"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to {grant.grantName} Scheme Overview
@@ -366,18 +366,18 @@ export default async function GrantChecklistPage({ params }: GrantChecklistPageP
 
       <main className="flex-1">
         {/* HERO SECTION MATCHING LANDING PAGE VISUAL THEME */}
-        <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-indigo-50/25 to-slate-50 px-4 pt-10 pb-12 sm:px-6 lg:pt-14 lg:pb-16 print:hidden">
+        <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-slate-50/25 to-slate-50 px-4 pt-10 pb-12 sm:px-6 lg:pt-14 lg:pb-16 print:hidden">
           <div className="mx-auto max-w-4xl text-center">
             {/* Pill Badge */}
-            <div className="inline-flex items-center justify-center gap-2 rounded-full border border-indigo-200 bg-white px-3.5 py-1 text-xs font-semibold text-indigo-950 shadow-2xs">
-              <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
+            <div className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1 text-xs font-semibold text-slate-950 shadow-2xs">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
               <span>Official Assessor Preparation Checklist</span>
             </div>
 
             {/* Headline */}
             <h1 className="mx-auto mt-4 max-w-3xl text-2xl font-extrabold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl lg:leading-[1.15]">
               {grant.grantName}{' '}
-              <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+              <span className="text-slate-950 font-extrabold">
                 Application Checklist
               </span>
             </h1>
@@ -409,7 +409,7 @@ export default async function GrantChecklistPage({ params }: GrantChecklistPageP
               </Badge>
               <Badge
                 variant="outline"
-                className="border-indigo-200 bg-indigo-50 text-indigo-800 text-xs px-2.5 py-0.5 font-medium"
+                className="border-emerald-200 bg-emerald-50 text-emerald-900 text-xs px-2.5 py-0.5 font-medium"
               >
                 Funding: {grant.maxAmountFormatted}
               </Badge>

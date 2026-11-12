@@ -272,6 +272,13 @@ import { BusinessPlanStudioWorkspace } from '@/components/workspace/business-pla
 import { ProjectDashboardView } from '@/components/workspace/project-dashboard-view';
 import { CohortMilestoneTracker } from '@/components/workspace/cohort-milestone-tracker';
 import {
+  saveModuleKStep1AuditAction,
+  saveModuleKStep2CapitalStackAction,
+  saveModuleKStep3ReimbursementBridgeAction,
+  saveModuleKStep4TaxReliefAction,
+  saveModuleKStep5FundingBriefAction,
+} from '@/app/actions/module-k';
+import {
   saveModuleLStep1ModeAction,
   saveModuleLPartialDataAction,
 } from '@/app/actions/module-l';
@@ -584,10 +591,16 @@ export default function WorkspacePage() {
   // Global Cloud Autosave Status for workspace header indicator
   const [globalSaveStatus, setGlobalSaveStatus] = useState<AutosaveStatus>('idle');
   const [globalLastSavedAt, setGlobalLastSavedAt] = useState<Date | null>(null);
+  const [cloudHydrationEpoch, setCloudHydrationEpoch] = useState(0);
+  const isAnyUserEditInSessionRef = useRef(false);
+  const skipModuleAAutosaveRef = useRef(false);
   const isModuleAFirstRenderRef = useRef(true);
   const isModuleADirtyRef = useRef(false);
 
-  const markSavingStart = () => setGlobalSaveStatus('saving');
+  const markSavingStart = () => {
+    isAnyUserEditInSessionRef.current = true;
+    setGlobalSaveStatus('saving');
+  };
   const markSavingSuccess = () => {
     setGlobalSaveStatus('saved');
     setGlobalLastSavedAt(new Date());
@@ -596,8 +609,13 @@ export default function WorkspacePage() {
 
   const runWithAutosaveTracking = async <T,>(operation: () => Promise<T>): Promise<T> => {
     markSavingStart();
+    const startedAtMs = Date.now();
     try {
       const result = await operation();
+      const elapsedMs = Date.now() - startedAtMs;
+      if (elapsedMs < 280) {
+        await new Promise((resolve) => setTimeout(resolve, 280 - elapsedMs));
+      }
       markSavingSuccess();
       return result;
     } catch (err) {
@@ -686,6 +704,10 @@ export default function WorkspacePage() {
           }
         }
         setSession(loaded);
+        skipModuleAAutosaveRef.current = true;
+        setTimeout(() => {
+          skipModuleAAutosaveRef.current = false;
+        }, 0);
         setSelectedCountry(activePlan.hqCountryCode);
         setBrainDumpText(activePlan.brainDumpText ?? '');
         setConceptCanvas(activePlan.conceptCanvas || null);
@@ -891,21 +913,32 @@ export default function WorkspacePage() {
       .then((res) => {
         setCloudDbConnected(res.dbConnected);
         if (res.authenticated && res.session) {
+          let resolvedMergedActivePlan: ActiveStartupPlan | undefined;
+
           setSession((prev) => {
-            const pickNewerBySavedAt = <T extends { lastSavedAt?: string }>(
+            const getItemSavedTs = (val?: unknown): number => {
+              if (!val || typeof val !== 'object') return 0;
+              const rec = val as Record<string, unknown>;
+              const iso =
+                (typeof rec.lastSavedAt === 'string' && rec.lastSavedAt) ||
+                (typeof rec.updatedAt === 'string' && rec.updatedAt) ||
+                (typeof rec.lastAuditedAt === 'string' && rec.lastAuditedAt) ||
+                undefined;
+              if (!iso) return 0;
+              const ts = Date.parse(iso);
+              return Number.isNaN(ts) ? 0 : ts;
+            };
+
+            const pickNewerBySavedAt = <T,>(
               localVal?: T,
               dbVal?: T
             ): T | undefined => {
               if (localVal && !dbVal) return localVal;
               if (!localVal && dbVal) return dbVal;
               if (!localVal && !dbVal) return undefined;
-              const localTs = localVal?.lastSavedAt
-                ? new Date(localVal.lastSavedAt).getTime()
-                : 0;
-              const dbTs = dbVal?.lastSavedAt
-                ? new Date(dbVal.lastSavedAt).getTime()
-                : 0;
-              return localTs >= dbTs ? localVal : dbVal;
+              const localTs = getItemSavedTs(localVal);
+              const dbTs = getItemSavedTs(dbVal);
+              return localTs > dbTs ? localVal : dbVal;
             };
 
             const cloudEmail = res.session!.user.email.trim().toLowerCase();
@@ -972,6 +1005,33 @@ export default function WorkspacePage() {
                   )
                 : combinedSurveys.slice(0, 1);
 
+              const mergedModuleBData =
+                localPlan.moduleBData || dbPlan.moduleBData
+                  ? {
+                      ...(dbPlan.moduleBData || {}),
+                      ...(localPlan.moduleBData || {}),
+                      beachhead: pickNewerBySavedAt(
+                        localPlan.moduleBData?.beachhead,
+                        dbPlan.moduleBData?.beachhead
+                      ),
+                      competitorsAndStatusQuo: pickNewerBySavedAt(
+                        localPlan.moduleBData?.competitorsAndStatusQuo,
+                        dbPlan.moduleBData?.competitorsAndStatusQuo
+                      ),
+                      marketSizing: pickNewerBySavedAt(
+                        localPlan.moduleBData?.marketSizing,
+                        dbPlan.moduleBData?.marketSizing
+                      ),
+                      competitiveWedge: pickNewerBySavedAt(
+                        localPlan.moduleBData?.competitiveWedge,
+                        dbPlan.moduleBData?.competitiveWedge
+                      ),
+                      thingsToConsider:
+                        dbPlan.moduleBData?.thingsToConsider ||
+                        localPlan.moduleBData?.thingsToConsider,
+                    }
+                  : undefined;
+
               const mergedModuleDData =
                 localPlan.moduleDData || dbPlan.moduleDData
                   ? {
@@ -1026,6 +1086,22 @@ export default function WorkspacePage() {
                       premisesAndEquipment: pickNewerBySavedAt(
                         localPlan.moduleEData?.premisesAndEquipment,
                         dbPlan.moduleEData?.premisesAndEquipment
+                      ),
+                      riskRegister: pickNewerBySavedAt(
+                        localPlan.moduleEData?.riskRegister,
+                        dbPlan.moduleEData?.riskRegister
+                      ),
+                      supportReturnsAndQc: pickNewerBySavedAt(
+                        localPlan.moduleEData?.supportReturnsAndQc,
+                        dbPlan.moduleEData?.supportReturnsAndQc
+                      ),
+                      permitsAndInsurance: pickNewerBySavedAt(
+                        localPlan.moduleEData?.permitsAndInsurance,
+                        dbPlan.moduleEData?.permitsAndInsurance
+                      ),
+                      blindSpotAudit: pickNewerBySavedAt(
+                        localPlan.moduleEData?.blindSpotAudit,
+                        dbPlan.moduleEData?.blindSpotAudit
                       ),
                       thingsToConsider:
                         dbPlan.moduleEData?.thingsToConsider ||
@@ -1200,6 +1276,32 @@ export default function WorkspacePage() {
                   ? {
                       ...(dbPlan.moduleJData || {}),
                       ...(localPlan.moduleJData || {}),
+                      step1OverheadsTax: pickNewerBySavedAt(
+                        localPlan.moduleJData?.step1OverheadsTax,
+                        dbPlan.moduleJData?.step1OverheadsTax
+                      ),
+                      step2WorkingCapital: pickNewerBySavedAt(
+                        localPlan.moduleJData?.step2WorkingCapital,
+                        dbPlan.moduleJData?.step2WorkingCapital
+                      ),
+                      step3CashflowGap: pickNewerBySavedAt(
+                        localPlan.moduleJData?.step3CashflowGap,
+                        dbPlan.moduleJData?.step3CashflowGap
+                      ),
+                      step4Statements: pickNewerBySavedAt(
+                        localPlan.moduleJData?.step4Statements,
+                        dbPlan.moduleJData?.step4Statements
+                      ),
+                      step5FinanceBrief: pickNewerBySavedAt(
+                        localPlan.moduleJData?.step5FinanceBrief,
+                        dbPlan.moduleJData?.step5FinanceBrief
+                      ),
+                      completionPercentage:
+                        localPlan.moduleJData?.completionPercentage ??
+                        dbPlan.moduleJData?.completionPercentage,
+                      thingsToConsider:
+                        dbPlan.moduleJData?.thingsToConsider ||
+                        localPlan.moduleJData?.thingsToConsider,
                       lastSavedAt:
                         pickNewerBySavedAt(
                           localPlan.moduleJData,
@@ -1215,6 +1317,32 @@ export default function WorkspacePage() {
                   ? {
                       ...(dbPlan.moduleKData || {}),
                       ...(localPlan.moduleKData || {}),
+                      step1Audit: pickNewerBySavedAt(
+                        localPlan.moduleKData?.step1Audit,
+                        dbPlan.moduleKData?.step1Audit
+                      ),
+                      step2CapitalStack: pickNewerBySavedAt(
+                        localPlan.moduleKData?.step2CapitalStack,
+                        dbPlan.moduleKData?.step2CapitalStack
+                      ),
+                      step3ReimbursementBridge: pickNewerBySavedAt(
+                        localPlan.moduleKData?.step3ReimbursementBridge,
+                        dbPlan.moduleKData?.step3ReimbursementBridge
+                      ),
+                      step4TaxRelief: pickNewerBySavedAt(
+                        localPlan.moduleKData?.step4TaxRelief,
+                        dbPlan.moduleKData?.step4TaxRelief
+                      ),
+                      step5FundingBrief: pickNewerBySavedAt(
+                        localPlan.moduleKData?.step5FundingBrief,
+                        dbPlan.moduleKData?.step5FundingBrief
+                      ),
+                      completionPercentage:
+                        localPlan.moduleKData?.completionPercentage ??
+                        dbPlan.moduleKData?.completionPercentage,
+                      thingsToConsider:
+                        dbPlan.moduleKData?.thingsToConsider ||
+                        localPlan.moduleKData?.thingsToConsider,
                       lastSavedAt:
                         pickNewerBySavedAt(
                           localPlan.moduleKData,
@@ -1248,7 +1376,7 @@ export default function WorkspacePage() {
                     } else if (!localHasSections && dbHasSections) {
                       versionsById.set(v.id, existing);
                     } else {
-                      versionsById.set(v.id, localTs >= dbTs ? v : existing);
+                      versionsById.set(v.id, localTs > dbTs ? v : existing);
                     }
                   }
                 }
@@ -1341,14 +1469,26 @@ export default function WorkspacePage() {
                       ? localPlan.currentModuleStep
                       : dbPlan.currentModuleStep || localPlan.currentModuleStep;
 
+              const localRootTs = localPlan.updatedAtIso
+                ? Date.parse(localPlan.updatedAtIso) || 0
+                : 0;
+              const dbRootTs = dbPlan.updatedAtIso
+                ? Date.parse(dbPlan.updatedAtIso) || 0
+                : 0;
+              const preferLocalRoot = localRootTs > dbRootTs;
+              const rootBase = preferLocalRoot
+                ? { ...dbPlan, ...localPlan }
+                : { ...localPlan, ...dbPlan };
+
               return {
-                ...localPlan,
-                ...dbPlan,
+                ...rootBase,
                 currentModuleStep: resolvedCurrentStep,
-                moduleBData: dbPlan.moduleBData || localPlan.moduleBData,
+                moduleBData: mergedModuleBData,
                 moduleCData:
                   cleanedSurveys.length > 0
                     ? {
+                        ...(dbPlan.moduleCData || {}),
+                        ...(localPlan.moduleCData || {}),
                         surveys: cleanedSurveys,
                         activeSurveyId:
                           dbPlan.moduleCData?.activeSurveyId ||
@@ -1393,6 +1533,10 @@ export default function WorkspacePage() {
                   : mergedPlans[0]?.id || '';
             }
 
+            resolvedMergedActivePlan =
+              mergedPlans.find((p) => p.id === candidatePlanId) ||
+              mergedPlans[0];
+
             const next: BmuLocalSession = {
               ...res.session!,
               plans: mergedPlans,
@@ -1407,48 +1551,43 @@ export default function WorkspacePage() {
             return next;
           });
 
-          // Resolve active plan using the preserved activePlanId rather than hardcoding to res.session.plans[0]
-          const activePlanId =
-            (typeof window !== 'undefined'
-              ? new URLSearchParams(window.location.search).get('planId') ||
-                localStorage.getItem('spf_last_active_plan_id')
-              : null) ||
-            sessionRef.current?.activePlanId ||
-            res.session?.activePlanId;
+          const hydratedPlan =
+            resolvedMergedActivePlan ||
+            res.session.plans.find((p) => p.id === res.session?.activePlanId) ||
+            res.session.plans[0];
 
-          const dbPlan =
-            res.session.plans.find((p) => p.id === activePlanId) ||
-            sessionRef.current?.plans?.find((p) => p.id === activePlanId) ||
-            res.session.plans.find(
-              (p) => p.id === res.session?.activePlanId
-            ) || res.session.plans[0];
-          if (dbPlan) {
-            setSelectedCountry(dbPlan.hqCountryCode);
-            setBrainDumpText(dbPlan.brainDumpText ?? '');
-            setConceptCanvas(dbPlan.conceptCanvas || null);
-            if (dbPlan.founderMotivation) {
-              setFounderMotivation(dbPlan.founderMotivation);
+          if (hydratedPlan && !isAnyUserEditInSessionRef.current) {
+            skipModuleAAutosaveRef.current = true;
+            setTimeout(() => {
+              skipModuleAAutosaveRef.current = false;
+            }, 0);
+            setSelectedCountry(hydratedPlan.hqCountryCode);
+            setBrainDumpText(hydratedPlan.brainDumpText ?? '');
+            setConceptCanvas(hydratedPlan.conceptCanvas || null);
+            if (hydratedPlan.founderMotivation) {
+              setFounderMotivation(hydratedPlan.founderMotivation);
             }
-            if (dbPlan.teamAndBudget) {
-              setTeamAndBudget(dbPlan.teamAndBudget);
+            if (hydratedPlan.teamAndBudget) {
+              setTeamAndBudget(hydratedPlan.teamAndBudget);
             }
-            if (dbPlan.founderRealityCheck) {
+            if (hydratedPlan.founderRealityCheck) {
               setFounderRealityCheck({
-                ...dbPlan.founderRealityCheck,
-                dealbreakers: Array.isArray(dbPlan.founderRealityCheck.dealbreakers)
-                  ? dbPlan.founderRealityCheck.dealbreakers
+                ...hydratedPlan.founderRealityCheck,
+                dealbreakers: Array.isArray(hydratedPlan.founderRealityCheck.dealbreakers)
+                  ? hydratedPlan.founderRealityCheck.dealbreakers
                   : [],
               });
             }
-            if (dbPlan.grantEligibilityCheck) {
-              setGrantEligibilityCheck(dbPlan.grantEligibilityCheck);
+            if (hydratedPlan.grantEligibilityCheck) {
+              setGrantEligibilityCheck(hydratedPlan.grantEligibilityCheck);
             }
-            setThingsToConsider(dbPlan.thingsToConsider || []);
-            setOpenQuestions(dbPlan.openQuestions || []);
+            setThingsToConsider(hydratedPlan.thingsToConsider || []);
+            setOpenQuestions(hydratedPlan.openQuestions || []);
+            setCloudHydrationEpoch((c) => c + 1);
             // Only fall back to cloud currentModuleStep if location wasn't already hydrated from URL/storage
             if (!hasHydratedLocationRef.current) {
               const cloudFromStep = resolveModuleFromStep(
-                dbPlan.currentModuleStep
+                hydratedPlan.currentModuleStep
               );
               if (cloudFromStep) {
                 setIsBusinessPlanStudioOpen(false);
@@ -1602,6 +1741,10 @@ export default function WorkspacePage() {
     // Persist active plan to user profile in Cloud SQL
     setActivePlanServerAction(found.id).catch(() => {});
 
+    skipModuleAAutosaveRef.current = true;
+    setTimeout(() => {
+      skipModuleAAutosaveRef.current = false;
+    }, 0);
     setSelectedCountry(found.hqCountryCode);
     setBrainDumpText(found.brainDumpText ?? '');
     setConceptCanvas(found.conceptCanvas || null);
@@ -2337,37 +2480,46 @@ export default function WorkspacePage() {
     beachhead: BeachheadMarketData,
     progressPercent: number
   ) {
+    const planId = currentPlan.id;
     return runWithAutosaveTracking(async () => {
-      const updatedPlans = session.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        const isExport =
-          beachhead.targetMarketsArray.some((m) => m !== p.hqCountryCode) ||
-          beachhead.targetMarketsArray.includes('EU') ||
-          beachhead.targetMarketsArray.includes('ROW');
-        return {
-          ...p,
-          targetMarketsArray: beachhead.targetMarketsArray,
-          exportPotential: isExport
-            ? ('EXPORTING_INTERNATIONALLY' as const)
-            : ('DOMESTIC_ONLY' as const),
-          currentModuleStep: 'MOD_B_STEP_1',
-          moduleBData: {
-            ...(p.moduleBData || {}),
-            beachhead,
-          },
+      const nowIso = new Date().toISOString();
+      const stampedBeachhead: BeachheadMarketData = {
+        ...beachhead,
+        lastSavedAt: nowIso,
+      };
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== planId) return p;
+          const isExport =
+            stampedBeachhead.targetMarketsArray.some((m) => m !== p.hqCountryCode) ||
+            stampedBeachhead.targetMarketsArray.includes('EU') ||
+            stampedBeachhead.targetMarketsArray.includes('ROW');
+          return {
+            ...p,
+            targetMarketsArray: stampedBeachhead.targetMarketsArray,
+            exportPotential: isExport
+              ? ('EXPORTING_INTERNATIONALLY' as const)
+              : ('DOMESTIC_ONLY' as const),
+            currentModuleStep: 'MOD_B_STEP_1',
+            updatedAtIso: nowIso,
+            moduleBData: {
+              ...(p.moduleBData || {}),
+              beachhead: stampedBeachhead,
+            },
+          };
+        });
+
+        const nextSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(nextSession);
+        return nextSession;
       });
 
-      const nextSession: BmuLocalSession = {
-        ...session,
-        plans: updatedPlans,
-      };
-      setSession(nextSession);
-      saveBmuSession(nextSession);
-
       await saveModuleBStep1BeachheadAction({
-        planId: currentPlan.id,
-        beachhead,
+        planId,
+        beachhead: stampedBeachhead,
         completionPercentage: progressPercent,
       });
     });
@@ -2377,29 +2529,38 @@ export default function WorkspacePage() {
     competitorsAndStatusQuo: CompetitorsAndStatusQuoData,
     progressPercent: number
   ) {
+    const planId = currentPlan.id;
     return runWithAutosaveTracking(async () => {
-      const updatedPlans = session.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_B_STEP_2',
-          moduleBData: {
-            ...(p.moduleBData || {}),
-            competitorsAndStatusQuo,
-          },
+      const nowIso = new Date().toISOString();
+      const stampedCompetitors: CompetitorsAndStatusQuoData = {
+        ...competitorsAndStatusQuo,
+        lastSavedAt: nowIso,
+      };
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== planId) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_B_STEP_2',
+            updatedAtIso: nowIso,
+            moduleBData: {
+              ...(p.moduleBData || {}),
+              competitorsAndStatusQuo: stampedCompetitors,
+            },
+          };
+        });
+
+        const nextSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(nextSession);
+        return nextSession;
       });
 
-      const nextSession: BmuLocalSession = {
-        ...session,
-        plans: updatedPlans,
-      };
-      setSession(nextSession);
-      saveBmuSession(nextSession);
-
       await saveModuleBStep2CompetitorsAction({
-        planId: currentPlan.id,
-        competitorsAndStatusQuo,
+        planId,
+        competitorsAndStatusQuo: stampedCompetitors,
         completionPercentage: progressPercent,
       });
     });
@@ -2431,17 +2592,19 @@ export default function WorkspacePage() {
       buyerTypes: params.buyerTypes,
     });
 
-    const updatedSession: BmuLocalSession = {
-      ...session,
-      entitlement: {
-        ...session.entitlement,
-        aiCreditsUsedThisMonth:
-          result.creditsUsedAfter ??
-          session.entitlement.aiCreditsUsedThisMonth + 1,
-      },
-    };
-    setSession(updatedSession);
-    saveBmuSession(updatedSession);
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            result.creditsUsedAfter ??
+            prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
 
     return {
       competitors: result.competitors,
@@ -2454,29 +2617,38 @@ export default function WorkspacePage() {
     marketSizing: MarketSizingData,
     progressPercent: number
   ) {
+    const planId = currentPlan.id;
     return runWithAutosaveTracking(async () => {
-      const updatedPlans = session.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_B_STEP_3',
-          moduleBData: {
-            ...(p.moduleBData || {}),
-            marketSizing,
-          },
+      const nowIso = new Date().toISOString();
+      const stampedMarketSizing: MarketSizingData = {
+        ...marketSizing,
+        lastSavedAt: nowIso,
+      };
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== planId) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_B_STEP_3',
+            updatedAtIso: nowIso,
+            moduleBData: {
+              ...(p.moduleBData || {}),
+              marketSizing: stampedMarketSizing,
+            },
+          };
+        });
+
+        const nextSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(nextSession);
+        return nextSession;
       });
 
-      const nextSession: BmuLocalSession = {
-        ...session,
-        plans: updatedPlans,
-      };
-      setSession(nextSession);
-      saveBmuSession(nextSession);
-
       await saveModuleBStep3MarketSizingAction({
-        planId: currentPlan.id,
-        marketSizing,
+        planId,
+        marketSizing: stampedMarketSizing,
         completionPercentage: progressPercent,
       });
     });
@@ -2506,17 +2678,19 @@ export default function WorkspacePage() {
       buyerTypes: params.buyerTypes,
     });
 
-    const updatedSession: BmuLocalSession = {
-      ...session,
-      entitlement: {
-        ...session.entitlement,
-        aiCreditsUsedThisMonth:
-          result.creditsUsedAfter ??
-          session.entitlement.aiCreditsUsedThisMonth + 1,
-      },
-    };
-    setSession(updatedSession);
-    saveBmuSession(updatedSession);
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            result.creditsUsedAfter ??
+            prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
 
     return {
       segments: result.segments,
@@ -2530,29 +2704,38 @@ export default function WorkspacePage() {
     competitiveWedge: CompetitiveWedgeData,
     progressPercent: number
   ) {
+    const planId = currentPlan.id;
     return runWithAutosaveTracking(async () => {
-      const updatedPlans = session.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          currentModuleStep: 'MOD_B_STEP_4',
-          moduleBData: {
-            ...(p.moduleBData || {}),
-            competitiveWedge,
-          },
+      const nowIso = new Date().toISOString();
+      const stampedWedge: CompetitiveWedgeData = {
+        ...competitiveWedge,
+        lastSavedAt: nowIso,
+      };
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== planId) return p;
+          return {
+            ...p,
+            currentModuleStep: 'MOD_B_STEP_4',
+            updatedAtIso: nowIso,
+            moduleBData: {
+              ...(p.moduleBData || {}),
+              competitiveWedge: stampedWedge,
+            },
+          };
+        });
+
+        const nextSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(nextSession);
+        return nextSession;
       });
 
-      const nextSession: BmuLocalSession = {
-        ...session,
-        plans: updatedPlans,
-      };
-      setSession(nextSession);
-      saveBmuSession(nextSession);
-
       await saveModuleBStep4CompetitiveWedgeAction({
-        planId: currentPlan.id,
-        competitiveWedge,
+        planId,
+        competitiveWedge: stampedWedge,
         completionPercentage: progressPercent,
       });
     });
@@ -2582,17 +2765,19 @@ export default function WorkspacePage() {
       competitorNames: params.competitorNames,
     });
 
-    const updatedSession: BmuLocalSession = {
-      ...session,
-      entitlement: {
-        ...session.entitlement,
-        aiCreditsUsedThisMonth:
-          result.creditsUsedAfter ??
-          session.entitlement.aiCreditsUsedThisMonth + 1,
-      },
-    };
-    setSession(updatedSession);
-    saveBmuSession(updatedSession);
+    setSession((prev) => {
+      const updatedSession: BmuLocalSession = {
+        ...prev,
+        entitlement: {
+          ...prev.entitlement,
+          aiCreditsUsedThisMonth:
+            result.creditsUsedAfter ??
+            prev.entitlement.aiCreditsUsedThisMonth + 1,
+        },
+      };
+      saveBmuSession(updatedSession);
+      return updatedSession;
+    });
 
     return {
       comparisonRows: result.comparisonRows,
@@ -2606,29 +2791,33 @@ export default function WorkspacePage() {
 
   async function handleSaveModuleBStep5(thingsToConsider: BlindSpotItem[]) {
     if (!session || !currentPlan || activeEntitlement.isVaultReadonly) return;
+    const planId = currentPlan.id;
 
     return runWithAutosaveTracking(async () => {
-      const updatedPlans = session.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          moduleBData: {
-            ...p.moduleBData,
-            thingsToConsider,
-          },
-          updatedAtIso: new Date().toISOString(),
+      const nowIso = new Date().toISOString();
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== planId) return p;
+          return {
+            ...p,
+            moduleBData: {
+              ...p.moduleBData,
+              thingsToConsider,
+            },
+            updatedAtIso: nowIso,
+          };
+        });
+
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
 
-      const updatedSession: BmuLocalSession = {
-        ...session,
-        plans: updatedPlans,
-      };
-      setSession(updatedSession);
-      saveBmuSession(updatedSession);
-
       await saveModuleBStep5CompleteAction({
-        planId: currentPlan.id,
+        planId,
         thingsToConsider,
       });
     });
@@ -4459,28 +4648,35 @@ export default function WorkspacePage() {
   async function handleSaveMasterDocumentData(
     masterDocumentData: SavedMasterDocumentData
   ) {
-    setSession((prev) => {
-      const updatedPlans = prev.plans.map((p) => {
-        if (p.id !== currentPlan.id) return p;
-        return {
-          ...p,
-          masterDocumentData: {
-            ...masterDocumentData,
-            lastSavedAt: new Date().toISOString(),
-          },
+    return runWithAutosaveTracking(async () => {
+      const nowIso = new Date().toISOString();
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) => {
+          if (p.id !== currentPlan.id) return p;
+          return {
+            ...p,
+            updatedAtIso: nowIso,
+            masterDocumentData: {
+              ...masterDocumentData,
+              lastSavedAt: nowIso,
+            },
+          };
+        });
+        const updatedSession: BmuLocalSession = {
+          ...prev,
+          plans: updatedPlans,
         };
+        saveBmuSession(updatedSession);
+        return updatedSession;
       });
-      const updatedSession: BmuLocalSession = {
-        ...prev,
-        plans: updatedPlans,
-      };
-      saveBmuSession(updatedSession);
-      return updatedSession;
-    });
 
-    await saveMasterDocumentDataAction({
-      planId: currentPlan.id,
-      masterDocumentData,
+      await saveMasterDocumentDataAction({
+        planId: currentPlan.id,
+        masterDocumentData: {
+          ...masterDocumentData,
+          lastSavedAt: nowIso,
+        },
+      });
     });
   }
 
@@ -4624,12 +4820,16 @@ export default function WorkspacePage() {
     options?: { silent?: boolean }
   ) {
     if (activeEntitlement.isVaultReadonly) return;
-    setIsSavingCanvas(true);
-    setGlobalSaveStatus('saving');
+    const planId = currentPlan.id;
+    isModuleADirtyRef.current = false;
+    isAnyUserEditInSessionRef.current = true;
     if (!options?.silent) {
+      setIsSavingCanvas(true);
       setSynthesisBanner(null);
     }
+    setGlobalSaveStatus('saving');
     try {
+      const nowIso = new Date().toISOString();
       const toSave = effectiveCanvas;
       const validOverride =
         overrideGrantCheck &&
@@ -4640,12 +4840,33 @@ export default function WorkspacePage() {
       const grantCheckToSave: SavedGrantEligibilityCheck = validOverride
         ? {
             ...validOverride,
-            lastCheckedAt:
-              validOverride.lastCheckedAt || new Date().toISOString(),
+            lastCheckedAt: validOverride.lastCheckedAt || nowIso,
           }
         : grantEligibilityCheck;
+
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) =>
+          p.id === planId
+            ? {
+                ...p,
+                brainDumpText,
+                conceptCanvas: toSave,
+                founderMotivation,
+                teamAndBudget,
+                founderRealityCheck,
+                grantEligibilityCheck: grantCheckToSave,
+                thingsToConsider: liveThingsToConsider,
+                updatedAtIso: nowIso,
+              }
+            : p
+        );
+        const updatedSession = { ...prev, plans: updatedPlans };
+        saveBmuSession(updatedSession);
+        return updatedSession;
+      });
+
       await saveModuleACanvasEditsAction({
-        planId: currentPlan.id,
+        planId,
         brainDumpText,
         exportPotential: currentPlan.exportPotential,
         canvas: toSave,
@@ -4655,28 +4876,12 @@ export default function WorkspacePage() {
         grantEligibilityCheck: grantCheckToSave,
         thingsToConsider: liveThingsToConsider,
       });
-      setConceptCanvas(toSave);
-      setGrantEligibilityCheck(grantCheckToSave);
-      setThingsToConsider(liveThingsToConsider);
-      setIsEditingCanvas(false);
-
-      const updatedPlans = session.plans.map((p) =>
-        p.id === currentPlan.id
-          ? {
-              ...p,
-              brainDumpText,
-              conceptCanvas: toSave,
-              founderMotivation,
-              teamAndBudget,
-              founderRealityCheck,
-              grantEligibilityCheck: grantCheckToSave,
-              thingsToConsider: liveThingsToConsider,
-            }
-          : p
-      );
-      const updatedSession = { ...session, plans: updatedPlans };
-      setSession(updatedSession);
-      saveBmuSession(updatedSession);
+      if (!options?.silent) {
+        setConceptCanvas(toSave);
+        setGrantEligibilityCheck(grantCheckToSave);
+        setThingsToConsider(liveThingsToConsider);
+        setIsEditingCanvas(false);
+      }
 
       setGlobalSaveStatus('saved');
       setGlobalLastSavedAt(new Date());
@@ -4692,28 +4897,40 @@ export default function WorkspacePage() {
       console.error('Failed to autosave Module A canvas edits:', err);
       setGlobalSaveStatus('error');
     } finally {
-      setIsSavingCanvas(false);
+      if (!options?.silent) {
+        setIsSavingCanvas(false);
+      }
     }
   }
 
-  // Module A Automatic Background Autosave (1200ms debounce on keystroke/edits)
+  const handleSaveCanvasEditsRef = useRef(handleSaveCanvasEdits);
+  handleSaveCanvasEditsRef.current = handleSaveCanvasEdits;
+
+  // Module A Automatic Background Autosave (500ms debounce on keystroke/edits)
   useEffect(() => {
     if (isModuleAFirstRenderRef.current) {
       isModuleAFirstRenderRef.current = false;
+      skipModuleAAutosaveRef.current = false;
       return;
     }
+    if (skipModuleAAutosaveRef.current) {
+      skipModuleAAutosaveRef.current = false;
+      return;
+    }
+    if (!hasHydratedLocationRef.current) return;
     if (activeEntitlement.isVaultReadonly) return;
     if (activeModule !== 'MOD_A_IDEATION') return;
 
     isModuleADirtyRef.current = true;
+    isAnyUserEditInSessionRef.current = true;
     setGlobalSaveStatus('saving');
 
     const timer = setTimeout(() => {
       if (isModuleADirtyRef.current) {
         isModuleADirtyRef.current = false;
-        void handleSaveCanvasEdits(undefined, { silent: true });
+        void handleSaveCanvasEditsRef.current(undefined, { silent: true });
       }
-    }, 1200);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [
@@ -4723,9 +4940,15 @@ export default function WorkspacePage() {
     teamAndBudget,
     founderRealityCheck,
     grantEligibilityCheck,
-    activeModule,
-    activeEntitlement.isVaultReadonly,
   ]);
+
+  // Flush any pending Module A edits if switching modules or unmounting
+  useEffect(() => {
+    if (activeModule !== 'MOD_A_IDEATION' && isModuleADirtyRef.current) {
+      isModuleADirtyRef.current = false;
+      void handleSaveCanvasEditsRef.current(undefined, { silent: true });
+    }
+  }, [activeModule]);
 
   // Window exit guard if save is actively in flight
   useEffect(() => {
@@ -5642,7 +5865,7 @@ export default function WorkspacePage() {
             <button
               type="button"
               onClick={openProjectDashboardWithHistory}
-              className="hidden text-base font-bold tracking-tight text-slate-900 hover:text-indigo-700 sm:inline"
+              className="hidden text-base font-bold tracking-tight text-slate-900 hover:text-emerald-800 sm:inline"
             >
               Startup Preflight
             </button>
@@ -5654,7 +5877,7 @@ export default function WorkspacePage() {
               <button
                 type="button"
                 onClick={() => setPlanDropdownOpen(!planDropdownOpen)}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-1.5 text-left shadow-2xs transition-all hover:border-indigo-300 hover:bg-white sm:px-3"
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-1.5 text-left shadow-2xs transition-all hover:border-emerald-300 hover:bg-white sm:px-3"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -5662,7 +5885,7 @@ export default function WorkspacePage() {
                       {currentPlan.title}
                     </span>
                     {currentPlan.isPivot && (
-                      <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">
+                      <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800">
                         Pivot
                       </span>
                     )}
@@ -5681,7 +5904,7 @@ export default function WorkspacePage() {
                 </div>
                 <ChevronDown
                   className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
-                    planDropdownOpen ? 'rotate-180 text-indigo-600' : ''
+                    planDropdownOpen ? 'rotate-180 text-emerald-700' : ''
                   }`}
                 />
               </button>
@@ -5701,7 +5924,7 @@ export default function WorkspacePage() {
                         key={p.id}
                         className={`group/plan flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs transition-colors ${
                           p.id === currentPlan.id
-                            ? 'bg-indigo-50/90 font-semibold text-indigo-950 ring-1 ring-indigo-200'
+                            ? 'bg-emerald-50/90 font-semibold text-slate-950 ring-1 ring-emerald-200'
                             : 'text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -5713,7 +5936,7 @@ export default function WorkspacePage() {
                           <div className="flex items-center gap-1.5 truncate">
                             <span className="truncate font-bold">{p.title}</span>
                             {p.isPivot && (
-                              <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                              <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
                                 Pivot
                               </span>
                             )}
@@ -5725,7 +5948,7 @@ export default function WorkspacePage() {
                         </button>
                         <div className="flex shrink-0 items-center gap-1">
                           {p.id === currentPlan.id && (
-                            <Check className="mr-1 h-4 w-4 shrink-0 text-indigo-600" />
+                            <Check className="mr-1 h-4 w-4 shrink-0 text-emerald-700" />
                           )}
                           <button
                             type="button"
@@ -5800,8 +6023,8 @@ export default function WorkspacePage() {
                             }}
                             className={`rounded-md border px-1.5 py-1 text-[10px] font-semibold transition-all ${
                               isSelectedCountry
-                                ? 'border-indigo-600 bg-indigo-600 text-white'
-                                : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
                             }`}
                           >
                             {reg.flag} {reg.label}
@@ -5854,7 +6077,7 @@ export default function WorkspacePage() {
                           }}
                           className={`rounded-md border px-2 py-1 text-[10px] font-semibold transition-all ${
                             !trackCaps.isGrantsEnabled
-                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              ? 'border-emerald-700 bg-emerald-700 text-white'
                               : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                           }`}
                         >
@@ -5878,7 +6101,7 @@ export default function WorkspacePage() {
                         window.location.href = '/onboarding';
                       }
                     }}
-                    className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                    className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
                   >
                     <span className="flex items-center gap-1.5">
                       <Plus className="h-3.5 w-3.5" />+ Create New Venture
@@ -5902,9 +6125,9 @@ export default function WorkspacePage() {
                   >
                     <span className="flex items-center gap-1.5">
                       {isCloningPlan ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-600" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
                       ) : (
-                        <GitBranch className="h-3.5 w-3.5 text-violet-600" />
+                        <GitBranch className="h-3.5 w-3.5 text-emerald-700" />
                       )}
                       {isCloningPlan
                         ? 'Cloning Venture & Modules...'
@@ -5924,7 +6147,7 @@ export default function WorkspacePage() {
                 size="sm"
                 variant="outline"
                 onClick={openProjectDashboardWithHistory}
-                className="h-8 border-indigo-200 bg-indigo-50/70 px-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
+                className="h-8 border-slate-200 bg-slate-50 px-2.5 text-xs font-bold text-emerald-800 hover:bg-slate-100"
               >
                 <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Project Dashboard</span>
@@ -5992,7 +6215,7 @@ export default function WorkspacePage() {
                 size="sm"
                 className="px-2 text-xs text-slate-600 sm:px-3"
               >
-                <User className="h-3.5 w-3.5 text-indigo-600" />
+                <User className="h-3.5 w-3.5 text-emerald-700" />
                 <span className="hidden sm:inline">My Account</span>
               </Button>
             </Link>
@@ -6043,7 +6266,7 @@ export default function WorkspacePage() {
                 variant="outline"
                 size="sm"
                 onClick={openProjectDashboardWithHistory}
-                className="w-full justify-start border-indigo-200 bg-indigo-50/50 text-xs font-bold text-indigo-800 hover:bg-indigo-100/80"
+                className="w-full justify-start border-slate-200 bg-slate-50 text-xs font-bold text-emerald-900 hover:bg-slate-100/80"
               >
                 <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                 Back to Project Dashboard
@@ -6058,10 +6281,10 @@ export default function WorkspacePage() {
                 <button
                   type="button"
                   onClick={() => openAskStartupWithHistory()}
-                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-1 py-1.5 text-[10px] font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-800"
+                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-1 py-1.5 text-[10px] font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:bg-slate-50 hover:text-emerald-900"
                   title="Ask My Startup (AI Venture Intelligence)"
                 >
-                  <BrainCircuit className="h-3 w-3 text-indigo-600 shrink-0" />
+                  <BrainCircuit className="h-3 w-3 text-emerald-700 shrink-0" />
                   <span className="truncate">Ask AI</span>
                 </button>
                 <button
@@ -6076,10 +6299,10 @@ export default function WorkspacePage() {
                 <button
                   type="button"
                   onClick={openBusinessPlanStudioWithHistory}
-                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-1.5 py-1.5 text-[10px] font-semibold text-slate-700 transition-colors hover:border-violet-300 hover:bg-violet-50/60 hover:text-violet-800"
+                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-1.5 py-1.5 text-[10px] font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:bg-slate-50 hover:text-emerald-900"
                   title="Business Plan Studio"
                 >
-                  <Sparkles className="h-3 w-3 text-violet-600 shrink-0" />
+                  <Sparkles className="h-3 w-3 text-emerald-700 shrink-0" />
                   <span className="truncate">Plan Studio</span>
                 </button>
                 {isGrantCheckerSupportedForCountry(selectedCountry) && (
@@ -6100,17 +6323,17 @@ export default function WorkspacePage() {
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-              className="flex w-full items-center justify-between rounded-xl border border-indigo-200 bg-white px-3.5 py-2.5 text-left shadow-xs transition-colors hover:bg-indigo-50/40 lg:hidden"
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-left shadow-xs transition-colors hover:bg-slate-50 lg:hidden"
             >
               <div className="flex min-w-0 items-center gap-2.5">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                   {activeModule.replace('MOD_', '').split('_')[0] || 'A'}
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-xs font-bold text-slate-900">
                     {activeModuleMeta.short}: {activeModuleMeta.title}
                   </div>
-                  <div className="text-[11px] text-indigo-700">
+                  <div className="text-[11px] text-emerald-800">
                     {mobileSidebarOpen
                       ? 'Hide Modules (A–L) & Parked Questions'
                       : `Tap to Switch Module (A–L) • ${openQuestions.length} Parked`}
@@ -6118,7 +6341,7 @@ export default function WorkspacePage() {
                 </div>
               </div>
               <ChevronDown
-                className={`h-4 w-4 shrink-0 text-indigo-600 transition-transform ${
+                className={`h-4 w-4 shrink-0 text-emerald-700 transition-transform ${
                   mobileSidebarOpen ? 'rotate-180' : ''
                 }`}
               />
@@ -6135,7 +6358,7 @@ export default function WorkspacePage() {
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Founder Workspace
                   </span>
-                  <span className="text-[10px] font-semibold text-indigo-700">
+                  <span className="text-[10px] font-semibold text-emerald-800">
                     4 Stages
                   </span>
                 </div>
@@ -6192,7 +6415,7 @@ export default function WorkspacePage() {
                             key={stg.stage}
                             className={`rounded-lg border transition-all ${
                               hasActiveMod
-                                ? 'border-indigo-300 bg-indigo-50/20'
+                                ? 'border-emerald-300 bg-slate-50'
                                 : 'border-slate-100 bg-slate-50/30'
                             }`}
                           >
@@ -6206,7 +6429,7 @@ export default function WorkspacePage() {
                                 <span
                                   className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded text-[10px] font-extrabold ${
                                     hasActiveMod
-                                      ? 'bg-indigo-600 text-white'
+                                      ? 'bg-emerald-700 text-white'
                                       : avgStageProgress === 100
                                         ? 'bg-emerald-600 text-white'
                                         : 'bg-slate-200 text-slate-700'
@@ -6224,7 +6447,7 @@ export default function WorkspacePage() {
                                     avgStageProgress === 100
                                       ? 'text-emerald-600'
                                       : avgStageProgress > 0
-                                        ? 'text-indigo-600'
+                                        ? 'text-emerald-700'
                                         : 'text-slate-400'
                                   }`}
                                 >
@@ -6266,14 +6489,14 @@ export default function WorkspacePage() {
                                       }}
                                       className={`group flex w-full items-start gap-2 rounded-lg p-2 text-left transition-all ${
                                         isCurrent
-                                          ? 'bg-indigo-50/90 ring-1 ring-indigo-200'
+                                          ? 'bg-emerald-50/90 ring-1 ring-emerald-200'
                                           : 'hover:bg-slate-50'
                                       }`}
                                     >
                                       <div
                                         className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
                                           isCurrent
-                                            ? 'bg-indigo-600 text-white'
+                                            ? 'bg-emerald-700 text-white'
                                             : access.allowed
                                               ? 'bg-emerald-50 text-emerald-700'
                                               : 'bg-slate-100 text-slate-400'
@@ -6285,7 +6508,7 @@ export default function WorkspacePage() {
                                         <div className="flex items-center justify-between gap-1">
                                           <span
                                             className={`text-xs font-bold truncate ${
-                                              isCurrent ? 'text-indigo-950' : 'text-slate-800'
+                                              isCurrent ? 'text-slate-950' : 'text-slate-800'
                                             }`}
                                           >
                                             {mod.title}
@@ -6297,7 +6520,7 @@ export default function WorkspacePage() {
                                               className={`text-[10px] font-bold ${
                                                 modProgress === 100
                                                   ? 'text-emerald-600'
-                                                  : 'text-indigo-600'
+                                                  : 'text-emerald-700'
                                               }`}
                                             >
                                               {modProgress}%
@@ -6308,12 +6531,12 @@ export default function WorkspacePage() {
                                           {mod.subtitle}
                                         </p>
                                         {(isCurrent || modProgress > 0) && access.allowed && (
-                                          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-indigo-100">
+                                          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
                                             <div
                                               className={`h-full rounded-full transition-all duration-300 ${
                                                 modProgress === 100
                                                   ? 'bg-emerald-500'
-                                                  : 'bg-indigo-600'
+                                                  : 'bg-emerald-700'
                                               }`}
                                               style={{ width: `${modProgress}%` }}
                                             />
@@ -6461,7 +6684,7 @@ export default function WorkspacePage() {
                     size="sm"
                     variant="ghost"
                     onClick={() => navigateToModuleWithHistory(activeModule)}
-                    className="h-8 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                    className="h-8 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
                   >
                     Open Founder Workspace ({activeModuleMeta.short})
                   </Button>
@@ -6474,7 +6697,7 @@ export default function WorkspacePage() {
                     onClick={() => openAskStartupWithHistory()}
                     className={`h-8 text-xs font-bold ${
                       isAskStartupOpen
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        ? 'bg-emerald-700 text-white hover:bg-emerald-800'
                         : 'border-slate-200 text-slate-700'
                     }`}
                   >
@@ -6502,7 +6725,7 @@ export default function WorkspacePage() {
                     onClick={openBusinessPlanStudioWithHistory}
                     className={`h-8 text-xs font-bold ${
                       isBusinessPlanStudioOpen
-                        ? 'bg-violet-600 text-white hover:bg-violet-700'
+                        ? 'bg-emerald-700 text-white hover:bg-emerald-800'
                         : 'border-slate-200 text-slate-700'
                     }`}
                   >
@@ -6661,20 +6884,24 @@ export default function WorkspacePage() {
                 openBusinessPlanStudioWithHistory();
               }}
               onUpdateGrantCenterData={(updatedData: SavedGrantCenterData) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      grantCenterData: updatedData,
+                void runWithAutosaveTracking(async () => {
+                  const nowIso = new Date().toISOString();
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        updatedAtIso: nowIso,
+                        grantCenterData: updatedData,
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
             />
@@ -6697,20 +6924,24 @@ export default function WorkspacePage() {
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
               onUpdatePlanModuleLData={(updatedModuleL: SavedModuleLData) => {
-                setSession((prev) => {
-                  const updatedPlans = prev.plans.map((p) => {
-                    if (p.id !== currentPlan.id) return p;
-                    return {
-                      ...p,
-                      moduleLData: updatedModuleL,
+                void runWithAutosaveTracking(async () => {
+                  const nowIso = new Date().toISOString();
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        updatedAtIso: nowIso,
+                        moduleLData: updatedModuleL,
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
                     };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
                   });
-                  const updatedSession: BmuLocalSession = {
-                    ...prev,
-                    plans: updatedPlans,
-                  };
-                  saveBmuSession(updatedSession);
-                  return updatedSession;
                 });
               }}
               onJumpToModule={(modCode: ModuleCode, targetStep?: number) => {
@@ -6802,7 +7033,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_F_COFOUNDER_TEAM' ? (
             <ModuleFWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -7053,7 +7284,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_G_LAUNCHPAD' ? (
             <ModuleGWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -7140,7 +7371,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_H_REVENUE' ? (
             <ModuleHWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -7319,7 +7550,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_I_MARKETING' ? (
             <ModuleIWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -7500,7 +7731,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_J_FINANCE' ? (
             <ModuleJWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -7680,7 +7911,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_K_GRANTS_FUNDING' ? (
             <ModuleKWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -7691,20 +7922,25 @@ export default function WorkspacePage() {
               highlightTarget={moduleNavTarget?.highlightTarget}
               onSaveStep1Audit={async (step1Data, progress = 25) => {
                 return runWithAutosaveTracking(async () => {
+                  const nowIso = new Date().toISOString();
                   setSession((prev) => {
                     const updatedPlans = prev.plans.map((p) => {
                       if (p.id !== currentPlan.id) return p;
                       return {
                         ...p,
                         currentModuleStep: 'MOD_K_STEP_1_AUDIT',
+                        updatedAtIso: nowIso,
                         moduleKData: {
                           ...(p.moduleKData || {}),
-                          step1Audit: step1Data,
+                          step1Audit: {
+                            ...step1Data,
+                            lastAuditedAt: nowIso,
+                          },
                           completionPercentage: Math.max(
                             p.moduleKData?.completionPercentage || 0,
                             progress
                           ),
-                          lastSavedAt: new Date().toISOString(),
+                          lastSavedAt: nowIso,
                         },
                       };
                     });
@@ -7715,24 +7951,34 @@ export default function WorkspacePage() {
                     saveBmuSession(updatedSession);
                     return updatedSession;
                   });
+                  await saveModuleKStep1AuditAction({
+                    planId: currentPlan.id,
+                    step1Audit: step1Data,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep2CapitalStack={async (step2Data, progress = 50) => {
                 return runWithAutosaveTracking(async () => {
+                  const nowIso = new Date().toISOString();
                   setSession((prev) => {
                     const updatedPlans = prev.plans.map((p) => {
                       if (p.id !== currentPlan.id) return p;
                       return {
                         ...p,
                         currentModuleStep: 'MOD_K_STEP_2_CAPITAL_STACK',
+                        updatedAtIso: nowIso,
                         moduleKData: {
                           ...(p.moduleKData || {}),
-                          step2CapitalStack: step2Data,
+                          step2CapitalStack: {
+                            ...step2Data,
+                            lastSavedAt: nowIso,
+                          },
                           completionPercentage: Math.max(
                             p.moduleKData?.completionPercentage || 0,
                             progress
                           ),
-                          lastSavedAt: new Date().toISOString(),
+                          lastSavedAt: nowIso,
                         },
                       };
                     });
@@ -7743,24 +7989,34 @@ export default function WorkspacePage() {
                     saveBmuSession(updatedSession);
                     return updatedSession;
                   });
+                  await saveModuleKStep2CapitalStackAction({
+                    planId: currentPlan.id,
+                    step2CapitalStack: step2Data,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep3Bridge={async (step3Data, progress = 65) => {
                 return runWithAutosaveTracking(async () => {
+                  const nowIso = new Date().toISOString();
                   setSession((prev) => {
                     const updatedPlans = prev.plans.map((p) => {
                       if (p.id !== currentPlan.id) return p;
                       return {
                         ...p,
                         currentModuleStep: 'MOD_K_STEP_3_REIMBURSEMENT_BRIDGE',
+                        updatedAtIso: nowIso,
                         moduleKData: {
                           ...(p.moduleKData || {}),
-                          step3ReimbursementBridge: step3Data,
+                          step3ReimbursementBridge: {
+                            ...step3Data,
+                            lastSavedAt: nowIso,
+                          },
                           completionPercentage: Math.max(
                             p.moduleKData?.completionPercentage || 0,
                             progress
                           ),
-                          lastSavedAt: new Date().toISOString(),
+                          lastSavedAt: nowIso,
                         },
                       };
                     });
@@ -7771,24 +8027,34 @@ export default function WorkspacePage() {
                     saveBmuSession(updatedSession);
                     return updatedSession;
                   });
+                  await saveModuleKStep3ReimbursementBridgeAction({
+                    planId: currentPlan.id,
+                    step3Bridge: step3Data,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep4TaxRelief={async (step4Data, progress = 85) => {
                 return runWithAutosaveTracking(async () => {
+                  const nowIso = new Date().toISOString();
                   setSession((prev) => {
                     const updatedPlans = prev.plans.map((p) => {
                       if (p.id !== currentPlan.id) return p;
                       return {
                         ...p,
                         currentModuleStep: 'MOD_K_STEP_4_TAX_RELIEF',
+                        updatedAtIso: nowIso,
                         moduleKData: {
                           ...(p.moduleKData || {}),
-                          step4TaxRelief: step4Data,
+                          step4TaxRelief: {
+                            ...step4Data,
+                            lastSavedAt: nowIso,
+                          },
                           completionPercentage: Math.max(
                             p.moduleKData?.completionPercentage || 0,
                             progress
                           ),
-                          lastSavedAt: new Date().toISOString(),
+                          lastSavedAt: nowIso,
                         },
                       };
                     });
@@ -7799,24 +8065,34 @@ export default function WorkspacePage() {
                     saveBmuSession(updatedSession);
                     return updatedSession;
                   });
+                  await saveModuleKStep4TaxReliefAction({
+                    planId: currentPlan.id,
+                    step4TaxRelief: step4Data,
+                    completionPercentage: progress,
+                  });
                 });
               }}
               onSaveStep5Brief={async (step5Data, progress = 100) => {
                 return runWithAutosaveTracking(async () => {
+                  const nowIso = new Date().toISOString();
                   setSession((prev) => {
                     const updatedPlans = prev.plans.map((p) => {
                       if (p.id !== currentPlan.id) return p;
                       return {
                         ...p,
                         currentModuleStep: 'MOD_K_STEP_5_FUNDING_BRIEF',
+                        updatedAtIso: nowIso,
                         moduleKData: {
                           ...(p.moduleKData || {}),
-                          step5FundingBrief: step5Data,
+                          step5FundingBrief: {
+                            ...step5Data,
+                            lastSavedAt: nowIso,
+                          },
                           completionPercentage: Math.max(
                             p.moduleKData?.completionPercentage || 0,
                             progress
                           ),
-                          lastSavedAt: new Date().toISOString(),
+                          lastSavedAt: nowIso,
                         },
                       };
                     });
@@ -7826,6 +8102,11 @@ export default function WorkspacePage() {
                     };
                     saveBmuSession(updatedSession);
                     return updatedSession;
+                  });
+                  await saveModuleKStep5FundingBriefAction({
+                    planId: currentPlan.id,
+                    step5FundingBrief: step5Data,
+                    completionPercentage: progress,
                   });
                 });
               }}
@@ -7860,7 +8141,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_L_BUSINESS_PLAN' ? (
             <ModuleLWorkspace
-              key={`mod-l-${currentPlan.id}`}
+              key={`mod-l-${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 hqCountryCode: selectedCountry,
@@ -8071,7 +8352,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_E_OPERATIONS' ? (
             <ModuleEWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -8137,7 +8418,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_D_PRODUCT_BUILD' ? (
             <ModuleDWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               founderName={session.user.name}
               plan={{
                 ...currentPlan,
@@ -8182,7 +8463,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_C_SURVEYS_FEEDBACK' ? (
             <ModuleCWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -8228,7 +8509,7 @@ export default function WorkspacePage() {
             />
           ) : activeModule === 'MOD_B_MARKET' ? (
             <ModuleBWorkspace
-              key={currentPlan.id}
+              key={`${currentPlan.id}-${cloudHydrationEpoch}`}
               plan={{
                 ...currentPlan,
                 conceptCanvas: effectiveCanvas,
@@ -8271,11 +8552,11 @@ export default function WorkspacePage() {
           ) : (
             <>
               {/* Module A Top Header Banner (Matches Module B Top Tile Style) */}
-              <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+              <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
+                      <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200">
                         Module A • Ideation &amp; Founder Readiness
                       </Badge>
                       <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200">
@@ -8286,7 +8567,7 @@ export default function WorkspacePage() {
                     <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
                       Module A: Ideation, Concept Canvas &amp; Founder Fit
                     </h1>
-                    <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+                    <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
                       Capture your core idea for <strong className="text-white">{currentPlan.title}</strong>, shape a clean 1-page canvas, set your starting runway, and uncover your blind spots before spending a penny.
                     </p>
                   </div>
@@ -8300,14 +8581,14 @@ export default function WorkspacePage() {
                         onClick={() =>
                           setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
                         }
-                        className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                        className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                       >
                         {openStep === 'ALL'
                           ? 'Focus Step-by-Step'
                           : 'Expand All Steps'}
                       </Button>
                     </div>
-                    <div className="text-right text-[11px] text-indigo-200">
+                    <div className="text-right text-[11px] text-slate-300">
                       Module A Progress:{' '}
                       <strong className="text-white">
                         {moduleAProgressPercent}%
@@ -8319,7 +8600,7 @@ export default function WorkspacePage() {
 
                 {/* Progress Strip inside Module A Top Tile (7 steps default, 8 steps when in IE or GB Grant Track) */}
                 <div
-                  className={`mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-4 ${
+                  className={`mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-4 ${
                     isGrantCheckerSupported
                       ? 'lg:grid-cols-8'
                       : 'lg:grid-cols-7'
@@ -8427,7 +8708,7 @@ export default function WorkspacePage() {
                             ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                             : item.done
                               ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                              : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                              : 'border-slate-800 bg-slate-900 text-slate-400'
                         }`}
                       >
                         <div className="flex items-center justify-between font-bold">
@@ -8452,7 +8733,7 @@ export default function WorkspacePage() {
                 <div
                   id="mod-a-step-1"
                   onClick={() => setOpenStep(1)}
-                  className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+                  className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -8460,7 +8741,7 @@ export default function WorkspacePage() {
                         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                           moduleAReadinessSteps[0]?.isComplete
                             ? 'bg-emerald-600 text-white'
-                            : 'bg-indigo-600 text-white'
+                            : 'bg-slate-900 text-white'
                         }`}
                       >
                         {moduleAReadinessSteps[0]?.isComplete ? (
@@ -8471,7 +8752,7 @@ export default function WorkspacePage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                          <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                             Step 1: Tell us your idea in your own words
                           </h2>
                           {moduleAReadinessSteps[0]?.isComplete ? (
@@ -8495,7 +8776,7 @@ export default function WorkspacePage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                        className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                       >
                         <span>Edit Step</span>
                         <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -8515,7 +8796,7 @@ export default function WorkspacePage() {
                           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                             moduleAReadinessSteps[0]?.isComplete
                               ? 'bg-emerald-600 text-white'
-                              : 'bg-indigo-600 text-white'
+                              : 'bg-slate-900 text-white'
                           }`}
                         >
                           {moduleAReadinessSteps[0]?.isComplete ? (
@@ -8559,11 +8840,11 @@ export default function WorkspacePage() {
                         onClick={() => setShowWhyCard(!showWhyCard)}
                         className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                           showWhyCard
-                            ? 'bg-indigo-100 text-indigo-900'
+                            ? 'bg-slate-100 text-slate-900'
                             : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                         }`}
                       >
-                        <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
+                        <HelpCircle className="h-3.5 w-3.5 text-emerald-700" />
                         💡 Why this matters
                       </button>
 
@@ -8590,11 +8871,11 @@ export default function WorkspacePage() {
 
                   {/* Collapsible Micro-Coaching Card (Replaces Videos!) */}
                   {showWhyCard && (
-                    <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-xs text-indigo-950">
-                      <div className="font-bold text-indigo-900">
+                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
+                      <div className="font-bold text-slate-900">
                         💡 Why this matters:
                       </div>
-                      <p className="mt-1 leading-relaxed text-indigo-900/90">
+                      <p className="mt-1 leading-relaxed text-slate-900/90">
                         Grant assessors (like your Local Enterprise Office or Innovate UK) and early customers want to know who is hurting today, what manual hacks they use, and how your solution saves them time or money. Keep it simple and direct.
                       </p>
                     </div>
@@ -8686,7 +8967,7 @@ export default function WorkspacePage() {
                         <button
                           type="button"
                           onClick={() => setShowImStuckHelper(!showImStuckHelper)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-slate-100"
                         >
                           <Wand2 className="h-3.5 w-3.5" />
                           I&apos;m Stuck — 3 Simple Prompts
@@ -8696,11 +8977,11 @@ export default function WorkspacePage() {
 
                     {/* "I'm Stuck" 3-Question Sub-Prompt Helper */}
                     {showImStuckHelper && (
-                      <div className="mb-3 rounded-xl border border-violet-200 bg-violet-50/70 p-3.5 text-xs text-violet-950">
+                      <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
                         <div className="font-bold">
                           ✨ 3 Quick Questions to Unstick You:
                         </div>
-                        <ol className="mt-1.5 list-inside list-decimal space-y-1 text-violet-900">
+                        <ol className="mt-1.5 list-inside list-decimal space-y-1 text-slate-900">
                           <li>
                             Who is the exact person getting frustrated every week?
                           </li>
@@ -8722,7 +9003,7 @@ export default function WorkspacePage() {
                       value={brainDumpText}
                       onChange={(e) => setBrainDumpText(e.target.value)}
                       placeholder="e.g. Independent plumbers waste 3 hours every Friday chasing unpaid invoices. Our WhatsApp tool sends 1-click payment links with automatic reminders..."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
 
                     {/* Step 1 Save Bar: Keep Founder's Exact Words */}
@@ -8767,7 +9048,7 @@ export default function WorkspacePage() {
                                   });
                               }, 40);
                             }}
-                            className="bg-indigo-600 text-white hover:bg-indigo-700"
+                            className="bg-emerald-700 text-white hover:bg-emerald-800"
                           >
                             Next: Concept Canvas
                             <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -8784,7 +9065,7 @@ export default function WorkspacePage() {
             <div
               id="mod-a-step-2"
               onClick={() => setOpenStep(2)}
-              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -8792,7 +9073,7 @@ export default function WorkspacePage() {
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       filledCanvasBoxesCount === 5
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {filledCanvasBoxesCount === 5 ? (
@@ -8803,7 +9084,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                         Step 2: Your 1-Page Concept Canvas
                       </h2>
                       {moduleAReadinessSteps[1]?.isComplete ? (
@@ -8827,7 +9108,7 @@ export default function WorkspacePage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
                     <span>Edit Step</span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -8847,7 +9128,7 @@ export default function WorkspacePage() {
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         filledCanvasBoxesCount === 5
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-indigo-600 text-white'
+                          : 'bg-slate-900 text-white'
                       }`}
                     >
                       {filledCanvasBoxesCount === 5 ? (
@@ -8859,12 +9140,12 @@ export default function WorkspacePage() {
                     <h2 className="text-base font-bold text-slate-900">
                       Step 2: Your 1-Page Concept Canvas
                     </h2>
-                    <Badge variant="outline" className="shrink-0 border-indigo-200 bg-indigo-50/50 text-[10px] text-indigo-700">
+                    <Badge variant="outline" className="shrink-0 border-slate-200 bg-slate-50 text-[10px] text-emerald-800">
                       {filledCanvasBoxesCount}/5 Boxes Filled
                     </Badge>
                   </div>
                   <p className="mt-1 text-xs text-slate-600">
-                    Shape your raw idea into 5 simple building blocks. Write in plain English or click <strong className="text-indigo-700">Tidy Up My Notes with AI</strong> anytime to polish your wording.
+                    Shape your raw idea into 5 simple building blocks. Write in plain English or click <strong className="text-emerald-800">Tidy Up My Notes with AI</strong> anytime to polish your wording.
                   </p>
                 </div>
 
@@ -8890,7 +9171,7 @@ export default function WorkspacePage() {
                   {/* Box 1: The Core Problem */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                         1. What&apos;s broken today? (The Problem)
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
@@ -8908,14 +9189,14 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g., Shop owners waste 3 hours every Friday checking expiry dates by hand..."
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
                   {/* Box 2: Target Customer / First Core Customer Group */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                         2. Your First Core Customer Group (Who buys first?)
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
@@ -8933,14 +9214,14 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder={`e.g., Independent grocers and convenience store owners in ${countryPack.countryName}...`}
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
                   {/* Box 3: Your Solution */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                         3. How does your product fix it? (The Solution)
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
@@ -8958,14 +9239,14 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g., A mobile app that scans shelf barcodes and automatically alerts staff 48 hours before items expire..."
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
                   {/* Box 4: Why You Win (Unfair Edge) */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                         4. Why pick you? (Your Edge)
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
@@ -8983,7 +9264,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g., Takes 5 minutes to set up with zero hardware and works directly with their existing pos barcodes..."
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
@@ -9008,7 +9289,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder={`e.g., Monthly subscription of ${formatPlanCurrency(99, countryPack.defaultCurrency)}/month per shop, plus exploring ${countryGrants[0]?.grantName || 'local startup grants'}...`}
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -9074,7 +9355,7 @@ export default function WorkspacePage() {
                               });
                           }, 40);
                         }}
-                        className="bg-indigo-600 text-white hover:bg-indigo-700"
+                        className="bg-emerald-700 text-white hover:bg-emerald-800"
                       >
                         Next: Your &ldquo;Why&rdquo;
                         <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -9091,7 +9372,7 @@ export default function WorkspacePage() {
             <div
               id="mod-a-step-3"
               onClick={() => setOpenStep(3)}
-              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -9099,7 +9380,7 @@ export default function WorkspacePage() {
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       moduleAReadinessSteps[2]?.isComplete
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {moduleAReadinessSteps[2]?.isComplete ? (
@@ -9110,7 +9391,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                         Step 3: Your Personal &ldquo;Why&rdquo; &amp; Ambition
                       </h2>
                       {moduleAReadinessSteps[2]?.isComplete ? (
@@ -9132,7 +9413,7 @@ export default function WorkspacePage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
                     <span>Edit Step</span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -9152,7 +9433,7 @@ export default function WorkspacePage() {
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         moduleAReadinessSteps[2]?.isComplete
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-indigo-600 text-white'
+                          : 'bg-slate-900 text-white'
                       }`}
                     >
                       {moduleAReadinessSteps[2]?.isComplete ? (
@@ -9256,7 +9537,7 @@ export default function WorkspacePage() {
                           }
                           className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
                             isSelected
-                              ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
+                              ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
                               : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                           } disabled:opacity-60`}
                         >
@@ -9264,7 +9545,7 @@ export default function WorkspacePage() {
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-xl">{option.emoji}</span>
                               {isSelected && (
-                                <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                <span className="rounded-full bg-emerald-700 px-2 py-0.5 text-[10px] font-bold text-white">
                                   Selected
                                 </span>
                               )}
@@ -9281,8 +9562,8 @@ export default function WorkspacePage() {
                     })}
                   </div>
                   {founderMotivation.primaryMotivation === 'OTHER' && (
-                    <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                      <label className="block text-[11px] font-bold text-indigo-950">
+                    <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <label className="block text-[11px] font-bold text-slate-950">
                         ✨ Tell us what is driving you in your own words:
                       </label>
                       <input
@@ -9296,7 +9577,7 @@ export default function WorkspacePage() {
                           })
                         }
                         placeholder="e.g. Spinning out a tool we built internally, or creating a seasonal lifestyle business..."
-                        className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                        className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                       />
                     </div>
                   )}
@@ -9343,7 +9624,7 @@ export default function WorkspacePage() {
                           }
                           className={`rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
                             isSelected
-                              ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                              ? 'border-emerald-700 bg-emerald-700 text-white shadow-2xs'
                               : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
                           } disabled:opacity-60`}
                         >
@@ -9353,8 +9634,8 @@ export default function WorkspacePage() {
                     })}
                   </div>
                   {founderMotivation.weeklyHoursAvailable === 'OTHER' && (
-                    <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                      <label className="block text-[11px] font-bold text-indigo-950">
+                    <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <label className="block text-[11px] font-bold text-slate-950">
                         ✨ Describe your weekly schedule or availability:
                       </label>
                       <input
@@ -9368,7 +9649,7 @@ export default function WorkspacePage() {
                           })
                         }
                         placeholder="e.g. 2 full days per week (Thurs/Fri), or seasonal sprints..."
-                        className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                        className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                       />
                     </div>
                   )}
@@ -9393,7 +9674,7 @@ export default function WorkspacePage() {
                       })
                     }
                     placeholder="e.g. Hit €4,000/month recurring revenue, or help 100 paying customers..."
-                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                   />
                 </div>
 
@@ -9437,7 +9718,7 @@ export default function WorkspacePage() {
                               });
                           }, 40);
                         }}
-                        className="bg-indigo-600 text-white hover:bg-indigo-700"
+                        className="bg-emerald-700 text-white hover:bg-emerald-800"
                       >
                         Next: Team &amp; Budget
                         <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -9454,7 +9735,7 @@ export default function WorkspacePage() {
             <div
               id="mod-a-step-4"
               onClick={() => setOpenStep(4)}
-              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -9462,7 +9743,7 @@ export default function WorkspacePage() {
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       moduleAReadinessSteps[3]?.isComplete
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {moduleAReadinessSteps[3]?.isComplete ? (
@@ -9473,7 +9754,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                         Step 4: Your Team &amp; Starting Budget
                       </h2>
                       {moduleAReadinessSteps[3]?.isComplete ? (
@@ -9495,7 +9776,7 @@ export default function WorkspacePage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
                     <span>Edit Step</span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -9515,7 +9796,7 @@ export default function WorkspacePage() {
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         moduleAReadinessSteps[3]?.isComplete
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-indigo-600 text-white'
+                          : 'bg-slate-900 text-white'
                       }`}
                     >
                       {moduleAReadinessSteps[3]?.isComplete ? (
@@ -9612,7 +9893,7 @@ export default function WorkspacePage() {
                         }
                         className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                         } disabled:opacity-60`}
                       >
@@ -9620,7 +9901,7 @@ export default function WorkspacePage() {
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-xl">{option.emoji}</span>
                             {isSelected && (
-                              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                              <span className="rounded-full bg-emerald-700 px-2 py-0.5 text-[10px] font-bold text-white">
                                 Selected
                               </span>
                             )}
@@ -9637,8 +9918,8 @@ export default function WorkspacePage() {
                   })}
                 </div>
                 {teamAndBudget.teamStructureType === 'OTHER' && (
-                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
+                  <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[11px] font-bold text-slate-950">
                       ✨ Describe your team setup in your own words:
                     </label>
                     <input
@@ -9652,17 +9933,17 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. University research spin-out with 2 advisors, or part-time partnership..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
 
                 {/* Micro-Coaching: Earning Co-Founder Shares Over Time (Reverse Vesting & Cliff) */}
-                <div className="mt-2.5 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 text-xs text-indigo-950">
+                <div className="mt-2.5 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-950">
                   <div className="flex items-start gap-2">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div>
-                      <span className="font-semibold text-indigo-900">
+                      <span className="font-semibold text-slate-900">
                         Earning Co-Founder Shares Over Time (Protects Everyone If Someone Leaves Early)
                       </span>{' '}
                       — (Vesting means co-founders earn their shares month-by-month over 3–4 years (with a 12-month trial &ldquo;cliff&rdquo;) so nobody walks away after 3 months owning 50% of the company.)
@@ -9715,7 +9996,7 @@ export default function WorkspacePage() {
                         }
                         className={`rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                            ? 'border-emerald-700 bg-emerald-700 text-white shadow-2xs'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
                         } disabled:opacity-60`}
                       >
@@ -9725,8 +10006,8 @@ export default function WorkspacePage() {
                   })}
                 </div>
                 {teamAndBudget.skillCoverage === 'OTHER' && (
-                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
+                  <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[11px] font-bold text-slate-950">
                       ✨ Describe your skill coverage or build arrangement:
                     </label>
                     <input
@@ -9740,7 +10021,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. Using no-code tools + our own consulting team, or partnering with a manufacturer..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -9881,7 +10162,7 @@ export default function WorkspacePage() {
                     })
                   }
                   placeholder="Write any extra details about who is involved, what skills you need, or your budget plans..."
-                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                 />
               </div>
 
@@ -9925,7 +10206,7 @@ export default function WorkspacePage() {
                             });
                         }, 40);
                       }}
-                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-white hover:bg-emerald-800"
                     >
                       Next: Reality Check
                       <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -9942,7 +10223,7 @@ export default function WorkspacePage() {
             <div
               id="mod-a-step-5"
               onClick={() => setOpenStep(5)}
-              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -9950,7 +10231,7 @@ export default function WorkspacePage() {
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       moduleAReadinessSteps[4]?.isComplete
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {moduleAReadinessSteps[4]?.isComplete ? (
@@ -9961,7 +10242,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                         Step 5: Founder Fit &amp; Reality Check
                       </h2>
                       {moduleAReadinessSteps[4]?.isComplete ? (
@@ -9983,7 +10264,7 @@ export default function WorkspacePage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
                     <span>Edit Step</span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -10003,7 +10284,7 @@ export default function WorkspacePage() {
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         moduleAReadinessSteps[4]?.isComplete
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-indigo-600 text-white'
+                          : 'bg-slate-900 text-white'
                       }`}
                     >
                       {moduleAReadinessSteps[4]?.isComplete ? (
@@ -10093,7 +10374,7 @@ export default function WorkspacePage() {
                         }
                         className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                         } disabled:opacity-60`}
                       >
@@ -10101,7 +10382,7 @@ export default function WorkspacePage() {
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-xl">{option.emoji}</span>
                             {isSelected && (
-                              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                              <span className="rounded-full bg-emerald-700 px-2 py-0.5 text-[10px] font-bold text-white">
                                 Selected
                               </span>
                             )}
@@ -10118,8 +10399,8 @@ export default function WorkspacePage() {
                   })}
                 </div>
                 {founderRealityCheck.industryConnection === 'OTHER' && (
-                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
+                  <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[11px] font-bold text-slate-950">
                       ✨ Describe your connection to this industry or target buyers:
                     </label>
                     <input
@@ -10135,7 +10416,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. My advisor runs a trade body, or we already serve an adjacent market..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -10185,7 +10466,7 @@ export default function WorkspacePage() {
                         }
                         className={`rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                            ? 'border-emerald-700 bg-emerald-700 text-white shadow-2xs'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
                         } disabled:opacity-60`}
                       >
@@ -10195,8 +10476,8 @@ export default function WorkspacePage() {
                   })}
                 </div>
                 {founderRealityCheck.personalIncomeUrgency === 'OTHER' && (
-                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
+                  <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[11px] font-bold text-slate-950">
                       ✨ Describe your personal income timeline:
                     </label>
                     <input
@@ -10210,7 +10491,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. On Enterprise Allowance for 12 months, or reinvesting all profits for 2 years..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -10310,7 +10591,7 @@ export default function WorkspacePage() {
                 {/* Micro-Coaching: Promised Delivery & Reply Speed (SLA) */}
                 <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-700">
                   <div className="flex items-start gap-2">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div>
                       <span className="font-semibold text-slate-900">
                         Promised Delivery &amp; Reply Speed
@@ -10380,7 +10661,7 @@ export default function WorkspacePage() {
                         }
                         className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20 shadow-xs'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                         } disabled:opacity-60`}
                       >
@@ -10388,7 +10669,7 @@ export default function WorkspacePage() {
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-xl">{option.emoji}</span>
                             {isSelected && (
-                              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                              <span className="rounded-full bg-emerald-700 px-2 py-0.5 text-[10px] font-bold text-white">
                                 Selected
                               </span>
                             )}
@@ -10405,8 +10686,8 @@ export default function WorkspacePage() {
                   })}
                 </div>
                 {founderRealityCheck.growthTradeoff === 'OTHER' && (
-                  <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
+                  <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[11px] font-bold text-slate-950">
                       ✨ Describe your ownership or funding preference:
                     </label>
                     <input
@@ -10420,7 +10701,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. Open to strategic industry partner taking a minority stake, or revenue-based financing..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -10561,7 +10842,7 @@ export default function WorkspacePage() {
                     })
                   }
                   placeholder="Optional: Tell us what worries you most or where you feel least confident..."
-                  className="mt-2.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-indigo-600 focus:outline-none disabled:opacity-60"
+                  className="mt-2.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                 />
               </div>
 
@@ -10605,7 +10886,7 @@ export default function WorkspacePage() {
                             });
                         }, 40);
                       }}
-                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-white hover:bg-emerald-800"
                     >
                       Next: Blind Spots
                       <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -10622,7 +10903,7 @@ export default function WorkspacePage() {
             <div
               id="mod-a-step-6"
               onClick={() => setOpenStep(6)}
-              className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/50 via-white to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-400 hover:shadow-sm"
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-400 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -10630,7 +10911,7 @@ export default function WorkspacePage() {
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       moduleAReadinessSteps[5]?.isComplete
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {moduleAReadinessSteps[5]?.isComplete ? (
@@ -10641,7 +10922,7 @@ export default function WorkspacePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                         Step 6: Blind-Spot Review (&ldquo;Things to Consider&rdquo;)
                       </h2>
                       {moduleAReadinessSteps[5]?.isComplete ? (
@@ -10663,7 +10944,7 @@ export default function WorkspacePage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
                     <span>Edit Step</span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -10674,7 +10955,7 @@ export default function WorkspacePage() {
           ) : (
             <div
               id="mod-a-step-6"
-              className="scroll-mt-24 rounded-xl border border-indigo-200 bg-white p-6 shadow-xs"
+              className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
             >
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
                 <div className="min-w-0 flex-1">
@@ -10683,7 +10964,7 @@ export default function WorkspacePage() {
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         moduleAReadinessSteps[5]?.isComplete
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-indigo-600 text-white'
+                          : 'bg-slate-900 text-white'
                       }`}
                     >
                       {moduleAReadinessSteps[5]?.isComplete ? (
@@ -10735,7 +11016,7 @@ export default function WorkspacePage() {
                           className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                             item.severity === 'WARNING'
                               ? 'bg-amber-100 text-amber-900'
-                              : 'bg-indigo-50 text-indigo-800'
+                              : 'bg-emerald-50 text-emerald-900'
                           }`}
                         >
                           {item.severity === 'WARNING'
@@ -10750,7 +11031,7 @@ export default function WorkspacePage() {
                         {item.explanation}
                       </p>
                       {item.suggestedAction && (
-                        <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-indigo-900 ring-1 ring-slate-200/70">
+                        <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-slate-900 ring-1 ring-slate-200/70">
                           <strong>Action Step:</strong> {item.suggestedAction}
                         </div>
                       )}
@@ -10761,7 +11042,7 @@ export default function WorkspacePage() {
 
               {/* Step 6 Bottom Save & AI Tidy Bar */}
               {!activeEntitlement.isVaultReadonly && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/90 px-4 py-3">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/90 px-4 py-3">
                   <div className="text-xs text-slate-600">
                     ✨ Change any option or add notes in Steps 1–5 above and watch these cards adapt immediately.
                   </div>
@@ -10779,7 +11060,7 @@ export default function WorkspacePage() {
                         </>
                       ) : (
                         <>
-                          <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
+                          <Wand2 className="h-3.5 w-3.5 text-emerald-700" />
                           AI Tidy Up All Notes
                         </>
                       )}
@@ -10788,7 +11069,7 @@ export default function WorkspacePage() {
                       size="sm"
                       disabled={isSavingCanvas}
                       onClick={handleSaveCanvasEdits}
-                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-white hover:bg-emerald-800"
                     >
                       {isSavingCanvas ? (
                         <>
@@ -10906,7 +11187,7 @@ export default function WorkspacePage() {
             <div
               id={briefStepId}
               onClick={() => setOpenStep(briefStepNumber)}
-              className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+              className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -10914,14 +11195,14 @@ export default function WorkspacePage() {
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       completedReadinessCount === totalReadinessStepsCount
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     <FileText className="h-3.5 w-3.5" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                      <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                         Startup Overview &amp; Summary Brief
                       </h2>
                       {completedReadinessCount === totalReadinessStepsCount ? (
@@ -10948,7 +11229,7 @@ export default function WorkspacePage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                    className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
                     <span>Open Overview</span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -10959,7 +11240,7 @@ export default function WorkspacePage() {
           ) : (
             <div
               id={briefStepId}
-              className="scroll-mt-24 rounded-xl border border-indigo-200 bg-white p-6 shadow-xs"
+              className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
             >
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
                 <div className="min-w-0 flex-1">
@@ -10968,7 +11249,7 @@ export default function WorkspacePage() {
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         completedReadinessCount === totalReadinessStepsCount
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-indigo-600 text-white'
+                          : 'bg-slate-900 text-white'
                       }`}
                     >
                       <FileText className="h-3.5 w-3.5" />
@@ -10998,7 +11279,7 @@ export default function WorkspacePage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowBriefPreview(!showBriefPreview)}
-                    className="h-8 shrink-0 border-indigo-200 text-xs text-indigo-700 hover:bg-indigo-50"
+                    className="h-8 shrink-0 border-slate-200 text-xs text-emerald-800 hover:bg-emerald-50"
                   >
                     <Eye className="mr-1.5 h-3.5 w-3.5" />
                     {showBriefPreview
@@ -11025,12 +11306,12 @@ export default function WorkspacePage() {
 
               <div className="mt-5 space-y-5">
               {/* OPTION C: MODULE A READINESS CHECKLIST */}
-              <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
+              <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-2xs">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs font-bold uppercase tracking-wider text-slate-700">
                     Module A Readiness Checklist (Steps 1–{totalReadinessStepsCount} Included in Your Brief)
                   </div>
-                  <span className="text-xs font-semibold text-indigo-700">
+                  <span className="text-xs font-semibold text-emerald-800">
                     Live-Synced with Your Answers Above
                   </span>
                 </div>
@@ -11071,7 +11352,7 @@ export default function WorkspacePage() {
                   {/* Document Header Banner */}
                   <div className="border-b border-slate-200 bg-slate-900 px-6 py-5 text-white">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-300">
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-slate-300">
                         {activeEntitlement.whiteLabelExportEnabled
                           ? 'Startup Concept & Readiness Brief'
                           : 'Startup Preflight • Startup Concept & Readiness Brief'}
@@ -11093,7 +11374,7 @@ export default function WorkspacePage() {
                   <div className="divide-y divide-slate-100 p-6 text-xs">
                     {/* Section 1: Raw Idea & 1-Page Concept Canvas */}
                     <div className="pb-5">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                         1. Core Concept &amp; 1-Page Canvas (Steps 1 &amp; 2)
                       </div>
                       <div className="mt-2.5 rounded-xl bg-slate-50 p-3.5 text-slate-700 ring-1 ring-slate-200/70">
@@ -11144,7 +11425,7 @@ export default function WorkspacePage() {
 
                     {/* Section 2: Founder Ambition, Team & Starting Budget */}
                     <div className="py-5">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                         2. Founder Ambition, Team &amp; Starting Budget (Steps 3
                         &amp; 4)
                       </div>
@@ -11240,7 +11521,7 @@ export default function WorkspacePage() {
 
                     {/* Section 3: Reality Check & Non-Negotiables */}
                     <div className="py-5">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                         3. Founder Fit, Dealbreakers &amp; Reality Check (Step
                         5)
                       </div>
@@ -11295,7 +11576,7 @@ export default function WorkspacePage() {
                         {(founderRealityCheck.dealbreakers || []).map((db) => (
                           <span
                             key={db}
-                            className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-medium text-indigo-900 ring-1 ring-indigo-200"
+                            className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-900 ring-1 ring-emerald-200"
                           >
                             {db === 'OTHER' &&
                             founderRealityCheck.otherDealbreakerText?.trim()
@@ -11326,7 +11607,7 @@ export default function WorkspacePage() {
 
                     {/* Section 4: Top Co-Founder Blind-Spot Takeaways & Open Questions */}
                     <div className="py-5">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                         4. Co-Founder Blind-Spot Review &amp; Next Validation
                         Steps (Step 6)
                       </div>
@@ -11479,8 +11760,8 @@ export default function WorkspacePage() {
                         {((grantEligibilityCheck?.aiGrantPositioningAdvice &&
                           grantEligibilityCheck.aiGrantPositioningAdvice.length > 0) ||
                           liveGrantEvaluation.strategicPositioningTips.length > 0) && (
-                          <div className="mt-3.5 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
-                            <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-900">
+                          <div className="mt-3.5 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-900">
                               ✨ Grant Positioning Strategy for Evaluators
                             </div>
                             <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[11px] text-slate-700">
@@ -11501,7 +11782,7 @@ export default function WorkspacePage() {
               )}
 
               {/* STEP 8 BOTTOM ACTION BAR: DOWNLOAD, PRINT TO PDF, OR COPY BRIEF */}
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-2xs">
                 <div className="text-xs text-slate-600">
                   📥 <strong>Take your Concept &amp; Grant Readiness Brief with you:</strong>{' '}
                   Download a standalone file, print/save as PDF, or copy for your
@@ -11533,7 +11814,7 @@ export default function WorkspacePage() {
                     size="sm"
                     onClick={handleDownloadBriefHtml}
                   >
-                    <Download className="h-3.5 w-3.5 text-indigo-600" />
+                    <Download className="h-3.5 w-3.5 text-emerald-700" />
                     Download Brief (.html)
                   </Button>
 
@@ -11541,7 +11822,7 @@ export default function WorkspacePage() {
                     type="button"
                     size="sm"
                     onClick={handlePrintBriefPdf}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700"
+                    className="bg-emerald-700 text-white hover:bg-emerald-800"
                   >
                     <Printer className="h-3.5 w-3.5" />
                     Print / Save as PDF
@@ -11552,7 +11833,7 @@ export default function WorkspacePage() {
               {/* Conversion Hook CTA into Module B */}
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
                 <div className="text-xs">
-                  <span className="font-semibold text-indigo-300">
+                  <span className="font-semibold text-slate-300">
                     Ready to validate {currentPlan.title} in the real world?
                   </span>{' '}
                   Continue to <strong>Module B</strong> to map your Target
@@ -11579,7 +11860,7 @@ export default function WorkspacePage() {
                       }
                       navigateToModuleWithHistory('MOD_B_MARKET');
                     }}
-                    className="bg-indigo-500 text-white hover:bg-indigo-400"
+                    className="bg-emerald-700 text-white hover:bg-emerald-600"
                   >
                     Continue to Module B
                     <ArrowRight className="h-4 w-4" />
@@ -11616,15 +11897,15 @@ export default function WorkspacePage() {
       {/* LAYER 2: SLIDE-OUT "ASK PREFLIGHT AI" SIDEKICK DRAWER     */}
       {/* ========================================================= */}
       {askUnicornOpen && (
-        <div className="fixed bottom-3 left-3 right-3 z-40 rounded-2xl border border-indigo-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96 no-print print:hidden">
-          <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-white">
+        <div className="fixed bottom-3 left-3 right-3 z-40 rounded-2xl border border-slate-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96 no-print print:hidden">
+          <div className="flex items-center justify-between rounded-t-2xl bg-slate-950 text-white border-b border-slate-800 px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
               <div>
                 <div className="text-xs font-bold">
                   Ask Preflight AI (Co-Founder AI)
                 </div>
-                <div className="text-[10px] text-indigo-100">
+                <div className="text-[10px] text-slate-200">
                   Context: {currentPlan.title} •{' '}
                   {activeModule === 'MOD_A_IDEATION'
                     ? 'Module A (Ideation)'
@@ -11640,7 +11921,7 @@ export default function WorkspacePage() {
             <button
               type="button"
               onClick={() => setAskUnicornOpen(false)}
-              className="rounded-lg p-1 text-indigo-100 hover:bg-white/10 hover:text-white"
+              className="rounded-lg p-1 text-slate-200 hover:bg-white/10 hover:text-white"
             >
               <X className="h-4 w-4" />
             </button>
@@ -11678,7 +11959,7 @@ export default function WorkspacePage() {
                         '\n\n[Preflight AI Suggestion]: Highlight how much money or time the customer loses every single week before buying your solution.'
                     )
                   }
-                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
+                  className="rounded-lg border border-slate-200 bg-emerald-50 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-slate-100"
                 >
                   ✨ Quantify weekly customer pain
                 </button>
@@ -11691,7 +11972,7 @@ export default function WorkspacePage() {
                       `Verify bottom-up target customer count & annual spend in ${countryPack.countryName} (${countryPack.defaultCurrency}) with 3 industry buyers.`
                     )
                   }
-                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
+                  className="rounded-lg border border-slate-200 bg-emerald-50 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-slate-100"
                 >
                   📌 Park TAM/SAM/SOM check
                 </button>
@@ -11704,7 +11985,7 @@ export default function WorkspacePage() {
                       `Follow up with our first 5 waitlist leads & interview respondents to test V1 feature priorities in Module D.`
                     )
                   }
-                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
+                  className="rounded-lg border border-slate-200 bg-emerald-50 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-slate-100"
                 >
                   📌 Park Waitlist follow-up for Module D
                 </button>
@@ -11717,7 +11998,7 @@ export default function WorkspacePage() {
                       `Verify V1 unit cost / hosting stack or supplier minimums before locking pricing in Module G.`
                     )
                   }
-                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-medium text-indigo-700 hover:bg-indigo-100"
+                  className="rounded-lg border border-slate-200 bg-emerald-50 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-slate-100"
                 >
                   📌 Park V1 Cost &amp; Supplier Check
                 </button>
@@ -11775,20 +12056,20 @@ export default function WorkspacePage() {
             )}
 
             <div className="mt-4 space-y-2.5 text-xs">
-              <div className="rounded-xl border-2 border-indigo-500 bg-indigo-50/80 p-3.5 shadow-xs">
-                <div className="flex items-center justify-between font-bold text-indigo-950">
+              <div className="rounded-xl border-2 border-emerald-600 bg-emerald-50/80 p-3.5 shadow-xs">
+                <div className="flex items-center justify-between font-bold text-slate-950">
                   <span className="text-sm">6-Month Co-Founder Pass</span>
-                  <span className="rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
+                  <span className="rounded-md bg-emerald-700 px-2 py-0.5 text-xs font-semibold text-white">
                     {countryPack.defaultCurrency === 'GBP' ? '£109' : '€129'}
                   </span>
                 </div>
-                <p className="mt-1 text-indigo-900/90 text-[11px] leading-relaxed">
+                <p className="mt-1 text-slate-900/90 text-[11px] leading-relaxed">
                   3 Startup Plans • 3 Co-Founder Seats • Full Modules A–L • Module F Awkward Questions Alignment • 500 AI Credits/mo.
                 </p>
                 <div className="mt-3">
                   <Button
                     size="sm"
-                    className="w-full bg-indigo-600 font-semibold text-white hover:bg-indigo-700"
+                    className="w-full bg-emerald-700 font-semibold text-white hover:bg-emerald-800"
                     disabled={isRedirectingToStripe}
                     onClick={async () => {
                       setIsRedirectingToStripe(true);
@@ -11878,7 +12159,7 @@ export default function WorkspacePage() {
                 </p>
                 <div className="mt-2 flex items-center gap-2">
                   <Link href="/redeem" className="flex-1">
-                    <Button variant="ghost" size="sm" className="w-full text-xs text-indigo-600 hover:bg-indigo-50">
+                    <Button variant="ghost" size="sm" className="w-full text-xs text-emerald-700 hover:bg-emerald-50">
                       Redeem Voucher Code →
                     </Button>
                   </Link>

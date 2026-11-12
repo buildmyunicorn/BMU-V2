@@ -793,7 +793,7 @@ export async function claimCohortMilestoneRewardAction(input: {
     };
 
     // 4. Dispatch Notification Email to Partner Team + Super Admin
-    const partnerSubject = `[${cohort.organizationName}] Milestone Verified: ${dossier.executiveSummary.startupTitle} (${cleanDomain}) — ${milestoneConfig.rewardLabel}`;
+    const partnerSubject = `[${cohort.organizationName}] Milestone Verified: ${dossier.executiveSummary.startupTitle} (${cleanDomain}) — ${milestoneConfig.rewardLabel}`.replace(/[\r\n\t]+/g, ' ').trim();
     const partnerHtml = buildPartnerMilestoneNotificationHtml(dossier);
 
     let resendMessageId: string | null = null;

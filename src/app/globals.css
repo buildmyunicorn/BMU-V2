@@ -38,22 +38,22 @@ body {
   scrollbar-width: none;
 }
 
-/* Attention highlight pulse animation for cross-module field navigation */
+/* Attention highlight pulse animation for cross-module field navigation (Sovereign Emerald) */
 @keyframes attentionHighlight {
   0% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
-    background-color: rgba(238, 242, 255, 0.9);
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.7);
+    background-color: rgba(236, 253, 245, 0.9);
   }
   30% {
-    box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.45);
-    background-color: rgba(224, 231, 255, 1);
+    box-shadow: 0 0 0 6px rgba(5, 150, 105, 0.45);
+    background-color: rgba(209, 250, 229, 1);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0.15);
-    background-color: rgba(238, 242, 255, 0.6);
+    box-shadow: 0 0 0 10px rgba(5, 150, 105, 0.15);
+    background-color: rgba(236, 253, 245, 0.6);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
     background-color: transparent;
   }
 }

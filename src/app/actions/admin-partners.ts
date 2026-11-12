@@ -845,7 +845,7 @@ export async function submitPartnerWarmIntroLeadAction(input: {
   try {
     if (resend && (founderSession || adminSession || process.env.NODE_ENV !== 'production')) {
       // 1. Send Warm Intro Dossier Email to the Partner Desk
-      const partnerSubject = subjectLine;
+      const partnerSubject = subjectLine.replace(/[\r\n\t]+/g, ' ').trim();
       const response = await resend.emails.send({
         from: EMAIL_DEFAULTS.from,
         to: [recipientEmail],
@@ -1343,7 +1343,7 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
   try {
     if (resend && (founderSession || adminSession || process.env.NODE_ENV !== 'production')) {
       // 1. Send Warm Intro Dossier Email to the Partner Desk
-      const partnerSubject = subjectLine;
+      const partnerSubject = subjectLine.replace(/[\r\n\t]+/g, ' ').trim();
       const response = await resend.emails.send({
         from: EMAIL_DEFAULTS.from,
         to: [recipientEmail],

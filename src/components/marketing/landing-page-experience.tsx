@@ -338,11 +338,11 @@ export function LandingPageExperience({
         {/* SECTION 1: HERO + INTERACTIVE LIVE UI PRODUCT SHOWCASE (OPTION 1) */}
         <section
           id="platform-preview"
-          className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-indigo-50/35 to-slate-50 px-4 pt-12 pb-16 sm:px-6 lg:pt-16 lg:pb-20"
+          className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-slate-50/50 to-slate-100/40 px-4 pt-12 pb-16 sm:px-6 lg:pt-16 lg:pb-20"
         >
           <div className="mx-auto max-w-4xl text-center">
             {/* Edition Pill Badge */}
-            <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-indigo-200 bg-white px-3.5 py-1 text-xs font-semibold text-indigo-950 shadow-2xs">
+            <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1 text-xs font-semibold text-slate-950 shadow-2xs">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
@@ -370,7 +370,7 @@ export function LandingPageExperience({
             {edition === 'GLOBAL' && (
               <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:leading-[1.12]">
                 Turn your raw startup idea into a{' '}
-                <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                <span className="text-slate-950 font-extrabold">
                   stress-tested, structured Business Plan.
                 </span>
               </h1>
@@ -379,7 +379,7 @@ export function LandingPageExperience({
             {edition === 'IE' && (
               <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:leading-[1.12]">
                 Shape your startup idea.{' '}
-                <span className="bg-gradient-to-r from-emerald-600 to-indigo-600 bg-clip-text text-transparent">
+                <span className="text-emerald-800 font-extrabold">
                   Unlock €2,500 to €80,000+ in Irish startup grants.
                 </span>
               </h1>
@@ -388,7 +388,7 @@ export function LandingPageExperience({
             {edition === 'UK' && (
               <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:leading-[1.12]">
                 Shape your startup idea.{' '}
-                <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                <span className="text-slate-950 font-extrabold">
                   Unlock UK Start Up Loans, Innovate UK &amp; SEIS.
                 </span>
               </h1>
@@ -441,7 +441,7 @@ export function LandingPageExperience({
               <Link href="/register" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="h-12 w-full bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-bold text-white shadow-md hover:from-indigo-700 hover:to-violet-700 sm:w-auto"
+                  className="h-12 w-full bg-emerald-700 hover:bg-emerald-800 px-7 text-sm font-bold text-white shadow-md  sm:w-auto"
                 >
                   {edition === 'GLOBAL'
                     ? 'Start Your Business Plan Free (Module A)'
@@ -492,8 +492,8 @@ export function LandingPageExperience({
             {edition === 'GLOBAL' && (
               <>
                 <div className="text-center">
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-800">
-                    <Lightbulb className="h-3.5 w-3.5 text-indigo-600" />
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900">
+                    <Lightbulb className="h-3.5 w-3.5 text-emerald-700" />
                     Why Founders Switch to Startup Preflight
                   </div>
                   <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -647,7 +647,7 @@ export function LandingPageExperience({
                   </div>
 
                   {/* Card 2: Digital Vouchers & New Frontiers */}
-                  <div className="flex flex-col justify-between rounded-2xl border border-indigo-200/90 bg-gradient-to-b from-indigo-50/40 to-white p-6 shadow-2xs">
+                  <div className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs">
                     <div>
                       <Badge variant="default">
                         Enterprise Ireland &amp; LEO Digital
@@ -663,13 +663,13 @@ export function LandingPageExperience({
                         Digital Vouchers.
                       </p>
                     </div>
-                    <div className="mt-4 border-t border-indigo-100 pt-3 text-xs font-semibold text-indigo-800">
+                    <div className="mt-4 border-t border-slate-100 pt-3 text-xs font-semibold text-emerald-900">
                       ✓ Built-in Non-Displacement &amp; Export Potential Builder
                     </div>
                   </div>
 
                   {/* Card 3: Revenue SURE & R&D Tax Credit */}
-                  <div className="flex flex-col justify-between rounded-2xl border border-violet-200/90 bg-gradient-to-b from-violet-50/40 to-white p-6 shadow-2xs">
+                  <div className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs">
                     <div>
                       <Badge variant="secondary">Revenue Commissioners</Badge>
                       <h3 className="mt-3 text-base font-bold text-slate-900">
@@ -683,7 +683,7 @@ export function LandingPageExperience({
                         Refunds for Entrepreneurs (SURE) scheme.
                       </p>
                     </div>
-                    <div className="mt-4 border-t border-violet-100 pt-3 text-xs font-semibold text-violet-800">
+                    <div className="mt-4 border-t border-slate-100 pt-3 text-xs font-semibold text-emerald-900">
                       ✓ Includes Reimbursement Cashflow Bridge Calculator
                     </div>
                   </div>
@@ -694,8 +694,8 @@ export function LandingPageExperience({
             {edition === 'UK' && (
               <>
                 <div className="text-center">
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-800">
-                    <Coins className="h-3.5 w-3.5 text-indigo-600" />
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900">
+                    <Coins className="h-3.5 w-3.5 text-emerald-700" />
                     🇬🇧 UK Startup Loans, Non-Dilutive Grants &amp; SEIS/EIS Tax
                     Relief
                   </div>
@@ -713,7 +713,7 @@ export function LandingPageExperience({
 
                 <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
                   {/* Card 1: British Business Bank Start Up Loans */}
-                  <div className="flex flex-col justify-between rounded-2xl border border-indigo-200/90 bg-gradient-to-b from-indigo-50/40 to-white p-6 shadow-2xs">
+                  <div className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs">
                     <div>
                       <Badge variant="default">British Business Bank</Badge>
                       <h3 className="mt-3 text-base font-bold text-slate-900">
@@ -727,7 +727,7 @@ export function LandingPageExperience({
                         Workbook export.
                       </p>
                     </div>
-                    <div className="mt-4 border-t border-indigo-100 pt-3 text-xs font-semibold text-indigo-800">
+                    <div className="mt-4 border-t border-slate-100 pt-3 text-xs font-semibold text-emerald-900">
                       ✓ Exports 4-Part Start Up Loans Business Plan &amp;
                       Survival Budget
                     </div>
@@ -754,7 +754,7 @@ export function LandingPageExperience({
                   </div>
 
                   {/* Card 3: HMRC SEIS / EIS Advance Assurance */}
-                  <div className="flex flex-col justify-between rounded-2xl border border-violet-200/90 bg-gradient-to-b from-violet-50/40 to-white p-6 shadow-2xs">
+                  <div className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs">
                     <div>
                       <Badge variant="secondary">HMRC Investor Relief</Badge>
                       <h3 className="mt-3 text-base font-bold text-slate-900">
@@ -768,7 +768,7 @@ export function LandingPageExperience({
                         plan pack.
                       </p>
                     </div>
-                    <div className="mt-4 border-t border-violet-100 pt-3 text-xs font-semibold text-violet-800">
+                    <div className="mt-4 border-t border-slate-100 pt-3 text-xs font-semibold text-emerald-900">
                       ✓ Includes UK ERIS / RDEC R&amp;D Tax Relief Eligibility
                       Check
                     </div>
@@ -831,7 +831,7 @@ export function LandingPageExperience({
               <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50/50 p-6 shadow-2xs">
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-sm font-bold text-white">
                       1
                     </span>
                     <Badge variant="success">100% Free Forever</Badge>
@@ -856,7 +856,7 @@ export function LandingPageExperience({
               <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50/50 p-6 shadow-2xs">
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-sm font-bold text-white">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-sm font-bold text-white">
                       2
                     </span>
                     <Badge variant="default">Guided Evidence Builder</Badge>
@@ -938,7 +938,7 @@ export function LandingPageExperience({
               <button
                 type="button"
                 onClick={() => setShowAllModules((prev) => !prev)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-indigo-300 hover:text-indigo-700 sm:text-sm"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-emerald-300 hover:text-emerald-800 sm:text-sm"
               >
                 {showAllModules ? (
                   <>
@@ -965,10 +965,10 @@ export function LandingPageExperience({
                         <div>
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
                                 <Icon className="h-4 w-4" />
                               </div>
-                              <span className="text-xs font-bold text-indigo-700">
+                              <span className="text-xs font-bold text-emerald-800">
                                 {m.short}
                               </span>
                             </div>
@@ -1074,7 +1074,7 @@ export function LandingPageExperience({
                   <Link href="/register">
                     <Button
                       variant="outline"
-                      className="w-full border-indigo-200 font-semibold text-indigo-700 hover:bg-indigo-50"
+                      className="w-full border-slate-200 font-semibold text-emerald-800 hover:bg-emerald-50"
                     >
                       Start Module A Free →
                     </Button>
@@ -1083,8 +1083,8 @@ export function LandingPageExperience({
               </div>
 
               {/* Tier 2: Solo Founder 6-Month Pass */}
-              <div className="relative flex flex-col justify-between rounded-2xl border-2 border-indigo-600 bg-white p-6 shadow-md">
-                <div className="absolute -top-3 right-5 rounded-full bg-indigo-600 px-3 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
+              <div className="relative flex flex-col justify-between rounded-2xl border-2 border-emerald-700 bg-white p-6 shadow-md">
+                <div className="absolute -top-3 right-5 rounded-full bg-emerald-700 px-3 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
                   Most Popular
                 </div>
                 <div>
@@ -1109,32 +1109,32 @@ export function LandingPageExperience({
                   </p>
                   <ul className="mt-5 space-y-2.5 text-xs text-slate-700">
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         <strong>All 12 Guided Modules (A–L)</strong> unlocked
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         1 Startup Plan + 1 Founder Seat
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         Hosted Public Customer Survey &amp; Waitlist Link + QR
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         &ldquo;Pocket Profit&rdquo; Breakeven &amp; 36-Month
                         Cashflow Builder
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         {edition === 'GLOBAL'
                           ? 'Pre-Flight AI Contradiction Audit & Full Business Plan Export'
@@ -1146,7 +1146,7 @@ export function LandingPageExperience({
 
                 <div className="mt-6">
                   <Link href="/register">
-                    <Button className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 font-semibold text-white hover:from-indigo-700 hover:to-violet-700">
+                    <Button className="w-full bg-emerald-700 hover:bg-emerald-800 font-semibold text-white ">
                       Start Free, Upgrade Anytime →
                     </Button>
                   </Link>
@@ -1177,19 +1177,19 @@ export function LandingPageExperience({
                   </p>
                   <ul className="mt-5 space-y-2.5 text-xs text-slate-700">
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         Everything in Solo Pass + <strong>Up to 3 Plans</strong>
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         <strong>Up to 3 Co-Founder / Mentor Seats</strong>
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         Unlocks Multi-Seat{' '}
                         <strong>
@@ -1199,13 +1199,13 @@ export function LandingPageExperience({
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         1-Click Plan Clone &amp; Pivot Engine
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         Keep read-only vault forever after 6 mos (or{' '}
                         {pricingCurrency.symbol}
@@ -1219,7 +1219,7 @@ export function LandingPageExperience({
                   <Link href="/register">
                     <Button
                       variant="outline"
-                      className="w-full border-violet-200 font-semibold text-violet-700 hover:bg-violet-50"
+                      className="w-full border-slate-200 font-semibold text-emerald-800 hover:bg-emerald-50"
                     >
                       Start With Co-Founder Team →
                     </Button>
@@ -1231,7 +1231,7 @@ export function LandingPageExperience({
             {/* Cohort / Voucher Redemption Callout */}
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-xs text-slate-600">
               <div className="flex items-center gap-2">
-                <Ticket className="h-4 w-4 text-indigo-600" />
+                <Ticket className="h-4 w-4 text-emerald-700" />
                 <span>
                   Part of a{' '}
                   <strong>
@@ -1244,13 +1244,13 @@ export function LandingPageExperience({
               <div className="flex items-center gap-4">
                 <Link
                   href="/cohorts"
-                  className="font-medium text-slate-500 hover:text-indigo-600 transition"
+                  className="font-medium text-slate-500 hover:text-emerald-700 transition"
                 >
                   Program Licensing ↗
                 </Link>
                 <Link
                   href="/redeem"
-                  className="font-bold text-indigo-600 hover:underline"
+                  className="font-bold text-emerald-700 hover:underline"
                 >
                   Redeem Your Cohort Code →
                 </Link>
@@ -1271,7 +1271,7 @@ export function LandingPageExperience({
                     />
                   </div>
                   <div className="max-w-2xl">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-800">
                       <Sparkles className="h-3.5 w-3.5" />
                       Built by a Practitioner — Meet Founder Thomas Walsh
                     </span>
@@ -1299,7 +1299,7 @@ export function LandingPageExperience({
                     href="https://www.linkedin.com/in/twalsh-start-ups/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100"
                   >
                     Connect on LinkedIn ↗
                   </a>
@@ -1314,7 +1314,7 @@ export function LandingPageExperience({
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
             <div className="text-center">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
+                <HelpCircle className="h-3.5 w-3.5 text-emerald-700" />
                 Frequently Asked Questions
               </div>
               <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -1332,7 +1332,7 @@ export function LandingPageExperience({
                 return (
                   <div
                     key={item.question}
-                    className="rounded-xl border border-slate-200 bg-slate-50/60 transition hover:border-indigo-200"
+                    className="rounded-xl border border-slate-200 bg-slate-50/60 transition hover:border-slate-200"
                   >
                     <button
                       type="button"
@@ -1343,7 +1343,7 @@ export function LandingPageExperience({
                     >
                       <span>{item.question}</span>
                       {isOpen ? (
-                        <ChevronUp className="h-4 w-4 shrink-0 text-indigo-600" />
+                        <ChevronUp className="h-4 w-4 shrink-0 text-emerald-700" />
                       ) : (
                         <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
                       )}
@@ -1361,7 +1361,7 @@ export function LandingPageExperience({
         </section>
 
         {/* SECTION 7: FINAL BOTTOM CTA BANNER */}
-        <section className="bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-950 px-4 py-14 text-center text-white sm:px-6">
+        <section className="bg-slate-950 border-t border-slate-850 px-4 py-14 text-center text-white sm:px-6">
           <div className="mx-auto max-w-3xl">
             <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
               {edition === 'GLOBAL'
@@ -1370,7 +1370,7 @@ export function LandingPageExperience({
                   ? 'Check which Irish grants your startup idea qualifies for in 10 minutes.'
                   : 'Check which UK loans, grants, or SEIS relief your idea qualifies for in 10 minutes.'}
             </h2>
-            <p className="mx-auto mt-3 max-w-xl text-sm text-indigo-100/90">
+            <p className="mx-auto mt-3 max-w-xl text-sm text-slate-200/90">
               Start with Module A for free—build your 1-Page Concept Canvas,
               spot blind spots early, and see your Founder-Idea Fit score with
               zero risk.
@@ -1379,7 +1379,7 @@ export function LandingPageExperience({
               <Link href="/register">
                 <Button
                   size="lg"
-                  className="bg-white px-7 text-sm font-bold text-indigo-950 hover:bg-indigo-50"
+                  className="bg-white px-7 text-sm font-bold text-slate-950 hover:bg-emerald-50"
                 >
                   Start Module A Free Now
                   <ArrowRight className="ml-1.5 h-4 w-4" />
@@ -1389,7 +1389,7 @@ export function LandingPageExperience({
                 <Button
                   variant="outline"
                   size="lg"
-                  className="border-indigo-400/50 bg-transparent px-6 text-sm font-semibold text-white hover:bg-indigo-800/50"
+                  className="border-emerald-400/50 bg-transparent px-6 text-sm font-semibold text-white hover:bg-slate-800/50"
                 >
                   Sign In to Existing Plan
                 </Button>
@@ -1430,7 +1430,7 @@ export function LandingPageExperience({
             {/* Regional Editions Column (Important for internal SEO linking) */}
             <div className="md:col-span-4">
               <div className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-white uppercase">
-                <Globe2 className="h-3.5 w-3.5 text-indigo-400" />
+                <Globe2 className="h-3.5 w-3.5 text-emerald-600" />
                 Regional Editions
               </div>
               <ul className="mt-3 space-y-2 text-xs">
@@ -1439,7 +1439,7 @@ export function LandingPageExperience({
                     href="/"
                     onClick={() => handleSwitchEdition('GLOBAL')}
                     className={`transition hover:text-white ${
-                      edition === 'GLOBAL' ? 'font-bold text-indigo-400' : ''
+                      edition === 'GLOBAL' ? 'font-bold text-emerald-600' : ''
                     }`}
                   >
                     🌍 Global — Startup Business Plan &amp; Financial Builder
@@ -1462,7 +1462,7 @@ export function LandingPageExperience({
                     href="/uk"
                     onClick={() => handleSwitchEdition('UK')}
                     className={`transition hover:text-white ${
-                      edition === 'UK' ? 'font-bold text-indigo-400' : ''
+                      edition === 'UK' ? 'font-bold text-emerald-600' : ''
                     }`}
                   >
                     🇬🇧 United Kingdom — Start Up Loans, Innovate UK &amp; SEIS
@@ -1494,7 +1494,7 @@ export function LandingPageExperience({
                   </Link>
                 </li>
                 <li>
-                  <Link href="/cohorts" className="hover:text-white font-medium text-indigo-300">
+                  <Link href="/cohorts" className="hover:text-white font-medium text-emerald-500">
                     Preflight for Accelerators &amp; Cohorts
                   </Link>
                 </li>

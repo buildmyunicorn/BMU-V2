@@ -31,6 +31,10 @@ import {
   QuoteReceivedFounderEmail,
   QuoteReceivedFounderEmailProps,
 } from './templates/quote-received-founder';
+import {
+  AdminNewUserSignupEmail,
+  AdminNewUserSignupEmailProps,
+} from './templates/admin-new-user-signup';
 
 export type EmailTemplateType =
   | 'WELCOME_FOUNDER'
@@ -39,7 +43,8 @@ export type EmailTemplateType =
   | 'COFOUNDER_INVITE'
   | 'QUOTE_RFP_PARTNER_INVITE'
   | 'QUOTE_RFP_FOUNDER_RECEIPT'
-  | 'QUOTE_RECEIVED_FOUNDER';
+  | 'QUOTE_RECEIVED_FOUNDER'
+  | 'ADMIN_NEW_SIGNUP';
 
 export type TemplatePropsMap = {
   WELCOME_FOUNDER: WelcomeFounderEmailProps;
@@ -49,6 +54,7 @@ export type TemplatePropsMap = {
   QUOTE_RFP_PARTNER_INVITE: QuoteRfpPartnerInviteEmailProps;
   QUOTE_RFP_FOUNDER_RECEIPT: QuoteRfpDispatchedFounderReceiptProps;
   QUOTE_RECEIVED_FOUNDER: QuoteReceivedFounderEmailProps;
+  ADMIN_NEW_SIGNUP: AdminNewUserSignupEmailProps;
 };
 
 export interface SendSystemEmailParams<T extends EmailTemplateType> {
@@ -99,6 +105,9 @@ export async function renderEmailHtml<T extends EmailTemplateType>(
     case 'QUOTE_RECEIVED_FOUNDER':
       element = <QuoteReceivedFounderEmail {...(props as QuoteReceivedFounderEmailProps)} />;
       break;
+    case 'ADMIN_NEW_SIGNUP':
+      element = <AdminNewUserSignupEmail {...(props as AdminNewUserSignupEmailProps)} />;
+      break;
     default:
       throw new Error(`Unknown email template: ${template}`);
   }
@@ -121,6 +130,7 @@ export async function sendSystemEmail<T extends EmailTemplateType>({
   metadata = {},
 }: SendSystemEmailParams<T>): Promise<SendEmailResult> {
   const recipientClean = to.trim().toLowerCase();
+  const cleanSubject = subject.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
 
   try {
     const html = await renderEmailHtml(template, props);
@@ -128,7 +138,7 @@ export async function sendSystemEmail<T extends EmailTemplateType>({
     // Development / fallback if Resend client is uninitialized
     if (!resend) {
       console.warn(
-        `[Email Dev Mock] RESEND_API_KEY not configured. Mocking email to ${recipientClean}: "${subject}"`
+        `[Email Dev Mock] RESEND_API_KEY not configured. Mocking email to ${recipientClean}: "${cleanSubject}"`
       );
 
       // Log mock send to database audit trail
@@ -136,7 +146,7 @@ export async function sendSystemEmail<T extends EmailTemplateType>({
         await db.insert(emailLogs).values({
           recipient: recipientClean,
           template,
-          subject,
+          subject: cleanSubject,
           status: 'MOCK_DEV',
           fromEmail: from,
           replyTo,
@@ -159,7 +169,7 @@ export async function sendSystemEmail<T extends EmailTemplateType>({
       from,
       to: [recipientClean],
       replyTo,
-      subject,
+      subject: cleanSubject,
       html,
     });
 
@@ -171,7 +181,7 @@ export async function sendSystemEmail<T extends EmailTemplateType>({
         await db.insert(emailLogs).values({
           recipient: recipientClean,
           template,
-          subject,
+          subject: cleanSubject,
           status: 'FAILED',
           fromEmail: from,
           replyTo,
@@ -192,7 +202,7 @@ export async function sendSystemEmail<T extends EmailTemplateType>({
       await db.insert(emailLogs).values({
         recipient: recipientClean,
         template,
-        subject,
+        subject: cleanSubject,
         status: 'SENT',
         resendId,
         fromEmail: from,

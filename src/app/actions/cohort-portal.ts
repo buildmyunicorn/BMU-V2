@@ -146,7 +146,7 @@ const SAMPLE_STARTUPS: CohortPortalStartup[] = [
     category: 'MedTech / BioTech',
     founders: 'Dr. Liam O’Connor & Sarah Chen',
     founderEmail: 'liam@aerothermalbio.com',
-    avatarBg: 'bg-indigo-600',
+    avatarBg: 'bg-emerald-700',
     hqCountryCode: 'IE',
     baseCurrency: 'EUR',
     grantFocus: 'Enterprise Ireland PSSF (€100k)',
@@ -230,7 +230,7 @@ const SAMPLE_STARTUPS: CohortPortalStartup[] = [
     category: 'CleanTech / Manufacturing',
     founders: 'Marcus Vance & Tom Sterling',
     founderEmail: 'marcus@verdanttiles.co.uk',
-    avatarBg: 'bg-violet-600',
+    avatarBg: 'bg-emerald-700',
     hqCountryCode: 'GB',
     baseCurrency: 'GBP',
     grantFocus: 'Innovate UK Smart Grant (£150k)',
@@ -242,8 +242,8 @@ const SAMPLE_STARTUPS: CohortPortalStartup[] = [
     status: 'ON_TRACK',
     statusBadge: {
       label: 'On Track (Financial Modeling)',
-      bg: 'bg-indigo-100 text-indigo-800 border-indigo-300',
-      dot: 'bg-indigo-500',
+      bg: 'bg-emerald-100 text-emerald-900 border-slate-300',
+      dot: 'bg-emerald-600',
     },
     oneLiner:
       'Building-integrated photovoltaic solar roof tiles engineered for UK building safety codes.',
@@ -635,16 +635,16 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
           status = 'ON_TRACK';
           statusBadge = {
             label: 'On Track (Executing)',
-            bg: 'bg-indigo-100 text-indigo-800 border-indigo-300',
-            dot: 'bg-indigo-500',
+            bg: 'bg-emerald-100 text-emerald-900 border-slate-300',
+            dot: 'bg-emerald-600',
           };
         }
 
         // Color avatar by plan name hash
         const colorPalette = [
-          'bg-indigo-600',
+          'bg-emerald-700',
           'bg-emerald-600',
-          'bg-violet-600',
+          'bg-emerald-700',
           'bg-blue-600',
           'bg-teal-600',
           'bg-rose-600',
@@ -947,10 +947,11 @@ export async function reviewCohortMilestoneClaimAction(params: {
     if (decision === 'APPROVE' && plan.verifiedCohortWorkEmail && resend) {
       try {
         const rewardLabel = currentData?.rewardTier?.label || 'Milestone Acceleration Perk';
-        await resend.emails.send({
+        const cleanRewardSubject = `🎉 Congratulations! Your ${rewardLabel} has been approved!`.replace(/[\r\n\t]+/g, ' ').trim();
+        const sendRes = await resend.emails.send({
           from: EMAIL_DEFAULTS.notificationsFrom,
           to: [plan.verifiedCohortWorkEmail],
-          subject: `🎉 Congratulations! Your ${rewardLabel} has been approved!`,
+          subject: cleanRewardSubject,
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
               <h2 style="color: #4f46e5; margin-top: 0;">Milestone Reward Activated!</h2>
@@ -967,12 +968,15 @@ export async function reviewCohortMilestoneClaimAction(params: {
           `,
         });
 
+        const logSubject = `Milestone Reward Approved: ${plan.title}`.replace(/[\r\n\t]+/g, ' ').trim();
         await db.insert(emailLogs).values({
           recipient: plan.verifiedCohortWorkEmail,
           fromEmail: EMAIL_DEFAULTS.notificationsFrom,
-          subject: `Milestone Reward Approved: ${plan.title}`,
+          subject: logSubject,
           template: 'COHORT_MILESTONE_APPROVED',
-          status: 'SENT',
+          status: sendRes.error ? 'FAILED' : 'SENT',
+          errorMessage: sendRes.error?.message || null,
+          resendId: sendRes.data?.id || null,
         });
       } catch (mailErr) {
         console.warn('[reviewCohortMilestoneClaimAction] Non-fatal email dispatch warning:', mailErr);
@@ -1823,7 +1827,7 @@ export async function getCohortStartupMasterDocumentAction(params: {
       category: activePlan.industryCategory,
       founders: ownerUser.name,
       founderEmail: ownerUser.email,
-      avatarBg: 'bg-indigo-600',
+      avatarBg: 'bg-emerald-700',
       hqCountryCode: activePlan.hqCountryCode,
       baseCurrency: activePlan.baseCurrency,
       grantFocus: activePlan.hqCountryCode === 'GB' ? 'Innovate UK Smart Grant' : 'LEO Feasibility / Priming',

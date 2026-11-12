@@ -149,8 +149,8 @@ export function ShareGrantButton({
     {
       name: 'Email',
       icon: Mail,
-      iconColor: 'text-indigo-600',
-      bgColor: 'hover:bg-indigo-50 hover:border-indigo-200',
+      iconColor: 'text-emerald-700',
+      bgColor: 'hover:bg-emerald-50 hover:border-emerald-300',
       href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(
         `Hi,\n\nI wanted to share this startup grant with you:\n\n${title}\n${description ? `${description}\n\n` : ''}${currentUrl}`
       )}`,
@@ -202,7 +202,7 @@ export function ShareGrantButton({
                 className={`h-7 px-2.5 text-xs font-semibold shrink-0 transition-all ${
                   copied
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    : 'bg-emerald-700 text-white hover:bg-emerald-800'
                 }`}
               >
                 {copied ? (
@@ -246,7 +246,7 @@ export function ShareGrantButton({
                 onClick={handleNativeShare}
                 className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
               >
-                <Share2 className="h-3.5 w-3.5 text-indigo-600" />
+                <Share2 className="h-3.5 w-3.5 text-emerald-700" />
                 <span>More options... (AirDrop, Apps)</span>
               </button>
             </div>

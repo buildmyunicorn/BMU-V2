@@ -104,20 +104,18 @@ export default function MediaKitClientPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-emerald-700 selection:text-white">
       <MarketingHeader active="founder" />
 
       {/* Hero Header */}
-      <section className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white via-indigo-50/30 to-slate-50 pt-14 pb-16 sm:pt-20 sm:pb-20">
-        <div className="pointer-events-none absolute top-0 left-1/2 -z-10 h-[420px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-indigo-200/40 via-violet-100/30 to-emerald-100/25 blur-3xl" />
-
+      <section className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white via-slate-50/30 to-slate-50 pt-14 pb-16 sm:pt-20 sm:pb-20">
         <div className="mx-auto max-w-5xl px-4 text-center sm:px-6">
-          <Badge className="mb-4 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 font-semibold text-xs px-3 py-1">
-            <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+          <Badge className="mb-4 bg-emerald-50 text-emerald-800 border-slate-200 hover:bg-emerald-100 font-semibold text-xs px-3 py-1">
+            <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
             Official Press &amp; Partner Kit
           </Badge>
           <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-5xl">
-            Startup Preflight <span className="text-indigo-600">Media Kit</span>
+            Startup Preflight <span className="text-emerald-700">Media Kit</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
             Everything journalists, podcast hosts, reviewers, and ecosystem partners need to cover Startup Preflight — including official brandmarks, high-res UI screenshots, founder bios, and boilerplate copy.
@@ -125,7 +123,7 @@ export default function MediaKitClientPage() {
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <a href="/appsumo-assets/startup-preflight-logo-horizontal.png" download>
-              <Button size="sm" className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700">
+              <Button size="sm" className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800">
                 <Download className="mr-1.5 h-3.5 w-3.5" />
                 Download Primary Logo
               </Button>
@@ -157,7 +155,7 @@ export default function MediaKitClientPage() {
             {/* 50-Word Blurb */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
                   Short Description (50 Words)
                 </span>
                 <Button
@@ -190,7 +188,7 @@ export default function MediaKitClientPage() {
             {/* 100-Word Blurb */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
                   Full Boilerplate (100 Words)
                 </span>
                 <Button
@@ -257,7 +255,7 @@ export default function MediaKitClientPage() {
             {brandAssets.map((asset, idx) => (
               <div
                 key={idx}
-                className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs transition-all hover:border-indigo-200"
+                className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs transition-all hover:border-slate-200"
               >
                 <div>
                   <div className="mb-4 flex h-28 items-center justify-center rounded-xl border border-slate-100 bg-slate-50/70 p-4">
@@ -303,12 +301,12 @@ export default function MediaKitClientPage() {
               <div
                 key={idx}
                 onClick={() => copyToClipboard(c.hex, `color-${idx}`)}
-                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3 shadow-2xs transition-all hover:border-indigo-300"
+                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3 shadow-2xs transition-all hover:border-emerald-300"
               >
                 <div className={`h-14 w-full rounded-lg ${c.class}`} />
                 <div className="mt-2.5">
                   <p className="truncate text-xs font-bold text-slate-900">{c.name}</p>
-                  <p className="text-[11px] font-mono text-slate-500 group-hover:text-indigo-600">
+                  <p className="text-[11px] font-mono text-slate-500 group-hover:text-emerald-700">
                     {copiedKey === `color-${idx}` ? 'Copied!' : c.hex}
                   </p>
                 </div>
@@ -332,7 +330,7 @@ export default function MediaKitClientPage() {
             {screenshots.map((shot, idx) => (
               <div
                 key={idx}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs transition-all hover:border-indigo-300"
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs transition-all hover:border-emerald-300"
               >
                 <div className="relative aspect-video w-full overflow-hidden border-b border-slate-100 bg-slate-900">
                   <img
@@ -383,7 +381,7 @@ export default function MediaKitClientPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">Thomas Walsh</h3>
-                    <p className="text-xs font-semibold text-indigo-600">
+                    <p className="text-xs font-semibold text-emerald-700">
                       Founder, Startup Preflight • Global Head of Startup Success
                     </p>
                   </div>
@@ -394,7 +392,7 @@ export default function MediaKitClientPage() {
                       rel="noopener noreferrer"
                     >
                       <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-slate-300">
-                        <Linkedin className="h-3.5 w-3.5 text-indigo-600" />
+                        <Linkedin className="h-3.5 w-3.5 text-emerald-700" />
                         LinkedIn
                       </Button>
                     </a>
@@ -422,10 +420,10 @@ export default function MediaKitClientPage() {
         </section>
 
         {/* Section 6: Press Contact & Interview Booking */}
-        <section className="rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-indigo-900 to-slate-900 p-8 text-white shadow-xl sm:p-10">
+        <section className="rounded-3xl border border-slate-200/80 border border-slate-800 bg-slate-950 text-white shadow-xs p-8 text-white shadow-xl sm:p-10">
           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
             <div className="space-y-2">
-              <Badge className="bg-indigo-500/20 text-indigo-200 border-indigo-400/30 text-xs font-semibold">
+              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30 text-xs font-semibold">
                 Media &amp; Podcast Inquiries
               </Badge>
               <h3 className="text-xl font-bold tracking-tight sm:text-2xl">
@@ -438,7 +436,7 @@ export default function MediaKitClientPage() {
 
             <div className="flex flex-col gap-2.5 sm:flex-row">
               <a href="mailto:tom@startuppreflight.com?subject=Media%20/%20Podcast%20Interview%20Request">
-                <Button className="w-full bg-indigo-500 font-semibold text-white hover:bg-indigo-400 sm:w-auto text-xs">
+                <Button className="w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600 sm:w-auto text-xs">
                   <Mail className="mr-1.5 h-3.5 w-3.5" />
                   Email Press Team
                 </Button>

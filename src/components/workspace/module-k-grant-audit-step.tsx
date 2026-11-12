@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ShieldCheck,
   Check,
@@ -165,6 +165,7 @@ export function ModuleKGrantAuditStep({
 
   const handleSaveAudit = async () => {
     if (isVaultReadonly) return;
+    isDirtyRef.current = false;
     setIsSaving(true);
     try {
       const payload: ModuleKStep1AuditSavedData = {
@@ -185,6 +186,34 @@ export function ModuleKGrantAuditStep({
     }
   };
 
+  const isFirstRenderRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const handleSaveAuditRef = useRef(handleSaveAudit);
+  handleSaveAuditRef.current = handleSaveAudit;
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyRef.current) {
+        void handleSaveAuditRef.current();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [selectedGrantKey, filterTab, founderNotes, aiAuditOverview, aiAssessorTip, isVaultReadonly]);
+
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        void handleSaveAuditRef.current();
+      }
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* 4-Layer Support Strip: Why & Example */}
@@ -194,7 +223,7 @@ export function ModuleKGrantAuditStep({
           size="sm"
           variant="outline"
           onClick={() => setActiveWhyCard((prev) => !prev)}
-          className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+          className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
         >
           <HelpCircle className="mr-1 h-3.5 w-3.5" />
           Why Are We Asking This?
@@ -215,22 +244,22 @@ export function ModuleKGrantAuditStep({
           variant="outline"
           onClick={handleGenerateAiOverview}
           disabled={isGeneratingAi || isVaultReadonly}
-          className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+          className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
           {isGeneratingAi ? 'Synthesizing Audit with AI...' : 'Generate AI Audit Overview'}
         </Button>
       </div>
 
       {activeWhyCard && (
-        <div className="relative rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+        <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
           <button
             onClick={() => setActiveWhyCard(false)}
-            className="absolute right-2 top-2 text-indigo-400 hover:text-indigo-600"
+            className="absolute right-2 top-2 text-emerald-600 hover:text-emerald-700"
           >
             ✕
           </button>
-          <p className="font-semibold text-indigo-950">Why Grant Pre-Auditing is Essential:</p>
+          <p className="font-semibold text-slate-950">Why Grant Pre-Auditing is Essential:</p>
           <p className="mt-1 leading-relaxed">
             Over 60% of grant applications are rejected at the preliminary screening committee—not because
             the idea is bad, but because of technical disqualifiers (e.g., missing 3 quotes over €5k, claiming
@@ -272,7 +301,7 @@ export function ModuleKGrantAuditStep({
               Select any program below to run the live 10-point cross-platform underwriting audit.
             </p>
           </div>
-          <Badge variant="outline" className="border-indigo-200 bg-indigo-50/50 text-[11px] font-semibold text-indigo-700">
+          <Badge variant="outline" className="border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800">
             {allEvaluations.length} Programs Evaluated
           </Badge>
         </div>
@@ -289,7 +318,7 @@ export function ModuleKGrantAuditStep({
                 onClick={() => setSelectedGrantKey(audit.programKey)}
                 className={`group relative cursor-pointer rounded-xl border p-4 transition-all duration-200 ${
                   isSelected
-                    ? 'border-indigo-600 bg-indigo-50/20 shadow-md ring-2 ring-indigo-600/20'
+                    ? 'border-emerald-700 bg-slate-50 shadow-md ring-2 ring-emerald-700/20'
                     : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs'
                 }`}
               >
@@ -314,7 +343,7 @@ export function ModuleKGrantAuditStep({
 
                 {/* Grant Name & Agency */}
                 <div className="mt-2.5">
-                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     {audit.programDefinition.name}
                   </h4>
                   <p className="mt-0.5 text-[11px] text-slate-500 line-clamp-1">
@@ -339,7 +368,7 @@ export function ModuleKGrantAuditStep({
                   </span>
                   <span
                     className={`font-semibold ${
-                      isSelected ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-700'
+                      isSelected ? 'text-emerald-700' : 'text-slate-400 group-hover:text-slate-700'
                     }`}
                   >
                     {isSelected ? '✓ Active Audit' : 'Audit This →'}
@@ -358,13 +387,13 @@ export function ModuleKGrantAuditStep({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-600 text-xs font-bold text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-700 text-xs font-bold text-white">
                 K1
               </span>
               <h3 className="text-base font-bold text-slate-900">
                 {activeAudit.programDefinition.name}
               </h3>
-              <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] font-semibold text-indigo-700">
+              <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] font-semibold text-emerald-800">
                 {activeAudit.programDefinition.fundingBadge}
               </Badge>
             </div>
@@ -405,7 +434,7 @@ export function ModuleKGrantAuditStep({
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 text-xs">
           <div className="flex items-center gap-2 text-slate-600">
-            <Info className="h-4 w-4 text-indigo-500 shrink-0" />
+            <Info className="h-4 w-4 text-emerald-700 shrink-0" />
             <span>
               Official Program Provider: <strong>{activeAudit.programDefinition.agency}</strong>
             </span>
@@ -414,7 +443,7 @@ export function ModuleKGrantAuditStep({
             href={activeAudit.programDefinition.officialUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-semibold text-indigo-600 hover:text-indigo-800"
+            className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-900"
           >
             Official Guidelines &amp; Form <ExternalLink className="h-3 w-3" />
           </a>
@@ -561,7 +590,7 @@ export function ModuleKGrantAuditStep({
                       }}
                       className={`h-7 px-2.5 text-xs font-semibold ${
                         isPass
-                          ? 'text-slate-600 hover:text-indigo-600'
+                          ? 'text-slate-600 hover:text-emerald-700'
                           : isWarning
                           ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
                           : 'border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100'
@@ -597,9 +626,9 @@ export function ModuleKGrantAuditStep({
             variant="outline"
             onClick={handleGenerateAiOverview}
             disabled={isGeneratingAi || isVaultReadonly}
-            className="h-7 border-violet-200 bg-violet-50 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+            className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Audit Overview'}
           </Button>
         </div>
@@ -608,7 +637,7 @@ export function ModuleKGrantAuditStep({
           value={aiAuditOverview}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAiAuditOverview(e.target.value)}
           placeholder={`e.g., Based on our cross-platform pre-flight audit for ${activeAudit.programDefinition.name}, ${plan.title} achieves a strong ${activeAudit.readinessScorePercent}% readiness score. The venture satisfies foundational export and entity requirements. However, 3 formal supplier quotes must be gathered in Module E prior to application submission to prevent automatic desk rejection...`}
-          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
           disabled={isVaultReadonly}
         />
 
@@ -637,7 +666,7 @@ export function ModuleKGrantAuditStep({
           value={founderNotes}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFounderNotes(e.target.value)}
           placeholder="e.g., Spoke with Siobhan at Galway LEO on Tuesday. She advised submitting the Feasibility study first for €12,500 prototype testing, then follow up with Priming once the MVP has 50 active users..."
-          className="flex min-h-[70px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+          className="flex min-h-[70px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
           disabled={isVaultReadonly}
         />
       </div>
@@ -674,7 +703,7 @@ export function ModuleKGrantAuditStep({
                 await handleSaveAudit();
                 onContinueToNextStep();
               }}
-              className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+              className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
             >
               Continue to Step 2: Capital Stack
               <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

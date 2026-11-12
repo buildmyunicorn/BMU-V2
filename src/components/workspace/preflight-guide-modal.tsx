@@ -45,7 +45,7 @@ export function PreflightGuideModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-0 sm:rounded-2xl">
         {/* Header Hero */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-6 text-white sm:px-8">
+        <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-6 py-6 text-white sm:px-8">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40">
               <Lightbulb className="h-4 w-4" />
@@ -57,7 +57,7 @@ export function PreflightGuideModal({
           <DialogTitle className="mt-3 text-xl font-bold tracking-tight text-white sm:text-2xl">
             Preflight Visual Guide & Jargon Key
           </DialogTitle>
-          <DialogDescription className="mt-1 text-xs text-indigo-200/90 sm:text-sm">
+          <DialogDescription className="mt-1 text-xs text-slate-300/90 sm:text-sm">
             Everything you need to navigate the workspace, understand the button colors, and decode startup terminology.
           </DialogDescription>
 
@@ -69,7 +69,7 @@ export function PreflightGuideModal({
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all ${
                 activeTab === 'colors'
                   ? 'bg-white text-slate-950 shadow-xs'
-                  : 'text-indigo-200 hover:bg-white/10 hover:text-white'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
               <Layers className="h-3.5 w-3.5" />
@@ -81,7 +81,7 @@ export function PreflightGuideModal({
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all ${
                 activeTab === 'jargon'
                   ? 'bg-white text-slate-950 shadow-xs'
-                  : 'text-indigo-200 hover:bg-white/10 hover:text-white'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
               <Target className="h-3.5 w-3.5" />
@@ -93,7 +93,7 @@ export function PreflightGuideModal({
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all ${
                 activeTab === 'rules'
                   ? 'bg-white text-slate-950 shadow-xs'
-                  : 'text-indigo-200 hover:bg-white/10 hover:text-white'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
               <Compass className="h-3.5 w-3.5" />
@@ -118,12 +118,12 @@ export function PreflightGuideModal({
 
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 {/* 1. WHY ARE WE ASKING THIS? */}
-                <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/40 p-4 transition-all hover:bg-indigo-50/70">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4 transition-all hover:bg-emerald-50/70">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-emerald-800">
                       <HelpCircle className="h-4 w-4" />
                     </span>
-                    <Badge className="border-indigo-300 bg-indigo-100 text-[11px] font-semibold text-indigo-900">
+                    <Badge className="border-emerald-300 bg-slate-100 text-[11px] font-semibold text-slate-900">
                       Indigo Button
                     </Badge>
                   </div>
@@ -131,7 +131,7 @@ export function PreflightGuideModal({
                     Why Are We Asking This?
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                    Explains <strong className="text-indigo-900">why investors, banks, or grant assessors care</strong> about this specific question. Cuts through corporate jargon so you understand the purpose before writing a word.
+                    Explains <strong className="text-slate-900">why investors, banks, or grant assessors care</strong> about this specific question. Cuts through corporate jargon so you understand the purpose before writing a word.
                   </p>
                 </div>
 
@@ -154,12 +154,12 @@ export function PreflightGuideModal({
                 </div>
 
                 {/* 3. I'M STUCK / AUTO-DRAFT */}
-                <div className="rounded-xl border border-violet-200/80 bg-violet-50/40 p-4 transition-all hover:bg-violet-50/70">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4 transition-all hover:bg-slate-50">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-emerald-800">
                       <Sparkles className="h-4 w-4" />
                     </span>
-                    <Badge className="border-violet-300 bg-violet-100 text-[11px] font-semibold text-violet-900">
+                    <Badge className="border-slate-300 bg-slate-100 text-[11px] font-semibold text-slate-900">
                       Violet Button
                     </Badge>
                   </div>
@@ -167,7 +167,7 @@ export function PreflightGuideModal({
                     I&apos;m Stuck &amp; Calibrate with AI
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                    Feeling writer&apos;s block? Click this to let the AI co-pilot <strong className="text-violet-900">auto-generate a contextual first draft</strong> tailored to your specific venture summary. You can then edit and refine it in seconds.
+                    Feeling writer&apos;s block? Click this to let the AI co-pilot <strong className="text-slate-900">auto-generate a contextual first draft</strong> tailored to your specific venture summary. You can then edit and refine it in seconds.
                   </p>
                 </div>
 
@@ -206,7 +206,7 @@ export function PreflightGuideModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-indigo-600 text-xs font-bold text-white">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-700 text-xs font-bold text-white">
                       2
                     </span>
                     <div>
@@ -245,10 +245,10 @@ export function PreflightGuideModal({
                 <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                      <Target className="h-4 w-4 text-indigo-600" />
+                      <Target className="h-4 w-4 text-emerald-700" />
                       Beachhead Customer
                     </span>
-                    <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700">
+                    <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800">
                       Module B
                     </Badge>
                   </div>
@@ -277,10 +277,10 @@ export function PreflightGuideModal({
                 <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                      <Cpu className="h-4 w-4 text-violet-600" />
+                      <Cpu className="h-4 w-4 text-emerald-700" />
                       Product Vehicle
                     </span>
-                    <Badge variant="outline" className="border-violet-200 bg-violet-50 text-[10px] text-violet-700">
+                    <Badge variant="outline" className="border-slate-200 bg-slate-50 text-[10px] text-emerald-800">
                       Module D
                     </Badge>
                   </div>
@@ -355,8 +355,8 @@ export function PreflightGuideModal({
               </div>
 
               <div className="space-y-3.5">
-                <div className="flex items-start gap-3 rounded-xl border border-indigo-200/80 bg-indigo-50/30 p-4">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                <div className="flex items-start gap-3 rounded-xl border border-slate-200/80 bg-slate-50 p-4">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                     1
                   </span>
                   <div>
@@ -383,8 +383,8 @@ export function PreflightGuideModal({
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 rounded-xl border border-violet-200/80 bg-violet-50/30 p-4">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-xs font-bold text-white">
+                <div className="flex items-start gap-3 rounded-xl border border-slate-200/80 bg-slate-50/30 p-4">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                     3
                   </span>
                   <div>
@@ -408,7 +408,7 @@ export function PreflightGuideModal({
             <Button
               type="button"
               onClick={onClose}
-              className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+              className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
             >
               Got It, Let&apos;s Build
             </Button>

@@ -2800,15 +2800,17 @@ export function ModuleEWorkspace({
   async function handleSaveStep1(options?: { silent?: boolean } | unknown) {
     const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
-    setIsSavingStep1(true);
-    if (!isSilent) setSaveBanner(null);
+    isDirtyStep1Ref.current = false;
+    if (!isSilent) {
+      setIsSavingStep1(true);
+      setSaveBanner(null);
+    }
     try {
       const nowIso = new Date().toISOString();
       const nextData: OperationsBlueprintStep1Data = {
         ...step1Data,
         lastSavedAt: nowIso,
       };
-      setStep1Data(nextData);
       const isComplete =
         Boolean(nextData.fulfillmentMode) &&
         Boolean(nextData.turnaroundSla) &&
@@ -2817,14 +2819,13 @@ export function ModuleEWorkspace({
         nextData.endToEndFulfillmentNarrative.trim().length > 10;
       await onSaveStep1OperationsBlueprint(nextData, isComplete ? 20 : 12);
       setStep1AutosavedAt(new Date());
-      isDirtyStep1Ref.current = false;
       if (!isSilent) {
         setSaveBanner(
           '✅ Saved Module E Step 1 ("A Day in the Life of an Order" & Unit Operations Blueprint)!'
         );
       }
     } finally {
-      setIsSavingStep1(false);
+      if (!isSilent) setIsSavingStep1(false);
     }
   }
 
@@ -3220,15 +3221,17 @@ export function ModuleEWorkspace({
   async function handleSaveStep2(options?: { silent?: boolean } | unknown) {
     const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
-    setIsSavingStep2(true);
-    if (!isSilent) setSaveBanner(null);
+    isDirtyStep2Ref.current = false;
+    if (!isSilent) {
+      setIsSavingStep2(true);
+      setSaveBanner(null);
+    }
     try {
       const nowIso = new Date().toISOString();
       const nextData: PremisesAndEquipmentStep2Data = {
         ...step2Data,
         lastSavedAt: nowIso,
       };
-      setStep2Data(nextData);
       const isComplete =
         Boolean(nextData.premisesSetupMode) &&
         Boolean(nextData.premisesComplianceStatus) &&
@@ -3236,14 +3239,13 @@ export function ModuleEWorkspace({
         nextData.equipmentRoiAndGrantComplianceNarrative.trim().length > 10;
       await onSaveStep2PremisesEquipment(nextData, isComplete ? 45 : 32);
       setStep2AutosavedAt(new Date());
-      isDirtyStep2Ref.current = false;
       if (!isSilent) {
         setSaveBanner(
           '✅ Saved Module E Step 2 (Premises, Workshop & Grant-Ready Equipment Schedule)!'
         );
       }
     } finally {
-      setIsSavingStep2(false);
+      if (!isSilent) setIsSavingStep2(false);
     }
   }
 
@@ -3439,29 +3441,30 @@ export function ModuleEWorkspace({
   async function handleSaveStep3(options?: { silent?: boolean } | unknown) {
     const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
-    setIsSavingStep3(true);
-    if (!isSilent) setSaveBanner(null);
+    isDirtyStep3Ref.current = false;
+    if (!isSilent) {
+      setIsSavingStep3(true);
+      setSaveBanner(null);
+    }
     try {
       const nowIso = new Date().toISOString();
       const nextData: RiskRegisterStep3Data = {
         ...step3Data,
         lastSavedAt: nowIso,
       };
-      setStep3Data(nextData);
       const isComplete =
         Boolean(nextData.supplierRedundancyPosture) &&
         nextData.riskItems.length >= 4 &&
         nextData.riskManagementGovernanceNarrative.trim().length > 10;
       await onSaveStep3RiskRegister(nextData, isComplete ? 70 : 58);
       setStep3AutosavedAt(new Date());
-      isDirtyStep3Ref.current = false;
       if (!isSilent) {
         setSaveBanner(
           '✅ Saved Module E Step 3 (Supply-Chain Resilience & 4-Category Project Risk Register)!'
         );
       }
     } finally {
-      setIsSavingStep3(false);
+      if (!isSilent) setIsSavingStep3(false);
     }
   }
 
@@ -3636,15 +3639,17 @@ export function ModuleEWorkspace({
   async function handleSaveStep4(options?: { silent?: boolean } | unknown) {
     const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
-    setIsSavingStep4(true);
-    if (!isSilent) setSaveBanner(null);
+    isDirtyStep4Ref.current = false;
+    if (!isSilent) {
+      setIsSavingStep4(true);
+      setSaveBanner(null);
+    }
     try {
       const nowIso = new Date().toISOString();
       const nextData: SupportReturnsAndQcStep4Data = {
         ...step4Data,
         lastSavedAt: nowIso,
       };
-      setStep4Data(nextData);
       const isComplete =
         Boolean(nextData.supportOperatingModel) &&
         Boolean(nextData.supportResponseSla) &&
@@ -3653,14 +3658,13 @@ export function ModuleEWorkspace({
         nextData.qualityControlAndStandardsNarrative.trim().length > 10;
       await onSaveStep4SupportReturnsAndQc(nextData, isComplete ? 82 : 74);
       setStep4AutosavedAt(new Date());
-      isDirtyStep4Ref.current = false;
       if (!isSilent) {
         setSaveBanner(
           '✅ Saved Module E Step 4 (Customer Support, Returns, Warranty & Quality Control SOP)!'
         );
       }
     } finally {
-      setIsSavingStep4(false);
+      if (!isSilent) setIsSavingStep4(false);
     }
   }
 
@@ -3875,15 +3879,17 @@ export function ModuleEWorkspace({
   async function handleSaveStep5(options?: { silent?: boolean } | unknown) {
     const isSilent = Boolean(options && typeof options === 'object' && 'silent' in options && (options as any).silent);
     if (isVaultReadonly) return;
-    setIsSavingStep5(true);
-    if (!isSilent) setSaveBanner(null);
+    isDirtyStep5Ref.current = false;
+    if (!isSilent) {
+      setIsSavingStep5(true);
+      setSaveBanner(null);
+    }
     try {
       const nowIso = new Date().toISOString();
       const nextData: PermitsComplianceAndInsuranceStep5Data = {
         ...step5Data,
         lastSavedAt: nowIso,
       };
-      setStep5Data(nextData);
       const isComplete =
         Boolean(nextData.regulatorySectorPosture) &&
         Boolean(nextData.dataPrivacyPosture) &&
@@ -3892,107 +3898,15 @@ export function ModuleEWorkspace({
         nextData.regulatoryAndComplianceNarrative.trim().length > 10;
       await onSaveStep5PermitsAndInsurance(nextData, isComplete ? 92 : 85);
       setStep5AutosavedAt(new Date());
-      isDirtyStep5Ref.current = false;
       if (!isSilent) {
         setSaveBanner(
           '✅ Saved Module E Step 5 (Regulatory, Licensing, Health & Safety, GDPR & Instant Startup Insurance Matcher)!'
         );
       }
     } finally {
-      setIsSavingStep5(false);
+      if (!isSilent) setIsSavingStep5(false);
     }
   }
-
-  // Step 1 Debounced Autosave (1200ms)
-  useEffect(() => {
-    if (isFirstRenderStep1Ref.current) {
-      isFirstRenderStep1Ref.current = false;
-      return;
-    }
-    if (isVaultReadonly) return;
-    isDirtyStep1Ref.current = true;
-    const timer = setTimeout(() => {
-      if (isDirtyStep1Ref.current) {
-        void handleSaveStep1({ silent: true });
-      }
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [step1Data]);
-
-  // Step 2 Debounced Autosave (1200ms)
-  useEffect(() => {
-    if (isFirstRenderStep2Ref.current) {
-      isFirstRenderStep2Ref.current = false;
-      return;
-    }
-    if (isVaultReadonly) return;
-    isDirtyStep2Ref.current = true;
-    const timer = setTimeout(() => {
-      if (isDirtyStep2Ref.current) {
-        void handleSaveStep2({ silent: true });
-      }
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [step2Data]);
-
-  // Step 3 Debounced Autosave (1200ms)
-  useEffect(() => {
-    if (isFirstRenderStep3Ref.current) {
-      isFirstRenderStep3Ref.current = false;
-      return;
-    }
-    if (isVaultReadonly) return;
-    isDirtyStep3Ref.current = true;
-    const timer = setTimeout(() => {
-      if (isDirtyStep3Ref.current) {
-        void handleSaveStep3({ silent: true });
-      }
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [step3Data]);
-
-  // Step 4 Debounced Autosave (1200ms)
-  useEffect(() => {
-    if (isFirstRenderStep4Ref.current) {
-      isFirstRenderStep4Ref.current = false;
-      return;
-    }
-    if (isVaultReadonly) return;
-    isDirtyStep4Ref.current = true;
-    const timer = setTimeout(() => {
-      if (isDirtyStep4Ref.current) {
-        void handleSaveStep4({ silent: true });
-      }
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [step4Data]);
-
-  // Step 5 Debounced Autosave (1200ms)
-  useEffect(() => {
-    if (isFirstRenderStep5Ref.current) {
-      isFirstRenderStep5Ref.current = false;
-      return;
-    }
-    if (isVaultReadonly) return;
-    isDirtyStep5Ref.current = true;
-    const timer = setTimeout(() => {
-      if (isDirtyStep5Ref.current) {
-        void handleSaveStep5({ silent: true });
-      }
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [step5Data]);
-
-  // Flush dirty steps on unmount
-  useEffect(() => {
-    return () => {
-      if (isDirtyStep1Ref.current) void handleSaveStep1({ silent: true });
-      if (isDirtyStep2Ref.current) void handleSaveStep2({ silent: true });
-      if (isDirtyStep3Ref.current) void handleSaveStep3({ silent: true });
-      if (isDirtyStep4Ref.current) void handleSaveStep4({ silent: true });
-      if (isDirtyStep5Ref.current) void handleSaveStep5({ silent: true });
-    };
-  }, []);
 
   // =========================================================================
   // STEP 6 COMPUTED METRICS & HANDLERS (BLIND-SPOT ENGINE & EXECUTIVE BRIEF)
@@ -4193,29 +4107,162 @@ export function ModuleEWorkspace({
     }
   }
 
-  async function handleSaveStep6() {
+  const isFirstRenderStep6Ref = useRef(true);
+  const isDirtyStep6Ref = useRef(false);
+
+  async function handleSaveStep6(options?: { silent?: boolean } | unknown) {
     if (isVaultReadonly) return;
-    setIsSavingStep6(true);
-    setSaveBanner(null);
+    const isSilent =
+      typeof options === 'object' &&
+      options !== null &&
+      'silent' in options &&
+      Boolean((options as { silent?: boolean }).silent);
+    isDirtyStep6Ref.current = false;
+    if (!isSilent) {
+      setIsSavingStep6(true);
+      setSaveBanner(null);
+    }
     try {
       const nowIso = new Date().toISOString();
       const nextData: OperationsBlindSpotAuditStep6Data = {
         ...step6Data,
         lastSavedAt: nowIso,
       };
-      setStep6Data(nextData);
       const isComplete =
         Boolean(nextData.readinessConfidence) &&
         nextData.blindSpots.length >= 2 &&
         nextData.executiveOperationsSummaryNarrative.trim().length > 10;
       await onSaveStep6BlindSpotAudit(nextData, isComplete ? 100 : 95);
-      setSaveBanner(
-        '✅ Saved Module E Step 6 (Operations "Things to Consider" Blind-Spot Engine & Executive Brief — Module E 100% Complete)!'
-      );
+      if (!isSilent) {
+        setSaveBanner(
+          '✅ Saved Module E Step 6 (Operations "Things to Consider" Blind-Spot Engine & Executive Brief — Module E 100% Complete)!'
+        );
+      }
     } finally {
-      setIsSavingStep6(false);
+      if (!isSilent) setIsSavingStep6(false);
     }
   }
+
+  const handleSaveStep1Ref = useRef(handleSaveStep1);
+  handleSaveStep1Ref.current = handleSaveStep1;
+  const handleSaveStep2Ref = useRef(handleSaveStep2);
+  handleSaveStep2Ref.current = handleSaveStep2;
+  const handleSaveStep3Ref = useRef(handleSaveStep3);
+  handleSaveStep3Ref.current = handleSaveStep3;
+  const handleSaveStep4Ref = useRef(handleSaveStep4);
+  handleSaveStep4Ref.current = handleSaveStep4;
+  const handleSaveStep5Ref = useRef(handleSaveStep5);
+  handleSaveStep5Ref.current = handleSaveStep5;
+  const handleSaveStep6Ref = useRef(handleSaveStep6);
+  handleSaveStep6Ref.current = handleSaveStep6;
+
+  // Step 1 Debounced Autosave (500ms)
+  useEffect(() => {
+    if (isFirstRenderStep1Ref.current) {
+      isFirstRenderStep1Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep1Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep1Ref.current) {
+        void handleSaveStep1Ref.current({ silent: true });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [step1Data]);
+
+  // Step 2 Debounced Autosave (500ms)
+  useEffect(() => {
+    if (isFirstRenderStep2Ref.current) {
+      isFirstRenderStep2Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep2Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep2Ref.current) {
+        void handleSaveStep2Ref.current({ silent: true });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [step2Data]);
+
+  // Step 3 Debounced Autosave (500ms)
+  useEffect(() => {
+    if (isFirstRenderStep3Ref.current) {
+      isFirstRenderStep3Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep3Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep3Ref.current) {
+        void handleSaveStep3Ref.current({ silent: true });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [step3Data]);
+
+  // Step 4 Debounced Autosave (500ms)
+  useEffect(() => {
+    if (isFirstRenderStep4Ref.current) {
+      isFirstRenderStep4Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep4Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep4Ref.current) {
+        void handleSaveStep4Ref.current({ silent: true });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [step4Data]);
+
+  // Step 5 Debounced Autosave (500ms)
+  useEffect(() => {
+    if (isFirstRenderStep5Ref.current) {
+      isFirstRenderStep5Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep5Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep5Ref.current) {
+        void handleSaveStep5Ref.current({ silent: true });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [step5Data]);
+
+  // Step 6 Debounced Autosave (500ms)
+  useEffect(() => {
+    if (isFirstRenderStep6Ref.current) {
+      isFirstRenderStep6Ref.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyStep6Ref.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStep6Ref.current) {
+        void handleSaveStep6Ref.current({ silent: true });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [step6Data]);
+
+  // Flush dirty steps on unmount
+  useEffect(() => {
+    return () => {
+      if (isDirtyStep1Ref.current) void handleSaveStep1Ref.current({ silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2Ref.current({ silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3Ref.current({ silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4Ref.current({ silent: true });
+      if (isDirtyStep5Ref.current) void handleSaveStep5Ref.current({ silent: true });
+      if (isDirtyStep6Ref.current) void handleSaveStep6Ref.current({ silent: true });
+    };
+  }, []);
 
   const STEP_TABS: Array<{
     id: 'STEP_1' | 'STEP_2' | 'STEP_3' | 'STEP_4' | 'STEP_5' | 'STEP_6';
@@ -4228,60 +4275,60 @@ export function ModuleEWorkspace({
       short: 'Step 1',
       title: 'Day in the Life of an Order',
       isComplete:
-        Boolean(step1Data.fulfillmentMode) &&
-        Boolean(step1Data.turnaroundSla) &&
-        step1Data.orderLifecycleStages.length >= 3 &&
-        step1Data.endToEndFulfillmentNarrative.trim().length > 10,
+        Boolean(step1Data?.fulfillmentMode) &&
+        Boolean(step1Data?.turnaroundSla) &&
+        (step1Data?.orderLifecycleStages?.length ?? 0) >= 3 &&
+        (step1Data?.endToEndFulfillmentNarrative?.trim()?.length ?? 0) > 10,
     },
     {
       id: 'STEP_2',
       short: 'Step 2',
       title: 'Premises, Equipment & 3 Quotes',
       isComplete:
-        Boolean(step2Data.premisesSetupMode) &&
-        Boolean(step2Data.premisesComplianceStatus) &&
-        step2Data.equipmentItems.length >= 1 &&
-        step2Data.equipmentRoiAndGrantComplianceNarrative.trim().length > 10,
+        Boolean(step2Data?.premisesSetupMode) &&
+        Boolean(step2Data?.premisesComplianceStatus) &&
+        (step2Data?.equipmentItems?.length ?? 0) >= 1 &&
+        (step2Data?.equipmentRoiAndGrantComplianceNarrative?.trim()?.length ?? 0) > 10,
     },
     {
       id: 'STEP_3',
       short: 'Step 3',
       title: '4-Category Risk Register',
       isComplete:
-        Boolean(step3Data.supplierRedundancyPosture) &&
-        step3Data.riskItems.length >= 4 &&
-        step3Data.riskManagementGovernanceNarrative.trim().length > 10,
+        Boolean(step3Data?.supplierRedundancyPosture) &&
+        (step3Data?.riskItems?.length ?? 0) >= 4 &&
+        (step3Data?.riskManagementGovernanceNarrative?.trim()?.length ?? 0) > 10,
     },
     {
       id: 'STEP_4',
       short: 'Step 4',
       title: 'Support, Returns & QC',
       isComplete:
-        Boolean(step4Data.supportOperatingModel) &&
-        Boolean(step4Data.supportResponseSla) &&
-        Boolean(step4Data.returnsAndWarrantyPolicy) &&
-        step4Data.qcCheckpoints.length >= 2 &&
-        step4Data.qualityControlAndStandardsNarrative.trim().length > 10,
+        Boolean(step4Data?.supportOperatingModel) &&
+        Boolean(step4Data?.supportResponseSla) &&
+        Boolean(step4Data?.returnsAndWarrantyPolicy) &&
+        (step4Data?.qcCheckpoints?.length ?? 0) >= 2 &&
+        (step4Data?.qualityControlAndStandardsNarrative?.trim()?.length ?? 0) > 10,
     },
     {
       id: 'STEP_5',
       short: 'Step 5',
       title: 'Permits & Insurance Matcher',
       isComplete:
-        Boolean(step5Data.regulatorySectorPosture) &&
-        Boolean(step5Data.dataPrivacyPosture) &&
-        Boolean(step5Data.insuranceCoverageBundle) &&
-        step5Data.complianceItems.length >= 3 &&
-        step5Data.regulatoryAndComplianceNarrative.trim().length > 10,
+        Boolean(step5Data?.regulatorySectorPosture) &&
+        Boolean(step5Data?.dataPrivacyPosture) &&
+        Boolean(step5Data?.insuranceCoverageBundle) &&
+        (step5Data?.complianceItems?.length ?? 0) >= 3 &&
+        (step5Data?.regulatoryAndComplianceNarrative?.trim()?.length ?? 0) > 10,
     },
     {
       id: 'STEP_6',
       short: 'Step 6',
       title: 'Ops Things to Consider',
       isComplete:
-        Boolean(step6Data.readinessConfidence) &&
-        step6Data.blindSpots.length >= 2 &&
-        step6Data.executiveOperationsSummaryNarrative.trim().length > 10,
+        Boolean(step6Data?.readinessConfidence) &&
+        (step6Data?.blindSpots?.length ?? 0) >= 2 &&
+        (step6Data?.executiveOperationsSummaryNarrative?.trim()?.length ?? 0) > 10,
     },
   ];
 
@@ -4367,11 +4414,11 @@ export function ModuleEWorkspace({
       {/* ===================================================================== */}
       {/* MODULE E HEADER CARD & 6-STEP ACCORDION NAVIGATION                    */}
       {/* ===================================================================== */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200">
                 Module E • Operations, Equipment &amp; Risk Register
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200">
@@ -4383,14 +4430,14 @@ export function ModuleEWorkspace({
                 {countryPack.countryName}{' '}
                 {isGrantsEnabled ? 'Grant & Ops Rules Active' : 'Commercial Ops Rules Active'}
               </Badge>
-              <Badge className="border-indigo-400/30 bg-white/10 text-indigo-100">
+              <Badge className="border-emerald-400/30 bg-white/10 text-slate-200">
                 {countryPack.countryName} ({plan.baseCurrency})
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
               Module E: How Your Business Actually Runs Day-to-Day
             </h1>
-            <p className="max-w-3xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-3xl text-xs text-slate-200/90 sm:text-sm">
               Map a single customer order from checkout to delivery, calculate hands-on maker/founder minutes and unit delivery COGS, schedule equipment &amp; premises (
               {!isGrantsEnabled
                 ? 'tracking CapEx, depreciation, and 3-quote supplier cost benchmarking'
@@ -4412,7 +4459,7 @@ export function ModuleEWorkspace({
                 onClick={() =>
                   setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
                 }
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 {openStep === 'ALL' ? 'Collapse All Steps' : 'Expand All Steps'}
               </Button>
@@ -4421,20 +4468,20 @@ export function ModuleEWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={onBackToModuleD}
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                 Back to Module D
               </Button>
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Module E Progress: <strong>{totalModuleEProgress}%</strong> ({completedModuleECoreStepsCount} of 5 Core Steps Ready)
             </div>
           </div>
         </div>
 
         {/* 6-Step Accordion Navigation Strip */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-3 lg:grid-cols-6">
           {[
             {
               step: 'Step 1',
@@ -4510,7 +4557,7 @@ export function ModuleEWorkspace({
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
@@ -4554,7 +4601,7 @@ export function ModuleEWorkspace({
             setOpenStep(1);
             setActiveTab('STEP_1');
           }}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -4562,7 +4609,7 @@ export function ModuleEWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[0]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleEReadinessSteps[0]?.isComplete ? (
@@ -4573,7 +4620,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 1: Day in the Life of an Order
                   </h2>
                   {moduleEReadinessSteps[0]?.isComplete ? (
@@ -4595,7 +4642,7 @@ export function ModuleEWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleEReadinessSteps[0]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -4612,7 +4659,7 @@ export function ModuleEWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[0]?.isComplete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {moduleEReadinessSteps[0]?.isComplete ? (
@@ -4624,7 +4671,7 @@ export function ModuleEWorkspace({
                 <h2 className="text-base font-bold text-slate-900">
                   Step 1: Day in the Life of an Order
                 </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
                   Step 1 of 6
                 </Badge>
                 {moduleEReadinessSteps[0]?.isComplete ? (
@@ -4665,7 +4712,7 @@ export function ModuleEWorkspace({
             <CardHeader className="border-b border-slate-100 pb-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-indigo-100 text-indigo-800">
+                  <Badge className="bg-slate-100 text-emerald-900">
                     Step 1 of 6
                   </Badge>
                   <Badge
@@ -4702,9 +4749,9 @@ export function ModuleEWorkspace({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowWhyAsking(!showWhyAsking)}
-                    className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                    className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Why Are We Asking This?
                   </Button>
                   <Button
@@ -4724,10 +4771,10 @@ export function ModuleEWorkspace({
             <CardContent className="space-y-6 pt-4">
               {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
               {showWhyAsking && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 font-bold text-indigo-900">
-                      <HelpCircle className="h-4 w-4 text-indigo-600" />
+                    <div className="flex items-center gap-2 font-bold text-slate-900">
+                      <HelpCircle className="h-4 w-4 text-emerald-700" />
                       Why Grant Assessors &amp; Investors Scrutinize Your Single
                       Order Blueprint
                     </div>
@@ -4736,12 +4783,12 @@ export function ModuleEWorkspace({
                       size="sm"
                       variant="ghost"
                       onClick={() => setShowWhyAsking(false)}
-                      className="h-6 w-6 p-0 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/50 shrink-0"
+                      className="h-6 w-6 p-0 text-emerald-700 hover:text-emerald-900 hover:bg-slate-100 shrink-0"
                     >
                       ✕
                     </Button>
                   </div>
-                  <p className="mt-1.5 leading-relaxed text-indigo-900/90">
+                  <p className="mt-1.5 leading-relaxed text-slate-900/90">
                     Both{' '}
                     <strong>
                       {selectedCountry === 'IE'
@@ -4752,7 +4799,7 @@ export function ModuleEWorkspace({
                     </strong>{' '}
                     and commercial lenders look for two fatal operational traps:
                   </p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-indigo-900/90">
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-900/90">
                     <li>
                       <strong>The &ldquo;Hidden Maker Hours&rdquo; Trap:</strong>{' '}
                       A craft founder (like a woodworker making chopping boards)
@@ -4803,8 +4850,8 @@ export function ModuleEWorkspace({
                           onClick={() => setExamplePersonaTab('BMU_SAAS')}
                           className={`rounded-lg px-2.5 py-1 font-semibold ${
                             examplePersonaTab === 'BMU_SAAS'
-                              ? 'bg-indigo-800 text-white'
-                              : 'bg-white text-indigo-900 border border-indigo-300'
+                              ? 'bg-slate-800 text-white'
+                              : 'bg-white text-slate-900 border border-emerald-300'
                           }`}
                         >
                           🚀 Startup Preflight (Cloud AI SaaS)
@@ -4847,7 +4894,7 @@ export function ModuleEWorkspace({
                       </p>
                     </div>
                   ) : (
-                    <div className="mt-3 space-y-2 rounded-lg border border-indigo-200 bg-white p-3 text-slate-700">
+                    <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-white p-3 text-slate-700">
                       <div className="font-bold text-slate-900">
                         Startup Preflight — Cloud AI Co-Founder &amp;
                         Grant Platform
@@ -4899,7 +4946,7 @@ export function ModuleEWorkspace({
                         }
                         className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
@@ -4909,7 +4956,7 @@ export function ModuleEWorkspace({
                               {opt.badge}
                             </span>
                             {isSelected && (
-                              <Check className="h-4 w-4 text-indigo-600" />
+                              <Check className="h-4 w-4 text-emerald-700" />
                             )}
                           </div>
                           <div className="mt-1.5 text-xs font-bold text-slate-900">
@@ -4925,8 +4972,8 @@ export function ModuleEWorkspace({
                 </div>
 
                 {step1Data.fulfillmentMode === 'OTHER' && (
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[11px] font-bold text-slate-950">
                       Describe Your Custom Operating &amp; Fulfillment Mode:
                     </label>
                     <input
@@ -4940,7 +4987,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="e.g., Mobile pop-up workshop + regional micro-fulfillment lockers..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 )}
@@ -4972,7 +5019,7 @@ export function ModuleEWorkspace({
                         }
                         className={`rounded-xl border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
@@ -4981,7 +5028,7 @@ export function ModuleEWorkspace({
                             {opt.label}
                           </span>
                           {isSelected && (
-                            <Check className="h-4 w-4 shrink-0 text-indigo-600" />
+                            <Check className="h-4 w-4 shrink-0 text-emerald-700" />
                           )}
                         </div>
                         <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
@@ -4993,8 +5040,8 @@ export function ModuleEWorkspace({
                 </div>
 
                 {step1Data.turnaroundSla === 'OTHER' && (
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[11px] font-bold text-slate-950">
                       Describe Your Custom Order-to-Delivery SLA Target:
                     </label>
                     <input
@@ -5008,7 +5055,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="e.g., Instant digital preview within 1 hour, physical handmade piece delivered in 10 days..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 )}
@@ -5042,7 +5089,7 @@ export function ModuleEWorkspace({
                           ),
                         }))
                       }
-                      className="w-20 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-center text-base font-bold text-indigo-900 sm:text-xs"
+                      className="w-20 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-center text-base font-bold text-slate-900 sm:text-xs"
                     />
                     <span className="text-[11px] text-slate-500">hrs/wk</span>
                   </div>
@@ -5065,7 +5112,7 @@ export function ModuleEWorkspace({
                         }
                         className={`rounded-xl border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
@@ -5074,7 +5121,7 @@ export function ModuleEWorkspace({
                             {opt.label}
                           </span>
                           {isSelected && (
-                            <Check className="h-4 w-4 shrink-0 text-indigo-600" />
+                            <Check className="h-4 w-4 shrink-0 text-emerald-700" />
                           )}
                         </div>
                         <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
@@ -5086,8 +5133,8 @@ export function ModuleEWorkspace({
                 </div>
 
                 {step1Data.capacityConstraint === 'OTHER' && (
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-[11px] font-bold text-indigo-950">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[11px] font-bold text-slate-950">
                       Describe Your Custom Operational Bottleneck:
                     </label>
                     <input
@@ -5101,7 +5148,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="e.g., Cold-chain refrigerated van slots on Fridays..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 )}
@@ -5133,7 +5180,7 @@ export function ModuleEWorkspace({
                       onClick={() =>
                         handleRunAiStep1('POPULATE_STAGES_AND_NARRATIVES')
                       }
-                      className="border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                      className="border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                     >
                       {isGeneratingAiStep1 ? (
                         <>
@@ -5142,7 +5189,7 @@ export function ModuleEWorkspace({
                         </>
                       ) : (
                         <>
-                          <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                          <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                           AI Generate 5-Stage Blueprint
                         </>
                       )}
@@ -5166,13 +5213,13 @@ export function ModuleEWorkspace({
                   {step1Data.orderLifecycleStages.map((stage, idx) => (
                     <div
                       key={stage.id}
-                      className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 transition hover:border-indigo-200"
+                      className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 transition hover:border-emerald-300"
                     >
                       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
                         {/* Stage Title & Owner */}
                         <div className="space-y-2 lg:col-span-4">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="inline-flex items-center rounded-md bg-indigo-900 px-2 py-0.5 text-[10px] font-bold text-white">
+                            <span className="inline-flex items-center rounded-md bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">
                               Stage {idx + 1}
                             </span>
                             {step1Data.orderLifecycleStages.length > 2 && (
@@ -5235,7 +5282,7 @@ export function ModuleEWorkspace({
                                   })
                                 }
                                 placeholder="Specify custom owner role..."
-                                className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
+                                className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
                               />
                             )}
                           </div>
@@ -5340,11 +5387,11 @@ export function ModuleEWorkspace({
                 </div>
 
                 {/* Live Auto-Calculated Unit Ops & Weekly Capacity Meter */}
-                <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-white to-emerald-50/80 p-4 shadow-2xs">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
+                <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-emerald-50/80 p-4 shadow-2xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                     <div className="flex items-center gap-2">
-                      <Gauge className="h-4 w-4 text-indigo-700" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                      <Gauge className="h-4 w-4 text-emerald-800" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-950">
                         Live Unit Operations &amp; Weekly Capacity Meter
                       </span>
                     </div>
@@ -5388,7 +5435,7 @@ export function ModuleEWorkspace({
                       <div className="text-[10px] font-bold uppercase text-slate-500">
                         Max Weekly Capacity ({weeklyOpsHours}h/wk)
                       </div>
-                      <div className="mt-1 text-base font-extrabold text-indigo-700 sm:text-lg">
+                      <div className="mt-1 text-base font-extrabold text-emerald-800 sm:text-lg">
                         {totalActiveMinutesPerOrder === 0
                           ? 'Unlimited (Cloud)'
                           : `${maxOrdersPerWeekByManualTime} orders / wk`}
@@ -5454,9 +5501,9 @@ export function ModuleEWorkspace({
                     variant="outline"
                     disabled={isVaultReadonly || isGeneratingAiStep1}
                     onClick={() => handleRunAiStep1('NARRATIVES_ONLY')}
-                    className="border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                    className="border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Synthesize Narratives from My Stages
                   </Button>
                 </div>
@@ -5478,7 +5525,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="Summarize how an order moves from checkout to customer delivery, your SLA target, and your direct unit delivery cost..."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
 
@@ -5499,7 +5546,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="Explain how you overcome your #1 bottleneck during peak season (e.g., pre-milling blank boards in Sept/Oct, CNC automation, or 500/day AI guardrails)..."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 </div>
@@ -5537,7 +5584,7 @@ export function ModuleEWorkspace({
                     size="sm"
                     disabled={isVaultReadonly || isSavingStep1}
                     onClick={handleSaveStep1}
-                    className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                    className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                   >
                     {isSavingStep1 ? (
                       <>
@@ -5608,7 +5655,7 @@ export function ModuleEWorkspace({
           {/* ================================================================= */}
           {/* LIVE STEP 1 OUTPUT PREVIEW CARD                                   */}
           {/* ================================================================= */}
-          <Card className="border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 shadow-xs">
+          <Card className="border-slate-200 bg-gradient-to-br from-white to-slate-50/40 shadow-xs">
             <CardHeader className="pb-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-sm font-bold text-slate-900">
@@ -5650,7 +5697,7 @@ export function ModuleEWorkspace({
                           <div className="text-slate-800">
                             {st.whatHappensStepByStep}
                           </div>
-                          <div className="text-[10px] text-indigo-700">
+                          <div className="text-[10px] text-emerald-800">
                             Tool/Supplier: {st.toolsEquipmentOrSupplier}
                           </div>
                         </td>
@@ -5671,7 +5718,7 @@ export function ModuleEWorkspace({
                       <td colSpan={3} className="px-3 py-2 text-right">
                         Total Per Single Order (Synced to Module G):
                       </td>
-                      <td className="px-3 py-2 text-right text-indigo-700">
+                      <td className="px-3 py-2 text-right text-emerald-800">
                         {totalActiveMinutesPerOrder} mins
                       </td>
                       <td className="px-3 py-2 text-right text-emerald-700">
@@ -5700,7 +5747,7 @@ export function ModuleEWorkspace({
             setOpenStep(2);
             setActiveTab('STEP_2');
           }}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -5708,7 +5755,7 @@ export function ModuleEWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[1]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleEReadinessSteps[1]?.isComplete ? (
@@ -5719,7 +5766,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 2: Premises, Equipment & 3 Quotes
                   </h2>
                   {moduleEReadinessSteps[1]?.isComplete ? (
@@ -5741,7 +5788,7 @@ export function ModuleEWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleEReadinessSteps[1]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -5758,7 +5805,7 @@ export function ModuleEWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[1]?.isComplete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {moduleEReadinessSteps[1]?.isComplete ? (
@@ -5770,7 +5817,7 @@ export function ModuleEWorkspace({
                 <h2 className="text-base font-bold text-slate-900">
                   Step 2: Premises, Equipment & 3 Quotes
                 </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
                   Step 2 of 6
                 </Badge>
                 {moduleEReadinessSteps[1]?.isComplete ? (
@@ -5807,11 +5854,11 @@ export function ModuleEWorkspace({
 
           <div className="space-y-5">
           {/* Top Context & 4-Layer Built-In Support Card */}
-          <Card className="border-indigo-200 bg-white shadow-xs">
+          <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-indigo-600 text-white">
+                  <Badge className="bg-emerald-700 text-white">
                     Step 2 of 6 • Premises, Equipment &amp; 3-Quote Schedule
                   </Badge>
                   <Badge
@@ -5882,9 +5929,9 @@ export function ModuleEWorkspace({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowWhyAskingStep2(!showWhyAskingStep2)}
-                    className="h-7 border-indigo-200 bg-indigo-50/60 text-[11px] font-medium text-indigo-900 hover:bg-indigo-100"
+                    className="h-7 border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-900 hover:bg-slate-100"
                   >
-                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Why Are We Asking This?
                   </Button>
                   <Button
@@ -5923,24 +5970,24 @@ export function ModuleEWorkspace({
             <CardContent className="space-y-6 pt-5">
               {/* MICRO-COACHING DRAWER: WHY ARE WE ASKING THIS? */}
               {showWhyAskingStep2 && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
                   <div className="mb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2 font-bold text-indigo-900">
-                      <ShieldCheck className="h-4 w-4 text-indigo-700" />
+                    <div className="flex items-center gap-2 font-bold text-slate-900">
+                      <ShieldCheck className="h-4 w-4 text-emerald-800" />
                       Why Grant Evaluators &amp; Underwriters Audit Your
                       Equipment Schedule Line-by-Line
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowWhyAskingStep2(false)}
-                      className="text-[11px] font-semibold text-indigo-700 underline"
+                      className="text-[11px] font-semibold text-emerald-800 underline"
                     >
                       Close
                     </button>
                   </div>
                   {selectedCountry === 'IE' ? (
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           1. 🇮🇪 IE LEO 3-Quote Rule (&ge;{' '}
                           {formatPlanCurrency(1000, plan.baseCurrency)})
@@ -5958,7 +6005,7 @@ export function ModuleEWorkspace({
                           drawdown.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           2. 🚫 IE LEO Mobile Asset &amp; Laptop Ban
                         </div>
@@ -5970,7 +6017,7 @@ export function ModuleEWorkspace({
                           prevents your grant claim from being rejected.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           3. 💶 50% LEO Capital Rebate &amp; Cash Timing
                         </div>
@@ -5985,7 +6032,7 @@ export function ModuleEWorkspace({
                     </div>
                   ) : selectedCountry === 'GB' ? (
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           1. 🇬🇧 UK Innovate UK Depreciation Rule
                         </div>
@@ -5997,7 +6044,7 @@ export function ModuleEWorkspace({
                           <code>Cost &times; (12 / Useful Life) &times; Usage %</code>.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           2. 🏦 UK Start Up Loans (£500–£25k at 6%)
                         </div>
@@ -6008,7 +6055,7 @@ export function ModuleEWorkspace({
                           unlocks monthly order capacity and margin.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           3. 📋 3-Quote Value-for-Money (&ge;{' '}
                           {formatPlanCurrency(1000, plan.baseCurrency)})
@@ -6028,7 +6075,7 @@ export function ModuleEWorkspace({
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           1. 📋 3-Quote Rule (&ge;{' '}
                           {formatPlanCurrency(1000, plan.baseCurrency)})
@@ -6044,7 +6091,7 @@ export function ModuleEWorkspace({
                           attached to Module K Appendix C.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           2. 💻 Mobile IT &amp; Laptop Ring-Fencing
                         </div>
@@ -6055,7 +6102,7 @@ export function ModuleEWorkspace({
                           schedule audit-ready.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           3. 📈 Production ROI &amp; Unit Capacity Link
                         </div>
@@ -6097,7 +6144,7 @@ export function ModuleEWorkspace({
                           onClick={() => setExamplePersonaTab('BMU_SAAS')}
                           className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${
                             examplePersonaTab === 'BMU_SAAS'
-                              ? 'bg-indigo-600 text-white'
+                              ? 'bg-emerald-700 text-white'
                               : 'bg-white text-slate-700 ring-1 ring-slate-200'
                           }`}
                         >
@@ -6185,9 +6232,9 @@ export function ModuleEWorkspace({
                       </ul>
                     </div>
                   ) : (
-                    <div className="space-y-2 rounded-lg border border-indigo-200 bg-white p-3">
+                    <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-bold text-indigo-950">
+                        <span className="font-bold text-slate-950">
                           🚀 Startup Preflight — 100% Cloud-Native Remote Setup +
                           Ring-Fenced QA Hardware
                         </span>
@@ -6196,7 +6243,7 @@ export function ModuleEWorkspace({
                           size="sm"
                           disabled={isVaultReadonly}
                           onClick={() => handleLoadStep2PresetPersona('BMU_SAAS')}
-                          className="h-7 bg-indigo-600 px-2.5 text-[11px] text-white hover:bg-indigo-700"
+                          className="h-7 bg-emerald-700 px-2.5 text-[11px] text-white hover:bg-emerald-800"
                         >
                           Load This SaaS Schedule into Step 2
                         </Button>
@@ -6305,19 +6352,19 @@ export function ModuleEWorkspace({
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
-                      <div className="text-[11px] font-semibold text-indigo-800">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                      <div className="text-[11px] font-semibold text-emerald-900">
                         💶 Net Founder Cash Needed (After LEO Grant)
                       </div>
                       <div className="mt-1 flex items-baseline gap-2">
-                        <span className="text-lg font-extrabold text-indigo-700">
+                        <span className="text-lg font-extrabold text-emerald-800">
                           {formatPlanCurrency(
                             netFounderCashOutlayAfterLeoGrant,
                             plan.baseCurrency
                           )}
                         </span>
                       </div>
-                      <div className="mt-1 text-[10px] text-indigo-900">
+                      <div className="mt-1 text-[10px] text-slate-900">
                         After {formatPlanCurrency(estimatedLeo50GrantRebate, plan.baseCurrency)}{' '}
                         vouched IE LEO rebate drawdown
                       </div>
@@ -6325,12 +6372,12 @@ export function ModuleEWorkspace({
                   </>
                 ) : selectedCountry === 'GB' ? (
                   <>
-                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
-                      <div className="text-[11px] font-semibold text-indigo-800">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                      <div className="text-[11px] font-semibold text-emerald-900">
                         🇬🇧 UK Innovate UK 12-Mo Depreciation
                       </div>
                       <div className="mt-1 flex items-baseline gap-2">
-                        <span className="text-lg font-extrabold text-indigo-700">
+                        <span className="text-lg font-extrabold text-emerald-800">
                           {formatPlanCurrency(
                             ukInnovateAnnualEligibleDepreciation,
                             plan.baseCurrency
@@ -6338,7 +6385,7 @@ export function ModuleEWorkspace({
                           /yr
                         </span>
                       </div>
-                      <div className="mt-1 text-[10px] text-indigo-900">
+                      <div className="mt-1 text-[10px] text-slate-900">
                         Eligible Capital Usage Claim (Cost &times; 12/Life &times;
                         Usage %)
                       </div>
@@ -6403,12 +6450,12 @@ export function ModuleEWorkspace({
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
-                      <div className="text-[11px] font-semibold text-indigo-800">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                      <div className="text-[11px] font-semibold text-emerald-900">
                         📉 Annualized 12-Mo Capital Depreciation
                       </div>
                       <div className="mt-1 flex items-baseline gap-2">
-                        <span className="text-lg font-extrabold text-indigo-700">
+                        <span className="text-lg font-extrabold text-emerald-800">
                           {formatPlanCurrency(
                             ukInnovateAnnualEligibleDepreciation,
                             plan.baseCurrency
@@ -6416,7 +6463,7 @@ export function ModuleEWorkspace({
                           /yr
                         </span>
                       </div>
-                      <div className="mt-1 text-[10px] text-indigo-900">
+                      <div className="mt-1 text-[10px] text-slate-900">
                         Annualized Asset Usage (Cost &times; 12/Life &times;
                         Usage %)
                       </div>
@@ -6496,7 +6543,7 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-indigo-600" />
+                  <Building2 className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-sm font-bold text-slate-900">
                     1. Premises, Workshop &amp; Operating Footprint
                   </h3>
@@ -6519,8 +6566,8 @@ export function ModuleEWorkspace({
                         }
                         className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500/20'
-                            : 'border-slate-200 bg-white hover:border-indigo-300'
+                            ? 'border-emerald-700 bg-emerald-50/80 ring-2 ring-emerald-700/20'
+                            : 'border-slate-200 bg-white hover:border-emerald-300'
                         }`}
                       >
                         <div className="space-y-1">
@@ -6529,7 +6576,7 @@ export function ModuleEWorkspace({
                               {opt.badge}
                             </span>
                             {isSelected && (
-                              <Check className="h-4 w-4 text-indigo-600" />
+                              <Check className="h-4 w-4 text-emerald-700" />
                             )}
                           </div>
                           <div className="pt-1 text-xs font-bold text-slate-900">
@@ -6545,7 +6592,7 @@ export function ModuleEWorkspace({
                 </div>
 
                 {step2Data.premisesSetupMode === 'OTHER' && (
-                  <div className="rounded-xl border border-indigo-200 bg-white p-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <label className="mb-1 block text-xs font-bold text-slate-800">
                       Describe Your Custom Premises / Operating Footprint:
                     </label>
@@ -6560,7 +6607,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="e.g., Mobile acoustic testing van + shared university cleanroom bench..."
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 )}
@@ -6582,7 +6629,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="e.g., 32m² Insulated Timber Workshop (Domestic Garage Conversion with 32A 230V Dedicated Breaker & ATEX Extraction)"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
 
@@ -6605,7 +6652,7 @@ export function ModuleEWorkspace({
                           ),
                         }))
                       }
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 </div>
@@ -6632,8 +6679,8 @@ export function ModuleEWorkspace({
                           }
                           className={`rounded-xl border p-3 text-left transition-all ${
                             isSelected
-                              ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500/20'
-                              : 'border-slate-200 bg-white hover:border-indigo-300'
+                              ? 'border-emerald-700 bg-emerald-50/80 ring-2 ring-emerald-700/20'
+                              : 'border-slate-200 bg-white hover:border-emerald-300'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
@@ -6641,7 +6688,7 @@ export function ModuleEWorkspace({
                               {opt.label}
                             </span>
                             {isSelected && (
-                              <Check className="h-4 w-4 shrink-0 text-indigo-600" />
+                              <Check className="h-4 w-4 shrink-0 text-emerald-700" />
                             )}
                           </div>
                           <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
@@ -6653,7 +6700,7 @@ export function ModuleEWorkspace({
                   </div>
 
                   {step2Data.premisesComplianceStatus === 'OTHER' && (
-                    <div className="rounded-xl border border-indigo-200 bg-white p-3">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
                       <label className="mb-1 block text-xs font-bold text-slate-800">
                         Describe Your Custom Zoning / Lease / EHO Status:
                       </label>
@@ -6668,7 +6715,7 @@ export function ModuleEWorkspace({
                           }))
                         }
                         placeholder="e.g., Written landlord licence to manufacture in rear annex; council pre-planning confirmed exempt..."
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                       />
                     </div>
                   )}
@@ -6682,7 +6729,7 @@ export function ModuleEWorkspace({
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Hammer className="h-4 w-4 text-indigo-600" />
+                      <Hammer className="h-4 w-4 text-emerald-700" />
                       <h3 className="text-sm font-bold text-slate-900">
                         2. Capital Equipment, Machinery &amp; 3-Quote Schedule
                       </h3>
@@ -6704,7 +6751,7 @@ export function ModuleEWorkspace({
                       variant="outline"
                       disabled={isVaultReadonly}
                       onClick={handleAddEquipmentItem}
-                      className="border-indigo-300 bg-indigo-50/70 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                      className="border-emerald-300 bg-emerald-50/70 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                     >
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
                       Add Equipment / Asset Row
@@ -6747,7 +6794,7 @@ export function ModuleEWorkspace({
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 text-[11px] font-bold text-white">
                               {idx + 1}
                             </span>
                             <span className="text-xs font-bold text-slate-900">
@@ -6787,7 +6834,7 @@ export function ModuleEWorkspace({
                                 className={`h-7 px-2.5 text-[11px] font-semibold ${
                                   item.conciergeQuotesRequested
                                     ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                                    : 'border-indigo-300 bg-white text-indigo-900 hover:bg-indigo-50'
+                                    : 'border-emerald-300 bg-white text-slate-900 hover:bg-emerald-50'
                                 }`}
                               >
                                 <FileCheck2 className="mr-1.5 h-3.5 w-3.5" />
@@ -6830,7 +6877,7 @@ export function ModuleEWorkspace({
                                   assetName: e.target.value,
                                 })
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base font-medium text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base font-medium text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             />
                           </div>
 
@@ -6847,7 +6894,7 @@ export function ModuleEWorkspace({
                                     .value as EquipmentAssetCategoryType,
                                 })
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             >
                               {getEquipmentAssetCategoryOptions(
                                 selectedCountry
@@ -6872,7 +6919,7 @@ export function ModuleEWorkspace({
                                     .value as EquipmentAcquisitionModeType,
                                 })
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             >
                               {getEquipmentAcquisitionModeOptions(
                                 plan.baseCurrency
@@ -6951,7 +6998,7 @@ export function ModuleEWorkspace({
                                     ? 'e.g., Axminster Tools (UK), Machine Mart (UK), RS Components (UK)'
                                     : 'e.g., 3 independent written supplier quotes & technical specifications'
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             />
                           </div>
 
@@ -7072,7 +7119,7 @@ export function ModuleEWorkspace({
                                     .value as EquipmentFundingSourceType,
                                 })
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             >
                               {getEquipmentFundingSourceOptions(
                                 selectedCountry
@@ -7098,9 +7145,9 @@ export function ModuleEWorkspace({
                                   });
                                   setIsQuoteModalOpen(true);
                                 }}
-                                className="inline-flex items-center gap-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 hover:bg-indigo-100"
+                                className="inline-flex items-center gap-1 rounded border border-slate-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-slate-100"
                               >
-                                <Zap className="h-3 w-3 text-indigo-600" />
+                                <Zap className="h-3 w-3 text-emerald-700" />
                                 3-Quote Concierge
                               </button>
                             </div>
@@ -7113,7 +7160,7 @@ export function ModuleEWorkspace({
                                     .value as EquipmentQuoteComplianceStatusType,
                                 })
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             >
                               {getEquipmentQuoteComplianceOptions(
                                 selectedCountry,
@@ -7148,11 +7195,11 @@ export function ModuleEWorkspace({
                                 </div>
                               </div>
                             ) : selectedCountry === 'GB' ? (
-                              <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-1.5 text-[10px] text-indigo-950">
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] text-slate-950">
                                 <div className="font-semibold">
                                   🇬🇧 UK Innovate Deprec:
                                 </div>
-                                <div className="font-extrabold text-indigo-700">
+                                <div className="font-extrabold text-emerald-800">
                                   {formatPlanCurrency(
                                     itemUkAnnualDeprec,
                                     plan.baseCurrency
@@ -7161,11 +7208,11 @@ export function ModuleEWorkspace({
                                 </div>
                               </div>
                             ) : (
-                              <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-1.5 text-[10px] text-indigo-950">
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] text-slate-950">
                                 <div className="font-semibold">
                                   12-Mo Deprec:
                                 </div>
-                                <div className="font-extrabold text-indigo-700">
+                                <div className="font-extrabold text-emerald-800">
                                   {formatPlanCurrency(
                                     itemUkAnnualDeprec,
                                     plan.baseCurrency
@@ -7245,11 +7292,11 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               {/* SECTION 3: AI PREMISES & EQUIPMENT ROI NARRATIVE SYNTHESIZER  */}
               {/* ============================================================= */}
-              <div className="space-y-4 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+              <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Wand2 className="h-4 w-4 text-indigo-600" />
+                      <Wand2 className="h-4 w-4 text-emerald-700" />
                       <h3 className="text-sm font-bold text-slate-900">
                         3. Grant-Ready Premises &amp; Capital Equipment ROI
                         Narratives
@@ -7269,12 +7316,12 @@ export function ModuleEWorkspace({
                       variant="outline"
                       disabled={isVaultReadonly || isGeneratingAiStep2}
                       onClick={() => handleRunAiStep2('NARRATIVES_ONLY')}
-                      className="border-indigo-300 bg-white text-xs font-semibold text-indigo-900 hover:bg-indigo-50"
+                      className="border-emerald-300 bg-white text-xs font-semibold text-slate-900 hover:bg-emerald-50"
                     >
                       {isGeneratingAiStep2 ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       )}
                       Synthesize Narratives from My Schedule
                     </Button>
@@ -7285,7 +7332,7 @@ export function ModuleEWorkspace({
                       onClick={() =>
                         handleRunAiStep2('POPULATE_ASSETS_AND_NARRATIVES')
                       }
-                      className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                     >
                       {isGeneratingAiStep2 ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -7316,7 +7363,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="Explain why your current operating footprint (e.g., insulated 32m² garage workshop or 100% cloud-native setup) is capital-efficient for Year 1 and compliant with zoning/safety rules..."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
 
@@ -7337,7 +7384,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="Explain how your machinery investments increase throughput/reduce unit labour, confirm 3 written quotes for items >= €1,000, and confirm laptops/mobile devices are ring-fenced under 100% Own Funds..."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 </div>
@@ -7385,7 +7432,7 @@ export function ModuleEWorkspace({
                     size="sm"
                     disabled={isVaultReadonly || isSavingStep2}
                     onClick={handleSaveStep2}
-                    className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                    className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                   >
                     {isSavingStep2 ? (
                       <>
@@ -7456,7 +7503,7 @@ export function ModuleEWorkspace({
           {/* ================================================================= */}
           {/* LIVE STEP 2 APPENDIX C & INNOVATE UK OUTPUT PREVIEW TABLE         */}
           {/* ================================================================= */}
-          <Card className="border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 shadow-xs">
+          <Card className="border-slate-200 bg-gradient-to-br from-white to-slate-50/40 shadow-xs">
             <CardHeader className="pb-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-sm font-bold text-slate-900">
@@ -7465,7 +7512,7 @@ export function ModuleEWorkspace({
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {itemsWithConciergeRequested.length > 0 && (
-                    <Badge className="bg-indigo-600 text-[10px] text-white">
+                    <Badge className="bg-emerald-700 text-[10px] text-white">
                       {itemsWithConciergeRequested.length} Concierge RFP(s)
                       Active
                     </Badge>
@@ -7574,7 +7621,7 @@ export function ModuleEWorkspace({
                                 )}
                               </div>
                             ) : selectedCountry === 'GB' ? (
-                              <div className="font-bold text-indigo-700">
+                              <div className="font-bold text-emerald-800">
                                 {formatPlanCurrency(
                                   ukDeprec,
                                   plan.baseCurrency
@@ -7590,7 +7637,7 @@ export function ModuleEWorkspace({
                                     plan.baseCurrency
                                   )}
                                 </div>
-                                <div className="text-[10px] text-indigo-700">
+                                <div className="text-[10px] text-emerald-800">
                                   Deprec:{' '}
                                   {formatPlanCurrency(
                                     ukDeprec,
@@ -7624,7 +7671,7 @@ export function ModuleEWorkspace({
                             )}
                           </div>
                         ) : selectedCountry === 'GB' ? (
-                          <div className="text-indigo-700">
+                          <div className="text-emerald-800">
                             UK 12-Mo Deprec:{' '}
                             {formatPlanCurrency(
                               ukInnovateAnnualEligibleDepreciation,
@@ -7641,7 +7688,7 @@ export function ModuleEWorkspace({
                                 plan.baseCurrency
                               )}
                             </div>
-                            <div className="text-[10px] text-indigo-700">
+                            <div className="text-[10px] text-emerald-800">
                               Deprec:{' '}
                               {formatPlanCurrency(
                                 ukInnovateAnnualEligibleDepreciation,
@@ -7672,7 +7719,7 @@ export function ModuleEWorkspace({
             setOpenStep(3);
             setActiveTab('STEP_3');
           }}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -7680,7 +7727,7 @@ export function ModuleEWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[2]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleEReadinessSteps[2]?.isComplete ? (
@@ -7691,7 +7738,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 3: 4-Category Risk Register
                   </h2>
                   {moduleEReadinessSteps[2]?.isComplete ? (
@@ -7713,7 +7760,7 @@ export function ModuleEWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleEReadinessSteps[2]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -7730,7 +7777,7 @@ export function ModuleEWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[2]?.isComplete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {moduleEReadinessSteps[2]?.isComplete ? (
@@ -7742,7 +7789,7 @@ export function ModuleEWorkspace({
                 <h2 className="text-base font-bold text-slate-900">
                   Step 3: 4-Category Risk Register
                 </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
                   Step 3 of 6
                 </Badge>
                 {moduleEReadinessSteps[2]?.isComplete ? (
@@ -7778,11 +7825,11 @@ export function ModuleEWorkspace({
           </div>
 
           <div className="space-y-5">
-          <Card className="border-indigo-200 bg-white shadow-xs">
+          <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-indigo-600 text-white">
+                  <Badge className="bg-emerald-700 text-white">
                     Step 3 of 6 • Supply-Chain Resilience &amp; 4-Category
                     Risk Register
                   </Badge>
@@ -7855,9 +7902,9 @@ export function ModuleEWorkspace({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowWhyAskingStep3(!showWhyAskingStep3)}
-                    className="h-7 border-indigo-200 bg-indigo-50/60 text-[11px] font-medium text-indigo-900 hover:bg-indigo-100"
+                    className="h-7 border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-900 hover:bg-slate-100"
                   >
-                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Why Are We Asking This?
                   </Button>
                   <Button
@@ -7890,24 +7937,24 @@ export function ModuleEWorkspace({
             <CardContent className="space-y-6 pt-5">
               {/* MICRO-COACHING DRAWER: WHY ARE WE ASKING THIS? */}
               {showWhyAskingStep3 && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
                   <div className="mb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2 font-bold text-indigo-900">
-                      <ShieldCheck className="h-4 w-4 text-indigo-700" />
+                    <div className="flex items-center gap-2 font-bold text-slate-900">
+                      <ShieldCheck className="h-4 w-4 text-emerald-800" />
                       Why Grant Evaluators &amp; Underwriters Require a Scored
                       4-Category Risk Register
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowWhyAskingStep3(false)}
-                      className="text-[11px] font-semibold text-indigo-700 underline"
+                      className="text-[11px] font-semibold text-emerald-800 underline"
                     >
                       Close
                     </button>
                   </div>
                   {selectedCountry === 'IE' ? (
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           1. 🇮🇪 IE LEO / Enterprise Ireland 4-Category Rule
                         </div>
@@ -7923,7 +7970,7 @@ export function ModuleEWorkspace({
                           risk to Low or Medium.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           2. Dual-Sourced Supply-Chain Resilience
                         </div>
@@ -7936,7 +7983,7 @@ export function ModuleEWorkspace({
                           price spikes.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           3. Retrospective Grant Cashflow Timing Risk
                         </div>
@@ -7951,7 +7998,7 @@ export function ModuleEWorkspace({
                     </div>
                   ) : selectedCountry === 'GB' ? (
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           1. 🇬🇧 UK Innovate UK Question 9 (Risk Register)
                         </div>
@@ -7967,7 +8014,7 @@ export function ModuleEWorkspace({
                           mitigations reduce residual risk.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           2. British Business Bank Start Up Loan Underwriting
                         </div>
@@ -7978,7 +8025,7 @@ export function ModuleEWorkspace({
                           temporarily unavailable.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           3. Linked to Build Phases &amp; Milestones (Step-by-Step Plan) — Work Packages (WP1..n)
                         </div>
@@ -7992,7 +8039,7 @@ export function ModuleEWorkspace({
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           1. Complete 4-Category Coverage
                         </div>
@@ -8003,7 +8050,7 @@ export function ModuleEWorkspace({
                           risks.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           2. Quantified Gross vs. Residual Risk
                         </div>
@@ -8014,7 +8061,7 @@ export function ModuleEWorkspace({
                           readiness.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-indigo-200/80 bg-white p-3">
+                      <div className="rounded-lg border border-slate-200/80 bg-white p-3">
                         <div className="font-bold text-slate-900">
                           3. No Single Point of Failure
                         </div>
@@ -8113,14 +8160,14 @@ export function ModuleEWorkspace({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-800">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-900">
                     Average Gross Risk Score
                   </div>
-                  <div className="mt-1 text-lg font-extrabold text-indigo-950">
+                  <div className="mt-1 text-lg font-extrabold text-slate-950">
                     {averageGrossRiskScore} / 25
                   </div>
-                  <div className="mt-0.5 text-[11px] text-indigo-900/80">
+                  <div className="mt-0.5 text-[11px] text-slate-900/80">
                     {highGrossRiskItemsCount} high-severity gross risk(s) (&ge;
                     12/25) identified
                   </div>
@@ -8227,7 +8274,7 @@ export function ModuleEWorkspace({
                           ),
                         }))
                       }
-                      className="w-20 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-center text-base font-bold text-indigo-900 sm:text-xs"
+                      className="w-20 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-center text-base font-bold text-slate-900 sm:text-xs"
                     />
                     <span className="text-[11px] text-slate-500">days</span>
                   </div>
@@ -8250,8 +8297,8 @@ export function ModuleEWorkspace({
                         }
                         className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-600/20'
-                            : 'border-slate-200 bg-white hover:border-indigo-300'
+                            ? 'border-emerald-700 bg-emerald-50/80 ring-2 ring-emerald-700/20'
+                            : 'border-slate-200 bg-white hover:border-emerald-300'
                         }`}
                       >
                         <div>
@@ -8260,7 +8307,7 @@ export function ModuleEWorkspace({
                               {opt.badge}
                             </span>
                             {isSelected && (
-                              <Check className="h-4 w-4 text-indigo-600" />
+                              <Check className="h-4 w-4 text-emerald-700" />
                             )}
                           </div>
                           <div className="mt-1.5 text-xs font-bold text-slate-900">
@@ -8276,7 +8323,7 @@ export function ModuleEWorkspace({
                 </div>
 
                 {step3Data.supplierRedundancyPosture === 'OTHER' && (
-                  <div className="rounded-xl border border-indigo-200 bg-white p-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <label className="mb-1 block text-xs font-bold text-slate-800">
                       Describe Your Custom Supply-Chain Redundancy Strategy:
                     </label>
@@ -8291,7 +8338,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="e.g., Co-operative local farm sourcing + seasonal cold-storage buffer..."
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 )}
@@ -8312,7 +8359,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="List your primary raw material suppliers, contract manufacturers, couriers, or primary cloud/API infrastructure..."
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
 
@@ -8331,7 +8378,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="List your secondary backup suppliers, alternate courier account, or automated cloud failover / circuit-breaker setup..."
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 </div>
@@ -8365,7 +8412,7 @@ export function ModuleEWorkspace({
                       onClick={() =>
                         handleRunAiStep3('POPULATE_RISKS_AND_NARRATIVES')
                       }
-                      className="border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                      className="border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                     >
                       {isGeneratingAiStep3 ? (
                         <>
@@ -8374,7 +8421,7 @@ export function ModuleEWorkspace({
                         </>
                       ) : (
                         <>
-                          <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                          <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                           AI Draft 4-Category Risk Register
                         </>
                       )}
@@ -8385,7 +8432,7 @@ export function ModuleEWorkspace({
                       variant="outline"
                       disabled={isVaultReadonly}
                       onClick={handleAddRiskItem}
-                      className="border-indigo-300 bg-white text-xs font-semibold text-indigo-900 hover:bg-indigo-50"
+                      className="border-emerald-300 bg-white text-xs font-semibold text-slate-900 hover:bg-emerald-50"
                     >
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
                       Add Risk Row
@@ -8495,7 +8542,7 @@ export function ModuleEWorkspace({
                                     .value as ProjectRiskCategoryType,
                                 })
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             >
                               {PROJECT_RISK_CATEGORY_OPTIONS.map((opt) => (
                                 <option key={opt.value} value={opt.value}>
@@ -8514,7 +8561,7 @@ export function ModuleEWorkspace({
                                   })
                                 }
                                 placeholder="Specify custom risk category..."
-                                className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
+                                className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
                               />
                             )}
                           </div>
@@ -8533,7 +8580,7 @@ export function ModuleEWorkspace({
                                 })
                               }
                               placeholder="e.g., Primary supplier lead-time spike or CNC / production bottleneck during Q4 peak..."
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base font-semibold text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base font-semibold text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             />
                           </div>
                         </div>
@@ -8599,7 +8646,7 @@ export function ModuleEWorkspace({
                                 })
                               }
                               placeholder="e.g., Founder / Ops Lead (WP2)"
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             />
                           </div>
 
@@ -8616,7 +8663,7 @@ export function ModuleEWorkspace({
                                     .value as ResidualRiskRatingType,
                                 })
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                             >
                               {RESIDUAL_RISK_RATING_OPTIONS.map((opt) => (
                                 <option key={opt.value} value={opt.value}>
@@ -8635,7 +8682,7 @@ export function ModuleEWorkspace({
                                   })
                                 }
                                 placeholder="Specify custom residual rating..."
-                                className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
+                                className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
                               />
                             )}
                           </div>
@@ -8656,7 +8703,7 @@ export function ModuleEWorkspace({
                               })
                             }
                             placeholder="Explain your preventative controls today AND what automatic contingency triggers if this risk occurs..."
-                            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-800 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-800 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                           />
                         </div>
                       </div>
@@ -8668,11 +8715,11 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               {/* SECTION 3: AI SUPPLY-CHAIN & RISK GOVERNANCE NARRATIVES       */}
               {/* ============================================================= */}
-              <div className="space-y-4 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+              <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Wand2 className="h-4 w-4 text-indigo-600" />
+                      <Wand2 className="h-4 w-4 text-emerald-700" />
                       <h3 className="text-sm font-bold text-slate-900">
                         3. Supply-Chain Resilience &amp; Risk Management
                         Governance Narratives
@@ -8694,12 +8741,12 @@ export function ModuleEWorkspace({
                       variant="outline"
                       disabled={isVaultReadonly || isGeneratingAiStep3}
                       onClick={() => handleRunAiStep3('NARRATIVES_ONLY')}
-                      className="border-indigo-300 bg-white text-xs font-semibold text-indigo-900 hover:bg-indigo-50"
+                      className="border-emerald-300 bg-white text-xs font-semibold text-slate-900 hover:bg-emerald-50"
                     >
                       {isGeneratingAiStep3 ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       )}
                       Synthesize Narratives from My Register
                     </Button>
@@ -8710,7 +8757,7 @@ export function ModuleEWorkspace({
                       onClick={() =>
                         handleRunAiStep3('POPULATE_RISKS_AND_NARRATIVES')
                       }
-                      className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                      className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                     >
                       {isGeneratingAiStep3 ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -8739,7 +8786,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="Explain how your dual-sourcing, safety buffer stock, or multi-region cloud failover eliminates single points of failure..."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
 
@@ -8759,7 +8806,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="Summarize how your 4-category Risk Register is reviewed across Work Packages so residual operational, commercial, and financial risk remains Low..."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-600 focus:outline-hidden sm:text-xs"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
                     />
                   </div>
                 </div>
@@ -8807,7 +8854,7 @@ export function ModuleEWorkspace({
                     size="sm"
                     disabled={isVaultReadonly || isSavingStep3}
                     onClick={handleSaveStep3}
-                    className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                    className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                   >
                     {isSavingStep3 ? (
                       <>
@@ -8878,7 +8925,7 @@ export function ModuleEWorkspace({
           {/* ================================================================= */}
           {/* LIVE STEP 3 OUTPUT PREVIEW TABLE (MODULE K RISK COMPILER)         */}
           {/* ================================================================= */}
-          <Card className="border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 shadow-xs">
+          <Card className="border-slate-200 bg-gradient-to-br from-white to-slate-50/40 shadow-xs">
             <CardHeader className="pb-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-sm font-bold text-slate-900">
@@ -8936,7 +8983,7 @@ export function ModuleEWorkspace({
                               {risk.riskTitle}
                             </div>
                             <div className="mt-0.5 text-[10px] text-slate-600">
-                              <span className="font-semibold text-indigo-800">
+                              <span className="font-semibold text-emerald-900">
                                 Mitigation:
                               </span>{' '}
                               {risk.mitigationAndContingencyPlan}
@@ -8987,7 +9034,7 @@ export function ModuleEWorkspace({
             setOpenStep(4);
             setActiveTab('STEP_4');
           }}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -8995,7 +9042,7 @@ export function ModuleEWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[3]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleEReadinessSteps[3]?.isComplete ? (
@@ -9006,7 +9053,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 4: Support, Returns, Warranty & QC SOP
                   </h2>
                   {moduleEReadinessSteps[3]?.isComplete ? (
@@ -9028,7 +9075,7 @@ export function ModuleEWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleEReadinessSteps[3]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -9045,7 +9092,7 @@ export function ModuleEWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[3]?.isComplete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {moduleEReadinessSteps[3]?.isComplete ? (
@@ -9057,7 +9104,7 @@ export function ModuleEWorkspace({
                 <h2 className="text-base font-bold text-slate-900">
                   Step 4: Support, Returns, Warranty & QC SOP
                 </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
                   Step 4 of 6
                 </Badge>
                 {moduleEReadinessSteps[3]?.isComplete ? (
@@ -9094,11 +9141,11 @@ export function ModuleEWorkspace({
 
           <div className="space-y-6">
           {/* 4-Layer Support & Action Bar (No Presets — Pure Plan-Driven) */}
-          <Card className="border-indigo-200/80 bg-gradient-to-r from-indigo-50/70 via-white to-emerald-50/50 shadow-xs">
+          <Card className="border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-emerald-50/50 shadow-xs">
             <CardContent className="p-4">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-indigo-600 text-white">
+                  <Badge className="bg-emerald-700 text-white">
                     Step 4 of 6 • Support, Returns, Warranty &amp; QC SOP
                   </Badge>
                   {selectedCountry === 'IE' ? (
@@ -9112,7 +9159,7 @@ export function ModuleEWorkspace({
                   ) : selectedCountry === 'GB' ? (
                     <Badge
                       variant="outline"
-                      className="border-indigo-300 bg-indigo-50 text-indigo-900"
+                      className="border-emerald-300 bg-emerald-50 text-slate-900"
                     >
                       🇬🇧 UK Consumer Rights Act 2015 &amp; Consumer Contracts
                       Mode
@@ -9129,7 +9176,7 @@ export function ModuleEWorkspace({
                   {step4Data.aiEngineUsed && (
                     <Badge
                       variant="outline"
-                      className="border-violet-200 bg-violet-50 text-[11px] text-violet-800"
+                      className="border-slate-200 bg-slate-50 text-[11px] text-emerald-900"
                     >
                       Engine: {step4Data.aiEngineUsed}
                     </Badge>
@@ -9149,7 +9196,7 @@ export function ModuleEWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={() => setShowWhyAskingStep4((v) => !v)}
-                    className="h-7 border-indigo-200 bg-white text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                    className="h-7 border-slate-200 bg-white text-[11px] font-medium text-emerald-800 hover:bg-emerald-50"
                   >
                     <HelpCircle className="mr-1 h-3.5 w-3.5" />
                     Why Are We Asking?
@@ -9182,7 +9229,7 @@ export function ModuleEWorkspace({
                     onClick={() => setShowParkInputStep4((v) => !v)}
                     className="h-7 border-slate-200 bg-white text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                    <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Park Open Question
                   </Button>
                   <Button
@@ -9193,9 +9240,9 @@ export function ModuleEWorkspace({
                     onClick={() =>
                       handleRunAiStep4('POPULATE_QC_AND_NARRATIVES')
                     }
-                    className="h-7 border-violet-200 bg-violet-50/70 text-[11px] font-semibold text-violet-800 hover:bg-violet-100"
+                    className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-900 hover:bg-slate-100"
                   >
-                    <MessageSquareWarning className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                    <MessageSquareWarning className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     I&apos;m Stuck (AI Auto-Draft)
                   </Button>
                 </div>
@@ -9203,22 +9250,22 @@ export function ModuleEWorkspace({
 
               {/* Layer 1A: Why Are We Asking This? */}
               {showWhyAskingStep4 && (
-                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-bold text-indigo-900">
+                    <p className="font-bold text-slate-900">
                       🎯 Why Evaluators &amp; Investors Audit Your QC &amp;
                       Returns SOP:
                     </p>
                     <button
                       type="button"
                       onClick={() => setShowWhyAskingStep4(false)}
-                      className="text-[11px] font-semibold text-indigo-700 underline"
+                      className="text-[11px] font-semibold text-emerald-800 underline"
                     >
                       Close
                     </button>
                   </div>
                   <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                    <div className="rounded-lg border border-indigo-200/80 bg-white p-2.5">
+                    <div className="rounded-lg border border-slate-200/80 bg-white p-2.5">
                       <p className="font-semibold text-slate-900">
                         1. Protecting Unit Pocket Profit (Module G)
                       </p>
@@ -9229,7 +9276,7 @@ export function ModuleEWorkspace({
                         &ldquo;phantom margin&rdquo; in your financial model.
                       </p>
                     </div>
-                    <div className="rounded-lg border border-indigo-200/80 bg-white p-2.5">
+                    <div className="rounded-lg border border-slate-200/80 bg-white p-2.5">
                       <p className="font-semibold text-slate-900">
                         {selectedCountry === 'IE'
                           ? '2. 🇮🇪 Ireland Consumer Rights Act 2022 & LEO Quality Proof'
@@ -9245,7 +9292,7 @@ export function ModuleEWorkspace({
                             : 'Consumer protection laws distinguish between standard distance sales (cooling-off returns) and custom/B2B contracts. Clear QC gates prevent defects before dispatch.'}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-indigo-200/80 bg-white p-2.5">
+                    <div className="rounded-lg border border-slate-200/80 bg-white p-2.5">
                       <p className="font-semibold text-slate-900">
                         3. Protecting Founder Focus
                       </p>
@@ -9328,7 +9375,7 @@ export function ModuleEWorkspace({
                     value={parkQuestionInputStep4}
                     onChange={(e) => setParkQuestionInputStep4(e.target.value)}
                     placeholder="e.g., Confirm whether our custom gift bundles qualify for the bespoke cooling-off exemption or require a 3% return buffer..."
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                   />
                   <Button
                     type="button"
@@ -9344,7 +9391,7 @@ export function ModuleEWorkspace({
                         '📌 Parked question in your Open Questions Parking Lot!'
                       );
                     }}
-                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                    className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
                   >
                     Save to Parking Lot
                   </Button>
@@ -9360,7 +9407,7 @@ export function ModuleEWorkspace({
                 <span className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
                   Support SLA &amp; Channel
                 </span>
-                <Headphones className="h-4 w-4 text-indigo-600" />
+                <Headphones className="h-4 w-4 text-emerald-700" />
               </div>
               <p className="mt-1.5 text-sm font-bold text-slate-900">
                 {step4Data.supportResponseSla === 'OTHER' &&
@@ -9422,19 +9469,19 @@ export function ModuleEWorkspace({
               </p>
             </div>
 
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 shadow-2xs">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 shadow-2xs">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold tracking-wider text-indigo-900 uppercase">
+                <span className="text-[11px] font-semibold tracking-wider text-slate-900 uppercase">
                   Monthly Return Reserve @ Max Cap
                 </span>
-                <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                <ShieldCheck className="h-4 w-4 text-emerald-700" />
               </div>
-              <p className="mt-1.5 text-lg font-extrabold text-indigo-950">
+              <p className="mt-1.5 text-lg font-extrabold text-slate-950">
                 {plan.baseCurrency === 'GBP' ? '£' : '€'}
                 {expectedMonthlyReturnCostAtMaxCapacity.toLocaleString()}{' '}
-                <span className="text-xs font-normal text-indigo-800">/ mo</span>
+                <span className="text-xs font-normal text-emerald-900">/ mo</span>
               </p>
-              <p className="mt-0.5 text-[11px] text-indigo-800">
+              <p className="mt-0.5 text-[11px] text-emerald-900">
                 At {maxOrdersPerMonthByManualTime} orders/mo capacity from Step
                 1
               </p>
@@ -9477,15 +9524,15 @@ export function ModuleEWorkspace({
               </div>
             </div>
           ) : selectedCountry === 'GB' ? (
-            <div className="rounded-xl border border-indigo-300 bg-indigo-50/80 p-4">
+            <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 p-4">
               <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-indigo-700" />
-                <div className="space-y-1 text-xs text-indigo-950">
-                  <p className="font-bold text-indigo-900">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-800" />
+                <div className="space-y-1 text-xs text-slate-950">
+                  <p className="font-bold text-slate-900">
                     🇬🇧 UK Consumer Rights Act 2015, Consumer Contracts Regs 2013
                     &amp; Start Up Loan / Innovate UK Quality Guardrail
                   </p>
-                  <p className="leading-relaxed text-indigo-900">
+                  <p className="leading-relaxed text-slate-900">
                     Under the{' '}
                     <strong>UK Consumer Rights Act 2015 (CRA 2015)</strong> and{' '}
                     <strong>
@@ -9539,7 +9586,7 @@ export function ModuleEWorkspace({
           <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
-                <Headphones className="h-4 w-4 text-indigo-600" />
+                <Headphones className="h-4 w-4 text-emerald-700" />
                 Part A: Customer Support Operating Model &amp; Response SLA
               </CardTitle>
               <CardDescription className="text-xs text-slate-600">
@@ -9571,7 +9618,7 @@ export function ModuleEWorkspace({
                         }
                         className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                         }`}
                       >
@@ -9595,8 +9642,8 @@ export function ModuleEWorkspace({
                 </div>
 
                 {step4Data.supportOperatingModel === 'OTHER' && (
-                  <div className="mt-2 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-xs font-semibold text-indigo-950">
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-xs font-semibold text-slate-950">
                       Describe your custom Customer Support Operating Model:
                     </label>
                     <input
@@ -9610,7 +9657,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="e.g., Dedicated WhatsApp VIP concierge for trade buyers + weekly office hours..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                     />
                   </div>
                 )}
@@ -9638,7 +9685,7 @@ export function ModuleEWorkspace({
                         }
                         className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                         }`}
                       >
@@ -9654,8 +9701,8 @@ export function ModuleEWorkspace({
                 </div>
 
                 {step4Data.supportResponseSla === 'OTHER' && (
-                  <div className="mt-2 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-xs font-semibold text-indigo-950">
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-xs font-semibold text-slate-950">
                       Specify your custom Support Response SLA:
                     </label>
                     <input
@@ -9669,7 +9716,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="e.g., 2-hour response for enterprise severity-1 issues; 24h for standard tickets..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                     />
                   </div>
                 )}
@@ -9801,7 +9848,7 @@ export function ModuleEWorkspace({
                           ),
                         }))
                       }
-                      className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                     />
                     <span className="text-xs font-semibold text-slate-600">
                       % of orders
@@ -9838,7 +9885,7 @@ export function ModuleEWorkspace({
                           ),
                         }))
                       }
-                      className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                     />
                     <span className="text-xs text-slate-600">/ incident</span>
                   </div>
@@ -9869,7 +9916,7 @@ export function ModuleEWorkspace({
                           ),
                         }))
                       }
-                      className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                      className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-bold text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                     />
                     <span className="text-xs font-semibold text-slate-600">
                       months
@@ -9958,7 +10005,7 @@ export function ModuleEWorkspace({
                             gateTiming: e.target.value as QcGateTimingType,
                           })
                         }
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-base font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-base font-semibold text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                       >
                         {QC_GATE_TIMING_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
@@ -9998,7 +10045,7 @@ export function ModuleEWorkspace({
                           })
                         }
                         placeholder="e.g., Gate 4 — 30-Day Post-Installation Customer Check-In..."
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                       />
                     </div>
                   )}
@@ -10018,7 +10065,7 @@ export function ModuleEWorkspace({
                           })
                         }
                         placeholder="e.g., Pre-Dispatch Finish, Hydration & Drop-Proof Packaging Sign-Off"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base font-semibold text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                       />
                     </div>
 
@@ -10036,7 +10083,7 @@ export function ModuleEWorkspace({
                           })
                         }
                         placeholder="e.g., Founder / Lead Maker / CI Pipeline"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                       />
                     </div>
                   </div>
@@ -10056,7 +10103,7 @@ export function ModuleEWorkspace({
                           })
                         }
                         placeholder="What objective measurement or test must pass before this order/release moves forward?"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                       />
                     </div>
 
@@ -10074,7 +10121,7 @@ export function ModuleEWorkspace({
                           })
                         }
                         placeholder="What happens immediately if an item or build fails this gate?"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                       />
                     </div>
                   </div>
@@ -10084,12 +10131,12 @@ export function ModuleEWorkspace({
           </Card>
 
           {/* PART D: AI / Founder Grant-Ready Narratives & Summary Table */}
-          <Card className="border-indigo-200 bg-white shadow-xs">
+          <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
-                    <Sparkles className="h-4 w-4 text-indigo-600" />
+                    <Sparkles className="h-4 w-4 text-emerald-700" />
                     Part D: Quality Assurance &amp; Customer Support Narratives
                     (Module K Compiler Feed)
                   </CardTitle>
@@ -10109,9 +10156,9 @@ export function ModuleEWorkspace({
                     variant="outline"
                     disabled={isVaultReadonly || isGeneratingAiStep4}
                     onClick={() => handleRunAiStep4('NARRATIVES_ONLY')}
-                    className="h-8 border-indigo-200 bg-indigo-50/70 text-xs font-semibold text-indigo-800 hover:bg-indigo-100"
+                    className="h-8 border-slate-200 bg-slate-50 text-xs font-semibold text-emerald-900 hover:bg-slate-100"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     {isGeneratingAiStep4
                       ? 'Synthesizing...'
                       : 'Synthesize Narratives Only'}
@@ -10123,7 +10170,7 @@ export function ModuleEWorkspace({
                     onClick={() =>
                       handleRunAiStep4('POPULATE_QC_AND_NARRATIVES')
                     }
-                    className="h-8 bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                    className="h-8 bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                   >
                     <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                     {isGeneratingAiStep4
@@ -10156,7 +10203,7 @@ export function ModuleEWorkspace({
                       }))
                     }
                     placeholder="Click 'AI Generate Full QC SOP & Narratives' or write how your incoming, in-process, and pre-release QC checkpoints guarantee consistent quality..."
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                   />
                 </div>
 
@@ -10183,7 +10230,7 @@ export function ModuleEWorkspace({
                       }))
                     }
                     placeholder="Explain how your support channel, response SLA, and statutory return/warranty policy build customer trust while protecting founder production blocks..."
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-none sm:text-xs"
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
                   />
                 </div>
               </div>
@@ -10219,7 +10266,7 @@ export function ModuleEWorkspace({
                     <tbody className="divide-y divide-slate-200">
                       {step4Data.qcCheckpoints.map((cp) => (
                         <tr key={cp.id} className="hover:bg-slate-50/80">
-                          <td className="px-3 py-2 font-semibold text-indigo-900">
+                          <td className="px-3 py-2 font-semibold text-slate-900">
                             {cp.gateTiming === 'OTHER' && cp.otherGateTimingText
                               ? cp.otherGateTimingText
                               : QC_GATE_TIMING_OPTIONS.find(
@@ -10295,7 +10342,7 @@ export function ModuleEWorkspace({
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }, 50);
                     }}
-                    className="w-full border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100 sm:w-auto"
+                    className="w-full border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100 sm:w-auto"
                   >
                     Save &amp; Continue to Step 5 &rarr;
                   </Button>
@@ -10317,7 +10364,7 @@ export function ModuleEWorkspace({
             setOpenStep(5);
             setActiveTab('STEP_5');
           }}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -10325,7 +10372,7 @@ export function ModuleEWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleEReadinessSteps[4]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleEReadinessSteps[4]?.isComplete ? (
@@ -10336,7 +10383,7 @@ export function ModuleEWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 5: Permits, Compliance & Insurance Matcher
                   </h2>
                   {moduleEReadinessSteps[4]?.isComplete ? (
@@ -10358,7 +10405,7 @@ export function ModuleEWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleEReadinessSteps[4]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -10375,7 +10422,7 @@ export function ModuleEWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleEReadinessSteps[4]?.isComplete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {moduleEReadinessSteps[4]?.isComplete ? (
@@ -10387,7 +10434,7 @@ export function ModuleEWorkspace({
                 <h2 className="text-base font-bold text-slate-900">
                   Step 5: Permits, Compliance & Insurance Matcher
                 </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-indigo-700 border-indigo-200 bg-indigo-50">
+                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
                   Step 5 of 6
                 </Badge>
                 {moduleEReadinessSteps[4]?.isComplete ? (
@@ -10429,7 +10476,7 @@ export function ModuleEWorkspace({
               <div className="flex flex-col gap-3">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-indigo-950 text-white hover:bg-indigo-900">
+                    <Badge className="bg-slate-950 text-white hover:bg-slate-900">
                       Step 5 of 6
                     </Badge>
                     <Badge
@@ -10446,7 +10493,7 @@ export function ModuleEWorkspace({
                     </Badge>
                     <Badge
                       variant="outline"
-                      className="border-indigo-200 bg-indigo-50 text-indigo-900"
+                      className="border-slate-200 bg-emerald-50 text-slate-900"
                     >
                       Synced to Module I Overheads &amp; Module K Legal
                       Governance
@@ -10478,9 +10525,9 @@ export function ModuleEWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={() => setShowWhyAskingStep5((prev) => !prev)}
-                    className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                    className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Why Are We Asking This?
                   </Button>
                   <Button
@@ -10519,22 +10566,22 @@ export function ModuleEWorkspace({
 
               {/* Layer 1A: Why Are We Asking This? Drawer */}
               {showWhyAskingStep5 && (
-                <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-bold text-indigo-900">
+                    <p className="font-bold text-slate-900">
                       Why Grant Assessors, Loan Officers &amp; B2B Buyers Audit
                       Your Compliance &amp; Insurance Posture:
                     </p>
                     <button
                       type="button"
                       onClick={() => setShowWhyAskingStep5(false)}
-                      className="text-indigo-700 hover:text-indigo-950"
+                      className="text-emerald-800 hover:text-slate-950"
                     >
                       ✕
                     </button>
                   </div>
                   {selectedCountry === 'IE' ? (
-                    <ul className="mt-2 list-disc space-y-1 pl-4 text-indigo-900/90">
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-slate-900/90">
                       <li>
                         <strong>
                           🇮🇪 LEO &amp; Enterprise Ireland Mandatory Gatekeeper:
@@ -10574,7 +10621,7 @@ export function ModuleEWorkspace({
                       </li>
                     </ul>
                   ) : selectedCountry === 'GB' ? (
-                    <ul className="mt-2 list-disc space-y-1 pl-4 text-indigo-900/90">
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-slate-900/90">
                       <li>
                         <strong>
                           🇬🇧 Innovate UK, Start Up Loans &amp; SEIS/EIS
@@ -10611,7 +10658,7 @@ export function ModuleEWorkspace({
                       </li>
                     </ul>
                   ) : (
-                    <ul className="mt-2 list-disc space-y-1 pl-4 text-indigo-900/90">
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-slate-900/90">
                       <li>
                         <strong>Corporate &amp; Tax Good Standing:</strong>{' '}
                         Grant bodies, lenders, and enterprise customers require
@@ -10860,10 +10907,10 @@ export function ModuleEWorkspace({
               </CardContent>
             </Card>
 
-            <Card className="border-indigo-200 bg-indigo-50/40 shadow-xs">
+            <Card className="border-slate-200 bg-slate-50 shadow-xs">
               <CardContent className="p-3.5">
                 <div className="flex items-center justify-between gap-1">
-                  <p className="text-[11px] font-semibold tracking-wide text-indigo-900 uppercase">
+                  <p className="text-[11px] font-semibold tracking-wide text-slate-900 uppercase">
                     3. Est. Annual Insurance Premium
                   </p>
                   <Badge
@@ -10873,17 +10920,17 @@ export function ModuleEWorkspace({
                     Estimate Only
                   </Badge>
                 </div>
-                <p className="mt-1 text-base font-extrabold text-indigo-950">
+                <p className="mt-1 text-base font-extrabold text-slate-950">
                   ~
                   {formatPlanCurrency(
                     step5Data.estimatedAnnualInsurancePremium,
                     plan.baseCurrency
                   )}
-                  <span className="text-xs font-medium text-indigo-800">
+                  <span className="text-xs font-medium text-emerald-900">
                     /yr (est.)
                   </span>
                 </p>
-                <p className="mt-0.5 text-[11px] font-medium text-indigo-900">
+                <p className="mt-0.5 text-[11px] font-medium text-slate-900">
                   ≈{' '}
                   {formatPlanCurrency(
                     estimatedMonthlyInsuranceOverhead,
@@ -10959,7 +11006,7 @@ export function ModuleEWorkspace({
                         }
                         className={`flex flex-col items-start rounded-lg border p-3 text-left transition ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
@@ -10984,8 +11031,8 @@ export function ModuleEWorkspace({
 
                 {/* Edge-Case Protection: OTHER Regulatory Sector Posture Inline Input */}
                 {step5Data.regulatorySectorPosture === 'OTHER' && (
-                  <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="text-xs font-semibold text-indigo-950">
+                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <label className="text-xs font-semibold text-slate-950">
                       Describe Your Custom / Hybrid Regulatory Sector Posture:
                     </label>
                     <input
@@ -11035,7 +11082,7 @@ export function ModuleEWorkspace({
                         }
                         className={`flex flex-col items-start rounded-lg border p-3 text-left transition ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
@@ -11060,8 +11107,8 @@ export function ModuleEWorkspace({
 
                 {/* Edge-Case Protection: OTHER Data Privacy Posture Inline Input */}
                 {step5Data.dataPrivacyPosture === 'OTHER' && (
-                  <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="text-xs font-semibold text-indigo-950">
+                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <label className="text-xs font-semibold text-slate-950">
                       Describe Your Custom Data Privacy / Security Governance
                       Model:
                     </label>
@@ -11084,7 +11131,7 @@ export function ModuleEWorkspace({
           </Card>
 
           {/* 4. Part B: Instant Startup Insurance Matcher & Indicative Premium Estimator */}
-          <Card className="border-indigo-200 bg-white shadow-xs">
+          <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -11170,7 +11217,7 @@ export function ModuleEWorkspace({
                         }
                         className={`flex flex-col items-start rounded-lg border p-3 text-left transition ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
@@ -11195,8 +11242,8 @@ export function ModuleEWorkspace({
 
                 {/* Edge-Case Protection: OTHER Insurance Bundle Inline Input */}
                 {step5Data.insuranceCoverageBundle === 'OTHER' && (
-                  <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="text-xs font-semibold text-indigo-950">
+                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <label className="text-xs font-semibold text-slate-950">
                       Describe Your Custom / Specialist Insurance Coverage
                       Bundle:
                     </label>
@@ -11226,7 +11273,7 @@ export function ModuleEWorkspace({
                         Estimate Only
                       </span>
                     </label>
-                    <span className="text-[11px] font-semibold text-indigo-700">
+                    <span className="text-[11px] font-semibold text-emerald-800">
                       ≈{' '}
                       {formatPlanCurrency(
                         estimatedMonthlyInsuranceOverhead,
@@ -11378,7 +11425,7 @@ export function ModuleEWorkspace({
                             onClick={() =>
                               handleSelectPartnerInsuranceBroker(broker)
                             }
-                            className="h-7 flex-1 border-indigo-300 bg-indigo-50 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100"
+                            className="h-7 flex-1 border-emerald-300 bg-emerald-50 text-[11px] font-semibold text-slate-900 hover:bg-slate-100"
                           >
                             Use ~€{broker.indicativeAnnualEstimate}/yr Estimate
                           </Button>
@@ -11456,7 +11503,7 @@ export function ModuleEWorkspace({
                             onClick={() =>
                               handleSelectPartnerInsuranceBroker(broker)
                             }
-                            className="h-7 flex-1 border-indigo-300 bg-indigo-50 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100"
+                            className="h-7 flex-1 border-emerald-300 bg-emerald-50 text-[11px] font-semibold text-slate-900 hover:bg-slate-100"
                           >
                             Use ~£{broker.indicativeAnnualEstimate}/yr Estimate
                           </Button>
@@ -11520,7 +11567,7 @@ export function ModuleEWorkspace({
                           onClick={() =>
                             handleSelectPartnerInsuranceBroker(broker)
                           }
-                          className="mt-3 h-7 border-indigo-300 bg-indigo-50 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100"
+                          className="mt-3 h-7 border-emerald-300 bg-emerald-50 text-[11px] font-semibold text-slate-900 hover:bg-slate-100"
                         >
                           Apply Indicative Estimate
                         </Button>
@@ -11562,9 +11609,9 @@ export function ModuleEWorkspace({
                     onClick={() =>
                       handleRunAiStep5('POPULATE_COMPLIANCE_AND_NARRATIVES')
                     }
-                    className="h-8 border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                    className="h-8 border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     {isGeneratingAiStep5
                       ? 'Drafting with AI...'
                       : 'AI Tailor Checklist & Narratives'}
@@ -11791,9 +11838,9 @@ export function ModuleEWorkspace({
                   variant="outline"
                   disabled={isVaultReadonly || isGeneratingAiStep5}
                   onClick={() => handleRunAiStep5('NARRATIVES_ONLY')}
-                  className="h-8 border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                  className="h-8 border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                 >
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep5
                     ? 'Synthesizing...'
                     : 'AI Polish Both Narratives'}
@@ -11975,7 +12022,7 @@ export function ModuleEWorkspace({
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }, 50);
                     }}
-                    className="w-full border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100 sm:w-auto"
+                    className="w-full border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100 sm:w-auto"
                   >
                     Next: Operations Brief &amp; Overview &rarr;
                   </Button>
@@ -11998,7 +12045,7 @@ export function ModuleEWorkspace({
             setOpenStep(6);
             setActiveTab('STEP_6');
           }}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -12006,14 +12053,14 @@ export function ModuleEWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   completedModuleECoreStepsCount === 5
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 <FileText className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Operations, Equipment &amp; Risk Brief (Executive Summary)
                   </h2>
                   <Badge
@@ -12036,7 +12083,7 @@ export function ModuleEWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{completedModuleECoreStepsCount === 5 ? 'Open Overview' : 'Review Overview'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -12047,7 +12094,7 @@ export function ModuleEWorkspace({
       ) : (
         <Card
           id="module-e-step-6"
-          className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
         >
           <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
             <div className="min-w-0 flex-1">
@@ -12056,7 +12103,7 @@ export function ModuleEWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     completedModuleECoreStepsCount === 5
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   <FileText className="h-4 w-4" />
@@ -12099,12 +12146,12 @@ export function ModuleEWorkspace({
 
           <CardContent className="space-y-5 px-0 pb-0 pt-4">
             {/* 5-STEP MODULE E READINESS CHECKLIST */}
-            <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
+            <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-2xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-700">
                   Module E Readiness Checklist (Steps 1–5 Included in Your Brief)
                 </div>
-                <span className="text-xs font-semibold text-indigo-700">
+                <span className="text-xs font-semibold text-emerald-800">
                   Live-Synced with Your Answers Above
                 </span>
               </div>
@@ -12136,12 +12183,12 @@ export function ModuleEWorkspace({
                 ))}
               </div>
             </div>
-          <Card className="border-indigo-200 bg-white shadow-xs">
+          <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-indigo-600 text-[10px] font-bold text-white">
+                    <Badge className="bg-emerald-700 text-[10px] font-bold text-white">
                       Step 6 of 6 • Final Module E Sign-Off
                     </Badge>
                     <Badge
@@ -12174,9 +12221,9 @@ export function ModuleEWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={() => setShowWhyAskingStep6((v) => !v)}
-                    className="h-8 border-indigo-200 bg-indigo-50/70 px-2.5 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100"
+                    className="h-8 border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-slate-900 hover:bg-slate-100"
                   >
-                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                    <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Why Are We Asking?
                   </Button>
                   <Button
@@ -12215,12 +12262,12 @@ export function ModuleEWorkspace({
 
               {/* Why Are We Asking Drawer */}
               {showWhyAskingStep6 && (
-                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
                   <p className="font-bold">
                     🎯 Why Grant Assessors &amp; Lenders Audit Your Operations
                     Cohesion:
                   </p>
-                  <ul className="mt-1.5 list-disc space-y-1 pl-4 text-indigo-900">
+                  <ul className="mt-1.5 list-disc space-y-1 pl-4 text-slate-900">
                     <li>
                       <strong>No Contradictions Between Ops &amp; Finance:</strong>{' '}
                       Assessors cross-check your Section 6 Operations narrative
@@ -12347,10 +12394,10 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               {/* 1. LIVE 4-CARD OPERATIONS-TO-FINANCE HANDSHAKE ROLLUP STRIP   */}
               {/* ============================================================= */}
-              <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-slate-50 to-emerald-50/70 p-4">
+              <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-slate-50 to-emerald-50/70 p-4">
                 <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-950">
                       🔗 Live Operations-to-Finance &amp; Team Handshake Rollup
                       (Steps 1–5)
                     </p>
@@ -12362,7 +12409,7 @@ export function ModuleEWorkspace({
                   </div>
                   <Badge
                     variant="outline"
-                    className="w-fit border-indigo-300 bg-white text-[10px] font-bold text-indigo-900"
+                    className="w-fit border-emerald-300 bg-white text-[10px] font-bold text-slate-900"
                   >
                     Resolved Considerations: {resolvedBlindSpotsCount} /{' '}
                     {step6Data.blindSpots.length}
@@ -12415,12 +12462,12 @@ export function ModuleEWorkspace({
                       </span>
                       <Badge
                         variant="outline"
-                        className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-800"
+                        className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-900"
                       >
                         Hiring Trigger
                       </Badge>
                     </div>
-                    <p className="mt-1 text-base font-extrabold text-indigo-900 sm:text-lg">
+                    <p className="mt-1 text-base font-extrabold text-slate-900 sm:text-lg">
                       {totalActiveMinutesPerOrder === 0
                         ? 'Automated Cloud'
                         : `${maxOrdersPerWeekByManualTime} orders / wk`}
@@ -12573,8 +12620,8 @@ export function ModuleEWorkspace({
                         }
                         className={`flex flex-col justify-between rounded-xl border p-3 text-left transition ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20'
-                            : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/60'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
+                            : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                         }`}
                       >
                         <div className="space-y-1">
@@ -12586,7 +12633,7 @@ export function ModuleEWorkspace({
                               variant="outline"
                               className={
                                 isSelected
-                                  ? 'border-indigo-300 bg-indigo-100 text-[10px] text-indigo-900'
+                                  ? 'border-emerald-300 bg-slate-100 text-[10px] text-slate-900'
                                   : 'border-slate-200 bg-slate-50 text-[10px] text-slate-600'
                               }
                             >
@@ -12603,8 +12650,8 @@ export function ModuleEWorkspace({
                 </div>
 
                 {step6Data.readinessConfidence === 'OTHER' && (
-                  <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-xs font-semibold text-indigo-950">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-xs font-semibold text-slate-950">
                       Describe Your Custom Operational Readiness Posture:
                     </label>
                     <input
@@ -12618,7 +12665,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="e.g., Seasonal pop-up workshop ready for Q4 batch run while commercial lease completes..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
                     />
                   </div>
                 )}
@@ -12650,7 +12697,7 @@ export function ModuleEWorkspace({
                       onClick={() =>
                         handleRunAiStep6('POPULATE_BLIND_SPOTS_AND_NARRATIVES')
                       }
-                      className="border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                      className="border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                     >
                       {isGeneratingAiStep6 ? (
                         <>
@@ -12659,7 +12706,7 @@ export function ModuleEWorkspace({
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                          <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                           AI Run Blind-Spot Audit &amp; Brief
                         </>
                       )}
@@ -12691,7 +12738,7 @@ export function ModuleEWorkspace({
                             : isCritical
                               ? 'border-rose-200 bg-rose-50/30'
                               : isWatch
-                                ? 'border-indigo-200 bg-indigo-50/30'
+                                ? 'border-slate-200 bg-slate-50'
                                 : 'border-amber-200 bg-amber-50/30'
                         }`}
                       >
@@ -12811,7 +12858,7 @@ export function ModuleEWorkspace({
                                 })
                               }
                               placeholder="Specify custom operational blind-spot category..."
-                              className="w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
+                              className="w-full rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
                             />
                           </div>
                         )}
@@ -12902,7 +12949,7 @@ export function ModuleEWorkspace({
                     variant="outline"
                     disabled={isVaultReadonly || isGeneratingAiStep6}
                     onClick={() => handleRunAiStep6('NARRATIVES_ONLY')}
-                    className="border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                    className="border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                   >
                     {isGeneratingAiStep6 ? (
                       <>
@@ -12911,7 +12958,7 @@ export function ModuleEWorkspace({
                       </>
                     ) : (
                       <>
-                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         AI Draft Executive Narratives Only
                       </>
                     )}
@@ -13175,7 +13222,7 @@ export function ModuleEWorkspace({
                         await handleSaveStep6();
                         onContinueToModuleF();
                       }}
-                      className="w-full bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700 sm:w-auto"
+                      className="w-full bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 sm:w-auto"
                     >
                       Save &amp; Continue to Module F (Co-Founder &amp; Team)
                       <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -13190,7 +13237,7 @@ export function ModuleEWorkspace({
           {onContinueToModuleF && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
               <div className="text-xs">
-                <span className="font-semibold text-indigo-300">
+                <span className="font-semibold text-slate-300">
                   Ready to align your founding team, roles &amp; hiring roadmap for {plan.title}?
                 </span>{' '}
                 Continue to Module F to map your 150-word promoter profiles, 7 Startup Hats role matrix, co-founder alignment survey, and 3-year job creation plan.
@@ -13203,7 +13250,7 @@ export function ModuleEWorkspace({
                   await handleSaveStep6();
                   onContinueToModuleF();
                 }}
-                className="shrink-0 bg-indigo-600 text-white hover:bg-indigo-500"
+                className="shrink-0 bg-emerald-700 text-white hover:bg-emerald-500"
               >
                 Continue to Module F: Co-Founder &amp; Team
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

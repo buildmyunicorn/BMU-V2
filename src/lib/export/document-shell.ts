@@ -16,7 +16,7 @@ export function escapeDocumentHtml(str: string): string {
 export interface BmuDocumentShellProps {
   /** Browser tab & PDF title */
   documentTitle: string;
-  /** Top indigo eyebrow text (e.g. "STARTUP PREFLIGHT • MODULE A CONCEPT & READINESS BRIEF") */
+  /** Top emerald eyebrow text (e.g. "STARTUP PREFLIGHT • MODULE A CONCEPT & READINESS BRIEF") */
   eyebrow: string;
   /** Startup Plan Title (H1) */
   planTitle: string;
@@ -182,7 +182,7 @@ export const BMU_DOCUMENT_STYLES = `
       padding: 4px 10px;
       border-radius: 999px;
     }
-    .pill-indigo {
+    .pill-emerald {
       display: inline-block;
       background: #eef2ff;
       border: 1px solid #c7d2fe;

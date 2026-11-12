@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   FileText,
   Sparkles,
@@ -553,7 +553,30 @@ export function ModuleLNarrativeCompilerStep({
     setTimeout(() => setCopiedSectionId(null), 2000);
   };
 
+  const handleSaveCompilerOnly = async () => {
+    if (isVaultReadonly) return;
+    isDirtyRef.current = false;
+    setIsSaving(true);
+    const payload: ModuleLStep3NarrativeCompilerSavedData = {
+      modeCompiledFor: compilerMode,
+      sections,
+      executiveHookStatement: executiveHook,
+      aiAssessorTip: aiTip,
+      aiEngineUsed: 'gemini-2.5-flash',
+      lastSavedAt: new Date().toISOString(),
+    };
+
+    try {
+      if (onSaveStep3Compiler) {
+        await onSaveStep3Compiler(payload, 60);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveAndContinue = async () => {
+    isDirtyRef.current = false;
     setIsSaving(true);
     const payload: ModuleLStep3NarrativeCompilerSavedData = {
       modeCompiledFor: compilerMode,
@@ -573,6 +596,34 @@ export function ModuleLNarrativeCompilerStep({
       setIsSaving(false);
     }
   };
+
+  const isFirstRenderRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const handleSaveCompilerOnlyRef = useRef(handleSaveCompilerOnly);
+  handleSaveCompilerOnlyRef.current = handleSaveCompilerOnly;
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyRef.current) {
+        void handleSaveCompilerOnlyRef.current();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [sections, executiveHook, aiTip, isVaultReadonly]);
+
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        void handleSaveCompilerOnlyRef.current();
+      }
+    };
+  }, []);
 
   // Aggregate word count
   const totalWords = useMemo(() => {
@@ -596,7 +647,7 @@ export function ModuleLNarrativeCompilerStep({
             size="sm"
             variant="outline"
             onClick={() => setActiveWhyCard((p) => !p)}
-            className="h-7 border-indigo-200 bg-white text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+            className="h-7 border-slate-200 bg-white text-[11px] font-medium text-emerald-800 hover:bg-emerald-50"
           >
             <HelpCircle className="mr-1 h-3.5 w-3.5" />
             Why Are We Asking This?
@@ -619,9 +670,9 @@ export function ModuleLNarrativeCompilerStep({
             variant="outline"
             onClick={handleCompileAllSectionsAi}
             disabled={isCompilingAll || isVaultReadonly}
-            className="h-7 border-violet-200 bg-violet-50/80 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+            className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isCompilingAll ? 'Synthesizing All Sections...' : 'AI Re-Synthesize All Sections'}
           </Button>
         </div>
@@ -645,12 +696,12 @@ export function ModuleLNarrativeCompilerStep({
 
       {/* Why Drawer */}
       {activeWhyCard && (
-        <div className="rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900 space-y-1.5">
-          <div className="flex items-center justify-between font-bold text-indigo-950">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900 space-y-1.5">
+          <div className="flex items-center justify-between font-bold text-slate-950">
             <span>Why Section-by-Section Narrative Compilation Matters</span>
             <button
               onClick={() => setActiveWhyCard(false)}
-              className="text-indigo-400 hover:text-indigo-600"
+              className="text-emerald-600 hover:text-emerald-700"
             >
               ✕
             </button>
@@ -693,14 +744,14 @@ export function ModuleLNarrativeCompilerStep({
       )}
 
       {/* Executive Hook / Opening Mandate */}
-      <div className="rounded-xl border border-indigo-200 bg-white p-5 shadow-xs space-y-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Award className="h-4 w-4 text-indigo-600" />
+            <Award className="h-4 w-4 text-emerald-700" />
             <h3 className="text-sm font-bold text-slate-900">
               Master Executive Hook &amp; Opening Defense Statement
             </h3>
-            <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700">
+            <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800">
               Header Statement
             </Badge>
           </div>
@@ -714,7 +765,7 @@ export function ModuleLNarrativeCompilerStep({
                   `"${plan.title}" is an evidence-backed ${plan.industryCategory || 'venture'} engineered to satisfy statutory underwriting requirements in ${plan.hqCountryCode || 'Ireland'}. Cross-module validation confirms empirical customer willingness-to-pay, defensible unit economics, and verified additionality with zero unmitigated displacement.`
               )
             }
-            className="h-7 text-xs text-indigo-600 hover:bg-indigo-50"
+            className="h-7 text-xs text-emerald-700 hover:bg-emerald-50"
           >
             <RotateCcw className="mr-1 h-3 w-3" />
             Reset to Pre-Flight Defense
@@ -730,7 +781,7 @@ export function ModuleLNarrativeCompilerStep({
           value={executiveHook}
           onChange={(e) => setExecutiveHook(e.target.value)}
           disabled={isVaultReadonly}
-          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
           placeholder="Enter master executive statement..."
         />
       </div>
@@ -774,7 +825,7 @@ export function ModuleLNarrativeCompilerStep({
               key={section.id}
               className={`rounded-xl border transition-all ${
                 isExpanded
-                  ? 'border-indigo-200 bg-white shadow-xs'
+                  ? 'border-slate-200 bg-white shadow-xs'
                   : 'border-slate-200 bg-white hover:border-slate-300'
               }`}
             >
@@ -784,7 +835,7 @@ export function ModuleLNarrativeCompilerStep({
                 className="flex cursor-pointer items-center justify-between gap-3 p-4 select-none"
               >
                 <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-xs font-bold text-indigo-700">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 border border-slate-200 text-xs font-bold text-emerald-800">
                     {section.sectionNumber}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -795,7 +846,7 @@ export function ModuleLNarrativeCompilerStep({
                       {section.scoringWeightPercent > 0 && (
                         <Badge
                           variant="outline"
-                          className="border-indigo-100 bg-indigo-50/50 text-indigo-700 text-[10px] font-medium"
+                          className="border-slate-100 bg-slate-50 text-emerald-800 text-[10px] font-medium"
                         >
                           Weight: {section.scoringWeightPercent}%
                         </Badge>
@@ -843,7 +894,7 @@ export function ModuleLNarrativeCompilerStep({
                   <div className="rounded-lg border border-slate-200/80 bg-white p-3 text-xs text-slate-600 space-y-1">
                     <div className="flex items-center justify-between text-slate-700 font-semibold">
                       <span className="flex items-center gap-1.5">
-                        <Scale className="h-3.5 w-3.5 text-indigo-600" />
+                        <Scale className="h-3.5 w-3.5 text-emerald-700" />
                         Assessor Evaluation Focus
                       </span>
                       {section.sourceModules && section.sourceModules.length > 0 && (
@@ -859,7 +910,7 @@ export function ModuleLNarrativeCompilerStep({
                                   onNavigateToModule(modCode as any);
                                 }
                               }}
-                              className="cursor-pointer border-slate-200 bg-slate-100 text-[9px] text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200"
+                              className="cursor-pointer border-slate-200 bg-slate-100 text-[9px] text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300"
                             >
                               {modCode.replace('MOD_', '')}
                             </Badge>
@@ -907,9 +958,9 @@ export function ModuleLNarrativeCompilerStep({
                           variant="outline"
                           onClick={() => handleCompileSectionAi(section)}
                           disabled={isCompiling || isVaultReadonly}
-                          className="h-6 border-violet-200 bg-violet-50 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+                          className="h-6 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
                         >
-                          <Sparkles className="mr-1 h-3 w-3 text-violet-600" />
+                          <Sparkles className="mr-1 h-3 w-3 text-emerald-700" />
                           {isCompiling ? 'Polishing...' : 'AI Polish for Assessor'}
                         </Button>
                       </div>
@@ -920,7 +971,7 @@ export function ModuleLNarrativeCompilerStep({
                       value={section.compiledResponseText}
                       onChange={(e) => updateSectionText(section.id, e.target.value)}
                       disabled={isVaultReadonly}
-                      className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                       placeholder="Write or refine the compiled answer for this section..."
                     />
 
@@ -978,7 +1029,7 @@ export function ModuleLNarrativeCompilerStep({
             size="sm"
             onClick={handleSaveAndContinue}
             disabled={isSaving || isVaultReadonly}
-            className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+            className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
           >
             {isSaving ? 'Saving Sections...' : 'Save & Continue to Step 4'}
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

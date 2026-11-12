@@ -244,31 +244,31 @@ export function GrantsManagementStudioTab({
   return (
     <div className="space-y-6">
       {/* 1. TOP HERO: AI ASSISTED INGESTION */}
-      <Card className="border-indigo-100 bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 text-white shadow-md">
+      <Card className="border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white shadow-md">
         <CardHeader className="pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-300">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
                 <CardTitle className="text-lg font-bold text-white">
                   Living Grants Engine & AI Ingestion Studio
                 </CardTitle>
-                <CardDescription className="text-xs text-indigo-200/80">
+                <CardDescription className="text-xs text-slate-400">
                   Prompt Gemini to research, extract, and stage new IE/UK startup grants with full schema validation.
                 </CardDescription>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge className="border-indigo-400/30 bg-indigo-500/20 text-indigo-200">
+              <Badge className="border-emerald-600/40 bg-emerald-500/20 text-slate-300">
                 Stage & Approve Architecture
               </Badge>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={onRefresh}
-                className="h-8 border-indigo-400/30 bg-white/5 text-xs text-indigo-100 hover:bg-white/10 hover:text-white"
+                className="h-8 border-emerald-600/40 bg-white/5 text-xs text-slate-200 hover:bg-white/10 hover:text-white"
               >
                 <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 Refresh Catalog
@@ -281,37 +281,37 @@ export function GrantsManagementStudioTab({
           <form onSubmit={handleExtractWithAi} className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
               <div className="sm:col-span-8">
-                <Label className="text-xs font-semibold text-indigo-200">
+                <Label className="text-xs font-semibold text-slate-300">
                   Prompt the AI to research a scheme:
                 </Label>
                 <Input
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
                   placeholder='e.g. "Add the LEO Business Priming Grant for Ireland" or "Innovate UK Design Foundations"'
-                  className="mt-1 border-indigo-300/30 bg-white/10 text-sm text-white placeholder:text-indigo-300/40 focus:border-indigo-400"
+                  className="mt-1 border-emerald-500/30 bg-white/10 text-sm text-white placeholder:text-emerald-400/40 focus:border-emerald-500"
                 />
               </div>
               <div className="sm:col-span-4">
-                <Label className="text-xs font-semibold text-indigo-200">
+                <Label className="text-xs font-semibold text-slate-300">
                   Official Website / URL (Optional):
                 </Label>
                 <Input
                   value={aiUrl}
                   onChange={(e) => setAiUrl(e.target.value)}
                   placeholder="https://localenterprise.ie/..."
-                  className="mt-1 border-indigo-300/30 bg-white/10 text-sm text-white placeholder:text-indigo-300/40 focus:border-indigo-400"
+                  className="mt-1 border-emerald-500/30 bg-white/10 text-sm text-white placeholder:text-emerald-400/40 focus:border-emerald-500"
                 />
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <span className="text-[11px] text-indigo-200/60">
+              <span className="text-[11px] text-slate-400">
                 AI extracts max caps, match %, eligible costs, 3-quote rules, and generates public SEO markdown.
               </span>
               <Button
                 type="submit"
                 disabled={isExtracting || !aiPrompt.trim()}
-                className="bg-indigo-500 text-xs font-semibold text-white shadow-sm hover:bg-indigo-400"
+                className="bg-emerald-600 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"
               >
                 {isExtracting ? (
                   <>
@@ -330,14 +330,14 @@ export function GrantsManagementStudioTab({
 
           {/* AI EXTRACTION PREVIEW CARD (BEFORE STAGING) */}
           {extractedPreview && (
-            <div className="mt-4 rounded-xl border border-indigo-400/40 bg-white/10 p-4 text-slate-100 backdrop-blur-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-300/20 pb-3">
+            <div className="mt-4 rounded-xl border border-emerald-600/40 bg-white/10 p-4 text-slate-100 backdrop-blur-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/30 pb-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30">
                     Extracted Preview ({extractedPreview.confidenceScore}% Confidence)
                   </Badge>
                   <span className="text-sm font-bold text-white">{extractedPreview.grantName}</span>
-                  <Badge variant="outline" className="border-indigo-300/40 text-xs text-indigo-200">
+                  <Badge variant="outline" className="border-emerald-500/30 text-xs text-slate-300">
                     {extractedPreview.countryCode === 'GB' ? '🇬🇧 UK' : '🇮🇪 Ireland'}
                   </Badge>
                 </div>
@@ -346,7 +346,7 @@ export function GrantsManagementStudioTab({
                     size="sm"
                     variant="ghost"
                     onClick={() => setExtractedPreview(null)}
-                    className="h-7 text-xs text-indigo-200 hover:text-white"
+                    className="h-7 text-xs text-slate-300 hover:text-white"
                   >
                     Discard
                   </Button>
@@ -368,26 +368,26 @@ export function GrantsManagementStudioTab({
 
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4 text-xs">
                 <div className="rounded-lg bg-black/20 p-2.5">
-                  <span className="text-[10px] uppercase text-indigo-300">Max Funding:</span>
+                  <span className="text-[10px] uppercase text-emerald-400">Max Funding:</span>
                   <div className="mt-0.5 font-bold text-white">{extractedPreview.maxAmountFormatted}</div>
                 </div>
                 <div className="rounded-lg bg-black/20 p-2.5">
-                  <span className="text-[10px] uppercase text-indigo-300">Match Rate:</span>
+                  <span className="text-[10px] uppercase text-emerald-400">Match Rate:</span>
                   <div className="mt-0.5 font-bold text-white">{extractedPreview.matchRatePercentage}% Co-Funded</div>
                 </div>
                 <div className="rounded-lg bg-black/20 p-2.5">
-                  <span className="text-[10px] uppercase text-indigo-300">Funding Type:</span>
+                  <span className="text-[10px] uppercase text-emerald-400">Funding Type:</span>
                   <div className="mt-0.5 font-bold text-white">{extractedPreview.fundingType}</div>
                 </div>
                 <div className="rounded-lg bg-black/20 p-2.5">
-                  <span className="text-[10px] uppercase text-indigo-300">LEO 3-Quotes:</span>
+                  <span className="text-[10px] uppercase text-emerald-400">LEO 3-Quotes:</span>
                   <div className="mt-0.5 font-bold text-white">
                     {extractedPreview.leoThreeQuoteEnforced ? 'Enforced (> €5k)' : 'No'}
                   </div>
                 </div>
               </div>
 
-              <div className="mt-3 text-xs text-indigo-100/90 leading-relaxed">
+              <div className="mt-3 text-xs text-slate-300 leading-relaxed">
                 <p><strong>Summary:</strong> {extractedPreview.summary}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <span className="text-[11px] font-semibold text-emerald-300">Eligible:</span>
@@ -469,7 +469,7 @@ export function GrantsManagementStudioTab({
             <button
               onClick={() => setCountryFilter('ALL')}
               className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-                countryFilter === 'ALL' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                countryFilter === 'ALL' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               All
@@ -477,7 +477,7 @@ export function GrantsManagementStudioTab({
             <button
               onClick={() => setCountryFilter('IE')}
               className={`rounded-md px-2 py-1 text-xs font-medium ${
-                countryFilter === 'IE' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                countryFilter === 'IE' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               🇮🇪 IE
@@ -485,7 +485,7 @@ export function GrantsManagementStudioTab({
             <button
               onClick={() => setCountryFilter('GB')}
               className={`rounded-md px-2 py-1 text-xs font-medium ${
-                countryFilter === 'GB' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                countryFilter === 'GB' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               🇬🇧 UK
@@ -634,7 +634,7 @@ export function GrantsManagementStudioTab({
                             size="sm"
                             variant="ghost"
                             onClick={() => handleOpenDrawer(grant)}
-                            className="h-7 px-2 text-xs text-indigo-600 hover:bg-indigo-50"
+                            className="h-7 px-2 text-xs text-emerald-700 hover:bg-emerald-50/70"
                           >
                             Inspect & Edit
                             <ChevronRight className="ml-0.5 h-3.5 w-3.5" />
@@ -658,7 +658,7 @@ export function GrantsManagementStudioTab({
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200">
+                  <Badge className="bg-emerald-100 text-emerald-900 border-slate-200">
                     {selectedGrant.countryCode} Scheme
                   </Badge>
                   <span className="text-xs text-slate-500">ID: {selectedGrant.id.slice(0, 8)}...</span>
@@ -795,7 +795,7 @@ export function GrantsManagementStudioTab({
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, leoThreeQuoteEnforced: e.target.checked })
                   }
-                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
                 />
                 <label htmlFor="leo3quote" className="text-xs font-medium text-slate-700">
                   Enforce LEO 3-Quote Rule (&gt; €5,000 threshold requirement)
@@ -830,7 +830,7 @@ export function GrantsManagementStudioTab({
                   size="sm"
                   onClick={handleSaveDrawerEdits}
                   disabled={isSaving}
-                  className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-500"
+                  className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-600"
                 >
                   {isSaving ? (
                     <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />

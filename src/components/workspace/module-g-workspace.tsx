@@ -214,6 +214,8 @@ export function ModuleGWorkspace({
   const isFirstRenderRef = React.useRef(true);
   const dataRef = React.useRef(data);
   dataRef.current = data;
+  const onSaveRef = React.useRef(onSave);
+  onSaveRef.current = onSave;
   const isDirtyRef = React.useRef(false);
   // Step Accordion View State: 0 = all collapsed by default, 1..7, or 'ALL'
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
@@ -426,23 +428,26 @@ export function ModuleGWorkspace({
       isFirstRenderRef.current = false;
       return;
     }
-    if (isVaultReadonly || !onSave) return;
+    if (isVaultReadonly || !onSaveRef.current) return;
     isDirtyRef.current = true;
     const timer = setTimeout(() => {
-      onSave(data);
-      isDirtyRef.current = false;
+      if (isDirtyRef.current && onSaveRef.current) {
+        isDirtyRef.current = false;
+        void onSaveRef.current(dataRef.current);
+      }
     }, 450);
     return () => clearTimeout(timer);
-  }, [data, isVaultReadonly, onSave]);
+  }, [data, isVaultReadonly]);
 
   // Flush dirty state on unmount
   useEffect(() => {
     return () => {
-      if (isDirtyRef.current && onSave && !isVaultReadonly) {
-        onSave(dataRef.current);
+      if (isDirtyRef.current && onSaveRef.current && !isVaultReadonly) {
+        isDirtyRef.current = false;
+        void onSaveRef.current(dataRef.current);
       }
     };
-  }, [isVaultReadonly, onSave]);
+  }, []);
 
   const handleCopyOperationsBrief = () => {
     const brief = `### STARTUP PREFLIGHT — MODULE G: LAUNCHPAD & OPERATIONS BRIEF
@@ -487,11 +492,11 @@ export function ModuleGWorkspace({
   return (
     <div className="space-y-6 pb-20">
       {/* Top Header Module Card */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200">
                 Module G • Getting Set Up (Launchpad &amp; Operations Hub)
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200">
@@ -502,7 +507,7 @@ export function ModuleGWorkspace({
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Getting Set Up: Launchpad &amp; Operations Hub
             </h1>
-            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
               Establish the 6 statutory operational foundations required by state grant bodies, investors, and banking institutions before taking paying customer revenue.
             </p>
           </div>
@@ -514,7 +519,7 @@ export function ModuleGWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))}
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 {openStep === 'ALL' ? 'Collapse All Steps' : 'Expand All Steps'}
               </Button>
@@ -524,21 +529,21 @@ export function ModuleGWorkspace({
                   variant="outline"
                   size="sm"
                   onClick={onBackToModuleF}
-                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                  className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                   Back to Module F
                 </Button>
               )}
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Operations Readiness: <strong className="text-emerald-300">{opsReadinessScore}%</strong> ({completedCoreStepsCount} of 6 Setup Pillars Ready)
             </div>
           </div>
         </div>
 
         {/* 7-Step Navigation Strip */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-4 lg:grid-cols-7">
           {[
             { step: 'Step 1', title: 'Legal Entity', targetId: 'mod-g-step-1', stepNum: 1, done: isStep1Done },
             { step: 'Step 2', title: 'Domain & Email', targetId: 'mod-g-step-2', stepNum: 2, done: isStep2Done },
@@ -567,7 +572,7 @@ export function ModuleGWorkspace({
                       ? 'border-amber-400/50 bg-amber-950/40 text-amber-200'
                       : item.done
                         ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                        : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                        : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -579,10 +584,10 @@ export function ModuleGWorkspace({
                   ) : item.done ? (
                     <Check className="h-3 w-3 text-emerald-400" />
                   ) : (
-                    <span className="text-[10px] text-indigo-300/60">Pending</span>
+                    <span className="text-[10px] text-slate-300/60">Pending</span>
                   )}
                 </div>
-                <div className="mt-0.5 truncate text-[11px] text-indigo-100/80">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-200/80">{item.title}</div>
               </button>
             );
           })}
@@ -596,7 +601,7 @@ export function ModuleGWorkspace({
         {openStep !== 'ALL' && openStep !== 1 ? (
           <div
             onClick={() => setOpenStep(1)}
-            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -608,7 +613,7 @@ export function ModuleGWorkspace({
                         ? 'bg-amber-500 text-white shadow-2xs'
                         : isStep1Done
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-indigo-600 text-white'
+                          : 'bg-slate-900 text-white'
                   }`}
                 >
                   {data.step1.state === 'ALREADY_HAVE' ? (
@@ -622,7 +627,7 @@ export function ModuleGWorkspace({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 1: Legal Entity &amp; Company Registration
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -658,7 +663,7 @@ export function ModuleGWorkspace({
                         ? 'Configured'
                         : 'Needs Setup'}
                 </Badge>
-                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">
+                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50">
                   <span>{hasActiveIncorporationOrder ? 'Track Status & Add CRN' : isStep1Done ? 'Edit Step' : 'Open Step'}</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
@@ -672,7 +677,7 @@ export function ModuleGWorkspace({
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                      isStep1Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                      isStep1Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                     }`}
                   >
                     {isStep1Done ? <Check className="h-4 w-4" /> : '1'}
@@ -682,7 +687,7 @@ export function ModuleGWorkspace({
                       <CardTitle className="text-base font-bold text-slate-900">
                         Step 1: Legal Entity &amp; Company Registration
                       </CardTitle>
-                      <Badge className="shrink-0 text-[10px] font-medium border-indigo-200 bg-indigo-50 text-indigo-700">
+                      <Badge className="shrink-0 text-[10px] font-medium border-slate-200 bg-emerald-50 text-emerald-800">
                         {normalizedCountry === 'IE' ? 'CRO (Ireland)' : normalizedCountry === 'GB' ? 'Companies House (UK)' : 'Corporate Registry'}
                       </Badge>
                     </div>
@@ -709,7 +714,7 @@ export function ModuleGWorkspace({
                     onClick={() => setData({ ...data, step1: { ...data.step1, state: 'ALREADY_HAVE' } })}
                     className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
                       data.step1.state === 'ALREADY_HAVE'
-                        ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
@@ -727,11 +732,11 @@ export function ModuleGWorkspace({
                     onClick={() => setData({ ...data, step1: { ...data.step1, state: 'HELP_SETUP' } })}
                     className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
                       data.step1.state === 'HELP_SETUP'
-                        ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
-                    <div className={`mt-0.5 rounded-full p-1 ${hasActiveIncorporationOrder ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'}`}>
+                    <div className={`mt-0.5 rounded-full p-1 ${hasActiveIncorporationOrder ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-emerald-800'}`}>
                       {hasActiveIncorporationOrder ? <Clock className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
                     </div>
                     <div>
@@ -757,7 +762,7 @@ export function ModuleGWorkspace({
                       <select
                         value={data.step1.legalStructure}
                         onChange={(e) => setData({ ...data, step1: { ...data.step1, legalStructure: e.target.value as any } })}
-                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                       >
                         <option value="LTD">Private Limited Company (LTD)</option>
                         <option value="DAC">Designated Activity Company (DAC - IE)</option>
@@ -888,7 +893,7 @@ export function ModuleGWorkspace({
                         <div className="mt-0.5 truncate text-xs font-bold text-slate-900">
                           {data.step1.incorporationOrder.partnerName}
                         </div>
-                        <div className="mt-0.5 truncate font-mono text-[11px] text-indigo-700">
+                        <div className="mt-0.5 truncate font-mono text-[11px] text-emerald-800">
                           {data.step1.incorporationOrder.recipientEmail}
                         </div>
                       </div>
@@ -940,12 +945,12 @@ export function ModuleGWorkspace({
                       </div>
 
                       {/* Stage 3: Registry Number */}
-                      <div className="rounded-xl border-2 border-indigo-400 bg-indigo-50/70 p-3.5 space-y-2 shadow-2xs ring-1 ring-indigo-200">
+                      <div className="rounded-xl border-2 border-emerald-400 bg-emerald-50/70 p-3.5 space-y-2 shadow-2xs ring-1 ring-emerald-200">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
                             Stage 3 • Official CRN
                           </span>
-                          <Clock className="h-4 w-4 text-indigo-600 shrink-0" />
+                          <Clock className="h-4 w-4 text-emerald-700 shrink-0" />
                         </div>
                         <div className="text-xs font-bold text-slate-900">
                           Awaiting Registry CRN
@@ -959,9 +964,9 @@ export function ModuleGWorkspace({
                     </div>
 
                     {/* Stage 3 Action Form: Record Official CRN */}
-                    <div className="rounded-xl border border-indigo-200 bg-white p-4 space-y-3.5">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3.5">
                       <div className="flex items-start gap-2.5">
-                        <div className="mt-0.5 rounded-lg bg-indigo-100 p-1.5 text-indigo-700 shrink-0">
+                        <div className="mt-0.5 rounded-lg bg-slate-100 p-1.5 text-emerald-800 shrink-0">
                           <FileCheck2 className="h-4 w-4" />
                         </div>
                         <div>
@@ -1118,7 +1123,7 @@ export function ModuleGWorkspace({
                     <select
                       value={data.step1.targetFormationTimeline}
                       onChange={(e) => setData({ ...data, step1: { ...data.step1, targetFormationTimeline: e.target.value } })}
-                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                     >
                       <option value="IMMEDIATELY">Immediately (Next 7 days)</option>
                       <option value="WITHIN_30_DAYS">Within the next 30 days</option>
@@ -1165,7 +1170,7 @@ export function ModuleGWorkspace({
                     const el = document.getElementById('mod-g-step-2');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-xs"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-xs"
                 >
                   <span>Next: Domain &amp; Official Email</span>
                   <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -1183,19 +1188,19 @@ export function ModuleGWorkspace({
         {openStep !== 'ALL' && openStep !== 2 ? (
           <div
             onClick={() => setOpenStep(2)}
-            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep2Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep2Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep2Done ? <Check className="h-4 w-4" /> : '2'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 2: Domain, Official Email &amp; Digital Brand
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -1214,7 +1219,7 @@ export function ModuleGWorkspace({
                 >
                   {isStep2Done ? 'Configured' : 'Needs Setup'}
                 </Badge>
-                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">
+                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50">
                   <span>{isStep2Done ? 'Edit Step' : 'Open Step'}</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
@@ -1228,7 +1233,7 @@ export function ModuleGWorkspace({
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                      isStep2Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                      isStep2Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                     }`}
                   >
                     {isStep2Done ? <Check className="h-4 w-4" /> : '2'}
@@ -1257,7 +1262,7 @@ export function ModuleGWorkspace({
                   size="sm"
                   variant="outline"
                   onClick={() => setActiveWhyCard((prev) => (prev === 2 ? null : 2))}
-                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <HelpCircle className="mr-1 h-3.5 w-3.5" />
                   Why Are We Asking This?
@@ -1275,15 +1280,15 @@ export function ModuleGWorkspace({
               </div>
 
               {activeWhyCard === 2 && (
-                <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1">
                       <div className="font-bold">Why Grant Assessors Check Your Domain &amp; Email First</div>
-                      <p className="text-indigo-800 leading-relaxed">
+                      <p className="text-emerald-900 leading-relaxed">
                         Irish LEO Evaluation Committees, Enterprise Ireland, and UK Start Up Loans underwriters verify that your domain is registered and your application email is on a custom corporate domain (`founder@company.ie` or `.co.uk`) rather than a generic `@gmail.com` inbox.
                       </p>
                     </div>
-                    <button type="button" onClick={() => setActiveWhyCard(null)} className="text-indigo-500 hover:text-indigo-800">
+                    <button type="button" onClick={() => setActiveWhyCard(null)} className="text-emerald-700 hover:text-emerald-900">
                       ✕
                     </button>
                   </div>
@@ -1316,7 +1321,7 @@ export function ModuleGWorkspace({
                     onClick={() => setData({ ...data, step2: { ...data.step2, state: 'ALREADY_HAVE' } })}
                     className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
                       data.step2.state === 'ALREADY_HAVE'
-                        ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
@@ -1334,11 +1339,11 @@ export function ModuleGWorkspace({
                     onClick={() => setData({ ...data, step2: { ...data.step2, state: 'HELP_SETUP' } })}
                     className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
                       data.step2.state === 'HELP_SETUP'
-                        ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
-                    <div className="mt-0.5 rounded-full p-1 bg-indigo-100 text-indigo-700">
+                    <div className="mt-0.5 rounded-full p-1 bg-slate-100 text-emerald-800">
                       <Globe className="h-3.5 w-3.5" />
                     </div>
                     <div>
@@ -1365,10 +1370,10 @@ export function ModuleGWorkspace({
               {/* =============================================================== */}
               {/* 3-STAGE LIVE DOMAIN CHECKER -> CLAIM VIA PARTNER -> SAVE BACK */}
               {/* =============================================================== */}
-              <div className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/40 via-white to-violet-50/30 p-4 sm:p-5 space-y-4">
+              <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50/30 p-4 sm:p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-emerald-800">
                       <Globe className="h-4 w-4" />
                     </div>
                     <div>
@@ -1380,7 +1385,7 @@ export function ModuleGWorkspace({
                       </p>
                     </div>
                   </div>
-                  <Badge className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700">
+                  <Badge className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800">
                     Live DNS Lookup
                   </Badge>
                 </div>
@@ -1409,7 +1414,7 @@ export function ModuleGWorkspace({
                     size="sm"
                     disabled={isCheckingDomains || domainSearchInput.trim().length < 2}
                     onClick={() => handleCheckDomainAvailability()}
-                    className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shrink-0"
+                    className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-xs font-semibold text-white shrink-0"
                   >
                     {isCheckingDomains ? (
                       <>
@@ -1447,9 +1452,9 @@ export function ModuleGWorkspace({
                             }}
                             className={`cursor-pointer rounded-xl border p-3 transition-all flex flex-col justify-between gap-2 ${
                               isSelected
-                                ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600 shadow-xs'
+                                ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700 shadow-xs'
                                 : isAvailable
-                                  ? 'border-emerald-200 bg-white hover:border-indigo-300'
+                                  ? 'border-emerald-200 bg-white hover:border-emerald-300'
                                   : 'border-slate-200 bg-slate-50/70 opacity-80'
                             }`}
                           >
@@ -1485,8 +1490,8 @@ export function ModuleGWorkspace({
                                   }}
                                   className={`w-full h-7 text-[11px] font-semibold ${
                                     isSelected
-                                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                                      : 'border-indigo-200 text-indigo-700 hover:bg-indigo-50'
+                                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                                      : 'border-slate-200 text-emerald-800 hover:bg-emerald-50'
                                   }`}
                                 >
                                   {isSelected ? (
@@ -1505,7 +1510,7 @@ export function ModuleGWorkspace({
                                     e.stopPropagation();
                                     handleConfirmAndSaveClaimedDomain(item.domain);
                                   }}
-                                  className="w-full text-left text-[10px] font-medium text-indigo-600 hover:underline"
+                                  className="w-full text-left text-[10px] font-medium text-emerald-700 hover:underline"
                                 >
                                   Already yours? Save to plan →
                                 </button>
@@ -1526,7 +1531,7 @@ export function ModuleGWorkspace({
                             </Badge>
                             <span className="text-xs font-bold text-slate-900">
                               Target Domain:{' '}
-                              <span className="font-mono text-indigo-700">
+                              <span className="font-mono text-emerald-800">
                                 {selectedDomainForClaim}
                               </span>
                             </span>
@@ -1631,7 +1636,7 @@ export function ModuleGWorkspace({
                         step2: { ...data.step2, emailProvider: e.target.value as any },
                       })
                     }
-                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   >
                     <option value="GOOGLE_WORKSPACE">
                       Google Workspace (Gmail, Drive, Meet)
@@ -1655,7 +1660,7 @@ export function ModuleGWorkspace({
                           step2: { ...data.step2, isDomainLive: e.target.checked },
                         })
                       }
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                     />
                     <span>Domain is already purchased &amp; live online</span>
                   </label>
@@ -1729,7 +1734,7 @@ export function ModuleGWorkspace({
                     const el = document.getElementById('mod-g-step-3');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-xs"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-xs"
                 >
                   <span>Next: Business Banking</span>
                   <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -1747,19 +1752,19 @@ export function ModuleGWorkspace({
         {openStep !== 'ALL' && openStep !== 3 ? (
           <div
             onClick={() => setOpenStep(3)}
-            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep3Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep3Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep3Done ? <Check className="h-4 w-4" /> : '3'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 3: Dedicated Business Bank Account
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -1780,7 +1785,7 @@ export function ModuleGWorkspace({
                 >
                   {isStep3Done ? 'Configured' : 'Needs Setup'}
                 </Badge>
-                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">
+                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50">
                   <span>Edit Step</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
@@ -1794,7 +1799,7 @@ export function ModuleGWorkspace({
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                      isStep3Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                      isStep3Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                     }`}
                   >
                     {isStep3Done ? <Check className="h-4 w-4" /> : '3'}
@@ -1826,7 +1831,7 @@ export function ModuleGWorkspace({
                     onClick={() => setData({ ...data, step3: { ...data.step3, state: 'ALREADY_HAVE' } })}
                     className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
                       data.step3.state === 'ALREADY_HAVE'
-                        ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
@@ -1844,11 +1849,11 @@ export function ModuleGWorkspace({
                     onClick={() => setData({ ...data, step3: { ...data.step3, state: 'HELP_SETUP' } })}
                     className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
                       data.step3.state === 'HELP_SETUP'
-                        ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
-                    <div className="mt-0.5 rounded-full p-1 bg-indigo-100 text-indigo-700">
+                    <div className="mt-0.5 rounded-full p-1 bg-slate-100 text-emerald-800">
                       <Sparkles className="h-3.5 w-3.5" />
                     </div>
                     <div>
@@ -1867,7 +1872,7 @@ export function ModuleGWorkspace({
                       <select
                         value={data.step3.bankProvider}
                         onChange={(e) => setData({ ...data, step3: { ...data.step3, bankProvider: e.target.value as any } })}
-                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                       >
                         <option value="REVOLUT_BUSINESS">Revolut Business</option>
                         <option value="AIB">AIB (Allied Irish Banks)</option>
@@ -1905,7 +1910,7 @@ export function ModuleGWorkspace({
                       id="hasDedicatedIbanCheck"
                       checked={data.step3.hasDedicatedIban}
                       onChange={(e) => setData({ ...data, step3: { ...data.step3, hasDedicatedIban: e.target.checked } })}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                     />
                     <label htmlFor="hasDedicatedIbanCheck" className="text-xs font-medium text-slate-700 cursor-pointer">
                       Confirm this account is exclusively held in the business name (not personal)
@@ -1965,7 +1970,7 @@ export function ModuleGWorkspace({
                     const el = document.getElementById('mod-g-step-4');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-xs"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-xs"
                 >
                   <span>Next: VAT &amp; Accounts</span>
                   <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -1983,19 +1988,19 @@ export function ModuleGWorkspace({
         {openStep !== 'ALL' && openStep !== 4 ? (
           <div
             onClick={() => setOpenStep(4)}
-            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep4Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep4Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep4Done ? <Check className="h-4 w-4" /> : '4'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 4: Bookkeeping, VAT &amp; Payroll Infrastructure
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -2014,7 +2019,7 @@ export function ModuleGWorkspace({
                 >
                   {isStep4Done ? 'Configured' : 'Needs Setup'}
                 </Badge>
-                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">
+                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50">
                   <span>{isStep4Done ? 'Edit Step' : 'Open Step'}</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
@@ -2028,7 +2033,7 @@ export function ModuleGWorkspace({
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                      isStep4Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                      isStep4Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                     }`}
                   >
                     {isStep4Done ? <Check className="h-4 w-4" /> : '4'}
@@ -2057,7 +2062,7 @@ export function ModuleGWorkspace({
                   <select
                     value={data.step4.softwareChoice}
                     onChange={(e) => setData({ ...data, step4: { ...data.step4, softwareChoice: e.target.value as any } })}
-                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   >
                     <option value="XERO">Xero (Recommended for sync &amp; multi-currency)</option>
                     <option value="QUICKBOOKS">QuickBooks Online</option>
@@ -2080,7 +2085,7 @@ export function ModuleGWorkspace({
                   <select
                     value={data.step4.vatStatus}
                     onChange={(e) => setData({ ...data, step4: { ...data.step4, vatStatus: e.target.value as any } })}
-                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   >
                     <option value="NOT_REGISTERED">Not Registered (Under statutory turnover threshold)</option>
                     <option value="PLANNING_TO_REGISTER">Planning Voluntary Registration (To reclaim input VAT)</option>
@@ -2105,7 +2110,7 @@ export function ModuleGWorkspace({
                     type="checkbox"
                     checked={data.step4.hasAccountant}
                     onChange={(e) => setData({ ...data, step4: { ...data.step4, hasAccountant: e.target.checked } })}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                   />
                 </div>
 
@@ -2164,7 +2169,7 @@ export function ModuleGWorkspace({
                     const el = document.getElementById('mod-g-step-5');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-xs"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-xs"
                 >
                   <span>Next: Insurance</span>
                   <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -2182,19 +2187,19 @@ export function ModuleGWorkspace({
         {openStep !== 'ALL' && openStep !== 5 ? (
           <div
             onClick={() => setOpenStep(5)}
-            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep5Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep5Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep5Done ? <Check className="h-4 w-4" /> : '5'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 5: Statutory Startup Insurance &amp; Risk Protection
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -2215,7 +2220,7 @@ export function ModuleGWorkspace({
                 >
                   {isStep5Done ? 'Configured' : 'Needs Setup'}
                 </Badge>
-                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">
+                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50">
                   <span>{isStep5Done ? 'Edit Step' : 'Open Step'}</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
@@ -2229,7 +2234,7 @@ export function ModuleGWorkspace({
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                      isStep5Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                      isStep5Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                     }`}
                   >
                     {isStep5Done ? <Check className="h-4 w-4" /> : '5'}
@@ -2261,7 +2266,7 @@ export function ModuleGWorkspace({
                         type="checkbox"
                         checked={data.step5.hasPublicLiability}
                         onChange={(e) => setData({ ...data, step5: { ...data.step5, hasPublicLiability: e.target.checked } })}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                       />
                       <span><strong>Public Liability</strong> (Mandatory for physical premises / visitors)</span>
                     </label>
@@ -2271,7 +2276,7 @@ export function ModuleGWorkspace({
                         type="checkbox"
                         checked={data.step5.hasEmployersLiability}
                         onChange={(e) => setData({ ...data, step5: { ...data.step5, hasEmployersLiability: e.target.checked } })}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                       />
                       <span><strong>Employer's Liability</strong> (Statutory when hiring staff)</span>
                     </label>
@@ -2281,7 +2286,7 @@ export function ModuleGWorkspace({
                         type="checkbox"
                         checked={data.step5.hasProfessionalIndemnity}
                         onChange={(e) => setData({ ...data, step5: { ...data.step5, hasProfessionalIndemnity: e.target.checked } })}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                       />
                       <span><strong>Professional Indemnity</strong> (Crucial for SaaS, advice &amp; consulting)</span>
                     </label>
@@ -2291,7 +2296,7 @@ export function ModuleGWorkspace({
                         type="checkbox"
                         checked={data.step5.hasProductLiability}
                         onChange={(e) => setData({ ...data, step5: { ...data.step5, hasProductLiability: e.target.checked } })}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                       />
                       <span><strong>Product Liability</strong> (For hardware, physical goods, or food)</span>
                     </label>
@@ -2304,7 +2309,7 @@ export function ModuleGWorkspace({
                     <select
                       value={data.step5.targetCoverageTimeline}
                       onChange={(e) => setData({ ...data, step5: { ...data.step5, targetCoverageTimeline: e.target.value } })}
-                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                     >
                       <option value="BEFORE_FIRST_SALE">Before launching first paid customer pilot</option>
                       <option value="BEFORE_FIRST_HIRE">Before hiring first employee</option>
@@ -2345,7 +2350,7 @@ export function ModuleGWorkspace({
                     const el = document.getElementById('mod-g-step-6');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-xs"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-xs"
                 >
                   <span>Next: Legal &amp; IP</span>
                   <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -2363,19 +2368,19 @@ export function ModuleGWorkspace({
         {openStep !== 'ALL' && openStep !== 6 ? (
           <div
             onClick={() => setOpenStep(6)}
-            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep6Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep6Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep6Done ? <Check className="h-4 w-4" /> : '6'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 6: Baseline Legal, IP &amp; GDPR Essentials
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -2394,7 +2399,7 @@ export function ModuleGWorkspace({
                 >
                   {isStep6Done ? 'Configured' : 'Needs Setup'}
                 </Badge>
-                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">
+                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50">
                   <span>{isStep6Done ? 'Edit Step' : 'Open Step'}</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
@@ -2408,7 +2413,7 @@ export function ModuleGWorkspace({
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                      isStep6Done ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                      isStep6Done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                     }`}
                   >
                     {isStep6Done ? <Check className="h-4 w-4" /> : '6'}
@@ -2432,10 +2437,10 @@ export function ModuleGWorkspace({
             </CardHeader>
             <CardContent className="space-y-6 pt-5">
               {/* Founder IP Assignment Callout */}
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-2">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-indigo-700" />
-                  <h4 className="text-xs font-bold text-indigo-950">
+                  <ShieldCheck className="h-4 w-4 text-emerald-800" />
+                  <h4 className="text-xs font-bold text-slate-950">
                     The #1 Diligence Showstopper: Founder IP Assignment
                   </h4>
                 </div>
@@ -2448,7 +2453,7 @@ export function ModuleGWorkspace({
                       type="checkbox"
                       checked={data.step6.hasIpAssignmentSigned}
                       onChange={(e) => setData({ ...data, step6: { ...data.step6, hasIpAssignmentSigned: e.target.checked } })}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                      className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700 h-4 w-4"
                     />
                     <span>Founder IP Assignment Agreement has been executed / is confirmed</span>
                   </label>
@@ -2465,7 +2470,7 @@ export function ModuleGWorkspace({
                         type="checkbox"
                         checked={data.step6.hasPrivacyPolicy}
                         onChange={(e) => setData({ ...data, step6: { ...data.step6, hasPrivacyPolicy: e.target.checked } })}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                       />
                       <span>GDPR-Compliant Website Privacy Policy</span>
                     </label>
@@ -2475,7 +2480,7 @@ export function ModuleGWorkspace({
                         type="checkbox"
                         checked={data.step6.hasTermsOfService}
                         onChange={(e) => setData({ ...data, step6: { ...data.step6, hasTermsOfService: e.target.checked } })}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                       />
                       <span>Terms of Service / End-User License Agreement</span>
                     </label>
@@ -2485,7 +2490,7 @@ export function ModuleGWorkspace({
                         type="checkbox"
                         checked={data.step6.hasStandardNda}
                         onChange={(e) => setData({ ...data, step6: { ...data.step6, hasStandardNda: e.target.checked } })}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                       />
                       <span>Standard Mutual Non-Disclosure Agreement (NDA)</span>
                     </label>
@@ -2533,7 +2538,7 @@ export function ModuleGWorkspace({
                     const el = document.getElementById('mod-g-step-7');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-xs"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-xs"
                 >
                   <span>Open Operations Readiness Brief</span>
                   <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -2551,19 +2556,19 @@ export function ModuleGWorkspace({
         {openStep !== 'ALL' && openStep !== 7 ? (
           <div
             onClick={() => setOpenStep(7)}
-            className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    completedCoreStepsCount === 6 ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    completedCoreStepsCount === 6 ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   <FileText className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Module G Brief: Operations Readiness &amp; Launchpad Schedule
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -2575,7 +2580,7 @@ export function ModuleGWorkspace({
                 <Badge className="shrink-0 text-[10px] font-medium border-emerald-300 bg-emerald-50 text-emerald-800">
                   {completedCoreStepsCount}/6 Pillars Ready
                 </Badge>
-                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50">
+                <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50">
                   <span>Open Overview</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
@@ -2583,11 +2588,11 @@ export function ModuleGWorkspace({
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm space-y-6">
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-indigo-100 pb-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-indigo-600" />
+                  <FileText className="h-5 w-5 text-emerald-700" />
                   <h3 className="text-base font-bold text-slate-900">
                     Operations Readiness &amp; Launchpad Schedule
                   </h3>
@@ -2693,7 +2698,7 @@ export function ModuleGWorkspace({
                   }
                   onContinueToModuleH?.();
                 }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shrink-0"
+                className="bg-emerald-700 hover:bg-emerald-800 text-xs font-semibold text-white shrink-0"
               >
                 <span>Continue to Module H</span>
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

@@ -36,7 +36,7 @@ export default function PrivacyPolicyPage() {
           {/* Top Banner */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-6">
             <div>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 EU &amp; UK GDPR Statutory Data Protection Notice
               </div>
@@ -121,9 +121,9 @@ export default function PrivacyPolicyPage() {
             </section>
 
             {/* 3. AI Confidentiality & Enterprise Data Protection */}
-            <section className="space-y-2.5 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-indigo-50/20 p-5">
+            <section className="space-y-2.5 rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50/20 p-5">
               <div className="flex items-center gap-2">
-                <Cpu className="h-5 w-5 text-indigo-600" />
+                <Cpu className="h-5 w-5 text-emerald-700" />
                 <h2 className="text-base font-bold text-slate-900">
                   3. AI Confidentiality &amp; Zero Public Model Training Guarantee
                 </h2>
@@ -136,7 +136,7 @@ export default function PrivacyPolicyPage() {
                   <strong>No Model Training:</strong> Under our enterprise API terms with Google Cloud, your business plans, trade secrets, financial models, and inputs are <strong>never</strong> used to train, retrain, or improve foundational AI models.
                 </li>
                 <li>
-                  <strong>Server-Side Isolation:</strong> All AI interactions pass through our secure backend router (<code className="rounded bg-indigo-100/70 px-1 py-0.5 text-xs text-indigo-800">src/lib/ai/router.ts</code>). API keys are never exposed to client browsers, and all prompts are sanitized to remove unnecessary identifiers.
+                  <strong>Server-Side Isolation:</strong> All AI interactions pass through our secure backend router (<code className="rounded bg-emerald-100/70 px-1 py-0.5 text-xs text-emerald-900">src/lib/ai/router.ts</code>). API keys are never exposed to client browsers, and all prompts are sanitized to remove unnecessary identifiers.
                 </li>
                 <li>
                   <strong>BYOK Encryption:</strong> If your tier supports Bring-Your-Own-Key (BYOK), your custom API keys are encrypted at rest using <strong>AES-256-GCM</strong> and decrypted exclusively in memory at the moment of authorized execution.
@@ -211,7 +211,7 @@ export default function PrivacyPolicyPage() {
             {/* 6. Cookies & Tracking Policy */}
             <section className="space-y-2.5">
               <div className="flex items-center gap-2">
-                <Cookie className="h-5 w-5 text-indigo-600" />
+                <Cookie className="h-5 w-5 text-emerald-700" />
                 <h2 className="text-base font-bold text-slate-900">
                   6. Cookie Policy &amp; Storage Technologies
                 </h2>
@@ -278,9 +278,9 @@ export default function PrivacyPolicyPage() {
             </section>
 
             {/* 9. Contact & Supervisory Authority */}
-            <section className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-5">
+            <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5">
               <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                <Mail className="h-5 w-5 text-indigo-600" />
+                <Mail className="h-5 w-5 text-emerald-700" />
                 9. Contact Us &amp; Regulatory Supervision
               </h2>
               <p className="mt-2 text-xs leading-relaxed text-slate-700 sm:text-sm">
@@ -289,19 +289,19 @@ export default function PrivacyPolicyPage() {
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <a
                   href="mailto:hello@startuppreflight.com"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-700"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-800"
                 >
                   <Mail className="h-3.5 w-3.5" />
                   hello@startuppreflight.com
                 </a>
                 <span className="text-xs text-slate-500">Dublin, Ireland</span>
               </div>
-              <p className="mt-4 border-t border-indigo-200/60 pt-3 text-xs text-slate-600">
+              <p className="mt-4 border-t border-slate-200/60 pt-3 text-xs text-slate-600">
                 If you believe your personal data has been handled inconsistently with GDPR, you have the right to lodge a complaint with your local supervisory authority:
                 <br />
-                <strong>Ireland:</strong> Data Protection Commission (DPC), 21 Fitzwilliam Square South, Dublin 2 (<a href="https://www.dataprotection.ie" target="_blank" rel="noreferrer" className="underline hover:text-indigo-800">dataprotection.ie</a>)
+                <strong>Ireland:</strong> Data Protection Commission (DPC), 21 Fitzwilliam Square South, Dublin 2 (<a href="https://www.dataprotection.ie" target="_blank" rel="noreferrer" className="underline hover:text-emerald-900">dataprotection.ie</a>)
                 <br />
-                <strong>United Kingdom:</strong> Information Commissioner&apos;s Office (ICO), Wycliffe House, Water Lane, Wilmslow (<a href="https://ico.org.uk" target="_blank" rel="noreferrer" className="underline hover:text-indigo-800">ico.org.uk</a>)
+                <strong>United Kingdom:</strong> Information Commissioner&apos;s Office (ICO), Wycliffe House, Water Lane, Wilmslow (<a href="https://ico.org.uk" target="_blank" rel="noreferrer" className="underline hover:text-emerald-900">ico.org.uk</a>)
               </p>
             </section>
           </div>

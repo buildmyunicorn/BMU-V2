@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Sparkles,
   HelpCircle,
@@ -176,6 +176,7 @@ export function ModuleKTaxReliefStep({
 
   const handleSaveStep4 = async () => {
     if (isVaultReadonly) return;
+    isDirtyRef.current = false;
     setIsSaving(true);
     try {
       const payload: ModuleKStep4TaxReliefSavedData = {
@@ -208,6 +209,47 @@ export function ModuleKTaxReliefStep({
     }
   };
 
+  const isFirstRenderRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const handleSaveStep4Ref = useRef(handleSaveStep4);
+  handleSaveStep4Ref.current = handleSaveStep4;
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyRef.current) {
+        void handleSaveStep4Ref.current();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    primaryTaxScheme,
+    otherTaxSchemeText,
+    targetReliefRaiseAmount,
+    founderPriorEmploymentYearsForSure,
+    founderEstimatedPayeRefundForSure,
+    advanceAssuranceStatus,
+    grossAssetsWithinThreshold,
+    lessThan250Employees,
+    qualifyingTradeStatus,
+    taxCatalystPitchNarrative,
+    aiAssessorTip,
+    isVaultReadonly,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        void handleSaveStep4Ref.current();
+      }
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* 4-Layer Support Strip: Why & Example */}
@@ -217,7 +259,7 @@ export function ModuleKTaxReliefStep({
           size="sm"
           variant="outline"
           onClick={() => setActiveWhyCard((prev) => !prev)}
-          className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+          className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
         >
           <HelpCircle className="mr-1 h-3.5 w-3.5" />
           Why Are We Asking This?
@@ -238,22 +280,22 @@ export function ModuleKTaxReliefStep({
           variant="outline"
           onClick={handleGenerateAiNarrative}
           disabled={isGeneratingAi || isVaultReadonly}
-          className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+          className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
           {isGeneratingAi ? 'Synthesizing Tax Strategy...' : 'Auto-Generate Tax Pitch with AI'}
         </Button>
       </div>
 
       {activeWhyCard && (
-        <div className="relative rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+        <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
           <button
             onClick={() => setActiveWhyCard(false)}
-            className="absolute right-2 top-2 text-indigo-400 hover:text-indigo-600"
+            className="absolute right-2 top-2 text-emerald-600 hover:text-emerald-700"
           >
             ✕
           </button>
-          <p className="font-semibold text-indigo-950">
+          <p className="font-semibold text-slate-950">
             How State Tax Relief Turns "Maybe" Angels into Immediate "Yes":
           </p>
           <p className="mt-1 leading-relaxed">
@@ -354,16 +396,16 @@ export function ModuleKTaxReliefStep({
                 onClick={() => !isVaultReadonly && setPrimaryTaxScheme(sch.id)}
                 className={`cursor-pointer rounded-xl border p-3.5 transition-all flex flex-col justify-between ${
                   isSelected
-                    ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600 shadow-xs'
+                    ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700 shadow-xs'
                     : 'border-slate-200 bg-white hover:border-slate-300'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="border-indigo-200 bg-indigo-100/60 text-indigo-900 text-[10px]">
+                    <Badge variant="outline" className="border-slate-200 bg-slate-100/60 text-slate-900 text-[10px]">
                       {sch.badge}
                     </Badge>
-                    {isSelected && <CheckCircle2 className="h-4 w-4 text-indigo-600" />}
+                    {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-700" />}
                   </div>
                   <h5 className="mt-2 text-xs font-bold text-slate-900">{sch.name}</h5>
                   <p className="mt-1 text-[11px] leading-relaxed text-slate-600">{sch.desc}</p>
@@ -483,7 +525,7 @@ export function ModuleKTaxReliefStep({
                 Immediate Investor Tax Back
               </span>
               <div className="my-1">
-                <div className="text-2xl font-extrabold tracking-tight text-indigo-600">
+                <div className="text-2xl font-extrabold tracking-tight text-emerald-700">
                   {currencySymbol}{estimatedInvestorTaxSavings.toLocaleString()}
                 </div>
                 <div className="text-[11px] text-slate-500">
@@ -549,7 +591,7 @@ export function ModuleKTaxReliefStep({
                 onClick={() => !isVaultReadonly && setAdvanceAssuranceStatus(st.id)}
                 className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all border ${
                   advanceAssuranceStatus === st.id
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-600'
+                    ? 'border-emerald-700 bg-emerald-50 text-slate-900 ring-1 ring-emerald-700'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                 }`}
               >
@@ -652,9 +694,9 @@ export function ModuleKTaxReliefStep({
             variant="outline"
             onClick={handleGenerateAiNarrative}
             disabled={isGeneratingAi || isVaultReadonly}
-            className="h-7 border-violet-200 bg-violet-50 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+            className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Tax Pitch with AI'}
           </Button>
         </div>
@@ -665,7 +707,7 @@ export function ModuleKTaxReliefStep({
             setTaxCatalystPitchNarrative(e.target.value)
           }
           placeholder={`e.g., To accelerate private angel participation, ${plan.title} is raising ${currencySymbol}${targetReliefRaiseAmount.toLocaleString()} under ${primaryTaxScheme.replace(/_/g, ' ')}. Qualifying investors receive ${investorReliefPercentage}% upfront income tax relief (${currencySymbol}${estimatedInvestorTaxSavings.toLocaleString()} in immediate tax deduction), alongside 0% capital gains tax and downside loss relief...`}
-          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
           disabled={isVaultReadonly}
         />
 
@@ -718,7 +760,7 @@ export function ModuleKTaxReliefStep({
                 await handleSaveStep4();
                 onContinueToNextStep();
               }}
-              className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+              className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
             >
               Continue to Step 5: Funding Brief
               <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

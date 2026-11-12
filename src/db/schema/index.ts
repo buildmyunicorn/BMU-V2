@@ -1029,6 +1029,18 @@ export const cohortInquiries = pgTable('cohort_inquiries', {
 });
 
 // ==========================================
+// 7D. SYSTEM SETTINGS & PLATFORM CONFIG
+// ==========================================
+export const systemSettings = pgTable('system_settings', {
+  key: text('key').primaryKey(), // e.g. 'ADMIN_NOTIFICATION_SETTINGS'
+  valueJson: jsonb('value_json')
+    .$type<Record<string, unknown>>()
+    .default({})
+    .notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ==========================================
 // 8. DRIZZLE RELATIONS
 // ==========================================
 export const tenantsRelations = relations(tenants, ({ many }) => ({

@@ -129,7 +129,7 @@ export default function QuoteSubmitPortalPage({
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="text-center space-y-3">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
           <p className="text-xs text-slate-400">Loading project quotation brief...</p>
         </div>
       </div>
@@ -180,7 +180,7 @@ export default function QuoteSubmitPortalPage({
           <CardHeader className="border-b border-slate-800 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
                   Client Project Scope &amp; RFP Brief
                 </span>
                 <CardTitle className="text-xl font-extrabold text-white mt-1">
@@ -192,7 +192,7 @@ export default function QuoteSubmitPortalPage({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="border-indigo-500/40 bg-indigo-500/20 text-xs text-indigo-300">
+                <Badge className="border-emerald-600/40 bg-emerald-500/20 text-xs text-slate-300">
                   {rfp.rfpCategory}
                 </Badge>
                 <Badge className="border-emerald-500/40 bg-emerald-500/20 text-xs text-emerald-300">
@@ -220,7 +220,7 @@ export default function QuoteSubmitPortalPage({
             {rfp.workPackages && rfp.workPackages.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-indigo-400" />
+                  <Layers className="h-4 w-4 text-emerald-600" />
                   <Label className="text-xs font-semibold text-slate-300">
                     Defined Work Packages ({rfp.workPackages.length})
                   </Label>
@@ -337,7 +337,7 @@ export default function QuoteSubmitPortalPage({
                   <Label className="text-xs text-slate-300">
                     Upload Official Quotation PDF Letter *
                   </Label>
-                  <div className="rounded-xl border-2 border-dashed border-slate-700 bg-slate-950 p-6 text-center hover:border-indigo-500 transition-colors">
+                  <div className="rounded-xl border-2 border-dashed border-slate-700 bg-slate-950 p-6 text-center hover:border-emerald-600 transition-colors">
                     {quoteFileName ? (
                       <div className="flex items-center justify-center gap-2 text-xs text-emerald-300 font-semibold">
                         <FileText className="h-5 w-5 text-emerald-400" />
@@ -347,7 +347,7 @@ export default function QuoteSubmitPortalPage({
                       <div className="space-y-2">
                         <Upload className="mx-auto h-8 w-8 text-slate-500" />
                         <div className="text-xs text-slate-300">
-                          <label className="text-indigo-400 font-semibold hover:underline cursor-pointer">
+                          <label className="text-emerald-600 font-semibold hover:underline cursor-pointer">
                             Click to upload PDF
                             <input
                               type="file"

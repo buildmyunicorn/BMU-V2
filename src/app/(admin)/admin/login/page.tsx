@@ -50,7 +50,7 @@ export default function SuperAdminLoginPage() {
     <div className="flex min-h-screen flex-col justify-center bg-slate-950 px-6 py-12 text-slate-100">
       <div className="mx-auto w-full max-w-md space-y-6">
         <div className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-amber-500 text-white shadow-lg">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-lg">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-white">
@@ -112,7 +112,7 @@ export default function SuperAdminLoginPage() {
                 type="submit"
                 size="lg"
                 disabled={isSubmitting}
-                className="w-full bg-indigo-600 text-white hover:bg-indigo-500"
+                className="w-full bg-emerald-700 text-white hover:bg-emerald-600"
               >
                 {isSubmitting ? (
                   <>

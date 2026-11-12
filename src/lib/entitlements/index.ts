@@ -502,12 +502,12 @@ export function getPlanTypeBadgeProps(
     case 'SIX_MONTH_SOLO':
       return {
         label: 'Solo Pass',
-        className: 'border-indigo-200 bg-indigo-50 text-indigo-700 font-semibold',
+        className: 'border-slate-200 bg-emerald-50/70 text-emerald-800 font-semibold',
       };
     case 'SIX_MONTH_COFOUNDER':
       return {
         label: 'Co-Founder Pass',
-        className: 'border-violet-200 bg-violet-50 text-violet-700 font-semibold',
+        className: 'border-slate-200 bg-emerald-50/70 text-emerald-800 font-semibold',
       };
     case 'APPSUMO_LTD':
       return {

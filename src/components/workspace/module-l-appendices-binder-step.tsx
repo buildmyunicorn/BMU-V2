@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Paperclip,
   CheckCircle2,
@@ -271,7 +271,29 @@ export function ModuleLAppendicesBinderStep({
     }
   };
 
+  const handleSaveAppendicesOnly = async () => {
+    if (isVaultReadonly) return;
+    isDirtyRef.current = false;
+    setIsSaving(true);
+    const payload: ModuleLStep4AppendicesSavedData = {
+      appendices,
+      declarationConfirmed,
+      signatoryName,
+      signatoryTitle,
+      lastSavedAt: new Date().toISOString(),
+    };
+
+    try {
+      if (onSaveStep4Appendices) {
+        await onSaveStep4Appendices(payload, 80);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveAndContinue = async () => {
+    isDirtyRef.current = false;
     setIsSaving(true);
     const payload: ModuleLStep4AppendicesSavedData = {
       appendices,
@@ -291,16 +313,44 @@ export function ModuleLAppendicesBinderStep({
     }
   };
 
+  const isFirstRenderRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const handleSaveAppendicesOnlyRef = useRef(handleSaveAppendicesOnly);
+  handleSaveAppendicesOnlyRef.current = handleSaveAppendicesOnly;
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyRef.current) {
+        void handleSaveAppendicesOnlyRef.current();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [appendices, declarationConfirmed, signatoryName, signatoryTitle, isVaultReadonly]);
+
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        void handleSaveAppendicesOnlyRef.current();
+      }
+    };
+  }, []);
+
   const getAppendixIcon = (code: string) => {
     switch (code) {
       case 'APPENDIX_A':
         return <FileSpreadsheet className="h-4 w-4 text-emerald-600" />;
       case 'APPENDIX_B':
-        return <Cpu className="h-4 w-4 text-indigo-600" />;
+        return <Cpu className="h-4 w-4 text-emerald-700" />;
       case 'APPENDIX_C':
         return <ShoppingBag className="h-4 w-4 text-amber-600" />;
       case 'APPENDIX_D':
-        return <Users className="h-4 w-4 text-violet-600" />;
+        return <Users className="h-4 w-4 text-emerald-700" />;
       case 'APPENDIX_E':
         return <MessageSquare className="h-4 w-4 text-sky-600" />;
       case 'APPENDIX_F':
@@ -320,7 +370,7 @@ export function ModuleLAppendicesBinderStep({
             size="sm"
             variant="outline"
             onClick={() => setActiveWhyCard((p) => !p)}
-            className="h-7 border-indigo-200 bg-white text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+            className="h-7 border-slate-200 bg-white text-[11px] font-medium text-emerald-800 hover:bg-emerald-50"
           >
             <HelpCircle className="mr-1 h-3.5 w-3.5" />
             Why Are We Asking This?
@@ -343,9 +393,9 @@ export function ModuleLAppendicesBinderStep({
             variant="outline"
             onClick={handleRunAiAudit}
             disabled={isAuditingAi || isVaultReadonly}
-            className="h-7 border-violet-200 bg-violet-50/80 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+            className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isAuditingAi ? 'Auditing Evidence Binder...' : 'AI Audit Evidence Binder'}
           </Button>
         </div>
@@ -370,12 +420,12 @@ export function ModuleLAppendicesBinderStep({
 
       {/* Why Drawer */}
       {activeWhyCard && (
-        <div className="rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900 space-y-1.5">
-          <div className="flex items-center justify-between font-bold text-indigo-950">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900 space-y-1.5">
+          <div className="flex items-center justify-between font-bold text-slate-950">
             <span>Why the Appendices Proof Binder Is Non-Negotiable</span>
             <button
               onClick={() => setActiveWhyCard(false)}
-              className="text-indigo-400 hover:text-indigo-600"
+              className="text-emerald-600 hover:text-emerald-700"
             >
               ✕
             </button>
@@ -418,14 +468,14 @@ export function ModuleLAppendicesBinderStep({
       )}
 
       {/* Executive Binder Assessment Summary */}
-      <div className="rounded-xl border border-indigo-200 bg-white p-5 shadow-xs space-y-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-indigo-600" />
+            <ShieldCheck className="h-4 w-4 text-emerald-700" />
             <h3 className="text-sm font-bold text-slate-900">
               Statutory Evidence &amp; Compliance Synthesis
             </h3>
-            <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700">
+            <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800">
               Assessor Binder Note
             </Badge>
           </div>
@@ -438,7 +488,7 @@ export function ModuleLAppendicesBinderStep({
                 `All mandatory statutory appendices (A through F) are attached and cross-referenced to their respective operational source modules. All quotes for capital items conform to statutory ${isUK ? 'Innovate UK asset depreciation' : 'LEO 3-quote competitive procurement'} standards.`
               )
             }
-            className="h-7 text-xs text-indigo-600 hover:bg-indigo-50"
+            className="h-7 text-xs text-emerald-700 hover:bg-emerald-50"
           >
             <RotateCcw className="mr-1 h-3 w-3" />
             Reset to Standard Note
@@ -450,7 +500,7 @@ export function ModuleLAppendicesBinderStep({
           value={aiAuditText}
           onChange={(e) => setAiAuditText(e.target.value)}
           disabled={isVaultReadonly}
-          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
           placeholder="Enter appendices audit note..."
         />
       </div>
@@ -528,7 +578,7 @@ export function ModuleLAppendicesBinderStep({
                               onNavigateToModule(appendix.sourceModuleCode);
                             }
                           }}
-                          className="cursor-pointer border-indigo-200 bg-indigo-50/70 text-[10px] font-medium text-indigo-700 hover:bg-indigo-100"
+                          className="cursor-pointer border-slate-200 bg-slate-50 text-[10px] font-medium text-emerald-800 hover:bg-slate-100"
                         >
                           {appendix.sourceModuleCode.replace('MOD_', '')}
                           <ExternalLink className="ml-1 h-2.5 w-2.5 inline" />
@@ -544,7 +594,7 @@ export function ModuleLAppendicesBinderStep({
                         checked={appendix.included}
                         onChange={() => toggleAppendixIncluded(appendix.code)}
                         disabled={isVaultReadonly}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700 h-4 w-4"
                       />
                       <span className="font-medium">Include in Binder</span>
                     </label>
@@ -560,7 +610,7 @@ export function ModuleLAppendicesBinderStep({
                     value={appendix.signOffNote}
                     onChange={(e) => updateSignOffNote(appendix.code, e.target.value)}
                     disabled={isVaultReadonly || !appendix.included}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                     placeholder="Add verification notes for claims officer..."
                   />
                 </div>
@@ -600,7 +650,7 @@ export function ModuleLAppendicesBinderStep({
             checked={declarationConfirmed}
             onChange={(e) => setDeclarationConfirmed(e.target.checked)}
             disabled={isVaultReadonly}
-            className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
+            className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700 shrink-0"
           />
           <span className="text-xs leading-relaxed text-slate-700">
             I hereby certify that all figures, financial projections, promoter CV profiles, and supplier quotations contained in this business plan and attached Appendices A through F represent true, accurate, and verifiable records. I confirm that requested capital items comply with public procurement guidelines with no deadweight duplication or displacement.
@@ -617,7 +667,7 @@ export function ModuleLAppendicesBinderStep({
               value={signatoryName}
               onChange={(e) => setSignatoryName(e.target.value)}
               disabled={isVaultReadonly}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
               placeholder="e.g. Jane Doe"
             />
           </div>
@@ -631,7 +681,7 @@ export function ModuleLAppendicesBinderStep({
               value={signatoryTitle}
               onChange={(e) => setSignatoryTitle(e.target.value)}
               disabled={isVaultReadonly}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
               placeholder="e.g. Founder & Chief Executive Officer"
             />
           </div>
@@ -677,7 +727,7 @@ export function ModuleLAppendicesBinderStep({
             size="sm"
             onClick={handleSaveAndContinue}
             disabled={isSaving || isVaultReadonly || !declarationConfirmed}
-            className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+            className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
           >
             {isSaving ? 'Saving Appendices...' : 'Save & Continue to Step 5 (Dossier Brief)'}
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

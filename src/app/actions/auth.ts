@@ -67,6 +67,7 @@ import {
 } from '@/lib/auth/session-store';
 import { sendSystemEmail } from '@/lib/email/send';
 import { EMAIL_DEFAULTS } from '@/lib/email/resend';
+import { dispatchAdminSignupAlert } from '@/lib/email/admin-alerts';
 
 export interface AuthActionResult {
   ok: boolean;
@@ -994,6 +995,19 @@ export async function registerFounderAction(input: {
       },
     }).catch((emailErr) => {
       console.error('[SPF Email] Failed to send welcome email upon registration:', emailErr);
+    });
+
+    // Notify admin asynchronously if configured (zero latency on registration response)
+    dispatchAdminSignupAlert({
+      founderName: cleanName,
+      founderEmail: cleanEmail,
+      authMethod: 'EMAIL_PASSWORD',
+      tierName: emailTierName,
+      hqCountry: 'IE',
+      voucherCode: cleanCode || undefined,
+      cohortName: cohortId ? `Cohort #${cohortId}` : undefined,
+    }).catch((adminAlertErr) => {
+      console.warn('[SPF Email] Failed to dispatch admin signup alert:', adminAlertErr);
     });
 
     const session = await buildSessionFromDbUser(createdUser);

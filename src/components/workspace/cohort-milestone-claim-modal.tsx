@@ -224,7 +224,7 @@ export function CohortMilestoneClaimModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-xs sm:p-6">
       <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* Top Gradient Header */}
-        <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-indigo-950 via-indigo-900 to-slate-900 px-5 py-4 text-white sm:px-6 sm:py-5">
+        <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-900 px-5 py-4 text-white sm:px-6 sm:py-5">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="border-emerald-400/40 bg-emerald-500/20 text-[10px] font-bold text-emerald-200">
@@ -232,14 +232,14 @@ export function CohortMilestoneClaimModal({
                   ? '✓ Partner Verification Dispatched'
                   : '✓ Milestone Gate Unlocked'}
               </Badge>
-              <span className="text-[11px] font-medium text-indigo-200">
+              <span className="text-[11px] font-medium text-slate-300">
                 {cohort.organizationName} • {cohort.name}
               </span>
             </div>
             <h2 className="mt-1.5 text-lg font-bold tracking-tight text-white sm:text-xl">
               {milestoneConfig.rewardLabel}
             </h2>
-            <p className="mt-0.5 text-xs text-indigo-100/90">
+            <p className="mt-0.5 text-xs text-slate-200/90">
               {submittedDossier
                 ? `Your verified venture dossier has been sent to the ${cohort.organizationName} partner team.`
                 : `Verify your official company domain & work email to dispatch your readiness dossier to ${cohort.organizationName}.`}
@@ -248,7 +248,7 @@ export function CohortMilestoneClaimModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-indigo-200 transition-colors hover:bg-white/10 hover:text-white"
+            className="rounded-lg p-1.5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Close modal"
           >
             <X className="h-5 w-5" />
@@ -280,11 +280,11 @@ export function CohortMilestoneClaimModal({
               </div>
 
               {milestoneConfig.instructionNotes && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-800">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
                     Next Steps from {cohort.organizationName}
                   </div>
-                  <p className="mt-1.5 text-xs leading-relaxed text-indigo-950">
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-950">
                     {milestoneConfig.instructionNotes}
                   </p>
                 </div>
@@ -309,7 +309,7 @@ export function CohortMilestoneClaimModal({
                   </div>
                   <div>
                     <span className="text-slate-500">Official Domain:</span>{' '}
-                    <span className="font-mono font-semibold text-indigo-700">
+                    <span className="font-mono font-semibold text-emerald-800">
                       https://{submittedDossier.verifiedDomain}
                     </span>
                   </div>
@@ -345,14 +345,14 @@ export function CohortMilestoneClaimModal({
               <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-4">
                 <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                    <ShieldCheck className="h-4 w-4 text-emerald-700" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                       Step 1: Corporate Domain &amp; Work Email Verification
                     </h3>
                   </div>
                   <Badge
                     variant="outline"
-                    className="border-indigo-200 bg-white text-[10px] font-semibold text-indigo-700"
+                    className="border-slate-200 bg-white text-[10px] font-semibold text-emerald-800"
                   >
                     Mandatory Partner Check
                   </Badge>
@@ -375,7 +375,7 @@ export function CohortMilestoneClaimModal({
                       onClick={() =>
                         setShowDomainPartnerHelp(!showDomainPartnerHelp)
                       }
-                      className="text-[11px] font-semibold text-indigo-600 hover:underline"
+                      className="text-[11px] font-semibold text-emerald-700 hover:underline"
                     >
                       {showDomainPartnerHelp
                         ? 'Hide Domain Setup Perks'
@@ -408,7 +408,7 @@ export function CohortMilestoneClaimModal({
                         </>
                       ) : (
                         <>
-                          <Search className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                          <Search className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                           Verify / Check DNS
                         </>
                       )}
@@ -428,7 +428,7 @@ export function CohortMilestoneClaimModal({
                             onClick={() => setDomainInput(item.domain)}
                             className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
                               domainInput === item.domain
-                                ? 'border-indigo-600 bg-indigo-50 text-indigo-950'
+                                ? 'border-emerald-700 bg-emerald-50 text-slate-950'
                                 : item.available
                                   ? 'border-emerald-200 bg-emerald-50/60 text-emerald-900 hover:bg-emerald-100/70'
                                   : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
@@ -441,7 +441,7 @@ export function CohortMilestoneClaimModal({
                               className={`text-[10px] ${
                                 item.available
                                   ? 'text-emerald-700'
-                                  : 'text-indigo-700'
+                                  : 'text-emerald-800'
                               }`}
                             >
                               {item.available
@@ -455,7 +455,7 @@ export function CohortMilestoneClaimModal({
                   )}
 
                   {showDomainPartnerHelp && (
-                    <div className="mt-2 rounded-xl border border-indigo-200/80 bg-white p-3">
+                    <div className="mt-2 rounded-xl border border-slate-200/80 bg-white p-3">
                       <PartnerSlot
                         slot="OPS_STEP_2_DOMAIN"
                         countryCode={hqCountryCode}
@@ -487,7 +487,7 @@ export function CohortMilestoneClaimModal({
                       onClick={() =>
                         setShowEmailPartnerHelp(!showEmailPartnerHelp)
                       }
-                      className="text-[11px] font-semibold text-indigo-600 hover:underline"
+                      className="text-[11px] font-semibold text-emerald-700 hover:underline"
                     >
                       {showEmailPartnerHelp
                         ? 'Hide Work Email Perks'
@@ -530,7 +530,7 @@ export function CohortMilestoneClaimModal({
                   )}
 
                   {showEmailPartnerHelp && (
-                    <div className="mt-2 rounded-xl border border-indigo-200/80 bg-white p-3">
+                    <div className="mt-2 rounded-xl border border-slate-200/80 bg-white p-3">
                       <PartnerSlot
                         slot="OPS_STEP_2_EMAIL"
                         countryCode={hqCountryCode}
@@ -622,7 +622,7 @@ export function CohortMilestoneClaimModal({
                     <span className="text-[11px] text-slate-500">
                       Validation Traction (Module C):
                     </span>{' '}
-                    <span className="font-semibold text-indigo-700">
+                    <span className="font-semibold text-emerald-800">
                       {executiveSummary.surveyRespondentsCount ?? 0} Survey
                       Responses • {executiveSummary.waitlistLeadsCount ?? 0}{' '}
                       Waitlist Leads

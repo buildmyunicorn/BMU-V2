@@ -103,7 +103,7 @@ export function GrantChecklistClient({
                   percentage === 100
                     ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
                     : percentage >= 50
-                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                     : 'border-slate-200 text-slate-600'
                 }`}
               >
@@ -166,8 +166,8 @@ export function GrantChecklistClient({
               percentage === 100
                 ? 'bg-emerald-500'
                 : percentage >= 50
-                ? 'bg-indigo-600'
-                : 'bg-indigo-400'
+                ? 'bg-emerald-700'
+                : 'bg-emerald-600'
             }`}
             style={{ width: `${percentage}%` }}
           />
@@ -197,7 +197,7 @@ export function GrantChecklistClient({
               {/* Category Header */}
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-3 sm:px-6">
                 <div className="flex items-center gap-2">
-                  <FileCheck2 className="h-4 w-4 text-indigo-600" />
+                  <FileCheck2 className="h-4 w-4 text-emerald-700" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                     {category}
                   </h2>
@@ -229,7 +229,7 @@ export function GrantChecklistClient({
                             <Check className="h-3.5 w-3.5 stroke-[3]" />
                           </div>
                         ) : (
-                          <div className="h-5 w-5 rounded-md border border-slate-300 bg-white group-hover:border-indigo-400 transition" />
+                          <div className="h-5 w-5 rounded-md border border-slate-300 bg-white group-hover:border-emerald-400 transition" />
                         )}
                       </div>
 
@@ -240,7 +240,7 @@ export function GrantChecklistClient({
                             className={`text-sm font-semibold transition ${
                               isChecked
                                 ? 'text-slate-500 line-through'
-                                : 'text-slate-900 group-hover:text-indigo-600'
+                                : 'text-slate-900 group-hover:text-emerald-700'
                             }`}
                           >
                             {item.title}
@@ -284,9 +284,9 @@ export function GrantChecklistClient({
       </div>
 
       {/* 5. NEXT STEPS / FOOTER CONVERSION */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-b from-indigo-50/70 via-white to-indigo-50/30 p-6 sm:p-8 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 print:hidden">
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-emerald-50/50 via-white to-slate-50/50 p-6 sm:p-8 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 print:hidden">
         <div className="space-y-1 max-w-xl">
-          <div className="flex items-center gap-2 text-indigo-700">
+          <div className="flex items-center gap-2 text-emerald-800">
             <Sparkles className="h-4 w-4" />
             <span className="text-[11px] font-bold uppercase tracking-wider">
               Ready to assemble your grant pack?
@@ -311,7 +311,7 @@ export function GrantChecklistClient({
             </Button>
           </Link>
           <Link href="/register">
-            <Button className="w-full sm:w-auto h-10 rounded-xl bg-slate-900 text-xs font-semibold text-white shadow-sm hover:bg-indigo-600 transition">
+            <Button className="w-full sm:w-auto h-10 rounded-xl bg-slate-900 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition">
               Prepare with Preflight Free
               <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
             </Button>

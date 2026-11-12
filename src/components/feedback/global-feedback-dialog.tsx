@@ -58,11 +58,11 @@ export function GlobalFeedbackButton({
           variant="outline"
           onClick={() => setIsOpen(true)}
           title="Report a bug or give feedback"
-          className={`h-8 border-indigo-200/90 bg-indigo-50/70 px-2.5 text-xs font-semibold text-indigo-700 shadow-2xs transition-all hover:border-indigo-300 hover:bg-indigo-100/90 ${className}`}
+          className={`h-8 border-slate-200/90 bg-emerald-50/70 px-2.5 text-xs font-semibold text-emerald-800 shadow-2xs transition-all hover:border-emerald-300 hover:bg-slate-100/90 ${className}`}
         >
-          <MessageSquare className="h-3.5 w-3.5 text-indigo-600 sm:mr-1.5" />
+          <MessageSquare className="h-3.5 w-3.5 text-emerald-700 sm:mr-1.5" />
           <span className="hidden sm:inline">Feedback</span>
-          <span className="ml-1 hidden rounded-full bg-indigo-200/70 px-1.5 py-0.2 text-[10px] font-bold text-indigo-800 lg:inline">
+          <span className="ml-1 hidden rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-900 lg:inline">
             Beta
           </span>
         </Button>
@@ -72,9 +72,9 @@ export function GlobalFeedbackButton({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className={`inline-flex items-center gap-1.5 rounded-full border border-indigo-200/80 bg-indigo-50/60 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100/90 hover:text-indigo-900 ${className}`}
+          className={`inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-slate-100/90 hover:text-slate-900 ${className}`}
         >
-          <MessageSquare className="h-3.5 w-3.5 text-indigo-600" />
+          <MessageSquare className="h-3.5 w-3.5 text-emerald-700" />
           Feedback
         </button>
       )}
@@ -86,7 +86,7 @@ export function GlobalFeedbackButton({
           variant="ghost"
           onClick={() => setIsOpen(true)}
           title="Give Feedback"
-          className={`h-7 px-2 text-xs font-medium text-slate-600 hover:text-indigo-600 ${className}`}
+          className={`h-7 px-2 text-xs font-medium text-slate-600 hover:text-emerald-700 ${className}`}
         >
           <MessageSquare className="mr-1 h-3.5 w-3.5" />
           Feedback
@@ -100,7 +100,7 @@ export function GlobalFeedbackButton({
           variant="ghost"
           onClick={() => setIsOpen(true)}
           title="Report Bug / Feedback"
-          className={`h-8 w-8 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-indigo-600 ${className}`}
+          className={`h-8 w-8 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-emerald-700 ${className}`}
         >
           <MessageSquare className="h-4 w-4" />
         </Button>
@@ -197,6 +197,7 @@ export function GlobalFeedbackModal({
     setErrorMessage(null);
 
     try {
+      const oneLineDesc = description.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
       const res = await submitFeedbackAction({
         ticketType,
         priority: ticketType === 'BUG' ? 'HIGH' : 'MEDIUM',
@@ -205,7 +206,7 @@ export function GlobalFeedbackModal({
         pageUrl: currentPath,
         planId: planId || null,
         planTitle: planTitle || null,
-        title: `${ticketType === 'BUG' ? 'Bug Report' : ticketType === 'IMPROVEMENT' ? 'Feature Idea' : 'Feedback'}: ${description.trim().slice(0, 50)}...`,
+        title: `${ticketType === 'BUG' ? 'Bug Report' : ticketType === 'IMPROVEMENT' ? 'Feature Idea' : 'Feedback'}: ${oneLineDesc.slice(0, 50)}...`,
         description: description.trim(),
         expectedBehavior: expectedBehavior.trim() || null,
         reporterEmail: userEmail || customEmail.trim() || null,
@@ -263,7 +264,7 @@ export function GlobalFeedbackModal({
       type: 'IMPROVEMENT',
       label: 'Idea / Feature',
       icon: Sparkles,
-      color: 'indigo',
+      color: 'emerald',
       description: 'A feature or workflow you’d love to see',
     },
     {
@@ -323,7 +324,7 @@ export function GlobalFeedbackModal({
             {/* Header */}
             <div>
               <div className="flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-emerald-800">
                   <MessageSquare className="h-4 w-4" />
                 </span>
                 <h3 className="text-base font-bold text-slate-900">
@@ -352,18 +353,18 @@ export function GlobalFeedbackModal({
                       onClick={() => setTicketType(opt.type)}
                       className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition-all ${
                         active
-                          ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                          ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
                           : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
                       <Icon
                         className={`h-4 w-4 ${
-                          active ? 'text-indigo-600' : 'text-slate-500'
+                          active ? 'text-emerald-700' : 'text-slate-500'
                         }`}
                       />
                       <span
                         className={`mt-1 text-xs font-bold ${
-                          active ? 'text-indigo-950' : 'text-slate-700'
+                          active ? 'text-slate-950' : 'text-slate-700'
                         }`}
                       >
                         {opt.label}
@@ -395,7 +396,7 @@ export function GlobalFeedbackModal({
                       ? 'e.g., It would be great to export this specific table as a CSV or have a dark mode toggle...'
                       : 'Share your questions, feedback, or thoughts...'
                 }
-                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden sm:text-xs"
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
               />
             </div>
 
@@ -457,7 +458,7 @@ export function GlobalFeedbackModal({
                 type="submit"
                 size="sm"
                 disabled={isSubmitting || !description.trim()}
-                className="bg-indigo-600 text-xs font-semibold text-white shadow-2xs hover:bg-indigo-700"
+                className="bg-emerald-700 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800"
               >
                 {isSubmitting ? (
                   <>

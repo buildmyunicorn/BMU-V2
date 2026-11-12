@@ -263,7 +263,7 @@ export function CohortStartupMasterDocumentView({
             {/* Multi-Venture Switcher Dropdown (if founder has > 1 plans in cohort) */}
             {data.founderPlans && data.founderPlans.length > 1 ? (
               <div className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs">
-                <Layers className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                <Layers className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                 <span className="hidden text-[11px] text-slate-400 lg:inline">
                   Venture:
                 </span>
@@ -286,7 +286,7 @@ export function CohortStartupMasterDocumentView({
                 </select>
                 <Badge
                   variant="outline"
-                  className="ml-1 border-indigo-500/40 bg-indigo-500/10 text-[10px] text-indigo-300"
+                  className="ml-1 border-emerald-600/40 bg-emerald-500/10 text-[10px] text-slate-300"
                 >
                   {data.founderPlans.length} in Batch
                 </Badge>
@@ -304,7 +304,7 @@ export function CohortStartupMasterDocumentView({
             <Button
               size="sm"
               onClick={handlePrintPdf}
-              className="h-8 bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-500"
+              className="h-8 bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-500"
             >
               <Printer className="mr-1.5 h-3.5 w-3.5" />
               <span>Print / PDF</span>
@@ -317,7 +317,7 @@ export function CohortStartupMasterDocumentView({
               onClick={handleDownloadHtml}
               className="h-8 border-slate-700 bg-slate-800 text-xs text-slate-200 hover:bg-slate-700 hover:text-white"
             >
-              <Download className="mr-1.5 h-3.5 w-3.5 text-indigo-300" />
+              <Download className="mr-1.5 h-3.5 w-3.5 text-slate-300" />
               <span className="hidden sm:inline">Download</span> .HTML
             </Button>
 
@@ -409,7 +409,7 @@ export function CohortStartupMasterDocumentView({
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   Blueprint Progress
                 </div>
-                <div className="text-sm font-bold text-indigo-400 font-mono">
+                <div className="text-sm font-bold text-emerald-600 font-mono">
                   {data.facts.overallCompletionPercent}% Assembled
                 </div>
               </div>
@@ -424,7 +424,7 @@ export function CohortStartupMasterDocumentView({
               </span>
               {data.startup.verifiedDomain && (
                 <div className="flex items-center gap-1 text-slate-200">
-                  <Globe className="h-3.5 w-3.5 text-indigo-400" />
+                  <Globe className="h-3.5 w-3.5 text-emerald-600" />
                   <span className="font-mono text-xs">
                     {data.startup.verifiedDomain}
                   </span>
@@ -507,7 +507,7 @@ export function CohortStartupMasterDocumentView({
         <div className="print:hidden rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-indigo-400" />
+              <MessageSquare className="h-4 w-4 text-emerald-600" />
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
                 Director &amp; Mentor Private Notes
               </h2>
@@ -528,7 +528,7 @@ export function CohortStartupMasterDocumentView({
               value={mentorNote}
               onChange={(e) => setMentorNote(e.target.value)}
               placeholder="Record 1-on-1 mentor observations, grant readiness red flags, pilot milestone targets, or next session action items for this startup..."
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-xs text-white placeholder-slate-500 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-700"
             />
             <div className="mt-2.5 flex items-center justify-between">
               <span className="text-[11px] text-slate-400">
@@ -538,7 +538,7 @@ export function CohortStartupMasterDocumentView({
                 size="sm"
                 disabled={isSavingNote}
                 onClick={handleSaveMentorNote}
-                className="h-7 bg-indigo-600 px-3 text-xs font-semibold text-white hover:bg-indigo-500"
+                className="h-7 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-500"
               >
                 <Save className="mr-1.5 h-3 w-3" />
                 {isSavingNote ? 'Saving...' : 'Save Mentor Note'}

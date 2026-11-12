@@ -16,6 +16,8 @@ import {
   Search,
   ExternalLink,
   Loader2,
+  Bell,
+  BellOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +34,8 @@ import {
   listAdminEmailLogsAction,
   previewAdminEmailAction,
   sendAdminTestEmailAction,
+  getAdminNotificationSettingsAction,
+  saveAdminNotificationSettingsAction,
   EmailLogSummary,
 } from '@/app/actions/admin-emails';
 import { EmailTemplateType } from '@/lib/email/send';
@@ -46,6 +50,11 @@ const TEMPLATE_OPTIONS: { id: EmailTemplateType; name: string; desc: string }[] 
     id: 'WELCOME_FOUNDER',
     name: 'Welcome & Onboarding',
     desc: 'Sent immediately on registration with first 30-min checklist.',
+  },
+  {
+    id: 'ADMIN_NEW_SIGNUP',
+    name: 'Admin Alert: New Founder Registration',
+    desc: 'Instant alert dispatched to Tom/Admin when any founder signs up.',
   },
   {
     id: 'PASSWORD_RESET',
@@ -95,6 +104,62 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
 
+  // Admin Notification Alert Settings State (Option B)
+  const [notificationSettings, setNotificationSettings] = useState({
+    notifyOnNewSignup: true,
+    recipientEmail: adminEmail || 'Tom@startuppreflight.com',
+  });
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Load notification settings on mount
+  const fetchNotificationSettings = async () => {
+    setIsLoadingSettings(true);
+    try {
+      const res = await getAdminNotificationSettingsAction();
+      if (res.ok && res.settings) {
+        setNotificationSettings({
+          notifyOnNewSignup: res.settings.notifyOnNewSignup,
+          recipientEmail: res.settings.recipientEmail,
+        });
+      }
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  const handleSaveNotificationSettings = async () => {
+    if (!notificationSettings.recipientEmail || !notificationSettings.recipientEmail.includes('@')) {
+      if (onNotify) onNotify('error', 'Please enter a valid recipient email address.');
+      return;
+    }
+    setIsSavingSettings(true);
+    try {
+      const res = await saveAdminNotificationSettingsAction({
+        notifyOnNewSignup: notificationSettings.notifyOnNewSignup,
+        recipientEmail: notificationSettings.recipientEmail.trim(),
+      });
+      if (res.ok && res.settings) {
+        setNotificationSettings({
+          notifyOnNewSignup: res.settings.notifyOnNewSignup,
+          recipientEmail: res.settings.recipientEmail,
+        });
+        if (onNotify) {
+          onNotify(
+            'success',
+            res.settings.notifyOnNewSignup
+              ? `✓ Signup alerts enabled for ${res.settings.recipientEmail}`
+              : `✓ Signup alerts muted.`
+          );
+        }
+      } else if (onNotify) {
+        onNotify('error', res.error || 'Failed to update alert settings');
+      }
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
   // Load logs on mount
   const fetchLogs = async () => {
     setIsLoadingLogs(true);
@@ -113,6 +178,7 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
 
   useEffect(() => {
     fetchLogs();
+    fetchNotificationSettings();
   }, []);
 
   // Update preview when template changes or tab switched
@@ -167,7 +233,7 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Mail className="h-5 w-5 text-indigo-600" />
+            <Mail className="h-5 w-5 text-emerald-700" />
             System Emails & Deliverability Hub
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -211,6 +277,116 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Admin Notification Preferences Card (Option B: Instant Signup Alerts) */}
+      <Card className="rounded-xl border border-slate-200 bg-white shadow-2xs">
+        <CardHeader className="py-3 px-4 sm:px-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <Bell className="h-4 w-4" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-bold text-slate-900">
+                Admin Signup Alert Settings
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500">
+                Receive instant email alerts when new founders register during testing. Turn off anytime if signups surge.
+              </CardDescription>
+            </div>
+          </div>
+          <Badge
+            variant={notificationSettings.notifyOnNewSignup ? 'default' : 'secondary'}
+            className={
+              notificationSettings.notifyOnNewSignup
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold text-xs'
+                : 'bg-slate-100 text-slate-600 border-slate-200 font-semibold text-xs'
+            }
+          >
+            {notificationSettings.notifyOnNewSignup ? '● Alerts Active' : '○ Alerts Muted'}
+          </Badge>
+        </CardHeader>
+        <CardContent className="py-4 px-4 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+            {/* Toggle State */}
+            <div className="md:col-span-4 flex items-center gap-3">
+              <Button
+                type="button"
+                variant={notificationSettings.notifyOnNewSignup ? 'default' : 'outline'}
+                size="sm"
+                onClick={() =>
+                  setNotificationSettings((prev) => ({
+                    ...prev,
+                    notifyOnNewSignup: !prev.notifyOnNewSignup,
+                  }))
+                }
+                className={
+                  notificationSettings.notifyOnNewSignup
+                    ? 'bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs h-9'
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-100 font-medium text-xs h-9'
+                }
+              >
+                {notificationSettings.notifyOnNewSignup ? (
+                  <>
+                    <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                    Signup Alerts: ON
+                  </>
+                ) : (
+                  <>
+                    <BellOff className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+                    Signup Alerts: OFF
+                  </>
+                )}
+              </Button>
+              <span className="text-xs text-slate-500">
+                {notificationSettings.notifyOnNewSignup
+                  ? 'Email sent on each new user.'
+                  : 'Muted. Signups logged silently.'}
+              </span>
+            </div>
+
+            {/* Recipient Email Input */}
+            <div className="md:col-span-5 flex items-center gap-2">
+              <Label
+                htmlFor="adminRecipient"
+                className="text-xs font-semibold text-slate-700 shrink-0"
+              >
+                Alert Recipient:
+              </Label>
+              <Input
+                id="adminRecipient"
+                type="email"
+                placeholder="tom@startuppreflight.com"
+                value={notificationSettings.recipientEmail}
+                onChange={(e) =>
+                  setNotificationSettings((prev) => ({
+                    ...prev,
+                    recipientEmail: e.target.value,
+                  }))
+                }
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+
+            {/* Save Button */}
+            <div className="md:col-span-3 flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveNotificationSettings}
+                disabled={isSavingSettings || isLoadingSettings}
+                className="h-9 px-4 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white"
+              >
+                {isSavingSettings ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+                )}
+                Save Preferences
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* SUB-TAB 1: LOGS & AUDIT TRAIL */}
       {activeSubTab === 'LOGS' && (
@@ -281,7 +457,7 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
               <Button
                 size="sm"
                 onClick={() => setActiveSubTab('TESTER')}
-                className="h-9 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs"
+                className="h-9 text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold shadow-xs"
               >
                 <Send className="mr-1.5 h-3.5 w-3.5" />
                 ⚡ Send Quick Test Email
@@ -325,7 +501,7 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
                           {log.recipient}
                         </td>
                         <td className="py-3 px-4">
-                          <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200/60">
+                          <span className="font-semibold text-emerald-800 bg-emerald-50/70 px-2 py-0.5 rounded border border-slate-200">
                             {log.template}
                           </span>
                         </td>
@@ -411,7 +587,7 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
           <div className="flex justify-center bg-slate-100 rounded-xl border border-slate-200 p-6 min-h-[550px]">
             {isLoadingPreview ? (
               <div className="flex flex-col items-center justify-center text-slate-400 gap-2">
-                <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-700" />
                 <span className="text-xs font-medium">Rendering React Email...</span>
               </div>
             ) : (
@@ -438,7 +614,7 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
         <Card className="rounded-xl border border-slate-200 bg-white shadow-2xs max-w-xl mx-auto">
           <CardHeader>
             <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Send className="h-4 w-4 text-indigo-600" />
+              <Send className="h-4 w-4 text-emerald-700" />
               Send Live Test Transactional Email
             </CardTitle>
             <CardDescription className="text-xs text-slate-600">
@@ -459,7 +635,7 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
                     onClick={() => setSelectedTemplate(tpl.id)}
                     className={`flex flex-col items-start p-3 rounded-lg border text-left transition-all ${
                       selectedTemplate === tpl.id
-                        ? 'border-indigo-600 bg-indigo-50/50'
+                        ? 'border-emerald-700 bg-emerald-50/70'
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
@@ -509,7 +685,7 @@ export const SystemEmailsStudioTab: React.FC<SystemEmailsStudioTabProps> = ({
             <Button
               onClick={handleSendTest}
               disabled={isSendingTest}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold h-9"
+              className="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold h-9"
             >
               {isSendingTest ? (
                 <>

@@ -187,7 +187,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="flex items-center gap-2 text-sm text-slate-500">
-          <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+          <Loader2 className="h-5 w-5 animate-spin text-emerald-700" />
           Loading Guaranteed Responses &amp; Prolific Panel Engine...
         </div>
       </div>
@@ -247,7 +247,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
             <CardDescription className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Delivered Responses
             </CardDescription>
-            <CardTitle className="text-2xl font-bold text-indigo-700">
+            <CardTitle className="text-2xl font-bold text-emerald-800">
               {stats.totalDeliveredResponses}
             </CardTitle>
           </CardHeader>
@@ -257,18 +257,18 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
         </Card>
 
         {/* Metric 4: Prolific Live Balance */}
-        <Card className="border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-white shadow-2xs">
+        <Card className="border-slate-200 bg-gradient-to-br from-emerald-50/60 to-white shadow-2xs">
           <CardHeader className="p-4 pb-2">
             <div className="flex items-center justify-between">
-              <CardDescription className="text-xs font-semibold uppercase tracking-wider text-indigo-800">
+              <CardDescription className="text-xs font-semibold uppercase tracking-wider text-emerald-900">
                 Prolific API Status
               </CardDescription>
-              <Badge variant="outline" className="border-indigo-200 bg-white text-[10px] text-indigo-700">
+              <Badge variant="outline" className="border-slate-200 bg-white text-[10px] text-emerald-800">
                 Live Connected
               </Badge>
             </div>
-            <CardTitle className="flex items-center gap-2 text-xl font-bold text-indigo-950">
-              <Wallet className="h-5 w-5 text-indigo-600" />
+            <CardTitle className="flex items-center gap-2 text-xl font-bold text-slate-900">
+              <Wallet className="h-5 w-5 text-emerald-700" />
               {prolificAcc ? (
                 <>
                   {prolificAcc.currency === 'GBP' ? '£' : '€'}
@@ -279,7 +279,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-0 text-[11px] text-indigo-900/80">
+          <CardContent className="p-4 pt-0 text-[11px] text-slate-900/80">
             {prolificAcc?.email ? `Account: ${prolificAcc.email}` : 'Token active & ready for dispatch'}
           </CardContent>
         </Card>
@@ -382,14 +382,14 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-600">
-                          <span className="font-medium text-indigo-700">Survey:</span>
+                          <span className="font-medium text-emerald-800">Survey:</span>
                           <span>{order.surveyTitle}</span>
                           {order.surveySlug && (
                             <a
                               href={`/v/${order.surveySlug}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-0.5 text-indigo-600 hover:underline"
+                              className="inline-flex items-center gap-0.5 text-emerald-700 hover:underline"
                             >
                               (/v/{order.surveySlug}) <ExternalLink className="h-3 w-3" />
                             </a>
@@ -428,7 +428,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
                           </Badge>
 
                           {order.prolificStudyId && (
-                            <Badge variant="outline" className="border-indigo-200 text-[10px] text-indigo-700">
+                            <Badge variant="outline" className="border-slate-200 text-[10px] text-emerald-800">
                               Prolific ID: {order.prolificStudyId.slice(0, 10)}...
                             </Badge>
                           )}
@@ -444,7 +444,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
                           </div>
                           <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                             <div
-                              className="h-full bg-indigo-600 transition-all"
+                              className="h-full bg-emerald-700 transition-all"
                               style={{ width: `${progressPct}%` }}
                             />
                           </div>
@@ -456,7 +456,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
                           {isPaid && (
                             <Button
                               size="sm"
-                              className="h-7 bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                              className="h-7 bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                               disabled={dispatchingOrderId === order.id}
                               onClick={() => handleDispatchToProlific(order.id)}
                             >
@@ -507,9 +507,9 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
       {/* TAB 2: PRICING TIERS MANAGEMENT */}
       {activeSubTab === 'PRICING_TIERS' && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-indigo-900">
+          <div className="rounded-xl border border-slate-200 bg-emerald-50/70 p-4 text-xs text-slate-900">
             <h3 className="font-bold">100% Dynamic Pricing &amp; Quantities Control</h3>
-            <p className="mt-1 leading-relaxed text-indigo-800">
+            <p className="mt-1 leading-relaxed text-emerald-900">
               Update pricing in EUR and GBP, change sample response counts (e.g. adjust 25 to 30), turnaround hours,
               or toggle tiers on and off. All changes take effect in the founder workspace instantly without code redeployments.
             </p>
@@ -523,7 +523,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
                 <Card
                   key={tier.id}
                   className={`border transition-all ${
-                    isEditing ? 'border-indigo-400 shadow-md ring-2 ring-indigo-200' : 'border-slate-200 bg-white'
+                    isEditing ? 'border-emerald-500 shadow-md ring-2 ring-emerald-200' : 'border-slate-200 bg-white'
                   }`}
                 >
                   <CardHeader className="p-4 pb-2">
@@ -586,7 +586,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
                         </div>
                         <div className="flex items-baseline justify-between border-b border-slate-100 pb-2">
                           <span className="text-xs text-slate-500">Price (GBP):</span>
-                          <span className="text-base font-bold text-indigo-700">£{(tier.priceGbpCents / 100).toFixed(2)}</span>
+                          <span className="text-base font-bold text-emerald-800">£{(tier.priceGbpCents / 100).toFixed(2)}</span>
                         </div>
                         <div className="flex items-baseline justify-between pb-2">
                           <span className="text-xs text-slate-500">Turnaround:</span>
@@ -663,7 +663,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
                             id={`active-${tier.id}`}
                             checked={tierEditForm.isActive}
                             onChange={(e) => setTierEditForm({ ...tierEditForm, isActive: e.target.checked })}
-                            className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-700"
                           />
                           <Label htmlFor={`active-${tier.id}`} className="cursor-pointer text-xs">
                             Active in Founder Workspace
@@ -674,7 +674,7 @@ export function SurveyBoostStudioTab({ onNotify }: SurveyBoostStudioTabProps) {
                           <Button
                             size="sm"
                             onClick={() => handleSaveTier(tier.id)}
-                            className="h-8 flex-1 bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                            className="h-8 flex-1 bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                           >
                             <Save className="mr-1.5 h-3.5 w-3.5" />
                             Save

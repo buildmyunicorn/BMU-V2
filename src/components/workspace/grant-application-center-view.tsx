@@ -89,12 +89,12 @@ const STATUS_CONFIG: Record<
   },
   PREPARING_PLAN: {
     label: 'Preparing Plan',
-    badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    badgeClass: 'bg-slate-100 text-emerald-900 border-emerald-300',
     desc: 'Completing required modules in Startup Preflight.',
   },
   ADVISOR_CALL_BOOKED: {
     label: 'Advisor Call Booked',
-    badgeClass: 'bg-violet-100 text-violet-800 border-violet-300',
+    badgeClass: 'bg-slate-100 text-emerald-900 border-slate-300',
     desc: 'Mandatory pre-application meeting scheduled with local enterprise advisor.',
   },
   PORTAL_SUBMITTED: {
@@ -165,7 +165,7 @@ export function GrantApplicationCenterView({
           {onBackToDashboard && (
             <Button
               onClick={onBackToDashboard}
-              className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+              className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
             >
               Back to Dashboard
             </Button>
@@ -355,7 +355,7 @@ ${companyTitle}`;
   return (
     <div className="space-y-8 pb-12">
       {/* Top Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-indigo-900/60 bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-900 p-5 text-white shadow-md sm:p-7">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 text-white shadow-md sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -364,15 +364,15 @@ ${companyTitle}`;
                 size="sm"
                 variant="ghost"
                 onClick={onBackToDashboard}
-                className="h-7 px-2 text-xs font-semibold text-indigo-200 hover:bg-white/10 hover:text-white"
+                className="h-7 px-2 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white"
               >
                 <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                 Back to Dashboard
               </Button>
-              <Badge className="border-indigo-400/40 bg-indigo-500/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-100">
+              <Badge className="border-emerald-400/40 bg-emerald-500/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-200">
                 Grant Application Center
               </Badge>
-              <Badge className="border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold text-indigo-100">
+              <Badge className="border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold text-slate-200">
                 {isUK ? '🇬🇧 United Kingdom' : '🇮🇪 Ireland'} Directory
               </Badge>
             </div>
@@ -380,7 +380,7 @@ ${companyTitle}`;
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl lg:text-3xl">
               Apply for Startup Grants &amp; Non-Dilutive Funding
             </h1>
-            <p className="max-w-3xl text-xs leading-relaxed text-indigo-100/90 sm:text-sm">
+            <p className="max-w-3xl text-xs leading-relaxed text-slate-200/90 sm:text-sm">
               Follow our step-by-step submission companion. We verify that your plan
               satisfies official agency rubrics, provide direct portal links, and generate
               assessor-ready answers directly from your saved plan data.
@@ -393,13 +393,13 @@ ${companyTitle}`;
               <Landmark className="h-5 w-5 text-emerald-300" />
             </div>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
                 Current Grant Readiness
               </div>
               <div className="text-2xl font-extrabold text-white">
                 {readiness.readinessPercentage}%
               </div>
-              <div className="text-[11px] text-indigo-200">
+              <div className="text-[11px] text-slate-300">
                 {readiness.completedCount} of {readiness.totalCount} Plan Items Ready
               </div>
             </div>
@@ -408,7 +408,7 @@ ${companyTitle}`;
 
         {/* Grant Selector Strip */}
         <div className="mt-6 border-t border-white/15 pt-4">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
             Select Grant Program to Apply For:
           </div>
           <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -426,7 +426,7 @@ ${companyTitle}`;
                   className={`group flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
                     isSelected
                       ? 'border-emerald-400 bg-white/20 text-white shadow-md'
-                      : 'border-white/15 bg-white/5 text-indigo-100 hover:border-white/30 hover:bg-white/10'
+                      : 'border-white/15 bg-white/5 text-slate-200 hover:border-white/30 hover:bg-white/10'
                   }`}
                 >
                   <div>
@@ -444,7 +444,7 @@ ${companyTitle}`;
                   </div>
 
                   <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2 text-[10px]">
-                    <span className="text-indigo-200">
+                    <span className="text-slate-300">
                       {grantEval.readinessPercentage}% Ready
                     </span>
                     <span className="rounded-full bg-white/10 px-2 py-0.5 font-semibold text-white">
@@ -463,7 +463,7 @@ ${companyTitle}`;
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-200 bg-indigo-50 text-[10px] font-bold text-indigo-800">
+              <Badge className="border-slate-200 bg-emerald-50 text-[10px] font-bold text-emerald-900">
                 {activeGrant.agency}
               </Badge>
               <Badge variant="outline" className="border-slate-200 text-[10px] text-slate-600">
@@ -496,7 +496,7 @@ ${companyTitle}`;
                   handleUpdateTrackerStatus(e.target.value as GrantApplicationStatusType)
                 }
                 disabled={isVaultReadonly}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
               >
                 <option value="NOT_STARTED">⚪ Not Started</option>
                 <option value="PREPARING_PLAN">🔵 Preparing Plan</option>
@@ -531,7 +531,7 @@ ${companyTitle}`;
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold text-white">
                 1
               </span>
               <h2 className="text-base font-bold text-slate-900">
@@ -629,7 +629,7 @@ ${companyTitle}`;
       {/* =================================================================== */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold text-white">
             2
           </span>
           <div>
@@ -679,13 +679,13 @@ ${companyTitle}`;
                       href={directPortalTargetUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs font-bold text-indigo-950 transition-all hover:bg-indigo-100 hover:border-indigo-300 shadow-2xs"
+                      className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-bold text-slate-950 transition-all hover:bg-slate-100 hover:border-emerald-300 shadow-2xs"
                     >
                       <span className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 shrink-0 text-indigo-700 group-hover:text-indigo-900" />
+                        <Building2 className="h-4 w-4 shrink-0 text-emerald-800 group-hover:text-slate-900" />
                         <span>{directPortalTargetLabel}</span>
                       </span>
-                      <ExternalLink className="h-4 w-4 shrink-0 text-indigo-600 group-hover:text-indigo-800" />
+                      <ExternalLink className="h-4 w-4 shrink-0 text-emerald-700 group-hover:text-emerald-900" />
                     </a>
                   );
                 })()}
@@ -697,7 +697,7 @@ ${companyTitle}`;
                       href={activeGrant.applicationGuideUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:text-indigo-900 hover:bg-slate-50"
+                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:text-slate-900 hover:bg-slate-50"
                     >
                       <span className="flex items-center gap-2">
                         <FileText className="h-3.5 w-3.5 text-slate-500" />
@@ -716,7 +716,7 @@ ${companyTitle}`;
                       href="https://www.ros.ie/oidc/login?lang=en&client_id=rosint_rp"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:text-indigo-900 hover:bg-slate-50"
+                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:text-slate-900 hover:bg-slate-50"
                     >
                       <span className="flex items-center gap-2">
                         <Building2 className="h-3.5 w-3.5 text-slate-500" />
@@ -732,7 +732,7 @@ ${companyTitle}`;
                       href="https://www.newfrontiers.ie/locations"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:text-indigo-900 hover:bg-slate-50"
+                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:text-slate-900 hover:bg-slate-50"
                     >
                       <span className="flex items-center gap-2">
                         <Building2 className="h-3.5 w-3.5 text-slate-500" />
@@ -760,7 +760,7 @@ ${companyTitle}`;
                     <select
                       value={selectedLeoId}
                       onChange={(e) => setSelectedLeoId(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs font-semibold text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs font-semibold text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                     >
                       {IRELAND_LEO_OFFICES.map((leo) => (
                         <option key={leo.id} value={leo.id}>
@@ -784,7 +784,7 @@ ${companyTitle}`;
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
                         <a
                           href={`tel:${selectedLeoOffice.phone.replace(/[^0-9+]/g, '')}`}
-                          className="flex items-center gap-1.5 font-medium hover:text-indigo-600"
+                          className="flex items-center gap-1.5 font-medium hover:text-emerald-700"
                         >
                           <Phone className="h-3 w-3 text-slate-500" />
                           <span>{selectedLeoOffice.phone}</span>
@@ -792,7 +792,7 @@ ${companyTitle}`;
                         <span>•</span>
                         <a
                           href={`mailto:${selectedLeoOffice.generalEmail}`}
-                          className="flex items-center gap-1.5 font-medium hover:text-indigo-600"
+                          className="flex items-center gap-1.5 font-medium hover:text-emerald-700"
                         >
                           <Mail className="h-3 w-3 text-slate-500" />
                           <span>{selectedLeoOffice.generalEmail}</span>
@@ -803,7 +803,7 @@ ${companyTitle}`;
                           href={selectedLeoOffice.portalUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 hover:text-indigo-900 hover:underline"
+                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 hover:text-slate-900 hover:underline"
                         >
                           <span>Visit {selectedLeoOffice.name} Supports Page</span>
                           <ExternalLink className="h-3 w-3" />
@@ -829,7 +829,7 @@ ${companyTitle}`;
                     size="sm"
                     variant="outline"
                     onClick={handleCopyEmail}
-                    className="h-7 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                    className="h-7 text-xs border-slate-200 text-emerald-800 hover:bg-emerald-50"
                   >
                     {copiedAdvisorEmail ? (
                       <>
@@ -864,7 +864,7 @@ ${companyTitle}`;
       {/* =================================================================== */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold text-white">
             3
           </span>
           <div>
@@ -880,7 +880,7 @@ ${companyTitle}`;
         </div>
 
         {/* Question Generator Card */}
-        <Card className="rounded-xl border-indigo-200 bg-gradient-to-b from-indigo-50/40 via-white to-white shadow-xs">
+        <Card className="rounded-xl border-slate-200 bg-gradient-to-b from-slate-50 via-white to-white shadow-xs">
           <CardContent className="pt-5 space-y-4">
             <form onSubmit={handleGenerateCustomAnswer} className="space-y-4">
               <div>
@@ -893,7 +893,7 @@ ${companyTitle}`;
                   placeholder='e.g., "Describe the technical innovation in your product and how it will be protected from competitors" or "Outline your export growth plans and job creation for the next 3 years"'
                   rows={3}
                   disabled={isGeneratingAnswer || isVaultReadonly}
-                  className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-xs leading-relaxed text-slate-900 shadow-2xs placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden"
+                  className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-xs leading-relaxed text-slate-900 shadow-2xs placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                 />
               </div>
 
@@ -948,7 +948,7 @@ ${companyTitle}`;
                   disabled={
                     !customQuestionInput.trim() || isGeneratingAnswer || isVaultReadonly
                   }
-                  className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
                 >
                   {isGeneratingAnswer ? (
                     <>
@@ -990,7 +990,7 @@ ${companyTitle}`;
                         </Badge>
                         <Badge
                           variant="secondary"
-                          className="bg-indigo-50 text-[10px] font-semibold text-indigo-700"
+                          className="bg-emerald-50 text-[10px] font-semibold text-emerald-800"
                         >
                           {q.assessorLens.replace(/_/g, ' ')}
                         </Badge>
@@ -1057,7 +1057,7 @@ ${companyTitle}`;
       {/* =================================================================== */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold text-white">
             4
           </span>
           <div>
@@ -1075,7 +1075,7 @@ ${companyTitle}`;
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4">
             <div>
               <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                <FileText className="h-4 w-4 text-indigo-600" />
+                <FileText className="h-4 w-4 text-emerald-700" />
                 Official Grant Business Plan / Dossier PDF
               </div>
               <p className="mt-1 text-xs text-slate-600">
@@ -1088,7 +1088,7 @@ ${companyTitle}`;
                 size="sm"
                 variant="outline"
                 onClick={onOpenBusinessPlanStudio}
-                className="w-full border-indigo-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                className="w-full border-slate-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
               >
                 Open Business Plan Studio &amp; Export
                 <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -1125,7 +1125,7 @@ ${companyTitle}`;
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4">
             <div>
               <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                <Paperclip className="h-4 w-4 text-violet-600" />
+                <Paperclip className="h-4 w-4 text-emerald-700" />
                 3 Independent Written Supplier Quotes
               </div>
               <p className="mt-1 text-xs text-slate-600">
@@ -1138,7 +1138,7 @@ ${companyTitle}`;
                 size="sm"
                 variant="outline"
                 onClick={() => onNavigateToModule('MOD_E_OPERATIONS', 2)}
-                className="w-full border-violet-200 text-xs font-semibold text-violet-800 hover:bg-violet-50"
+                className="w-full border-slate-200 text-xs font-semibold text-emerald-900 hover:bg-slate-50"
               >
                 Open Equipment &amp; Quotes Concierge (Module E)
                 <ArrowRight className="ml-1 h-3.5 w-3.5" />

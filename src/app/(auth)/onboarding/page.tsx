@@ -235,7 +235,7 @@ export default function OnboardingPage() {
           <Card className="border-slate-200 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <UserCircle2 className="h-5 w-5 text-indigo-600" />
+                <UserCircle2 className="h-5 w-5 text-emerald-700" />
                 Part 1: About You as a Founder
               </CardTitle>
               <CardDescription>
@@ -254,7 +254,7 @@ export default function OnboardingPage() {
                       onClick={() => setFounderStage(stage.id)}
                       className={`rounded-xl border p-3 text-left transition ${
                         founderStage === stage.id
-                          ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
+                          ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700'
                           : 'border-slate-200 bg-white hover:bg-slate-50'
                       }`}
                     >
@@ -287,7 +287,7 @@ export default function OnboardingPage() {
                         }
                         className={`rounded-lg border px-2.5 py-2 text-xs font-medium ${
                           teamStructure === t.id
-                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                            ? 'border-emerald-700 bg-emerald-700 text-white'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -307,7 +307,7 @@ export default function OnboardingPage() {
                         onClick={() => setPrimaryHat(hat.id)}
                         className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
                           primaryHat === hat.id
-                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                            ? 'border-emerald-700 bg-emerald-700 text-white'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -324,7 +324,7 @@ export default function OnboardingPage() {
           <Card className="border-slate-200 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Rocket className="h-5 w-5 text-indigo-600" />
+                <Rocket className="h-5 w-5 text-emerald-700" />
                 Part 2: Your First Startup Plan &amp; Jurisdiction Rules
               </CardTitle>
               <CardDescription>
@@ -363,7 +363,7 @@ export default function OnboardingPage() {
               {/* HQ Country & Base Currency Selector */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
-                  <Globe2 className="h-4 w-4 text-indigo-600" />
+                  <Globe2 className="h-4 w-4 text-emerald-700" />
                   Home / Incorporation Country &amp; Base Currency
                 </Label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-7">
@@ -384,7 +384,7 @@ export default function OnboardingPage() {
                       onClick={() => setHqCountryCode(c.code)}
                       className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition ${
                         hqCountryCode === c.code
-                          ? 'border-indigo-600 bg-indigo-50 font-bold text-indigo-950 ring-1 ring-indigo-600'
+                          ? 'border-emerald-700 bg-emerald-50 font-bold text-slate-950 ring-1 ring-emerald-700'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
                     >
@@ -406,7 +406,7 @@ export default function OnboardingPage() {
                         onClick={() => setFundingTrackMode('GRANT_AND_INVESTOR')}
                         className={`rounded-xl border p-3 text-left text-xs transition ${
                           fundingTrackMode === 'GRANT_AND_INVESTOR'
-                            ? 'border-indigo-600 bg-indigo-50/70 font-semibold text-indigo-950 ring-1 ring-indigo-600'
+                            ? 'border-emerald-700 bg-emerald-50/70 font-semibold text-slate-950 ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -421,7 +421,7 @@ export default function OnboardingPage() {
                         onClick={() => setFundingTrackMode('COMMERCIAL_ONLY')}
                         className={`rounded-xl border p-3 text-left text-xs transition ${
                           fundingTrackMode === 'COMMERCIAL_ONLY'
-                            ? 'border-indigo-600 bg-indigo-50/70 font-semibold text-indigo-950 ring-1 ring-indigo-600'
+                            ? 'border-emerald-700 bg-emerald-50/70 font-semibold text-slate-950 ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -469,7 +469,7 @@ export default function OnboardingPage() {
               {/* Industry Category Selector */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
-                  <Building2 className="h-4 w-4 text-indigo-600" />
+                  <Building2 className="h-4 w-4 text-emerald-700" />
                   Industry / Business Model (Tailors &ldquo;Show Me an Example&rdquo; Coaching)
                 </Label>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
@@ -480,7 +480,7 @@ export default function OnboardingPage() {
                       onClick={() => setIndustryCategory(ind)}
                       className={`rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition ${
                         industryCategory === ind
-                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                          ? 'border-emerald-700 bg-emerald-700 text-white shadow-2xs'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
                     >
@@ -493,7 +493,7 @@ export default function OnboardingPage() {
               {/* Target Selling Geography */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
-                  <Coins className="h-4 w-4 text-indigo-600" />
+                  <Coins className="h-4 w-4 text-emerald-700" />
                   {effectiveTrackMode === 'GRANT_AND_INVESTOR'
                     ? 'Where Will Your Customers Live? (Informs Export Grant Eligibility)'
                     : 'Where Will Your Customers Live? (Target Market Scope)'}
@@ -504,7 +504,7 @@ export default function OnboardingPage() {
                     onClick={() => setExportPotential('DOMESTIC_ONLY')}
                     className={`rounded-xl border p-3 text-left text-xs ${
                       exportPotential === 'DOMESTIC_ONLY'
-                        ? 'border-indigo-600 bg-indigo-50/70 font-semibold text-indigo-950 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-emerald-50/70 font-semibold text-slate-950 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
@@ -521,7 +521,7 @@ export default function OnboardingPage() {
                     }
                     className={`rounded-xl border p-3 text-left text-xs ${
                       exportPotential === 'EXPORTING_INTERNATIONALLY'
-                        ? 'border-indigo-600 bg-indigo-50/70 font-semibold text-indigo-950 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-emerald-50/70 font-semibold text-slate-950 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >

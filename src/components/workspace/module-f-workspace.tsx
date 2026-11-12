@@ -2030,7 +2030,7 @@ export function ModuleFWorkspace({
     step4DataRef.current = step4Data;
   }, [step4Data]);
 
-  // Synchronize Step 4 data if incoming plan data updates (e.g. cloud hydration after mount)
+  // Synchronize Step 4 data only if incoming cloud data has strictly more answered questions than local state
   useEffect(() => {
     const cloudStep4 = plan.moduleFData?.step4AlignmentData;
     if (cloudStep4 && cloudStep4.responses && cloudStep4.responses.length > 0) {
@@ -2043,11 +2043,7 @@ export function ModuleFWorkspace({
           (acc, r) => acc + Object.keys(r.answers || {}).length,
           0
         );
-        if (
-          cloudAnsweredCount >= prevAnsweredCount ||
-          !prev.lastSavedAt ||
-          (cloudStep4.lastSavedAt && cloudStep4.lastSavedAt > prev.lastSavedAt)
-        ) {
+        if (cloudAnsweredCount > prevAnsweredCount) {
           const reconciled = buildDefaultStep4DataForPlan(
             plan,
             step1Data.teamMembers,
@@ -2059,7 +2055,7 @@ export function ModuleFWorkspace({
         return prev;
       });
     }
-  }, [plan.id, plan.moduleFData?.step4AlignmentData, userName, step1Data.teamMembers]);
+  }, [plan.id, plan.moduleFData?.step4AlignmentData, userName]);
 
   // Keep custom other text inputs in sync with step4Data
   useEffect(() => {
@@ -2166,19 +2162,6 @@ export function ModuleFWorkspace({
   const step6DataRef = useRef(step6Data);
   step6DataRef.current = step6Data;
   const [step6AutosavedAt, setStep6AutosavedAt] = useState<Date | null>(null);
-
-  // Synchronize Step 6 data if incoming plan data updates (e.g. cloud hydration)
-  useEffect(() => {
-    const cloudStep6 = plan.moduleFData?.step6BlindSpotAuditData;
-    if (cloudStep6 && cloudStep6.blindSpots && cloudStep6.blindSpots.length > 0) {
-      setStep6Data((prev) => {
-        if (!prev.lastSavedAt || (cloudStep6.lastSavedAt && cloudStep6.lastSavedAt > prev.lastSavedAt)) {
-          return buildDefaultStep6DataForPlan(plan, selectedCountry);
-        }
-        return prev;
-      });
-    }
-  }, [plan.id, plan.moduleFData?.step6BlindSpotAuditData, selectedCountry]);
 
   function toggleAdvisorCollapse(advisorId: string) {
     setOpenAdvisorIds((prev) => ({
@@ -2962,18 +2945,18 @@ export function ModuleFWorkspace({
   // Overview / Final Brief Handlers
   async function handleSaveStep6(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
+    isDirtyStep6Ref.current = false;
     try {
       if (!options?.silent) setIsSavingStep6(true);
       const updatedData: TeamBlindSpotAuditBriefData = {
         ...(step6DataRef.current || step6Data),
         lastSavedAt: new Date().toISOString(),
       };
-      setStep6Data(updatedData);
+      step6DataRef.current = updatedData;
 
       if (onSaveBriefOverview) {
         await onSaveBriefOverview(updatedData, 100);
       }
-      isDirtyStep6Ref.current = false;
       setStep6AutosavedAt(new Date());
       if (!options?.silent) {
         setSaveBanner(
@@ -3172,6 +3155,19 @@ export function ModuleFWorkspace({
     step6DataRef.current = step6Data;
   }, [step6Data]);
 
+  const handleSaveStep1Ref = useRef(handleSaveStep1);
+  handleSaveStep1Ref.current = handleSaveStep1;
+  const handleSaveStep2Ref = useRef(handleSaveStep2);
+  handleSaveStep2Ref.current = handleSaveStep2;
+  const handleSaveStep3Ref = useRef(handleSaveStep3);
+  handleSaveStep3Ref.current = handleSaveStep3;
+  const handleSaveStep4Ref = useRef(handleSaveStep4);
+  handleSaveStep4Ref.current = handleSaveStep4;
+  const handleSaveStep5Ref = useRef(handleSaveStep5);
+  handleSaveStep5Ref.current = handleSaveStep5;
+  const handleSaveStep6Ref = useRef(handleSaveStep6);
+  handleSaveStep6Ref.current = handleSaveStep6;
+
   // Debounced Autosave for Step 1 (Promoter & Team Profiles)
   useEffect(() => {
     if (isFirstRenderStep1Ref.current) {
@@ -3181,8 +3177,11 @@ export function ModuleFWorkspace({
     if (isVaultReadonly || !onSaveStep1PromoterProfiles) return;
     isDirtyStep1Ref.current = true;
     const timer = setTimeout(() => {
-      void handleSaveStep1({ silent: true });
-    }, 1200);
+      if (isDirtyStep1Ref.current) {
+        isDirtyStep1Ref.current = false;
+        void handleSaveStep1Ref.current({ silent: true });
+      }
+    }, 500);
     return () => clearTimeout(timer);
   }, [step1Data, isVaultReadonly]);
 
@@ -3195,8 +3194,11 @@ export function ModuleFWorkspace({
     if (isVaultReadonly || !onSaveStep2RoleMatrix) return;
     isDirtyStep2Ref.current = true;
     const timer = setTimeout(() => {
-      void handleSaveStep2({ silent: true });
-    }, 1200);
+      if (isDirtyStep2Ref.current) {
+        isDirtyStep2Ref.current = false;
+        void handleSaveStep2Ref.current({ silent: true });
+      }
+    }, 500);
     return () => clearTimeout(timer);
   }, [step2Data, isVaultReadonly]);
 
@@ -3209,8 +3211,11 @@ export function ModuleFWorkspace({
     if (isVaultReadonly || !onSaveStep3SurvivalBudget) return;
     isDirtyStep3Ref.current = true;
     const timer = setTimeout(() => {
-      void handleSaveStep3({ silent: true });
-    }, 1200);
+      if (isDirtyStep3Ref.current) {
+        isDirtyStep3Ref.current = false;
+        void handleSaveStep3Ref.current({ silent: true });
+      }
+    }, 500);
     return () => clearTimeout(timer);
   }, [step3Data, isVaultReadonly]);
 
@@ -3223,8 +3228,11 @@ export function ModuleFWorkspace({
     if (isVaultReadonly || !onSaveStep4Alignment) return;
     isDirtyStep4Ref.current = true;
     const timer = setTimeout(() => {
-      void handleSaveStep4({ silent: true });
-    }, 1200);
+      if (isDirtyStep4Ref.current) {
+        isDirtyStep4Ref.current = false;
+        void handleSaveStep4Ref.current({ silent: true });
+      }
+    }, 500);
     return () => clearTimeout(timer);
   }, [step4Data, isVaultReadonly]);
 
@@ -3237,8 +3245,11 @@ export function ModuleFWorkspace({
     if (isVaultReadonly || !onSaveStep5HiringPlan) return;
     isDirtyStep5Ref.current = true;
     const timer = setTimeout(() => {
-      void handleSaveStep5({ silent: true });
-    }, 1200);
+      if (isDirtyStep5Ref.current) {
+        isDirtyStep5Ref.current = false;
+        void handleSaveStep5Ref.current({ silent: true });
+      }
+    }, 500);
     return () => clearTimeout(timer);
   }, [step5Data, isVaultReadonly]);
 
@@ -3251,8 +3262,11 @@ export function ModuleFWorkspace({
     if (isVaultReadonly || !onSaveBriefOverview) return;
     isDirtyStep6Ref.current = true;
     const timer = setTimeout(() => {
-      void handleSaveStep6({ silent: true });
-    }, 1200);
+      if (isDirtyStep6Ref.current) {
+        isDirtyStep6Ref.current = false;
+        void handleSaveStep6Ref.current({ silent: true });
+      }
+    }, 500);
     return () => clearTimeout(timer);
   }, [step6Data, isVaultReadonly]);
 
@@ -3260,42 +3274,32 @@ export function ModuleFWorkspace({
   useEffect(() => {
     return () => {
       if (isVaultReadonly) return;
-      if (isDirtyStep1Ref.current && onSaveStep1PromoterProfiles) {
-        void onSaveStep1PromoterProfiles(step1DataRef.current, step1Complete ? 20 : 10);
+      if (isDirtyStep1Ref.current) {
+        isDirtyStep1Ref.current = false;
+        void handleSaveStep1Ref.current({ silent: true });
       }
-      if (isDirtyStep2Ref.current && onSaveStep2RoleMatrix) {
-        void onSaveStep2RoleMatrix(step2DataRef.current, step2Complete ? 40 : 25);
+      if (isDirtyStep2Ref.current) {
+        isDirtyStep2Ref.current = false;
+        void handleSaveStep2Ref.current({ silent: true });
       }
-      if (isDirtyStep3Ref.current && onSaveStep3SurvivalBudget) {
-        void onSaveStep3SurvivalBudget(step3DataRef.current, step3Complete ? 60 : 45);
+      if (isDirtyStep3Ref.current) {
+        isDirtyStep3Ref.current = false;
+        void handleSaveStep3Ref.current({ silent: true });
       }
-      if (isDirtyStep4Ref.current && onSaveStep4Alignment) {
-        void onSaveStep4Alignment(step4DataRef.current, step4Complete ? 80 : 65);
+      if (isDirtyStep4Ref.current) {
+        isDirtyStep4Ref.current = false;
+        void handleSaveStep4Ref.current({ silent: true });
       }
-      if (isDirtyStep5Ref.current && onSaveStep5HiringPlan) {
-        void onSaveStep5HiringPlan(step5DataRef.current, step5Complete ? 100 : 85);
+      if (isDirtyStep5Ref.current) {
+        isDirtyStep5Ref.current = false;
+        void handleSaveStep5Ref.current({ silent: true });
       }
-      if (isDirtyStep6Ref.current && onSaveBriefOverview) {
-        void onSaveBriefOverview(
-          { ...step6DataRef.current, lastSavedAt: new Date().toISOString() },
-          100
-        );
+      if (isDirtyStep6Ref.current) {
+        isDirtyStep6Ref.current = false;
+        void handleSaveStep6Ref.current({ silent: true });
       }
     };
-  }, [
-    isVaultReadonly,
-    onSaveStep1PromoterProfiles,
-    onSaveStep2RoleMatrix,
-    onSaveStep3SurvivalBudget,
-    onSaveStep4Alignment,
-    onSaveStep5HiringPlan,
-    onSaveBriefOverview,
-    step1Complete,
-    step2Complete,
-    step3Complete,
-    step4Complete,
-    step5Complete,
-  ]);
+  }, []);
 
   function handleAddTeamMember(classification: TeamMemberClassificationType = 'KEY_TEAM_MEMBER') {
     if (isVaultReadonly) return;
@@ -3607,16 +3611,16 @@ export function ModuleFWorkspace({
       {/* ========================================================================= */}
       {/* 1. TOP DARK-INDIGO MODULE HEADER CARD & 6-STEP ACCORDION NAVIGATION STRIP */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200">
                 Module F • Team, Survival Budget &amp; Co-Founder Fit
               </Badge>
               <Badge
                 variant="outline"
-                className="border-indigo-400/30 bg-white/10 text-[10px] text-indigo-200"
+                className="border-emerald-400/30 bg-white/10 text-[10px] text-slate-300"
               >
                 Flagship Standalone #2
               </Badge>
@@ -3624,7 +3628,7 @@ export function ModuleFWorkspace({
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module F: Your Team, Co-Founder Fit & Personal Runway
             </h1>
-            <p className="max-w-3xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-3xl text-xs text-slate-200/90 sm:text-sm">
               Build your promoter and team member roster with 150-word LEO-ready bios and LinkedIn links, map the 7 Startup Hats, calculate your personal survival budget (UK Start Up Loans Tab #2 compliant), and stress-test the 12 awkward co-founder questions.
             </p>
           </div>
@@ -3638,7 +3642,7 @@ export function ModuleFWorkspace({
                 onClick={() =>
                   setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
                 }
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 {openStep === 'ALL' ? 'Collapse All Steps' : 'Expand All Steps'}
               </Button>
@@ -3648,14 +3652,14 @@ export function ModuleFWorkspace({
                   variant="outline"
                   size="sm"
                   onClick={onBackToModuleE}
-                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                  className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                   Back to Module E
                 </Button>
               )}
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Module F Progress: <strong>{totalModuleFProgress}%</strong> (
               {completedModuleFCoreStepsCount} of 5 Core Steps Ready)
             </div>
@@ -3663,7 +3667,7 @@ export function ModuleFWorkspace({
         </div>
 
         {/* 6-Step Accordion Navigation Strip */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-3 lg:grid-cols-6">
           {[
             {
               step: 'Step 1',
@@ -3738,7 +3742,7 @@ export function ModuleFWorkspace({
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-between gap-1">
@@ -3748,12 +3752,12 @@ export function ModuleFWorkspace({
                   {item.done ? (
                     <Check className="h-3.5 w-3.5 text-emerald-400" />
                   ) : (
-                    <span className="text-[10px] text-indigo-300/70">
+                    <span className="text-[10px] text-slate-300/70">
                       {item.stepNum === 6 ? 'Summary' : 'In Progress'}
                     </span>
                   )}
                 </div>
-                <div className="mt-0.5 truncate text-[11px] text-indigo-100/80">
+                <div className="mt-0.5 truncate text-[11px] text-slate-200/80">
                   {item.title}
                 </div>
               </button>
@@ -3770,21 +3774,21 @@ export function ModuleFWorkspace({
           // Collapsed State Card
           <div
             onClick={() => setOpenStep(1)}
-            className="group flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   step1Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {step1Complete ? <Check className="h-4 w-4" /> : '1'}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 1: Promoter &amp; Key Team Member Profiles
                   </h3>
                   <Badge
@@ -3814,7 +3818,7 @@ export function ModuleFWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {step1Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -3831,7 +3835,7 @@ export function ModuleFWorkspace({
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                       step1Complete
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {step1Complete ? <Check className="h-4 w-4" /> : '1'}
@@ -3884,24 +3888,24 @@ export function ModuleFWorkspace({
                   onClick={() =>
                     setActiveWhyCard(activeWhyCard === 1 ? null : 1)
                   }
-                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   Why Are We Asking This?
                 </Button>
               </div>
 
               {/* "Why Are We Asking This?" Explainer */}
               {activeWhyCard === 1 && (
-                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2">
-                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <div className="space-y-1">
-                        <p className="font-semibold text-indigo-900">
+                        <p className="font-semibold text-slate-900">
                           Why Grant Assessors &amp; Investors Scrutinize Your Team:
                         </p>
-                        <p className="text-indigo-900/90 leading-relaxed">
+                        <p className="text-slate-900/90 leading-relaxed">
                           Irish LEO application forms explicitly demand a <strong>minimum 150-word background narrative per promoter</strong> plus formal CVs attached to <strong>Appendix D</strong>. Similarly, UK Innovate UK Question 8 scores your <em>Team Capability to Deliver</em>. Capturing photos, verified LinkedIn links, and concrete past accomplishments proves credibility and de-risks execution before asking for public or private funding.
                         </p>
                       </div>
@@ -3909,7 +3913,7 @@ export function ModuleFWorkspace({
                     <button
                       type="button"
                       onClick={() => setActiveWhyCard(null)}
-                      className="shrink-0 text-indigo-400 hover:text-indigo-700 text-xs"
+                      className="shrink-0 text-emerald-600 hover:text-emerald-800 text-xs"
                     >
                       ✕
                     </button>
@@ -3944,14 +3948,14 @@ export function ModuleFWorkspace({
                         }}
                         className={`rounded-xl border p-3.5 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/60 shadow-xs ring-1 ring-indigo-600'
+                            ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1 mb-1">
                           <span
                             className={`text-xs font-bold ${
-                              isSelected ? 'text-indigo-950' : 'text-slate-800'
+                              isSelected ? 'text-slate-950' : 'text-slate-800'
                             }`}
                           >
                             {opt.label}
@@ -3981,7 +3985,7 @@ export function ModuleFWorkspace({
                       }
                       placeholder="Describe your custom team structure..."
                       disabled={isVaultReadonly}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-emerald-600 focus:outline-hidden"
                     />
                   </div>
                 )}
@@ -4006,7 +4010,7 @@ export function ModuleFWorkspace({
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleAllMembers(true)}
-                          className="h-7 px-2 text-[11px] text-slate-600 hover:text-indigo-600"
+                          className="h-7 px-2 text-[11px] text-slate-600 hover:text-emerald-700"
                         >
                           Expand All
                         </Button>
@@ -4016,7 +4020,7 @@ export function ModuleFWorkspace({
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleAllMembers(false)}
-                          className="h-7 px-2 text-[11px] text-slate-600 hover:text-indigo-600"
+                          className="h-7 px-2 text-[11px] text-slate-600 hover:text-emerald-700"
                         >
                           Collapse All
                         </Button>
@@ -4030,7 +4034,7 @@ export function ModuleFWorkspace({
                       disabled={isVaultReadonly}
                       className="text-xs"
                     >
-                      <Plus className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                      <Plus className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                       Add Key Team Member
                     </Button>
                     <Button
@@ -4039,7 +4043,7 @@ export function ModuleFWorkspace({
                       size="sm"
                       onClick={() => handleAddTeamMember('FOUNDER_PROMOTER')}
                       disabled={isVaultReadonly}
-                      className="text-xs border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100"
+                      className="text-xs border-slate-200 bg-slate-50 text-emerald-800 hover:bg-slate-100"
                     >
                       <Plus className="mr-1 h-3.5 w-3.5" />
                       Add Co-Founder
@@ -4081,7 +4085,7 @@ export function ModuleFWorkspace({
                         <div
                           key={member.id}
                           onClick={() => toggleMemberCollapse(member.id)}
-                          className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+                          className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -4091,14 +4095,14 @@ export function ModuleFWorkspace({
                                   <img
                                     src={member.photoUrl}
                                     alt={member.fullName || 'Team member'}
-                                    className="h-9 w-9 rounded-full object-cover border border-indigo-100 shadow-2xs"
+                                    className="h-9 w-9 rounded-full object-cover border border-slate-100 shadow-2xs"
                                   />
                                 ) : (
                                   <div
                                     className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white shadow-2xs ${
                                       isMemberComplete
                                         ? 'bg-emerald-600'
-                                        : 'bg-indigo-600'
+                                        : 'bg-emerald-700'
                                     }`}
                                   >
                                     {isMemberComplete ? (
@@ -4119,7 +4123,7 @@ export function ModuleFWorkspace({
                                     {member.fullName || 'Unnamed Team Member'}
                                   </span>
                                   {member.isCurrentUserFounder && (
-                                    <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
+                                    <Badge className="bg-slate-100 text-emerald-900 text-[10px]">
                                       Lead Founder
                                     </Badge>
                                   )}
@@ -4169,7 +4173,7 @@ export function ModuleFWorkspace({
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                               >
                                 <span>Edit Profile</span>
                                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -4184,7 +4188,7 @@ export function ModuleFWorkspace({
                     return (
                       <div
                         key={member.id}
-                        className="rounded-xl border border-indigo-200 bg-white p-4 sm:p-5 shadow-xs space-y-4"
+                        className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs space-y-4"
                       >
                         {/* Header Row: Photo + Name + Classification + Collapse + Delete */}
                         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
@@ -4195,15 +4199,15 @@ export function ModuleFWorkspace({
                                 <img
                                   src={member.photoUrl}
                                   alt={member.fullName || 'Team member'}
-                                  className="h-14 w-14 rounded-full object-cover border-2 border-indigo-100 shadow-xs"
+                                  className="h-14 w-14 rounded-full object-cover border-2 border-slate-100 shadow-xs"
                                 />
                               ) : (
-                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-xs">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-700 to-teal-800 text-sm font-bold text-white shadow-xs">
                                   {initials}
                                 </div>
                               )}
                               <label
-                                className={`absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-slate-900 text-white shadow-md hover:bg-indigo-600 transition-colors ${
+                                className={`absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-slate-900 text-white shadow-md hover:bg-emerald-700 transition-colors ${
                                   isVaultReadonly ? 'pointer-events-none opacity-50' : ''
                                 }`}
                                 title="Upload Photo"
@@ -4236,10 +4240,10 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="Full Name (e.g. Lynn Walsh)"
                                   disabled={isVaultReadonly}
-                                  className="text-sm font-bold text-slate-900 border-b border-dashed border-slate-300 hover:border-indigo-400 focus:border-indigo-600 focus:outline-hidden pb-0.5"
+                                  className="text-sm font-bold text-slate-900 border-b border-dashed border-slate-300 hover:border-emerald-400 focus:border-emerald-700 focus:outline-hidden pb-0.5"
                                 />
                                 {member.isCurrentUserFounder && (
-                                  <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
+                                  <Badge className="bg-slate-100 text-emerald-900 text-[10px]">
                                     Lead Founder
                                   </Badge>
                                 )}
@@ -4255,7 +4259,7 @@ export function ModuleFWorkspace({
                                     })
                                   }
                                   disabled={isVaultReadonly}
-                                  className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-700 focus:border-indigo-500 focus:outline-hidden"
+                                  className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-700 focus:border-emerald-600 focus:outline-hidden"
                                 >
                                   {TEAM_MEMBER_CLASSIFICATION_OPTIONS.map((c) => (
                                     <option key={c.value} value={c.value}>
@@ -4273,7 +4277,7 @@ export function ModuleFWorkspace({
                                     })
                                   }
                                   disabled={isVaultReadonly}
-                                  className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700 focus:border-indigo-500 focus:outline-hidden"
+                                  className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700 focus:border-emerald-600 focus:outline-hidden"
                                 >
                                   {TEAM_WEEKLY_COMMITMENT_OPTIONS.map((w) => (
                                     <option key={w.value} value={w.value}>
@@ -4348,7 +4352,7 @@ export function ModuleFWorkspace({
                                 <span>Download / View</span>
                               </a>
                               <label
-                                className={`inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-2xs hover:bg-indigo-50 cursor-pointer transition-colors ${
+                                className={`inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-emerald-800 shadow-2xs hover:bg-emerald-50 cursor-pointer transition-colors ${
                                   isVaultReadonly || isParsingCv[member.id]
                                     ? 'opacity-60 pointer-events-none'
                                     : ''
@@ -4356,12 +4360,12 @@ export function ModuleFWorkspace({
                               >
                                 {isParsingCv[member.id] ? (
                                   <>
-                                    <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
+                                    <Loader2 className="h-3 w-3 animate-spin text-emerald-700" />
                                     <span>Replacing...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <RefreshCw className="h-3 w-3 text-indigo-600" />
+                                    <RefreshCw className="h-3 w-3 text-emerald-700" />
                                     <span>Replace</span>
                                   </>
                                 )}
@@ -4388,13 +4392,13 @@ export function ModuleFWorkspace({
                             </div>
                           </div>
                         ) : (
-                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 p-3 sm:px-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 sm:px-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-emerald-800">
                                 {isParsingCv[member.id] ? (
-                                  <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                                  <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
                                 ) : (
-                                  <FileUp className="h-4 w-4 text-indigo-600" />
+                                  <FileUp className="h-4 w-4 text-emerald-700" />
                                 )}
                               </div>
                               <div>
@@ -4404,7 +4408,7 @@ export function ModuleFWorkspace({
                                   </span>
                                   <Badge
                                     variant="outline"
-                                    className="text-[10px] border-indigo-300 text-indigo-700 bg-white"
+                                    className="text-[10px] border-emerald-300 text-emerald-800 bg-white"
                                   >
                                     PDF or Text
                                   </Badge>
@@ -4417,7 +4421,7 @@ export function ModuleFWorkspace({
 
                             <div>
                               <label
-                                className={`inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-2xs hover:bg-indigo-50 cursor-pointer transition-colors ${
+                                className={`inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 shadow-2xs hover:bg-emerald-50 cursor-pointer transition-colors ${
                                   isVaultReadonly || isParsingCv[member.id]
                                     ? 'opacity-60 pointer-events-none'
                                     : ''
@@ -4425,12 +4429,12 @@ export function ModuleFWorkspace({
                               >
                                 {isParsingCv[member.id] ? (
                                   <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
                                     <span>Reading &amp; Storing...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <FileUp className="h-3.5 w-3.5 text-indigo-600" />
+                                    <FileUp className="h-3.5 w-3.5 text-emerald-700" />
                                     <span>Upload CV (.pdf, .txt)</span>
                                   </>
                                 )}
@@ -4464,7 +4468,7 @@ export function ModuleFWorkspace({
                               }
                               placeholder="e.g. Founder & CTO / Lead Full-Stack Dev"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
 
@@ -4479,7 +4483,7 @@ export function ModuleFWorkspace({
                                   href={member.linkedInUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-[10px] text-indigo-600 hover:underline flex items-center gap-0.5"
+                                  className="text-[10px] text-emerald-700 hover:underline flex items-center gap-0.5"
                                 >
                                   View
                                   <ExternalLink className="h-2.5 w-2.5" />
@@ -4496,7 +4500,7 @@ export function ModuleFWorkspace({
                               }
                               placeholder="https://linkedin.com/in/username"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
 
@@ -4514,7 +4518,7 @@ export function ModuleFWorkspace({
                               }
                               placeholder="name@startup.com"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
                         </div>
@@ -4535,7 +4539,7 @@ export function ModuleFWorkspace({
                               }
                               placeholder="e.g. BSc Computer Science, LEO Start Your Own Business course"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
 
@@ -4553,7 +4557,7 @@ export function ModuleFWorkspace({
                               }
                               placeholder="e.g. 8 years scaling fintech software, ex-Stripe tech lead"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
                         </div>
@@ -4577,12 +4581,12 @@ export function ModuleFWorkspace({
                                 disabled={
                                   isVaultReadonly || isParsingCv[member.id]
                                 }
-                                className="h-6 px-2 text-[11px] border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+                                className="h-6 px-2 text-[11px] border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50"
                               >
                                 {isParsingCv[member.id] ? (
                                   <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                 ) : (
-                                  <Wand2 className="mr-1 h-3 w-3 text-indigo-600" />
+                                  <Wand2 className="mr-1 h-3 w-3 text-emerald-700" />
                                 )}
                                 Auto-Draft with AI
                               </Button>
@@ -4613,7 +4617,7 @@ export function ModuleFWorkspace({
                             }
                             placeholder="Draft a comprehensive 150-word narrative covering domain qualifications, commercial background, technical track record, and specific role responsibilities..."
                             disabled={isVaultReadonly}
-                            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs focus:border-indigo-500 focus:outline-hidden leading-relaxed"
+                            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs focus:border-emerald-600 focus:outline-hidden leading-relaxed"
                           />
 
                           {/* Appendix D CV Readiness Checkbox */}
@@ -4628,7 +4632,7 @@ export function ModuleFWorkspace({
                                   })
                                 }
                                 disabled={isVaultReadonly}
-                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                               />
                               <span className="font-medium">
                                 Up-to-date CV ready to attach for Grant Appendix D / Innovate UK Annex
@@ -4679,7 +4683,7 @@ export function ModuleFWorkspace({
                     type="button"
                     onClick={() => handleSaveStep1()}
                     disabled={isSavingStep1 || isVaultReadonly}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
+                    className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs"
                   >
                     {isSavingStep1 ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -4695,7 +4699,7 @@ export function ModuleFWorkspace({
                       handleSaveStep1();
                       setOpenStep(2);
                     }}
-                    className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                    className="text-xs border-slate-200 text-emerald-800 hover:bg-emerald-50"
                   >
                     Next: 7 Startup Hats
                     <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -4713,20 +4717,20 @@ export function ModuleFWorkspace({
           /* Collapsed Step 2 Card */
           <div
             onClick={() => setOpenStep(2)}
-            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-2xs ${
-                    step2Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                    step2Complete ? 'bg-emerald-600' : 'bg-emerald-700'
                   }`}
                 >
                   {step2Complete ? <Check className="h-4 w-4" /> : '2'}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                       Step 2: "7 Startup Hats" Role Matrix &amp; External Advisors
                     </h3>
                     <Badge
@@ -4752,7 +4756,7 @@ export function ModuleFWorkspace({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                 >
                   {step2Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -4768,7 +4772,7 @@ export function ModuleFWorkspace({
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-2xs ${
-                      step2Complete ? 'bg-emerald-600' : 'bg-indigo-600'
+                      step2Complete ? 'bg-emerald-600' : 'bg-emerald-700'
                     }`}
                   >
                     {step2Complete ? <Check className="h-4 w-4" /> : '2'}
@@ -4820,9 +4824,9 @@ export function ModuleFWorkspace({
                   onClick={() =>
                     setActiveWhyCard(activeWhyCard === 2 ? null : 2)
                   }
-                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   Why Are We Asking This?
                 </Button>
                 <Button
@@ -4841,18 +4845,18 @@ export function ModuleFWorkspace({
 
               {/* Micro-Coaching: Why Are We Asking This? */}
               {activeWhyCard === 2 && (
-                <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
                   <div className="flex items-start justify-between gap-2.5">
                     <div className="flex items-start gap-2.5">
-                      <Info className="h-4 w-4 shrink-0 text-indigo-600 mt-0.5" />
+                      <Info className="h-4 w-4 shrink-0 text-emerald-700 mt-0.5" />
                       <div className="space-y-1.5 leading-relaxed">
-                        <p className="font-bold text-indigo-900">
+                        <p className="font-bold text-slate-900">
                           Why Grant Assessors &amp; Investors Scrutinize the "7 Startup Hats":
                         </p>
                         <p>
                           Early-stage startups do not fail from poor ideas; they fail from single points of failure and founder burnout. Assessors evaluating Irish LEO Feasibility/Priming Grants (Section 1) and UK Innovate UK Smart Grants (Question 8: Capabilities) look for clear functional ownership across 7 indispensable hats:
                         </p>
-                        <ul className="list-disc pl-4 space-y-1 text-indigo-900/90">
+                        <ul className="list-disc pl-4 space-y-1 text-slate-900/90">
                           <li>
                             <strong>Clear Primary Accountability:</strong> One single throat to choke for every critical area so nothing falls through the cracks.
                           </li>
@@ -4868,7 +4872,7 @@ export function ModuleFWorkspace({
                     <button
                       type="button"
                       onClick={() => setActiveWhyCard(null)}
-                      className="shrink-0 text-indigo-400 hover:text-indigo-700 text-xs"
+                      className="shrink-0 text-emerald-600 hover:text-emerald-800 text-xs"
                     >
                       ✕
                     </button>
@@ -4922,10 +4926,10 @@ export function ModuleFWorkspace({
                 ).length;
 
                 return (
-                  <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-indigo-50/20 to-slate-50 p-4 space-y-3.5">
+                  <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-slate-50/20 to-slate-50 p-4 space-y-3.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-indigo-600" />
+                        <TrendingUp className="h-4 w-4 text-emerald-700" />
                         <span className="text-xs font-bold text-slate-900">
                           Team Workload &amp; Burnout Risk Meter
                         </span>
@@ -5115,7 +5119,7 @@ export function ModuleFWorkspace({
                         className={`rounded-xl border p-4 shadow-2xs transition-all space-y-3 ${
                           isUnassigned
                             ? 'border-amber-200 bg-amber-50/30'
-                            : 'border-slate-200 bg-white hover:border-indigo-200'
+                            : 'border-slate-200 bg-white hover:border-emerald-300'
                         }`}
                       >
                         {/* Hat Header */}
@@ -5167,7 +5171,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden"
                             >
                               <option value="UNASSIGNED">
                                 ⚠️ Currently Unassigned (Open Gap)
@@ -5206,7 +5210,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden"
                             >
                               <option value="UNASSIGNED">
                                 None / Single Owner Only
@@ -5251,7 +5255,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:outline-hidden"
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
 
@@ -5314,7 +5318,7 @@ export function ModuleFWorkspace({
                             }
                             placeholder="Key specific deliverable, e.g. closing first 10 pilot accounts, sprint velocity..."
                             disabled={isVaultReadonly}
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-[11px] text-slate-700 focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-[11px] text-slate-700 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                           />
                         </div>
                       </div>
@@ -5342,7 +5346,7 @@ export function ModuleFWorkspace({
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleAllAdvisors(true)}
-                          className="h-7 px-2 text-[11px] text-slate-600 hover:text-indigo-600"
+                          className="h-7 px-2 text-[11px] text-slate-600 hover:text-emerald-700"
                         >
                           Expand All
                         </Button>
@@ -5352,7 +5356,7 @@ export function ModuleFWorkspace({
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleAllAdvisors(false)}
-                          className="h-7 px-2 text-[11px] text-slate-600 hover:text-indigo-600"
+                          className="h-7 px-2 text-[11px] text-slate-600 hover:text-emerald-700"
                         >
                           Collapse All
                         </Button>
@@ -5364,7 +5368,7 @@ export function ModuleFWorkspace({
                       size="sm"
                       onClick={handleAddAdvisor}
                       disabled={isVaultReadonly}
-                      className="text-xs border-indigo-200 bg-indigo-50/40 text-indigo-700 hover:bg-indigo-100"
+                      className="text-xs border-slate-200 bg-slate-50 text-emerald-800 hover:bg-slate-100"
                     >
                       <Plus className="mr-1 h-3.5 w-3.5" />
                       Add Advisor / Mentor
@@ -5387,7 +5391,7 @@ export function ModuleFWorkspace({
                       size="sm"
                       onClick={handleAddAdvisor}
                       disabled={isVaultReadonly}
-                      className="text-xs border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50"
+                      className="text-xs border-slate-200 text-emerald-800 bg-white hover:bg-emerald-50"
                     >
                       <Plus className="mr-1 h-3.5 w-3.5" />
                       Add First Advisor or Mentor
@@ -5416,7 +5420,7 @@ export function ModuleFWorkspace({
                           <div
                             key={advisor.id}
                             onClick={() => toggleAdvisorCollapse(advisor.id)}
-                            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition-all hover:border-indigo-300 hover:shadow-sm"
+                            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition-all hover:border-emerald-300 hover:shadow-sm"
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -5425,7 +5429,7 @@ export function ModuleFWorkspace({
                                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold shadow-2xs ${
                                     isAdvisorComplete
                                       ? 'bg-emerald-600 text-white'
-                                      : 'bg-indigo-100 text-indigo-700'
+                                      : 'bg-slate-100 text-emerald-800'
                                   }`}
                                 >
                                   {isAdvisorComplete ? (
@@ -5442,7 +5446,7 @@ export function ModuleFWorkspace({
                                     </span>
                                     <Badge
                                       variant="outline"
-                                      className="text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200 shrink-0"
+                                      className="text-[10px] bg-emerald-50 text-emerald-800 border-slate-200 shrink-0"
                                     >
                                       {cadenceLabel}
                                     </Badge>
@@ -5478,7 +5482,7 @@ export function ModuleFWorkspace({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                                 >
                                   <span>Edit Advisor</span>
                                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -5493,12 +5497,12 @@ export function ModuleFWorkspace({
                       return (
                         <div
                           key={advisor.id}
-                          className="rounded-xl border border-indigo-200 bg-white p-4 sm:p-5 shadow-xs space-y-4"
+                          className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs space-y-4"
                         >
                           {/* Advisor Tile Header */}
                           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-xs font-bold text-indigo-700 shadow-2xs">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-emerald-800 shadow-2xs">
                                 #{index + 1}
                               </div>
                               <div className="min-w-0">
@@ -5508,7 +5512,7 @@ export function ModuleFWorkspace({
                                   </h4>
                                   <Badge
                                     variant="outline"
-                                    className="text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200 shrink-0"
+                                    className="text-[10px] bg-emerald-50 text-emerald-800 border-slate-200 shrink-0"
                                   >
                                     {cadenceLabel}
                                   </Badge>
@@ -5565,7 +5569,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="e.g. Dr. Aoife O'Brien"
                                   disabled={isVaultReadonly}
-                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden"
+                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                                 />
                               </div>
                               <div>
@@ -5582,7 +5586,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="e.g. B2B Enterprise SaaS GTM &amp; Outbound Sales"
                                   disabled={isVaultReadonly}
-                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden"
+                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                                 />
                               </div>
                             </div>
@@ -5603,7 +5607,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="e.g. Ex-VP Sales at Stripe / LEO Mentorship Panel"
                                   disabled={isVaultReadonly}
-                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden"
+                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                                 />
                               </div>
                               <div>
@@ -5622,7 +5626,7 @@ export function ModuleFWorkspace({
                                     })
                                   }
                                   disabled={isVaultReadonly}
-                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden"
                                 >
                                   <option value="MONTHLY">Monthly Formal Advisory Call (60 min)</option>
                                   <option value="QUARTERLY">Quarterly Strategy Board Review</option>
@@ -5647,7 +5651,7 @@ export function ModuleFWorkspace({
                                 }
                                 placeholder="e.g. Pro-Bono via LEO Mentorship Voucher, non-voting board seat, or 0.25% advisory shares (2-yr vest)"
                                 disabled={isVaultReadonly}
-                                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden"
+                                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -5676,12 +5680,12 @@ export function ModuleFWorkspace({
                       size="sm"
                       onClick={handleAiDraftRoleMatrixSummary}
                       disabled={isVaultReadonly || isDraftingStep2Ai}
-                      className="text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+                      className="text-xs border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50"
                     >
                       {isDraftingStep2Ai ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       )}
                       Auto-Draft with AI
                     </Button>
@@ -5731,12 +5735,12 @@ export function ModuleFWorkspace({
                   }
                   placeholder="Click 'Auto-Draft with AI' to automatically synthesize the 7-hat distribution, primary owners, and advisory coverage into a formal narrative suitable for Irish LEO Form Section 1 and UK Innovate UK Question 8..."
                   disabled={isVaultReadonly}
-                  className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs focus:border-indigo-500 focus:outline-hidden leading-relaxed"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs focus:border-emerald-600 focus:outline-hidden leading-relaxed"
                 />
 
                 {step2Data.aiCoachTip && (
-                  <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2.5 text-xs text-indigo-900 flex items-start gap-2">
-                    <Sparkles className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs text-slate-900 flex items-start gap-2">
+                    <Sparkles className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold">AI Pre-Flight Note: </span>
                       <span>{step2Data.aiCoachTip}</span>
@@ -5777,7 +5781,7 @@ export function ModuleFWorkspace({
                     type="button"
                     onClick={() => handleSaveStep2()}
                     disabled={isSavingStep2 || isVaultReadonly}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
+                    className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs"
                   >
                     {isSavingStep2 ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -5793,7 +5797,7 @@ export function ModuleFWorkspace({
                       handleSaveStep2();
                       setOpenStep(3);
                     }}
-                    className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                    className="text-xs border-slate-200 text-emerald-800 hover:bg-emerald-50"
                   >
                     Next: Survival Budget
                     <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -5813,7 +5817,7 @@ export function ModuleFWorkspace({
           // Collapsed State Card
           <div
             onClick={() => setOpenStep(3)}
-            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -5821,14 +5825,14 @@ export function ModuleFWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     step3Complete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {step3Complete ? <Check className="h-4 w-4" /> : '3'}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                       Step 3: Founder Personal Survival Budget &amp; Living Runway
                     </h3>
                     <Badge
@@ -5861,7 +5865,7 @@ export function ModuleFWorkspace({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                 >
                   {step3Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -5879,7 +5883,7 @@ export function ModuleFWorkspace({
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                       step3Complete
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {step3Complete ? <Check className="h-4 w-4" /> : '3'}
@@ -5937,9 +5941,9 @@ export function ModuleFWorkspace({
                   onClick={() =>
                     setActiveWhyCard((prev) => (prev === 3 ? null : 3))
                   }
-                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   Why Are We Asking This?
                 </Button>
                 <Button
@@ -5958,15 +5962,15 @@ export function ModuleFWorkspace({
 
               {/* Collapsible "Why Are We Asking This" Box */}
               {activeWhyCard === 3 && (
-                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2">
-                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <div className="space-y-1">
-                        <p className="font-bold text-indigo-900">
+                        <p className="font-bold text-slate-900">
                           Grant Assessor &amp; Loan Underwriter Reality Check:
                         </p>
-                        <p className="leading-relaxed text-indigo-900/90">
+                        <p className="leading-relaxed text-slate-900/90">
                           Underwriters at the <strong>British Business Bank (Start Up Loans)</strong> underwrite loans to you individually and require the <strong>Part 2 Personal Survival Budget</strong> to verify you can afford loan repayments. In Ireland, <strong>LEO Feasibility &amp; Priming Grants</strong> provide up to €15,000 per promoter in salary support — assessors review your personal drawings floor to verify you have sufficient runway to execute without abandoning the venture.
                         </p>
                       </div>
@@ -5974,7 +5978,7 @@ export function ModuleFWorkspace({
                     <button
                       type="button"
                       onClick={() => setActiveWhyCard(null)}
-                      className="shrink-0 text-indigo-400 hover:text-indigo-700 text-xs"
+                      className="shrink-0 text-emerald-600 hover:text-emerald-800 text-xs"
                     >
                       ✕
                     </button>
@@ -6047,7 +6051,7 @@ export function ModuleFWorkspace({
                           onClick={() => setActiveFounderBudgetId(b.memberId)}
                           className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
                             isActive
-                              ? 'bg-white text-indigo-700 shadow-2xs border border-indigo-200 ring-1 ring-indigo-500/20'
+                              ? 'bg-white text-emerald-800 shadow-2xs border border-slate-200 ring-1 ring-emerald-700/20'
                               : 'text-slate-600 hover:bg-white/60 hover:text-slate-900'
                           }`}
                         >
@@ -6139,7 +6143,7 @@ export function ModuleFWorkspace({
                               disabled={isVaultReadonly}
                               className={`rounded-xl border p-3 text-left transition-all ${
                                 isSelected
-                                  ? 'border-indigo-600 bg-indigo-50/60 shadow-2xs ring-1 ring-indigo-600'
+                                  ? 'border-emerald-700 bg-slate-50 shadow-2xs ring-1 ring-emerald-700'
                                   : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                               }`}
                             >
@@ -6149,7 +6153,7 @@ export function ModuleFWorkspace({
                                   <span>{p.label}</span>
                                 </span>
                                 {isSelected && (
-                                  <Badge className="bg-indigo-600 text-white text-[9px] px-1.5 py-0">
+                                  <Badge className="bg-emerald-700 text-white text-[9px] px-1.5 py-0">
                                     Active
                                   </Badge>
                                 )}
@@ -6210,7 +6214,7 @@ export function ModuleFWorkspace({
                                   })
                                 }
                                 disabled={isVaultReadonly}
-                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -6228,7 +6232,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="w-full accent-indigo-600 cursor-pointer"
+                              className="w-full accent-emerald-700 cursor-pointer"
                             />
                             <div className="flex justify-between text-[10px] text-slate-400">
                               <span>0</span>
@@ -6268,7 +6272,7 @@ export function ModuleFWorkspace({
                                   })
                                 }
                                 disabled={isVaultReadonly}
-                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -6286,7 +6290,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="w-full accent-indigo-600 cursor-pointer"
+                              className="w-full accent-emerald-700 cursor-pointer"
                             />
                             <div className="flex justify-between text-[10px] text-slate-400">
                               <span>0</span>
@@ -6326,7 +6330,7 @@ export function ModuleFWorkspace({
                                   })
                                 }
                                 disabled={isVaultReadonly}
-                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -6344,7 +6348,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="w-full accent-indigo-600 cursor-pointer"
+                              className="w-full accent-emerald-700 cursor-pointer"
                             />
                             <div className="flex justify-between text-[10px] text-slate-400">
                               <span>0</span>
@@ -6384,7 +6388,7 @@ export function ModuleFWorkspace({
                                   })
                                 }
                                 disabled={isVaultReadonly}
-                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -6402,7 +6406,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="w-full accent-indigo-600 cursor-pointer"
+                              className="w-full accent-emerald-700 cursor-pointer"
                             />
                             <div className="flex justify-between text-[10px] text-slate-400">
                               <span>0</span>
@@ -6442,7 +6446,7 @@ export function ModuleFWorkspace({
                                   })
                                 }
                                 disabled={isVaultReadonly}
-                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                                className="h-8 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -6460,7 +6464,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="w-full accent-indigo-600 cursor-pointer"
+                              className="w-full accent-emerald-700 cursor-pointer"
                             />
                             <div className="flex justify-between text-[10px] text-slate-400">
                               <span>0</span>
@@ -6532,11 +6536,11 @@ export function ModuleFWorkspace({
                     </div>
 
                     {/* 3. Personal Savings Cushion & Runway Scroller */}
-                    <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/50 via-white to-indigo-50/50 p-4 sm:p-5 shadow-2xs space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/50 p-4 sm:p-5 shadow-2xs space-y-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                            <PiggyBank className="h-4 w-4 text-indigo-600" />
+                            <PiggyBank className="h-4 w-4 text-emerald-700" />
                             <span>3. Personal Savings Buffer (Liquid Living Reserves)</span>
                           </span>
                           <p className="text-xs text-slate-500 mt-0.5">
@@ -6559,7 +6563,7 @@ export function ModuleFWorkspace({
                               })
                             }
                             disabled={isVaultReadonly}
-                            className="h-8 w-28 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 bg-white focus:border-indigo-500 focus:outline-hidden"
+                            className="h-8 w-28 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 bg-white focus:border-emerald-600 focus:outline-hidden"
                           />
                         </div>
                       </div>
@@ -6577,7 +6581,7 @@ export function ModuleFWorkspace({
                             })
                           }
                           disabled={isVaultReadonly}
-                          className="w-full accent-indigo-600 cursor-pointer"
+                          className="w-full accent-emerald-700 cursor-pointer"
                         />
                         <div className="flex justify-between text-[10px] text-slate-400">
                           <span>0</span>
@@ -6590,7 +6594,7 @@ export function ModuleFWorkspace({
                     </div>
 
                     {/* 4. Live Visual Scorecard: Survival Floor + Runway + Underwriter Verification */}
-                    <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-900 to-indigo-950 p-4 sm:p-5 text-white shadow-sm space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-950 p-4 sm:p-5 text-white shadow-sm space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
                         <div className="flex items-center gap-2">
                           <TrendingUp className="h-4 w-4 text-emerald-400" />
@@ -6598,7 +6602,7 @@ export function ModuleFWorkspace({
                             Live Financial Feasibility &amp; Grant Scorecard
                           </span>
                         </div>
-                        <span className="text-[11px] text-indigo-200">
+                        <span className="text-[11px] text-slate-300">
                           Founder: <strong>{activeFounder.memberName}</strong>
                         </span>
                       </div>
@@ -6606,7 +6610,7 @@ export function ModuleFWorkspace({
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {/* Metric 1: Monthly Survival Need */}
                         <div className="rounded-lg bg-white/10 p-3 backdrop-blur-xs border border-white/10">
-                          <span className="text-[10px] uppercase font-semibold text-indigo-200 block">
+                          <span className="text-[10px] uppercase font-semibold text-slate-300 block">
                             Monthly Survival Floor
                           </span>
                           <div className="mt-1 flex items-baseline gap-1">
@@ -6616,9 +6620,9 @@ export function ModuleFWorkspace({
                                 step3Data.currencyCode
                               )}
                             </span>
-                            <span className="text-[11px] text-indigo-200">/ mo</span>
+                            <span className="text-[11px] text-slate-300">/ mo</span>
                           </div>
-                          <p className="mt-1 text-[10px] text-indigo-300">
+                          <p className="mt-1 text-[10px] text-slate-300">
                             {formatPlanCurrency(
                               grossOutgoings,
                               step3Data.currencyCode
@@ -6634,7 +6638,7 @@ export function ModuleFWorkspace({
 
                         {/* Metric 2: Personal Runway */}
                         <div className="rounded-lg bg-white/10 p-3 backdrop-blur-xs border border-white/10">
-                          <span className="text-[10px] uppercase font-semibold text-indigo-200 block">
+                          <span className="text-[10px] uppercase font-semibold text-slate-300 block">
                             Personal Living Runway
                           </span>
                           <div className="mt-1 flex items-baseline gap-2">
@@ -6659,7 +6663,7 @@ export function ModuleFWorkspace({
                                 : 'Tight Runway'}
                             </Badge>
                           </div>
-                          <p className="mt-1 text-[10px] text-indigo-300">
+                          <p className="mt-1 text-[10px] text-slate-300">
                             {formatPlanCurrency(
                               activeFounder.personalSavingsBuffer,
                               step3Data.currencyCode
@@ -6670,7 +6674,7 @@ export function ModuleFWorkspace({
 
                         {/* Metric 3: Grant & Loan Match */}
                         <div className="rounded-lg bg-white/10 p-3 backdrop-blur-xs border border-white/10">
-                          <span className="text-[10px] uppercase font-semibold text-indigo-200 block">
+                          <span className="text-[10px] uppercase font-semibold text-slate-300 block">
                             Underwriter Compliance
                           </span>
                           <div className="mt-1 flex items-center gap-1.5 text-xs font-bold text-emerald-400">
@@ -6681,7 +6685,7 @@ export function ModuleFWorkspace({
                                 : 'LEO Section 1 Verified'}
                             </span>
                           </div>
-                          <p className="mt-1 text-[10px] text-indigo-300 leading-snug">
+                          <p className="mt-1 text-[10px] text-slate-300 leading-snug">
                             {selectedCountry === 'GB'
                               ? 'Outputs Part 2 Personal Survival Budget for British Business Bank.'
                               : 'Eligible for 50% LEO Priming Salary Grant up to €15,000/promoter.'}
@@ -6725,7 +6729,7 @@ export function ModuleFWorkspace({
                     type="button"
                     onClick={() => handleSaveStep3()}
                     disabled={isSavingStep3 || isVaultReadonly}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
+                    className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs"
                   >
                     {isSavingStep3 ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -6741,7 +6745,7 @@ export function ModuleFWorkspace({
                       handleSaveStep3();
                       setOpenStep(4);
                     }}
-                    className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                    className="text-xs border-slate-200 text-emerald-800 hover:bg-emerald-50"
                   >
                     Next: Co-Founder Alignment
                     <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -6761,7 +6765,7 @@ export function ModuleFWorkspace({
           // Collapsed State Card
           <div
             onClick={() => setOpenStep(4)}
-            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -6769,14 +6773,14 @@ export function ModuleFWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     step4Complete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {step4Complete ? <Check className="h-4 w-4" /> : '4'}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                       Step 4: {isSoloFounderMode
                         ? 'The 20 Hard Questions Every Solo Founder Must Answer'
                         : '20 Awkward Co-Founder Questions & The Founder Prenup'}
@@ -6808,7 +6812,7 @@ export function ModuleFWorkspace({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                 >
                   {step4Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -6826,7 +6830,7 @@ export function ModuleFWorkspace({
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                       step4Complete
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {step4Complete ? <Check className="h-4 w-4" /> : '4'}
@@ -6890,9 +6894,9 @@ export function ModuleFWorkspace({
                   onClick={() =>
                     setActiveWhyCard(activeWhyCard === 4 ? null : 4)
                   }
-                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   Why Are We Asking These 20 Questions?
                 </Button>
                 <Button
@@ -6910,13 +6914,13 @@ export function ModuleFWorkspace({
               </div>
 
               {activeWhyCard === 4 && (
-                <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-xs text-indigo-950">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2">
-                      <HeartHandshake className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <HeartHandshake className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <div className="space-y-1">
-                        <p className="font-bold text-indigo-900">Why The Founder Prenup Prevents Early Startup Death</p>
-                        <p className="leading-relaxed text-indigo-900/90">
+                        <p className="font-bold text-slate-900">Why The Founder Prenup Prevents Early Startup Death</p>
+                        <p className="leading-relaxed text-slate-900/90">
                           Most founder breakups do not happen because of malice; they happen because of <strong>unspoken assumptions</strong>. One founder assumes a 50/50 split means equal sacrifice today, while the other founder is moonlighting. One assumes nobody takes a salary for 2 years, while the other faces a mortgage crunch in month 4. By answering these 20 specific, battle-tested scenarios upfront, you create complete psychological safety and an objective operating charter.
                         </p>
                       </div>
@@ -6924,7 +6928,7 @@ export function ModuleFWorkspace({
                     <button
                       type="button"
                       onClick={() => setActiveWhyCard(null)}
-                      className="shrink-0 text-indigo-400 hover:text-indigo-700 text-xs"
+                      className="shrink-0 text-emerald-600 hover:text-emerald-800 text-xs"
                     >
                       ✕
                     </button>
@@ -6973,7 +6977,7 @@ export function ModuleFWorkspace({
                 <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-indigo-600" />
+                      <Users className="h-4 w-4 text-emerald-700" />
                       <span className="text-xs font-bold text-slate-800">
                         Active Founder Answering Survey:
                       </span>
@@ -6997,7 +7001,7 @@ export function ModuleFWorkspace({
                           }
                           className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                             isActive
-                              ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-2xs font-bold ring-1 ring-indigo-500'
+                              ? 'border-emerald-700 bg-emerald-50 text-slate-900 shadow-2xs font-bold ring-1 ring-emerald-700'
                               : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                           }`}
                         >
@@ -7025,7 +7029,7 @@ export function ModuleFWorkspace({
                   <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Survey Categories (20 Hard Scenarios)
                   </span>
-                  <span className="text-xs font-medium text-indigo-600">
+                  <span className="text-xs font-medium text-emerald-700">
                     {answeredQuestionsCountForActiveFounder} of 20 answered for{' '}
                     <strong>{activeFounderResponse?.memberName || 'You'}</strong>
                   </span>
@@ -7048,7 +7052,7 @@ export function ModuleFWorkspace({
                         onClick={() => setActiveQuestionCategory(cat.id)}
                         className={`rounded-lg border p-2 text-left transition-all ${
                           isActive
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-2xs ring-1 ring-indigo-500'
+                            ? 'border-emerald-700 bg-emerald-50 text-slate-900 shadow-2xs ring-1 ring-emerald-700'
                             : isAllDone
                             ? 'border-emerald-200 bg-emerald-50/50 text-emerald-900 hover:bg-emerald-50'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -7070,7 +7074,7 @@ export function ModuleFWorkspace({
                         <div className="mt-1 h-1 w-full rounded-full bg-slate-100 overflow-hidden">
                           <div
                             className={`h-full transition-all ${
-                              isAllDone ? 'bg-emerald-500' : 'bg-indigo-600'
+                              isAllDone ? 'bg-emerald-500' : 'bg-emerald-700'
                             }`}
                             style={{
                               width: `${(answeredInCat / catQuestions.length) * 100}%`,
@@ -7136,7 +7140,7 @@ export function ModuleFWorkspace({
                             className={`rounded-xl border p-4 sm:p-5 transition-all ${
                               selectedVal
                                 ? 'border-slate-200 bg-white shadow-2xs'
-                                : 'border-indigo-200/80 bg-indigo-50/20'
+                                : 'border-slate-200/80 bg-slate-50'
                             }`}
                           >
                             {/* Question Header */}
@@ -7193,7 +7197,7 @@ export function ModuleFWorkspace({
                                     disabled={isVaultReadonly}
                                     className={`relative flex flex-col text-left rounded-xl border p-3.5 transition-all ${
                                       isSelected
-                                        ? 'border-indigo-600 bg-indigo-50/70 text-indigo-950 shadow-2xs ring-2 ring-indigo-500/50'
+                                        ? 'border-emerald-700 bg-emerald-50/70 text-slate-950 shadow-2xs ring-2 ring-emerald-700/50'
                                         : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/50'
                                     }`}
                                   >
@@ -7204,7 +7208,7 @@ export function ModuleFWorkspace({
                                       <div
                                         className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                                           isSelected
-                                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                                            ? 'border-emerald-700 bg-emerald-700 text-white'
                                             : 'border-slate-300 bg-white'
                                         }`}
                                       >
@@ -7223,8 +7227,8 @@ export function ModuleFWorkspace({
 
                             {/* Mandatory "OTHER" Inline Text Input (Rule 1.5 Edge-Case Invariant) */}
                             {selectedVal === 'OTHER' && (
-                              <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
-                                <label className="text-xs font-bold text-indigo-950 block mb-1">
+                              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <label className="text-xs font-bold text-slate-950 block mb-1">
                                   Specify Your Custom Approach or Nuanced Scenario (Rule 1.5 Edge-Case):
                                 </label>
                                 <textarea
@@ -7239,7 +7243,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="Describe your exact compromise, conditional trigger, or hybrid terms..."
                                   disabled={isVaultReadonly}
-                                  className="w-full rounded-lg border border-indigo-300 bg-white p-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                                  className="w-full rounded-lg border border-emerald-300 bg-white p-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                                 />
                               </div>
                             )}
@@ -7258,7 +7262,7 @@ export function ModuleFWorkspace({
                                 }
                                 placeholder="Private note (e.g. 'Must discuss over coffee before incorporating CRO entity')"
                                 disabled={isVaultReadonly}
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-[11px] text-slate-600 focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-[11px] text-slate-600 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -7278,7 +7282,7 @@ export function ModuleFWorkspace({
                 // -------------------------------------------------------------
                 <div className="space-y-4 pt-4 border-t border-slate-200">
                   {/* Visual Card 1: Solo Founder Charter & Candidate Screener */}
-                  <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-900 to-indigo-950 p-5 text-white shadow-sm space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-950 p-5 text-white shadow-sm space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
                       <div className="flex items-center gap-2">
                         <CheckCheck className="h-5 w-5 text-emerald-400" />
@@ -7293,7 +7297,7 @@ export function ModuleFWorkspace({
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <div className="rounded-lg bg-white/10 p-3 backdrop-blur-xs border border-white/10">
-                        <span className="text-[10px] uppercase font-semibold text-indigo-200 block">
+                        <span className="text-[10px] uppercase font-semibold text-slate-300 block">
                           Solo Boundary Posture
                         </span>
                         <div className="mt-1 text-base font-extrabold text-white">
@@ -7301,32 +7305,32 @@ export function ModuleFWorkspace({
                             ? 'Charter Formed'
                             : 'In Progress'}
                         </div>
-                        <p className="mt-1 text-[10px] text-indigo-300">
+                        <p className="mt-1 text-[10px] text-slate-300">
                           {answeredQuestionsCountForActiveFounder} of 20 hard boundaries defined before recruiting a partner.
                         </p>
                       </div>
 
                       <div className="rounded-lg bg-white/10 p-3 backdrop-blur-xs border border-white/10">
-                        <span className="text-[10px] uppercase font-semibold text-indigo-200 block">
+                        <span className="text-[10px] uppercase font-semibold text-slate-300 block">
                           Cap Table Protection
                         </span>
                         <div className="mt-1 text-base font-extrabold text-white">
                           4-Yr Vesting Enforced
                         </div>
-                        <p className="mt-1 text-[10px] text-indigo-300">
+                        <p className="mt-1 text-[10px] text-slate-300">
                           Ensures zero dead equity on the cap table if a prospective co-founder leaves in Year 1.
                         </p>
                       </div>
 
                       <div className="rounded-lg bg-white/10 p-3 backdrop-blur-xs border border-white/10">
-                        <span className="text-[10px] uppercase font-semibold text-indigo-200 block">
+                        <span className="text-[10px] uppercase font-semibold text-slate-300 block">
                           Investor &amp; Grant Audit
                         </span>
                         <div className="mt-1 flex items-center gap-1.5 text-xs font-bold text-emerald-400">
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                           <span>LEO &amp; SUL Governance Pass</span>
                         </div>
-                        <p className="mt-1 text-[10px] text-indigo-300">
+                        <p className="mt-1 text-[10px] text-slate-300">
                           Demonstrates clear founder voting authority, IP assignment, and operational leadership.
                         </p>
                       </div>
@@ -7334,10 +7338,10 @@ export function ModuleFWorkspace({
                   </div>
 
                   {/* Visual Card 2: Credit-Applied Upsell Card (Solo Pass -> Co-Founder Pass) */}
-                  <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-white to-violet-50/60 p-5 shadow-xs space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50/60 p-5 shadow-xs space-y-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="flex items-start gap-3 min-w-0 flex-1">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-xs">
                           <Users className="h-5 w-5" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -7358,11 +7362,11 @@ export function ModuleFWorkspace({
                       </div>
 
                       {/* Upgrade Price Tag */}
-                      <div className="rounded-xl bg-white p-3.5 border border-indigo-200 text-right shrink-0 shadow-xs">
+                      <div className="rounded-xl bg-white p-3.5 border border-slate-200 text-right shrink-0 shadow-xs">
                         <span className="text-[11px] text-slate-400 block line-through">
                           Normally {selectedCountry === 'GB' ? '£109' : '€129'}
                         </span>
-                        <div className="text-xl font-black text-indigo-700">
+                        <div className="text-xl font-black text-emerald-800">
                           {selectedCountry === 'GB' ? '£40' : '€50'}
                           <span className="text-xs font-normal text-slate-500"> one-time upgrade</span>
                         </div>
@@ -7374,7 +7378,7 @@ export function ModuleFWorkspace({
 
                     {/* Key Benefits Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2">
-                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-2.5">
+                      <div className="rounded-lg border border-slate-100 bg-white/80 p-2.5">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                           <Check className="h-4 w-4 text-emerald-600 shrink-0" />
                           <span>3 Collaborative Seats</span>
@@ -7384,7 +7388,7 @@ export function ModuleFWorkspace({
                         </p>
                       </div>
 
-                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-2.5">
+                      <div className="rounded-lg border border-slate-100 bg-white/80 p-2.5">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                           <Check className="h-4 w-4 text-emerald-600 shrink-0" />
                           <span>Blind-Reveal Heatmap</span>
@@ -7394,7 +7398,7 @@ export function ModuleFWorkspace({
                         </p>
                       </div>
 
-                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-2.5">
+                      <div className="rounded-lg border border-slate-100 bg-white/80 p-2.5">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                           <Check className="h-4 w-4 text-emerald-600 shrink-0" />
                           <span>Cap Table &amp; Vesting Math</span>
@@ -7404,7 +7408,7 @@ export function ModuleFWorkspace({
                         </p>
                       </div>
 
-                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-2.5">
+                      <div className="rounded-lg border border-slate-100 bg-white/80 p-2.5">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                           <Check className="h-4 w-4 text-emerald-600 shrink-0" />
                           <span>3 Active Startup Plans</span>
@@ -7416,7 +7420,7 @@ export function ModuleFWorkspace({
                     </div>
 
                     {/* Direct CTA Action Bar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-indigo-100">
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
                       <p className="text-xs text-slate-600 font-medium">
                         Instant unlock • Zero subscription renewals • Works across all 12 modules
                       </p>
@@ -7434,7 +7438,7 @@ export function ModuleFWorkspace({
                             } Solo Pass credit applied). Unlocks 3 collaborative seats, blind-reveal heatmap, and cap table tools.`
                           );
                         }}
-                        className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs sm:text-sm font-bold shadow-sm px-5 py-2.5"
+                        className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs sm:text-sm font-bold shadow-sm px-5 py-2.5"
                       >
                         Upgrade to Co-Founder Pack Here
                         <ArrowRight className="ml-1.5 h-4 w-4" />
@@ -7463,14 +7467,14 @@ export function ModuleFWorkspace({
                 // -------------------------------------------------------------
                 <div className="space-y-4 pt-4 border-t border-slate-200">
                   {/* Blind-Reveal Banner & Trigger Button */}
-                  <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/80 via-white to-violet-50/70 p-5 shadow-xs">
+                  <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50/70 p-5 shadow-xs">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
                           {step4Data.isRevealed ? (
                             <Unlock className="h-5 w-5 text-emerald-600" />
                           ) : (
-                            <Lock className="h-5 w-5 text-indigo-600" />
+                            <Lock className="h-5 w-5 text-emerald-700" />
                           )}
                           <h4 className="text-sm font-bold text-slate-900">
                             {step4Data.isRevealed
@@ -7491,7 +7495,7 @@ export function ModuleFWorkspace({
                         className={
                           step4Data.isRevealed
                             ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-xs'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 text-xs'
+                            : 'bg-emerald-700 text-white hover:bg-emerald-800 text-xs'
                         }
                       >
                         {step4Data.isRevealed ? (
@@ -7603,7 +7607,7 @@ export function ModuleFWorkspace({
                                     )}
                                   </div>
                                   {ans1?.otherText && (
-                                    <p className="text-[11px] text-indigo-700 mt-1">
+                                    <p className="text-[11px] text-emerald-800 mt-1">
                                       Custom: &ldquo;{ans1.otherText}&rdquo;
                                     </p>
                                   )}
@@ -7619,7 +7623,7 @@ export function ModuleFWorkspace({
                                     )}
                                   </div>
                                   {ans2?.otherText && (
-                                    <p className="text-[11px] text-indigo-700 mt-1">
+                                    <p className="text-[11px] text-emerald-800 mt-1">
                                       Custom: &ldquo;{ans2.otherText}&rdquo;
                                     </p>
                                   )}
@@ -7687,7 +7691,7 @@ export function ModuleFWorkspace({
                     type="button"
                     onClick={() => handleSaveStep4()}
                     disabled={isSavingStep4 || isVaultReadonly}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
+                    className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs"
                   >
                     {isSavingStep4 ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -7703,7 +7707,7 @@ export function ModuleFWorkspace({
                       handleSaveStep4();
                       setOpenStep(5);
                     }}
-                    className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                    className="text-xs border-slate-200 text-emerald-800 hover:bg-emerald-50"
                   >
                     Next: 3-Year Hiring Plan
                     <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -7723,21 +7727,21 @@ export function ModuleFWorkspace({
           // COLLAPSED STEP 5 CARD
           <div
             onClick={() => setOpenStep(5)}
-            className="group flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   step5Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {step5Complete ? <Check className="h-4 w-4" /> : '5'}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 5: 3-Year Job Creation, Headcount &amp; Sweat Equity Architecture
                   </h3>
                   <Badge
@@ -7767,7 +7771,7 @@ export function ModuleFWorkspace({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {step5Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -7784,7 +7788,7 @@ export function ModuleFWorkspace({
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                       step5Complete
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {step5Complete ? <Check className="h-4 w-4" /> : '5'}
@@ -7839,9 +7843,9 @@ export function ModuleFWorkspace({
                   onClick={() =>
                     setActiveWhyCard(activeWhyCard === 5 ? null : 5)
                   }
-                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                  <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   Why Are We Asking This?
                 </Button>
                 <Button
@@ -7860,18 +7864,18 @@ export function ModuleFWorkspace({
 
               {/* Popover 1: Why Are We Asking This? */}
               {activeWhyCard === 5 && (
-                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950 space-y-2">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950 space-y-2">
                   <div className="flex items-center justify-between font-bold">
                     <span>Why Job Creation &amp; Sweat Equity Architecture Matters to Grant &amp; Loan Assessors:</span>
                     <button
                       type="button"
                       onClick={() => setActiveWhyCard(null)}
-                      className="text-indigo-400 hover:text-indigo-600"
+                      className="text-emerald-600 hover:text-emerald-700"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <ul className="list-disc pl-4 space-y-1 text-indigo-900/90 leading-relaxed">
+                  <ul className="list-disc pl-4 space-y-1 text-slate-900/90 leading-relaxed">
                     <li>
                       <strong>LEO Priming Grants (Ireland):</strong> Fund up to 50% of direct PAYE salaries (max €10,000 per new job created in Year 1). Evaluators mandate an explicit Full-Time Equivalent (FTE) net job creation forecast.
                     </li>
@@ -7955,7 +7959,7 @@ export function ModuleFWorkspace({
                         }}
                         className={`rounded-xl border p-3.5 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-600'
+                            ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white hover:border-slate-300'
                         }`}
                       >
@@ -7967,7 +7971,7 @@ export function ModuleFWorkspace({
                             variant={isSelected ? 'default' : 'outline'}
                             className={`text-[9px] shrink-0 ${
                               isSelected
-                                ? 'bg-indigo-600 text-white'
+                                ? 'bg-emerald-700 text-white'
                                 : 'text-slate-500'
                             }`}
                           >
@@ -7984,8 +7988,8 @@ export function ModuleFWorkspace({
 
                 {/* Edge-Case Protection: Custom OTHER hiring model input */}
                 {step5Data.hiringPosture === 'OTHER' && (
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 space-y-1.5 animate-in fade-in-50">
-                    <Label className="text-xs font-bold text-indigo-950">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-1.5 animate-in fade-in-50">
+                    <Label className="text-xs font-bold text-slate-950">
                       Specify Your Custom Hiring Architecture (Edge-Case Protection):
                     </Label>
                     <Input
@@ -8000,7 +8004,7 @@ export function ModuleFWorkspace({
                         }));
                       }}
                       placeholder="e.g. University spinout with fractional PhD researchers transitioning to full-time post-grant..."
-                      className="text-xs bg-white border-indigo-200"
+                      className="text-xs bg-white border-slate-200"
                     />
                   </div>
                 )}
@@ -8036,7 +8040,7 @@ export function ModuleFWorkspace({
                           onClick={() => setActiveYearTab(yrNum)}
                           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                             isTabActive
-                              ? 'bg-white text-indigo-700 shadow-xs'
+                              ? 'bg-white text-emerald-800 shadow-xs'
                               : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
@@ -8044,7 +8048,7 @@ export function ModuleFWorkspace({
                           <span
                             className={`rounded-full px-1.5 py-0.2 text-[10px] ${
                               isTabActive
-                                ? 'bg-indigo-100 text-indigo-800'
+                                ? 'bg-slate-100 text-emerald-900'
                                 : 'bg-slate-200 text-slate-600'
                             }`}
                           >
@@ -8070,9 +8074,9 @@ export function ModuleFWorkspace({
                         size="sm"
                         variant="outline"
                         onClick={() => handleAddPlannedRole(tmpl)}
-                        className="h-7 text-[11px] bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-600"
+                        className="h-7 text-[11px] bg-white border-slate-200 text-slate-700 hover:border-emerald-300 hover:text-emerald-700"
                       >
-                        <Plus className="mr-1 h-3 w-3 text-indigo-600" />
+                        <Plus className="mr-1 h-3 w-3 text-emerald-700" />
                         {tmpl.title}
                       </Button>
                     ))}
@@ -8080,7 +8084,7 @@ export function ModuleFWorkspace({
                       type="button"
                       size="sm"
                       onClick={() => handleAddPlannedRole()}
-                      className="h-7 text-[11px] bg-indigo-600 text-white hover:bg-indigo-700"
+                      className="h-7 text-[11px] bg-emerald-700 text-white hover:bg-emerald-800"
                     >
                       <Plus className="mr-1 h-3 w-3" />
                       Add Custom Role
@@ -8104,7 +8108,7 @@ export function ModuleFWorkspace({
                         size="sm"
                         variant="outline"
                         onClick={() => handleAddPlannedRole()}
-                        className="text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                        className="text-xs text-emerald-700 border-slate-200 hover:bg-emerald-50"
                       >
                         <Plus className="mr-1 h-3.5 w-3.5" />
                         Add First Role in Year {activeYearTab}
@@ -8130,7 +8134,7 @@ export function ModuleFWorkspace({
                           key={role.id}
                           className={`rounded-xl border transition-all ${
                             isRoleOpen
-                              ? 'border-indigo-300 bg-white shadow-xs'
+                              ? 'border-emerald-300 bg-white shadow-xs'
                               : 'border-slate-200 bg-white hover:border-slate-300'
                           }`}
                         >
@@ -8146,7 +8150,7 @@ export function ModuleFWorkspace({
                                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-xs ${
                                   isFlowedFromPriorYear
                                     ? 'bg-slate-100 text-slate-700'
-                                    : 'bg-indigo-50 text-indigo-700'
+                                    : 'bg-emerald-50 text-emerald-800'
                                 }`}
                               >
                                 {isFlowedFromPriorYear
@@ -8182,7 +8186,7 @@ export function ModuleFWorkspace({
                                         ? 'bg-amber-100 text-amber-900 border-amber-300'
                                         : role.compensationModel ===
                                           'HYBRID_CASH_EQUITY'
-                                        ? 'bg-purple-100 text-purple-900 border-purple-300'
+                                        ? 'bg-emerald-100 text-emerald-950 border-slate-200'
                                         : 'bg-emerald-100 text-emerald-900 border-emerald-300'
                                     }`}
                                   >
@@ -8193,7 +8197,7 @@ export function ModuleFWorkspace({
                                     }
                                   </Badge>
                                   {Number(role.equityGrantPercent) > 0 && (
-                                    <span className="text-[10px] font-bold text-purple-700">
+                                    <span className="text-[10px] font-bold text-emerald-800">
                                       ⚡ {role.equityGrantPercent}% Equity
                                     </span>
                                   )}
@@ -8353,7 +8357,7 @@ export function ModuleFWorkspace({
                                           }
                                           className={`rounded-md py-1.5 text-[11px] font-bold transition-all border ${
                                             role.employmentMode === m.value
-                                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                                              ? 'border-emerald-700 bg-emerald-700 text-white'
                                               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                                           }`}
                                         >
@@ -8380,7 +8384,7 @@ export function ModuleFWorkspace({
                                           }
                                           className={`rounded-md p-1.5 text-center transition-all border ${
                                             role.compensationModel === c.value
-                                              ? 'border-indigo-600 bg-indigo-50 text-indigo-900 font-bold ring-1 ring-indigo-600'
+                                              ? 'border-emerald-700 bg-emerald-50 text-slate-900 font-bold ring-1 ring-emerald-700'
                                               : 'border-slate-200 bg-white text-slate-600 text-[10px] hover:bg-slate-50'
                                           }`}
                                         >
@@ -8394,7 +8398,7 @@ export function ModuleFWorkspace({
                                 </div>
 
                                 {/* Salary & Sweat Equity Details */}
-                                <div className="rounded-xl border border-indigo-100 bg-white p-3.5 space-y-3">
+                                <div className="rounded-xl border border-slate-100 bg-white p-3.5 space-y-3">
                                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                                     {/* Gross Cash Salary */}
                                     <div className="sm:col-span-4 space-y-1">
@@ -8432,7 +8436,7 @@ export function ModuleFWorkspace({
 
                                     {/* Equity Grant % */}
                                     <div className="sm:col-span-3 space-y-1">
-                                      <Label className="text-[11px] font-bold text-purple-900 flex items-center gap-1">
+                                      <Label className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
                                         <span>Sweat Equity Pool %</span>
                                       </Label>
                                       <div className="relative">
@@ -8448,9 +8452,9 @@ export function ModuleFWorkspace({
                                                 Number(e.target.value) || 0,
                                             })
                                           }
-                                          className="pr-6 text-xs font-bold text-purple-900 border-purple-200"
+                                          className="pr-6 text-xs font-bold text-slate-900 border-slate-200"
                                         />
-                                        <span className="absolute right-3 top-2 text-xs font-bold text-purple-400">
+                                        <span className="absolute right-3 top-2 text-xs font-bold text-emerald-400">
                                           %
                                         </span>
                                       </div>
@@ -8515,7 +8519,7 @@ export function ModuleFWorkspace({
                                           (3%)
                                         </span>
                                       )}
-                                      <span className="font-bold text-indigo-900">
+                                      <span className="font-bold text-slate-900">
                                         True Loaded Cost:{' '}
                                         {formatPlanCurrency(
                                           loadedCost,
@@ -8539,7 +8543,7 @@ export function ModuleFWorkspace({
                                                 e.target.checked,
                                             })
                                           }
-                                          className="rounded border-slate-300 text-indigo-600"
+                                          className="rounded border-slate-300 text-emerald-700"
                                         />
                                         <span className="text-slate-700 font-medium">
                                           LEO / Innovate UK Grant Candidate
@@ -8557,7 +8561,7 @@ export function ModuleFWorkspace({
                                                 e.target.checked,
                                             })
                                           }
-                                          className="rounded border-slate-300 text-purple-600"
+                                          className="rounded border-slate-300 text-emerald-700"
                                         />
                                         <span className="text-slate-700 font-medium">
                                           R&amp;D Tax Credit Candidate
@@ -8572,7 +8576,7 @@ export function ModuleFWorkspace({
                                       'HYBRID_CASH_EQUITY' ||
                                     Number(role.equityGrantPercent) > 0) && (
                                     <div className="space-y-1">
-                                      <Label className="text-[11px] font-bold text-purple-900">
+                                      <Label className="text-[11px] font-bold text-slate-900">
                                         Sweat Equity Milestone or Cash Conversion Trigger:
                                       </Label>
                                       <Input
@@ -8587,7 +8591,7 @@ export function ModuleFWorkspace({
                                           })
                                         }
                                         placeholder="e.g. Automatically converts to standard market cash salary once Seed round closes or MRR crosses €15k..."
-                                        className="text-xs bg-purple-50/40 border-purple-200"
+                                        className="text-xs bg-emerald-50/70/40 border-slate-200"
                                       />
                                     </div>
                                   )}
@@ -8659,12 +8663,12 @@ export function ModuleFWorkspace({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {/* Year 1 Card */}
-                  <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/60 via-white to-slate-50 p-4 space-y-2">
+                  <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50 p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-indigo-950 uppercase">
+                      <span className="text-xs font-bold text-slate-950 uppercase">
                         Year 1 Projection
                       </span>
-                      <Badge className="bg-indigo-600 text-white text-[10px]">
+                      <Badge className="bg-emerald-700 text-white text-[10px]">
                         {calculateFteForRoles(step5RolesYear1)} FTEs
                       </Badge>
                     </div>
@@ -8696,7 +8700,7 @@ export function ModuleFWorkspace({
                           )}
                         </strong>
                       </div>
-                      <div className="flex justify-between pt-1 border-t border-indigo-100 font-bold text-indigo-950">
+                      <div className="flex justify-between pt-1 border-t border-slate-100 font-bold text-slate-950">
                         <span>Total Wage Outflow:</span>
                         <span>
                           {formatPlanCurrency(
@@ -8707,7 +8711,7 @@ export function ModuleFWorkspace({
                       </div>
                     </div>
                     {y1Stats.totalEquityPoolPledged > 0 && (
-                      <div className="pt-1 text-[10px] text-purple-700 font-semibold">
+                      <div className="pt-1 text-[10px] text-emerald-800 font-semibold">
                         ⚡ {y1Stats.totalEquityPoolPledged}% Sweat Equity Pledged
                       </div>
                     )}
@@ -8723,12 +8727,12 @@ export function ModuleFWorkspace({
                   </div>
 
                   {/* Year 2 Card */}
-                  <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/60 via-white to-slate-50 p-4 space-y-2">
+                  <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50 p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-indigo-950 uppercase">
+                      <span className="text-xs font-bold text-slate-950 uppercase">
                         Year 2 Projection
                       </span>
-                      <Badge className="bg-indigo-600 text-white text-[10px]">
+                      <Badge className="bg-emerald-700 text-white text-[10px]">
                         {calculateFteForRoles(step5RolesYear2)} FTEs
                       </Badge>
                     </div>
@@ -8760,7 +8764,7 @@ export function ModuleFWorkspace({
                           )}
                         </strong>
                       </div>
-                      <div className="flex justify-between pt-1 border-t border-indigo-100 font-bold text-indigo-950">
+                      <div className="flex justify-between pt-1 border-t border-slate-100 font-bold text-slate-950">
                         <span>Total Wage Outflow:</span>
                         <span>
                           {formatPlanCurrency(
@@ -8771,7 +8775,7 @@ export function ModuleFWorkspace({
                       </div>
                     </div>
                     {y2Stats.totalEquityPoolPledged > 0 && (
-                      <div className="pt-1 text-[10px] text-purple-700 font-semibold">
+                      <div className="pt-1 text-[10px] text-emerald-800 font-semibold">
                         ⚡ {y2Stats.totalEquityPoolPledged}% Sweat Equity Pledged
                       </div>
                     )}
@@ -8787,12 +8791,12 @@ export function ModuleFWorkspace({
                   </div>
 
                   {/* Year 3 Card */}
-                  <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/60 via-white to-slate-50 p-4 space-y-2">
+                  <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50 p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-indigo-950 uppercase">
+                      <span className="text-xs font-bold text-slate-950 uppercase">
                         Year 3 Projection
                       </span>
-                      <Badge className="bg-indigo-600 text-white text-[10px]">
+                      <Badge className="bg-emerald-700 text-white text-[10px]">
                         {calculateFteForRoles(step5RolesYear3)} FTEs
                       </Badge>
                     </div>
@@ -8824,7 +8828,7 @@ export function ModuleFWorkspace({
                           )}
                         </strong>
                       </div>
-                      <div className="flex justify-between pt-1 border-t border-indigo-100 font-bold text-indigo-950">
+                      <div className="flex justify-between pt-1 border-t border-slate-100 font-bold text-slate-950">
                         <span>Total Wage Outflow:</span>
                         <span>
                           {formatPlanCurrency(
@@ -8835,12 +8839,12 @@ export function ModuleFWorkspace({
                       </div>
                     </div>
                     {y3Stats.totalEquityPoolPledged > 0 && (
-                      <div className="pt-1 text-[10px] text-purple-700 font-semibold">
+                      <div className="pt-1 text-[10px] text-emerald-800 font-semibold">
                         ⚡ {y3Stats.totalEquityPoolPledged}% Sweat Equity Pledged
                       </div>
                     )}
                     {y3Stats.estimatedRdOffset > 0 && (
-                      <div className="rounded-md bg-purple-50 px-2 py-1 text-[10px] font-bold text-purple-800">
+                      <div className="rounded-md bg-emerald-50/70 px-2 py-1 text-[10px] font-bold text-emerald-900">
                         Estimated R&amp;D Tax Offset: ~
                         {formatPlanCurrency(
                           y3Stats.estimatedRdOffset,
@@ -8871,7 +8875,7 @@ export function ModuleFWorkspace({
                     variant="outline"
                     disabled={isDraftingHiringAi || isVaultReadonly}
                     onClick={handleGenerateHiringStrategyAi}
-                    className="h-7 text-xs border-indigo-200 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100 font-semibold"
+                    className="h-7 text-xs border-slate-200 bg-slate-50 text-emerald-800 hover:bg-slate-100 font-semibold"
                   >
                     {isDraftingHiringAi ? (
                       <>
@@ -8880,7 +8884,7 @@ export function ModuleFWorkspace({
                       </>
                     ) : (
                       <>
-                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Generate AI Summary
                       </>
                     )}
@@ -8896,13 +8900,13 @@ export function ModuleFWorkspace({
                     }))
                   }
                   placeholder="Summarize your talent recruitment, onboarding cadence, and retention strategy (e.g. share options pool, remote-first flexibility, milestone bonuses)..."
-                  className="w-full rounded-md border border-slate-200 bg-white p-2.5 text-xs leading-relaxed focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-md border border-slate-200 bg-white p-2.5 text-xs leading-relaxed focus:border-emerald-600 focus:outline-none"
                 />
                 {step5Data.aiCoachTip && (
-                  <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2.5 text-[11px] text-indigo-950 flex items-start gap-2">
-                    <Sparkles className="h-3.5 w-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-[11px] text-slate-950 flex items-start gap-2">
+                    <Sparkles className="h-3.5 w-3.5 text-emerald-700 shrink-0 mt-0.5" />
                     <div>
-                      <strong className="font-semibold text-indigo-900">Assessor Coaching: </strong>
+                      <strong className="font-semibold text-slate-900">Assessor Coaching: </strong>
                       <span>{step5Data.aiCoachTip}</span>
                     </div>
                   </div>
@@ -8938,7 +8942,7 @@ export function ModuleFWorkspace({
                     type="button"
                     onClick={() => handleSaveStep5()}
                     disabled={isSavingStep5 || isVaultReadonly}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs"
+                    className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs"
                   >
                     {isSavingStep5 ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -8954,7 +8958,7 @@ export function ModuleFWorkspace({
                       handleSaveStep5();
                       setOpenStep(6);
                     }}
-                    className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                    className="text-xs border-slate-200 text-emerald-800 hover:bg-emerald-50"
                   >
                     Next: Module F Overview Brief
                     <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -8973,7 +8977,7 @@ export function ModuleFWorkspace({
         {openStep !== 'ALL' && openStep !== 6 ? (
           <div
             onClick={() => setOpenStep(6)}
-            className="group cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -8981,14 +8985,14 @@ export function ModuleFWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     completedModuleFCoreStepsCount === 5
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   <FileText className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                    <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                       Team, Governance &amp; Hiring Brief
                     </h2>
                     <Badge
@@ -9005,7 +9009,7 @@ export function ModuleFWorkspace({
                     >
                       {completedModuleFCoreStepsCount}/5 Sections Ready
                     </Badge>
-                    <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700 shrink-0 font-medium">
+                    <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800 shrink-0 font-medium">
                       LEO Appendix D &amp; Innovate UK Q8 Compliant
                     </Badge>
                   </div>
@@ -9019,7 +9023,7 @@ export function ModuleFWorkspace({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                 >
                   <span>{completedModuleFCoreStepsCount === 5 ? 'Open Overview' : 'Review Overview'}</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -9028,15 +9032,15 @@ export function ModuleFWorkspace({
             </div>
           </div>
         ) : (
-          <Card className="border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm">
-            <CardHeader className="border-b border-indigo-100/80 pb-4">
+          <Card className="border-slate-200 bg-white shadow-sm">
+            <CardHeader className="border-b border-slate-100/80 pb-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                       completedModuleFCoreStepsCount === 5
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     <FileText className="h-4 w-4" />
@@ -9046,7 +9050,7 @@ export function ModuleFWorkspace({
                       <CardTitle className="text-base font-bold text-slate-900">
                         Team, Governance &amp; Hiring Brief (Overview)
                       </CardTitle>
-                      <Badge className="bg-indigo-100 text-indigo-800 text-[10px] shrink-0 font-medium">
+                      <Badge className="bg-slate-100 text-emerald-900 text-[10px] shrink-0 font-medium">
                         Module F Overview
                       </Badge>
                       <Badge
@@ -9076,7 +9080,7 @@ export function ModuleFWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={handleCopyMarkdownBrief}
-                    className="h-8 text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 font-semibold"
+                    className="h-8 text-xs border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50 font-semibold"
                   >
                     {copiedBrief ? (
                       <>
@@ -9124,7 +9128,7 @@ export function ModuleFWorkspace({
                   {/* Pillar 1: Promoter Profiles */}
                   <div
                     onClick={() => setOpenStep(1)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">
@@ -9140,7 +9144,7 @@ export function ModuleFWorkspace({
                       {step1Data.teamMembers.length} team member(s) •{' '}
                       {step1Data.teamMembers.filter((m) => m.cvReadyForAppendixD).length}/{step1Data.teamMembers.length} CVs formatted for LEO Appendix D.
                     </p>
-                    <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                    <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                       Edit Profiles →
                     </span>
                   </div>
@@ -9148,7 +9152,7 @@ export function ModuleFWorkspace({
                   {/* Pillar 2: 7 Startup Hats */}
                   <div
                     onClick={() => setOpenStep(2)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">
@@ -9164,7 +9168,7 @@ export function ModuleFWorkspace({
                       {step2AssignedHatsCount}/7 functional hats mapped •{' '}
                       {step2Data.advisors.length} external advisor(s) in governance roster.
                     </p>
-                    <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                    <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                       Edit Hat Allocation →
                     </span>
                   </div>
@@ -9172,7 +9176,7 @@ export function ModuleFWorkspace({
                   {/* Pillar 3: Survival Budget & Runway */}
                   <div
                     onClick={() => setOpenStep(3)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">
@@ -9187,7 +9191,7 @@ export function ModuleFWorkspace({
                     <p className="mt-1 text-[11px] text-slate-600">
                       {formatPlanCurrency(totalTeamMonthlyDrawingsNeed, step3Data.currencyCode)}/mo survival floor across {step3Data.founderBudgets.length} founder(s).
                     </p>
-                    <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                    <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                       Edit Survival Runway →
                     </span>
                   </div>
@@ -9195,7 +9199,7 @@ export function ModuleFWorkspace({
                   {/* Pillar 4: Founder Alignment / 20 Hard Questions */}
                   <div
                     onClick={() => setOpenStep(4)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">
@@ -9212,7 +9216,7 @@ export function ModuleFWorkspace({
                         ? `${answeredQuestionsCountForActiveFounder}/20 Hard Questions Answered (Solo Charter)`
                         : `${step4Data.responses.length} Founders • ${step4Data.isRevealed ? 'Heatmap Revealed' : 'Blind-Reveal'}`}
                     </p>
-                    <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                    <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                       Review Questions →
                     </span>
                   </div>
@@ -9220,7 +9224,7 @@ export function ModuleFWorkspace({
                   {/* Pillar 5: 3-Year Headcount & Payroll */}
                   <div
                     onClick={() => setOpenStep(5)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs sm:col-span-2 lg:col-span-2"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs sm:col-span-2 lg:col-span-2"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">
@@ -9235,7 +9239,7 @@ export function ModuleFWorkspace({
                     <p className="mt-1 text-[11px] text-slate-600">
                       Year 1: {calculateFteForRoles(step5RolesYear1)} FTEs ({formatPlanCurrency(y1Stats.totalCashBurn, isGb ? 'GBP' : 'EUR')}) → Year 3: {calculateFteForRoles(step5RolesYear3)} FTEs ({formatPlanCurrency(y3Stats.totalCashBurn, isGb ? 'GBP' : 'EUR')}) • {step5Data.roles.length} roles scheduled.
                     </p>
-                    <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                    <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                       Edit Hiring Schedule →
                     </span>
                   </div>
@@ -9245,7 +9249,7 @@ export function ModuleFWorkspace({
               {/* ============================================================= */}
               {/* SECTION 2: AUDIT READINESS POSTURE SELECTOR                   */}
               {/* ============================================================= */}
-              <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+              <div className="space-y-3 border-t border-slate-100/80 pt-4">
                 <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
                     2. Team &amp; Governance Readiness Posture (Grant &amp; Investor Diligence)
@@ -9271,8 +9275,8 @@ export function ModuleFWorkspace({
                         }
                         className={`flex flex-col justify-between rounded-xl border p-3 text-left transition ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20'
-                            : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/60'
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
+                            : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                         }`}
                       >
                         <div className="space-y-1">
@@ -9284,7 +9288,7 @@ export function ModuleFWorkspace({
                               variant="outline"
                               className={
                                 isSelected
-                                  ? 'border-indigo-300 bg-indigo-100 text-[10px] text-indigo-900 font-bold'
+                                  ? 'border-emerald-300 bg-slate-100 text-[10px] text-slate-900 font-bold'
                                   : 'border-slate-200 bg-slate-50 text-[10px] text-slate-600'
                               }
                             >
@@ -9301,8 +9305,8 @@ export function ModuleFWorkspace({
                 </div>
 
                 {step6Data.readinessConfidence === 'OTHER' && (
-                  <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
-                    <label className="block text-xs font-semibold text-indigo-950">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-xs font-semibold text-slate-950">
                       Describe Your Custom Team &amp; Governance Posture:
                     </label>
                     <input
@@ -9316,7 +9320,7 @@ export function ModuleFWorkspace({
                         }))
                       }
                       placeholder="e.g. Solo founder backed by university incubation mentor while finalizing commercial co-founder..."
-                      className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
                     />
                   </div>
                 )}
@@ -9325,7 +9329,7 @@ export function ModuleFWorkspace({
               {/* ============================================================= */}
               {/* SECTION 3: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT ENGINE*/}
               {/* ============================================================= */}
-              <div className="space-y-3 border-t border-indigo-100/80 pt-5">
+              <div className="space-y-3 border-t border-slate-100/80 pt-5">
                 <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 sm:text-sm">
@@ -9343,7 +9347,7 @@ export function ModuleFWorkspace({
                       variant="outline"
                       disabled={isVaultReadonly || isDraftingAuditAi}
                       onClick={handleRunAiStep6Audit}
-                      className="border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                      className="border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                     >
                       {isDraftingAuditAi ? (
                         <>
@@ -9352,7 +9356,7 @@ export function ModuleFWorkspace({
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                          <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                           AI Run Team Blind-Spot Audit &amp; Brief
                         </>
                       )}
@@ -9384,7 +9388,7 @@ export function ModuleFWorkspace({
                             : isCritical
                             ? 'border-rose-200 bg-rose-50/30'
                             : isWatch
-                            ? 'border-indigo-200 bg-indigo-50/30'
+                            ? 'border-slate-200 bg-slate-50'
                             : 'border-amber-200 bg-amber-50/30'
                         }`}
                       >
@@ -9490,7 +9494,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               placeholder="Specify custom team blind-spot category..."
-                              className="w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
+                              className="w-full rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-base text-slate-900 sm:text-xs"
                             />
                           </div>
                         )}
@@ -9556,7 +9560,7 @@ export function ModuleFWorkspace({
               {/* ============================================================= */}
               {/* SECTION 4: 1-PAGE EXECUTIVE DOSSIER (OFFICIAL GRANT FORM BLOCKS) */}
               {/* ============================================================= */}
-              <div className="space-y-4 border-t border-indigo-100/80 pt-5">
+              <div className="space-y-4 border-t border-slate-100/80 pt-5">
                 <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 sm:text-sm">
@@ -9566,7 +9570,7 @@ export function ModuleFWorkspace({
                       Copy and paste these verified narrative paragraphs directly into your official grant applications or investment proposals.
                     </p>
                   </div>
-                  <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700">
+                  <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800">
                     Auto-Formatted Dossier
                   </Badge>
                 </div>
@@ -9651,17 +9655,17 @@ export function ModuleFWorkspace({
 
               {/* Assessor Coaching Tip */}
               {step6Data.aiCoachTip && (
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5 text-xs text-indigo-950 flex items-start gap-2.5">
-                  <Sparkles className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-950 flex items-start gap-2.5">
+                  <Sparkles className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="font-bold text-indigo-900">Grant Assessor Insight: </strong>
+                    <strong className="font-bold text-slate-900">Grant Assessor Insight: </strong>
                     <span className="leading-relaxed">{step6Data.aiCoachTip}</span>
                   </div>
                 </div>
               )}
 
               {/* Save Overview Action */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-indigo-100/80 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100/80 pt-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -9699,7 +9703,7 @@ export function ModuleFWorkspace({
               {onContinueToModuleG && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
                   <div className="text-xs min-w-0 flex-1">
-                    <span className="font-semibold text-indigo-300">
+                    <span className="font-semibold text-slate-300">
                       Module F Complete! Ready to set up legal, banking &amp; operational infrastructure for {plan.title}?
                     </span>{' '}
                     <span className="text-slate-300">
@@ -9714,7 +9718,7 @@ export function ModuleFWorkspace({
                       await handleSaveStep6();
                       onContinueToModuleG();
                     }}
-                    className="shrink-0 bg-indigo-600 text-white hover:bg-indigo-500 text-xs font-semibold"
+                    className="shrink-0 bg-emerald-700 text-white hover:bg-emerald-500 text-xs font-semibold"
                   >
                     Continue to Module G: Launchpad
                     <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

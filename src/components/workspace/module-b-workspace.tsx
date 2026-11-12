@@ -782,51 +782,6 @@ export function ModuleBWorkspace({
     savedBeachhead?.otherGeographyText ?? ''
   );
 
-  // Sync state when plan changes or Cloud SQL hydrates savedBeachhead
-  useEffect(() => {
-    const nextBuyerTypes: BuyerModelType[] =
-      savedBeachhead?.buyerTypes?.length
-        ? savedBeachhead.buyerTypes
-        : savedBeachhead?.buyerType
-          ? [savedBeachhead.buyerType]
-          : [defaultBuyerType];
-    setBuyerTypes(nextBuyerTypes);
-    setBeachheadSegment(
-      savedBeachhead?.beachheadSegment ??
-        plan.conceptCanvas?.targetCustomer ??
-        ''
-    );
-    setEndUserVsDecisionMaker(
-      savedBeachhead?.endUserVsDecisionMaker ??
-        (nextBuyerTypes.length === 1 && nextBuyerTypes[0] === 'B2C_CONSUMERS'
-          ? 'SAME_PERSON'
-          : 'DIFFERENT_DECISION_MAKER')
-    );
-    setDecisionMakerRole(savedBeachhead?.decisionMakerRole ?? '');
-    setBuyingTriggerPreset(
-      savedBeachhead?.buyingTriggerPreset ?? 'LOSING_MONEY_WASTE'
-    );
-    setBuyingTriggerNotes(savedBeachhead?.buyingTriggerNotes ?? '');
-    setTargetMarkets(
-      savedBeachhead?.targetMarketsArray?.length
-        ? savedBeachhead.targetMarketsArray
-        : plan.targetMarketsArray?.length
-          ? plan.targetMarketsArray
-          : [selectedCountry]
-    );
-    setOtherBuyerModelText(savedBeachhead?.otherBuyerModelText ?? '');
-    setOtherDecisionMakerSetupText(
-      savedBeachhead?.otherDecisionMakerSetupText ?? ''
-    );
-    setOtherGeographyText(savedBeachhead?.otherGeographyText ?? '');
-  }, [
-    plan.id,
-    savedBeachhead?.lastSavedAt,
-    plan.conceptCanvas?.targetCustomer,
-    defaultBuyerType,
-    selectedCountry,
-  ]);
-
   function toggleBuyerType(model: BuyerModelType) {
     if (isVaultReadonly) return;
     setBuyerTypes((prev) => {
@@ -962,20 +917,6 @@ export function ModuleBWorkspace({
   const [isSavingStep3, setIsSavingStep3] = useState(false);
   const [copiedGrantSummary, setCopiedGrantSummary] = useState(false);
 
-  // Sync Step 3 state when plan changes or Cloud SQL hydrates
-  useEffect(() => {
-    setMarketSegments(
-      savedStep3?.segments?.length
-        ? savedStep3.segments
-        : createDefaultBlankSegments(
-            (savedBeachhead?.buyerTypes?.length || 1) > 1 ? 2 : 1
-          )
-    );
-    setWiderMarketMultiplier(savedStep3?.widerMarketMultiplier ?? '5X');
-    setOtherWiderMarketScaleText(savedStep3?.otherWiderMarketScaleText ?? '');
-    setSourceAndAssumptionNotes(savedStep3?.sourceAndAssumptionNotes ?? '');
-  }, [plan.id, savedStep3?.lastSavedAt, savedBeachhead?.buyerTypes?.length]);
-
   // =========================================================================
   // STEP 4 STATE (COMPETITIVE EDGE & DEFENSIBILITY MATRIX)
   // =========================================================================
@@ -1049,20 +990,6 @@ export function ModuleBWorkspace({
   const [isGeneratingStep4Ai, setIsGeneratingStep4Ai] = useState(false);
   const [isSavingStep4, setIsSavingStep4] = useState(false);
   const [copiedEdgeSummary, setCopiedEdgeSummary] = useState(false);
-
-  useEffect(() => {
-    setComparisonRows(
-      savedStep4?.comparisonRows?.length
-        ? savedStep4.comparisonRows
-        : createDefaultComparisonRows()
-    );
-    setSwitchingFrictionReducers(savedStep4?.switchingFrictionReducers ?? []);
-    setSwitchingFrictionPlanNotes(savedStep4?.switchingFrictionPlanNotes ?? '');
-    setOtherSwitchingFrictionText(savedStep4?.otherSwitchingFrictionText ?? '');
-    setUnfairAdvantages(savedStep4?.unfairAdvantages ?? []);
-    setOtherUnfairAdvantageText(savedStep4?.otherUnfairAdvantageText ?? '');
-    setCompetitiveEdgeSummary(savedStep4?.competitiveEdgeSummary ?? '');
-  }, [plan.id, savedStep4?.lastSavedAt]);
 
   function handleUpdateComparisonScore(
     rowId: string,
@@ -1360,19 +1287,6 @@ export function ModuleBWorkspace({
       setIsEstimatingStep3Ai(false);
     }
   }
-
-  // Sync Step 2 state when plan changes or Cloud SQL hydrates
-  useEffect(() => {
-    setCurrentWorkarounds(savedStep2?.currentWorkarounds ?? []);
-    setWorkaroundFrustrationNotes(
-      savedStep2?.workaroundFrustrationNotes ?? ''
-    );
-    setCompetitors(savedStep2?.competitors ?? []);
-    setWhySwitchEdges(savedStep2?.whySwitchEdges ?? []);
-    setWhySwitchOneSentence(savedStep2?.whySwitchOneSentence ?? '');
-    setOtherWorkaroundText(savedStep2?.otherWorkaroundText ?? '');
-    setOtherWhySwitchEdgeText(savedStep2?.otherWhySwitchEdgeText ?? '');
-  }, [plan.id, savedStep2?.lastSavedAt]);
 
   function toggleWorkaround(item: CustomerWorkaroundType) {
     if (isVaultReadonly) return;
@@ -1875,6 +1789,7 @@ export function ModuleBWorkspace({
 
   async function handleSaveStep1(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
+    isDirtyStep1Ref.current = false;
     setIsSaving(true);
     if (!options?.silent) setSaveBanner(null);
     try {
@@ -1898,7 +1813,6 @@ export function ModuleBWorkspace({
         Math.max(20, totalModuleBProgress)
       );
       setStep1AutosavedAt(new Date());
-      isDirtyStep1Ref.current = false;
       if (!options?.silent) {
         setSaveBanner(
           `✅ Saved Step 1 (First Customer Group & Selling Markets: ${targetMarkets.join(', ')})!`
@@ -1911,6 +1825,7 @@ export function ModuleBWorkspace({
 
   async function handleSaveStep2(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
+    isDirtyStep2Ref.current = false;
     setIsSavingStep2(true);
     if (!options?.silent) setSaveBanner(null);
     try {
@@ -1934,7 +1849,6 @@ export function ModuleBWorkspace({
         Math.max(40, totalModuleBProgress)
       );
       setStep2AutosavedAt(new Date());
-      isDirtyStep2Ref.current = false;
       if (!options?.silent) {
         setSaveBanner(
           '✅ Saved Step 2 (Competitors & How Customers Deal With This Today)!'
@@ -1947,6 +1861,7 @@ export function ModuleBWorkspace({
 
   async function handleSaveStep3(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
+    isDirtyStep3Ref.current = false;
     setIsSavingStep3(true);
     if (!options?.silent) setSaveBanner(null);
     try {
@@ -1963,7 +1878,6 @@ export function ModuleBWorkspace({
         Math.max(60, totalModuleBProgress)
       );
       setStep3AutosavedAt(new Date());
-      isDirtyStep3Ref.current = false;
       if (!options?.silent) {
         setSaveBanner(
           `✅ Saved Step 3 (Market Sizing in ${countryPack.defaultCurrency})!`
@@ -1976,6 +1890,7 @@ export function ModuleBWorkspace({
 
   async function handleSaveStep4(options?: { silent?: boolean }) {
     if (isVaultReadonly) return;
+    isDirtyStep4Ref.current = false;
     setIsSavingStep4(true);
     if (!options?.silent) setSaveBanner(null);
     try {
@@ -1995,7 +1910,6 @@ export function ModuleBWorkspace({
         Math.max(80, totalModuleBProgress)
       );
       setStep4AutosavedAt(new Date());
-      isDirtyStep4Ref.current = false;
       if (!options?.silent) {
         setSaveBanner(
           '✅ Saved Step 4 (Competitive Edge & How You Stand Out)!'
@@ -2006,7 +1920,16 @@ export function ModuleBWorkspace({
     }
   }
 
-  // Step 1 Debounced Autosave (1200ms)
+  const handleSaveStep1Ref = useRef(handleSaveStep1);
+  handleSaveStep1Ref.current = handleSaveStep1;
+  const handleSaveStep2Ref = useRef(handleSaveStep2);
+  handleSaveStep2Ref.current = handleSaveStep2;
+  const handleSaveStep3Ref = useRef(handleSaveStep3);
+  handleSaveStep3Ref.current = handleSaveStep3;
+  const handleSaveStep4Ref = useRef(handleSaveStep4);
+  handleSaveStep4Ref.current = handleSaveStep4;
+
+  // Step 1 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep1Ref.current) {
       isFirstRenderStep1Ref.current = false;
@@ -2016,9 +1939,9 @@ export function ModuleBWorkspace({
     isDirtyStep1Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep1Ref.current) {
-        void handleSaveStep1({ silent: true });
+        void handleSaveStep1Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [
     buyerTypes,
@@ -2033,7 +1956,7 @@ export function ModuleBWorkspace({
     otherGeographyText,
   ]);
 
-  // Step 2 Debounced Autosave (1200ms)
+  // Step 2 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep2Ref.current) {
       isFirstRenderStep2Ref.current = false;
@@ -2043,9 +1966,9 @@ export function ModuleBWorkspace({
     isDirtyStep2Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep2Ref.current) {
-        void handleSaveStep2({ silent: true });
+        void handleSaveStep2Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [
     currentWorkarounds,
@@ -2057,7 +1980,7 @@ export function ModuleBWorkspace({
     otherWhySwitchEdgeText,
   ]);
 
-  // Step 3 Debounced Autosave (1200ms)
+  // Step 3 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep3Ref.current) {
       isFirstRenderStep3Ref.current = false;
@@ -2067,9 +1990,9 @@ export function ModuleBWorkspace({
     isDirtyStep3Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep3Ref.current) {
-        void handleSaveStep3({ silent: true });
+        void handleSaveStep3Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [
     marketSegments,
@@ -2078,7 +2001,7 @@ export function ModuleBWorkspace({
     sourceAndAssumptionNotes,
   ]);
 
-  // Step 4 Debounced Autosave (1200ms)
+  // Step 4 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep4Ref.current) {
       isFirstRenderStep4Ref.current = false;
@@ -2088,9 +2011,9 @@ export function ModuleBWorkspace({
     isDirtyStep4Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep4Ref.current) {
-        void handleSaveStep4({ silent: true });
+        void handleSaveStep4Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [
     comparisonRows,
@@ -2105,21 +2028,21 @@ export function ModuleBWorkspace({
   // Flush on unmount so switching modules never loses changes
   useEffect(() => {
     return () => {
-      if (isDirtyStep1Ref.current) void handleSaveStep1({ silent: true });
-      if (isDirtyStep2Ref.current) void handleSaveStep2({ silent: true });
-      if (isDirtyStep3Ref.current) void handleSaveStep3({ silent: true });
-      if (isDirtyStep4Ref.current) void handleSaveStep4({ silent: true });
+      if (isDirtyStep1Ref.current) void handleSaveStep1Ref.current({ silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2Ref.current({ silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3Ref.current({ silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4Ref.current({ silent: true });
     };
   }, []);
 
   return (
     <div className="space-y-6">
       {/* Module B Top Header Banner */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-indigo-500/30 text-indigo-100 border-indigo-400/40">
+              <Badge className="bg-slate-900 text-slate-200 border-slate-700">
                 Module B • Market Research &amp; Validation
               </Badge>
               <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-400/30">
@@ -2130,7 +2053,7 @@ export function ModuleBWorkspace({
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
               Module B: Market Research &amp; Competitive Intelligence
             </h1>
-            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
               Move from <em>&ldquo;I think everyone needs this&rdquo;</em> to a
               clear first customer group, real competitor research,
               plain-English market sizing, and your unfair competitive edge.
@@ -2146,7 +2069,7 @@ export function ModuleBWorkspace({
                 onClick={() =>
                   setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))
                 }
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 {openStep === 'ALL' ? 'Collapse All Steps' : 'Expand All Steps'}
               </Button>
@@ -2155,13 +2078,13 @@ export function ModuleBWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={onBackToModuleA}
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back to Module A Canvas
               </Button>
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Module B Progress: <strong>{totalModuleBProgress}%</strong> (All 5
               Steps Active)
             </div>
@@ -2169,7 +2092,7 @@ export function ModuleBWorkspace({
         </div>
 
         {/* 6-Step Progress Strip inside Module B (Steps 1-5 + Summary Brief) */}
-        <div className="mt-5 grid grid-cols-2 gap-2 pt-4 border-t border-indigo-800/70 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-5 grid grid-cols-2 gap-2 pt-4 border-t border-slate-850 sm:grid-cols-3 lg:grid-cols-6">
           {[
             {
               step: 'Step 1',
@@ -2242,7 +2165,7 @@ export function ModuleBWorkspace({
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
@@ -2281,7 +2204,7 @@ export function ModuleBWorkspace({
         <div
           id="module-b-step-1"
           onClick={() => setOpenStep(1)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -2289,7 +2212,7 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[0]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleBReadinessSteps[0]?.isComplete ? (
@@ -2300,7 +2223,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 1: Your First Core Customer Group &amp; Selling Markets
                   </h2>
                   <Badge
@@ -2323,7 +2246,7 @@ export function ModuleBWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleBReadinessSteps[0]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -2339,7 +2262,7 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[0]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleBReadinessSteps[0]?.isComplete ? (
@@ -2394,7 +2317,7 @@ export function ModuleBWorkspace({
               variant="outline"
               size="sm"
               onClick={() => setShowWhyCard((v) => !v)}
-              className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+              className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
             >
               <HelpCircle className="mr-1 h-3.5 w-3.5" />
               Why Are We Asking This?
@@ -2414,7 +2337,7 @@ export function ModuleBWorkspace({
               variant="outline"
               size="sm"
               onClick={() => setShowImStuck((v) => !v)}
-              className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+              className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
             >
               <Wand2 className="mr-1 h-3.5 w-3.5" />
               I&apos;m Stuck
@@ -2424,7 +2347,7 @@ export function ModuleBWorkspace({
               variant="outline"
               size="sm"
               onClick={() => setShowJargonTooltip((v) => !v)}
-              className="h-7 border-indigo-200 bg-indigo-50/50 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
+              className="h-7 border-emerald-200 bg-emerald-50/60 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100"
             >
               <Info className="mr-1 h-3.5 w-3.5" />
               Beachhead Jargon Guide
@@ -2435,11 +2358,11 @@ export function ModuleBWorkspace({
 
           {/* Inline Helpful Tip */}
           {showJargonTooltip && (
-            <div className="mt-3 rounded-lg border border-indigo-200 bg-white p-3.5 text-xs text-slate-700 shadow-xs">
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3.5 text-xs text-slate-700 shadow-xs">
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-1">
-                  <div className="font-bold text-indigo-950 flex items-center gap-1.5">
-                    <Info className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                  <div className="font-bold text-slate-950 flex items-center gap-1.5">
+                    <Info className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
                     📖 Plain-English Guide: Beachhead Customer / Segment
                   </div>
                   <p className="mt-1 leading-relaxed">
@@ -2466,15 +2389,15 @@ export function ModuleBWorkspace({
 
           {/* Layer 1: "Why Are We Asking This?" Card */}
           {showWhyCard && (
-            <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2">
-                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                   <div className="space-y-1">
-                    <p className="font-semibold text-indigo-950">
+                    <p className="font-semibold text-slate-950">
                       Why Grant Panels &amp; Investors Ask Who You Are Selling To First
                     </p>
-                    <p className="leading-relaxed text-indigo-900/90">
+                    <p className="leading-relaxed text-slate-900/90">
                       The #1 mistake on grant applications and pitch decks is writing{' '}
                       <em>
                         &ldquo;Our target market is all businesses or anyone with a
@@ -2492,7 +2415,7 @@ export function ModuleBWorkspace({
                   size="sm"
                   variant="ghost"
                   onClick={() => setShowWhyCard(false)}
-                  className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50 shrink-0"
+                  className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-slate-100 shrink-0"
                 >
                   ✕
                 </Button>
@@ -2546,24 +2469,24 @@ export function ModuleBWorkspace({
 
           {/* Layer 2: "I'm Stuck" Guided Breakdown */}
           {showImStuck && (
-            <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/70 p-4 text-xs text-violet-950">
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
               <div className="mb-2 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-bold text-violet-900">
-                  <Wand2 className="h-4 w-4 text-violet-600" />
+                <span className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <Wand2 className="h-4 w-4 text-emerald-700" />
                   Preflight Co-Pilot: Let&apos;s Describe Your First Customers in
                   3 Easy Steps
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowImStuck(false)}
-                  className="text-violet-700 hover:underline"
+                  className="text-emerald-800 hover:underline"
                 >
                   Close
                 </button>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <label className="mb-1 block font-semibold text-violet-900">
+                  <label className="mb-1 block font-semibold text-slate-900">
                     1. Who loses the most money or time over this?
                   </label>
                   <input
@@ -2571,11 +2494,11 @@ export function ModuleBWorkspace({
                     value={stuckWho}
                     onChange={(e) => setStuckWho(e.target.value)}
                     placeholder="e.g., Independent grocery store owners"
-                    className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-semibold text-violet-900">
+                  <label className="mb-1 block font-semibold text-slate-900">
                     2. What size or trait makes them ideal for V1?
                   </label>
                   <input
@@ -2583,11 +2506,11 @@ export function ModuleBWorkspace({
                     value={stuckSizeOrTrait}
                     onChange={(e) => setStuckSizeOrTrait(e.target.value)}
                     placeholder="e.g., 1–5 stores with fresh food aisles"
-                    className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-semibold text-violet-900">
+                  <label className="mb-1 block font-semibold text-slate-900">
                     3. Where could you reach 10 of them this week?
                   </label>
                   <input
@@ -2595,7 +2518,7 @@ export function ModuleBWorkspace({
                     value={stuckWhereFind10}
                     onChange={(e) => setStuckWhereFind10(e.target.value)}
                     placeholder="e.g., Retail trade association or LinkedIn"
-                    className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
                   />
                 </div>
               </div>
@@ -2604,7 +2527,7 @@ export function ModuleBWorkspace({
                   type="button"
                   size="sm"
                   onClick={handleDraftFromStuckHelper}
-                  className="bg-violet-600 text-white hover:bg-violet-700"
+                  className="bg-emerald-700 text-white hover:bg-emerald-800"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   Draft My Customer Description
@@ -2619,7 +2542,7 @@ export function ModuleBWorkspace({
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
                 1. Who Are Your Customer Models? (Select All That Apply)
               </label>
-              <span className="text-[11px] font-medium text-indigo-600">
+              <span className="text-[11px] font-medium text-emerald-700">
                 {buyerTypes.length > 1
                   ? `${buyerTypes.length} customer models selected (Hybrid / Multi-Segment)`
                   : 'Click multiple cards if you sell to both individuals & institutions/businesses'}
@@ -2638,7 +2561,7 @@ export function ModuleBWorkspace({
                     onClick={() => toggleBuyerType(opt.value)}
                     className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all ${
                       selected
-                        ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/15'
+                        ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/15'
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
@@ -2646,14 +2569,14 @@ export function ModuleBWorkspace({
                       <div
                         className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                           selected
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-emerald-700 text-white'
                             : 'bg-slate-100 text-slate-600'
                         }`}
                       >
                         <IconComp className="h-4 w-4" />
                       </div>
                       {selected && (
-                        <Badge className="bg-indigo-600 text-[10px] text-white">
+                        <Badge className="bg-emerald-700 text-[10px] text-white">
                           {buyerTypes.length > 1 && selectedIndex === 0
                             ? 'Selected (Primary)'
                             : 'Selected'}
@@ -2672,8 +2595,8 @@ export function ModuleBWorkspace({
             </div>
 
             {buyerTypes.includes('OTHER') && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <label className="mb-1 block text-xs font-semibold text-slate-950">
                   Describe your custom or hybrid customer model:
                 </label>
                 <input
@@ -2682,13 +2605,13 @@ export function ModuleBWorkspace({
                   value={otherBuyerModelText}
                   onChange={(e) => setOtherBuyerModelText(e.target.value)}
                   placeholder="e.g., B2B2C via Channel Partners, Non-Profits, Licensing, Franchisees, or Public Sector..."
-                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
 
             {buyerTypes.length > 1 && (
-              <div className="mt-2.5 rounded-xl border border-indigo-200 bg-indigo-50/60 px-3.5 py-2.5 text-xs text-indigo-950">
+              <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-950">
                 💡 <strong>Multiple Customer Models Selected:</strong> Many
                 great startups sell to more than one group (for example,
                 individual users <em>and</em> universities, accelerators, or
@@ -2711,10 +2634,10 @@ export function ModuleBWorkspace({
                 <button
                   type="button"
                   onClick={() => setShowBeachheadTooltip((prev) => !prev)}
-                  className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 hover:bg-slate-100 transition-colors"
                   title='A "Beachhead" simply means the very first specific group of customers you focus on winning before expanding to everyone else.'
                 >
-                  <Info className="h-3 w-3 text-indigo-600 shrink-0" />
+                  <Info className="h-3 w-3 text-emerald-700 shrink-0" />
                   <span>Jargon: &ldquo;Beachhead Customer / Segment&rdquo;</span>
                 </button>
               </div>
@@ -2727,7 +2650,7 @@ export function ModuleBWorkspace({
                       plan.conceptCanvas?.targetCustomer || ''
                     )
                   }
-                  className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-900"
                 >
                   <Compass className="h-3.5 w-3.5" />
                   Reset to Module A Target Customer Note
@@ -2740,9 +2663,9 @@ export function ModuleBWorkspace({
             </p>
 
             {showBeachheadTooltip && (
-              <div className="mb-3 rounded-xl border border-indigo-200 bg-indigo-50/90 p-3 text-xs text-indigo-950">
-                <div className="flex items-center gap-1.5 font-bold text-indigo-900">
-                  <Info className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+              <div className="mb-3 rounded-xl border border-slate-200 bg-emerald-50/90 p-3 text-xs text-slate-950">
+                <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <Info className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
                   Plain-English Breakdown: What is a Beachhead Customer / Segment?
                 </div>
                 <p className="mt-1 leading-relaxed">
@@ -2760,7 +2683,7 @@ export function ModuleBWorkspace({
               value={beachheadSegment}
               onChange={(e) => setBeachheadSegment(e.target.value)}
               placeholder="Describe your first core customer group (who will buy from you first?)..."
-              className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-hidden focus:ring-2 focus:ring-indigo-600/20 disabled:bg-slate-100"
+              className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
             />
             <p className="mt-1 text-[11px] text-slate-500">
               Tip: Be specific enough that if you searched LinkedIn or walked
@@ -2788,7 +2711,7 @@ export function ModuleBWorkspace({
                   onClick={() => setEndUserVsDecisionMaker('SAME_PERSON')}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
                     endUserVsDecisionMaker === 'SAME_PERSON'
-                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      ? 'border-emerald-700 bg-emerald-700 text-white'
                       : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                   }`}
                 >
@@ -2802,7 +2725,7 @@ export function ModuleBWorkspace({
                   }
                   className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
                     endUserVsDecisionMaker === 'DIFFERENT_DECISION_MAKER'
-                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      ? 'border-emerald-700 bg-emerald-700 text-white'
                       : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                   }`}
                 >
@@ -2814,7 +2737,7 @@ export function ModuleBWorkspace({
                   onClick={() => setEndUserVsDecisionMaker('OTHER')}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
                     endUserVsDecisionMaker === 'OTHER'
-                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      ? 'border-emerald-700 bg-emerald-700 text-white'
                       : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                   }`}
                 >
@@ -2824,8 +2747,8 @@ export function ModuleBWorkspace({
             </div>
 
             {endUserVsDecisionMaker === 'OTHER' && (
-              <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/40 p-2.5">
-                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <label className="mb-1 block text-xs font-semibold text-slate-950">
                   Describe your custom user vs. buyer setup:
                 </label>
                 <input
@@ -2836,7 +2759,7 @@ export function ModuleBWorkspace({
                     setOtherDecisionMakerSetupText(e.target.value)
                   }
                   placeholder="e.g., Reimbursed via employer stipend, insurance-funded, or split between parent & school..."
-                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
@@ -2857,7 +2780,7 @@ export function ModuleBWorkspace({
                 value={decisionMakerRole}
                 onChange={(e) => setDecisionMakerRole(e.target.value)}
                 placeholder="Who approves the budget or pays for the product?"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
               />
             </div>
           </div>
@@ -2879,14 +2802,14 @@ export function ModuleBWorkspace({
                     onClick={() => setBuyingTriggerPreset(trig.value)}
                     className={`rounded-xl border p-3 text-left transition-all ${
                       selected
-                        ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/15'
+                        ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/15'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs font-bold text-slate-900">
                       <span>{trig.label}</span>
                       {selected && (
-                        <Check className="h-3.5 w-3.5 text-indigo-600" />
+                        <Check className="h-3.5 w-3.5 text-emerald-700" />
                       )}
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
@@ -2912,17 +2835,17 @@ export function ModuleBWorkspace({
                 value={buyingTriggerNotes}
                 onChange={(e) => setBuyingTriggerNotes(e.target.value)}
                 placeholder="What happens right before they start searching for your solution?"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
               />
             </div>
           </div>
 
           {/* 5. Target Selling Geographies (Where Your Customers Live) */}
-          <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/30 p-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-950">
-                  <Globe2 className="h-4 w-4 text-indigo-600" />
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-950">
+                  <Globe2 className="h-4 w-4 text-emerald-700" />
                   5. Target Selling Geographies (Where Your Customers Live)
                 </div>
                 <p className="mt-0.5 text-xs text-slate-600">
@@ -2959,7 +2882,7 @@ export function ModuleBWorkspace({
                     onClick={() => toggleTargetMarket(geo.code)}
                     className={`flex items-start justify-between rounded-xl border p-3 text-left transition-all ${
                       isSelected
-                        ? 'border-indigo-600 bg-white shadow-xs ring-2 ring-indigo-600/15'
+                        ? 'border-emerald-700 bg-white shadow-xs ring-2 ring-emerald-700/15'
                         : 'border-slate-200 bg-white/60 opacity-75 hover:opacity-100'
                     }`}
                   >
@@ -2980,7 +2903,7 @@ export function ModuleBWorkspace({
                     <div
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-600 text-white'
+                          ? 'border-emerald-700 bg-emerald-700 text-white'
                           : 'border-slate-300 bg-white'
                       }`}
                     >
@@ -2992,8 +2915,8 @@ export function ModuleBWorkspace({
             </div>
 
             {targetMarkets.includes('ROW') && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3">
-                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+              <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                <label className="mb-1 block text-xs font-semibold text-slate-950">
                   Specify your other target countries or regions:
                 </label>
                 <input
@@ -3002,19 +2925,19 @@ export function ModuleBWorkspace({
                   value={otherGeographyText}
                   onChange={(e) => setOtherGeographyText(e.target.value)}
                   placeholder="e.g., UAE, Singapore, Japan, Latin America, Nordics, or Worldwide Digital..."
-                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
 
             {/* Dynamic Export Grant & Cross-Border Tax Insight Box */}
-            <div className="mt-3.5 rounded-xl border border-indigo-200 bg-white p-3.5 text-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-indigo-950">
+            <div className="mt-3.5 rounded-xl border border-slate-200 bg-white p-3.5 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-slate-950">
                 <span>
                   🎯 How Your Selected Markets ({targetMarkets.join(', ')})
                   Impact Module F Grants &amp; Tax:
                 </span>
-                <span className="text-[11px] text-indigo-700">
+                <span className="text-[11px] text-emerald-800">
                   Base Currency: {countryPack.defaultCurrency} •{' '}
                   {countryPack.taxName} ({countryPack.standardTaxRatePercent}%)
                 </span>
@@ -3085,7 +3008,7 @@ export function ModuleBWorkspace({
                 size="sm"
                 disabled={isVaultReadonly || isSaving}
                 onClick={() => handleSaveStep1()}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-white hover:bg-emerald-800"
               >
                 {isSaving ? (
                   <>
@@ -3132,7 +3055,7 @@ export function ModuleBWorkspace({
         <div
           id="module-b-step-2"
           onClick={() => setOpenStep(2)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -3140,7 +3063,7 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[1]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleBReadinessSteps[1]?.isComplete ? (
@@ -3151,7 +3074,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 2: Competitors &amp; Current Habits
                   </h2>
                   <Badge
@@ -3174,7 +3097,7 @@ export function ModuleBWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleBReadinessSteps[1]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -3190,7 +3113,7 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[1]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleBReadinessSteps[1]?.isComplete ? (
@@ -3214,7 +3137,7 @@ export function ModuleBWorkspace({
                   >
                     {moduleBReadinessSteps[1]?.isComplete ? 'Completed' : 'Step 2 of 5'}
                   </Badge>
-                  <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 shrink-0 text-[10px] font-medium">
+                  <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 shrink-0 text-[10px] font-medium">
                     AI Market Scout Enabled
                   </Badge>
                 </div>
@@ -3248,7 +3171,7 @@ export function ModuleBWorkspace({
               variant="outline"
               size="sm"
               onClick={() => setShowStep2WhyCard(!showStep2WhyCard)}
-              className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+              className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
             >
               <HelpCircle className="mr-1 h-3.5 w-3.5" />
               Why Are We Asking This?
@@ -3268,7 +3191,7 @@ export function ModuleBWorkspace({
               variant="outline"
               size="sm"
               onClick={() => setShowStep2ImStuck(!showStep2ImStuck)}
-              className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+              className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
             >
               <Wand2 className="mr-1 h-3.5 w-3.5" />
               I&apos;m Stuck
@@ -3277,15 +3200,15 @@ export function ModuleBWorkspace({
 
           {/* Step 2 Layer 1: "Why Are We Asking This?" Card */}
           {showStep2WhyCard && (
-            <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2">
-                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                   <div className="space-y-1">
-                    <p className="font-semibold text-indigo-950">
+                    <p className="font-semibold text-slate-950">
                       Why Saying &ldquo;We Have No Competitors&rdquo; Is a Red Flag
                     </p>
-                    <p className="leading-relaxed text-indigo-900/90">
+                    <p className="leading-relaxed text-slate-900/90">
                       Grant assessors and investors hear <em>&ldquo;Nobody else does what we do&rdquo;</em> every day. Even if your product is brand new, your customers are already doing <strong>something</strong> today — whether that&apos;s using Excel spreadsheets, messaging on WhatsApp, hiring a consultant, or just living with the problem. Showing both their current habits and known competitors proves you truly understand your market.
                     </p>
                   </div>
@@ -3295,7 +3218,7 @@ export function ModuleBWorkspace({
                   size="sm"
                   variant="ghost"
                   onClick={() => setShowStep2WhyCard(false)}
-                  className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50 shrink-0"
+                  className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-slate-100 shrink-0"
                 >
                   ✕
                 </Button>
@@ -3340,24 +3263,24 @@ export function ModuleBWorkspace({
 
           {/* Step 2 Layer 2: "I'm Stuck" Guided Breakdown */}
           {showStep2ImStuck && (
-            <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/70 p-4 text-xs text-violet-950">
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
               <div className="mb-2 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-bold text-violet-900">
-                  <Wand2 className="h-4 w-4 text-violet-600" />
+                <span className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <Wand2 className="h-4 w-4 text-emerald-700" />
                   Preflight Co-Pilot: Let&apos;s Draft Why Customers Will Switch
                   to You
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowStep2ImStuck(false)}
-                  className="text-violet-700 hover:underline"
+                  className="text-emerald-800 hover:underline"
                 >
                   Close
                 </button>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block font-semibold text-violet-900">
+                  <label className="mb-1 block font-semibold text-slate-900">
                     1. What do customers hate most about their current setup?
                   </label>
                   <input
@@ -3365,11 +3288,11 @@ export function ModuleBWorkspace({
                     value={stuckStep2MainComplaint}
                     onChange={(e) => setStuckStep2MainComplaint(e.target.value)}
                     placeholder="e.g., messy spreadsheets or €2,000 consultant fees"
-                    className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-semibold text-violet-900">
+                  <label className="mb-1 block font-semibold text-slate-900">
                     2. What is the main practical win of using {plan.title}?
                   </label>
                   <input
@@ -3377,7 +3300,7 @@ export function ModuleBWorkspace({
                     value={stuckStep2OurFix}
                     onChange={(e) => setStuckStep2OurFix(e.target.value)}
                     placeholder="e.g., guides them step-by-step in 20 minutes for €29"
-                    className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
                   />
                 </div>
               </div>
@@ -3386,7 +3309,7 @@ export function ModuleBWorkspace({
                   type="button"
                   size="sm"
                   onClick={handleDraftStep2FromStuckHelper}
-                  className="bg-violet-600 text-white hover:bg-violet-700"
+                  className="bg-emerald-700 text-white hover:bg-emerald-800"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   Draft My &ldquo;Why Switch&rdquo; Sentence
@@ -3403,7 +3326,7 @@ export function ModuleBWorkspace({
                 1. What Do Your Customers Do Today Instead? (Select All That
                 Apply)
               </label>
-              <span className="text-[11px] font-medium text-indigo-600">
+              <span className="text-[11px] font-medium text-emerald-700">
                 {currentWorkarounds.length > 0
                   ? `${currentWorkarounds.length} everyday habit(s) selected`
                   : 'Select how customers cope right now before your product exists'}
@@ -3421,14 +3344,14 @@ export function ModuleBWorkspace({
                     onClick={() => toggleWorkaround(opt.value)}
                     className={`rounded-xl border p-3.5 text-left transition-all ${
                       selected
-                        ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/15'
+                        ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/15'
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 text-xs font-bold text-slate-900">
                       <span>{opt.label}</span>
                       {selected && (
-                        <Check className="h-3.5 w-3.5 shrink-0 text-indigo-600" />
+                        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
                       )}
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
@@ -3440,8 +3363,8 @@ export function ModuleBWorkspace({
             </div>
 
             {currentWorkarounds.includes('OTHER') && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <label className="mb-1 block text-xs font-semibold text-slate-950">
                   Describe the other habit or workaround your customers use today:
                 </label>
                 <input
@@ -3450,7 +3373,7 @@ export function ModuleBWorkspace({
                   value={otherWorkaroundText}
                   onChange={(e) => setOtherWorkaroundText(e.target.value)}
                   placeholder="e.g., Using physical paper logbooks, borrowing equipment, or relying on word-of-mouth..."
-                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
@@ -3470,7 +3393,7 @@ export function ModuleBWorkspace({
                 value={workaroundFrustrationNotes}
                 onChange={(e) => setWorkaroundFrustrationNotes(e.target.value)}
                 placeholder="Describe what breaks, takes too long, or costs too much with their current habit..."
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
               />
             </div>
           </div>
@@ -3480,7 +3403,7 @@ export function ModuleBWorkspace({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-800">
-                  <Search className="h-4 w-4 text-indigo-600" />
+                  <Search className="h-4 w-4 text-emerald-700" />
                   2. Direct Competitors &amp; Alternative Tools in{' '}
                   {targetMarkets.join(', ')}
                 </div>
@@ -3510,7 +3433,7 @@ export function ModuleBWorkspace({
                   size="sm"
                   disabled={isVaultReadonly || isScoutingAi}
                   onClick={handleRunAiMarketScout}
-                  className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700"
+                  className="bg-slate-950 text-white border-b border-slate-800 text-white hover:from-emerald-800 hover:to-teal-900"
                 >
                   {isScoutingAi ? (
                     <>
@@ -3547,7 +3470,7 @@ export function ModuleBWorkspace({
                     className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                      <span className="text-xs font-bold text-indigo-950">
+                      <span className="text-xs font-bold text-slate-950">
                         Competitor / Alternative #{index + 1}
                       </span>
                       <button
@@ -3578,7 +3501,7 @@ export function ModuleBWorkspace({
                             )
                           }
                           placeholder="e.g., Competitor name or alternative"
-                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                         />
                       </div>
 
@@ -3596,7 +3519,7 @@ export function ModuleBWorkspace({
                               e.target.value as CompetitorCategoryType
                             )
                           }
-                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                         >
                           {COMPETITOR_CATEGORY_OPTIONS.map((cat) => (
                             <option key={cat.value} value={cat.value}>
@@ -3622,7 +3545,7 @@ export function ModuleBWorkspace({
                             )
                           }
                           placeholder={`e.g., Free, ${countryPack.defaultCurrency}49/mo, or ${countryPack.defaultCurrency}1,500`}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                         />
                       </div>
                     </div>
@@ -3644,7 +3567,7 @@ export function ModuleBWorkspace({
                             )
                           }
                           placeholder="What is their main strength or appeal?"
-                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                         />
                       </div>
 
@@ -3664,7 +3587,7 @@ export function ModuleBWorkspace({
                             )
                           }
                           placeholder="Why do your target customers get frustrated with them?"
-                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                         />
                       </div>
                     </div>
@@ -3681,7 +3604,7 @@ export function ModuleBWorkspace({
                 3. Why Will Customers Switch to {plan.title}? (Select Your Key
                 Advantages)
               </label>
-              <span className="text-[11px] font-medium text-indigo-600">
+              <span className="text-[11px] font-medium text-emerald-700">
                 {whySwitchEdges.length > 0
                   ? `${whySwitchEdges.length} advantage(s) selected`
                   : 'Pick the main reasons a customer will switch from their current setup'}
@@ -3699,7 +3622,7 @@ export function ModuleBWorkspace({
                     onClick={() => toggleWhySwitchEdge(edge.value)}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${
                       selected
-                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+                        ? 'border-emerald-700 bg-emerald-700 text-white shadow-2xs'
                         : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
@@ -3711,8 +3634,8 @@ export function ModuleBWorkspace({
             </div>
 
             {whySwitchEdges.includes('OTHER') && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <label className="mb-1 block text-xs font-semibold text-slate-950">
                   Describe your other key switching advantage:
                 </label>
                 <input
@@ -3721,7 +3644,7 @@ export function ModuleBWorkspace({
                   value={otherWhySwitchEdgeText}
                   onChange={(e) => setOtherWhySwitchEdgeText(e.target.value)}
                   placeholder="e.g., Certified sustainability, offline-first reliability, or exclusive community access..."
-                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
@@ -3741,7 +3664,7 @@ export function ModuleBWorkspace({
                 value={whySwitchOneSentence}
                 onChange={(e) => setWhySwitchOneSentence(e.target.value)}
                 placeholder="Write a clear, 1-sentence reason why customers will switch to you..."
-                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-hidden focus:ring-2 focus:ring-indigo-600/20 disabled:bg-slate-100"
+                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
               />
             </div>
           </div>
@@ -3777,7 +3700,7 @@ export function ModuleBWorkspace({
                 size="sm"
                 disabled={isVaultReadonly || isSavingStep2}
                 onClick={() => handleSaveStep2()}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-white hover:bg-emerald-800"
               >
                 {isSavingStep2 ? (
                   <>
@@ -3824,7 +3747,7 @@ export function ModuleBWorkspace({
         <div
           id="module-b-step-3"
           onClick={() => setOpenStep(3)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -3832,7 +3755,7 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[2]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleBReadinessSteps[2]?.isComplete ? (
@@ -3843,7 +3766,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 3: Plain-English Market Sizing ({countryPack.defaultCurrency})
                   </h2>
                   <Badge
@@ -3866,7 +3789,7 @@ export function ModuleBWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleBReadinessSteps[2]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -3885,7 +3808,7 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[2]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleBReadinessSteps[2]?.isComplete ? (
@@ -3949,7 +3872,7 @@ export function ModuleBWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() => setShowStep3WhyCard((v) => !v)}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -3991,7 +3914,7 @@ export function ModuleBWorkspace({
               size="sm"
               disabled={isVaultReadonly || isEstimatingStep3Ai}
               onClick={handleRunAiMarketSizing}
-              className="h-7 bg-indigo-600 text-white text-[11px] font-medium hover:bg-indigo-700"
+              className="h-7 bg-emerald-700 text-white text-[11px] font-medium hover:bg-emerald-800"
             >
               {isEstimatingStep3Ai ? (
                 <>
@@ -4010,16 +3933,16 @@ export function ModuleBWorkspace({
           <CardContent className="space-y-6 px-0 pb-0 pt-4">
             {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
             {showStep3WhyCard && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div className="space-y-1">
-                      <p className="font-semibold text-indigo-950">
+                      <p className="font-semibold text-slate-950">
                         Why do grant panels and investors prefer &ldquo;Bottom-Up
                         Maths&rdquo; over big industry reports?
                       </p>
-                      <p className="leading-relaxed text-indigo-900/90">
+                      <p className="leading-relaxed text-slate-900/90">
                         When a founder says{' '}
                         <em>
                           &ldquo;The global software market is €100 Billion and we
@@ -4041,7 +3964,7 @@ export function ModuleBWorkspace({
                     size="sm"
                     variant="ghost"
                     onClick={() => setShowStep3WhyCard(false)}
-                    className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50 shrink-0"
+                    className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-slate-100 shrink-0"
                   >
                     ✕
                   </Button>
@@ -4170,7 +4093,7 @@ export function ModuleBWorkspace({
                   size="sm"
                   disabled={isVaultReadonly || isEstimatingStep3Ai}
                   onClick={handleRunAiMarketSizing}
-                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-white hover:bg-emerald-800"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   Let AI Estimate Customer Counts for {plan.title}
@@ -4231,9 +4154,9 @@ export function ModuleBWorkspace({
                 size="sm"
                 disabled={isVaultReadonly || marketSegments.length >= 4}
                 onClick={handleAddMarketSegment}
-                className="border-indigo-200 bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100"
+                className="border-slate-200 bg-slate-50 text-slate-900 hover:bg-slate-100"
               >
-                <Plus className="h-3.5 w-3.5 text-indigo-600" />
+                <Plus className="h-3.5 w-3.5 text-emerald-700" />
                 Add Customer Group (e.g., Universities / B2B)
               </Button>
             </div>
@@ -4246,7 +4169,7 @@ export function ModuleBWorkspace({
                 >
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-indigo-950 text-white">
+                      <Badge className="bg-slate-950 text-white">
                         Customer Group #{index + 1}
                       </Badge>
                       <span className="text-xs font-semibold text-slate-700">
@@ -4292,7 +4215,7 @@ export function ModuleBWorkspace({
                             ? 'e.g., Individual Founders & Early-Stage Creators'
                             : 'e.g., Universities, Accelerators & Local Enterprise Programmes'
                         }
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                       />
                     </div>
 
@@ -4313,7 +4236,7 @@ export function ModuleBWorkspace({
                           }
                           className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition-all ${
                             seg.billingCadence === 'MONTHLY_SUBSCRIPTION'
-                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              ? 'border-emerald-700 bg-emerald-700 text-white'
                               : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
                           }`}
                         >
@@ -4331,7 +4254,7 @@ export function ModuleBWorkspace({
                           }
                           className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition-all ${
                             seg.billingCadence === 'YEARLY_OR_ONE_OFF'
-                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              ? 'border-emerald-700 bg-emerald-700 text-white'
                               : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
                           }`}
                         >
@@ -4349,7 +4272,7 @@ export function ModuleBWorkspace({
                           }
                           className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition-all ${
                             seg.billingCadence === 'OTHER'
-                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              ? 'border-emerald-700 bg-emerald-700 text-white'
                               : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
                           }`}
                         >
@@ -4369,7 +4292,7 @@ export function ModuleBWorkspace({
                             )
                           }
                           placeholder="Describe pricing model (e.g., per-transaction, commission, usage-based)..."
-                          className="mt-1.5 w-full rounded-lg border border-indigo-200 bg-indigo-50/40 px-2.5 py-1.5 text-[11px] text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                          className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                         />
                       )}
                     </div>
@@ -4405,11 +4328,11 @@ export function ModuleBWorkspace({
                             )
                           }
                           placeholder={index === 0 ? 'e.g., 29' : 'e.g., 2500'}
-                          className="w-full rounded-lg border border-slate-300 bg-white py-2 pr-3 pl-12 text-sm font-semibold text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                          className="w-full rounded-lg border border-slate-300 bg-white py-2 pr-3 pl-12 text-sm font-semibold text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                         />
                       </div>
                       {seg.annualRevenuePerCustomer > 0 && (
-                        <div className="mt-1.5 text-[11px] font-medium text-indigo-700">
+                        <div className="mt-1.5 text-[11px] font-medium text-emerald-800">
                           ={' '}
                           <strong>
                             {formatPlanCurrency(
@@ -4444,7 +4367,7 @@ export function ModuleBWorkspace({
                           )
                         }
                         placeholder={index === 0 ? 'e.g., 300' : 'e.g., 10'}
-                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                       />
                       {seg.year1To2AnnualRevenue > 0 && (
                         <div className="mt-1.5 text-[11px] font-medium text-emerald-700">
@@ -4483,10 +4406,10 @@ export function ModuleBWorkspace({
                           )
                         }
                         placeholder={index === 0 ? 'e.g., 25000' : 'e.g., 200'}
-                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                       />
                       {seg.reachableMarketAnnualValue > 0 && (
-                        <div className="mt-1.5 text-[11px] font-medium text-indigo-700">
+                        <div className="mt-1.5 text-[11px] font-medium text-emerald-800">
                           Reachable Group Market:{' '}
                           <strong>
                             {formatPlanCurrency(
@@ -4530,7 +4453,7 @@ export function ModuleBWorkspace({
                     onClick={() => setWiderMarketMultiplier(opt.value)}
                     className={`rounded-xl border p-3 text-left transition-all ${
                       selected
-                        ? 'border-indigo-600 bg-indigo-50/90 ring-2 ring-indigo-600/15'
+                        ? 'border-emerald-700 bg-emerald-50/90 ring-2 ring-emerald-700/15'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
@@ -4539,7 +4462,7 @@ export function ModuleBWorkspace({
                         {opt.label}
                       </span>
                       {selected && (
-                        <Check className="h-3.5 w-3.5 text-indigo-600" />
+                        <Check className="h-3.5 w-3.5 text-emerald-700" />
                       )}
                     </div>
                     <p className="mt-1 text-[11px] leading-snug text-slate-600">
@@ -4551,8 +4474,8 @@ export function ModuleBWorkspace({
             </div>
 
             {widerMarketMultiplier === 'OTHER' && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <label className="mb-1 block text-xs font-semibold text-slate-950">
                   Describe your custom long-term expansion scale or horizon:
                 </label>
                 <input
@@ -4561,7 +4484,7 @@ export function ModuleBWorkspace({
                   value={otherWiderMarketScaleText}
                   onChange={(e) => setOtherWiderMarketScaleText(e.target.value)}
                   placeholder="e.g., Staying hyper-focused on our domestic niche for 3 years, or expanding 15× via licensing..."
-                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
@@ -4581,7 +4504,7 @@ export function ModuleBWorkspace({
                 value={sourceAndAssumptionNotes}
                 onChange={(e) => setSourceAndAssumptionNotes(e.target.value)}
                 placeholder="Write a quick note on where your customer counts come from (or click 'Estimate Customer Counts with AI' above to draft this)..."
-                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-hidden focus:ring-2 focus:ring-indigo-600/20 disabled:bg-slate-100"
+                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
               />
             </div>
           </div>
@@ -4589,10 +4512,10 @@ export function ModuleBWorkspace({
           {/* =============================================================== */}
           {/* 3. LIVE 3-BOX VISUAL SUMMARY (PLAIN ENGLISH + GRANT LABELS)     */}
           {/* =============================================================== */}
-          <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 p-5 text-white shadow-xs">
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 text-white shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-indigo-300">
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-300">
                   Live Bottom-Up Market Summary ({countryPack.defaultCurrency})
                 </div>
                 <h4 className="mt-0.5 text-base font-bold">
@@ -4634,13 +4557,13 @@ export function ModuleBWorkspace({
               </div>
 
               {/* Box 2: Reachable Market in Selected Countries (SAM) */}
-              <div className="rounded-xl border border-indigo-400/40 bg-indigo-900/40 p-4">
+              <div className="rounded-xl border border-emerald-400/40 bg-slate-900/40 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-200">
+                  <span className="text-xs font-bold text-slate-300">
                     2. Reachable Market ({targetMarkets.join(', ')})
                   </span>
                   <span
-                    className="rounded-md bg-indigo-500/30 px-2 py-0.5 text-[10px] font-semibold text-indigo-100"
+                    className="rounded-md bg-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-slate-200"
                     title="Serviceable Available Market: the total annual value of all reachable target customers in your selected selling countries."
                   >
                     Often called SAM
@@ -4651,7 +4574,7 @@ export function ModuleBWorkspace({
                     ? `${formatPlanCurrency(totalReachableMarketSam, countryPack.defaultCurrency)}/yr`
                     : 'Enter numbers above'}
                 </div>
-                <p className="mt-1 text-[11px] text-indigo-100/80">
+                <p className="mt-1 text-[11px] text-slate-200/80">
                   {totalReachableCustomers > 0
                     ? `${totalReachableCustomers.toLocaleString()} reachable customers in ${targetMarkets.join(', ')}.`
                     : `Total annual value if every target customer in ${targetMarkets.join(', ')} bought from you.`}
@@ -4659,13 +4582,13 @@ export function ModuleBWorkspace({
               </div>
 
               {/* Box 3: Wider Long-Term Market (TAM) */}
-              <div className="rounded-xl border border-violet-400/40 bg-violet-950/40 p-4">
+              <div className="rounded-xl border border-emerald-600/40 bg-slate-950/40 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-violet-200">
+                  <span className="text-xs font-bold text-slate-300">
                     3. Wider Long-Term Market
                   </span>
                   <span
-                    className="rounded-md bg-violet-500/30 px-2 py-0.5 text-[10px] font-semibold text-violet-100"
+                    className="rounded-md bg-slate-500/30 px-2 py-0.5 text-[10px] font-semibold text-slate-200"
                     title="Total Addressable Market: the wider 3–5 year opportunity as you expand into new regions and adjacent customer segments."
                   >
                     Often called TAM
@@ -4676,7 +4599,7 @@ export function ModuleBWorkspace({
                     ? `${formatPlanCurrency(totalWiderMarketTam, countryPack.defaultCurrency)}/yr`
                     : 'Enter numbers above'}
                 </div>
-                <p className="mt-1 text-[11px] text-violet-100/80">
+                <p className="mt-1 text-[11px] text-slate-200/80">
                   {selectedScaleMultiplierObj.label} of your reachable market as
                   you expand into new regions &amp; segments.
                 </p>
@@ -4685,9 +4608,9 @@ export function ModuleBWorkspace({
 
             {/* Grant & Investor Ready Paragraph */}
             {grantReadySummaryParagraph && (
-              <div className="mt-4 rounded-xl border border-indigo-400/30 bg-white/10 p-3.5">
+              <div className="mt-4 rounded-xl border border-emerald-400/30 bg-white/10 p-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-indigo-200">
+                  <span className="text-xs font-bold text-slate-300">
                     📋 Ready-to-Use Paragraph for Grant Forms &amp; Pitch Decks:
                   </span>
                   <Button
@@ -4699,7 +4622,7 @@ export function ModuleBWorkspace({
                       setCopiedGrantSummary(true);
                       setTimeout(() => setCopiedGrantSummary(false), 2500);
                     }}
-                    className="border-indigo-300/40 bg-white/10 text-white hover:bg-white/20"
+                    className="border-emerald-300/40 bg-white/10 text-white hover:bg-white/20"
                   >
                     {copiedGrantSummary ? (
                       <>
@@ -4711,7 +4634,7 @@ export function ModuleBWorkspace({
                     )}
                   </Button>
                 </div>
-                <p className="mt-1.5 text-xs leading-relaxed text-indigo-50">
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-300">
                   &ldquo;{grantReadySummaryParagraph}&rdquo;
                 </p>
               </div>
@@ -4749,7 +4672,7 @@ export function ModuleBWorkspace({
                 size="sm"
                 disabled={isVaultReadonly || isSavingStep3}
                 onClick={() => handleSaveStep3()}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-white hover:bg-emerald-800"
               >
                 {isSavingStep3 ? (
                   <>
@@ -4796,7 +4719,7 @@ export function ModuleBWorkspace({
         <div
           id="module-b-step-4"
           onClick={() => setOpenStep(4)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -4804,7 +4727,7 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[3]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleBReadinessSteps[3]?.isComplete ? (
@@ -4815,7 +4738,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 4: Competitive Edge &amp; Stand Out
                   </h2>
                   <Badge
@@ -4838,7 +4761,7 @@ export function ModuleBWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleBReadinessSteps[3]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -4857,7 +4780,7 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[3]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleBReadinessSteps[3]?.isComplete ? (
@@ -4913,7 +4836,7 @@ export function ModuleBWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() => setShowStep4WhyCard((v) => !v)}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -4934,7 +4857,7 @@ export function ModuleBWorkspace({
               size="sm"
               disabled={isVaultReadonly || isGeneratingStep4Ai}
               onClick={handleRunAiCompetitiveEdge}
-              className="h-7 bg-indigo-600 text-white text-[11px] font-medium hover:bg-indigo-700"
+              className="h-7 bg-emerald-700 text-white text-[11px] font-medium hover:bg-emerald-800"
             >
               {isGeneratingStep4Ai ? (
                 <>
@@ -4953,15 +4876,15 @@ export function ModuleBWorkspace({
           <CardContent className="space-y-6 px-0 pb-0 pt-4">
             {/* Layer 1: "Why Are We Asking This?" Micro-Coaching Card */}
             {showStep4WhyCard && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div className="space-y-1">
-                      <p className="font-semibold text-indigo-950">
+                      <p className="font-semibold text-slate-950">
                         Why Are We Asking This? (Co-Founder Coaching)
                       </p>
-                      <p className="leading-relaxed text-indigo-900/90">
+                      <p className="leading-relaxed text-slate-900/90">
                         Being <em>&ldquo;slightly better&rdquo;</em> isn&apos;t enough to
                         get busy customers to abandon a habit they already know. First,
                         you need a <strong>low-risk way for them to switch</strong>.
@@ -4979,7 +4902,7 @@ export function ModuleBWorkspace({
                     size="sm"
                     variant="ghost"
                     onClick={() => setShowStep4WhyCard(false)}
-                    className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50 shrink-0"
+                    className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-slate-100 shrink-0"
                   >
                     ✕
                   </Button>
@@ -5053,7 +4976,7 @@ export function ModuleBWorkspace({
                     disabled={isVaultReadonly}
                     onClick={handleSyncCompetitorsFromStep2}
                   >
-                    <Copy className="h-3.5 w-3.5 text-indigo-600" />
+                    <Copy className="h-3.5 w-3.5 text-emerald-700" />
                     Sync Competitors from Step 2
                   </Button>
                 )}
@@ -5064,7 +4987,7 @@ export function ModuleBWorkspace({
                   disabled={isVaultReadonly}
                   onClick={handleAddComparisonRow}
                 >
-                  <Plus className="h-3.5 w-3.5 text-indigo-600" />
+                  <Plus className="h-3.5 w-3.5 text-emerald-700" />
                   Add Competitor Row
                 </Button>
               </div>
@@ -5123,7 +5046,7 @@ export function ModuleBWorkspace({
                         key={row.rowId}
                         className={
                           row.isYourStartup
-                            ? 'bg-indigo-50/70 font-semibold'
+                            ? 'bg-emerald-50/70 font-semibold'
                             : 'bg-white'
                         }
                       >
@@ -5131,7 +5054,7 @@ export function ModuleBWorkspace({
                           {row.isYourStartup ? (
                             <div className="flex items-center gap-2">
                               <Badge variant="default">You</Badge>
-                              <span className="font-bold text-indigo-950">
+                              <span className="font-bold text-slate-950">
                                 {plan.title || 'Your Startup'}
                               </span>
                             </div>
@@ -5147,7 +5070,7 @@ export function ModuleBWorkspace({
                                 )
                               }
                               placeholder="e.g., Competitor name or manual habit..."
-                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                             />
                           )}
                         </td>
@@ -5242,7 +5165,7 @@ export function ModuleBWorkspace({
                     onClick={() => toggleSwitchingFrictionReducer(opt.value)}
                     className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
                       isSelected
-                        ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/15'
+                        ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/15'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
@@ -5251,7 +5174,7 @@ export function ModuleBWorkspace({
                         {opt.label}
                       </span>
                       {isSelected && (
-                        <Check className="h-3.5 w-3.5 text-indigo-600" />
+                        <Check className="h-3.5 w-3.5 text-emerald-700" />
                       )}
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
@@ -5263,8 +5186,8 @@ export function ModuleBWorkspace({
             </div>
 
             {switchingFrictionReducers.includes('OTHER') && (
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
-                <label className="mb-1 block text-xs font-semibold text-indigo-950">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <label className="mb-1 block text-xs font-semibold text-slate-950">
                   Describe your other way of lowering switching friction:
                 </label>
                 <input
@@ -5275,7 +5198,7 @@ export function ModuleBWorkspace({
                     setOtherSwitchingFrictionText(e.target.value)
                   }
                   placeholder="e.g., Free hardware loaner kit, buyout of existing competitor contract, or co-funded pilot..."
-                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
@@ -5295,7 +5218,7 @@ export function ModuleBWorkspace({
                 value={switchingFrictionPlanNotes}
                 onChange={(e) => setSwitchingFrictionPlanNotes(e.target.value)}
                 placeholder="e.g., Customers can complete Module A for free in 10 minutes with zero credit card required..."
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-hidden focus:ring-2 focus:ring-indigo-600/20 disabled:bg-slate-100"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
               />
             </div>
           </div>
@@ -5362,7 +5285,7 @@ export function ModuleBWorkspace({
           {/* =============================================================== */}
           {/* 4.4 TWO-SENTENCE COMPETITIVE EDGE SUMMARY (FOR BUSINESS PLAN)   */}
           {/* =============================================================== */}
-          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <label
@@ -5385,7 +5308,7 @@ export function ModuleBWorkspace({
                   disabled={isVaultReadonly}
                   onClick={() => setShowStep4ImStuck((v) => !v)}
                 >
-                  <Wand2 className="h-3.5 w-3.5 text-indigo-600" />
+                  <Wand2 className="h-3.5 w-3.5 text-emerald-700" />
                   {showStep4ImStuck ? 'Close Helper' : "I'm Stuck — Help Me"}
                 </Button>
                 <Button
@@ -5395,7 +5318,7 @@ export function ModuleBWorkspace({
                   disabled={isVaultReadonly}
                   onClick={handleDraftSummaryFromSelections}
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
                   Draft from Selected Cards
                 </Button>
                 {competitiveEdgeSummary.trim() && (
@@ -5426,8 +5349,8 @@ export function ModuleBWorkspace({
             </div>
 
             {showStep4ImStuck && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-4 space-y-3">
-                <div className="text-xs font-bold text-indigo-950">
+              <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                <div className="text-xs font-bold text-slate-950">
                   ✨ Quick 2-Question Edge Builder
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -5482,7 +5405,7 @@ export function ModuleBWorkspace({
               value={competitiveEdgeSummary}
               onChange={(e) => setCompetitiveEdgeSummary(e.target.value)}
               placeholder="Write 2 clear sentences summarizing your competitive edge (or click 'Draft from Selected Cards' or 'Auto-Draft Competitive Edge with AI' above)..."
-              className="mt-3 w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-600 focus:outline-hidden focus:ring-2 focus:ring-indigo-600/20 disabled:bg-slate-100"
+              className="mt-3 w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
             />
           </div>
 
@@ -5517,7 +5440,7 @@ export function ModuleBWorkspace({
                 size="sm"
                 disabled={isVaultReadonly || isSavingStep4}
                 onClick={() => handleSaveStep4()}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-white hover:bg-emerald-800"
               >
                 {isSavingStep4 ? (
                   <>
@@ -5565,7 +5488,7 @@ export function ModuleBWorkspace({
         <div
           id="module-b-step-5"
           onClick={() => setOpenStep(5)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -5573,7 +5496,7 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   moduleBReadinessSteps[4]?.isComplete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {moduleBReadinessSteps[4]?.isComplete ? (
@@ -5584,7 +5507,7 @@ export function ModuleBWorkspace({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 5: Market Blind-Spot Review
                   </h2>
                   {moduleBReadinessSteps[4]?.isComplete ? (
@@ -5606,7 +5529,7 @@ export function ModuleBWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{moduleBReadinessSteps[4]?.isComplete ? 'Edit Step' : 'Open Step'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -5617,16 +5540,16 @@ export function ModuleBWorkspace({
       ) : (
         <div
           id="module-b-step-5"
-          className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 p-6 shadow-xs"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50/80 p-6 shadow-xs"
         >
-          <div className="flex items-start justify-between gap-4 border-b border-indigo-100 pb-4">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     moduleBReadinessSteps[4]?.isComplete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {moduleBReadinessSteps[4]?.isComplete ? (
@@ -5682,7 +5605,7 @@ export function ModuleBWorkspace({
                       className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                         item.severity === 'WARNING'
                           ? 'bg-amber-100 text-amber-900'
-                          : 'bg-indigo-50 text-indigo-800'
+                          : 'bg-emerald-50 text-emerald-900'
                       }`}
                     >
                       {item.severity === 'WARNING'
@@ -5697,7 +5620,7 @@ export function ModuleBWorkspace({
                     {item.explanation}
                   </p>
                   {item.suggestedAction && (
-                    <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-indigo-900 ring-1 ring-slate-200/70">
+                    <div className="mt-2.5 rounded-lg bg-slate-50 p-2 text-[11px] text-slate-900 ring-1 ring-slate-200/70">
                       <strong>Action Step:</strong> {item.suggestedAction}
                     </div>
                   )}
@@ -5715,7 +5638,7 @@ export function ModuleBWorkspace({
                         `📌 Parked "${item.title}" in your Open Questions Parking Lot!`
                       );
                     }}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-50"
                   >
                     <BookmarkPlus className="h-3 w-3" />
                     Park in Open Questions
@@ -5727,7 +5650,7 @@ export function ModuleBWorkspace({
 
           {/* Step 5 Bottom Save Bar */}
           {!isVaultReadonly && (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/90 px-4 py-3">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/90 px-4 py-3">
               <div className="text-xs text-slate-600">
                 ✨ Change any option or add notes in Steps 1–4 above and watch
                 these 6 cards adapt immediately.
@@ -5738,7 +5661,7 @@ export function ModuleBWorkspace({
                   size="sm"
                   disabled={isSavingStep5}
                   onClick={handleSaveStep5AndComplete}
-                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-white hover:bg-emerald-800"
                 >
                   {isSavingStep5 ? (
                     <>
@@ -5784,7 +5707,7 @@ export function ModuleBWorkspace({
         <div
           id="module-b-step-6"
           onClick={() => setOpenStep(6)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -5792,14 +5715,14 @@ export function ModuleBWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   completedModuleBReadinessCount === 5
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 <FileText className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Market &amp; Customer Validation Brief (Executive Summary)
                   </h2>
                   <Badge
@@ -5822,7 +5745,7 @@ export function ModuleBWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 <span>{completedModuleBReadinessCount === 5 ? 'Open Overview' : 'Review Overview'}</span>
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -5831,7 +5754,7 @@ export function ModuleBWorkspace({
           </div>
         </div>
       ) : (
-        <Card id="module-b-step-6" className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-6 shadow-sm">
+        <Card id="module-b-step-6" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -5839,7 +5762,7 @@ export function ModuleBWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     completedModuleBReadinessCount === 5
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   <FileText className="h-4 w-4" />
@@ -5873,7 +5796,7 @@ export function ModuleBWorkspace({
                 }
                 className="text-xs"
               >
-                <Eye className="h-3.5 w-3.5 text-indigo-600" />
+                <Eye className="h-3.5 w-3.5 text-emerald-700" />
                 {showModuleBBriefPreview
                   ? 'Hide Live Preview'
                   : 'Show Live Preview'}
@@ -5898,12 +5821,12 @@ export function ModuleBWorkspace({
 
           <CardContent className="space-y-5 px-0 pb-0 pt-4">
           {/* 5-STEP MODULE B READINESS CHECKLIST */}
-          <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-2xs">
+          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-2xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-700">
                 Module B Readiness Checklist (Steps 1–5 Included in Your Brief)
               </div>
-              <span className="text-xs font-semibold text-indigo-700">
+              <span className="text-xs font-semibold text-emerald-800">
                 Live-Synced with Your Answers Above
               </span>
             </div>
@@ -5942,7 +5865,7 @@ export function ModuleBWorkspace({
               {/* Document Header Banner */}
               <div className="border-b border-slate-200 bg-slate-900 px-6 py-5 text-white">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-300">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-slate-300">
                     {whiteLabelEnabled
                       ? 'Market & Customer Validation Brief'
                       : 'Startup Preflight • Market & Customer Validation Brief'}
@@ -5965,7 +5888,7 @@ export function ModuleBWorkspace({
               <div className="divide-y divide-slate-100 p-6 text-xs">
                 {/* Section 1: Target Customers & Buying Triggers */}
                 <div className="pb-5">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                     1. First Customer Group &amp; Buying Triggers (Step 1)
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -6013,7 +5936,7 @@ export function ModuleBWorkspace({
 
                 {/* Section 2: Competitors & Current Customer Habits */}
                 <div className="py-5">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                     2. Competitors &amp; How Customers Deal With This Today
                     (Step 2)
                   </div>
@@ -6069,13 +5992,13 @@ export function ModuleBWorkspace({
 
                 {/* Section 3: Bottom-Up Market Sizing */}
                 <div className="py-5">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                     3. Bottom-Up Market Sizing ({countryPack.defaultCurrency} —
                     Step 3)
                   </div>
                   <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3">
-                      <div className="text-[10px] font-bold uppercase text-indigo-700">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-[10px] font-bold uppercase text-emerald-800">
                         1. Year 1–2 Revenue Goal (SOM)
                       </div>
                       <div className="mt-1 text-base font-extrabold text-slate-900">
@@ -6123,7 +6046,7 @@ export function ModuleBWorkspace({
 
                 {/* Section 4: Competitive Edge & Defensibility */}
                 <div className="py-5">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                     4. Competitive Edge &amp; How You Stand Out (Step 4)
                   </div>
                   <div className="mt-2.5 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -6149,7 +6072,7 @@ export function ModuleBWorkspace({
 
                 {/* Section 5: Co-Founder Blind-Spot Takeaways */}
                 <div className="pt-5">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                     5. Co-Founder Blind-Spot Review &amp; Next Validation Steps
                     (Step 5)
                   </div>
@@ -6174,7 +6097,7 @@ export function ModuleBWorkspace({
           )}
 
           {/* BOTTOM ACTION BAR: DOWNLOAD, PRINT TO PDF, OR COPY BRIEF (Matches Module A 100%) */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3.5 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-2xs">
             <div className="text-xs text-slate-600">
               📥{' '}
               <strong>
@@ -6209,7 +6132,7 @@ export function ModuleBWorkspace({
                 size="sm"
                 onClick={handleDownloadModuleBBriefHtml}
               >
-                <Download className="h-3.5 w-3.5 text-indigo-600" />
+                <Download className="h-3.5 w-3.5 text-emerald-700" />
                 Download Brief (.html)
               </Button>
 
@@ -6217,7 +6140,7 @@ export function ModuleBWorkspace({
                 type="button"
                 size="sm"
                 onClick={handlePrintModuleBBriefPdf}
-                className="bg-indigo-600 text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-white hover:bg-emerald-800"
               >
                 <Printer className="h-3.5 w-3.5" />
                 Print / Save as PDF
@@ -6228,7 +6151,7 @@ export function ModuleBWorkspace({
           {/* Conversion / Handoff CTA Bar into Module C (Matches Module A Dark Footer Bar 100%) */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
             <div className="text-xs">
-              <span className="font-semibold text-indigo-300">
+              <span className="font-semibold text-slate-300">
                 Ready to test {plan.title} with real customers?
               </span>{' '}
               Continue to Module C to generate your unbiased Customer Validation
@@ -6244,7 +6167,7 @@ export function ModuleBWorkspace({
                 }
                 onContinueToModuleC();
               }}
-              className="bg-indigo-600 text-white hover:bg-indigo-500"
+              className="bg-emerald-700 text-white hover:bg-emerald-500"
             >
               Continue to Module C: Customer Surveys &amp; Waitlist
               <ArrowRight className="h-3.5 w-3.5" />

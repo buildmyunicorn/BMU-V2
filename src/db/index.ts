@@ -292,6 +292,12 @@ export function ensureDatabaseSchemaSynced(): Promise<void> {
             ADD COLUMN IF NOT EXISTS verified_cohort_domain text,
             ADD COLUMN IF NOT EXISTS verified_cohort_work_email text,
             ADD COLUMN IF NOT EXISTS cohort_milestone_claim_data_json jsonb DEFAULT '{}'::jsonb;
+
+          CREATE TABLE IF NOT EXISTS system_settings (
+            key text PRIMARY KEY,
+            value_json jsonb DEFAULT '{}'::jsonb NOT NULL,
+            updated_at timestamp NOT NULL DEFAULT now()
+          );
         `);
       } catch (err) {
         // Reset promise so a transient connection issue can retry on next request

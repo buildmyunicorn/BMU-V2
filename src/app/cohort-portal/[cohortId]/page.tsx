@@ -39,7 +39,7 @@ export default async function CohortPortalPage({ params }: CohortPortalPageProps
       return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-white font-sans">
           <div className="max-w-md w-full rounded-2xl border border-slate-800 bg-slate-900/90 p-6 sm:p-8 text-center space-y-5 shadow-2xl backdrop-blur-xl">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 shadow-inner">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-600/30 text-emerald-600 shadow-inner">
               <GraduationCap className="h-7 w-7" />
             </div>
             <div className="space-y-1.5">
@@ -52,7 +52,7 @@ export default async function CohortPortalPage({ params }: CohortPortalPageProps
             </div>
             <div className="pt-2 flex flex-col gap-2.5">
               <Link href={`/login?returnUrl=/cohort-portal/${encodeURIComponent(cohortId)}`}>
-                <Button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white h-9 shadow-sm">
+                <Button className="w-full bg-emerald-700 hover:bg-emerald-500 text-xs font-semibold text-white h-9 shadow-sm">
                   Sign In with Director Account
                 </Button>
               </Link>
@@ -81,7 +81,7 @@ export default async function CohortPortalPage({ params }: CohortPortalPageProps
           </div>
           <div className="pt-2 flex flex-col gap-2">
             <Link href="/cohort-portal/demo">
-              <Button className="w-full bg-indigo-600 hover:bg-indigo-500 text-xs text-white">
+              <Button className="w-full bg-emerald-700 hover:bg-emerald-500 text-xs text-white">
                 <GraduationCap className="h-3.5 w-3.5 mr-1.5" />
                 Preview Demo Command Center
               </Button>

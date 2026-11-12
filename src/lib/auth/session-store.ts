@@ -2817,6 +2817,7 @@ export interface ActiveStartupPlan {
   grantCenterData?: SavedGrantCenterData;
   masterDocumentData?: SavedMasterDocumentData;
   openQuestions: string[];
+  updatedAtIso?: string;
 }
 
 export interface BmuLocalSession {
@@ -2920,6 +2921,66 @@ export function hasRealFounderContent(
   return false;
 }
 
+function getLatestPlanTimestampMs(
+  plan?: Partial<ActiveStartupPlan> | null
+): number {
+  if (!plan) return 0;
+  let maxTs = 0;
+  const checkIso = (iso?: string | null) => {
+    if (!iso || typeof iso !== 'string') return;
+    const t = Date.parse(iso);
+    if (!Number.isNaN(t) && t > maxTs) {
+      maxTs = t;
+    }
+  };
+
+  checkIso(plan.updatedAtIso);
+  checkIso(plan.grantEligibilityCheck?.lastCheckedAt);
+  checkIso(plan.masterDocumentData?.lastSavedAt);
+
+  const scanObj = (obj: unknown, depth = 0) => {
+    if (!obj || typeof obj !== 'object' || depth > 3) return;
+    const rec = obj as Record<string, unknown>;
+    if (typeof rec.lastSavedAt === 'string') checkIso(rec.lastSavedAt);
+    if (typeof rec.updatedAt === 'string') checkIso(rec.updatedAt);
+    if (typeof rec.lastAuditedAt === 'string') checkIso(rec.lastAuditedAt);
+    if (typeof rec.lastEditedAt === 'string') checkIso(rec.lastEditedAt);
+    for (const val of Object.values(rec)) {
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        scanObj(val, depth + 1);
+      }
+    }
+  };
+
+  scanObj(plan.moduleBData);
+  scanObj(plan.moduleCData);
+  scanObj(plan.moduleDData);
+  scanObj(plan.moduleEData);
+  scanObj(plan.moduleFData);
+  scanObj(plan.moduleGData);
+  scanObj(plan.moduleHData);
+  scanObj(plan.moduleIData);
+  scanObj(plan.moduleJData);
+  scanObj(plan.moduleKData);
+  scanObj(plan.moduleLData);
+
+  return maxTs;
+}
+
+function isCandidatePlanNewerOrRicher(
+  candidate: ActiveStartupPlan,
+  existing: ActiveStartupPlan
+): boolean {
+  const candTs = getLatestPlanTimestampMs(candidate);
+  const existTs = getLatestPlanTimestampMs(existing);
+  if (candTs > 0 || existTs > 0) {
+    if (candTs !== existTs) {
+      return candTs > existTs;
+    }
+  }
+  return scorePlanRichness(candidate) > scorePlanRichness(existing);
+}
+
 function scorePlanRichness(plan: ActiveStartupPlan): number {
   if (isSyntheticPersonaPlan(plan)) return -1;
   let score = 0;
@@ -2940,6 +3001,8 @@ function scorePlanRichness(plan: ActiveStartupPlan): number {
   if (plan.moduleHData) score += 20;
   if (plan.moduleIData) score += 20;
   if (plan.moduleJData) score += 20;
+  if (plan.moduleKData) score += 20;
+  if (plan.moduleLData) score += 20;
   if (plan.masterDocumentData) score += 20;
   return score;
 }
@@ -2966,7 +3029,7 @@ function backupRealPlansToVault(plans: ActiveStartupPlan[]): void {
     }
     for (const candidate of realCandidates) {
       const prev = byId.get(candidate.id);
-      if (!prev || scorePlanRichness(candidate) >= scorePlanRichness(prev)) {
+      if (!prev || isCandidatePlanNewerOrRicher(candidate, prev)) {
         byId.set(candidate.id, candidate);
       }
     }
@@ -2992,11 +3055,22 @@ export function recoverAllRealPlansFromBrowserStorage(): ActiveStartupPlan[] {
       if (deletedSet.has(p.id)) continue;
       if (!hasRealFounderContent(p)) continue;
       const existing = byId.get(p.id);
-      if (!existing || scorePlanRichness(p) >= scorePlanRichness(existing)) {
+      if (!existing || isCandidatePlanNewerOrRicher(p, existing)) {
         byId.set(p.id, p);
       }
     }
   };
+
+  // Prefer the primary STORAGE_KEY first so active session edits win ties
+  try {
+    const primaryRaw = window.localStorage.getItem(STORAGE_KEY);
+    if (primaryRaw) {
+      const parsed = JSON.parse(primaryRaw) as BmuLocalSession;
+      considerPlans(parsed?.plans);
+    }
+  } catch {
+    // Ignore parse error
+  }
 
   try {
     const rawVault = window.localStorage.getItem(REAL_PLANS_VAULT_KEY);
@@ -3010,9 +3084,8 @@ export function recoverAllRealPlansFromBrowserStorage(): ActiveStartupPlan[] {
   try {
     for (let i = 0; i < window.localStorage.length; i++) {
       const key = window.localStorage.key(i);
-      if (!key) continue;
+      if (!key || key === STORAGE_KEY) continue;
       if (
-        key === STORAGE_KEY ||
         key === LEGACY_STORAGE_KEY ||
         key.startsWith(PER_USER_STORAGE_PREFIX) ||
         key.startsWith(LEGACY_PER_USER_STORAGE_PREFIX)
@@ -3031,9 +3104,11 @@ export function recoverAllRealPlansFromBrowserStorage(): ActiveStartupPlan[] {
     // Ignore storage enumeration errors
   }
 
-  const recovered = Array.from(byId.values()).sort(
-    (a, b) => scorePlanRichness(b) - scorePlanRichness(a)
-  );
+  const recovered = Array.from(byId.values()).sort((a, b) => {
+    const tsDiff = getLatestPlanTimestampMs(b) - getLatestPlanTimestampMs(a);
+    if (tsDiff !== 0) return tsDiff;
+    return scorePlanRichness(b) - scorePlanRichness(a);
+  });
   return recovered;
 }
 
@@ -3066,7 +3141,11 @@ function sanitizeAndRestoreRealPlansInSession(
   }
   for (const rec of recoveredRealPlans) {
     const existing = realById.get(rec.id);
-    if (!existing || scorePlanRichness(rec) > scorePlanRichness(existing)) {
+    if (
+      !existing ||
+      (!hasRealFounderContent(existing) && hasRealFounderContent(rec)) ||
+      isCandidatePlanNewerOrRicher(rec, existing)
+    ) {
       realById.set(rec.id, rec);
     }
   }
@@ -3328,6 +3407,13 @@ export function exitPersonaPreviewAndRestoreRealPlans(): BmuLocalSession {
 export function saveBmuSession(session: BmuLocalSession): void {
   if (typeof window === 'undefined') return;
 
+  try {
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_PUBLIC_SURVEYS_REGISTRY_KEY);
+  } catch {
+    // Ignore storage removal errors
+  }
+
   // Before overwriting STORAGE_KEY, always preserve any real founder plans currently in STORAGE_KEY or incoming session
   try {
     const existingRaw =
@@ -3367,7 +3453,34 @@ export function saveBmuSession(session: BmuLocalSession): void {
       };
     }),
   };
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanedSession));
+
+  const serializedSession = JSON.stringify(cleanedSession);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, serializedSession);
+  } catch {
+    // QuotaExceededError recovery: evict secondary caches so primary STORAGE_KEY always succeeds
+    try {
+      window.localStorage.removeItem(REAL_PLANS_VAULT_KEY);
+      window.localStorage.removeItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (
+          k &&
+          (k.startsWith(PER_USER_STORAGE_PREFIX) ||
+            k.startsWith(LEGACY_PER_USER_STORAGE_PREFIX))
+        ) {
+          keysToRemove.push(k);
+        }
+      }
+      for (const k of keysToRemove) {
+        window.localStorage.removeItem(k);
+      }
+      window.localStorage.setItem(STORAGE_KEY, serializedSession);
+    } catch {
+      // Never throw out of saveBmuSession so React state & PostgreSQL server actions still complete
+    }
+  }
   try {
     const cleanEmail = cleanedSession.user?.email?.trim().toLowerCase();
     if (

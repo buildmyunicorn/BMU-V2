@@ -359,10 +359,10 @@ export default function RedeemPage() {
             )}
 
             {/* Current Unlocked Tier Summary */}
-            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5">
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
               <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
                     Active Account Entitlement
                   </div>
                   <div className="text-lg font-bold text-slate-900">
@@ -382,7 +382,7 @@ export default function RedeemPage() {
                   {redeemedCodes.map((code) => (
                     <span
                       key={code}
-                      className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-white px-2 py-0.5 font-mono text-[11px] font-semibold text-indigo-900"
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-900"
                     >
                       <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                       {code}
@@ -459,12 +459,12 @@ export default function RedeemPage() {
                     key={tier.codes}
                     className={`rounded-xl border p-4 ${
                       isUnlocked
-                        ? 'border-indigo-500 bg-white ring-1 ring-indigo-500'
+                        ? 'border-emerald-600 bg-white ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-slate-50 opacity-80'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase text-indigo-600">
+                      <span className="text-xs font-bold uppercase text-emerald-700">
                         {tier.codes} {tier.codes === 1 ? 'Code' : 'Codes'}
                       </span>
                       {isUnlocked && (
@@ -476,15 +476,15 @@ export default function RedeemPage() {
                     </div>
                     <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
                       <li className="flex items-center gap-1.5">
-                        <Layers className="h-3.5 w-3.5 text-indigo-500" />
+                        <Layers className="h-3.5 w-3.5 text-emerald-700" />
                         {tier.plans}
                       </li>
                       <li className="flex items-center gap-1.5">
-                        <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
                         {tier.seats}
                       </li>
                       <li className="flex items-center gap-1.5">
-                        <KeyRound className="h-3.5 w-3.5 text-indigo-500" />
+                        <KeyRound className="h-3.5 w-3.5 text-emerald-700" />
                         {tier.credits}
                       </li>
                     </ul>

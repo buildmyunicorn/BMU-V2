@@ -303,11 +303,11 @@ export function PersonaUxAuditLabTab({
   return (
     <div className="space-y-6">
       {/* Top Hero Banner */}
-      <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-emerald-600/30 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-400/40">
+              <Badge className="bg-emerald-500/20 text-slate-300 ring-1 ring-emerald-400/40">
                 Synthetic Founder &amp; UX Audit Engine
               </Badge>
               <Badge className="bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-400/40">
@@ -320,7 +320,7 @@ export function PersonaUxAuditLabTab({
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Persona &amp; Comprehension UX Lab + Antigravity Prompt Generator
             </h1>
-            <p className="text-xs leading-relaxed text-indigo-100/90 sm:text-sm">
+            <p className="text-xs leading-relaxed text-slate-300 sm:text-sm">
               Walk through Startup Preflight as different founder archetypes, adjust the{' '}
               <strong className="text-white">Comprehension / Business Literacy Lever (L1–L4)</strong>,
               check responsive formatting across <strong className="text-white">Mobile, Tablet, and Laptop</strong>,
@@ -352,7 +352,7 @@ export function PersonaUxAuditLabTab({
                 executePlatformAudit(selectedPersonaId, selectedComprehensionId)
               }
               disabled={isRunningAudit}
-              className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              className="border-emerald-600/40 bg-white/10 text-xs text-white hover:bg-white/20"
             >
               <RefreshCw
                 className={`mr-1.5 h-3.5 w-3.5 ${isRunningAudit ? 'animate-spin' : ''}`}
@@ -370,7 +370,7 @@ export function PersonaUxAuditLabTab({
           <CardHeader className="border-b border-slate-100 pb-3">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                <UserCheck className="h-4 w-4 text-indigo-600" />
+                <UserCheck className="h-4 w-4 text-emerald-700" />
                 1. Choose Synthetic Founder Persona
               </CardTitle>
               <Badge variant="outline" className="text-[10px]">
@@ -391,8 +391,8 @@ export function PersonaUxAuditLabTab({
                   onClick={() => setSelectedPersonaId(persona.id)}
                   className={`w-full rounded-xl border p-3 text-left transition-all ${
                     isSelected
-                      ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
-                      : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
+                      ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -400,7 +400,7 @@ export function PersonaUxAuditLabTab({
                       <div
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                           isSelected
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-emerald-700 text-white'
                             : 'bg-slate-100 text-slate-700'
                         }`}
                       >
@@ -437,7 +437,7 @@ export function PersonaUxAuditLabTab({
               <ul className="mt-1.5 space-y-1 text-[11px] text-slate-600">
                 {activePersona.whatTheyStressTest.map((item, i) => (
                   <li key={i} className="flex items-start gap-1.5">
-                    <span className="text-indigo-600 font-bold">•</span>
+                    <span className="text-emerald-700 font-bold">•</span>
                     <span>{item}</span>
                   </li>
                 ))}
@@ -451,10 +451,10 @@ export function PersonaUxAuditLabTab({
           <CardHeader className="border-b border-slate-100 pb-3">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                <Gauge className="h-4 w-4 text-indigo-600" />
+                <Gauge className="h-4 w-4 text-emerald-700" />
                 2. Intelligence &amp; Literacy Lever
               </CardTitle>
-              <Badge className="bg-indigo-600 text-white text-[10px]">
+              <Badge className="bg-emerald-700 text-white text-[10px]">
                 {activeComprehension.shortBadge}
               </Badge>
             </div>
@@ -472,8 +472,8 @@ export function PersonaUxAuditLabTab({
                   onClick={() => setSelectedComprehensionId(level.id)}
                   className={`w-full rounded-xl border p-3 text-left transition-all ${
                     isSelected
-                      ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600'
-                      : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
+                      ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -506,7 +506,7 @@ export function PersonaUxAuditLabTab({
         <Card className="border-slate-200 lg:col-span-3">
           <CardHeader className="border-b border-slate-100 pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold text-slate-900">
-              <Smartphone className="h-4 w-4 text-indigo-600" />
+              <Smartphone className="h-4 w-4 text-emerald-700" />
               3. Screen Sizes &amp; Fix Prompts
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
@@ -543,12 +543,12 @@ export function PersonaUxAuditLabTab({
                     onClick={() => setSelectedViewportFilter(vp.id)}
                     className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs transition-all ${
                       isSelected
-                        ? 'border-indigo-600 bg-indigo-50 font-bold text-indigo-950 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-emerald-50/70 font-bold text-slate-900 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     <span className="flex items-center gap-2">
-                      <IconComp className="h-3.5 w-3.5 text-indigo-600" />
+                      <IconComp className="h-3.5 w-3.5 text-emerald-700" />
                       <span>{vp.label}</span>
                     </span>
                     <span className="text-[10px] text-slate-500">
@@ -560,12 +560,12 @@ export function PersonaUxAuditLabTab({
             </div>
 
             {auditReport && (
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 space-y-2">
+              <div className="rounded-xl border border-slate-200 bg-emerald-50/70 p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-indigo-950">
+                  <span className="text-[11px] font-semibold text-slate-900">
                     Live Modules Health Score
                   </span>
-                  <span className="text-base font-bold text-indigo-700">
+                  <span className="text-base font-bold text-emerald-800">
                     {auditReport.overallHealthScore}/100
                   </span>
                 </div>
@@ -598,7 +598,7 @@ export function PersonaUxAuditLabTab({
                       `Batch Antigravity Fix Prompt (${filteredFindings.length} items)`
                     );
                   }}
-                  className="w-full bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-500"
+                  className="w-full bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-600"
                 >
                   {copiedPromptId === 'batch-all' ? (
                     <>
@@ -629,7 +629,7 @@ export function PersonaUxAuditLabTab({
                   }}
                   className="w-full text-xs"
                 >
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                   Preview {activeComprehension.shortBadge} Copy Prompt
                 </Button>
               </div>
@@ -685,10 +685,10 @@ export function PersonaUxAuditLabTab({
                     key={mod.moduleCode}
                     className={`flex flex-col justify-between rounded-xl border p-3.5 transition-all ${
                       isSelected
-                        ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600'
+                        ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700'
                         : isUnfinished
                           ? 'border-dashed border-slate-300 bg-slate-50/70'
-                          : 'border-slate-200 bg-white hover:border-indigo-300'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
                     <div>
@@ -700,7 +700,7 @@ export function PersonaUxAuditLabTab({
                               isSelected ? 'ALL' : mod.moduleCode
                             )
                           }
-                          className="text-left text-xs font-bold text-slate-900 hover:text-indigo-600"
+                          className="text-left text-xs font-bold text-slate-900 hover:text-emerald-700"
                         >
                           {mod.shortName}: {mod.title}
                         </button>
@@ -776,7 +776,7 @@ export function PersonaUxAuditLabTab({
                               `${mod.shortName} Build-to-Standard Prompt`
                             );
                           }}
-                          className="h-7 w-full text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                          className="h-7 w-full text-[11px] font-medium text-emerald-800 hover:bg-emerald-50/70"
                         >
                           <Copy className="mr-1 h-3 w-3" />
                           Copy Build-to-Standard Prompt
@@ -811,7 +811,7 @@ export function PersonaUxAuditLabTab({
                                   `${mod.shortName} Fix Prompt`
                                 );
                               }}
-                              className="h-7 px-2 text-[11px] text-indigo-700"
+                              className="h-7 px-2 text-[11px] text-emerald-800"
                             >
                               <Copy className="mr-1 h-3 w-3" />
                               Fix Prompt
@@ -843,13 +843,13 @@ export function PersonaUxAuditLabTab({
 
       {/* Prompt Preview Modal / Drawer */}
       {activePromptPreview && (
-        <Card className="border-indigo-300 bg-indigo-50/40 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-indigo-100 pb-3">
+        <Card className="border-slate-300 bg-emerald-50/70 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-200 pb-3">
             <div>
-              <CardTitle className="text-sm font-bold text-indigo-950">
+              <CardTitle className="text-sm font-bold text-slate-900">
                 {activePromptPreview.title}
               </CardTitle>
-              <CardDescription className="text-xs text-indigo-800">
+              <CardDescription className="text-xs text-emerald-900">
                 Copy and paste this directly into Antigravity chat to apply the fixes automatically.
               </CardDescription>
             </div>
@@ -863,7 +863,7 @@ export function PersonaUxAuditLabTab({
                     activePromptPreview.title
                   )
                 }
-                className="bg-indigo-600 text-xs text-white hover:bg-indigo-500"
+                className="bg-emerald-700 text-xs text-white hover:bg-emerald-600"
               >
                 <Copy className="mr-1.5 h-3.5 w-3.5" />
                 Copy Prompt
@@ -918,7 +918,7 @@ export function PersonaUxAuditLabTab({
                   onClick={() => setSelectedCategoryFilter(cat.id)}
                   className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
                     selectedCategoryFilter === cat.id
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-emerald-700 text-white'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -953,7 +953,7 @@ export function PersonaUxAuditLabTab({
               return (
                 <div
                   key={finding.id}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-indigo-200"
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition-all hover:border-slate-200"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1 min-w-0 flex-1">
@@ -964,7 +964,7 @@ export function PersonaUxAuditLabTab({
                               ? 'bg-rose-100 text-rose-800 border-rose-300'
                               : finding.severity === 'IMPORTANT'
                                 ? 'bg-amber-100 text-amber-800 border-amber-300'
-                                : 'bg-indigo-100 text-indigo-800 border-indigo-300'
+                                : 'bg-emerald-100 text-emerald-900 border-slate-300'
                           }`}
                         >
                           {finding.severity}
@@ -1000,7 +1000,7 @@ export function PersonaUxAuditLabTab({
                             `Fix Prompt for ${finding.moduleShortName}`
                           )
                         }
-                        className="h-8 bg-indigo-600 px-3 text-xs font-semibold text-white hover:bg-indigo-500"
+                        className="h-8 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-600"
                       >
                         {isCopied ? (
                           <>
@@ -1053,7 +1053,7 @@ export function PersonaUxAuditLabTab({
                   </div>
 
                   {/* Persona First-Person Quote */}
-                  <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/50 px-3.5 py-2.5 text-xs italic text-indigo-950">
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-emerald-50/70 px-3.5 py-2.5 text-xs italic text-slate-900">
                     <strong>
                       {activePersona.name} ({activeComprehension.shortBadge}):
                     </strong>{' '}

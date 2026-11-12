@@ -86,7 +86,7 @@ const LEAD_STATUS_LABELS: Record<
   },
   INTRO_SENT: {
     label: 'Warm Intro Sent',
-    badgeClass: 'border-indigo-300 bg-indigo-50 text-indigo-800',
+    badgeClass: 'border-slate-300 bg-emerald-50/70 text-emerald-900',
   },
   PARTNER_CONTACTED: {
     label: 'Partner Contacted Founder',
@@ -94,7 +94,7 @@ const LEAD_STATUS_LABELS: Record<
   },
   CONVERTED_BOUNTY_DUE: {
     label: 'Converted • Bounty Due',
-    badgeClass: 'border-violet-300 bg-violet-100 text-violet-900 font-bold',
+    badgeClass: 'border-slate-300 bg-emerald-100 text-slate-900 font-bold',
   },
   BOUNTY_PAID: {
     label: 'Bounty Paid ✅',
@@ -551,7 +551,7 @@ export function PartnersReferralsStudioTab({
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Active Partner Offers
               </span>
-              <Handshake className="h-4 w-4 text-indigo-400" />
+              <Handshake className="h-4 w-4 text-emerald-500" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-extrabold text-white">
@@ -561,7 +561,7 @@ export function PartnersReferralsStudioTab({
                 of {stats.totalOffers} configured
               </span>
             </div>
-            <p className="mt-1 text-[11px] text-indigo-300">
+            <p className="mt-1 text-[11px] text-emerald-400">
               {stats.warmIntroPartnersCount} Warm Intro Concierges •{' '}
               {stats.totalOffers - stats.warmIntroPartnersCount} Affiliate Links
             </p>
@@ -642,7 +642,7 @@ export function PartnersReferralsStudioTab({
             onClick={() => setSubTab('DIRECTORY_BY_STEP')}
             className={
               subTab === 'DIRECTORY_BY_STEP'
-                ? 'bg-indigo-600 text-white hover:bg-indigo-500 text-xs'
+                ? 'bg-emerald-700 text-white hover:bg-emerald-600 text-xs'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs'
             }
           >
@@ -656,7 +656,7 @@ export function PartnersReferralsStudioTab({
             onClick={() => setSubTab('WARM_INTRO_SIMULATOR')}
             className={
               subTab === 'WARM_INTRO_SIMULATOR'
-                ? 'bg-indigo-600 text-white hover:bg-indigo-500 text-xs'
+                ? 'bg-emerald-700 text-white hover:bg-emerald-600 text-xs'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs'
             }
           >
@@ -670,7 +670,7 @@ export function PartnersReferralsStudioTab({
             onClick={() => setSubTab('LEADS_AND_CLICKS_LEDGER')}
             className={
               subTab === 'LEADS_AND_CLICKS_LEDGER'
-                ? 'bg-indigo-600 text-white hover:bg-indigo-500 text-xs'
+                ? 'bg-emerald-700 text-white hover:bg-emerald-600 text-xs'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs'
             }
           >
@@ -826,7 +826,7 @@ export function PartnersReferralsStudioTab({
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge className="border-indigo-500/40 bg-indigo-500/20 text-[10px] font-bold text-indigo-300">
+                        <Badge className="border-emerald-600/40 bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
                           {slotDef.moduleBadge}
                         </Badge>
                         <span className="font-mono text-[11px] text-slate-400">
@@ -855,7 +855,7 @@ export function PartnersReferralsStudioTab({
                       type="button"
                       size="sm"
                       onClick={() => handleOpenNewPartnerModal(slotDef.slotKey)}
-                      className="bg-indigo-600/90 text-xs text-white hover:bg-indigo-500 shrink-0"
+                      className="bg-emerald-700/90 text-xs text-white hover:bg-emerald-600 shrink-0"
                     >
                       <Plus className="mr-1 h-3.5 w-3.5" />
                       Add Partner to This Step
@@ -880,7 +880,7 @@ export function PartnersReferralsStudioTab({
                         onClick={() =>
                           handleOpenNewPartnerModal(slotDef.slotKey)
                         }
-                        className="border-slate-700 bg-slate-900 text-xs text-indigo-300 hover:bg-slate-800"
+                        className="border-slate-700 bg-slate-900 text-xs text-emerald-400 hover:bg-slate-800"
                       >
                         + Assign First Partner to {slotDef.moduleBadge}
                       </Button>
@@ -971,7 +971,7 @@ export function PartnersReferralsStudioTab({
                                       <span className="text-slate-500">
                                         Tracking Route:{' '}
                                       </span>
-                                      <code className="text-indigo-300">
+                                      <code className="text-emerald-400">
                                         {goShortlink}
                                       </code>
                                     </div>
@@ -1006,7 +1006,7 @@ export function PartnersReferralsStudioTab({
                                         href={`${goShortlink}?planId=admin-test&domain=example.ie`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 rounded bg-indigo-950/80 border border-indigo-700/50 px-2 py-0.5 text-[10px] text-indigo-200 hover:bg-indigo-900"
+                                        className="inline-flex items-center gap-1 rounded bg-slate-950/80 border border-slate-200 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-900"
                                       >
                                         Test Redirect
                                         <ExternalLink className="h-2.5 w-2.5" />
@@ -1187,7 +1187,7 @@ export function PartnersReferralsStudioTab({
                           warmIntroQuestionsJson: [...simQuestions],
                         })
                       }
-                      className="h-7 border-slate-700 bg-slate-900 text-[11px] text-indigo-300"
+                      className="h-7 border-slate-700 bg-slate-900 text-[11px] text-emerald-400"
                     >
                       <Edit3 className="mr-1 h-3 w-3" />
                       Customize Questions
@@ -1195,8 +1195,8 @@ export function PartnersReferralsStudioTab({
                   </div>
 
                   {/* Auto-Pulled Founder Context */}
-                  <div className="rounded-lg border border-indigo-500/20 bg-indigo-950/20 p-3 space-y-2.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                  <div className="rounded-lg border border-emerald-600/20 bg-slate-950/20 p-3 space-y-2.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
                       Auto-Pulled from Founder’s Plan (Zero Typing Required)
                     </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -1298,7 +1298,7 @@ export function PartnersReferralsStudioTab({
                   <Button
                     type="submit"
                     disabled={isSendingSimIntro}
-                    className="w-full bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-500"
+                    className="w-full bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-600"
                   >
                     <Send className="mr-1.5 h-3.5 w-3.5" />
                     {isSendingSimIntro
@@ -1340,7 +1340,7 @@ export function PartnersReferralsStudioTab({
                       <span className="font-semibold text-slate-500">
                         CC / Reply-To:
                       </span>{' '}
-                      <span className="font-mono text-indigo-700">
+                      <span className="font-mono text-emerald-800">
                         {simFounderName} &lt;{simFounderEmail}&gt;
                       </span>
                     </div>
@@ -1355,8 +1355,8 @@ export function PartnersReferralsStudioTab({
                     </div>
                   </div>
 
-                  <div className="rounded-lg bg-indigo-950 p-4 text-white">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                  <div className="rounded-lg bg-slate-950 p-4 text-white">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
                       Startup Preflight • Verified Partner Warm Intro
                     </div>
                     <div className="mt-1 text-sm font-bold">
@@ -1369,7 +1369,7 @@ export function PartnersReferralsStudioTab({
                     <br />
                     <br />
                     Please meet <strong>{simFounderName}</strong> (
-                    <span className="text-indigo-600 underline">
+                    <span className="text-emerald-700 underline">
                       {simFounderEmail}
                     </span>
                     ), who is configuring their operational foundations in{' '}
@@ -1437,7 +1437,7 @@ export function PartnersReferralsStudioTab({
                     onClick={() => setLedgerFilter('ALL')}
                     className={`rounded-md px-2.5 py-1 text-xs ${
                       ledgerFilter === 'ALL'
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-emerald-700 text-white'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -1459,7 +1459,7 @@ export function PartnersReferralsStudioTab({
                     onClick={() => setLedgerFilter('WARM_INTRO_LEAD')}
                     className={`rounded-md px-2.5 py-1 text-xs ${
                       ledgerFilter === 'WARM_INTRO_LEAD'
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-emerald-700 text-white'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -1470,7 +1470,7 @@ export function PartnersReferralsStudioTab({
                     onClick={() => setLedgerFilter('AFFILIATE_CLICK')}
                     className={`rounded-md px-2.5 py-1 text-xs ${
                       ledgerFilter === 'AFFILIATE_CLICK'
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-emerald-700 text-white'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -1502,7 +1502,7 @@ export function PartnersReferralsStudioTab({
                   type="button"
                   size="sm"
                   onClick={() => setSubTab('WARM_INTRO_SIMULATOR')}
-                  className="bg-indigo-600 text-xs text-white hover:bg-indigo-500"
+                  className="bg-emerald-700 text-xs text-white hover:bg-emerald-600"
                 >
                   Send a Test Warm Intro in the Simulator
                 </Button>
@@ -1611,7 +1611,7 @@ export function PartnersReferralsStudioTab({
                                 onClick={() =>
                                   setExpandedEventId(isExpanded ? null : ev.id)
                                 }
-                                className="h-8 border-slate-700 bg-slate-900 text-xs text-indigo-300"
+                                className="h-8 border-slate-700 bg-slate-900 text-xs text-emerald-400"
                               >
                                 {isExpanded
                                   ? 'Hide Intake Answers'
@@ -1630,7 +1630,7 @@ export function PartnersReferralsStudioTab({
 
                         {isExpanded && answerEntries.length > 0 && (
                           <div className="rounded-lg border border-slate-800 bg-slate-900 p-3 space-y-1.5">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
                               Submitted Founder Intake Answers
                             </div>
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1665,7 +1665,7 @@ export function PartnersReferralsStudioTab({
       {subTab === 'THREE_QUOTE_CONCIERGE' && (
         <div className="space-y-6">
           {/* Top Info Banner */}
-          <div className="rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 p-5">
+          <div className="rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-950 p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -1719,7 +1719,7 @@ export function PartnersReferralsStudioTab({
                 <div className="text-[10px] font-semibold text-slate-400 uppercase">
                   Dev &amp; Tech Agencies
                 </div>
-                <div className="text-xl font-bold text-indigo-300">
+                <div className="text-xl font-bold text-emerald-400">
                   {
                     offers.filter(
                       (o) =>
@@ -1936,7 +1936,7 @@ export function PartnersReferralsStudioTab({
                             <span className="font-bold text-sm text-white">
                               {rfp.projectTitle}
                             </span>
-                            <Badge className="border-indigo-500/40 bg-indigo-500/20 text-[10px] text-indigo-300">
+                            <Badge className="border-emerald-600/40 bg-emerald-500/20 text-[10px] text-emerald-400">
                               {rfp.rfpCategory}
                             </Badge>
                             <Badge
@@ -2047,7 +2047,7 @@ export function PartnersReferralsStudioTab({
                                         setTimeout(() => setCopiedMagicLink(null), 2000);
                                         onNotify('success', 'Magic Link copied to clipboard!');
                                       }}
-                                      className="h-6 px-1.5 text-[10px] text-indigo-300 hover:bg-slate-800"
+                                      className="h-6 px-1.5 text-[10px] text-emerald-400 hover:bg-slate-800"
                                     >
                                       {copiedMagicLink === resp.magicToken ? (
                                         <>
@@ -2085,7 +2085,7 @@ export function PartnersReferralsStudioTab({
           <div className="my-8 w-full max-w-4xl rounded-2xl border border-slate-700 bg-slate-900 p-6 text-slate-100 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
             <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
               <div>
-                <Badge className="border-indigo-500/40 bg-indigo-500/20 text-[10px] text-indigo-300">
+                <Badge className="border-emerald-600/40 bg-emerald-500/20 text-[10px] text-emerald-400">
                   Partner Referral &amp; Slot Configurator
                 </Badge>
                 <h3 className="mt-1 text-lg font-bold text-white">
@@ -2107,8 +2107,8 @@ export function PartnersReferralsStudioTab({
 
             <form onSubmit={handleSavePartnerOffer} className="space-y-6">
               {/* SECTION 1: WHERE DOES THIS PARTNER GO? */}
-              <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-4 space-y-4">
-                <div className="text-xs font-bold uppercase tracking-wider text-indigo-300">
+              <div className="rounded-xl border border-emerald-600/30 bg-slate-950/20 p-4 space-y-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-emerald-400">
                   1. Step Placement &amp; Country Targeting
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -2139,7 +2139,7 @@ export function PartnersReferralsStudioTab({
                         </option>
                       ))}
                     </select>
-                    <p className="text-[11px] text-indigo-300/90">
+                    <p className="text-[11px] text-emerald-400/90">
                       📍{' '}
                       {getSlotDefinition(editingOffer.slotKey).whereItAppears}
                     </p>
@@ -2306,7 +2306,7 @@ export function PartnersReferralsStudioTab({
                         })
                       }
                       placeholder="auto-generated-from-name"
-                      className="border-slate-700 bg-slate-900 text-xs font-mono text-indigo-300"
+                      className="border-slate-700 bg-slate-900 text-xs font-mono text-emerald-400"
                     />
                   </div>
                 </div>

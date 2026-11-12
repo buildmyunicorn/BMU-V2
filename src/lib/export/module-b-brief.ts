@@ -569,7 +569,7 @@ export function buildModuleBStandaloneHtmlDocument(
                 data.competitiveWedge.otherSwitchingFrictionText?.trim()
                   ? `✨ ${data.competitiveWedge.otherSwitchingFrictionText.trim()}`
                   : SWITCHING_FRICTION_LABELS[id] || id;
-              return `<span class="pill-indigo">${escapeHtml(label)}</span>`;
+              return `<span class="pill-emerald">${escapeHtml(label)}</span>`;
             })
             .join('')}
         </div>`

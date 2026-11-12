@@ -277,7 +277,7 @@ export default function PublicValidationSurveyPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-6">
         <div className="flex items-center gap-2.5 text-sm font-medium text-slate-600">
-          <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+          <Loader2 className="h-5 w-5 animate-spin text-emerald-700" />
           Loading survey...
         </div>
       </div>
@@ -304,7 +304,7 @@ export default function PublicValidationSurveyPage() {
           </p>
           <div className="mt-5">
             <Link href="/workspace">
-              <Button size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700">
+              <Button size="sm" className="bg-slate-900 text-white hover:bg-slate-800">
                 Return to Founder Workspace
               </Button>
             </Link>
@@ -335,7 +335,7 @@ export default function PublicValidationSurveyPage() {
 
   if (submitted) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-indigo-50/60 via-white to-slate-50 p-6">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-6">
         <div className="w-full max-w-lg rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-lg">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
             <CheckCircle2 className="h-8 w-8" />
@@ -359,20 +359,20 @@ export default function PublicValidationSurveyPage() {
 
           {/* Prolific Completion Box & Auto-Redirect */}
           {prolificPid && (
-            <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50/80 p-5 text-left">
-              <div className="flex items-center gap-2 text-xs font-bold text-indigo-900">
+            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5 text-left">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
                 <Check className="h-4 w-4 text-emerald-600" />
                 Prolific Study Completed (Completion Code:{' '}
-                <span className="font-mono text-indigo-700">SPF_SURVEY_VERIFIED</span>)
+                <span className="font-mono text-emerald-700">SPF_SURVEY_VERIFIED</span>)
               </div>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-indigo-800">
-                Participant ID: <code className="rounded bg-white px-1.5 py-0.5 text-indigo-950 font-mono text-[10px]">{prolificPid}</code>.
+              <p className="mt-1.5 text-[11px] leading-relaxed text-slate-700">
+                Participant ID: <code className="rounded bg-white px-1.5 py-0.5 text-slate-900 font-mono text-[10px]">{prolificPid}</code>.
                 {prolificRedirectTimer !== null && prolificRedirectTimer > 0 ? (
-                  <span className="block mt-1 font-semibold text-indigo-900">
+                  <span className="block mt-1 font-semibold text-slate-900">
                     Redirecting back to Prolific in {prolificRedirectTimer} second{prolificRedirectTimer !== 1 ? 's' : ''}...
                   </span>
                 ) : (
-                  <span className="block mt-1 font-semibold text-indigo-900">
+                  <span className="block mt-1 font-semibold text-slate-900">
                     Click the button below to confirm your submission on Prolific:
                   </span>
                 )}
@@ -380,7 +380,7 @@ export default function PublicValidationSurveyPage() {
               <div className="mt-3">
                 <a
                   href={PROLIFIC_COMPLETION_URL}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 sm:w-auto"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 sm:w-auto"
                 >
                   Return to Prolific Now
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -408,11 +408,11 @@ export default function PublicValidationSurveyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50/50 via-slate-50 to-white px-4 py-8 sm:px-6 sm:py-12">
+    <div className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-2xl">
         {/* Top Trust Strip */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-          <div className="flex items-center gap-1.5 font-medium text-indigo-700">
+          <div className="flex items-center gap-1.5 font-medium text-emerald-800">
             <Clock className="h-3.5 w-3.5" />
             <span>Takes ~60 seconds • Zero login required</span>
           </div>
@@ -422,15 +422,15 @@ export default function PublicValidationSurveyPage() {
           </div>
         </div>
 
-        {/* Survey Header Card */}
-        <div className=" rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-md sm:p-8">
+        {/* Survey Header Card (Sovereign Slate Header, No Rainbow Gradient) */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-[11px] text-indigo-100">
+              <Badge className="border-slate-700 bg-slate-900 text-[11px] text-slate-200">
                 Customer Discovery &amp; Feedback
               </Badge>
               {survey.isPublished ? (
-                <Badge className="border-emerald-400/40 bg-emerald-500/25 text-[11px] text-emerald-100">
+                <Badge className="border-emerald-400/40 bg-emerald-500/20 text-[11px] text-emerald-300">
                   <Lock className="mr-1 h-3 w-3" />
                   Verified &amp; Locked Questions
                 </Badge>
@@ -447,11 +447,11 @@ export default function PublicValidationSurveyPage() {
               activeStepContext={`Public Survey: ${survey.title || cleanSlug}`}
             />
           </div>
-          <h1 className="mt-2.5 text-xl font-bold tracking-tight sm:text-2xl">
+          <h1 className="mt-2.5 text-xl font-bold tracking-tight sm:text-2xl text-white">
             {survey.title || 'Quick Customer Feedback Survey'}
           </h1>
           {survey.introDescription && (
-            <p className="mt-2 text-xs leading-relaxed text-indigo-100/90 sm:text-sm">
+            <p className="mt-2 text-xs leading-relaxed text-slate-300 sm:text-sm">
               {survey.introDescription}
             </p>
           )}
@@ -475,10 +475,10 @@ export default function PublicValidationSurveyPage() {
               return (
                 <div
                   key={q.id}
-                  className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs transition-all hover:border-indigo-200 sm:p-6"
+                  className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs transition-all hover:border-slate-300 sm:p-6"
                 >
                   <div className="flex items-start gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-800">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
                       {idx + 1}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -505,7 +505,7 @@ export default function PublicValidationSurveyPage() {
                             onClick={() => handleSelectSingleChoice(q.id, opt)}
                             className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-left text-xs font-medium transition-all sm:text-sm ${
                               selected
-                                ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
+                                ? 'border-emerald-700 bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-700'
                                 : 'border-slate-200 bg-slate-50/60 text-slate-700 hover:border-slate-300 hover:bg-slate-100/70'
                             }`}
                           >
@@ -513,7 +513,7 @@ export default function PublicValidationSurveyPage() {
                             <span
                               className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                                 selected
-                                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                                  ? 'border-emerald-700 bg-emerald-700 text-white'
                                   : 'border-slate-300 bg-white'
                               }`}
                             >
@@ -532,7 +532,7 @@ export default function PublicValidationSurveyPage() {
                             }
                             className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-left text-xs font-medium transition-all sm:text-sm ${
                               isOtherSelectedSingle
-                                ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
+                                ? 'border-emerald-700 bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-700'
                                 : 'border-slate-200 bg-slate-50/60 text-slate-700 hover:border-slate-300 hover:bg-slate-100/70'
                             }`}
                           >
@@ -540,7 +540,7 @@ export default function PublicValidationSurveyPage() {
                             <span
                               className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                                 isOtherSelectedSingle
-                                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                                  ? 'border-emerald-700 bg-emerald-700 text-white'
                                   : 'border-slate-300 bg-white'
                               }`}
                             >
@@ -557,7 +557,7 @@ export default function PublicValidationSurveyPage() {
                                 handleOtherTextChange(q.id, e.target.value)
                               }
                               placeholder="Type your own answer..."
-                              className="border-indigo-300 bg-white text-base sm:text-xs"
+                              className="border-emerald-600 bg-white text-base sm:text-xs"
                               autoFocus
                             />
                           )}
@@ -580,7 +580,7 @@ export default function PublicValidationSurveyPage() {
                             onClick={() => handleToggleMultiSelect(q.id, opt)}
                             className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-left text-xs font-medium transition-all sm:text-sm ${
                               selected
-                                ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
+                                ? 'border-emerald-700 bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-700'
                                 : 'border-slate-200 bg-slate-50/60 text-slate-700 hover:border-slate-300 hover:bg-slate-100/70'
                             }`}
                           >
@@ -588,7 +588,7 @@ export default function PublicValidationSurveyPage() {
                             <span
                               className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border ${
                                 selected
-                                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                                  ? 'border-emerald-700 bg-emerald-700 text-white'
                                   : 'border-slate-300 bg-white'
                               }`}
                             >
@@ -607,7 +607,7 @@ export default function PublicValidationSurveyPage() {
                             }
                             className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-left text-xs font-medium transition-all sm:text-sm ${
                               isOtherSelectedMulti
-                                ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-1 ring-indigo-600'
+                                ? 'border-emerald-700 bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-700'
                                 : 'border-slate-200 bg-slate-50/60 text-slate-700 hover:border-slate-300 hover:bg-slate-100/70'
                             }`}
                           >
@@ -615,7 +615,7 @@ export default function PublicValidationSurveyPage() {
                             <span
                               className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border ${
                                 isOtherSelectedMulti
-                                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                                  ? 'border-emerald-700 bg-emerald-700 text-white'
                                   : 'border-slate-300 bg-white'
                               }`}
                             >
@@ -632,7 +632,7 @@ export default function PublicValidationSurveyPage() {
                                 handleOtherTextChange(q.id, e.target.value)
                               }
                               placeholder="Type your own answer..."
-                              className="border-indigo-300 bg-white text-base sm:text-xs"
+                              className="border-emerald-600 bg-white text-base sm:text-xs"
                               autoFocus
                             />
                           )}
@@ -654,8 +654,8 @@ export default function PublicValidationSurveyPage() {
                               onClick={() => handleScaleSelect(q.id, num)}
                               className={`flex flex-col items-center justify-center rounded-xl border py-3 text-sm font-bold transition-all ${
                                 selected
-                                  ? 'border-indigo-600 bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-300'
-                                  : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50'
+                                  ? 'border-emerald-700 bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-300'
+                                  : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/50'
                               }`}
                             >
                               <span>{num}</span>
@@ -680,7 +680,7 @@ export default function PublicValidationSurveyPage() {
                           handleOpenTextChange(q.id, e.target.value)
                         }
                         placeholder="Share a quick example or how you handle this today..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-hidden sm:text-sm"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-700 focus:bg-white focus:outline-hidden sm:text-sm"
                       />
                     </div>
                   )}
@@ -691,16 +691,16 @@ export default function PublicValidationSurveyPage() {
 
           {/* Optional Early-Bird Waitlist & Respondent Info Card */}
           {survey.collectLeadEmails && (
-            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 shadow-2xs sm:p-6">
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-2xs sm:p-6">
               <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
                   <Gift className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-bold text-indigo-950">
+                  <div className="text-sm font-bold text-slate-950">
                     Optional: Join the Early-Bird Waitlist
                   </div>
-                  <p className="mt-0.5 text-xs text-indigo-900/80">
+                  <p className="mt-0.5 text-xs text-slate-600">
                     {survey.waitlistIncentiveText ||
                       'Leave your email if you would like early beta access or a launch discount (100% optional — leave blank to stay anonymous).'}
                   </p>
@@ -709,7 +709,7 @@ export default function PublicValidationSurveyPage() {
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-[11px] font-semibold text-indigo-950">
+                  <label className="mb-1 block text-[11px] font-semibold text-slate-700">
                     Your Name or Role (Optional)
                   </label>
                   <Input
@@ -720,7 +720,7 @@ export default function PublicValidationSurveyPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-[11px] font-semibold text-indigo-950">
+                  <label className="mb-1 block text-[11px] font-semibold text-slate-700">
                     Email for Early-Bird Access (Optional)
                   </label>
                   <Input
@@ -738,12 +738,12 @@ export default function PublicValidationSurveyPage() {
                 </div>
               </div>
 
-              <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs font-medium text-indigo-950">
+              <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700">
                 <input
                   type="checkbox"
                   checked={joinedWaitlist}
                   onChange={(e) => setJoinedWaitlist(e.target.checked)}
-                  className="h-4 w-4 rounded border-indigo-300 text-indigo-600"
+                  className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                 />
                 <span>
                   Yes, notify me when early access launches (no spam, ever).
@@ -770,7 +770,7 @@ export default function PublicValidationSurveyPage() {
             <Button
               type="submit"
               disabled={submitting || survey.questions.length === 0}
-              className="w-full bg-indigo-600 py-2.5 text-white hover:bg-indigo-700 sm:w-auto sm:px-6 sm:py-2"
+              className="w-full bg-emerald-700 py-2.5 text-white hover:bg-emerald-800 sm:w-auto sm:px-6 sm:py-2"
             >
               {submitting ? (
                 <>

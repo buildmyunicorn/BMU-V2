@@ -94,7 +94,7 @@ const COMING_SOON_FEATURES = [
     title: 'Go-Live Countdown Calendar',
     badge: 'COMING SOON',
     icon: Calendar,
-    accentBg: 'bg-indigo-50 text-indigo-700 border-indigo-200/70',
+    accentBg: 'bg-emerald-50 text-emerald-800 border-slate-200/70',
     description:
       'Enter your target launch date and get a reverse-engineered, week-by-week execution schedule across MVP build, legal setup, grant lead times, and launch marketing.',
     highlightPill: 'Reverse Launch Planner',
@@ -104,7 +104,7 @@ const COMING_SOON_FEATURES = [
     title: 'Find a Co-Founder Directory',
     badge: 'COMING SOON',
     icon: Users,
-    accentBg: 'bg-violet-50 text-violet-700 border-violet-200/70',
+    accentBg: 'bg-slate-50 text-emerald-800 border-slate-200/70',
     description:
       'Match with technical, commercial, or operations co-founders based on your missing "7 Startup Hats" and pre-screen compatibility before you commit.',
     highlightPill: 'Complementary Skill Matcher',
@@ -257,21 +257,18 @@ export function ProjectDashboardView({
       {/* =================================================================== */}
       {/* TOP HERO BANNER: Signature Platform Indigo-to-Violet Gradient Card  */}
       {/* =================================================================== */}
-      <div className="relative overflow-hidden rounded-2xl border border-indigo-900/60 bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-900 p-5 text-white shadow-md sm:p-7">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-500/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
-
+      <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 text-white shadow-md sm:p-7">
         <div className="relative flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div className="space-y-2.5 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-100">
+              <Badge className="border-emerald-400/40 bg-emerald-500/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-200">
                 Founder Command Center
               </Badge>
-              <Badge className="border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold text-indigo-100">
+              <Badge className="border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold text-slate-200">
                 {countryName} ({currencyCode}) • {industryCategory}
               </Badge>
               {isPivot && (
-                <Badge className="border-violet-300/40 bg-violet-500/30 px-2 py-0.5 text-[10px] font-bold text-violet-100">
+                <Badge className="border-slate-300/40 bg-slate-500/30 px-2 py-0.5 text-[10px] font-bold text-slate-200">
                   Pivot Branch
                 </Badge>
               )}
@@ -285,7 +282,7 @@ export function ProjectDashboardView({
               .
             </h1>
 
-            <p className="text-xs leading-relaxed text-indigo-100/90 sm:text-sm">
+            <p className="text-xs leading-relaxed text-slate-200/90 sm:text-sm">
               {oneLinerSummary?.trim()
                 ? oneLinerSummary
                 : 'Build your venture step-by-step in the Founder Workspace, review your whole-picture Master Document, or launch any standalone tool below.'}
@@ -296,14 +293,14 @@ export function ProjectDashboardView({
           <div className="flex flex-col items-stretch gap-3 rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-xs sm:flex-row sm:items-center lg:flex-col lg:items-end lg:min-w-[290px]">
             <div className="flex w-full items-center justify-between gap-4">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
                   Venture Preflight Readiness
                 </div>
                 <div className="mt-0.5 flex items-baseline gap-2">
                   <span className="text-2xl font-extrabold tracking-tight text-white">
                     {overallVentureReadiness}%
                   </span>
-                  <span className="text-xs text-indigo-200">
+                  <span className="text-xs text-slate-300">
                     ({startedModulesCount} of {moduleProgressList.length}{' '}
                     Modules Active)
                   </span>
@@ -329,7 +326,7 @@ export function ProjectDashboardView({
                 onClick={handleToggleVentureMap}
                 className="w-full sm:w-auto border-white/25 bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition shadow-xs"
               >
-                <Map className="mr-1.5 h-3.5 w-3.5 text-indigo-300" />
+                <Map className="mr-1.5 h-3.5 w-3.5 text-slate-300" />
                 {isVentureMapOpen ? 'Hide Venture Map' : 'What to Expect Map'}
                 {isVentureMapOpen ? (
                   <ChevronUp className="ml-1 h-3.5 w-3.5" />
@@ -353,14 +350,14 @@ export function ProjectDashboardView({
         {/* Collapsible 4-Stage "What to Expect" Venture Map */}
         {isVentureMapOpen && (
           <div className="mt-5 border-t border-white/15 pt-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-indigo-200">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-white flex items-center gap-1.5">
                   <Map className="h-3.5 w-3.5 text-emerald-300" />
                   What to Expect: Your 4-Stage Venture Map
                 </span>
-                <span className="hidden sm:inline text-indigo-300/80">•</span>
-                <span className="hidden sm:inline text-indigo-200/80">
+                <span className="hidden sm:inline text-slate-300/80">•</span>
+                <span className="hidden sm:inline text-slate-300/80">
                   Jump into any stage at your own pace
                 </span>
               </div>
@@ -375,7 +372,7 @@ export function ProjectDashboardView({
                     <span>How-To &amp; Visual Guide</span>
                   </button>
                 )}
-                <span className="text-[11px] text-indigo-200/90">
+                <span className="text-[11px] text-slate-300/90">
                   {completedModulesCount} of {moduleProgressList.length} Modules Completed • {openQuestionsCount} Parked Question{openQuestionsCount === 1 ? '' : 's'}
                 </span>
               </div>
@@ -416,8 +413,8 @@ export function ProjectDashboardView({
                           isComplete
                             ? 'bg-emerald-500/30 text-emerald-200'
                             : isStarted
-                              ? 'bg-indigo-500/30 text-indigo-200'
-                              : 'bg-white/10 text-indigo-200/80'
+                              ? 'bg-emerald-500/30 text-slate-300'
+                              : 'bg-white/10 text-slate-300/80'
                         }`}
                       >
                         {isComplete ? 'Complete' : isStarted ? `${avgProgress}%` : 'Ready'}
@@ -427,7 +424,7 @@ export function ProjectDashboardView({
                     <h4 className="mt-1 text-xs font-bold text-white group-hover:text-emerald-300">
                       Idea, Market &amp; Validation
                     </h4>
-                    <p className="mt-1 text-[11px] leading-relaxed text-indigo-100/85">
+                    <p className="mt-1 text-[11px] leading-relaxed text-slate-200/85">
                       Shape your concept, scout competitors, and launch your bias-free customer survey &amp; waitlist.
                     </p>
 
@@ -476,7 +473,7 @@ export function ProjectDashboardView({
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-extrabold uppercase tracking-wider text-indigo-200">
+                      <span className="font-extrabold uppercase tracking-wider text-slate-300">
                         Stage 2
                       </span>
                       <span
@@ -484,8 +481,8 @@ export function ProjectDashboardView({
                           isComplete
                             ? 'bg-emerald-500/30 text-emerald-200'
                             : isStarted
-                              ? 'bg-indigo-500/30 text-indigo-200'
-                              : 'bg-white/10 text-indigo-200/80'
+                              ? 'bg-emerald-500/30 text-slate-300'
+                              : 'bg-white/10 text-slate-300/80'
                         }`}
                       >
                         {isComplete ? 'Complete' : isStarted ? `${avgProgress}%` : 'Ready'}
@@ -495,7 +492,7 @@ export function ProjectDashboardView({
                     <h4 className="mt-1 text-xs font-bold text-white group-hover:text-emerald-300">
                       Product, Team &amp; Setup
                     </h4>
-                    <p className="mt-1 text-[11px] leading-relaxed text-indigo-100/85">
+                    <p className="mt-1 text-[11px] leading-relaxed text-slate-200/85">
                       {isGrantSupported
                         ? 'Scope your V1 build, request 3 supplier quotes, align co-founders & complete launchpad.'
                         : 'Scope your lean V1 build, align co-founders & tick off your company launchpad checklist.'}
@@ -546,7 +543,7 @@ export function ProjectDashboardView({
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-extrabold uppercase tracking-wider text-indigo-200">
+                      <span className="font-extrabold uppercase tracking-wider text-slate-300">
                         Stage 3
                       </span>
                       <span
@@ -554,8 +551,8 @@ export function ProjectDashboardView({
                           isComplete
                             ? 'bg-emerald-500/30 text-emerald-200'
                             : isStarted
-                              ? 'bg-indigo-500/30 text-indigo-200'
-                              : 'bg-white/10 text-indigo-200/80'
+                              ? 'bg-emerald-500/30 text-slate-300'
+                              : 'bg-white/10 text-slate-300/80'
                         }`}
                       >
                         {isComplete ? 'Complete' : isStarted ? `${avgProgress}%` : 'Ready'}
@@ -565,7 +562,7 @@ export function ProjectDashboardView({
                     <h4 className="mt-1 text-xs font-bold text-white group-hover:text-emerald-300">
                       Pricing, Growth &amp; Finance
                     </h4>
-                    <p className="mt-1 text-[11px] leading-relaxed text-indigo-100/85">
+                    <p className="mt-1 text-[11px] leading-relaxed text-slate-200/85">
                       Stress-test breakeven in the Pocket Profit sandbox, plan marketing &amp; build 3-year cashflows.
                     </p>
 
@@ -614,7 +611,7 @@ export function ProjectDashboardView({
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-extrabold uppercase tracking-wider text-indigo-200">
+                      <span className="font-extrabold uppercase tracking-wider text-slate-300">
                         Stage 4
                       </span>
                       <span
@@ -622,8 +619,8 @@ export function ProjectDashboardView({
                           isComplete
                             ? 'bg-emerald-500/30 text-emerald-200'
                             : isStarted
-                              ? 'bg-indigo-500/30 text-indigo-200'
-                              : 'bg-white/10 text-indigo-200/80'
+                              ? 'bg-emerald-500/30 text-slate-300'
+                              : 'bg-white/10 text-slate-300/80'
                         }`}
                       >
                         {isGrantSupported ? (isComplete ? 'Complete' : isStarted ? `${avgProgress}%` : 'Ready') : 'Auto-Synced'}
@@ -635,7 +632,7 @@ export function ProjectDashboardView({
                         ? 'Grants, Master Doc & Plan'
                         : 'Master Blueprint & Plan Studio'}
                     </h4>
-                    <p className="mt-1 text-[11px] leading-relaxed text-indigo-100/85">
+                    <p className="mt-1 text-[11px] leading-relaxed text-slate-200/85">
                       {isGrantSupported
                         ? 'Match with non-dilutive grants and compile your official grant & investor-ready dossiers.'
                         : 'Review your living master blueprint and compile investor-ready pitch & commercial plans.'}
@@ -672,7 +669,7 @@ export function ProjectDashboardView({
                   <span className="font-bold text-emerald-300">
                     Stage {activeStageDetail} Inside Focus:
                   </span>
-                  <span className="ml-1.5 text-indigo-100/90">
+                  <span className="ml-1.5 text-slate-200/90">
                     {activeStageDetail === 1 &&
                       'Founder Motivations & Fit • Beachhead Persona & Competitor Scout • Bias-Free Mom-Test Customer Survey & QR Kit.'}
                     {activeStageDetail === 2 &&
@@ -692,7 +689,7 @@ export function ProjectDashboardView({
                   size="sm"
                   variant="ghost"
                   onClick={() => setActiveStageDetail(null)}
-                  className="h-6 px-2 text-[11px] text-indigo-200 hover:bg-white/20 hover:text-white"
+                  className="h-6 px-2 text-[11px] text-slate-300 hover:bg-white/20 hover:text-white"
                 >
                   Close Detail ✕
                 </Button>
@@ -705,14 +702,14 @@ export function ProjectDashboardView({
       {/* =================================================================== */}
       {/* ASK MY STARTUP: EXECUTIVE VENTURE QUERY BAR                         */}
       {/* =================================================================== */}
-      <div className="relative overflow-hidden rounded-2xl border border-indigo-200/90 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-5 text-white shadow-md sm:p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-indigo-500/15 blur-2xl" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-5 text-white shadow-md sm:p-6">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-500/15 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-10 left-10 h-32 w-32 rounded-full bg-emerald-500/10 blur-2xl" />
 
         <div className="relative space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-400/30">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-slate-300 ring-1 ring-emerald-500/30">
                 <BrainCircuit className="h-5 w-5" />
               </div>
               <div>
@@ -720,11 +717,11 @@ export function ProjectDashboardView({
                   <h2 className="text-base font-bold text-white sm:text-lg">
                     Ask My Startup
                   </h2>
-                  <Badge className="border-indigo-400/30 bg-indigo-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-200">
+                  <Badge className="border-emerald-400/30 bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-300">
                     AI Venture Intelligence • Grounded Answers
                   </Badge>
                 </div>
-                <p className="mt-0.5 text-xs text-indigo-200/80">
+                <p className="mt-0.5 text-xs text-slate-300/80">
                   Query your plan across Modules A–L for elevator pitches, due diligence, grant tests, or pocket economics.
                 </p>
               </div>
@@ -734,7 +731,7 @@ export function ProjectDashboardView({
               type="button"
               size="sm"
               onClick={() => onOpenAskStartup?.()}
-              className="h-8 bg-indigo-600 text-xs font-bold text-white shadow-xs hover:bg-indigo-500"
+              className="h-8 bg-emerald-700 text-xs font-bold text-white shadow-xs hover:bg-emerald-500"
             >
               Open Full-Page Hub
               <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -754,13 +751,13 @@ export function ProjectDashboardView({
             className="flex flex-col gap-2 sm:flex-row sm:items-center"
           >
             <div className="relative flex-1">
-              <Sparkles className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-300" />
+              <Sparkles className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" />
               <input
                 type="text"
                 value={dashboardQuery}
                 onChange={(e) => setDashboardQuery(e.target.value)}
                 placeholder="Ask anything about your startup (e.g. 'Describe my startup in 150 words')..."
-                className="w-full rounded-xl border border-white/20 bg-white/10 pl-9 pr-3 py-2.5 text-xs sm:text-sm text-white placeholder-indigo-200/60 shadow-inner backdrop-blur-xs transition focus:border-indigo-400 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                className="w-full rounded-xl border border-white/20 bg-white/10 pl-9 pr-3 py-2.5 text-xs sm:text-sm text-white placeholder-slate-400 shadow-inner backdrop-blur-xs transition focus:border-emerald-400 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
             <Button
@@ -775,7 +772,7 @@ export function ProjectDashboardView({
 
           {/* Quick Starter Chips */}
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="text-[11px] font-medium text-indigo-200/70">
+            <span className="text-[11px] font-medium text-slate-300/70">
               Quick prompts:
             </span>
             {[
@@ -788,7 +785,7 @@ export function ProjectDashboardView({
                 key={chip}
                 type="button"
                 onClick={() => onOpenAskStartup?.(chip)}
-                className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-indigo-100/90 transition hover:border-indigo-400/50 hover:bg-white/15 hover:text-white"
+                className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-slate-200/90 transition hover:border-emerald-400/50 hover:bg-white/15 hover:text-white"
               >
                 {chip}
               </button>
@@ -816,7 +813,7 @@ export function ProjectDashboardView({
           </div>
           <Badge
             variant="outline"
-            className="border-indigo-200 bg-indigo-50/70 text-[10px] font-bold text-indigo-700"
+            className="border-slate-200 bg-slate-50 text-[10px] font-bold text-emerald-800"
           >
             {isGrantSupported
               ? 'BUILD → REVIEW → COMPILE → APPLY'
@@ -834,19 +831,19 @@ export function ProjectDashboardView({
           {/* Card 1: Founder Workspace (Modules A–L) */}
           <div
             onClick={() => onEnterWorkspace(activeModule)}
-            className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-400 hover:shadow-md"
+            className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-400 hover:shadow-md"
           >
             <div>
               <div className="flex items-start justify-between gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-xs">
                   <Compass className="h-5 w-5" />
                 </div>
-                <Badge className="border-indigo-200 bg-indigo-50 text-[10px] font-bold text-indigo-800">
+                <Badge className="border-slate-200 bg-emerald-50 text-[10px] font-bold text-emerald-900">
                   STEP 1 • BUILD
                 </Badge>
               </div>
 
-              <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-indigo-600">
+              <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-emerald-800">
                 Founder Workspace (Modules A–L)
               </h3>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
@@ -859,7 +856,7 @@ export function ProjectDashboardView({
             <div className="mt-5 space-y-3 border-t border-slate-100 pt-3.5">
               <div className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs">
                 <span className="font-medium text-slate-600">Active Step:</span>
-                <span className="font-bold text-indigo-700 truncate max-w-[180px]">
+                <span className="font-bold text-emerald-800 truncate max-w-[180px]">
                   {activeModuleTitle}
                 </span>
               </div>
@@ -870,7 +867,7 @@ export function ProjectDashboardView({
                   e.stopPropagation();
                   onEnterWorkspace(activeModule);
                 }}
-                className="w-full bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+                className="w-full bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
               >
                 Continue Building
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -932,19 +929,19 @@ export function ProjectDashboardView({
           {/* Card 3: Business Plan Studio (Multi-Version) */}
           <div
             onClick={onOpenBusinessPlanStudio}
-            className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-violet-400 hover:shadow-md"
+            className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-500 hover:shadow-md"
           >
             <div>
               <div className="flex items-start justify-between gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-xs">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-xs">
                   <Sparkles className="h-5 w-5" />
                 </div>
-                <Badge className="border-violet-200 bg-violet-50 text-[10px] font-bold text-violet-800">
+                <Badge className="border-slate-200 bg-slate-50 text-[10px] font-bold text-emerald-900">
                   STEP 3 • COMPILE &amp; EXPORT
                 </Badge>
               </div>
 
-              <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-violet-700">
+              <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-emerald-800">
                 Business Plan Studio
               </h3>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
@@ -954,11 +951,11 @@ export function ProjectDashboardView({
             </div>
 
             <div className="mt-5 space-y-3 border-t border-slate-100 pt-3.5">
-              <div className="flex items-center justify-between rounded-lg border border-violet-100 bg-violet-50/50 px-3 py-2 text-xs">
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs">
                 <span className="font-medium text-slate-600">
                   Saved Versions:
                 </span>
-                <span className="font-bold text-violet-900">
+                <span className="font-bold text-slate-900">
                   {savedDossiersCount} Dossier
                   {savedDossiersCount === 1 ? '' : 's'} Ready
                 </span>
@@ -971,7 +968,7 @@ export function ProjectDashboardView({
                   e.stopPropagation();
                   onOpenBusinessPlanStudio();
                 }}
-                className="w-full border-violet-300 bg-white text-xs font-bold text-violet-800 hover:bg-violet-50"
+                className="w-full border-slate-300 bg-white text-xs font-bold text-emerald-900 hover:bg-slate-50"
               >
                 Open Plan Studio
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -1059,11 +1056,11 @@ export function ProjectDashboardView({
           {/* Card 1: Customer Surveys & Waitlist (Module C) */}
           <div
             onClick={() => onEnterWorkspace('MOD_C_SURVEYS_FEEDBACK')}
-            className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md"
+            className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md"
           >
             <div>
               <div className="flex items-start justify-between gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-indigo-200/70 bg-indigo-50 text-indigo-700">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/70 bg-emerald-50 text-emerald-800">
                   <MessageSquare className="h-4.5 w-4.5" />
                 </div>
                 <Badge
@@ -1074,7 +1071,7 @@ export function ProjectDashboardView({
                 </Badge>
               </div>
 
-              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-indigo-600">
+              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-emerald-800">
                 Customer Surveys &amp; Waitlist
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-slate-600">
@@ -1103,7 +1100,7 @@ export function ProjectDashboardView({
                     e.stopPropagation();
                     onEnterWorkspace('MOD_C_SURVEYS_FEEDBACK');
                   }}
-                  className="flex-1 border-slate-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                  className="flex-1 border-slate-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
                 >
                   Open Survey Studio
                   <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -1131,7 +1128,7 @@ export function ProjectDashboardView({
           {/* Card 2: Pocket Profit & What-If Breakeven Sandbox (Module H) */}
           <div
             onClick={() => onEnterWorkspace('MOD_H_REVENUE', 3)}
-            className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md"
+            className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md"
           >
             <div>
               <div className="flex items-start justify-between gap-3">
@@ -1146,7 +1143,7 @@ export function ProjectDashboardView({
                 </Badge>
               </div>
 
-              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-indigo-600">
+              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-emerald-800">
                 Pocket Profit &amp; What-If Sandbox
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-slate-600">
@@ -1174,7 +1171,7 @@ export function ProjectDashboardView({
                   e.stopPropagation();
                   onEnterWorkspace('MOD_H_REVENUE', 3);
                 }}
-                className="w-full border-slate-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                className="w-full border-slate-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
               >
                 Open Pocket Profit Sandbox
                 <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -1186,11 +1183,11 @@ export function ProjectDashboardView({
           {isGrantSupported && (
             <div
               onClick={() => onEnterWorkspace('MOD_K_GRANTS_FUNDING')}
-              className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md"
+              className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md"
             >
               <div>
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet-200/70 bg-violet-50 text-violet-700">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/70 bg-slate-50 text-emerald-800">
                     <Scale className="h-4.5 w-4.5" />
                   </div>
                   <Badge
@@ -1201,7 +1198,7 @@ export function ProjectDashboardView({
                   </Badge>
                 </div>
 
-                <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-indigo-600">
+                <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-emerald-800">
                   Grants &amp; Funding Radar
                 </h3>
                 <p className="mt-1 text-xs leading-relaxed text-slate-600">
@@ -1214,7 +1211,7 @@ export function ProjectDashboardView({
               <div className="mt-4 space-y-2.5 border-t border-slate-100 pt-3">
                 <div className="flex items-center justify-between rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs">
                   <span className="text-slate-600">Matched Programs:</span>
-                  <span className="font-bold text-violet-800">
+                  <span className="font-bold text-emerald-900">
                     {matchedGrantsCount} {countryName} Program
                     {matchedGrantsCount === 1 ? '' : 's'}
                   </span>
@@ -1229,7 +1226,7 @@ export function ProjectDashboardView({
                       e.stopPropagation();
                       onEnterWorkspace('MOD_K_GRANTS_FUNDING');
                     }}
-                    className="flex-1 border-slate-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                    className="flex-1 border-slate-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
                   >
                     Explore Grants
                   </Button>
@@ -1280,11 +1277,11 @@ export function ProjectDashboardView({
           {/* Card 1: Getting Set Up / Launchpad (Module G) */}
           <div
             onClick={() => onEnterWorkspace('MOD_G_LAUNCHPAD')}
-            className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md"
+            className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md"
           >
             <div>
               <div className="flex items-start justify-between gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-indigo-200/70 bg-indigo-50 text-indigo-700">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/70 bg-emerald-50 text-emerald-800">
                   <Wrench className="h-4.5 w-4.5" />
                 </div>
                 <Badge
@@ -1295,7 +1292,7 @@ export function ProjectDashboardView({
                 </Badge>
               </div>
 
-              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-indigo-600">
+              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-emerald-800">
                 Getting Set Up (Launchpad Hub)
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-slate-600">
@@ -1315,7 +1312,7 @@ export function ProjectDashboardView({
             <div className="mt-4 space-y-2.5 border-t border-slate-100 pt-3">
               <div className="flex items-center justify-between rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs">
                 <span className="text-slate-600">Operations Readiness:</span>
-                <span className="font-bold text-indigo-700">
+                <span className="font-bold text-emerald-800">
                   {launchpadStepsCompletedCount} of 6 Cards ({launchpadProgressPercent}%)
                 </span>
               </div>
@@ -1328,7 +1325,7 @@ export function ProjectDashboardView({
                   e.stopPropagation();
                   onEnterWorkspace('MOD_G_LAUNCHPAD');
                 }}
-                className="w-full border-slate-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                className="w-full border-slate-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
               >
                 Open Launchpad Checklist
                 <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -1339,7 +1336,7 @@ export function ProjectDashboardView({
           {/* Card 2: 3-Quote Supplier Concierge (Modules D & E) */}
           <div
             onClick={() => onEnterWorkspace('MOD_E_OPERATIONS', 2)}
-            className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md"
+            className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md"
           >
             <div>
               <div className="flex items-start justify-between gap-3">
@@ -1351,7 +1348,7 @@ export function ProjectDashboardView({
                 </Badge>
               </div>
 
-              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-indigo-600">
+              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-emerald-800">
                 3-Quote Supplier Concierge
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-slate-600">
@@ -1378,7 +1375,7 @@ export function ProjectDashboardView({
                     e.stopPropagation();
                     onEnterWorkspace('MOD_D_PRODUCT_BUILD', 4);
                   }}
-                  className="border-slate-200 text-[11px] font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700"
+                  className="border-slate-200 text-[11px] font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
                 >
                   Dev/Tech Quotes
                 </Button>
@@ -1390,7 +1387,7 @@ export function ProjectDashboardView({
                     e.stopPropagation();
                     onEnterWorkspace('MOD_E_OPERATIONS', 2);
                   }}
-                  className="border-slate-200 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                  className="border-slate-200 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50"
                 >
                   Equipment Quotes
                 </Button>
@@ -1414,7 +1411,7 @@ export function ProjectDashboardView({
                 </Badge>
               </div>
 
-              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-indigo-600">
+              <h3 className="mt-3.5 text-base font-bold text-slate-900 group-hover:text-emerald-800">
                 Open Questions &amp; Concept Vault
               </h3>
               {openQuestionsPreview.length > 0 ? (
@@ -1452,7 +1449,7 @@ export function ProjectDashboardView({
                   e.stopPropagation();
                   onEnterWorkspace('MOD_A_IDEATION', 7);
                 }}
-                className="w-full border-slate-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                className="w-full border-slate-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
               >
                 Review Concept Brief &amp; Questions
                 <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -1478,7 +1475,7 @@ export function ProjectDashboardView({
           </div>
           <Badge
             variant="outline"
-            className="border-violet-200 bg-violet-50/70 text-[10px] font-bold text-violet-800"
+            className="border-slate-200 bg-slate-50 text-[10px] font-bold text-emerald-900"
           >
             COMING SOON • EARLY ACCESS
           </Badge>
@@ -1530,7 +1527,7 @@ export function ProjectDashboardView({
                     className={`w-full text-xs font-semibold transition-all ${
                       isNotified
                         ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-indigo-700'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-emerald-800'
                     }`}
                   >
                     {isNotified ? (
@@ -1540,7 +1537,7 @@ export function ProjectDashboardView({
                       </>
                     ) : (
                       <>
-                        <Bell className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        <Bell className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Notify Me When Live
                       </>
                     )}

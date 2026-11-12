@@ -192,11 +192,11 @@ export function ModuleKWorkspace({
       {/* ========================================================================= */}
       {/* 1. TOP HEADER MODULE CARD (Strict GEMINI.md Baseline Standard)            */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100 text-[10px] shrink-0">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200 text-[10px] shrink-0">
                 Module K • {isGrantsEnabled ? 'Flagship Standalone #3' : 'Capital & Runway Hub'}
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
@@ -210,7 +210,7 @@ export function ModuleKWorkspace({
                 ? 'Module K: Non-Dilutive Grants, Loans & Investor Tax Relief Hub'
                 : 'Module K: Capital Stack, Runway & Funding Readiness Hub'}
             </h1>
-            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
               {isGrantsEnabled
                 ? 'Cross-examine your startup plan against official assessor underwriting criteria, match non-dilutive government capital, and bridge grant cashflow timing lag.'
                 : 'Structure your funding blend across founder bootstrapping, commercial bank facilities, angel/seed equity, and non-dilutive startup perks.'}
@@ -225,7 +225,7 @@ export function ModuleKWorkspace({
                   variant="outline"
                   size="sm"
                   onClick={onBackToModuleJ}
-                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                  className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Module J
@@ -236,12 +236,12 @@ export function ModuleKWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))}
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
               </Button>
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Module K Progress:{' '}
               <strong className="text-white">
                 {Math.round((completedCoreStepsCount / totalCoreSteps) * 100)}%
@@ -253,7 +253,7 @@ export function ModuleKWorkspace({
 
         {/* Step Navigation Strip (Tile Grid Standard) */}
         <div
-          className={`mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 ${
+          className={`mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 ${
             isGrantsEnabled ? 'sm:grid-cols-3 lg:grid-cols-5' : 'sm:grid-cols-2'
           }`}
         >
@@ -279,7 +279,7 @@ export function ModuleKWorkspace({
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
@@ -299,11 +299,11 @@ export function ModuleKWorkspace({
 
       {/* Regional Non-Dilutive R&D & Startup Cloud Credits Banner for Non-IE/GB Commercial Plans */}
       {!isGrantsEnabled && (
-        <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/70 via-white to-emerald-50/50 p-4 shadow-xs">
+        <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-emerald-50/50 p-4 shadow-xs">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Badge className="bg-indigo-600 text-[10px] text-white">
+                <Badge className="bg-emerald-700 text-[10px] text-white">
                   {countryFlag} {countryName} Commercial Funding Mode
                 </Badge>
                 <span className="text-xs font-bold text-slate-900">
@@ -333,19 +333,19 @@ export function ModuleKWorkspace({
           // Collapsed Step 1 Card
           <div
             onClick={() => setOpenStep(1)}
-            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 1: Automated Cross-Platform Grant Audit &amp; Prerequisite Checklist
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -368,7 +368,7 @@ export function ModuleKWorkspace({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                 >
                   {isStep1Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -382,7 +382,7 @@ export function ModuleKWorkspace({
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                     1
                   </div>
                   <div>
@@ -439,19 +439,19 @@ export function ModuleKWorkspace({
           // Collapsed Step 2 Card
           <div
             onClick={() => setOpenStep(2)}
-            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep2Complete ? <Check className="h-4 w-4" /> : isGrantsEnabled ? '2' : '1'}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     {isGrantsEnabled
                       ? 'Step 2: Capital Stack & Skin-in-the-Game Blend'
                       : 'Step 1: Capital Stack & Funding Blend'}
@@ -478,7 +478,7 @@ export function ModuleKWorkspace({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                 >
                   {isStep2Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -492,7 +492,7 @@ export function ModuleKWorkspace({
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                     {isGrantsEnabled ? '2' : '1'}
                   </div>
                   <div>
@@ -553,19 +553,19 @@ export function ModuleKWorkspace({
           // Collapsed Step 3 Card
           <div
             onClick={() => setOpenStep(3)}
-            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 3: Grant Reimbursement Timing Bridge (Cashflow Survival)
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -588,7 +588,7 @@ export function ModuleKWorkspace({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                 >
                   {isStep3Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -602,7 +602,7 @@ export function ModuleKWorkspace({
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                     3
                   </div>
                   <div>
@@ -659,7 +659,7 @@ export function ModuleKWorkspace({
         {openStep !== 'ALL' && openStep !== 4 ? (
           <div
             onClick={() => setOpenStep(4)}
-            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -667,13 +667,13 @@ export function ModuleKWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     isStep4Complete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 4: Investor Tax Relief &amp; Angel Catalyst (SEIS/EIS &amp; SURE/EII)
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -697,7 +697,7 @@ export function ModuleKWorkspace({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                 >
                   {isStep4Complete ? 'Edit Step' : 'Open Step'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -710,7 +710,7 @@ export function ModuleKWorkspace({
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
                     4
                   </div>
                   <div className="min-w-0">
@@ -771,7 +771,7 @@ export function ModuleKWorkspace({
         {openStep !== 'ALL' && openStep !== 5 ? (
           <div
             onClick={() => setOpenStep(5)}
-            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -779,13 +779,13 @@ export function ModuleKWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     isStep5Complete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep5Complete ? <Check className="h-4 w-4" /> : <Landmark className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Module K Final Overview Brief &amp; Phased Funding Strategy
                   </h2>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -813,7 +813,7 @@ export function ModuleKWorkspace({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                  className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                 >
                   {isStep5Complete ? 'Review Overview' : 'Open Overview'}
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -830,7 +830,7 @@ export function ModuleKWorkspace({
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                       isStep5Complete
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
                     }`}
                   >
                     {isStep5Complete ? <Check className="h-4 w-4" /> : <Landmark className="h-4 w-4" />}

@@ -31,7 +31,7 @@ export function AutosaveStatusIndicator({
     <div
       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all ${
         status === 'saving'
-          ? 'border-indigo-200 bg-indigo-50/80 text-indigo-700 shadow-2xs'
+          ? 'border-slate-200 bg-emerald-50/80 text-emerald-800 shadow-2xs'
           : status === 'error'
             ? 'border-amber-300 bg-amber-50 text-amber-800'
             : status === 'saved'
@@ -46,8 +46,8 @@ export function AutosaveStatusIndicator({
     >
       {status === 'saving' && (
         <>
-          <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
-          <span className="font-semibold text-indigo-600">Saving...</span>
+          <Loader2 className="h-3 w-3 animate-spin text-emerald-700" />
+          <span className="font-semibold text-emerald-700">Saving...</span>
         </>
       )}
 

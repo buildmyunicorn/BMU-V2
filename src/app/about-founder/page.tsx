@@ -26,7 +26,7 @@ export default function AboutFounderPage() {
   const [imageError, setImageError] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-emerald-700 selection:text-white">
       {/* ===================================================================== */}
       {/* UNIFIED MARKETING HEADER                                              */}
       {/* ===================================================================== */}
@@ -35,20 +35,18 @@ export default function AboutFounderPage() {
       {/* ===================================================================== */}
       {/* HERO & FOUNDER BIO SECTION                                            */}
       {/* ===================================================================== */}
-      <section className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white via-indigo-50/25 to-slate-50 pt-12 pb-20 sm:pt-16 sm:pb-24">
-        <div className="pointer-events-none absolute top-0 left-1/2 -z-10 h-[460px] w-[960px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-indigo-200/35 via-violet-100/25 to-emerald-100/25 blur-3xl" />
-
+      <section className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white via-slate-50/25 to-slate-50 pt-12 pb-20 sm:pt-16 sm:pb-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           {/* Top Pill */}
           <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200/80 bg-white px-4 py-1.5 text-xs font-semibold text-indigo-950 shadow-2xs">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-4 py-1.5 text-xs font-semibold text-slate-950 shadow-2xs">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
               <span>Built by a Practitioner — Not a Prompt-Wrapper Agency</span>
             </div>
 
             <Link
               href="/"
-              className="text-xs font-semibold text-slate-600 transition-colors hover:text-indigo-600"
+              className="text-xs font-semibold text-slate-600 transition-colors hover:text-emerald-700"
             >
               ← Back to Startup Preflight Overview
             </Link>
@@ -73,7 +71,7 @@ export default function AboutFounderPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-slate-900">Thomas Walsh</p>
-                        <p className="text-[10px] font-medium text-indigo-600">
+                        <p className="text-[10px] font-medium text-emerald-700">
                           Founder, Startup Preflight
                         </p>
                       </div>
@@ -97,7 +95,7 @@ export default function AboutFounderPage() {
                   </div>
 
                   <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3.5 py-2.5">
-                    <Code2 className="h-4 w-4 shrink-0 text-indigo-600" />
+                    <Code2 className="h-4 w-4 shrink-0 text-emerald-700" />
                     <div>
                       <p className="text-xs font-bold text-slate-900">
                         20+ Years in Tech &amp; Cloud
@@ -125,9 +123,9 @@ export default function AboutFounderPage() {
                     href="https://www.linkedin.com/in/twalsh-start-ups/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-700"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50/60 hover:text-emerald-800"
                   >
-                    <Linkedin className="h-4 w-4 text-indigo-600" />
+                    <Linkedin className="h-4 w-4 text-emerald-700" />
                     Connect with Thomas on LinkedIn
                   </a>
                 </div>
@@ -137,7 +135,7 @@ export default function AboutFounderPage() {
             {/* RIGHT COLUMN: BIO & WHY STARTUP PREFLIGHT EXISTS */}
             <div className="space-y-8 lg:col-span-8">
               <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs sm:p-10">
-                <p className="text-xs font-bold tracking-wider text-indigo-600 uppercase">
+                <p className="text-xs font-bold tracking-wider text-emerald-700 uppercase">
                   Meet the Founder
                 </p>
                 <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-4xl">
@@ -178,8 +176,8 @@ export default function AboutFounderPage() {
                 </div>
 
                 {/* Highlight Quote Box */}
-                <div className="mt-8 rounded-2xl border border-indigo-200/80 bg-indigo-50/60 p-5 sm:p-6">
-                  <p className="text-xs font-bold tracking-wider text-indigo-700 uppercase">
+                <div className="mt-8 rounded-2xl border border-slate-200/80 bg-emerald-50/60 p-5 sm:p-6">
+                  <p className="text-xs font-bold tracking-wider text-emerald-800 uppercase">
                     Why I Built Startup Preflight
                   </p>
                   <p className="mt-2 text-sm leading-relaxed text-slate-700">
@@ -187,7 +185,7 @@ export default function AboutFounderPage() {
                     entire 20-year playbook — technical architecture, commercial strategy, unit
                     economics, and grant underwriting rules — into an opinionated, 12-module
                     co-pilot. It follows one simple rule:{' '}
-                    <span className="font-semibold text-indigo-700">
+                    <span className="font-semibold text-emerald-800">
                       Capture First, Expand Second.
                     </span>{' '}
                     We never criticize a raw idea upfront. First, we help you extract and structure
@@ -247,7 +245,7 @@ export default function AboutFounderPage() {
 
                 {/* Technical & Architecture Track Record */}
                 <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs">
-                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700">
+                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800">
                     <Code2 className="h-5 w-5" />
                   </div>
                   <h2 className="text-lg font-bold text-slate-900">
@@ -260,14 +258,14 @@ export default function AboutFounderPage() {
                   </p>
                   <ul className="mt-4 space-y-2.5 text-xs text-slate-700">
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         <strong>20+ Years in Software &amp; Cloud:</strong> Hands-on engineering
                         and enterprise solution architecture experience from code to cloud scale.
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         <strong>Build-vs-Buy Guardrails:</strong> Preventing founders from spending
                         €25,000+ custom-coding features that can be validated with off-the-shelf
@@ -275,14 +273,14 @@ export default function AboutFounderPage() {
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         <strong>Technical Merit &amp; Work Packages:</strong> Automatically
                         structuring product roadmaps into grant-compliant Work Packages (WP1–WPn).
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         <strong>Unit Economics &amp; Margin Reality:</strong> Factoring cloud costs,
                         app store commissions, and payment fees directly into Module H breakeven.
@@ -296,7 +294,7 @@ export default function AboutFounderPage() {
               <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs sm:p-8">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                   <div>
-                    <div className="inline-flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-600 uppercase">
+                    <div className="inline-flex items-center gap-2 text-xs font-bold tracking-wider text-emerald-700 uppercase">
                       <Building2 className="h-3.5 w-3.5" />
                       <span>Accelerators, Universities, LEOs &amp; Growth Hubs</span>
                     </div>
@@ -312,9 +310,9 @@ export default function AboutFounderPage() {
                   <div className="flex shrink-0 flex-wrap items-center gap-3">
                     <a
                       href="mailto:tom@startuppreflight.com?subject=Startup%20Preflight%20Enquiry"
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
                     >
-                      <Mail className="h-4 w-4 text-indigo-600" />
+                      <Mail className="h-4 w-4 text-emerald-700" />
                       tom@startuppreflight.com
                     </a>
                   </div>
@@ -322,7 +320,7 @@ export default function AboutFounderPage() {
               </div>
 
               {/* BOTTOM CTA BANNER */}
-              <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
+              <div className="rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-xl sm:p-8">
                 <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
                   <div>
                     <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400">
@@ -332,14 +330,14 @@ export default function AboutFounderPage() {
                     <h3 className="mt-1 text-xl font-black text-white">
                       Ready to stress-test your startup idea with Thomas&apos;s 12-module system?
                     </h3>
-                    <p className="mt-1 text-xs text-indigo-100/80 sm:text-sm">
+                    <p className="mt-1 text-xs text-slate-200/80 sm:text-sm">
                       Complete your 1-Page Concept Canvas, Customer Storyboard, and 100-Point
                       Founder-Idea Fit Scorecard in 10 minutes.
                     </p>
                   </div>
                   <div className="flex w-full shrink-0 flex-col gap-2.5 sm:w-auto sm:flex-row">
                     <Link href="/register" className="w-full sm:w-auto">
-                      <Button className="h-11 w-full rounded-xl bg-indigo-600 px-6 text-xs font-bold text-white shadow-md hover:bg-indigo-500 sm:w-auto">
+                      <Button className="h-11 w-full rounded-xl bg-emerald-700 px-6 text-xs font-bold text-white shadow-md hover:bg-emerald-500 sm:w-auto">
                         Start Module A Free
                         <ArrowRight className="ml-1.5 h-4 w-4" />
                       </Button>

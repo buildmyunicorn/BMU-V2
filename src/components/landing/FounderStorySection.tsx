@@ -26,9 +26,6 @@ export function FounderStorySection() {
       className="relative overflow-hidden border-t border-slate-800 bg-slate-950 py-20 text-slate-100 sm:py-24"
     >
       {/* Background glow styling */}
-      <div className="pointer-events-none absolute -top-40 right-0 h-96 w-96 rounded-full bg-indigo-600/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 left-0 h-96 w-96 rounded-full bg-violet-600/10 blur-3xl" />
-
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center">
           {/* Left Column: 5 Cols - Founder Profile Card */}
@@ -50,8 +47,8 @@ export function FounderStorySection() {
                   }}
                 />
                 {/* Fallback avatar overlay shown if image file is loading or missing */}
-                <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-center p-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600/30 text-indigo-400 ring-1 ring-indigo-500/40">
+                <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-center p-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-700/30 text-emerald-600 ring-1 ring-emerald-700/40">
                     <Sparkles className="h-8 w-8" />
                   </div>
                   <span className="mt-3 text-base font-bold text-white">
@@ -75,11 +72,11 @@ export function FounderStorySection() {
                     Thomas Walsh
                   </h3>
                   <div className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300">
-                    <MapPin className="h-3 w-3 text-indigo-400" />
+                    <MapPin className="h-3 w-3 text-emerald-600" />
                     Dublin, Ireland 🇮🇪
                   </div>
                 </div>
-                <p className="text-xs font-medium text-indigo-400">
+                <p className="text-xs font-medium text-emerald-600">
                   Founder &amp; Builder, Startup PreFlight
                 </p>
               </div>
@@ -87,7 +84,7 @@ export function FounderStorySection() {
               {/* 3 Proof Metric Pills */}
               <div className="mt-5 space-y-2.5">
                 <div className="flex items-start gap-3 rounded-xl border border-slate-800/90 bg-slate-950/60 p-3 text-left">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600/20 text-indigo-400 ring-1 ring-indigo-500/30">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700/20 text-emerald-600 ring-1 ring-emerald-700/30">
                     <Briefcase className="h-4 w-4" />
                   </div>
                   <div>
@@ -101,7 +98,7 @@ export function FounderStorySection() {
                 </div>
 
                 <div className="flex items-start gap-3 rounded-xl border border-slate-800/90 bg-slate-950/60 p-3 text-left">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-600/20 text-violet-400 ring-1 ring-violet-500/30">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700/20 text-emerald-500 ring-1 ring-emerald-600/30">
                     <Code2 className="h-4 w-4" />
                   </div>
                   <div>
@@ -154,7 +151,7 @@ export function FounderStorySection() {
           {/* Right Column: 7 Cols - Narrative & Dual-Brain Grid */}
           <div className="space-y-6 text-left lg:col-span-7">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1 text-[11px] font-bold tracking-wide text-indigo-400 ring-1 ring-indigo-500/25 uppercase">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-bold tracking-wide text-emerald-600 ring-1 ring-emerald-700/25 uppercase">
                 <Sparkles className="h-3 w-3" />
                 BUILT BY AN INSIDER WHO ACTUALLY WRITES THE CODE
               </span>
@@ -213,33 +210,33 @@ export function FounderStorySection() {
             {/* Two Halves of Your Co-Pilot Sub-Grid */}
             <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
               {/* Card 1: Commercial Brain */}
-              <div className="rounded-2xl border border-indigo-900/60 bg-gradient-to-b from-indigo-950/40 to-slate-900/60 p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-950 to-slate-900/60 p-4 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600/30 text-indigo-400 ring-1 ring-indigo-500/40">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700/30 text-emerald-600 ring-1 ring-emerald-700/40">
                     <Award className="h-4 w-4" />
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">
                       The Commercial &amp; Grant Brain
                     </h4>
-                    <p className="text-[11px] font-medium text-indigo-300">
+                    <p className="text-[11px] font-medium text-slate-300">
                       400+ Startups Mentored
                     </p>
                   </div>
                 </div>
                 <ul className="mt-3 space-y-1.5 text-xs text-slate-300">
                   <li className="flex items-start gap-1.5">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
                     <span>Global Head of Startup Success (SMB) at Google</span>
                   </li>
                   <li className="flex items-start gap-1.5">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
                     <span>
                       Former EMEA High Potential Start-Up (HPSU) Lead at Oracle (300+ startups)
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
                     <span>
                       100+ early-stage founders guided through grant &amp; investor readiness
                     </span>
@@ -248,35 +245,35 @@ export function FounderStorySection() {
               </div>
 
               {/* Card 2: Technical Brain */}
-              <div className="rounded-2xl border border-violet-900/60 bg-gradient-to-b from-violet-950/40 to-slate-900/60 p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-800/60 bg-gradient-to-b from-slate-950 to-slate-900/60 p-4 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600/30 text-violet-400 ring-1 ring-violet-500/40">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700/30 text-emerald-500 ring-1 ring-emerald-600/40">
                     <Terminal className="h-4 w-4" />
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">
                       The Technical &amp; Architecture Brain
                     </h4>
-                    <p className="text-[11px] font-medium text-violet-300">
+                    <p className="text-[11px] font-medium text-emerald-400">
                       20+ Years Hands-On Engineering
                     </p>
                   </div>
                 </div>
                 <ul className="mt-3 space-y-1.5 text-xs text-slate-300">
                   <li className="flex items-start gap-1.5">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-400" />
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                     <span>
                       Deep roots in Systems Architecture, BI &amp; Cloud (Version 1, Oracle)
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-400" />
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                     <span>
                       Full-Stack AI SaaS Builder (Creator of TeamTrackAI, used by 80+ clubs)
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-400" />
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                     <span>
                       Built to protect non-technical founders from agency overcharging &amp; bad MVP specs
                     </span>
@@ -297,14 +294,14 @@ export function FounderStorySection() {
               href="https://www.linkedin.com/in/twalsh-start-ups"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-indigo-400 hover:text-indigo-300 underline"
+              className="font-semibold text-emerald-600 hover:text-slate-300 underline"
             >
               LinkedIn
             </a>{' '}
             or email{' '}
             <a
               href="mailto:tom@startuppreflight.com"
-              className="font-semibold text-indigo-400 hover:text-indigo-300 underline"
+              className="font-semibold text-emerald-600 hover:text-slate-300 underline"
             >
               tom@startuppreflight.com
             </a>

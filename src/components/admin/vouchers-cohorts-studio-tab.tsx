@@ -588,7 +588,7 @@ export function VouchersCohortsStudioTab({
           <CardContent className="p-4">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>Active Cohorts</span>
-              <Building className="h-4 w-4 text-indigo-500" />
+              <Building className="h-4 w-4 text-emerald-600" />
             </div>
             <div className="mt-2 text-2xl font-bold text-slate-900">{stats.totalCohorts}</div>
             <div className="mt-1 text-[11px] text-slate-400">
@@ -640,7 +640,7 @@ export function VouchersCohortsStudioTab({
             size="sm"
             variant={subTab === 'COHORTS' ? 'default' : 'outline'}
             onClick={() => setSubTab('COHORTS')}
-            className={`text-xs ${subTab === 'COHORTS' ? 'bg-indigo-600 text-white' : ''}`}
+            className={`text-xs ${subTab === 'COHORTS' ? 'bg-emerald-700 text-white' : ''}`}
           >
             <Building className="mr-1.5 h-3.5 w-3.5" />
             Institutional Cohorts ({cohorts.length})
@@ -649,7 +649,7 @@ export function VouchersCohortsStudioTab({
             size="sm"
             variant={subTab === 'INQUIRIES' ? 'default' : 'outline'}
             onClick={() => setSubTab('INQUIRIES')}
-            className={`text-xs relative ${subTab === 'INQUIRIES' ? 'bg-indigo-600 text-white' : ''}`}
+            className={`text-xs relative ${subTab === 'INQUIRIES' ? 'bg-emerald-700 text-white' : ''}`}
           >
             <Inbox className="mr-1.5 h-3.5 w-3.5" />
             Cohort Inquiries ({inquiries.length})
@@ -663,7 +663,7 @@ export function VouchersCohortsStudioTab({
             size="sm"
             variant={subTab === 'VOUCHERS' ? 'default' : 'outline'}
             onClick={() => setSubTab('VOUCHERS')}
-            className={`text-xs ${subTab === 'VOUCHERS' ? 'bg-indigo-600 text-white' : ''}`}
+            className={`text-xs ${subTab === 'VOUCHERS' ? 'bg-emerald-700 text-white' : ''}`}
           >
             <Ticket className="mr-1.5 h-3.5 w-3.5" />
             Single-Use Vouchers ({vouchers.length})
@@ -685,7 +685,7 @@ export function VouchersCohortsStudioTab({
               <Button
                 size="sm"
                 onClick={() => setShowBatchModal(true)}
-                className="bg-indigo-600 text-xs text-white hover:bg-indigo-700"
+                className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
               >
                 <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
                 Bulk Generate Voucher Batch
@@ -703,7 +703,7 @@ export function VouchersCohortsStudioTab({
                 setCohortCode('');
                 setShowCohortModal(true);
               }}
-              className="bg-indigo-600 text-xs text-white hover:bg-indigo-700 font-semibold"
+              className="bg-emerald-700 text-xs text-white hover:bg-emerald-800 font-semibold"
             >
               <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
               Provision New Institutional Cohort
@@ -727,15 +727,15 @@ export function VouchersCohortsStudioTab({
       {subTab === 'COHORTS' && (
         <div className="space-y-4">
           {/* Informative Guidance Banner */}
-          <div className="flex items-start gap-2.5 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs text-indigo-950 shadow-2xs">
-            <Building className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+          <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-emerald-50/70 p-3.5 text-xs text-slate-900 shadow-2xs">
+            <Building className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
             <div className="space-y-1">
               <div>
                 <span className="font-semibold">Institutional Cohort Management:</span> Supports both{' '}
                 <strong>Continuous Rolling Onboarding</strong> (for Google for Startups, AWS, or always-on accelerator pipelines) and{' '}
                 <strong>Fixed-Batch Semesters</strong> (for university incubators & LEO cohorts).
               </div>
-              <div className="text-[11px] text-indigo-800/90">
+              <div className="text-[11px] text-emerald-900/90">
                 Founders register using a single shared invite code. Upon reaching the configured Milestone Gate (e.g. 50% progress across Modules A–D + official domain verification), they can 1-click claim partner rewards, dispatching an executive dossier to the partner team.
               </div>
             </div>
@@ -759,7 +759,7 @@ export function VouchersCohortsStudioTab({
                       <div className="flex items-start justify-between gap-2">
                         <div className="space-y-0.5 min-w-0">
                           {c.organizationName && (
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 truncate">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 truncate">
                               {c.organizationName}
                             </div>
                           )}
@@ -793,7 +793,7 @@ export function VouchersCohortsStudioTab({
                       <div className="rounded-lg bg-slate-50 p-2.5 font-mono text-xs flex items-center justify-between border border-slate-200">
                         <div className="flex items-center gap-1.5 truncate">
                           <span className="text-[11px] text-slate-400 font-sans">Code:</span>
-                          <span className="font-bold text-indigo-700">{c.inviteCode}</span>
+                          <span className="font-bold text-emerald-800">{c.inviteCode}</span>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <Button
@@ -818,7 +818,7 @@ export function VouchersCohortsStudioTab({
                               onNotify('success', `Copied registration link: ${magicUrl}`);
                             }}
                             title="Copy Magic Onboarding URL"
-                            className="h-6 px-1.5 text-indigo-600 hover:text-indigo-800 font-sans text-[10px]"
+                            className="h-6 px-1.5 text-emerald-700 hover:text-emerald-900 font-sans text-[10px]"
                           >
                             <ExternalLink className="h-3 w-3 mr-1" />
                             Magic Link
@@ -849,7 +849,7 @@ export function VouchersCohortsStudioTab({
                         <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              percent >= 90 ? 'bg-amber-500' : 'bg-indigo-600'
+                              percent >= 90 ? 'bg-amber-500' : 'bg-emerald-700'
                             }`}
                             style={{ width: `${percent}%` }}
                           />
@@ -893,7 +893,7 @@ export function VouchersCohortsStudioTab({
                               type="button"
                               size="sm"
                               variant="outline"
-                              className="h-6 px-2 text-[11px] border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 font-medium"
+                              className="h-6 px-2 text-[11px] border-slate-200 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100 font-medium"
                             >
                               <GraduationCap className="h-3 w-3 mr-1" />
                               Portal ↗
@@ -918,7 +918,7 @@ export function VouchersCohortsStudioTab({
                             size="sm"
                             variant="outline"
                             onClick={() => handleOpenEditCohort(c)}
-                            className="h-6 px-2 text-[11px] border-slate-200 text-indigo-700 hover:bg-indigo-50"
+                            className="h-6 px-2 text-[11px] border-slate-200 text-emerald-800 hover:bg-emerald-50/70"
                           >
                             <Settings className="h-3 w-3 mr-1" />
                             Edit
@@ -1012,7 +1012,7 @@ export function VouchersCohortsStudioTab({
                           </div>
                           <div className="text-xs text-slate-600 mt-0.5">
                             {inq.name} ({inq.organizationType || 'Partner'}) •{' '}
-                            <a href={`mailto:${inq.email}`} className="text-indigo-600 hover:underline">
+                            <a href={`mailto:${inq.email}`} className="text-emerald-700 hover:underline">
                               {inq.email}
                             </a>
                             {inq.regionalFocus ? ` • Focus: ${inq.regionalFocus}` : ''}
@@ -1037,7 +1037,7 @@ export function VouchersCohortsStudioTab({
                             <Button
                               size="sm"
                               onClick={() => handleConvertInquiryToCohort(inq)}
-                              className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-semibold"
+                              className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-semibold"
                             >
                               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                               Convert to Live Cohort
@@ -1299,7 +1299,7 @@ export function VouchersCohortsStudioTab({
                     <select
                       value={source}
                       onChange={(e) => setSource(e.target.value as any)}
-                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-600"
                     >
                       <option value="APPSUMO">AppSumo</option>
                       <option value="PARTNER">Partner Deal</option>
@@ -1313,7 +1313,7 @@ export function VouchersCohortsStudioTab({
                     <select
                       value={rewardType}
                       onChange={(e) => setRewardType(e.target.value as any)}
-                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-600"
                     >
                       <option value="APPSUMO_LTD">AppSumo Lifetime (Stackable)</option>
                       <option value="PASS_SOLO">6-Month Solo Pass</option>
@@ -1378,7 +1378,7 @@ export function VouchersCohortsStudioTab({
                   <Button
                     type="submit"
                     disabled={isGenerating}
-                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700 font-semibold"
+                    className="bg-emerald-700 text-xs text-white hover:bg-emerald-800 font-semibold"
                   >
                     {isGenerating ? (
                       <>
@@ -1406,7 +1406,7 @@ export function VouchersCohortsStudioTab({
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <GraduationCap className="h-5 w-5 text-indigo-600" />
+                    <GraduationCap className="h-5 w-5 text-emerald-700" />
                     Provision Institutional Cohort
                   </CardTitle>
                   <CardDescription className="text-xs">
@@ -1474,7 +1474,7 @@ export function VouchersCohortsStudioTab({
                     <select
                       value={cohortIntakeType}
                       onChange={(e) => setCohortIntakeType(e.target.value as CohortIntakeType)}
-                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-500 font-medium"
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-600 font-medium"
                     >
                       <option value="ROLLING">⚡ Rolling Intake (Continuous Onboarding)</option>
                       <option value="FIXED_BATCH">📅 Fixed Batch (Semester / Single Class)</option>
@@ -1504,7 +1504,7 @@ export function VouchersCohortsStudioTab({
                     <select
                       value={cohortDuration}
                       onChange={(e) => setCohortDuration(Number(e.target.value))}
-                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-600"
                     >
                       <option value={3}>3 Months</option>
                       <option value={6}>6 Months (Standard)</option>
@@ -1517,7 +1517,7 @@ export function VouchersCohortsStudioTab({
                 {/* Initial Director / Lead Contact */}
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2.5">
                   <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <UserCheck className="h-4 w-4 text-indigo-600" />
+                    <UserCheck className="h-4 w-4 text-emerald-700" />
                     Program Director / Primary Contact (Optional)
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1637,7 +1637,7 @@ export function VouchersCohortsStudioTab({
                                       setRequiredModules([...requiredModules, m.key]);
                                     }
                                   }}
-                                  className="rounded border-slate-300 text-indigo-600"
+                                  className="rounded border-slate-300 text-emerald-700"
                                 />
                                 <span className="truncate">{m.label}</span>
                               </label>
@@ -1653,7 +1653,7 @@ export function VouchersCohortsStudioTab({
                             type="checkbox"
                             checked={requireOfficialDomain}
                             onChange={(e) => setRequireOfficialDomain(e.target.checked)}
-                            className="rounded border-slate-300 text-indigo-600"
+                            className="rounded border-slate-300 text-emerald-700"
                           />
                           <span>
                             <strong>Enforce Official Domain:</strong> Founder must verify active company domain (triggers affiliate matcher if missing).
@@ -1665,7 +1665,7 @@ export function VouchersCohortsStudioTab({
                             type="checkbox"
                             checked={requireWorkEmail}
                             onChange={(e) => setRequireWorkEmail(e.target.checked)}
-                            className="rounded border-slate-300 text-indigo-600"
+                            className="rounded border-slate-300 text-emerald-700"
                           />
                           <span>
                             <strong>Enforce @company Work Email:</strong> Flags generic @gmail/@yahoo consumer accounts.
@@ -1688,7 +1688,7 @@ export function VouchersCohortsStudioTab({
                   <Button
                     type="submit"
                     disabled={isCreatingCohort}
-                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700 font-semibold"
+                    className="bg-emerald-700 text-xs text-white hover:bg-emerald-800 font-semibold"
                   >
                     {isCreatingCohort ? (
                       <>
@@ -1716,7 +1716,7 @@ export function VouchersCohortsStudioTab({
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Settings className="h-5 w-5 text-indigo-600" />
+                    <Settings className="h-5 w-5 text-emerald-700" />
                     Edit Cohort Settings & Milestone Gate
                   </CardTitle>
                   <CardDescription className="text-xs">
@@ -1868,7 +1868,7 @@ export function VouchersCohortsStudioTab({
                                       setEditModules([...editModules, m.key]);
                                     }
                                   }}
-                                  className="rounded border-slate-300 text-indigo-600"
+                                  className="rounded border-slate-300 text-emerald-700"
                                 />
                                 <span className="truncate">{m.label}</span>
                               </label>
@@ -1883,7 +1883,7 @@ export function VouchersCohortsStudioTab({
                             type="checkbox"
                             checked={editRequireDomain}
                             onChange={(e) => setEditRequireDomain(e.target.checked)}
-                            className="rounded border-slate-300 text-indigo-600"
+                            className="rounded border-slate-300 text-emerald-700"
                           />
                           <span>Require verified company domain</span>
                         </label>
@@ -1892,7 +1892,7 @@ export function VouchersCohortsStudioTab({
                             type="checkbox"
                             checked={editRequireWorkEmail}
                             onChange={(e) => setEditRequireWorkEmail(e.target.checked)}
-                            className="rounded border-slate-300 text-indigo-600"
+                            className="rounded border-slate-300 text-emerald-700"
                           />
                           <span>Require @company work email</span>
                         </label>
@@ -1913,7 +1913,7 @@ export function VouchersCohortsStudioTab({
                   <Button
                     type="submit"
                     disabled={isUpdatingCohort}
-                    className="bg-indigo-600 text-xs text-white hover:bg-indigo-700 font-semibold"
+                    className="bg-emerald-700 text-xs text-white hover:bg-emerald-800 font-semibold"
                   >
                     {isUpdatingCohort ? (
                       <>
@@ -1941,7 +1941,7 @@ export function VouchersCohortsStudioTab({
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Users className="h-5 w-5 text-indigo-600" />
+                    <Users className="h-5 w-5 text-emerald-700" />
                     Manage Program Staff & Mentors
                   </CardTitle>
                   <CardDescription className="text-xs">
@@ -1979,7 +1979,7 @@ export function VouchersCohortsStudioTab({
                             variant="outline"
                             className={`ml-2 text-[10px] ${
                               s.role === 'DIRECTOR'
-                                ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                                ? 'border-slate-300 bg-emerald-50/70 text-emerald-900'
                                 : 'border-slate-300 bg-white text-slate-700'
                             }`}
                           >
@@ -2004,7 +2004,7 @@ export function VouchersCohortsStudioTab({
               {/* Add New Staff Member */}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2.5">
                 <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <UserPlus className="h-4 w-4 text-indigo-600" />
+                  <UserPlus className="h-4 w-4 text-emerald-700" />
                   Add Team Member
                 </Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2035,7 +2035,7 @@ export function VouchersCohortsStudioTab({
                     size="sm"
                     disabled={isManagingStaff || !newStaffEmail.trim()}
                     onClick={() => handleStaffAction('ADD')}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-semibold"
+                    className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-semibold"
                   >
                     {isManagingStaff ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Assign Staff'}
                   </Button>

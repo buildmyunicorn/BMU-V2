@@ -240,7 +240,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-emerald-700 selection:text-white">
       {/* Toast Notification */}
       {notification && (
         <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/95 px-4 py-3 text-xs shadow-2xl backdrop-blur-md animate-in slide-in-from-top-2">
@@ -255,10 +255,10 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
 
       {/* Top Banner if Demo Route */}
       {data.isSampleData && (
-        <div className="border-b border-indigo-500/30 bg-gradient-to-r from-indigo-950/80 via-slate-900 to-indigo-950/80 px-4 py-2.5 text-xs text-indigo-200 sm:px-6">
+        <div className="border-b border-emerald-600/30 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-4 py-2.5 text-xs text-slate-300 sm:px-6">
           <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-indigo-400 animate-ping" />
+              <span className="flex h-2 w-2 rounded-full bg-emerald-600 animate-ping" />
               <span className="font-semibold text-white">Interactive Demo Mode:</span>
               <span>
                 Simulated NovaUCD &amp; Trinity Tangent venture batch command center.
@@ -272,7 +272,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                   navigator.clipboard.writeText(magicOnboardingUrl);
                   triggerNotify('success', `Copied registration link: ${magicOnboardingUrl}`);
                 }}
-                className="h-7 text-[11px] border-indigo-400/40 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/20"
+                className="h-7 text-[11px] border-emerald-400/40 bg-emerald-500/10 text-slate-300 hover:bg-emerald-500/20"
               >
                 <Copy className="h-3 w-3 mr-1" />
                 Copy Batch Onboarding Link
@@ -284,10 +284,10 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
 
       {/* Top Banner if User explicitly toggled Preview Mode on an empty cohort */}
       {isCohortEmpty && isPreviewMode && (
-        <div className="border-b border-purple-500/30 bg-gradient-to-r from-purple-950/90 via-slate-900 to-purple-950/90 px-4 py-2.5 text-xs text-purple-200 sm:px-6">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-4 py-2.5 text-xs text-slate-300 sm:px-6">
           <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Eye className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+              <Eye className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
               <span className="font-semibold text-white">Sample Batch Preview Active:</span>
               <span>
                 Viewing simulated startup data to test filters and inspection features. 
@@ -299,7 +299,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                 size="sm"
                 variant="outline"
                 onClick={() => setIsPreviewMode(false)}
-                className="h-7 text-[11px] border-purple-400/40 bg-purple-500/20 text-purple-200 hover:bg-purple-500/30"
+                className="h-7 text-[11px] border-slate-200 bg-emerald-50/700/20 text-slate-300 hover:bg-emerald-50/700/30"
               >
                 <EyeOff className="h-3 w-3 mr-1" />
                 Exit Preview Mode
@@ -314,18 +314,18 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
         {/* Navigation & Header Breadcrumb */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 shadow-xs">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-700/20 border border-emerald-600/40 text-emerald-600 shadow-xs">
               <GraduationCap className="h-6 w-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
                   {data.cohort.organizationName}
                 </span>
                 <span className="text-slate-600">•</span>
                 <Badge
                   variant="outline"
-                  className="border-indigo-500/40 bg-indigo-500/10 text-indigo-300 text-[10px] font-mono"
+                  className="border-emerald-600/40 bg-emerald-500/10 text-slate-300 text-[10px] font-mono"
                 >
                   {data.cohort.intakeType === 'ROLLING' ? '⚡ Rolling Intake' : '📅 Fixed Batch'}
                 </Badge>
@@ -347,7 +347,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
               }}
               className="h-8 text-xs border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
             >
-              <ExternalLink className="h-3.5 w-3.5 mr-1 text-indigo-400" />
+              <ExternalLink className="h-3.5 w-3.5 mr-1 text-emerald-600" />
               Onboarding Link
             </Button>
 
@@ -375,9 +375,9 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
               </div>
               <div className="hidden h-4 w-px bg-slate-700 sm:block" />
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                <Target className="h-4 w-4 text-indigo-400" />
+                <Target className="h-4 w-4 text-emerald-600" />
                 <span>Director Command Center</span>
-                <Badge className="bg-indigo-600/30 text-indigo-300 border-indigo-500/40 text-[10px] font-mono">
+                <Badge className="bg-emerald-700/30 text-slate-300 border-emerald-600/40 text-[10px] font-mono">
                   {effectiveAggregates.totalStartups} Startups Enrolled
                   {isCohortEmpty && isPreviewMode ? ' (Preview)' : ''}
                 </Badge>
@@ -407,7 +407,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
               </div>
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
                 <div
-                  className="h-full bg-indigo-500 rounded-full transition-all duration-700"
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-700"
                   style={{ width: `${effectiveAggregates.averageBatchProgress}%` }}
                 />
               </div>
@@ -441,7 +441,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                 </span>
                 <span className="text-[11px] text-slate-400">responses</span>
               </div>
-              <div className="mt-2 text-[11px] text-indigo-300">
+              <div className="mt-2 text-[11px] text-slate-300">
                 Across verified <code className="text-slate-300">/v/[slug]</code> Mom-Test surveys
               </div>
             </div>
@@ -467,7 +467,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
           {/* Cohort Content: Empty State vs Live Batch Command Center */}
           {isCohortEmpty && !isPreviewMode ? (
             <div className="p-8 sm:p-14 border-t border-slate-800 bg-slate-950/70 flex flex-col items-center justify-center max-w-3xl mx-auto space-y-6 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 shadow-inner">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-600/30 text-emerald-600 shadow-inner">
                 <GraduationCap className="h-8 w-8" />
               </div>
 
@@ -488,10 +488,10 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
               <div className="w-full rounded-xl border border-slate-700 bg-slate-900/90 p-4 sm:p-5 text-left space-y-3 shadow-lg">
                 <div className="flex items-center justify-between text-xs text-slate-400">
                   <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                    <Target className="h-3.5 w-3.5 text-indigo-400" />
+                    <Target className="h-3.5 w-3.5 text-emerald-600" />
                     Magic Founder Onboarding Link
                   </span>
-                  <span className="font-mono text-indigo-300 text-[11px] bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800/60">
+                  <span className="font-mono text-slate-300 text-[11px] bg-slate-950/80 px-2 py-0.5 rounded border border-slate-200">
                     Code: {data.cohort.inviteCode}
                   </span>
                 </div>
@@ -509,7 +509,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                       navigator.clipboard.writeText(magicOnboardingUrl);
                       triggerNotify('success', `Copied registration link: ${magicOnboardingUrl}`);
                     }}
-                    className="h-9 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0"
+                    className="h-9 px-4 bg-emerald-700 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0"
                   >
                     <Copy className="h-3.5 w-3.5 mr-1.5" />
                     Copy Link
@@ -522,7 +522,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                   <span>Access: <strong className="text-slate-200">{data.cohort.accessDurationMonths} Months</strong></span>
                   {data.cohort.milestoneConfig && (
                     <span>
-                      Milestone Gate: <strong className="text-indigo-300">{data.cohort.milestoneConfig.requiredProgressPercent}% Progress</strong>
+                      Milestone Gate: <strong className="text-slate-300">{data.cohort.milestoneConfig.requiredProgressPercent}% Progress</strong>
                     </span>
                   )}
                 </div>
@@ -532,17 +532,17 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full text-left pt-2">
                 <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3.5 space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600/30 text-indigo-400 text-[10px] font-bold">1</span>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-700/30 text-emerald-600 text-[10px] font-bold">1</span>
                     <span className="text-xs font-semibold text-white">Share Magic Link</span>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-snug">
-                    Founders register with code <code className="text-indigo-300">{data.cohort.inviteCode}</code> pre-filled and locked to your cohort.
+                    Founders register with code <code className="text-slate-300">{data.cohort.inviteCode}</code> pre-filled and locked to your cohort.
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3.5 space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600/30 text-indigo-400 text-[10px] font-bold">2</span>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-700/30 text-emerald-600 text-[10px] font-bold">2</span>
                     <span className="text-xs font-semibold text-white">Track Telemetry</span>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-snug">
@@ -552,7 +552,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
 
                 <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3.5 space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600/30 text-indigo-400 text-[10px] font-bold">3</span>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-700/30 text-emerald-600 text-[10px] font-bold">3</span>
                     <span className="text-xs font-semibold text-white">Activate Rewards</span>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-snug">
@@ -570,7 +570,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                     onClick={() => setIsPreviewMode(true)}
                     className="text-xs border-slate-700 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800"
                   >
-                    <Eye className="h-3.5 w-3.5 mr-1.5 text-indigo-400" />
+                    <Eye className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
                     Preview Command Center with 5 Sample Startups
                   </Button>
                 </div>
@@ -586,7 +586,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                     onClick={() => setFilter('ALL')}
                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                       filter === 'ALL'
-                        ? 'bg-indigo-600 text-white shadow-xs'
+                        ? 'bg-emerald-700 text-white shadow-xs'
                         : 'bg-slate-800/80 text-slate-400 hover:text-white'
                     }`}
                   >
@@ -608,7 +608,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                     onClick={() => setFilter('ON_TRACK')}
                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                       filter === 'ON_TRACK'
-                        ? 'bg-indigo-600 text-white shadow-xs'
+                        ? 'bg-emerald-700 text-white shadow-xs'
                         : 'bg-slate-800/80 text-slate-400 hover:text-white'
                     }`}
                   >
@@ -630,7 +630,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                     onClick={() => setFilter('MILESTONE_CLAIMED')}
                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                       filter === 'MILESTONE_CLAIMED'
-                        ? 'bg-violet-600 text-white shadow-xs'
+                        ? 'bg-emerald-700 text-white shadow-xs'
                         : 'bg-slate-800/80 text-slate-400 hover:text-white'
                     }`}
                   >
@@ -645,7 +645,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                     placeholder="Filter startup or founder..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900 pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -675,7 +675,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                       onClick={() => setSelectedStartupId(startup.id)}
                       className={`cursor-pointer p-4 transition ${
                         isSelected
-                          ? 'bg-indigo-950/40 border-l-4 border-indigo-500'
+                          ? 'bg-slate-950/40 border-l-4 border-emerald-600'
                           : 'hover:bg-slate-900/60'
                       }`}
                     >
@@ -695,7 +695,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                                 </span>
                                 {ventureCount > 1 && (
                                   <span
-                                    className="inline-flex items-center gap-1 rounded bg-indigo-900/60 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300 border border-indigo-700/50 shrink-0"
+                                    className="inline-flex items-center gap-1 rounded bg-slate-900/60 px-1.5 py-0.5 text-[9px] font-semibold text-slate-300 border border-slate-200 shrink-0"
                                     title={`${startup.founders} has ${ventureCount} ventures enrolled in this batch`}
                                   >
                                     <Layers className="h-2.5 w-2.5" />
@@ -706,7 +706,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                               <p className="truncate text-[11px] text-slate-400">
                                 {startup.founders}
                               </p>
-                              <p className="truncate text-[10px] text-indigo-300/80">
+                              <p className="truncate text-[10px] text-slate-300/80">
                                 {startup.grantFocus}
                               </p>
                             </div>
@@ -732,7 +732,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                                   : startup.status === 'NEEDS_ATTENTION'
                                     ? 'bg-amber-500'
                                     : startup.overallProgress > 70
-                                      ? 'bg-indigo-500'
+                                      ? 'bg-emerald-500'
                                       : 'bg-blue-500'
                               }`}
                               style={{ width: `${startup.overallProgress}%` }}
@@ -756,7 +756,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                                     ? 'bg-amber-950/80 text-amber-300 border border-amber-700/60'
                                     : startup.milestoneStatus === 'REWARD_ACTIVATED'
                                       ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/60'
-                                      : 'bg-indigo-950/80 text-indigo-300 border border-indigo-700/60'
+                                      : 'bg-slate-950/80 text-slate-300 border border-slate-200'
                             }`}
                           >
                             <span
@@ -765,7 +765,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                                   ? 'bg-emerald-400'
                                   : startup.status === 'NEEDS_ATTENTION' || startup.milestoneStatus === 'CLAIMED_PARTNER_NOTIFIED'
                                     ? 'bg-amber-400'
-                                    : 'bg-indigo-400'
+                                    : 'bg-emerald-600'
                               }`}
                             />
                             {startup.milestoneStatus === 'CLAIMED_PARTNER_NOTIFIED'
@@ -856,7 +856,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                         <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] text-slate-300">
                           {activeStartup.verifiedDomain && (
                             <div className="flex items-center gap-1 text-slate-300">
-                              <Globe className="h-3 w-3 text-indigo-400" />
+                              <Globe className="h-3 w-3 text-emerald-600" />
                               <span className="font-mono text-[10px] truncate">{activeStartup.verifiedDomain}</span>
                             </div>
                           )}
@@ -915,13 +915,13 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                       <div>
                         <div className="flex justify-between text-[11px] text-slate-300">
                           <span>2. Customer Survey &amp; Mom-Test (C)</span>
-                          <span className="font-mono text-indigo-400">
+                          <span className="font-mono text-emerald-600">
                             {activeStartup.modulesBreakdown.surveys}%
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-indigo-500 rounded-full"
+                            className="h-full bg-emerald-500 rounded-full"
                             style={{ width: `${activeStartup.modulesBreakdown.surveys}%` }}
                           />
                         </div>
@@ -970,13 +970,13 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                       <div>
                         <div className="flex justify-between text-[11px] text-slate-300">
                           <span>5. Pocket Profit 3-Yr Financials &amp; Cashflow (H–J)</span>
-                          <span className="font-mono text-violet-400">
+                          <span className="font-mono text-emerald-500">
                             {activeStartup.modulesBreakdown.financials}%
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-violet-500 rounded-full"
+                            className="h-full bg-slate-500 rounded-full"
                             style={{ width: `${activeStartup.modulesBreakdown.financials}%` }}
                           />
                         </div>
@@ -985,13 +985,13 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                       <div>
                         <div className="flex justify-between text-[11px] text-slate-300">
                           <span>6. Official Grant Mode &amp; Audit (K–L)</span>
-                          <span className="font-mono text-purple-400">
+                          <span className="font-mono text-emerald-400">
                             {activeStartup.modulesBreakdown.grantPack}%
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-purple-500 rounded-full"
+                            className="h-full bg-emerald-50/700 rounded-full"
                             style={{ width: `${activeStartup.modulesBreakdown.grantPack}%` }}
                           />
                         </div>
@@ -1025,7 +1025,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                           <button
                             type="button"
                             onClick={() => setEditingNote(true)}
-                            className="text-indigo-400 hover:text-indigo-300 lowercase text-[10px] font-sans"
+                            className="text-emerald-600 hover:text-slate-300 lowercase text-[10px] font-sans"
                           >
                             [edit note]
                           </button>
@@ -1056,7 +1056,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                               size="sm"
                               disabled={isSavingNote}
                               onClick={handleSaveMentorNote}
-                              className="h-6 text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white"
+                              className="h-6 text-[10px] bg-emerald-700 hover:bg-emerald-700 text-white"
                             >
                               {isSavingNote ? 'Saving...' : 'Save Note'}
                             </Button>
@@ -1083,7 +1083,7 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                   >
                     <Button
                       size="sm"
-                      className="h-8 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
+                      className="h-8 text-xs font-semibold bg-emerald-700 hover:bg-emerald-700 text-white shadow-sm"
                     >
                       <FileText className="mr-1.5 h-3.5 w-3.5" />
                       <span>View Master Document</span>

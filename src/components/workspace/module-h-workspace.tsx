@@ -412,6 +412,21 @@ export function ModuleHWorkspace({
         exportSalesPercent: 30,
         exportFocusRegions: selectedCountry === 'IE' ? 'UK, EU, US' : 'EU, US, IE',
         ...existing,
+        frictionCosts: existing.frictionCosts
+          ? {
+              paymentGatewayPercent: existing.frictionCosts.paymentGatewayPercent ?? defaultGatewayPercent,
+              paymentGatewayFixedCents: existing.frictionCosts.paymentGatewayFixedCents ?? 25,
+              directVariableCogsPerUnit: existing.frictionCosts.directVariableCogsPerUnit ?? defaultVariableCogs,
+              disputeRefundBufferPercent: existing.frictionCosts.disputeRefundBufferPercent ?? 1,
+              affiliateCommissionPercent: existing.frictionCosts.affiliateCommissionPercent ?? 0,
+            }
+          : {
+              paymentGatewayPercent: defaultGatewayPercent,
+              paymentGatewayFixedCents: 25,
+              directVariableCogsPerUnit: defaultVariableCogs,
+              disputeRefundBufferPercent: 1,
+              affiliateCommissionPercent: 0,
+            },
         activePriceSlider: existing.activePriceSlider || blendedAveragePrice || 49,
       };
     }
@@ -425,13 +440,21 @@ export function ModuleHWorkspace({
       otherPaymentTermsText: '',
       exportSalesPercent: 30,
       exportFocusRegions: selectedCountry === 'IE' ? 'UK, EU, US' : 'EU, US, IE',
-      frictionCosts: {
-        paymentGatewayPercent: defaultGatewayPercent,
-        paymentGatewayFixedCents: 25,
-        directVariableCogsPerUnit: defaultVariableCogs,
-        disputeRefundBufferPercent: 1,
-        affiliateCommissionPercent: 0,
-      },
+      frictionCosts: existing?.frictionCosts
+        ? {
+            paymentGatewayPercent: existing.frictionCosts.paymentGatewayPercent ?? defaultGatewayPercent,
+            paymentGatewayFixedCents: existing.frictionCosts.paymentGatewayFixedCents ?? 25,
+            directVariableCogsPerUnit: existing.frictionCosts.directVariableCogsPerUnit ?? defaultVariableCogs,
+            disputeRefundBufferPercent: existing.frictionCosts.disputeRefundBufferPercent ?? 1,
+            affiliateCommissionPercent: existing.frictionCosts.affiliateCommissionPercent ?? 0,
+          }
+        : {
+            paymentGatewayPercent: defaultGatewayPercent,
+            paymentGatewayFixedCents: 25,
+            directVariableCogsPerUnit: defaultVariableCogs,
+            disputeRefundBufferPercent: 1,
+            affiliateCommissionPercent: 0,
+          },
       isSandboxActive: false,
       sandboxMonthlyPayrollOverride: undefined,
       sandboxNotes: '',
@@ -845,24 +868,27 @@ export function ModuleHWorkspace({
   // Save Step 1 handler
   const handleSaveStep1 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep1Ref.current = false;
     setSaveStatus('saving');
     try {
+      const updatedStep1: RevenueModelStep1Data = {
+        ...step1Data,
+        lastSavedAt: new Date().toISOString(),
+      };
       if (onSaveStep1RevenueModel) {
-        await onSaveStep1RevenueModel(step1Data, isStep1Complete ? 20 : 10);
+        await onSaveStep1RevenueModel(updatedStep1, isStep1Complete ? 20 : 10);
       }
       const res = await saveModuleHStep1RevenueModelAction({
         planId: plan.id,
-        revenueModel: step1Data,
+        revenueModel: updatedStep1,
         completionPercentage: isStep1Complete ? 20 : 10,
       });
       if (res.ok) {
-        isDirtyStep1Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
         setSaveStatus(onSaveStep1RevenueModel ? 'saved' : 'error');
         if (onSaveStep1RevenueModel) {
-          isDirtyStep1Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
@@ -870,7 +896,6 @@ export function ModuleHWorkspace({
       console.error('Error during handleSaveStep1:', err);
       setSaveStatus(onSaveStep1RevenueModel ? 'saved' : 'error');
       if (onSaveStep1RevenueModel) {
-        isDirtyStep1Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
@@ -879,11 +904,13 @@ export function ModuleHWorkspace({
   // Save Step 2 handler
   const handleSaveStep2 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep2Ref.current = false;
     setSaveStatus('saving');
     try {
       const updatedStep2: PricingTiersStep2Data = {
         ...step2Data,
         blendedAveragePriceNet: blendedAveragePrice,
+        lastSavedAt: new Date().toISOString(),
       };
       if (onSaveStep2PricingTiers) {
         await onSaveStep2PricingTiers(updatedStep2, isStep2Complete ? 40 : 25);
@@ -894,13 +921,11 @@ export function ModuleHWorkspace({
         completionPercentage: isStep2Complete ? 40 : 25,
       });
       if (res.ok) {
-        isDirtyStep2Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
         setSaveStatus(onSaveStep2PricingTiers ? 'saved' : 'error');
         if (onSaveStep2PricingTiers) {
-          isDirtyStep2Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
@@ -908,7 +933,6 @@ export function ModuleHWorkspace({
       console.error('Error during handleSaveStep2:', err);
       setSaveStatus(onSaveStep2PricingTiers ? 'saved' : 'error');
       if (onSaveStep2PricingTiers) {
-        isDirtyStep2Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
@@ -917,11 +941,13 @@ export function ModuleHWorkspace({
   // Save Step 3 handler
   const handleSaveStep3 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep3Ref.current = false;
     setSaveStatus('saving');
     try {
       const updatedStep3: BreakevenCalculatorStep3Data = {
         ...step3Data,
         yearTargets: computedThreeYearTargets,
+        lastSavedAt: new Date().toISOString(),
       };
       if (onSaveStep3BreakevenCalculator) {
         await onSaveStep3BreakevenCalculator(updatedStep3, isStep3Complete ? 65 : 50);
@@ -932,13 +958,11 @@ export function ModuleHWorkspace({
         completionPercentage: isStep3Complete ? 65 : 50,
       });
       if (res.ok) {
-        isDirtyStep3Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
         setSaveStatus(onSaveStep3BreakevenCalculator ? 'saved' : 'error');
         if (onSaveStep3BreakevenCalculator) {
-          isDirtyStep3Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
@@ -946,7 +970,6 @@ export function ModuleHWorkspace({
       console.error('Error during handleSaveStep3:', err);
       setSaveStatus(onSaveStep3BreakevenCalculator ? 'saved' : 'error');
       if (onSaveStep3BreakevenCalculator) {
-        isDirtyStep3Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
@@ -1232,12 +1255,14 @@ export function ModuleHWorkspace({
   // Save Step 4 handler
   const handleSaveStep4 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep4Ref.current = false;
     setSaveStatus('saving');
     try {
       const updatedStep4: SalesAssumptionsStep4Data = {
         ...step4Data,
         capacityFeasibilityStatus: isCapacitySurplus ? 'CAPACITY_SURPLUS' : 'CAPACITY_DEFICIT',
         requiredMonthlyLeads: calculatedRequiredMonthlyLeads,
+        lastSavedAt: new Date().toISOString(),
       };
       if (onSaveStep4SalesAssumptions) {
         await onSaveStep4SalesAssumptions(updatedStep4, isStep4Complete ? 80 : 65);
@@ -1248,13 +1273,11 @@ export function ModuleHWorkspace({
         completionPercentage: isStep4Complete ? 80 : 65,
       });
       if (res.ok) {
-        isDirtyStep4Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
         setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
         if (onSaveStep4SalesAssumptions) {
-          isDirtyStep4Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
@@ -1262,7 +1285,6 @@ export function ModuleHWorkspace({
       console.error('Error during handleSaveStep4:', err);
       setSaveStatus(onSaveStep4SalesAssumptions ? 'saved' : 'error');
       if (onSaveStep4SalesAssumptions) {
-        isDirtyStep4Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
@@ -1488,6 +1510,7 @@ export function ModuleHWorkspace({
 
   const handleSaveStep5 = async (options?: { silent?: boolean } | unknown) => {
     if (isVaultReadonly) return;
+    isDirtyStep5Ref.current = false;
     setSaveStatus('saving');
     try {
       const updatedStep5: RevenueBlindSpotAuditStep5Data = {
@@ -1504,13 +1527,11 @@ export function ModuleHWorkspace({
         completionPercentage: 100,
       });
       if (res.ok) {
-        isDirtyStep5Ref.current = false;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2500);
       } else {
         setSaveStatus(onSaveStep5RevenueBrief ? 'saved' : 'error');
         if (onSaveStep5RevenueBrief) {
-          isDirtyStep5Ref.current = false;
           setTimeout(() => setSaveStatus('idle'), 2500);
         }
       }
@@ -1518,13 +1539,23 @@ export function ModuleHWorkspace({
       console.error('Error during handleSaveStep5:', err);
       setSaveStatus(onSaveStep5RevenueBrief ? 'saved' : 'error');
       if (onSaveStep5RevenueBrief) {
-        isDirtyStep5Ref.current = false;
         setTimeout(() => setSaveStatus('idle'), 2500);
       }
     }
   };
 
-  // Step 1 Debounced Autosave (1200ms)
+  const handleSaveStep1Ref = useRef(handleSaveStep1);
+  handleSaveStep1Ref.current = handleSaveStep1;
+  const handleSaveStep2Ref = useRef(handleSaveStep2);
+  handleSaveStep2Ref.current = handleSaveStep2;
+  const handleSaveStep3Ref = useRef(handleSaveStep3);
+  handleSaveStep3Ref.current = handleSaveStep3;
+  const handleSaveStep4Ref = useRef(handleSaveStep4);
+  handleSaveStep4Ref.current = handleSaveStep4;
+  const handleSaveStep5Ref = useRef(handleSaveStep5);
+  handleSaveStep5Ref.current = handleSaveStep5;
+
+  // Step 1 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep1Ref.current) {
       isFirstRenderStep1Ref.current = false;
@@ -1534,13 +1565,13 @@ export function ModuleHWorkspace({
     isDirtyStep1Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep1Ref.current) {
-        void handleSaveStep1({ silent: true });
+        void handleSaveStep1Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step1Data]);
 
-  // Step 2 Debounced Autosave (1200ms)
+  // Step 2 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep2Ref.current) {
       isFirstRenderStep2Ref.current = false;
@@ -1550,13 +1581,13 @@ export function ModuleHWorkspace({
     isDirtyStep2Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep2Ref.current) {
-        void handleSaveStep2({ silent: true });
+        void handleSaveStep2Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step2Data]);
 
-  // Step 3 Debounced Autosave (1200ms)
+  // Step 3 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep3Ref.current) {
       isFirstRenderStep3Ref.current = false;
@@ -1566,13 +1597,13 @@ export function ModuleHWorkspace({
     isDirtyStep3Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep3Ref.current) {
-        void handleSaveStep3({ silent: true });
+        void handleSaveStep3Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step3Data]);
 
-  // Step 4 Debounced Autosave (1200ms)
+  // Step 4 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep4Ref.current) {
       isFirstRenderStep4Ref.current = false;
@@ -1582,13 +1613,13 @@ export function ModuleHWorkspace({
     isDirtyStep4Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep4Ref.current) {
-        void handleSaveStep4({ silent: true });
+        void handleSaveStep4Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step4Data]);
 
-  // Step 5 Debounced Autosave (1200ms)
+  // Step 5 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep5Ref.current) {
       isFirstRenderStep5Ref.current = false;
@@ -1598,20 +1629,20 @@ export function ModuleHWorkspace({
     isDirtyStep5Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep5Ref.current) {
-        void handleSaveStep5({ silent: true });
+        void handleSaveStep5Ref.current({ silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step5Data]);
 
   // Flush on unmount so switching modules never loses changes
   useEffect(() => {
     return () => {
-      if (isDirtyStep1Ref.current) void handleSaveStep1({ silent: true });
-      if (isDirtyStep2Ref.current) void handleSaveStep2({ silent: true });
-      if (isDirtyStep3Ref.current) void handleSaveStep3({ silent: true });
-      if (isDirtyStep4Ref.current) void handleSaveStep4({ silent: true });
-      if (isDirtyStep5Ref.current) void handleSaveStep5({ silent: true });
+      if (isDirtyStep1Ref.current) void handleSaveStep1Ref.current({ silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2Ref.current({ silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3Ref.current({ silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4Ref.current({ silent: true });
+      if (isDirtyStep5Ref.current) void handleSaveStep5Ref.current({ silent: true });
     };
   }, []);
 
@@ -1755,11 +1786,11 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
       {/* ------------------------------------------------------------- */}
       {/* TOP HEADER MODULE CARD                                        */}
       {/* ------------------------------------------------------------- */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100 text-[10px] shrink-0">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200 text-[10px] shrink-0">
                 Module H • Pricing &amp; Breakeven Engine
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
@@ -1770,7 +1801,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module H: Pricing Architect &amp; Pocket Profit Engine
             </h1>
-            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
               How you get paid, what your profit looks like after Stripe fees and product costs,
               and exactly how many sales you need to pay yourself and your team each year.
             </p>
@@ -1782,7 +1813,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 size="sm"
                 variant="outline"
                 onClick={() => setOpenStep(openStep === 'ALL' ? 1 : 'ALL')}
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
               >
                 <Sliders className="mr-1.5 h-3.5 w-3.5" />
                 {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
@@ -1792,21 +1823,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   size="sm"
                   variant="outline"
                   onClick={onBackToModuleG}
-                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                  className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Module G
                 </Button>
               )}
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Module H Progress: <strong>{Math.round((completedCoreStepsCount / 4) * 100)}%</strong> ({completedCoreStepsCount} of 4 Core Steps Ready)
             </div>
           </div>
         </div>
 
         {/* Step Navigation Strip (Tile Grid matching Modules A, B, C, D, E, F, G) */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-3 lg:grid-cols-5">
           {[
             {
               step: 'Step 1',
@@ -1872,7 +1903,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
@@ -1898,19 +1929,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         <div
           id="module-h-step-1"
           onClick={() => setOpenStep(1)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 1: Revenue Model &amp; What You Charge For
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -1937,7 +1968,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep1Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -1953,7 +1984,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
@@ -2002,7 +2033,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 1 ? null : 1))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -2020,15 +2051,15 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             </div>
 
             {activeWhyCard === 1 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div className="space-y-1">
-                      <p className="font-semibold text-indigo-950">
+                      <p className="font-semibold text-slate-950">
                         Why Grant Officers &amp; Banks Need This First:
                       </p>
-                      <p className="text-indigo-900/90 leading-relaxed">
+                      <p className="text-slate-900/90 leading-relaxed">
                         Every financial forecast depends on how you charge. A subscription business has
                         predictable monthly recurring cashflow, while an ecommerce or agency business
                         relies on repeat orders or continuous client acquisition. Setting this right ensures
@@ -2039,7 +2070,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-500 hover:text-indigo-800 text-xs px-1"
+                    className="text-emerald-700 hover:text-emerald-900 text-xs px-1"
                   >
                     ✕
                   </button>
@@ -2116,7 +2147,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       }
                       className={`relative cursor-pointer rounded-xl border p-3.5 transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20 shadow-xs'
+                          ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20 shadow-xs'
                           : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
                       }`}
                     >
@@ -2124,7 +2155,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         <div
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
                             isSelected
-                              ? 'bg-indigo-600 text-white'
+                              ? 'bg-emerald-700 text-white'
                               : 'bg-slate-100 text-slate-600'
                           }`}
                         >
@@ -2151,8 +2182,8 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               </div>
 
               {step1Data.revenueModelVehicle === 'OTHER' && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5 space-y-2 mt-2">
-                  <Label className="text-xs font-semibold text-indigo-900">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-2 mt-2">
+                  <Label className="text-xs font-semibold text-slate-900">
                     Describe your custom revenue model:
                   </Label>
                   <Input
@@ -2193,7 +2224,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   }
                   className={`cursor-pointer rounded-xl border p-3.5 transition-all ${
                     step1Data.offeringStructure === 'SINGLE_OFFERING'
-                      ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20'
+                      ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
@@ -2201,7 +2232,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     <div
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
                         step1Data.offeringStructure === 'SINGLE_OFFERING'
-                          ? 'bg-indigo-600 text-white'
+                          ? 'bg-emerald-700 text-white'
                           : 'bg-slate-100 text-slate-600'
                       }`}
                     >
@@ -2228,7 +2259,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   }
                   className={`cursor-pointer rounded-xl border p-3.5 transition-all ${
                     step1Data.offeringStructure === 'MULTI_OFFERING_TIERS'
-                      ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20'
+                      ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
@@ -2236,7 +2267,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     <div
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
                         step1Data.offeringStructure === 'MULTI_OFFERING_TIERS'
-                          ? 'bg-indigo-600 text-white'
+                          ? 'bg-emerald-700 text-white'
                           : 'bg-slate-100 text-slate-600'
                       }`}
                     >
@@ -2296,7 +2327,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           valueMetric: sug,
                         }))
                       }
-                      className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                      className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
                     >
                       {sug}
                     </button>
@@ -2387,7 +2418,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     window.scrollTo({ top: 400, behavior: 'smooth' });
                   }}
                   disabled={!isStep1Complete || isVaultReadonly}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
                 >
                   Next: Pricing Tiers (Step 2)
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -2406,19 +2437,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         <div
           id="module-h-step-2"
           onClick={() => setOpenStep(2)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 2: Pricing Architecture &amp; Tier Designer
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -2443,7 +2474,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep2Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -2459,7 +2490,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
@@ -2511,7 +2542,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 2 ? null : 2))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -2529,15 +2560,15 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             </div>
 
             {activeWhyCard === 2 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div className="space-y-1">
-                      <p className="font-semibold text-indigo-950">
+                      <p className="font-semibold text-slate-950">
                         How VAT Works &amp; Why We Split Sticker Price vs Net Bank Revenue:
                       </p>
-                      <p className="text-indigo-900/90 leading-relaxed">
+                      <p className="text-slate-900/90 leading-relaxed">
                         Enter the total price your customer pays at checkout (e.g. €50 or £50 inc. VAT). 
                         Because VAT / Sales Tax ({defaultVatRate}% in {selectedCountry === 'GB' ? 'the UK' : 'Ireland'}) 
                         does not belong to your company—you collect it and pass it to {selectedCountry === 'GB' ? 'HMRC' : 'Revenue'}—we 
@@ -2549,7 +2580,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-500 hover:text-indigo-800 text-xs px-1"
+                    className="text-emerald-700 hover:text-emerald-900 text-xs px-1"
                   >
                     ✕
                   </button>
@@ -2585,21 +2616,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
             {/* SYNCED FROM MODULE D STEP 2 CALLOUT BANNER */}
             {hasModuleDChannelData && (
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-950">
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-950">
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-xs">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-white font-bold text-xs">
                     <CheckCircle2 className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-indigo-950">
+                      <span className="font-bold text-slate-950">
                         Synced from Module D (Product &amp; Channel Matrix)
                       </span>
-                      <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 text-[9px] px-1.5 py-0">
+                      <Badge className="bg-slate-100 text-emerald-900 border-emerald-300 text-[9px] px-1.5 py-0">
                         Single Source of Truth
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-indigo-900/80 mt-0.5">
+                    <p className="text-[11px] text-slate-900/80 mt-0.5">
                       Estimated Sales Split:{' '}
                       <strong>
                         {moduleDChannelMatrix?.primaryChannelSharePercent || 100}% Primary (
@@ -2613,7 +2644,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         </span>
                       ) : null}{' '}
                       • Blended Platform Fee:{' '}
-                      <strong className="text-indigo-950">
+                      <strong className="text-slate-950">
                         {moduleDChannelMatrix?.estimatedBlendedFeePercent || 2.9}%
                       </strong>
                     </p>
@@ -2648,7 +2679,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         }));
                       }
                     }}
-                    className="border-indigo-300 bg-white text-xs text-indigo-700 hover:bg-indigo-100/60 shrink-0 h-7"
+                    className="border-emerald-300 bg-white text-xs text-emerald-800 hover:bg-slate-100/60 shrink-0 h-7"
                   >
                     Sync Sales Mix to Channel Split ({moduleDChannelMatrix?.primaryChannelSharePercent || 100}%)
                   </Button>
@@ -2680,7 +2711,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       size="sm"
                       variant="outline"
                       onClick={handleAddTier}
-                      className="text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                      className="text-xs text-emerald-700 border-slate-200 hover:bg-emerald-50"
                     >
                       <Plus className="mr-1 h-3.5 w-3.5" />
                       Add Another Tier
@@ -2703,7 +2734,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       key={tier.id}
                       className={`relative rounded-xl border p-4.5 space-y-3.5 transition-all ${
                         tier.isRecommendedDefault
-                          ? 'border-indigo-400 bg-indigo-50/20 ring-2 ring-indigo-500/20 shadow-xs'
+                          ? 'border-emerald-400 bg-slate-50 ring-2 ring-emerald-700/20 shadow-xs'
                           : 'border-slate-200 bg-white'
                       }`}
                     >
@@ -2720,7 +2751,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
                         <div className="flex items-center gap-1">
                           {tier.isRecommendedDefault ? (
-                            <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 text-[9px]">
+                            <Badge className="bg-slate-100 text-emerald-900 border-emerald-300 text-[9px]">
                               Flagship Core
                             </Badge>
                           ) : (
@@ -2735,7 +2766,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                                   })),
                                 }));
                               }}
-                              className="text-[10px] text-slate-400 hover:text-indigo-600 underline"
+                              className="text-[10px] text-slate-400 hover:text-emerald-700 underline"
                             >
                               Set as Core
                             </button>
@@ -2833,7 +2864,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                                       priceNetOfTax: net,
                                     });
                                   }}
-                                  className="pl-8 text-base font-bold bg-white text-slate-900 shadow-xs border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                  className="pl-8 text-base font-bold bg-white text-slate-900 shadow-xs border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-700"
                                   placeholder="50"
                                 />
                               </div>
@@ -2878,7 +2909,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                                   <span className="font-semibold text-slate-700">
                                     Expected Sales Share:
                                   </span>
-                                  <span className="font-bold text-indigo-700">
+                                  <span className="font-bold text-emerald-800">
                                     {tier.salesMixPercent}% of sales
                                   </span>
                                 </div>
@@ -2893,7 +2924,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                                       salesMixPercent: parseInt(e.target.value) || 0,
                                     })
                                   }
-                                  className="w-full mt-1.5 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                  className="w-full mt-1.5 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-700"
                                 />
                               </div>
                             )}
@@ -2913,7 +2944,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                             handleUpdateTier(tier.id, { deliverablesSummary: e.target.value })
                           }
                           placeholder="e.g. Core dashboard access, 1,000 credits, email support"
-                          className="w-full mt-1 rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
+                          className="w-full mt-1 rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -2935,18 +2966,18 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             </div>
 
             {/* LIVE BLENDED AVERAGE ORDER VALUE BANNER */}
-            <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-white to-indigo-50/50 p-4">
+            <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white font-bold">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white font-bold">
                     <Target className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
                         Blended Average Sale (Net of Tax)
                       </span>
-                      <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
+                      <Badge className="bg-slate-100 text-emerald-900 text-[10px]">
                         Auto-Calculated
                       </Badge>
                     </div>
@@ -2962,7 +2993,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
 
                 <div className="text-right">
-                  <div className="text-2xl font-black text-indigo-900 tracking-tight">
+                  <div className="text-2xl font-black text-slate-900 tracking-tight">
                     {currencySymbol}
                     {blendedAveragePrice}
                   </div>
@@ -2989,16 +3020,16 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   size="sm"
                   onClick={handleGenerateAiPricingJustification}
                   disabled={isGeneratingAiJustification || isVaultReadonly}
-                  className="border-indigo-300 bg-indigo-50/70 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 h-8 gap-1.5 shadow-2xs"
+                  className="border-emerald-300 bg-emerald-50/70 text-xs font-semibold text-emerald-800 hover:bg-slate-100 h-8 gap-1.5 shadow-2xs"
                 >
                   {isGeneratingAiJustification ? (
                     <>
-                      <Wand2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+                      <Wand2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
                       <span>Synthesizing Strategy from Mod A-D...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                      <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
                       <span>Auto-Generate with AI (Grant/Bank Mode)</span>
                     </>
                   )}
@@ -3015,8 +3046,8 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               )}
 
               {aiAssessorTip && (
-                <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-2.5 flex items-start gap-2 text-xs text-indigo-950">
-                  <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 flex items-start gap-2 text-xs text-slate-950">
+                  <Lightbulb className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                   <p className="text-[11px] leading-relaxed">
                     <strong>Grant Assessor Coaching Tip:</strong> {aiAssessorTip}
                   </p>
@@ -3033,7 +3064,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   }))
                 }
                 placeholder="Explain why your beachhead customers will pay this price (or click 'Auto-Generate with AI' to compose an assessor-grade defense based on Modules A, B, C & D)..."
-                className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-none leading-relaxed"
+                className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none leading-relaxed"
               />
             </div>
 
@@ -3079,7 +3110,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     window.scrollTo({ top: 400, behavior: 'smooth' });
                   }}
                   disabled={!isStep2Complete || isVaultReadonly}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
                 >
                   Next: Breakeven Engine (Step 3)
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -3098,19 +3129,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         <div
           id="module-h-step-3"
           onClick={() => setOpenStep(3)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 3: &ldquo;Pocket Profit&rdquo; &amp; 3-Year Breakeven Engine
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -3137,7 +3168,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep3Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -3153,7 +3184,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep3Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
@@ -3204,7 +3235,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 3 ? null : 3))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -3222,15 +3253,15 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             </div>
 
             {activeWhyCard === 3 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div className="space-y-1">
-                      <p className="font-semibold text-indigo-950">
+                      <p className="font-semibold text-slate-950">
                         Why We Calculate &ldquo;Pocket Profit&rdquo; Before Fixed Bills:
                       </p>
-                      <p className="text-indigo-900/90 leading-relaxed">
+                      <p className="text-slate-900/90 leading-relaxed">
                         Every time you make a sale, card processors (like Stripe) or marketplaces (like Amazon or
                         Apple) take a cut, and it costs you something to deliver that order (packaging, materials,
                         or cloud servers). What is left over is your <strong>Pocket Profit</strong> (also called
@@ -3242,7 +3273,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-500 hover:text-indigo-800 text-xs px-1"
+                    className="text-emerald-700 hover:text-emerald-900 text-xs px-1"
                   >
                     ✕
                   </button>
@@ -3282,10 +3313,10 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             )}
 
             {/* CROSS-MODULE SYNC & SOURCE FIGURES TILE */}
-            <div className="mt-4 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-slate-50 to-indigo-50/60 p-4 text-xs text-indigo-950 space-y-3 shadow-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
+            <div className="mt-4 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-slate-50 to-slate-50/60 p-4 text-xs text-slate-950 space-y-3 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-600 text-white">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-700 text-white">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                   </div>
                   <div>
@@ -3305,11 +3336,11 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               {/* 4 Connected Source Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                 {/* 1. Net Price */}
-                <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
+                <div className="rounded-lg border border-slate-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-1 text-[10px] font-semibold uppercase text-slate-500">
                       <span>1. Net Customer Price</span>
-                      <span className="text-indigo-600 font-bold">Step 2</span>
+                      <span className="text-emerald-700 font-bold">Step 2</span>
                     </div>
                     <div className="text-base font-bold text-slate-900 mt-1">
                       {currencySymbol}{blendedAveragePrice.toFixed(2)}
@@ -3334,7 +3365,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           }
                         }, 200);
                       }}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
                     >
                       <Edit3 className="h-3 w-3" />
                       <span>Edit in Step 2</span>
@@ -3343,11 +3374,11 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
 
                 {/* 2. Platform & Channel Fees */}
-                <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
+                <div className="rounded-lg border border-slate-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-1 text-[10px] font-semibold uppercase text-slate-500">
                       <span>2. Platform Fee %</span>
-                      <span className="text-indigo-600 font-bold">Mod D Step 2</span>
+                      <span className="text-emerald-700 font-bold">Mod D Step 2</span>
                     </div>
                     <div className="text-base font-bold text-slate-900 mt-1">
                       {step3Data.frictionCosts.paymentGatewayPercent}%
@@ -3369,7 +3400,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                             'target-mod-d-blended-fee'
                           )
                         }
-                        className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
                       >
                         <ExternalLink className="h-3 w-3" />
                         <span>Edit in Module D</span>
@@ -3381,11 +3412,11 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
 
                 {/* 3. Premises & Overheads */}
-                <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
+                <div className="rounded-lg border border-slate-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-1 text-[10px] font-semibold uppercase text-slate-500">
                       <span>3. Fixed Overheads</span>
-                      <span className="text-indigo-600 font-bold">Module E</span>
+                      <span className="text-emerald-700 font-bold">Module E</span>
                     </div>
                     <div className="text-base font-bold text-slate-900 mt-1">
                       {currencySymbol}{defaultFixedOverheads.toLocaleString()}
@@ -3406,7 +3437,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                             'target-mod-e-premises-cost'
                           )
                         }
-                        className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
                       >
                         <ExternalLink className="h-3 w-3" />
                         <span>Edit in Module E</span>
@@ -3418,11 +3449,11 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
 
                 {/* 4. Founder Wages & Team Payroll */}
-                <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
+                <div className="rounded-lg border border-slate-100 bg-white p-3 space-y-1.5 shadow-2xs flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-1 text-[10px] font-semibold uppercase text-slate-500">
                       <span>4. Founder &amp; Team Wages</span>
-                      <span className="text-indigo-600 font-bold">Module F</span>
+                      <span className="text-emerald-700 font-bold">Module F</span>
                     </div>
                     <div className="text-base font-bold text-slate-900 mt-1">
                       {currencySymbol}{canonicalHiringPayroll.y1Mo.toLocaleString()}
@@ -3445,7 +3476,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                             'target-mod-f-survival-budget'
                           )
                         }
-                        className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
                       >
                         <ExternalLink className="h-3 w-3" />
                         <span>Edit in Module F</span>
@@ -3496,7 +3527,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     }));
                   }}
                   disabled={isVaultReadonly}
-                  className="h-8 shrink-0 text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+                  className="h-8 shrink-0 text-xs border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50"
                 >
                   <Wand2 className="mr-1.5 h-3.5 w-3.5" />
                   Use Industry Benchmark
@@ -3734,14 +3765,14 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         }
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                           isSelected
-                            ? 'bg-indigo-600 text-white shadow-xs'
+                            ? 'bg-emerald-700 text-white shadow-xs'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                         }`}
                       >
                         Year {yr}
                         <span
                           className={`ml-1.5 text-[10px] font-normal ${
-                            isSelected ? 'text-indigo-100' : 'text-slate-400'
+                            isSelected ? 'text-slate-200' : 'text-slate-400'
                           }`}
                         >
                           ({yrTarget?.customersNeededToBreakeven || 0} sales/mo)
@@ -3763,7 +3794,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       </Label>
                       <Badge
                         variant="outline"
-                        className="shrink-0 text-[9px] border-indigo-200 bg-indigo-50/50 text-indigo-700"
+                        className="shrink-0 text-[9px] border-slate-200 bg-slate-50 text-emerald-800"
                       >
                         {canonicalHiringPayroll.hasModFRoles ? 'Synced Mod F' : 'Survival Baseline'}
                       </Badge>
@@ -3815,7 +3846,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         }));
                       }}
                       disabled={isVaultReadonly}
-                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-700"
                     />
                   </div>
                   <p className="text-[11px] text-slate-500">
@@ -3872,23 +3903,23 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
 
                 {/* Col 3: Total Monthly Fixed Nut */}
-                <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/60 p-4 flex flex-col justify-between">
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50/60 p-4 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-indigo-950">
+                      <span className="text-xs font-bold text-slate-950">
                         Total Year {activeSimYear} Monthly Bills
                       </span>
-                      <Badge className="bg-indigo-100 text-indigo-800 text-[10px] shrink-0">
+                      <Badge className="bg-slate-100 text-emerald-900 text-[10px] shrink-0">
                         Monthly Nut
                       </Badge>
                     </div>
-                    <div className="mt-2 text-2xl font-black text-indigo-950">
+                    <div className="mt-2 text-2xl font-black text-slate-950">
                       {currencySymbol}
                       {totalMonthlyFixedNut.toLocaleString()}
-                      <span className="text-xs font-semibold text-indigo-700"> / month</span>
+                      <span className="text-xs font-semibold text-emerald-800"> / month</span>
                     </div>
                   </div>
-                  <div className="mt-4 pt-2.5 border-t border-indigo-200/60 flex items-center justify-between text-xs text-indigo-900">
+                  <div className="mt-4 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-900">
                     <span>Annualized Fixed Burn:</span>
                     <strong>
                       {currencySymbol}
@@ -3902,8 +3933,8 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ========================================================= */}
             {/* PART C: VISUAL BREAKEVEN CROSSOVER & INTERACTIVE SLIDERS   */}
             {/* ========================================================= */}
-            <div className="rounded-2xl border-2 border-indigo-600/20 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-5 text-white shadow-md space-y-5">
-              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-indigo-800/50 pb-4">
+            <div className="rounded-2xl border-2 border-emerald-700/20 border border-slate-800 bg-slate-950 text-white shadow-xs p-5 text-white shadow-md space-y-5">
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30 text-[10px] shrink-0">
@@ -3922,7 +3953,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     </span>{' '}
                     per month in Year {activeSimYear} to break even.
                   </h3>
-                  <p className="text-xs text-indigo-200">
+                  <p className="text-xs text-slate-300">
                     That is roughly <strong>{dailySalesNeededToBreakeven} sales per day</strong> (generating{' '}
                     <strong>
                       {currencySymbol}
@@ -3939,7 +3970,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     size="sm"
                     variant="outline"
                     onClick={handleResetStep3ToModuleDefaults}
-                    className="h-9 border-indigo-400/40 bg-indigo-900/60 px-3 text-xs font-semibold text-indigo-100 hover:bg-indigo-800 hover:text-white shrink-0"
+                    className="h-9 border-emerald-400/40 bg-slate-900/60 px-3 text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white shrink-0"
                     title="Reset price, channel fees, overheads, and wages back to the default numbers pulled from Step 2 & Modules D, E, and F"
                   >
                     <RefreshCw className="mr-1.5 h-3.5 w-3.5 text-emerald-300" />
@@ -3947,13 +3978,13 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   </Button>
 
                   <div className="rounded-xl bg-white/10 border border-white/15 px-4 py-2 text-right shrink-0">
-                    <div className="text-[10px] uppercase tracking-wider text-indigo-200 font-semibold">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-300 font-semibold">
                       Breakeven Turnover (Net)
                     </div>
                     <div className="text-xl font-black text-white">
                       {currencySymbol}
                       {monthlyRevenueAtBreakeven.toLocaleString()}
-                      <span className="text-xs font-normal text-indigo-200">/mo</span>
+                      <span className="text-xs font-normal text-slate-300">/mo</span>
                     </div>
                   </div>
                 </div>
@@ -3964,7 +3995,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 {/* Slider 1: Monthly Customer / Sales Volume Simulator */}
                 <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-indigo-100">
+                    <span className="text-xs font-bold text-slate-200">
                       Test Monthly Sales / Active Customers:
                     </span>
                     <span className="text-sm font-black text-emerald-300">
@@ -3984,9 +4015,9 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         activeCustomerSlider: val,
                       }));
                     }}
-                    className="w-full h-2 bg-indigo-950 rounded-lg appearance-none cursor-pointer accent-emerald-400"
+                    className="w-full h-2 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-400"
                   />
-                  <div className="flex justify-between text-[10px] text-indigo-300">
+                  <div className="flex justify-between text-[10px] text-slate-300">
                     <span>1 sale/mo</span>
                     <span className="text-amber-300 font-semibold">
                       Breakeven: {customersNeededToBreakeven}
@@ -3998,13 +4029,13 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 {/* Slider 2: What-If Net Price Simulator */}
                 <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-indigo-100">
+                    <span className="text-xs font-bold text-slate-200">
                       Test a Different Net Price:
                     </span>
-                    <span className="text-sm font-black text-indigo-200">
+                    <span className="text-sm font-black text-slate-300">
                       {currencySymbol}
                       {simulatedNetPrice.toFixed(2)}{' '}
-                      <span className="text-[10px] font-normal text-indigo-300">
+                      <span className="text-[10px] font-normal text-slate-300">
                         (Official: {currencySymbol}
                         {blendedAveragePrice})
                       </span>
@@ -4024,9 +4055,9 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         activePriceSlider: val,
                       }));
                     }}
-                    className="w-full h-2 bg-indigo-950 rounded-lg appearance-none cursor-pointer accent-indigo-400"
+                    className="w-full h-2 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                   />
-                  <div className="flex justify-between text-[10px] text-indigo-300">
+                  <div className="flex justify-between text-[10px] text-slate-300">
                     <span>{currencySymbol}5</span>
                     <span>Official: {currencySymbol}{blendedAveragePrice}</span>
                     <span>
@@ -4041,7 +4072,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <div className="rounded-xl bg-slate-950/70 border border-white/10 p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs">
-                    <span className="text-indigo-200">
+                    <span className="text-slate-300">
                       At <strong>{simulatedMonthlyCustomers} sales/month</strong>, your Pocket Profit is{' '}
                       <strong>
                         {currencySymbol}
@@ -4088,7 +4119,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     <div
                       className={`h-full transition-all duration-300 ${
                         simulatedMonthlyCustomers >= customersNeededToBreakeven
-                          ? 'bg-gradient-to-r from-indigo-500 via-emerald-500 to-emerald-400'
+                          ? 'bg-gradient-to-r from-slate-50 via-white to-slate-50 via-emerald-500 to-emerald-400'
                           : 'bg-gradient-to-r from-rose-600 to-amber-500'
                       }`}
                       style={{
@@ -4103,7 +4134,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       }}
                     />
                   </div>
-                  <div className="flex justify-between text-[10px] text-indigo-300">
+                  <div className="flex justify-between text-[10px] text-slate-300">
                     <span className="text-rose-300">Red Zone (Paying bills from savings/grants)</span>
                     <span className="text-amber-300 font-bold">
                       ▲ Breakeven ({customersNeededToBreakeven} sales)
@@ -4140,7 +4171,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       <th className="py-2.5 px-3.5">Monthly Wages (Mod F)</th>
                       <th className="py-2.5 px-3.5">Other Fixed Bills</th>
                       <th className="py-2.5 px-3.5">Total Monthly Nut</th>
-                      <th className="py-2.5 px-3.5 text-indigo-700">Breakeven Sales / Mo</th>
+                      <th className="py-2.5 px-3.5 text-emerald-800">Breakeven Sales / Mo</th>
                       <th className="py-2.5 px-3.5 text-emerald-700">Net Turnover / Mo</th>
                       <th className="py-2.5 px-3.5 text-slate-800">Gross Sales (Inc. VAT)</th>
                       <th className="py-2.5 px-3.5 text-amber-700">VAT Paid ({blendedEffectiveTaxRate}%)</th>
@@ -4164,13 +4195,13 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                             }))
                           }
                           className={`cursor-pointer transition-colors ${
-                            isCurr ? 'bg-indigo-50/50 font-semibold' : 'hover:bg-slate-50'
+                            isCurr ? 'bg-slate-50 font-semibold' : 'hover:bg-slate-50'
                           }`}
                         >
                           <td className="py-2.5 px-3.5 font-bold text-slate-900">
                             Year {yr.yearNumber}{' '}
                             {isCurr && (
-                              <Badge className="ml-1 bg-indigo-100 text-indigo-800 text-[9px]">
+                              <Badge className="ml-1 bg-slate-100 text-emerald-900 text-[9px]">
                                 Viewing
                               </Badge>
                             )}
@@ -4190,7 +4221,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                             ).toLocaleString()}
                             /mo
                           </td>
-                          <td className="py-2.5 px-3.5 font-bold text-indigo-700">
+                          <td className="py-2.5 px-3.5 font-bold text-emerald-800">
                             {yr.customersNeededToBreakeven.toLocaleString()} sales/mo
                           </td>
                           <td className="py-2.5 px-3.5 font-bold text-emerald-700">
@@ -4216,10 +4247,10 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ========================================================= */}
             {/* PART E: GRANT ASSESSOR CALIBRATION (PAYMENT TERMS & EXPORT) */}
             {/* ========================================================= */}
-            <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/50 via-white to-slate-50 p-4.5 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-3">
+            <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 via-white to-slate-50 p-4.5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-xs">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-white font-bold text-xs">
                     <ShieldCheck className="h-4 w-4" />
                   </div>
                   <div>
@@ -4227,7 +4258,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       <Label className="text-xs font-bold uppercase tracking-wider text-slate-900">
                         4. Grant Assessor &amp; Working Capital Calibration ({selectedCountry === 'GB' ? 'UK Innovate UK / Start Up Loans' : 'Ireland LEO / Enterprise Ireland'})
                       </Label>
-                      <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[9px] px-1.5 py-0 font-semibold">
+                      <Badge className="bg-slate-100 text-emerald-900 border-slate-200 text-[9px] px-1.5 py-0 font-semibold">
                         Grant Audit Proof
                       </Badge>
                     </div>
@@ -4294,14 +4325,14 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           disabled={isVaultReadonly}
                           className={`rounded-lg p-2.5 text-left border transition-all ${
                             isSelected
-                              ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500/20'
+                              ? 'border-emerald-700 bg-emerald-50/80 ring-2 ring-emerald-700/20'
                               : 'border-slate-200 hover:border-slate-300 bg-white'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-1">
                             <span
                               className={`text-xs font-bold ${
-                                isSelected ? 'text-indigo-950' : 'text-slate-800'
+                                isSelected ? 'text-slate-950' : 'text-slate-800'
                               }`}
                             >
                               {term.label}
@@ -4313,7 +4344,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           <span
                             className={`inline-block mt-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded ${
                               isSelected
-                                ? 'bg-indigo-600 text-white'
+                                ? 'bg-emerald-700 text-white'
                                 : 'bg-slate-100 text-slate-600'
                             }`}
                           >
@@ -4336,7 +4367,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       }
                       className={`text-xs font-medium px-2.5 py-1 rounded-md border transition-all ${
                         step3Data.paymentTerms === 'OTHER'
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-bold'
+                          ? 'border-emerald-700 bg-emerald-50 text-emerald-800 font-bold'
                           : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                     >
@@ -4485,15 +4516,15 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* --------------------------------------------------------- */}
             {/* PART F: BREAKEVEN & WORKING CAPITAL ASSESSOR NARRATIVE     */}
             {/* --------------------------------------------------------- */}
-            <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/20 to-violet-50/20 p-4.5 space-y-3.5 shadow-2xs">
+            <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white via-slate-50/20 to-slate-50/20 p-4.5 space-y-3.5 shadow-2xs">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-0.5 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <Label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                      <ShieldCheck className="h-4 w-4 text-emerald-700" />
                       Grant &amp; Bank Assessor Defense: Written Viability Narrative
                     </Label>
-                    <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[9px] px-1.5 py-0 font-semibold shrink-0">
+                    <Badge className="bg-slate-100 text-emerald-900 border-slate-200 text-[9px] px-1.5 py-0 font-semibold shrink-0">
                       LEO / Innovate UK Ready
                     </Badge>
                   </div>
@@ -4508,16 +4539,16 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   variant="outline"
                   onClick={handleGenerateAiBreakevenNarrative}
                   disabled={isGeneratingAiBreakevenNarrative || isVaultReadonly}
-                  className="h-8 text-xs font-semibold border-indigo-300 bg-white hover:bg-indigo-50 text-indigo-700 shadow-2xs gap-1.5 shrink-0"
+                  className="h-8 text-xs font-semibold border-emerald-300 bg-white hover:bg-emerald-50 text-emerald-800 shadow-2xs gap-1.5 shrink-0"
                 >
                   {isGeneratingAiBreakevenNarrative ? (
                     <>
-                      <Wand2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+                      <Wand2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
                       <span>Synthesizing Assessor Defense...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                      <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
                       <span>Auto-Generate with AI (Grant Assessor Mode)</span>
                     </>
                   )}
@@ -4534,8 +4565,8 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               )}
 
               {aiBreakevenAssessorTip && (
-                <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-2.5 flex items-start gap-2 text-xs text-indigo-950">
-                  <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 flex items-start gap-2 text-xs text-slate-950">
+                  <Lightbulb className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                   <p className="text-[11px] leading-relaxed">
                     <strong>Grant Assessor Coaching Tip:</strong> {aiBreakevenAssessorTip}
                   </p>
@@ -4552,7 +4583,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   }))
                 }
                 placeholder="Explain how your venture survives operationally until customer cash clears, why your breakeven unit targets are conservative, and how your export split satisfies grant criteria (or click 'Auto-Generate with AI' above to compose automatically)..."
-                className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-none leading-relaxed bg-white"
+                className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none leading-relaxed bg-white"
               />
             </div>
 
@@ -4595,7 +4626,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     window.scrollTo({ top: 450, behavior: 'smooth' });
                   }}
                   disabled={!isStep3Complete || isVaultReadonly}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
                 >
                   Next: Sales Velocity &amp; Assumptions (Step 4)
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -4614,20 +4645,20 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         <div
           id="module-h-step-4"
           onClick={() => setOpenStep(4)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Step 4: Sales Velocity, Capacity &amp; Written Assumptions
                   </h2>
                   <Badge
@@ -4657,7 +4688,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <Button
               size="sm"
               variant="ghost"
-              className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
             >
               {isStep4Complete ? 'Edit Step' : 'Open Step'}
               <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -4672,7 +4703,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep4Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
@@ -4719,7 +4750,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 4 ? null : 4))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -4738,15 +4769,15 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
             {/* Why Card Drawer */}
             {activeWhyCard === 4 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
-                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div className="space-y-1">
-                      <p className="font-semibold text-indigo-950">
+                      <p className="font-semibold text-slate-950">
                         Grant &amp; Bank Credit Underwriting Standard
                       </p>
-                      <p className="text-indigo-900/90 leading-relaxed">
+                      <p className="text-slate-900/90 leading-relaxed">
                         Government grant committees (LEO, Enterprise Ireland, Innovate UK) reject business plans that assume sales arrive instantly by magic. Evaluators check two specific failure modes:
                       </p>
                       <ul className="list-disc pl-5 space-y-1 text-slate-700">
@@ -4764,7 +4795,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     size="sm"
                     variant="ghost"
                     onClick={() => setActiveWhyCard(null)}
-                    className="h-6 w-6 p-0 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100/50"
+                    className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-800 hover:bg-slate-100"
                   >
                     ✕
                   </Button>
@@ -4825,7 +4856,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Gauge className="h-4 w-4 text-indigo-600" />
+                  <Gauge className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                     Part A: Operational Delivery Capacity vs. Breakeven Volume
                   </h3>
@@ -4863,7 +4894,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                       Monthly Delivery Ceiling
                     </span>
-                    <span className="text-[10px] text-indigo-600 font-medium">Editable</span>
+                    <span className="text-[10px] text-emerald-700 font-medium">Editable</span>
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <Input
@@ -4935,7 +4966,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <button
                     type="button"
                     onClick={() => onNavigateToModule('MOD_E_OPERATIONS')}
-                    className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-semibold ml-2 hover:underline shrink-0"
+                    className="inline-flex items-center text-emerald-700 hover:text-emerald-900 font-semibold ml-2 hover:underline shrink-0"
                   >
                     Adjust Operations in Module E
                     <ExternalLink className="ml-1 h-3 w-3" />
@@ -4990,14 +5021,14 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       }}
                       className={`cursor-pointer rounded-xl border p-3 transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-500'
-                          : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/50'
+                          ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
+                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/50'
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <div
                           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
-                            isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                            isSelected ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'
                           }`}
                         >
                           <Icon className="h-4 w-4" />
@@ -5005,7 +5036,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         <div className="font-bold text-xs text-slate-900 truncate flex-1">
                           {motion.title}
                         </div>
-                        {isSelected && <Check className="h-3.5 w-3.5 text-indigo-600 shrink-0" />}
+                        {isSelected && <Check className="h-3.5 w-3.5 text-emerald-700 shrink-0" />}
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500 line-clamp-2">
                         {motion.subtitle}
@@ -5021,7 +5052,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
               {/* Revealed input for OTHER motion (Rule 1.5) */}
               {step4Data.primarySalesMotion === 'OTHER' && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/30 p-3 space-y-1.5 animate-in fade-in-50">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1.5 animate-in fade-in-50">
                   <Label className="text-xs font-semibold text-slate-800">
                     Specify Your Custom Sales Motion
                   </Label>
@@ -5076,7 +5107,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         expectedConversionRatePercent: parseFloat(e.target.value) || 1,
                       }))
                     }
-                    className="w-full accent-indigo-600"
+                    className="w-full accent-emerald-700"
                   />
 
                   {/* Preset chips */}
@@ -5099,7 +5130,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         }
                         className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
                           step4Data.expectedConversionRatePercent === p.val
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-emerald-700 text-white'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
@@ -5145,7 +5176,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         salesCycleDays: parseInt(e.target.value) || 1,
                       }))
                     }
-                    className="w-full accent-indigo-600"
+                    className="w-full accent-emerald-700"
                   />
 
                   {/* Preset chips */}
@@ -5168,7 +5199,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         }
                         className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
                           step4Data.salesCycleDays === p.val
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-emerald-700 text-white'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
@@ -5180,17 +5211,17 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               </div>
 
               {/* Interactive Reverse Funnel Calculator Card */}
-              <div className="rounded-xl border border-indigo-700/30 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-4 sm:p-5 text-white shadow-sm space-y-3">
+              <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-4 sm:p-5 text-white shadow-sm space-y-3">
                 <div className="flex items-center gap-2">
                   <Target className="h-4 w-4 text-emerald-400" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
                     Reverse-Engineered Pipeline Requirements
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="rounded-lg bg-white/5 border border-white/10 p-3.5 space-y-1">
-                    <div className="text-[11px] text-indigo-200/80 font-medium">
+                    <div className="text-[11px] text-slate-300/80 font-medium">
                       Required Monthly Qualified Leads / Visitors
                     </div>
                     <div className="flex items-baseline gap-2">
@@ -5205,7 +5236,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   </div>
 
                   <div className="rounded-lg bg-white/5 border border-white/10 p-3.5 space-y-1">
-                    <div className="text-[11px] text-indigo-200/80 font-medium">
+                    <div className="text-[11px] text-slate-300/80 font-medium">
                       Daily Acquisition Run-Rate
                     </div>
                     <div className="flex items-baseline gap-2">
@@ -5220,7 +5251,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   </div>
                 </div>
 
-                <p className="text-[11px] text-indigo-100/80 pt-1">
+                <p className="text-[11px] text-slate-200/80 pt-1">
                   💡 This establishes the exact pipeline volume that <strong>Module I (Marketing)</strong> and <strong>Module C (Customer Waitlists)</strong> will be engineered to generate.
                 </p>
               </div>
@@ -5262,7 +5293,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       expectedMonthlyChurnOrRepeatPercent: parseInt(e.target.value) || 5,
                     }))
                   }
-                  className="w-full accent-indigo-600"
+                  className="w-full accent-emerald-700"
                 />
                 <div className="flex items-center gap-1 shrink-0">
                   <Input
@@ -5316,11 +5347,11 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   type="button"
                   onClick={handleGenerateAiSalesNarrative}
                   disabled={isGeneratingAiSalesNarrative || isVaultReadonly}
-                  className="h-8 border-indigo-300 bg-indigo-50/50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900"
+                  className="h-8 border-emerald-300 bg-slate-50 text-xs font-semibold text-emerald-800 hover:bg-slate-100 hover:text-slate-900"
                 >
                   {isGeneratingAiSalesNarrative ? (
                     <>
-                      <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-indigo-600" />
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-emerald-700" />
                       Synthesizing Pipeline Math...
                     </>
                   ) : aiSalesNarrativeSuccess ? (
@@ -5330,7 +5361,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       Auto-Draft with AI (Assessor Mode)
                     </>
                   )}
@@ -5339,10 +5370,10 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
               {/* Assessor Tip Callout */}
               {(aiSalesAssessorTip || step4Data.assessorTip) && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5 text-xs text-indigo-950 flex items-start gap-2.5 animate-in fade-in-50">
-                  <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950 flex items-start gap-2.5 animate-in fade-in-50">
+                  <Lightbulb className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-indigo-900">Assessor Defense Tip: </span>
+                    <span className="font-bold text-slate-900">Assessor Defense Tip: </span>
                     <span className="text-slate-700">{aiSalesAssessorTip || step4Data.assessorTip}</span>
                   </div>
                 </div>
@@ -5360,7 +5391,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     }))
                   }
                   placeholder={`Click "Auto-Draft with AI (Assessor Mode)" above or enter your 3 structured paragraphs:\n\n1. Commercial Acquisition & Conversion Mechanics (Explaining the ${step4Data.expectedConversionRatePercent}% conversion rate and required ${calculatedRequiredMonthlyLeads} leads/month)...\n\n2. Pipeline Velocity & Revenue Realization Lag (Explaining the ${step4Data.salesCycleDays}-day sales cycle lag and cashflow timing)...\n\n3. Operational Delivery Capacity & Scalability (Comparing ${yr1BreakevenUnits} breakeven units against your ${currentCapacity} units/month operational ceiling)...`}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 leading-relaxed shadow-2xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 leading-relaxed shadow-2xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-700"
                 />
                 <div className="flex items-center justify-between text-[11px] text-slate-400">
                   <span>
@@ -5433,7 +5464,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     window.scrollTo({ top: 450, behavior: 'smooth' });
                   }}
                   disabled={!isStep4Complete || isVaultReadonly}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
                 >
                   Next: Revenue Brief &amp; Audit (Step 5)
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -5452,7 +5483,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         <div
           id="module-h-step-5"
           onClick={() => setOpenStep(5)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -5460,14 +5491,14 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   completedCoreStepsCount === 4 && isStep5Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 <FileText className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                     Revenue Strategy &amp; Pocket Profit Brief
                   </h2>
                   <Badge
@@ -5482,7 +5513,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   </Badge>
                   <Badge
                     variant="outline"
-                    className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700 shrink-0 hidden sm:inline-flex"
+                    className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800 shrink-0 hidden sm:inline-flex"
                   >
                     LEO &amp; Innovate UK Ready
                   </Badge>
@@ -5497,7 +5528,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {completedCoreStepsCount === 4 ? 'Open Overview' : 'Review Overview'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -5507,15 +5538,15 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
         </div>
       ) : (
         // EXPANDED STEP 5 OVERVIEW CARD
-        <Card id="module-h-step-5" className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm">
-          <CardHeader className="border-b border-indigo-100/80 pb-4">
+        <Card id="module-h-step-5" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
+          <CardHeader className="border-b border-slate-100/80 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     completedCoreStepsCount === 4 && isStep5Complete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   <FileText className="h-4 w-4" />
@@ -5525,7 +5556,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     <CardTitle className="text-base font-bold text-slate-900">
                       Revenue Strategy &amp; Pocket Profit Brief (Executive Overview)
                     </CardTitle>
-                    <Badge className="bg-indigo-100 text-indigo-800 text-[10px] shrink-0">
+                    <Badge className="bg-slate-100 text-emerald-900 text-[10px] shrink-0">
                       Module H Overview
                     </Badge>
                     <Badge
@@ -5551,7 +5582,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   size="sm"
                   variant="outline"
                   onClick={handleCopyMarkdownBrief}
-                  className="h-8 text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 font-semibold"
+                  className="h-8 text-xs border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50 font-semibold"
                 >
                   {copiedBrief ? (
                     <>
@@ -5599,7 +5630,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 {/* Pillar 1: Revenue Model */}
                 <div
                   onClick={() => setOpenStep(1)}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">
@@ -5616,7 +5647,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       ? REVENUE_VEHICLE_OPTIONS.find((v) => v.id === step1Data.revenueModelVehicle)?.title
                       : 'Not selected yet'}
                   </p>
-                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                  <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                     Edit Model →
                   </span>
                 </div>
@@ -5624,7 +5655,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 {/* Pillar 2: Pricing Tiers */}
                 <div
                   onClick={() => setOpenStep(2)}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">
@@ -5639,7 +5670,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <p className="mt-1 text-[11px] text-slate-600">
                     {currencySymbol}{blendedAveragePrice.toLocaleString()} blended net • {step2Data.tiers.length} tier(s) configured.
                   </p>
-                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                  <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                     Edit Tiers →
                   </span>
                 </div>
@@ -5647,7 +5678,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 {/* Pillar 3: Breakeven Engine */}
                 <div
                   onClick={() => setOpenStep(3)}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">
@@ -5662,7 +5693,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <p className="mt-1 text-[11px] text-slate-600">
                     {currencySymbol}{pocketProfitPerSale.toLocaleString()} pocket profit ({contributionMarginPercent}%) • {yr1BreakevenUnits} sales/mo nut.
                   </p>
-                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                  <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                     Edit Pocket Profit →
                   </span>
                 </div>
@@ -5670,7 +5701,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 {/* Pillar 4: Sales Velocity & Capacity */}
                 <div
                   onClick={() => setOpenStep(4)}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">
@@ -5685,7 +5716,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <p className="mt-1 text-[11px] text-slate-600">
                     {step4Data.expectedConversionRatePercent}% conv • {step4Data.salesCycleDays}d cycle • {currentCapacity} cap/mo ({isCapacitySurplus ? `+${capacitySurplusOrDeficit}` : `${capacitySurplusOrDeficit}`}).
                   </p>
-                  <span className="mt-2 inline-block text-[10px] font-bold text-indigo-600">
+                  <span className="mt-2 inline-block text-[10px] font-bold text-emerald-700">
                     Edit Velocity →
                   </span>
                 </div>
@@ -5695,7 +5726,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ============================================================= */}
             {/* SECTION 2: 1-PAGE EXECUTIVE COMMERCIAL DOSSIER                */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+            <div className="space-y-3 border-t border-slate-100/80 pt-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                   2. Executive Commercial Snapshot &amp; Unit Economics Waterfall
@@ -5723,12 +5754,12 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <div className="text-[10px] text-emerald-600 font-semibold">{contributionMarginPercent}% contribution margin</div>
                 </div>
 
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3 shadow-2xs">
-                  <div className="text-[11px] font-medium text-indigo-800">Y1 Breakeven Target</div>
-                  <div className="mt-1 text-lg font-bold text-indigo-900">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-2xs">
+                  <div className="text-[11px] font-medium text-emerald-900">Y1 Breakeven Target</div>
+                  <div className="mt-1 text-lg font-bold text-slate-900">
                     {yr1BreakevenUnits.toLocaleString()} <span className="text-xs font-normal">sales/mo</span>
                   </div>
-                  <div className="text-[10px] text-indigo-600">Covers {currencySymbol}{totalMonthlyFixedNut.toLocaleString()}/mo nut</div>
+                  <div className="text-[10px] text-emerald-700">Covers {currencySymbol}{totalMonthlyFixedNut.toLocaleString()}/mo nut</div>
                 </div>
 
                 <div className={`rounded-xl border p-3 shadow-2xs ${
@@ -5770,10 +5801,10 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       <td className="py-2 px-3 text-right text-slate-500">--</td>
                       <td className="py-2 px-3 text-slate-500 text-[11px] hidden sm:table-cell">Remitted to Revenue / HMRC upon registration</td>
                     </tr>
-                    <tr className="font-semibold text-slate-900 bg-indigo-50/20">
+                    <tr className="font-semibold text-slate-900 bg-slate-50">
                       <td className="py-2 px-3">Blended Realized Net Price</td>
-                      <td className="py-2 px-3 text-right font-bold text-indigo-950">{currencySymbol}{simulatedNetPrice.toLocaleString()}</td>
-                      <td className="py-2 px-3 text-right font-bold text-indigo-950">100.0%</td>
+                      <td className="py-2 px-3 text-right font-bold text-slate-950">{currencySymbol}{simulatedNetPrice.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-right font-bold text-slate-950">100.0%</td>
                       <td className="py-2 px-3 text-slate-600 text-[11px] hidden sm:table-cell">Commercial top-line realized by the business</td>
                     </tr>
                     <tr>
@@ -5818,7 +5849,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         Fixed: {currencySymbol}{(yt.monthlyPayrollBaseline + yt.otherFixedMonthlyOverheads).toLocaleString()}/mo
                       </Badge>
                     </div>
-                    <div className="text-base font-bold text-indigo-900">
+                    <div className="text-base font-bold text-slate-900">
                       {yt.customersNeededToBreakeven.toLocaleString()} <span className="text-xs font-normal text-slate-600">sales/mo to break even</span>
                     </div>
                     <p className="text-[11px] text-slate-500">
@@ -5832,7 +5863,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ============================================================= */}
             {/* SECTION 3: AUDIT READINESS POSTURE SELECTOR                   */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+            <div className="space-y-3 border-t border-slate-100/80 pt-4">
               <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
                   3. Commercial Readiness Posture (Grant &amp; Investor Diligence)
@@ -5889,8 +5920,8 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       }
                       className={`flex flex-col justify-between rounded-xl border p-3 text-left transition ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-600/20'
-                          : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/60'
+                          ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
+                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                       }`}
                     >
                       <div className="space-y-1">
@@ -5902,7 +5933,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                             variant="outline"
                             className={
                               isSelected
-                                ? 'border-indigo-300 bg-indigo-100 text-[10px] text-indigo-900 font-bold'
+                                ? 'border-emerald-300 bg-slate-100 text-[10px] text-slate-900 font-bold'
                                 : 'border-slate-200 bg-slate-50 text-[10px] text-slate-600'
                             }
                           >
@@ -5919,8 +5950,8 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               </div>
 
               {step5Data.revenueReadinessConfidence === 'OTHER' && (
-                <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-3 space-y-1.5">
-                  <label className="block text-xs font-semibold text-indigo-950">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-950">
                     Describe Your Custom Commercial Posture:
                   </label>
                   <input
@@ -5943,7 +5974,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ============================================================= */}
             {/* SECTION 4: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT AUDIT */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+            <div className="space-y-3 border-t border-slate-100/80 pt-4">
               <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -5961,16 +5992,16 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     variant="outline"
                     disabled={isGeneratingAiBrief || isVaultReadonly}
                     onClick={handleGenerateAiRevenueBrief}
-                    className="h-8 text-xs font-semibold border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100/80"
+                    className="h-8 text-xs font-semibold border-slate-200 bg-slate-50 text-emerald-800 hover:bg-slate-100/80"
                   >
                     {isGeneratingAiBrief ? (
                       <>
-                        <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-indigo-600" />
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin text-emerald-700" />
                         Auditing Commercial Blind Spots...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Audit Commercial Blind Spots with AI
                       </>
                     )}
@@ -6003,7 +6034,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           ? 'border-rose-200 bg-rose-50/30'
                           : isWarning
                           ? 'border-amber-200 bg-amber-50/30'
-                          : 'border-indigo-200 bg-indigo-50/30'
+                          : 'border-slate-200 bg-slate-50'
                       }`}
                     >
                       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
@@ -6019,7 +6050,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                                 ? 'border-rose-300 bg-rose-100 text-rose-800'
                                 : isWarning
                                 ? 'border-amber-300 bg-amber-100 text-amber-800'
-                                : 'border-indigo-300 bg-indigo-100 text-indigo-800'
+                                : 'border-emerald-300 bg-slate-100 text-emerald-900'
                             }`}
                           >
                             {item.severity}
@@ -6032,7 +6063,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                             size="sm"
                             variant="ghost"
                             onClick={() => handleParkBlindSpotInOpenQuestions(item)}
-                            className="h-7 text-[11px] text-slate-600 hover:text-indigo-600 hover:bg-slate-100"
+                            className="h-7 text-[11px] text-slate-600 hover:text-emerald-700 hover:bg-slate-100"
                           >
                             Park in Open Questions
                           </Button>
@@ -6058,7 +6089,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       </p>
 
                       <div className="mt-2.5 rounded-lg border border-slate-200/80 bg-white/80 p-2.5 text-xs">
-                        <span className="font-semibold text-indigo-950">Recommended Action: </span>
+                        <span className="font-semibold text-slate-950">Recommended Action: </span>
                         <span className="text-slate-700">{item.suggestedAction}</span>
                       </div>
                     </div>
@@ -6070,7 +6101,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ============================================================= */}
             {/* SECTION 5: EXECUTIVE COMMERCIAL SUMMARY NARRATIVE (3 PARAS)  */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-indigo-100/80 pt-4">
+            <div className="space-y-3 border-t border-slate-100/80 pt-4">
               <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -6084,10 +6115,10 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
               {/* Assessor Tip Callout */}
               {(aiBriefAssessorTip || step5Data.aiAssessorTip) && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5 text-xs text-indigo-950 flex items-start gap-2.5">
-                  <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950 flex items-start gap-2.5">
+                  <Lightbulb className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-indigo-900">Commercial Assessor Tip: </span>
+                    <span className="font-bold text-slate-900">Commercial Assessor Tip: </span>
                     <span className="text-slate-700">{aiBriefAssessorTip || step5Data.aiAssessorTip}</span>
                   </div>
                 </div>
@@ -6105,7 +6136,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     }))
                   }
                   placeholder="Click 'Audit Commercial Blind Spots with AI' above or enter your 3 structured paragraphs..."
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 leading-relaxed shadow-2xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 leading-relaxed shadow-2xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-700"
                 />
                 <div className="flex items-center justify-between text-[11px] text-slate-400">
                   <span>
@@ -6117,7 +6148,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             </div>
 
             {/* Save Overview Action */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-indigo-100/80 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100/80 pt-4">
               <Button
                 type="button"
                 variant="outline"
@@ -6169,7 +6200,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {onContinueToModuleI && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
                 <div className="text-xs min-w-0 flex-1">
-                  <span className="font-semibold text-indigo-300">
+                  <span className="font-semibold text-slate-300">
                     Module H Complete! Commercial model &amp; pocket profit verified for {plan.title}.
                   </span>{' '}
                   <span className="text-slate-300">
@@ -6184,7 +6215,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     await handleSaveStep5();
                     onContinueToModuleI();
                   }}
-                  className="shrink-0 bg-indigo-600 text-white hover:bg-indigo-500 text-xs font-semibold"
+                  className="shrink-0 bg-emerald-700 text-white hover:bg-emerald-500 text-xs font-semibold"
                 >
                   Advance to Module I: Marketing
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

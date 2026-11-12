@@ -267,7 +267,7 @@ export const AUDIT_VIEWPORTS: AuditViewportDefinition[] = [
     primaryLayoutRisks: [
       '12-column workspace split (3 cols sidebar + 9 cols module) leaves ~940px for module content—wide tables or 4-col grids can feel tight',
       'Limited 768px vertical height means sticky headers + tall module hero banners can push the active step below the fold',
-      'Long step titles in the top dark-indigo navigation strip truncating or misaligning across 6-step rows',
+      'Long step titles in the top dark header navigation strip truncating or misaligning across 6-step rows',
     ],
   },
 ];
@@ -1207,7 +1207,7 @@ export function generateUnfinishedModuleBuildPrompt(
     `Please build or upgrade **${mod.shortName} (${mod.title})** in \`${mod.targetFilePath}\` and wire it into \`src/app/(workspace)/workspace/page.tsx\` following all \`GEMINI.md\` standards:`,
     ``,
     `1. **Collapsible Step + Final Overview Brief Architecture (GEMINI.md Section 6):**`,
-    `   - Manage \`const [openStep, setOpenStep] = useState<number | 'ALL'>(...)\` with an \`Expand All Steps\` / \`Focus Step-by-Step\` button in the top dark-indigo header card.`,
+    `   - Manage \`const [openStep, setOpenStep] = useState<number | 'ALL'>(...)\` with an \`Expand All Steps\` / \`Focus Step-by-Step\` button in the top dark-slate header card.`,
     `   - Collapsed steps must use \`text-sm font-bold text-slate-900\` titles and \`text-xs text-slate-500\` summaries with \`min-w-0 flex-1\` and \`shrink-0\` badges/buttons.`,
     `   - Expanded steps must use \`text-base font-bold text-slate-900\` titles, \`Collapse Step\` button, and a bottom action bar with AI helper, Save, and Next Step.`,
     `   - Final step must be the **${mod.shortName} Overview & Executive Summary Brief** step with a Readiness Checklist Grid, Constructive "Things to Consider" Blind-Spot Review, 1-click Copy Markdown / Download HTML / Print PDF exports, and a dark footer CTA bar to advance to the next module.`,

@@ -244,7 +244,7 @@ export function MarketingHeader({
           <Link href="/register">
             <Button
               size="sm"
-              className="h-9 rounded-full bg-slate-900 px-4 text-xs font-semibold text-white shadow-2xs transition hover:bg-indigo-600"
+              className="h-9 rounded-full bg-slate-900 px-4 text-xs font-semibold text-white shadow-2xs transition hover:bg-emerald-700"
             >
               Get Started Free
               <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -275,7 +275,7 @@ export function MarketingHeader({
               const isActive = activeItem === item.key;
               const className = `rounded-lg px-3 py-2 text-sm font-medium transition ${
                 isActive
-                  ? 'bg-indigo-50 font-semibold text-indigo-700'
+                  ? 'bg-emerald-50 font-semibold text-emerald-800'
                   : 'text-slate-700 hover:bg-slate-100'
               }`;
 
@@ -315,7 +315,7 @@ export function MarketingHeader({
                 clearActiveBmuSession();
                 logoutFounderAction().catch(() => {});
               }}
-              className="rounded-lg px-3 py-2 font-semibold text-indigo-600 hover:bg-indigo-50"
+              className="rounded-lg px-3 py-2 font-semibold text-emerald-800 hover:bg-emerald-50"
             >
               Sign In →
             </Link>
@@ -400,7 +400,7 @@ export function MarketingFooter() {
           {/* Regional Editions Column */}
           <div className="md:col-span-4">
             <div className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-white uppercase">
-              <Globe2 className="h-3.5 w-3.5 text-indigo-400" />
+              <Globe2 className="h-3.5 w-3.5 text-emerald-400" />
               Regional Editions
             </div>
             <ul className="mt-3 space-y-2 text-xs">
@@ -439,12 +439,12 @@ export function MarketingFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/grants" className="hover:text-white font-semibold text-indigo-400">
+                <Link href="/grants" className="hover:text-white font-semibold text-emerald-400">
                   Startup Grants Directory
                 </Link>
               </li>
               <li>
-                <Link href="/cohorts" className="hover:text-white font-semibold text-indigo-300">
+                <Link href="/cohorts" className="hover:text-white font-semibold text-emerald-300">
                   Preflight for Accelerators &amp; Cohorts
                 </Link>
               </li>

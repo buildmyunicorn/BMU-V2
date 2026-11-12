@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Check,
   ChevronDown,
@@ -673,13 +673,16 @@ export function ModuleLModeSelectorStep({
     };
   }
 
-  async function handleSaveOnly() {
+  async function handleSaveOnly(options?: { silent?: boolean }) {
     if (isVaultReadonly || isSaving) return;
+    isDirtyRef.current = false;
     setIsSaving(true);
     try {
       const payload = buildPayload();
       await onSaveStep1(payload, 20);
-      setStatusMessage('✅ Saved Step 1 Compiler Mode & Committee Rubric settings!');
+      if (!options?.silent) {
+        setStatusMessage('✅ Saved Step 1 Compiler Mode & Committee Rubric settings!');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -687,6 +690,7 @@ export function ModuleLModeSelectorStep({
 
   async function handleSaveAndContinue() {
     if (isSaving) return;
+    isDirtyRef.current = false;
     setIsSaving(true);
     try {
       if (!isVaultReadonly) {
@@ -698,6 +702,50 @@ export function ModuleLModeSelectorStep({
       setIsSaving(false);
     }
   }
+
+  const isFirstRenderRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const handleSaveOnlyRef = useRef(handleSaveOnly);
+  handleSaveOnlyRef.current = handleSaveOnly;
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyRef.current) {
+        void handleSaveOnlyRef.current({ silent: true });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    compilerMode,
+    otherCompilerModeText,
+    narrativeTone,
+    otherNarrativeToneText,
+    submissionObjective,
+    otherSubmissionObjectiveText,
+    submissionWindow,
+    otherSubmissionWindowText,
+    targetAgencyOrCommitteeName,
+    targetFundingAskAmount,
+    includeAppendicesBinder,
+    strictWordCountEnforcement,
+    compilerMandateNotes,
+    aiAssessorTip,
+    isVaultReadonly,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        void handleSaveOnlyRef.current({ silent: true });
+      }
+    };
+  }, []);
 
   async function handleSaveAndJumpToCompiler() {
     if (isSaving) return;
@@ -725,7 +773,7 @@ export function ModuleLModeSelectorStep({
       <div
         id="module-l-step-1"
         onClick={onOpenStep}
-        className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+        className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
       >
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -733,14 +781,14 @@ export function ModuleLModeSelectorStep({
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                 isStepComplete
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-indigo-600 text-white'
+                  : 'bg-slate-900 text-white'
               }`}
             >
               {isStepComplete ? <Check className="h-4 w-4" /> : '1'}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   1. Compiler Mode, Target Committee &amp; Scoring Rubric
                 </h2>
                 <Badge
@@ -755,7 +803,7 @@ export function ModuleLModeSelectorStep({
                 </Badge>
                 <Badge
                   variant="outline"
-                  className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                  className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px] font-medium"
                 >
                   {activeCatalogItem.badge}
                 </Badge>
@@ -773,7 +821,7 @@ export function ModuleLModeSelectorStep({
             type="button"
             size="sm"
             variant="ghost"
-            className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+            className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
           >
             {isStepComplete ? 'Edit Step' : 'Open Step'}
             <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -798,7 +846,7 @@ export function ModuleLModeSelectorStep({
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                 isStepComplete
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-indigo-600 text-white'
+                  : 'bg-slate-900 text-white'
               }`}
             >
               {isStepComplete ? <Check className="h-4 w-4" /> : '1'}
@@ -820,7 +868,7 @@ export function ModuleLModeSelectorStep({
                 </Badge>
                 <Badge
                   variant="outline"
-                  className="shrink-0 border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-medium"
+                  className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px] font-medium"
                 >
                   {activeCatalogItem.badge}
                 </Badge>
@@ -853,7 +901,7 @@ export function ModuleLModeSelectorStep({
             size="sm"
             variant="outline"
             onClick={() => setShowWhyDrawer((prev) => !prev)}
-            className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+            className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
           >
             <HelpCircle className="mr-1 h-3.5 w-3.5" />
             Why Are We Asking This?
@@ -874,12 +922,12 @@ export function ModuleLModeSelectorStep({
             variant="outline"
             onClick={handleCalibrateWithAi}
             disabled={isGeneratingAi || isVaultReadonly}
-            className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+            className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
           >
             {isGeneratingAi ? (
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-violet-600" />
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-emerald-700" />
             ) : (
-              <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+              <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             )}
             Auto-Calibrate Mandate with AI
           </Button>
@@ -887,10 +935,10 @@ export function ModuleLModeSelectorStep({
 
         {/* Collapsible Micro-Coaching Drawer 1: Why Are We Asking This? */}
         {showWhyDrawer && (
-          <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
             <div className="flex items-start justify-between gap-2">
               <div className="space-y-1.5">
-                <p className="font-bold text-indigo-950">
+                <p className="font-bold text-slate-950">
                   Why the Compiler Mode changes your entire business plan output:
                 </p>
                 <p className="leading-relaxed">
@@ -903,7 +951,7 @@ export function ModuleLModeSelectorStep({
               <button
                 type="button"
                 onClick={() => setShowWhyDrawer(false)}
-                className="rounded-md p-1 text-indigo-700 hover:bg-indigo-100"
+                className="rounded-md p-1 text-emerald-800 hover:bg-slate-100"
                 aria-label="Close Why Drawer"
               >
                 <X className="h-4 w-4" />
@@ -947,12 +995,12 @@ export function ModuleLModeSelectorStep({
 
       <CardContent className="space-y-6 pt-5">
         {statusMessage && (
-          <div className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-2.5 text-xs font-medium text-indigo-950">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-emerald-50/80 px-4 py-2.5 text-xs font-medium text-slate-950">
             <span>{statusMessage}</span>
             <button
               type="button"
               onClick={() => setStatusMessage(null)}
-              className="ml-3 text-[11px] font-bold text-indigo-700 underline hover:text-indigo-900"
+              className="ml-3 text-[11px] font-bold text-emerald-800 underline hover:text-slate-900"
             >
               Dismiss
             </button>
@@ -962,7 +1010,7 @@ export function ModuleLModeSelectorStep({
         {/* =================================================================== */}
         {/* AUTO-SYNC BANNER FROM MODULE K & HQ GEO-ROUTING                     */}
         {/* =================================================================== */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 via-white to-indigo-50/50 p-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 via-white to-slate-50/50 p-3.5">
           <div className="flex items-start gap-2.5 min-w-0 flex-1">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
             <div className="text-xs text-slate-700">
@@ -970,7 +1018,7 @@ export function ModuleLModeSelectorStep({
                 Synced from Geo-Profile ({trackCaps.countryFlag} {trackCaps.countryName}):
               </span>{' '}
               Based on your workspace funding strategy, your recommended compilation format is{' '}
-              <strong className="text-indigo-700">
+              <strong className="text-emerald-800">
                 {
                   MODULE_L_COMPILER_MODES.find(
                     (m) => m.mode === syncedRecommendedMode
@@ -1010,7 +1058,7 @@ export function ModuleLModeSelectorStep({
               className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-600"
               title="Jargon Tooltip: Each stakeholder uses a specific scoring rubric. Switching modes reformats your data without erasing anything."
             >
-              <Info className="h-3 w-3 text-indigo-600" />
+              <Info className="h-3 w-3 text-emerald-700" />
               Non-Destructive Mode Switcher
             </span>
           </div>
@@ -1027,8 +1075,8 @@ export function ModuleLModeSelectorStep({
                   onClick={() => handleSelectMode(item.mode)}
                   className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                     isSelected
-                      ? 'border-indigo-600 bg-indigo-50/50 shadow-sm ring-2 ring-indigo-600/20'
-                      : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
+                      ? 'border-emerald-700 bg-slate-50 shadow-sm ring-2 ring-emerald-700/20'
+                      : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                   }`}
                 >
                   <div className="space-y-2">
@@ -1043,7 +1091,7 @@ export function ModuleLModeSelectorStep({
                           </span>
                         )}
                         {isSelected && (
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-700 text-white">
                             <Check className="h-3 w-3" />
                           </span>
                         )}
@@ -1065,7 +1113,7 @@ export function ModuleLModeSelectorStep({
                     </div>
                     <div className="flex items-center justify-between text-slate-600">
                       <span className="font-semibold text-slate-700">Hurdle:</span>
-                      <span className="font-semibold text-indigo-700">
+                      <span className="font-semibold text-emerald-800">
                         {item.passThresholdLabel}
                       </span>
                     </div>
@@ -1077,8 +1125,8 @@ export function ModuleLModeSelectorStep({
 
           {/* Mandatory Inline "OTHER" Input when compilerMode === 'OTHER' */}
           {compilerMode === 'OTHER' && (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-2">
-              <label className="block text-xs font-bold text-indigo-950">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+              <label className="block text-xs font-bold text-slate-950">
                 Specify Your Custom Submission Format, Accelerator, or Tender Name
               </label>
               <input
@@ -1087,7 +1135,7 @@ export function ModuleLModeSelectorStep({
                 value={otherCompilerModeText}
                 onChange={(e) => setOtherCompilerModeText(e.target.value)}
                 placeholder="e.g., Enterprise Ireland HPSU Feasibility, Y Combinator Application, EU EIC Accelerator, or University Spin-Out Board..."
-                className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
               />
             </div>
           )}
@@ -1096,16 +1144,16 @@ export function ModuleLModeSelectorStep({
         {/* =================================================================== */}
         {/* SELECTED MODE STRUCTURE & RUBRIC PREVIEW CARD                       */}
         {/* =================================================================== */}
-        <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/60 via-white to-violet-50/40 p-4 sm:p-5 space-y-4">
+        <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/40 p-4 sm:p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-indigo-600" />
+              <FileText className="h-5 w-5 text-emerald-700" />
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-950">
                   Compiler Blueprint Output Preview: {activeCatalogItem.title}
                 </h4>
                 <p className="text-[11px] text-slate-500">
-                  Format: <span className="font-semibold text-slate-700">{activeCatalogItem.sectionStructureLabel}</span> ({activeCatalogItem.wordLimitDisciplineLabel}) • Scoring Weights: <span className="font-semibold text-indigo-700">{activeCatalogItem.rubricWeightsSummary}</span>
+                  Format: <span className="font-semibold text-slate-700">{activeCatalogItem.sectionStructureLabel}</span> ({activeCatalogItem.wordLimitDisciplineLabel}) • Scoring Weights: <span className="font-semibold text-emerald-800">{activeCatalogItem.rubricWeightsSummary}</span>
                 </p>
               </div>
             </div>
@@ -1124,7 +1172,7 @@ export function ModuleLModeSelectorStep({
             )}
           </div>
 
-          <div className="rounded-lg border border-indigo-100 bg-white/90 p-3">
+          <div className="rounded-lg border border-slate-100 bg-white/90 p-3">
             <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               The Compiler will automatically construct answers for these {activeCatalogItem.keySectionsPreview.length} questions from your 11 modules:
             </div>
@@ -1146,7 +1194,7 @@ export function ModuleLModeSelectorStep({
               <strong className="text-slate-900">Evaluator Underwriting Note:</strong>{' '}
               {activeCatalogItem.underwriterFootNote}
             </p>
-            <div className="text-xs font-semibold text-indigo-700">
+            <div className="text-xs font-semibold text-emerald-800">
               Ready to compile immediately or customize committee parameters below ▾
             </div>
           </div>
@@ -1172,8 +1220,8 @@ export function ModuleLModeSelectorStep({
                     onClick={() => setNarrativeTone(opt.value)}
                     className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-left transition-all ${
                       active
-                        ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600/20'
-                        : 'border-slate-200 bg-white hover:border-indigo-200'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700/20'
+                        : 'border-slate-200 bg-white hover:border-emerald-300'
                     }`}
                   >
                     <div>
@@ -1187,7 +1235,7 @@ export function ModuleLModeSelectorStep({
                     <div
                       className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                         active
-                          ? 'border-indigo-600 bg-indigo-600 text-white'
+                          ? 'border-emerald-700 bg-emerald-700 text-white'
                           : 'border-slate-300'
                       }`}
                     >
@@ -1204,7 +1252,7 @@ export function ModuleLModeSelectorStep({
                 value={otherNarrativeToneText}
                 onChange={(e) => setOtherNarrativeToneText(e.target.value)}
                 placeholder="Describe your custom evaluator tone (e.g., Academic Clinical Peer-Review, Social Enterprise Impact)..."
-                className="mt-2 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
               />
             )}
           </div>
@@ -1225,8 +1273,8 @@ export function ModuleLModeSelectorStep({
                     onClick={() => setSubmissionObjective(opt.value)}
                     className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-left transition-all ${
                       active
-                        ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600/20'
-                        : 'border-slate-200 bg-white hover:border-indigo-200'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700/20'
+                        : 'border-slate-200 bg-white hover:border-emerald-300'
                     }`}
                   >
                     <div>
@@ -1240,7 +1288,7 @@ export function ModuleLModeSelectorStep({
                     <div
                       className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                         active
-                          ? 'border-indigo-600 bg-indigo-600 text-white'
+                          ? 'border-emerald-700 bg-emerald-700 text-white'
                           : 'border-slate-300'
                       }`}
                     >
@@ -1257,7 +1305,7 @@ export function ModuleLModeSelectorStep({
                 value={otherSubmissionObjectiveText}
                 onChange={(e) => setOtherSubmissionObjectiveText(e.target.value)}
                 placeholder="Specify your custom submission objective..."
-                className="mt-2 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
               />
             )}
           </div>
@@ -1286,7 +1334,7 @@ export function ModuleLModeSelectorStep({
                 onClick={handleApplyIndustryBenchmark}
                 className="h-7 border-slate-300 bg-white text-[11px] font-medium text-slate-700 hover:bg-slate-100"
               >
-                <Sliders className="mr-1 h-3 w-3 text-indigo-600" />
+                <Sliders className="mr-1 h-3 w-3 text-emerald-700" />
                 Use Industry Benchmark
               </Button>
               <Button
@@ -1313,7 +1361,7 @@ export function ModuleLModeSelectorStep({
                 value={targetAgencyOrCommitteeName}
                 onChange={(e) => setTargetAgencyOrCommitteeName(e.target.value)}
                 placeholder="e.g., Local Enterprise Office Dublin City / Innovate UK Smart Grants"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
               />
             </div>
 
@@ -1330,7 +1378,7 @@ export function ModuleLModeSelectorStep({
                 onChange={(e) =>
                   setTargetFundingAskAmount(Math.max(0, Number(e.target.value) || 0))
                 }
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:outline-none"
               />
             </div>
           </div>
@@ -1351,8 +1399,8 @@ export function ModuleLModeSelectorStep({
                     onClick={() => setSubmissionWindow(win.value)}
                     className={`rounded-xl border p-2.5 text-left transition-all ${
                       active
-                        ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600/20'
-                        : 'border-slate-200 bg-white hover:border-indigo-200'
+                        ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700/20'
+                        : 'border-slate-200 bg-white hover:border-emerald-300'
                     }`}
                   >
                     <div className="text-xs font-bold text-slate-900">
@@ -1372,7 +1420,7 @@ export function ModuleLModeSelectorStep({
                 value={otherSubmissionWindowText}
                 onChange={(e) => setOtherSubmissionWindowText(e.target.value)}
                 placeholder="Specify your exact committee deadline or cohort date..."
-                className="mt-2 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
               />
             )}
           </div>
@@ -1385,7 +1433,7 @@ export function ModuleLModeSelectorStep({
                 disabled={isVaultReadonly}
                 checked={includeAppendicesBinder}
                 onChange={(e) => setIncludeAppendicesBinder(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
               />
               <div className="text-xs">
                 <div className="font-bold text-slate-900">
@@ -1405,7 +1453,7 @@ export function ModuleLModeSelectorStep({
                 onChange={(e) =>
                   setStrictWordCountEnforcement(e.target.checked)
                 }
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
               />
               <div className="text-xs">
                 <div className="font-bold text-slate-900">
@@ -1434,15 +1482,15 @@ export function ModuleLModeSelectorStep({
               value={compilerMandateNotes}
               onChange={(e) => setCompilerMandateNotes(e.target.value)}
               placeholder="Specify any special angles or evaluator priorities to emphasize across the compiled plan..."
-              className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base sm:text-xs leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base sm:text-xs leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-none"
             />
           </div>
 
           {/* Assessor Strategy Tip Callout */}
           {aiAssessorTip && (
-            <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3.5 text-xs text-violet-950">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
               <div className="flex items-start gap-2">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                 <div>
                   <span className="font-bold">
                     Committee Evaluator Insider Tip:
@@ -1465,7 +1513,7 @@ export function ModuleLModeSelectorStep({
               variant="outline"
               onClick={handleCalibrateWithAi}
               disabled={isGeneratingAi || isVaultReadonly}
-              className="border-violet-200 bg-violet-50/70 text-xs font-medium text-violet-700 hover:bg-violet-100"
+              className="border-slate-200 bg-slate-50 text-xs font-medium text-emerald-800 hover:bg-slate-100"
             >
               {isGeneratingAi ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -1479,7 +1527,7 @@ export function ModuleLModeSelectorStep({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={handleSaveOnly}
+                onClick={() => handleSaveOnly()}
                 disabled={isSaving}
                 className="border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
               >
@@ -1494,7 +1542,7 @@ export function ModuleLModeSelectorStep({
             size="sm"
             onClick={handleSaveAndContinue}
             disabled={isSaving}
-            className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+            className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
           >
             Save &amp; Continue to Step 2: Pre-Flight Audit
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

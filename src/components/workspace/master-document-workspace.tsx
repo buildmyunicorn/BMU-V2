@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
   Sparkles,
@@ -188,9 +188,12 @@ export function MasterDocumentWorkspace({
     }
   }
 
-  async function handleSaveCustomStory() {
+  async function handleSaveCustomStory(options?: { silent?: boolean }) {
+    isDirtyStoryRef.current = false;
     setIsSavingStory(true);
-    setStatusBanner(null);
+    if (!options?.silent) {
+      setStatusBanner(null);
+    }
     try {
       const updated: SavedMasterDocumentData = {
         ...effectiveStory,
@@ -208,12 +211,29 @@ export function MasterDocumentWorkspace({
         lastWeavedAt: new Date().toISOString(),
       };
       await onSaveMasterDocumentData(updated);
-      setIsEditingStory(false);
-      setStatusBanner('✅ Your Executive Story edits have been saved!');
+      if (!options?.silent) {
+        setIsEditingStory(false);
+        setStatusBanner('✅ Your Executive Story edits have been saved!');
+      }
     } finally {
       setIsSavingStory(false);
     }
   }
+
+  const isDirtyStoryRef = useRef(false);
+  const handleSaveCustomStoryRef = useRef(handleSaveCustomStory);
+  handleSaveCustomStoryRef.current = handleSaveCustomStory;
+
+  useEffect(() => {
+    if (!isEditingStory || isVaultReadonly) return;
+    isDirtyStoryRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyStoryRef.current) {
+        void handleSaveCustomStoryRef.current({ silent: true });
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [draftP1, draftP2, draftP3, isEditingStory, isVaultReadonly]);
 
   async function handleToggleRoadmap(nextVal: boolean) {
     setShowUpcomingRoadmap(nextVal);
@@ -321,12 +341,12 @@ export function MasterDocumentWorkspace({
       {/* =================================================================== */}
       {/* TOP MASTER DOCUMENT CONTROL BAR & CHAPTER JUMP NAVIGATION           */}
       {/* =================================================================== */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-950 via-slate-900 to-violet-950 p-5 text-white shadow-md sm:p-6">
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 text-white shadow-md sm:p-6">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/25 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-indigo-200 ring-1 ring-indigo-400/30">
-                <FileText className="h-3.5 w-3.5 text-indigo-300" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/25 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 ring-1 ring-emerald-500/30">
+                <FileText className="h-3.5 w-3.5 text-slate-300" />
                 Living Master Blueprint
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-400/30">
@@ -367,9 +387,9 @@ export function MasterDocumentWorkspace({
               type="button"
               size="sm"
               onClick={handlePrintPdf}
-              className="bg-white text-xs font-bold text-indigo-950 hover:bg-indigo-50"
+              className="bg-white text-xs font-bold text-slate-950 hover:bg-emerald-50"
             >
-              <Printer className="mr-1.5 h-3.5 w-3.5 text-indigo-700" />
+              <Printer className="mr-1.5 h-3.5 w-3.5 text-emerald-800" />
               Print / Save PDF
             </Button>
             <Button
@@ -377,9 +397,9 @@ export function MasterDocumentWorkspace({
               size="sm"
               variant="outline"
               onClick={handleDownloadHtml}
-              className="border-indigo-400/40 bg-indigo-900/40 text-xs text-white hover:bg-indigo-800/60"
+              className="border-emerald-400/40 bg-slate-900/40 text-xs text-white hover:bg-slate-800/60"
             >
-              <Download className="mr-1.5 h-3.5 w-3.5 text-indigo-200" />
+              <Download className="mr-1.5 h-3.5 w-3.5 text-slate-300" />
               Download .HTML
             </Button>
             <Button
@@ -387,7 +407,7 @@ export function MasterDocumentWorkspace({
               size="sm"
               variant="outline"
               onClick={handleCopyMarkdown}
-              className="border-indigo-400/40 bg-indigo-900/40 text-xs text-white hover:bg-indigo-800/60"
+              className="border-emerald-400/40 bg-slate-900/40 text-xs text-white hover:bg-slate-800/60"
             >
               {copiedMarkdown ? (
                 <>
@@ -396,7 +416,7 @@ export function MasterDocumentWorkspace({
                 </>
               ) : (
                 <>
-                  <Copy className="mr-1.5 h-3.5 w-3.5 text-indigo-200" />
+                  <Copy className="mr-1.5 h-3.5 w-3.5 text-slate-300" />
                   Copy Markdown
                 </>
               )}
@@ -407,7 +427,7 @@ export function MasterDocumentWorkspace({
         {/* Chapter Jump Bar & Unstarted Chapters Toggle */}
         <div className="mt-4 flex flex-col justify-between gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-indigo-300">
+            <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-slate-300">
               Jump to:
             </span>
             <button
@@ -558,7 +578,7 @@ export function MasterDocumentWorkspace({
       >
         <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-950 text-xs font-extrabold text-white">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-xs font-extrabold text-white">
               1
             </span>
             <div>
@@ -574,7 +594,7 @@ export function MasterDocumentWorkspace({
             variant="secondary"
             className="w-fit bg-slate-100 text-[11px] text-slate-700"
           >
-            <ShieldCheck className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+            <ShieldCheck className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             Direct Workspace Facts Only
           </Badge>
         </div>
@@ -584,7 +604,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <Compass className="h-4 w-4" />
                   🎯 Concept &amp; Founder Fit (Module A)
                 </span>
@@ -592,7 +612,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_A_IDEATION')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     Edit in Module A
@@ -638,7 +658,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <BarChart3 className="h-4 w-4" />
                   📊 Market &amp; Wedge (Module B)
                 </span>
@@ -646,7 +666,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_B_MARKET')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleB ? 'Edit in Module B' : 'Start Module B'}
@@ -680,7 +700,7 @@ export function MasterDocumentWorkspace({
                     <dt className="inline font-semibold text-slate-900">
                       Year 1–2 Target (SOM):{' '}
                     </dt>
-                    <dd className="inline font-bold text-indigo-900">
+                    <dd className="inline font-bold text-slate-900">
                       {facts.somFormatted ? `${facts.somFormatted}/yr` : 'Not calculated yet'}
                     </dd>
                     {facts.samFormatted && (
@@ -705,7 +725,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <MessageSquare className="h-4 w-4" />
                   💬 Validation Proof (Module C)
                 </span>
@@ -713,7 +733,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_C_SURVEYS_FEEDBACK')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleC ? 'Edit in Module C' : 'Start Module C'}
@@ -778,7 +798,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <Wrench className="h-4 w-4" />
                   🛠️ What We&apos;re Building (Module D)
                 </span>
@@ -786,7 +806,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_D_PRODUCT_BUILD')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleD ? 'Edit in Module D' : 'Start Module D'}
@@ -846,7 +866,7 @@ export function MasterDocumentWorkspace({
         {/* Full-Width Card E: Operations, Equipment & Risk Posture */}
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
               <Briefcase className="h-4 w-4" />
               ⚙️ Operations, Equipment &amp; Risk Posture (Module E)
             </span>
@@ -854,7 +874,7 @@ export function MasterDocumentWorkspace({
               <button
                 type="button"
                 onClick={() => onJumpToModule('MOD_E_OPERATIONS')}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
               >
                 <Pencil className="h-3 w-3" />
                 {facts.hasModuleE ? 'Edit in Module E' : 'Start Module E'}
@@ -933,7 +953,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <Users className="h-4 w-4" />
                   👥 Team, Survival &amp; Hiring (Module F)
                 </span>
@@ -941,7 +961,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_F_COFOUNDER_TEAM')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleF ? 'Edit in Module F' : 'Start Module F'}
@@ -965,7 +985,7 @@ export function MasterDocumentWorkspace({
                   </div>
                   <div>
                     <dt className="inline font-semibold text-slate-900">3-Year Job Creation: </dt>
-                    <dd className="inline font-semibold text-indigo-900">
+                    <dd className="inline font-semibold text-slate-900">
                       {facts.plannedHiresCount} planned hire(s) mapped • {facts.advisorsCount} advisor(s)
                     </dd>
                   </div>
@@ -984,7 +1004,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <ShieldCheck className="h-4 w-4" />
                   🚀 Launchpad &amp; Ops Setup (Module G)
                 </span>
@@ -992,7 +1012,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_G_LAUNCHPAD')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleG ? 'Edit in Module G' : 'Start Module G'}
@@ -1038,7 +1058,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <DollarSign className="h-4 w-4" />
                   💰 Pricing &amp; Pocket Profit (Module H)
                 </span>
@@ -1046,7 +1066,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_H_REVENUE')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleH ? 'Edit in Module H' : 'Start Module H'}
@@ -1064,7 +1084,7 @@ export function MasterDocumentWorkspace({
                   </div>
                   <div>
                     <dt className="inline font-semibold text-slate-900">Year 1 Turnover &amp; Pocket Profit: </dt>
-                    <dd className="inline font-bold text-indigo-900">
+                    <dd className="inline font-bold text-slate-900">
                       {formatPlanCurrency(facts.year1ProjectedNetTurnover, facts.currency)} Y1 net turnover ({facts.year1TargetCustomers} customers) →{' '}
                       {formatPlanCurrency(facts.year1PocketProfitNet, facts.currency)} Y1 Pocket Profit
                     </dd>
@@ -1091,7 +1111,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <Megaphone className="h-4 w-4" />
                   📣 Marketing, 4Ps &amp; First 10 (Module I)
                 </span>
@@ -1099,7 +1119,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_I_MARKETING')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleI ? 'Edit in Module I' : 'Start Module I'}
@@ -1142,7 +1162,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <Scale className="h-4 w-4" />
                   📈 36-Month Financials &amp; Cashflow (Module J)
                 </span>
@@ -1150,7 +1170,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_J_FINANCE')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleJ ? 'Edit in Module J' : 'Start Module J'}
@@ -1175,7 +1195,7 @@ export function MasterDocumentWorkspace({
                   </div>
                   <div>
                     <dt className="inline font-semibold text-slate-900">Day-1 Cash &amp; External Funding: </dt>
-                    <dd className="inline font-semibold text-indigo-900">
+                    <dd className="inline font-semibold text-slate-900">
                       {formatPlanCurrency(facts.startingCashBalanceDay1, facts.currency)} starting cash +{' '}
                       {formatPlanCurrency(facts.totalExternalFundingMapped, facts.currency)} external capital ({facts.primaryFundingStrategyLabel || '—'})
                     </dd>
@@ -1195,7 +1215,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <Sparkles className="h-4 w-4" />
                   🏛️ Grants, Loans &amp; Tax Relief (Module K)
                 </span>
@@ -1203,7 +1223,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_K_GRANTS_FUNDING')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleK ? 'Edit in Module K' : 'Start Module K'}
@@ -1249,7 +1269,7 @@ export function MasterDocumentWorkspace({
           <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                   <FileText className="h-4 w-4" />
                   📑 Grant &amp; Plan Compiler (Module L)
                 </span>
@@ -1257,7 +1277,7 @@ export function MasterDocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
                   >
                     <Pencil className="h-3 w-3" />
                     {facts.hasModuleL ? 'Edit in Module L' : 'Start Module L'}
@@ -1268,7 +1288,7 @@ export function MasterDocumentWorkspace({
                 <dl className="space-y-2 text-sm text-slate-700">
                   <div>
                     <dt className="inline font-semibold text-slate-900">Mode &amp; Committee: </dt>
-                    <dd className="inline font-medium text-indigo-900">
+                    <dd className="inline font-medium text-slate-900">
                       {facts.compilerModeLabel} ({facts.targetAgencyOrCommitteeName})
                     </dd>
                   </div>
@@ -1303,11 +1323,11 @@ export function MasterDocumentWorkspace({
       {/* =================================================================== */}
       <section
         id="master-doc-story"
-        className="rounded-2xl border border-indigo-200 bg-white p-5 shadow-xs sm:p-6"
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
       >
         <div className="mb-4 flex flex-col justify-between gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-950 text-xs font-extrabold text-white">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-xs font-extrabold text-white">
               2
             </span>
             <div>
@@ -1333,7 +1353,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 onClick={handleWeaveWithAi}
                 disabled={isWeavingStory}
-                className="bg-gradient-to-r from-indigo-600 to-violet-600 text-xs text-white hover:from-indigo-700 hover:to-violet-700"
+                className="bg-slate-950 text-white border-b border-slate-800 text-xs text-white hover:from-emerald-800 hover:to-teal-900"
               >
                 {isWeavingStory ? (
                   <>
@@ -1363,7 +1383,7 @@ export function MasterDocumentWorkspace({
                   <Button
                     type="button"
                     size="sm"
-                    onClick={handleSaveCustomStory}
+                    onClick={() => handleSaveCustomStory()}
                     disabled={isSavingStory}
                     className="bg-emerald-600 text-xs text-white hover:bg-emerald-700"
                   >
@@ -1393,7 +1413,7 @@ export function MasterDocumentWorkspace({
         <div className="space-y-4">
           {/* Paragraph 1 */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+            <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
               Paragraph 1 • The Opportunity, Customer Pain &amp; Market Wedge
             </div>
             {isEditingStory ? (
@@ -1401,7 +1421,7 @@ export function MasterDocumentWorkspace({
                 rows={4}
                 value={draftP1}
                 onChange={(e) => setDraftP1(e.target.value)}
-                className="w-full rounded-lg border border-indigo-200 bg-white p-3 text-base leading-relaxed text-slate-800 focus:border-indigo-500 focus:outline-hidden sm:text-sm"
+                className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base leading-relaxed text-slate-800 focus:border-emerald-600 focus:outline-hidden sm:text-sm"
               />
             ) : (
               <p className="text-sm leading-relaxed text-slate-800">
@@ -1415,7 +1435,7 @@ export function MasterDocumentWorkspace({
               {effectiveStory.paragraph1Sources.map((src) => (
                 <span
                   key={src}
-                  className="rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-800 ring-1 ring-indigo-200/80"
+                  className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-900 ring-1 ring-emerald-200/80"
                 >
                   {src}
                 </span>
@@ -1425,7 +1445,7 @@ export function MasterDocumentWorkspace({
 
           {/* Paragraph 2 */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+            <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
               Paragraph 2 • Customer Validation &amp; V1 Product Architecture
             </div>
             {isEditingStory ? (
@@ -1433,7 +1453,7 @@ export function MasterDocumentWorkspace({
                 rows={4}
                 value={draftP2}
                 onChange={(e) => setDraftP2(e.target.value)}
-                className="w-full rounded-lg border border-indigo-200 bg-white p-3 text-base leading-relaxed text-slate-800 focus:border-indigo-500 focus:outline-hidden sm:text-sm"
+                className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base leading-relaxed text-slate-800 focus:border-emerald-600 focus:outline-hidden sm:text-sm"
               />
             ) : (
               <p className="text-sm leading-relaxed text-slate-800">
@@ -1447,7 +1467,7 @@ export function MasterDocumentWorkspace({
               {effectiveStory.paragraph2Sources.map((src) => (
                 <span
                   key={src}
-                  className="rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-800 ring-1 ring-indigo-200/80"
+                  className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-900 ring-1 ring-emerald-200/80"
                 >
                   {src}
                 </span>
@@ -1457,7 +1477,7 @@ export function MasterDocumentWorkspace({
 
           {/* Paragraph 3 */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+            <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
               Paragraph 3 • Operational Execution, Unit Delivery &amp; De-Risking
             </div>
             {isEditingStory ? (
@@ -1465,7 +1485,7 @@ export function MasterDocumentWorkspace({
                 rows={4}
                 value={draftP3}
                 onChange={(e) => setDraftP3(e.target.value)}
-                className="w-full rounded-lg border border-indigo-200 bg-white p-3 text-base leading-relaxed text-slate-800 focus:border-indigo-500 focus:outline-hidden sm:text-sm"
+                className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base leading-relaxed text-slate-800 focus:border-emerald-600 focus:outline-hidden sm:text-sm"
               />
             ) : (
               <p className="text-sm leading-relaxed text-slate-800">
@@ -1479,7 +1499,7 @@ export function MasterDocumentWorkspace({
               {effectiveStory.paragraph3Sources.map((src) => (
                 <span
                   key={src}
-                  className="rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-800 ring-1 ring-indigo-200/80"
+                  className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-900 ring-1 ring-emerald-200/80"
                 >
                   {src}
                 </span>
@@ -1499,7 +1519,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 A
               </span>
               <div>
@@ -1517,7 +1537,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_A_IDEATION')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module A
@@ -1578,7 +1598,7 @@ export function MasterDocumentWorkspace({
                   {facts.motivationLabel || 'Founder'}
                 </span>{' '}
                 • {facts.weeklyHoursLabel || '—'} • {facts.teamStructureLabel || '—'} •{' '}
-                <span className="font-semibold text-indigo-700">
+                <span className="font-semibold text-emerald-800">
                   {facts.startingBudgetLabel || '—'}
                 </span>
               </p>
@@ -1618,7 +1638,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 B
               </span>
               <div>
@@ -1636,7 +1656,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_B_MARKET')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module B
@@ -1646,11 +1666,11 @@ export function MasterDocumentWorkspace({
 
           {/* Market Sizing Trio */}
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 Year 1–2 Revenue Target (SOM)
               </div>
-              <div className="mt-1 text-lg font-extrabold text-indigo-950">
+              <div className="mt-1 text-lg font-extrabold text-slate-950">
                 {facts.somFormatted ? `${facts.somFormatted}/yr` : '—'}
               </div>
             </div>
@@ -1761,7 +1781,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 C
               </span>
               <div>
@@ -1779,7 +1799,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_C_SURVEYS_FEEDBACK')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module C
@@ -1860,7 +1880,7 @@ export function MasterDocumentWorkspace({
                       <td className="px-3.5 py-2.5 text-slate-600">
                         {formatInterviewChannel(log)}
                       </td>
-                      <td className="px-3.5 py-2.5 font-bold text-indigo-900">
+                      <td className="px-3.5 py-2.5 font-bold text-slate-900">
                         {log.painScore1To5}/5
                       </td>
                       <td className="px-3.5 py-2.5 text-slate-700">
@@ -1893,7 +1913,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 D
               </span>
               <div>
@@ -1911,7 +1931,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_D_PRODUCT_BUILD')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module D
@@ -1983,7 +2003,7 @@ export function MasterDocumentWorkspace({
                   {plan.moduleDData.workPackagesAndFlow!.workPackages.map(
                     (wp) => (
                       <tr key={wp.id} className="bg-white">
-                        <td className="px-3.5 py-2.5 font-bold text-indigo-900">
+                        <td className="px-3.5 py-2.5 font-bold text-slate-900">
                           {wp.wpCode}
                         </td>
                         <td className="px-3.5 py-2.5 font-semibold text-slate-900">
@@ -2020,7 +2040,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 E
               </span>
               <div>
@@ -2038,7 +2058,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_E_OPERATIONS')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module E
@@ -2122,7 +2142,7 @@ export function MasterDocumentWorkspace({
                       <td className="px-3.5 py-2.5 font-semibold text-slate-900">
                         {risk.riskTitle}
                       </td>
-                      <td className="px-3.5 py-2.5 font-bold text-indigo-900">
+                      <td className="px-3.5 py-2.5 font-bold text-slate-900">
                         {risk.grossRiskScore}/25 → {risk.residualRiskRating}
                       </td>
                       <td className="px-3.5 py-2.5 text-slate-700">
@@ -2147,7 +2167,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 F
               </span>
               <div>
@@ -2165,7 +2185,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_F_COFOUNDER_TEAM')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module F
@@ -2226,7 +2246,7 @@ export function MasterDocumentWorkspace({
                   {facts.teamMemberSummaries.map((tm, idx) => (
                     <tr key={`${tm.name}-${idx}`} className="bg-white">
                       <td className="px-3.5 py-2.5 font-bold text-slate-900">{tm.name}</td>
-                      <td className="px-3.5 py-2.5 font-semibold text-indigo-900">{tm.roleTitle}</td>
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-900">{tm.roleTitle}</td>
                       <td className="px-3.5 py-2.5 text-slate-700">
                         {tm.equityPercent}% equity • {tm.weeklyHours} hrs/wk
                       </td>
@@ -2253,7 +2273,7 @@ export function MasterDocumentWorkspace({
                   {facts.plannedHiresSummaries.map((h, idx) => (
                     <tr key={`${h.roleTitle}-${idx}`} className="bg-white">
                       <td className="px-3.5 py-2.5 font-semibold text-slate-900">{h.roleTitle}</td>
-                      <td className="px-3.5 py-2.5 font-bold text-indigo-900">{h.targetQuarter}</td>
+                      <td className="px-3.5 py-2.5 font-bold text-slate-900">{h.targetQuarter}</td>
                       <td className="px-3.5 py-2.5 text-slate-600">{h.employmentType}</td>
                       <td className="px-3.5 py-2.5 font-semibold text-slate-800">
                         {formatPlanCurrency(h.annualGrossSalary, facts.currency)}/yr
@@ -2277,7 +2297,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 G
               </span>
               <div>
@@ -2295,7 +2315,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_G_LAUNCHPAD')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module G
@@ -2362,7 +2382,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 H
               </span>
               <div>
@@ -2380,7 +2400,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_H_REVENUE')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module H
@@ -2415,7 +2435,7 @@ export function MasterDocumentWorkspace({
               <p>
                 <span className="font-semibold text-slate-900">Year 1 Target:</span>{' '}
                 {facts.year1TargetCustomers} customers →{' '}
-                <span className="font-bold text-indigo-900">
+                <span className="font-bold text-slate-900">
                   {formatPlanCurrency(facts.year1ProjectedNetTurnover, facts.currency)}
                 </span>{' '}
                 net turnover ({formatPlanCurrency(facts.year1PocketProfitNet, facts.currency)} Pocket Profit)
@@ -2446,7 +2466,7 @@ export function MasterDocumentWorkspace({
                   {facts.pricingTiersSummaries.map((tier, idx) => (
                     <tr key={`${tier.name}-${idx}`} className="bg-white">
                       <td className="px-3.5 py-2.5 font-bold text-slate-900">{tier.name}</td>
-                      <td className="px-3.5 py-2.5 font-semibold text-indigo-900">
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-900">
                         {formatPlanCurrency(tier.priceNetOfTax, facts.currency)}
                       </td>
                       <td className="px-3.5 py-2.5 text-slate-600">{tier.billingFrequency}</td>
@@ -2472,7 +2492,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 I
               </span>
               <div>
@@ -2490,7 +2510,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_I_MARKETING')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module I
@@ -2534,7 +2554,7 @@ export function MasterDocumentWorkspace({
               </p>
               <p className="mt-1">
                 <span className="font-semibold text-slate-900">LTV:CAC Ratio &amp; Payback:</span>{' '}
-                <span className="font-bold text-indigo-900">{facts.calculatedLtvToCacRatio}x</span> •{' '}
+                <span className="font-bold text-slate-900">{facts.calculatedLtvToCacRatio}x</span> •{' '}
                 {facts.calculatedPaybackMonths} month(s) CAC payback
               </p>
             </div>
@@ -2542,25 +2562,25 @@ export function MasterDocumentWorkspace({
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-sm">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 P1 • Product Strategy
               </div>
               <p className="mt-1 text-slate-700">{facts.fourPsSummary.productP1 || '—'}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-sm">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 P2 • Price Positioning
               </div>
               <p className="mt-1 text-slate-700">{facts.fourPsSummary.priceP2 || '—'}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-sm">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 P3 • Place &amp; Channels
               </div>
               <p className="mt-1 text-slate-700">{facts.fourPsSummary.placeP3 || '—'}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-sm">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 P4 • Promotion Motion
               </div>
               <p className="mt-1 text-slate-700">{facts.fourPsSummary.promotionP4 || '—'}</p>
@@ -2579,7 +2599,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 J
               </span>
               <div>
@@ -2597,7 +2617,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_J_FINANCE')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module J
@@ -2647,7 +2667,7 @@ export function MasterDocumentWorkspace({
 
           {facts.writtenFinancialAssumptionsBlock && (
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-700">
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 Written Financial Assumptions Notes
               </div>
               <p className="leading-relaxed">{facts.writtenFinancialAssumptionsBlock}</p>
@@ -2666,7 +2686,7 @@ export function MasterDocumentWorkspace({
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs font-extrabold text-white">
                 K
               </span>
               <div>
@@ -2684,7 +2704,7 @@ export function MasterDocumentWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => onJumpToModule('MOD_K_GRANTS_FUNDING')}
-                className="w-fit text-xs text-indigo-700"
+                className="w-fit text-xs text-emerald-800"
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit in Module K
@@ -2699,7 +2719,7 @@ export function MasterDocumentWorkspace({
               </div>
               <p>
                 <span className="font-semibold text-slate-900">Lead Programme:</span>{' '}
-                <span className="font-bold text-indigo-900">{facts.selectedGrantKey || '—'}</span>{' '}
+                <span className="font-bold text-slate-900">{facts.selectedGrantKey || '—'}</span>{' '}
                 ({facts.overallAssessorReadinessScore}/100 Assessor Readiness)
               </p>
               <p className="mt-1">
@@ -2735,7 +2755,7 @@ export function MasterDocumentWorkspace({
 
           {facts.executiveFundingSummaryNarrative && (
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-700">
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 Executive Funding &amp; Non-Dilutive Strategy Narrative
               </div>
               <p className="leading-relaxed">{facts.executiveFundingSummaryNarrative}</p>
@@ -2750,11 +2770,11 @@ export function MasterDocumentWorkspace({
       {facts.hasModuleL ? (
         <section
           id="master-doc-ch12"
-          className="rounded-2xl border border-indigo-200 bg-white p-5 shadow-xs sm:p-6"
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
         >
           <div className="mb-4 flex flex-col justify-between gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-950 text-xs font-extrabold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-xs font-extrabold text-white">
                 12
               </span>
               <div>
@@ -2770,7 +2790,7 @@ export function MasterDocumentWorkspace({
               <button
                 type="button"
                 onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Edit in Module L
@@ -2785,7 +2805,7 @@ export function MasterDocumentWorkspace({
               </div>
               <p>
                 <span className="font-semibold text-slate-900">Mode:</span>{' '}
-                <span className="font-bold text-indigo-900">{facts.compilerModeLabel}</span>
+                <span className="font-bold text-slate-900">{facts.compilerModeLabel}</span>
               </p>
               <p className="mt-1">
                 <span className="font-semibold text-slate-900">Target Committee:</span>{' '}
@@ -2806,14 +2826,14 @@ export function MasterDocumentWorkspace({
                 <span className="font-semibold text-slate-900">Dossier Readiness:</span>{' '}
                 {facts.compiledSectionsCount} question(s) compiled (~{facts.totalCompiledWordCount.toLocaleString()} words) •{' '}
                 {facts.appendicesReadyCount}/{facts.totalAppendicesCount} proof appendices ready (
-                <span className="font-bold text-indigo-700">{facts.committeeReadinessScore}/100 Committee Ready</span>)
+                <span className="font-bold text-emerald-800">{facts.committeeReadinessScore}/100 Committee Ready</span>)
               </p>
             </div>
           </div>
 
           {facts.executiveHookStatement && (
-            <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3.5 text-xs text-indigo-950">
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-950">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 Executive Hook Statement
               </div>
               <p className="italic leading-relaxed">"{facts.executiveHookStatement}"</p>
@@ -2831,7 +2851,7 @@ export function MasterDocumentWorkspace({
 
           {facts.executiveDossierSummary && (
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-700">
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 Official Submission Dossier Executive Brief
               </div>
               <p className="leading-relaxed">{facts.executiveDossierSummary}</p>
@@ -2839,11 +2859,11 @@ export function MasterDocumentWorkspace({
           )}
         </section>
       ) : !isMentorView ? (
-        <section className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-emerald-50/60 p-5 shadow-xs sm:p-6">
+        <section className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-emerald-50/60 p-5 shadow-xs sm:p-6">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
-                <Sparkles className="h-4 w-4 text-indigo-600" />
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                <Sparkles className="h-4 w-4 text-emerald-700" />
                 Module L • Official Grant &amp; Business Plan Compiler
               </div>
               <h3 className="text-base font-bold text-slate-900">
@@ -2857,7 +2877,7 @@ export function MasterDocumentWorkspace({
               type="button"
               size="sm"
               onClick={() => onJumpToModule('MOD_L_BUSINESS_PLAN')}
-              className="shrink-0 bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700"
+              className="shrink-0 bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
             >
               Open Module L Compiler
               <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />

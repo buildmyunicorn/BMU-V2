@@ -105,7 +105,7 @@ const STARTUPS_DATA = [
     name: 'FleetFlow Logistics',
     category: 'Industrial AI & Robotics',
     founders: 'Conor Ryan & Aoife Kelly',
-    avatarBg: 'bg-indigo-600',
+    avatarBg: 'bg-emerald-700',
     grantFocus: 'LEO Priming Grant (€80k / 50%)',
     targetGrantAmount: '€80,000',
     overallProgress: 100,
@@ -139,7 +139,7 @@ const STARTUPS_DATA = [
     name: 'Verdant Power Tiles',
     category: 'CleanTech / Manufacturing',
     founders: 'Marcus Vance & Tom Sterling',
-    avatarBg: 'bg-violet-600',
+    avatarBg: 'bg-emerald-700',
     grantFocus: 'Innovate UK Smart Grant (£150k)',
     targetGrantAmount: '£150,000',
     overallProgress: 65,
@@ -150,8 +150,8 @@ const STARTUPS_DATA = [
     status: 'ON_TRACK',
     statusBadge: {
       label: 'On Track (Financial Modeling)',
-      bg: 'bg-indigo-100 text-indigo-800 border-indigo-300',
-      dot: 'bg-indigo-500',
+      bg: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+      dot: 'bg-emerald-500',
     },
     oneLiner:
       'Building-integrated photovoltaic solar roof tiles engineered for UK building safety codes.',
@@ -323,29 +323,29 @@ export function CohortsPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-emerald-700 selection:text-white">
       <MarketingHeader active="cohorts" />
 
       {/* ===================================================================== */}
       {/* 1. HERO SECTION                                                       */}
       {/* ===================================================================== */}
-      <section className="relative overflow-hidden border-b border-slate-200/80 bg-linear-to-b from-white via-indigo-50/25 to-slate-50 pt-16 pb-20 sm:pt-24 sm:pb-28">
+      <section className="relative overflow-hidden border-b border-slate-200/80 bg-linear-to-b from-white via-slate-50/25 to-slate-50 pt-16 pb-20 sm:pt-24 sm:pb-28">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-35" />
 
         <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6">
           {/* Eyebrow Pill */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200/80 bg-indigo-50/90 px-3.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-2xs backdrop-blur-sm">
-            <GraduationCap className="h-4 w-4 text-indigo-600" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-emerald-50/90 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 shadow-2xs backdrop-blur-sm">
+            <GraduationCap className="h-4 w-4 text-emerald-700" />
             <span>Preflight for Accelerators &amp; Cohorts</span>
             <span className="hidden text-slate-400 sm:inline">•</span>
-            <span className="hidden font-normal text-indigo-900 sm:inline">
+            <span className="hidden font-normal text-slate-900 sm:inline">
               For Universities, Incubators, LEOs &amp; Growth Hubs
             </span>
           </div>
 
           <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
             Turn Raw Founder Ideas Into{' '}
-            <span className="bg-linear-to-r from-indigo-600 via-indigo-700 to-violet-700 bg-clip-text text-transparent">
+            <span className="text-slate-900">
               Investment &amp; Grant-Ready
             </span>{' '}
             Businesses.
@@ -360,7 +360,7 @@ export function CohortsPageClient() {
             <a href="#cohort-panel-preview" className="w-full sm:w-auto">
               <Button
                 size="lg"
-                className="w-full h-12 rounded-full bg-indigo-600 px-7 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700 sm:w-auto"
+                className="w-full h-12 rounded-full bg-emerald-700 px-7 text-sm font-semibold text-white shadow-md shadow-emerald-950/10 transition hover:bg-emerald-800 sm:w-auto"
               >
                 Explore Cohort Command Center
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -416,7 +416,7 @@ export function CohortsPageClient() {
           <div className="text-center">
             <Badge
               variant="outline"
-              className="border-indigo-400/40 bg-indigo-500/10 text-indigo-300 text-xs font-bold uppercase tracking-wider"
+              className="border-emerald-400/40 bg-emerald-500/10 text-emerald-500 text-xs font-bold uppercase tracking-wider"
             >
               Director Command Center
             </Badge>
@@ -440,9 +440,9 @@ export function CohortsPageClient() {
                 </div>
                 <div className="hidden h-4 w-px bg-slate-700 sm:block" />
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                  <GraduationCap className="h-4 w-4 text-indigo-400" />
+                  <GraduationCap className="h-4 w-4 text-emerald-600" />
                   <span>NovaUCD &amp; Tangent Venture Batch 2027</span>
-                  <Badge className="bg-indigo-600/30 text-indigo-300 border-indigo-500/40 text-[10px] font-mono">
+                  <Badge className="bg-emerald-700/30 text-emerald-500 border-emerald-600/40 text-[10px] font-mono">
                     24 Startups Active
                   </Badge>
                 </div>
@@ -465,7 +465,7 @@ export function CohortsPageClient() {
                   <span className="text-[11px] font-semibold text-emerald-400">+14% this week</span>
                 </div>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-                  <div className="h-full bg-indigo-500 rounded-full" style={{ width: '78%' }} />
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: '78%' }} />
                 </div>
               </div>
 
@@ -491,7 +491,7 @@ export function CohortsPageClient() {
                   <span className="text-2xl sm:text-3xl font-extrabold text-white">1,840</span>
                   <span className="text-[11px] text-slate-400">responses</span>
                 </div>
-                <div className="mt-2 text-[11px] text-indigo-300">
+                <div className="mt-2 text-[11px] text-emerald-500">
                   Across 24 live <code className="text-slate-300">/v/[slug]</code> surveys
                 </div>
               </div>
@@ -518,7 +518,7 @@ export function CohortsPageClient() {
                   onClick={() => setCohortFilter('ALL')}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     cohortFilter === 'ALL'
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-emerald-700 text-white shadow-xs'
                       : 'bg-slate-800/80 text-slate-400 hover:text-white'
                   }`}
                 >
@@ -540,7 +540,7 @@ export function CohortsPageClient() {
                   onClick={() => setCohortFilter('VALIDATING')}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     cohortFilter === 'VALIDATING'
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-emerald-700 text-white shadow-xs'
                       : 'bg-slate-800/80 text-slate-400 hover:text-white'
                   }`}
                 >
@@ -565,7 +565,7 @@ export function CohortsPageClient() {
                   placeholder="Filter startup or founder..."
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-emerald-600 focus:outline-none"
                 />
               </div>
             </div>
@@ -588,7 +588,7 @@ export function CohortsPageClient() {
                       onClick={() => setSelectedStartupId(startup.id)}
                       className={`cursor-pointer p-4 transition ${
                         isSelected
-                          ? 'bg-indigo-950/40 border-l-4 border-indigo-500'
+                          ? 'bg-slate-950/40 border-l-4 border-emerald-600'
                           : 'hover:bg-slate-900/60'
                       }`}
                     >
@@ -610,7 +610,7 @@ export function CohortsPageClient() {
                               <p className="truncate text-[11px] text-slate-400">
                                 {startup.founders}
                               </p>
-                              <p className="truncate text-[10px] text-indigo-300/80">
+                              <p className="truncate text-[10px] text-emerald-500/80">
                                 {startup.grantFocus}
                               </p>
                             </div>
@@ -636,7 +636,7 @@ export function CohortsPageClient() {
                                   : startup.status === 'NEEDS_ATTENTION'
                                     ? 'bg-amber-500'
                                     : startup.overallProgress > 70
-                                      ? 'bg-indigo-500'
+                                      ? 'bg-emerald-500'
                                       : 'bg-blue-500'
                               }`}
                               style={{ width: `${startup.overallProgress}%` }}
@@ -656,7 +656,7 @@ export function CohortsPageClient() {
                                 ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/60'
                                 : startup.status === 'NEEDS_ATTENTION'
                                   ? 'bg-amber-950/80 text-amber-300 border border-amber-700/60'
-                                  : 'bg-indigo-950/80 text-indigo-300 border border-indigo-700/60'
+                                  : 'bg-slate-950/80 text-emerald-500 border border-slate-200'
                             }`}
                           >
                             <span
@@ -665,7 +665,7 @@ export function CohortsPageClient() {
                                   ? 'bg-emerald-400'
                                   : startup.status === 'NEEDS_ATTENTION'
                                     ? 'bg-amber-400'
-                                    : 'bg-indigo-400'
+                                    : 'bg-emerald-600'
                               }`}
                             />
                             {startup.status === 'GRANT_READY'
@@ -738,10 +738,10 @@ export function CohortsPageClient() {
                       <div>
                         <div className="flex justify-between text-[11px] text-slate-300">
                           <span>2. Customer Survey &amp; Mom-Test (C)</span>
-                          <span className="font-mono text-indigo-400">{activeStartup.modulesBreakdown.surveys}%</span>
+                          <span className="font-mono text-emerald-600">{activeStartup.modulesBreakdown.surveys}%</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${activeStartup.modulesBreakdown.surveys}%` }} />
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${activeStartup.modulesBreakdown.surveys}%` }} />
                         </div>
                       </div>
 
@@ -773,20 +773,20 @@ export function CohortsPageClient() {
                       <div>
                         <div className="flex justify-between text-[11px] text-slate-300">
                           <span>5. Pocket Profit 3-Yr Financials &amp; Cashflow (H–J)</span>
-                          <span className="font-mono text-violet-400">{activeStartup.modulesBreakdown.financials}%</span>
+                          <span className="font-mono text-emerald-500">{activeStartup.modulesBreakdown.financials}%</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-violet-500 rounded-full" style={{ width: `${activeStartup.modulesBreakdown.financials}%` }} />
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${activeStartup.modulesBreakdown.financials}%` }} />
                         </div>
                       </div>
 
                       <div>
                         <div className="flex justify-between text-[11px] text-slate-300">
                           <span>6. Official Grant Mode &amp; Audit (K–L)</span>
-                          <span className="font-mono text-purple-400">{activeStartup.modulesBreakdown.grantPack}%</span>
+                          <span className="font-mono text-emerald-400">{activeStartup.modulesBreakdown.grantPack}%</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-purple-500 rounded-full" style={{ width: `${activeStartup.modulesBreakdown.grantPack}%` }} />
+                          <div className="h-full bg-emerald-50/700 rounded-full" style={{ width: `${activeStartup.modulesBreakdown.grantPack}%` }} />
                         </div>
                       </div>
                     </div>
@@ -820,7 +820,7 @@ export function CohortsPageClient() {
                   <a href="#inquiry-form" className="block">
                     <Button
                       size="sm"
-                      className="w-full bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                      className="w-full bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                     >
                       Request Live Cohort Demo of This Dashboard →
                     </Button>
@@ -831,10 +831,10 @@ export function CohortsPageClient() {
           </div>
 
           {/* Consultative Callout: Tailored Program Licensing */}
-          <div className="mt-12 rounded-2xl border border-slate-800 bg-linear-to-r from-slate-900 via-indigo-950/40 to-slate-900 p-8 sm:p-10 shadow-lg text-center sm:text-left">
+          <div className="mt-12 rounded-2xl border border-slate-800 border border-slate-800 bg-slate-950 text-white shadow-xs p-8 sm:p-10 shadow-lg text-center sm:text-left">
             <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
               <div className="max-w-2xl">
-                <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30 text-xs font-semibold">
+                <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-600/30 text-xs font-semibold">
                   Tailored Cohort Licensing
                 </Badge>
                 <h3 className="mt-2 text-xl font-bold text-white sm:text-2xl">
@@ -863,7 +863,7 @@ export function CohortsPageClient() {
                 <a href="#inquiry-form">
                   <Button
                     size="lg"
-                    className="h-12 rounded-full bg-indigo-600 px-7 text-xs sm:text-sm font-semibold text-white shadow-md hover:bg-indigo-700"
+                    className="h-12 rounded-full bg-emerald-700 px-7 text-xs sm:text-sm font-semibold text-white shadow-md hover:bg-emerald-800"
                   >
                     Schedule a 15-Minute Program Walkthrough →
                   </Button>
@@ -917,7 +917,7 @@ export function CohortsPageClient() {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 shadow-2xs">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
                 <Users2 className="h-5 w-5" />
               </div>
               <h3 className="mt-4 text-base font-bold text-slate-900">
@@ -937,7 +937,7 @@ export function CohortsPageClient() {
       <section className="border-b border-slate-200/80 bg-slate-50 py-16 sm:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div className="text-center">
-            <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider">
+            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-bold uppercase tracking-wider">
               The Preflight Platform
             </Badge>
             <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -952,7 +952,7 @@ export function CohortsPageClient() {
             {/* Pillar 1 */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white font-bold">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white font-bold">
                   01
                 </div>
                 <div className="flex-1">
@@ -960,7 +960,7 @@ export function CohortsPageClient() {
                     <h3 className="text-lg font-bold text-slate-900">
                       Standardized 12-Module Operating System
                     </h3>
-                    <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 text-[11px]">
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 text-[11px]">
                       Capture First, Expand Second
                     </Badge>
                   </div>
@@ -996,7 +996,7 @@ export function CohortsPageClient() {
             {/* Pillar 3 */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white font-bold">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white font-bold">
                   03
                 </div>
                 <div className="flex-1">
@@ -1004,7 +1004,7 @@ export function CohortsPageClient() {
                     <h3 className="text-lg font-bold text-slate-900">
                       Blind-Reveal Co-Founder Alignment (12 Awkward Questions)
                     </h3>
-                    <Badge variant="secondary" className="bg-violet-50 text-violet-700 text-[11px]">
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 text-[11px]">
                       Team Survival Shield
                     </Badge>
                   </div>
@@ -1077,9 +1077,9 @@ export function CohortsPageClient() {
           </div>
 
           <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-indigo-300 hover:shadow-xs">
+            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-emerald-300 hover:shadow-xs">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                   <GraduationCap className="h-5 w-5" />
                 </div>
                 <h3 className="text-base font-bold text-slate-900">
@@ -1105,9 +1105,9 @@ export function CohortsPageClient() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-violet-300 hover:shadow-xs">
+            <div className="rounded-2xl border border-slate-200 p-6 transition hover:border-emerald-300 hover:shadow-xs">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                   <Target className="h-5 w-5" />
                 </div>
                 <h3 className="text-base font-bold text-slate-900">
@@ -1142,7 +1142,7 @@ export function CohortsPageClient() {
       <section id="inquiry-form" className="scroll-mt-20 border-b border-slate-200/80 bg-white py-16 sm:py-24">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <div className="text-center">
-            <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider">
+            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-bold uppercase tracking-wider">
               Get Started
             </Badge>
             <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -1265,7 +1265,7 @@ export function CohortsPageClient() {
                       id="cohort-type"
                       value={formData.organizationType}
                       onChange={(e) => setFormData({ ...formData, organizationType: e.target.value })}
-                      className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
+                      className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
                     >
                       <option value="UNIVERSITY">University Incubator / Venture Lab</option>
                       <option value="LEO_GROWTH_HUB">Regional Enterprise Board (LEO / Growth Hub)</option>
@@ -1302,7 +1302,7 @@ export function CohortsPageClient() {
                       id="cohort-size"
                       value={formData.cohortSize}
                       onChange={(e) => setFormData({ ...formData, cohortSize: e.target.value })}
-                      className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
+                      className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
                     >
                       <option value="10_25">10 – 25 Startups</option>
                       <option value="25_50">25 – 50 Startups</option>
@@ -1319,7 +1319,7 @@ export function CohortsPageClient() {
                       id="cohort-region"
                       value={formData.regionalFocus}
                       onChange={(e) => setFormData({ ...formData, regionalFocus: e.target.value })}
-                      className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
+                      className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
                     >
                       <option value="IE">Ireland (LEO, Enterprise Ireland, SURE)</option>
                       <option value="UK">United Kingdom (Innovate UK, Start Up Loans, SEIS)</option>
@@ -1338,7 +1338,7 @@ export function CohortsPageClient() {
                     id="cohort-start"
                     value={formData.targetStartDate}
                     onChange={(e) => setFormData({ ...formData, targetStartDate: e.target.value })}
-                    className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
+                    className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
                   >
                     <option value="IMMEDIATE">Immediate (Next 30 days)</option>
                     <option value="NEXT_2_MONTHS">Next 2–3 Months</option>
@@ -1362,14 +1362,14 @@ export function CohortsPageClient() {
                           onClick={() => toggleGoal(goal)}
                           className={`flex items-start gap-2 rounded-lg border p-2.5 text-left text-xs transition ${
                             isChecked
-                              ? 'border-indigo-400 bg-indigo-50/70 text-indigo-950 font-medium'
+                              ? 'border-emerald-400 bg-emerald-50/70 text-slate-950 font-medium'
                               : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                           }`}
                         >
                           <div
                             className={`mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${
                               isChecked
-                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
                                 : 'border-slate-300 bg-white'
                             }`}
                           >
@@ -1393,7 +1393,7 @@ export function CohortsPageClient() {
                     placeholder="Tell us about your program structure, mentor count, or any specific rubrics needed..."
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full rounded-md border border-slate-200 bg-white p-3 text-xs text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-md border border-slate-200 bg-white p-3 text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
 
@@ -1401,7 +1401,7 @@ export function CohortsPageClient() {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full h-11 rounded-lg bg-indigo-600 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700"
+                  className="w-full h-11 rounded-lg bg-emerald-700 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-2">
@@ -1423,7 +1423,7 @@ export function CohortsPageClient() {
                     href="https://www.linkedin.com/in/twalsh-start-ups/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-indigo-600 hover:underline"
+                    className="font-semibold text-emerald-700 hover:underline"
                   >
                     Reach Founder Thomas Walsh directly on LinkedIn ↗
                   </a>
@@ -1459,7 +1459,7 @@ export function CohortsPageClient() {
                   <button
                     type="button"
                     onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                    className="flex w-full items-center justify-between p-4.5 text-left text-xs font-bold text-slate-900 sm:text-sm hover:text-indigo-600"
+                    className="flex w-full items-center justify-between p-4.5 text-left text-xs font-bold text-slate-900 sm:text-sm hover:text-emerald-700"
                   >
                     <span>{faq.q}</span>
                     {isOpen ? (

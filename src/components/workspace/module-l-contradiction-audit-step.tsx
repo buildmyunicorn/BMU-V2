@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShieldCheck,
   AlertTriangle,
@@ -262,7 +262,29 @@ export function ModuleLContradictionAuditStep({
     }
   };
 
+  const handleSaveAuditOnly = async () => {
+    if (isVaultReadonly) return;
+    isDirtyRef.current = false;
+    setIsSaving(true);
+    try {
+      const payload: ModuleLStep2ContradictionAuditSavedData = {
+        overallAuditScore: overallScore,
+        auditItems,
+        acknowledgedItemIds,
+        preFlightDefenseSummary: defenseSummary,
+        aiAssessorTip: aiTip,
+        aiEngineUsed: 'gemini-2.5-pro',
+        lastAuditedAt: new Date().toISOString(),
+        lastSavedAt: new Date().toISOString(),
+      };
+      await onSaveStep2Audit(payload, 40);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveAndContinue = async () => {
+    isDirtyRef.current = false;
     setIsSaving(true);
     const payload: ModuleLStep2ContradictionAuditSavedData = {
       overallAuditScore: overallScore,
@@ -280,6 +302,34 @@ export function ModuleLContradictionAuditStep({
     onContinueToStep3();
   };
 
+  const isFirstRenderRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const handleSaveAuditOnlyRef = useRef(handleSaveAuditOnly);
+  handleSaveAuditOnlyRef.current = handleSaveAuditOnly;
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (isVaultReadonly) return;
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      if (isDirtyRef.current) {
+        void handleSaveAuditOnlyRef.current();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [overallScore, auditItems, acknowledgedItemIds, defenseSummary, aiTip, isVaultReadonly]);
+
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        void handleSaveAuditOnlyRef.current();
+      }
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* 4-Layer Support Strip (Directly Below Title & Description) */}
@@ -289,7 +339,7 @@ export function ModuleLContradictionAuditStep({
           size="sm"
           variant="outline"
           onClick={() => setActiveWhyCard((prev) => !prev)}
-          className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+          className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
         >
           <HelpCircle className="mr-1 h-3.5 w-3.5" />
           Why Are We Asking This?
@@ -310,24 +360,24 @@ export function ModuleLContradictionAuditStep({
           variant="outline"
           onClick={handleRunAiAudit}
           disabled={isAuditingAi || isVaultReadonly}
-          className="h-7 border-violet-200 bg-violet-50/70 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+          className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
           {isAuditingAi ? 'Cross-Examining Modules A–K...' : 'Run Deep Pre-Flight Contradiction Audit'}
         </Button>
       </div>
 
       {/* Collapsible Micro-Coaching Drawers */}
       {activeWhyCard && (
-        <div className="relative rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900 shadow-2xs">
+        <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900 shadow-2xs">
           <button
             type="button"
             onClick={() => setActiveWhyCard(false)}
-            className="absolute right-2.5 top-2.5 text-indigo-400 hover:text-indigo-700"
+            className="absolute right-2.5 top-2.5 text-emerald-600 hover:text-emerald-800"
           >
             ✕
           </button>
-          <p className="font-semibold text-indigo-950">Why Contradiction Audits Win or Lose Grants:</p>
+          <p className="font-semibold text-slate-950">Why Contradiction Audits Win or Lose Grants:</p>
           <p className="mt-1 leading-relaxed">
             Public grant committees ({isUK ? 'Innovate UK assessors' : 'LEO Evaluation Committees'}) do not read business plans in isolation. They actively compare your written claims against your financial schedules. If your customer survey says users will only pay {currencySymbol}20, but your revenue model in Module H assumes {currencySymbol}99, or if you schedule hires in Module F without employer payroll taxes in Module J, assessors immediately deduct points for lack of commercial realism.
           </p>
@@ -354,7 +404,7 @@ export function ModuleLContradictionAuditStep({
       <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 sm:p-6 shadow-xs space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200/60 text-indigo-700">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 border border-slate-200/60 text-emerald-800">
               <Scale className="h-4 w-4" />
             </div>
             <div>
@@ -391,7 +441,7 @@ export function ModuleLContradictionAuditStep({
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Pre-Flight Score
                 </span>
-                <span className="text-xs font-bold text-indigo-600">{overallScore}%</span>
+                <span className="text-xs font-bold text-emerald-700">{overallScore}%</span>
               </div>
               <div className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
                 {overallScore}
@@ -480,7 +530,7 @@ export function ModuleLContradictionAuditStep({
             size="sm"
             variant={filterTab === 'ALL' ? 'default' : 'outline'}
             onClick={() => setFilterTab('ALL')}
-            className={`h-8 text-xs ${filterTab === 'ALL' ? 'bg-indigo-600 text-white' : 'text-slate-600'}`}
+            className={`h-8 text-xs ${filterTab === 'ALL' ? 'bg-emerald-700 text-white' : 'text-slate-600'}`}
           >
             All Checks ({auditItems.length})
           </Button>
@@ -531,7 +581,7 @@ export function ModuleLContradictionAuditStep({
                   ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300'
                   : item.status === 'WARNING'
                     ? 'border-amber-200 bg-amber-50/20 hover:border-amber-300'
-                    : 'border-slate-200 bg-white hover:border-indigo-300'
+                    : 'border-slate-200 bg-white hover:border-emerald-300'
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -590,7 +640,7 @@ export function ModuleLContradictionAuditStep({
                       size="sm"
                       variant="outline"
                       onClick={() => onNavigateToModule(item.targetModuleCode, item.targetStep)}
-                      className="h-8 border-slate-200 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                      className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50"
                     >
                       Fix in {item.targetModuleCode.replace(/_/g, ' ').replace('MOD ', 'Module ')}
                       <ExternalLink className="ml-1 h-3.5 w-3.5" />
@@ -627,14 +677,14 @@ export function ModuleLContradictionAuditStep({
       </div>
 
       {/* 1-Page Pre-Flight Defense Statement */}
-      <div className="rounded-xl border border-indigo-200 bg-white p-5 shadow-xs space-y-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <FileCheck2 className="h-4 w-4 text-indigo-600" />
+            <FileCheck2 className="h-4 w-4 text-emerald-700" />
             <h3 className="text-sm font-bold text-slate-900">
               Consolidated Pre-Flight Defense Statement
             </h3>
-            <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700">
+            <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800">
               Feeds into Step 3 Narrative
             </Badge>
           </div>
@@ -645,9 +695,9 @@ export function ModuleLContradictionAuditStep({
               variant="outline"
               onClick={handleGenerateDefenseAi}
               disabled={isGeneratingDefense || isVaultReadonly}
-              className="h-7 border-violet-200 bg-violet-50/80 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+              className="h-7 border-slate-200 bg-slate-50/80 text-xs font-semibold text-emerald-800 hover:bg-slate-100"
             >
-              <Sparkles className="mr-1.5 h-3 w-3 text-violet-600" />
+              <Sparkles className="mr-1.5 h-3 w-3 text-emerald-700" />
               {isGeneratingDefense ? 'Calibrating Defense...' : 'AI Calibrate Defense'}
             </Button>
             <Button
@@ -659,7 +709,7 @@ export function ModuleLContradictionAuditStep({
                   `"${plan.title}" has undergone cross-module reconciliation across Modules A through K. Pricing models are calibrated to empirical customer discovery from Module C, statutory employer payroll burdens are provisioned across Year 1–3 forecasts, and grant reimbursement drawdown timing lag is fully cushioned by confirmed founder equity and unencumbered working capital reserves. All equipment requests adhere strictly to statutory eligibility guidelines with no deadweight displacement.`
                 )
               }
-              className="h-7 text-xs text-indigo-600 hover:bg-indigo-50"
+              className="h-7 text-xs text-emerald-700 hover:bg-emerald-50"
             >
               <RotateCcw className="mr-1 h-3 w-3" />
               Reset
@@ -676,7 +726,7 @@ export function ModuleLContradictionAuditStep({
           value={defenseSummary}
           onChange={(e) => setDefenseSummary(e.target.value)}
           disabled={isVaultReadonly}
-          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
           placeholder="Enter pre-flight defense statement..."
         />
       </div>
@@ -726,7 +776,7 @@ export function ModuleLContradictionAuditStep({
             size="sm"
             onClick={handleSaveAndContinue}
             disabled={isSaving || isVaultReadonly}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
           >
             {isSaving ? 'Saving Audit...' : 'Save & Proceed to Step 3 (Narrative Compiler)'}
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

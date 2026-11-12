@@ -36,6 +36,7 @@ import {
   Copy,
   Printer,
   ShieldAlert,
+  Sliders,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1004,7 +1005,12 @@ export function ModuleJWorkspace({
   );
 
   // Step open/collapse state (Strict GEMINI.md Rule 6)
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(initialStep || 1);
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 5) {
+      return initialStep;
+    }
+    return 0;
+  });
   const [activeWhyCard, setActiveWhyCard] = useState<number | null>(null);
   const [activeExampleCard, setActiveExampleCard] = useState<number | null>(null);
   const [showAccountingPartnerDrawer, setShowAccountingPartnerDrawer] = useState(false);
@@ -1024,11 +1030,7 @@ export function ModuleJWorkspace({
   // Step 1 State
   const [step1Data, setStep1Data] = useState<FinancialOverheadsTaxStep1Data>(() => {
     const existing = plan.moduleJData?.step1OverheadsTax;
-    if (existing && Array.isArray(existing.overheadLineItems) && existing.overheadLineItems.length > 0) {
-      return existing;
-    }
-
-    return {
+    const defaultStep1: FinancialOverheadsTaxStep1Data = {
       viewLanguageMode: 'PLAIN_ENGLISH_FOUNDER',
       operatingCostPosture:
         upstreamBaseline.monthlyPremisesCost > 400
@@ -1061,6 +1063,19 @@ export function ModuleJWorkspace({
       grantAssessorTip: '',
       lastSyncedFromUpstreamAt: new Date().toISOString(),
     };
+
+    if (existing) {
+      return {
+        ...defaultStep1,
+        ...existing,
+        overheadLineItems:
+          Array.isArray(existing.overheadLineItems) && existing.overheadLineItems.length > 0
+            ? existing.overheadLineItems
+            : defaultStep1.overheadLineItems,
+      };
+    }
+
+    return defaultStep1;
   });
 
   useEffect(() => {
@@ -1145,8 +1160,8 @@ export function ModuleJWorkspace({
   }, [step1Data, upstreamBaseline, isUK]);
 
   const isStep1Complete = Boolean(
-    step1Data.overheadLineItems.length > 0 &&
-      step1Data.overheadsAndTaxNarrative.trim().length >= 25
+    (step1Data?.overheadLineItems?.length ?? 0) > 0 &&
+      (step1Data?.overheadsAndTaxNarrative?.trim()?.length ?? 0) >= 25
   );
 
   // ---------------------------------------------------------------------------
@@ -1154,9 +1169,6 @@ export function ModuleJWorkspace({
   // ---------------------------------------------------------------------------
   const [step2Data, setStep2Data] = useState<WorkingCapitalTimingStep2Data>(() => {
     const existing = plan.moduleJData?.step2WorkingCapital;
-    if (existing && existing.customerCollectionTiming) {
-      return existing;
-    }
 
     const isPhysical =
       (plan.industryCategory || '').toLowerCase().includes('food') ||
@@ -1169,7 +1181,7 @@ export function ModuleJWorkspace({
       (plan.industryCategory || '').toLowerCase().includes('saas') ||
       (plan.industryCategory || '').toLowerCase().includes('enterprise');
 
-    return {
+    const defaultStep2: WorkingCapitalTimingStep2Data = {
       customerCollectionTiming: isB2B ? 'NET_30_STANDARD_B2B' : 'INSTANT_CARD_STRIPE_0',
       otherCustomerCollectionTimingText: '',
       customDebtorDays: 45,
@@ -1184,6 +1196,15 @@ export function ModuleJWorkspace({
       workingCapitalNarrative: '',
       grantAssessorTip: '',
     };
+
+    if (existing) {
+      return {
+        ...defaultStep2,
+        ...existing,
+      };
+    }
+
+    return defaultStep2;
   });
 
   const [saveStatusStep2, setSaveStatusStep2] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -1301,8 +1322,8 @@ export function ModuleJWorkspace({
   }, [step2Data, upstreamBaseline, step1Metrics]);
 
   const isStep2Complete = Boolean(
-    step2Data.customerCollectionTiming &&
-      step2Data.workingCapitalNarrative.trim().length >= 25
+    step2Data?.customerCollectionTiming &&
+      (step2Data?.workingCapitalNarrative?.trim()?.length ?? 0) >= 25
   );
 
   // ---------------------------------------------------------------------------
@@ -1310,20 +1331,13 @@ export function ModuleJWorkspace({
   // ---------------------------------------------------------------------------
   const [step3Data, setStep3Data] = useState<CashflowFundingGapStep3Data>(() => {
     const existing = plan.moduleJData?.step3CashflowGap;
-    if (existing && Array.isArray(existing.fundingSources) && existing.fundingSources.length > 0) {
-      return {
-        primaryFundingStrategy: existing.primaryFundingStrategy || 'GRANT_PLUS_MATCH_FUNDING',
-        otherPrimaryFundingStrategyText: existing.otherPrimaryFundingStrategyText || '',
-        ...existing,
-      };
-    }
 
     const defaultTarget = Math.max(
       15000,
       step2Metrics.peakWorkingCapitalLockup + step1Metrics.totalMonthlyBurnY1 * 3 + step1Data.totalCapExEquipmentValue
     );
 
-    return {
+    const defaultStep3: CashflowFundingGapStep3Data = {
       primaryFundingStrategy: 'GRANT_PLUS_MATCH_FUNDING',
       otherPrimaryFundingStrategyText: '',
       startingCashBalanceDay1: isUK ? 3500 : 4000,
@@ -1334,6 +1348,21 @@ export function ModuleJWorkspace({
       fundingGapNarrative: '',
       grantAssessorTip: '',
     };
+
+    if (existing) {
+      return {
+        ...defaultStep3,
+        ...existing,
+        primaryFundingStrategy: existing.primaryFundingStrategy || defaultStep3.primaryFundingStrategy,
+        otherPrimaryFundingStrategyText: existing.otherPrimaryFundingStrategyText || '',
+        fundingSources:
+          Array.isArray(existing.fundingSources) && existing.fundingSources.length > 0
+            ? existing.fundingSources
+            : defaultStep3.fundingSources,
+      };
+    }
+
+    return defaultStep3;
   });
 
   const [saveStatusStep3, setSaveStatusStep3] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -1610,8 +1639,8 @@ export function ModuleJWorkspace({
   }, [step3Data, step2Data, step2Metrics, step1Data, step1Metrics, upstreamBaseline]);
 
   const isStep3Complete = Boolean(
-    step3Data.fundingSources.length > 0 &&
-      step3Data.fundingGapNarrative.trim().length >= 25
+    (step3Data?.fundingSources?.length ?? 0) > 0 &&
+      (step3Data?.fundingGapNarrative?.trim()?.length ?? 0) >= 25
   );
 
   // ---------------------------------------------------------------------------
@@ -1619,18 +1648,6 @@ export function ModuleJWorkspace({
   // ---------------------------------------------------------------------------
   const [step4Data, setStep4Data] = useState<StatementsStressTestStep4Data>(() => {
     const existing = plan.moduleJData?.step4Statements;
-    if (existing && existing.activeStressScenario) {
-      return {
-        corporateIpReadinessStatus:
-          existing.corporateIpReadinessStatus || 'INCORPORATION_IN_PROGRESS',
-        otherCorporateIpReadinessStatusText:
-          existing.otherCorporateIpReadinessStatusText || '',
-        customRevenueHaircutPercent: existing.customRevenueHaircutPercent ?? 15,
-        customCostInflationPercent: existing.customCostInflationPercent ?? 10,
-        customDelayMonths: existing.customDelayMonths ?? 1,
-        ...existing,
-      };
-    }
 
     const modGStep1 = plan.moduleGData?.step1;
     const modGStep6 = plan.moduleGData?.step6;
@@ -1641,7 +1658,7 @@ export function ModuleJWorkspace({
         ? 'SOLE_TRADER_PRE_INCORPORATION'
         : 'INCORPORATION_IN_PROGRESS';
 
-    return {
+    const defaultStep4: StatementsStressTestStep4Data = {
       activeStressScenario: 'BASE_CASE_OFFICIAL',
       otherStressScenarioText: '',
       customRevenueHaircutPercent: 15,
@@ -1654,6 +1671,25 @@ export function ModuleJWorkspace({
         'All software, brand assets, and background IP created by the promoters will be formally assigned to the company prior to grant drawdown.',
       grantAssessorTip: '',
     };
+
+    if (existing) {
+      return {
+        ...defaultStep4,
+        ...existing,
+        corporateIpReadinessStatus:
+          existing.corporateIpReadinessStatus || defaultStep4.corporateIpReadinessStatus,
+        otherCorporateIpReadinessStatusText:
+          existing.otherCorporateIpReadinessStatusText || '',
+        customRevenueHaircutPercent: existing.customRevenueHaircutPercent ?? 15,
+        customCostInflationPercent: existing.customCostInflationPercent ?? 10,
+        customDelayMonths: existing.customDelayMonths ?? 1,
+        writtenFinancialAssumptionsBlock: existing.writtenFinancialAssumptionsBlock || '',
+        corporateIpPlaceholderNotes: existing.corporateIpPlaceholderNotes || defaultStep4.corporateIpPlaceholderNotes,
+        grantAssessorTip: existing.grantAssessorTip || '',
+      };
+    }
+
+    return defaultStep4;
   });
 
   const [saveStatusStep4, setSaveStatusStep4] = useState<
@@ -2017,8 +2053,8 @@ export function ModuleJWorkspace({
   }, [step4Data, step3Data, step3Metrics, step2Data, step2Metrics, step1Data, step1Metrics, upstreamBaseline]);
 
   const isStep4Complete = Boolean(
-    step4Data.activeStressScenario &&
-      step4Data.writtenFinancialAssumptionsBlock.trim().length >= 25
+    step4Data?.activeStressScenario &&
+      (step4Data?.writtenFinancialAssumptionsBlock?.trim()?.length ?? 0) >= 25
   );
 
   // ---------------------------------------------------------------------------
@@ -2026,9 +2062,6 @@ export function ModuleJWorkspace({
   // ---------------------------------------------------------------------------
   const [step5Data, setStep5Data] = useState<FinanceExecutiveBriefStep5Data>(() => {
     const existing = plan.moduleJData?.step5FinanceBrief;
-    if (existing && Array.isArray(existing.blindSpots) && existing.blindSpots.length > 0) {
-      return existing;
-    }
 
     const defaultBlindSpots: FinanceBlindSpotItem[] = [
       {
@@ -2067,7 +2100,7 @@ export function ModuleJWorkspace({
       },
     ];
 
-    return {
+    const defaultStep5: FinanceExecutiveBriefStep5Data = {
       blindSpots: defaultBlindSpots,
       financeReadinessConfidence: step4Metrics.isSolventUnderStress
         ? 'BANK_AND_GRANT_UNDERWRITING_READY'
@@ -2094,6 +2127,25 @@ export function ModuleJWorkspace({
         ? 'Attach the exported Module J Excel (.xls) schedule alongside this Executive Brief when applying for British Business Bank Start Up Loans, Innovate UK, or HMRC SEIS Advance Assurance in Module K.'
         : 'Attach the exported Module J Excel (.xls) schedule alongside this Executive Brief for your Local Enterprise Office (LEO), Microfinance Ireland, or Enterprise Ireland submission in Module K.',
     };
+
+    if (existing) {
+      return {
+        ...defaultStep5,
+        ...existing,
+        financeReadinessConfidence:
+          existing.financeReadinessConfidence || defaultStep5.financeReadinessConfidence,
+        otherReadinessConfidenceText: existing.otherReadinessConfidenceText || '',
+        executiveFinancialSummaryNarrative:
+          existing.executiveFinancialSummaryNarrative || defaultStep5.executiveFinancialSummaryNarrative,
+        blindSpots:
+          Array.isArray(existing.blindSpots) && existing.blindSpots.length > 0
+            ? existing.blindSpots
+            : defaultStep5.blindSpots,
+        aiAssessorTip: existing.aiAssessorTip || defaultStep5.aiAssessorTip,
+      };
+    }
+
+    return defaultStep5;
   });
 
   const [saveStatusStep5, setSaveStatusStep5] = useState<
@@ -2104,8 +2156,8 @@ export function ModuleJWorkspace({
   const [copiedBriefSuccessStep5, setCopiedBriefSuccessStep5] = useState(false);
 
   const isStep5Complete = Boolean(
-    step5Data.financeReadinessConfidence &&
-      step5Data.executiveFinancialSummaryNarrative.trim().length >= 30
+    step5Data?.financeReadinessConfidence &&
+      (step5Data?.executiveFinancialSummaryNarrative?.trim()?.length ?? 0) >= 30
   );
 
   // Save & AI states for Step 1
@@ -2268,20 +2320,19 @@ export function ModuleJWorkspace({
 
   // Save Step 1
   const handleSaveStep1 = async (advanceToStep2 = false, options?: { silent?: boolean }) => {
+    isDirtyStep1Ref.current = false;
     setSaveStatusStep1('saving');
     try {
       const updatedStep1: FinancialOverheadsTaxStep1Data = {
         ...step1Data,
         lastSavedAt: new Date().toISOString(),
       };
-      setStep1Data(updatedStep1);
+      await onSaveStep1OverheadsTax?.(updatedStep1, 25);
       await saveModuleJStep1OverheadsTaxAction({
         planId: plan.id,
         step1OverheadsTax: updatedStep1,
         completionPercentage: 25,
       });
-      await onSaveStep1OverheadsTax?.(updatedStep1, 25);
-      isDirtyStep1Ref.current = false;
       setSaveStatusStep1('saved');
       setTimeout(() => setSaveStatusStep1('idle'), 2500);
 
@@ -2404,20 +2455,19 @@ export function ModuleJWorkspace({
   };
 
   const handleSaveStep2 = async (advanceToStep3 = false, options?: { silent?: boolean }) => {
+    isDirtyStep2Ref.current = false;
     setSaveStatusStep2('saving');
     try {
       const updatedStep2: WorkingCapitalTimingStep2Data = {
         ...step2Data,
         lastSavedAt: new Date().toISOString(),
       };
-      setStep2Data(updatedStep2);
+      await onSaveStep2WorkingCapital?.(updatedStep2, 50);
       await saveModuleJStep2WorkingCapitalAction({
         planId: plan.id,
         step2WorkingCapital: updatedStep2,
         completionPercentage: 50,
       });
-      await onSaveStep2WorkingCapital?.(updatedStep2, 50);
-      isDirtyStep2Ref.current = false;
       setSaveStatusStep2('saved');
       setTimeout(() => setSaveStatusStep2('idle'), 2500);
 
@@ -2570,20 +2620,19 @@ export function ModuleJWorkspace({
   };
 
   const handleSaveStep3 = async (advanceToStep4 = false, options?: { silent?: boolean }) => {
+    isDirtyStep3Ref.current = false;
     setSaveStatusStep3('saving');
     try {
       const updatedStep3: CashflowFundingGapStep3Data = {
         ...step3Data,
         lastSavedAt: new Date().toISOString(),
       };
-      setStep3Data(updatedStep3);
+      await onSaveStep3CashflowGap?.(updatedStep3, 75);
       await saveModuleJStep3CashflowGapAction({
         planId: plan.id,
         step3CashflowGap: updatedStep3,
         completionPercentage: 75,
       });
-      await onSaveStep3CashflowGap?.(updatedStep3, 75);
-      isDirtyStep3Ref.current = false;
       setSaveStatusStep3('saved');
       setTimeout(() => setSaveStatusStep3('idle'), 2500);
 
@@ -2692,20 +2741,19 @@ export function ModuleJWorkspace({
   };
 
   const handleSaveStep4 = async (advanceToStep5 = false, options?: { silent?: boolean }) => {
+    isDirtyStep4Ref.current = false;
     setSaveStatusStep4('saving');
     try {
       const updatedStep4: StatementsStressTestStep4Data = {
         ...step4Data,
         lastSavedAt: new Date().toISOString(),
       };
-      setStep4Data(updatedStep4);
+      await onSaveStep4Statements?.(updatedStep4, 85);
       await saveModuleJStep4StatementsAction({
         planId: plan.id,
         step4Statements: updatedStep4,
         completionPercentage: 85,
       });
-      await onSaveStep4Statements?.(updatedStep4, 85);
-      isDirtyStep4Ref.current = false;
       setSaveStatusStep4('saved');
       setTimeout(() => setSaveStatusStep4('idle'), 2500);
 
@@ -2800,20 +2848,19 @@ export function ModuleJWorkspace({
   };
 
   const handleSaveStep5 = async (advanceToModK = false, options?: { silent?: boolean }) => {
+    isDirtyStep5Ref.current = false;
     setSaveStatusStep5('saving');
     try {
       const updatedStep5: FinanceExecutiveBriefStep5Data = {
         ...step5Data,
         lastSavedAt: new Date().toISOString(),
       };
-      setStep5Data(updatedStep5);
+      await onSaveStep5Brief?.(updatedStep5, 100);
       await saveModuleJStep5BriefAction({
         planId: plan.id,
         step5FinanceBrief: updatedStep5,
         completionPercentage: 100,
       });
-      await onSaveStep5Brief?.(updatedStep5, 100);
-      isDirtyStep5Ref.current = false;
       setSaveStatusStep5('saved');
       setTimeout(() => setSaveStatusStep5('idle'), 2500);
 
@@ -2826,7 +2873,18 @@ export function ModuleJWorkspace({
     }
   };
 
-  // Step 1 Debounced Autosave (1200ms)
+  const handleSaveStep1Ref = useRef(handleSaveStep1);
+  handleSaveStep1Ref.current = handleSaveStep1;
+  const handleSaveStep2Ref = useRef(handleSaveStep2);
+  handleSaveStep2Ref.current = handleSaveStep2;
+  const handleSaveStep3Ref = useRef(handleSaveStep3);
+  handleSaveStep3Ref.current = handleSaveStep3;
+  const handleSaveStep4Ref = useRef(handleSaveStep4);
+  handleSaveStep4Ref.current = handleSaveStep4;
+  const handleSaveStep5Ref = useRef(handleSaveStep5);
+  handleSaveStep5Ref.current = handleSaveStep5;
+
+  // Step 1 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep1Ref.current) {
       isFirstRenderStep1Ref.current = false;
@@ -2836,13 +2894,13 @@ export function ModuleJWorkspace({
     isDirtyStep1Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep1Ref.current) {
-        void handleSaveStep1(false, { silent: true });
+        void handleSaveStep1Ref.current(false, { silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step1Data]);
 
-  // Step 2 Debounced Autosave (1200ms)
+  // Step 2 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep2Ref.current) {
       isFirstRenderStep2Ref.current = false;
@@ -2852,13 +2910,13 @@ export function ModuleJWorkspace({
     isDirtyStep2Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep2Ref.current) {
-        void handleSaveStep2(false, { silent: true });
+        void handleSaveStep2Ref.current(false, { silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step2Data]);
 
-  // Step 3 Debounced Autosave (1200ms)
+  // Step 3 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep3Ref.current) {
       isFirstRenderStep3Ref.current = false;
@@ -2868,13 +2926,13 @@ export function ModuleJWorkspace({
     isDirtyStep3Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep3Ref.current) {
-        void handleSaveStep3(false, { silent: true });
+        void handleSaveStep3Ref.current(false, { silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step3Data]);
 
-  // Step 4 Debounced Autosave (1200ms)
+  // Step 4 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep4Ref.current) {
       isFirstRenderStep4Ref.current = false;
@@ -2884,13 +2942,13 @@ export function ModuleJWorkspace({
     isDirtyStep4Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep4Ref.current) {
-        void handleSaveStep4(false, { silent: true });
+        void handleSaveStep4Ref.current(false, { silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step4Data]);
 
-  // Step 5 Debounced Autosave (1200ms)
+  // Step 5 Debounced Autosave (500ms)
   useEffect(() => {
     if (isFirstRenderStep5Ref.current) {
       isFirstRenderStep5Ref.current = false;
@@ -2900,20 +2958,20 @@ export function ModuleJWorkspace({
     isDirtyStep5Ref.current = true;
     const timer = setTimeout(() => {
       if (isDirtyStep5Ref.current) {
-        void handleSaveStep5(false, { silent: true });
+        void handleSaveStep5Ref.current(false, { silent: true });
       }
-    }, 1200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [step5Data]);
 
   // Flush on unmount so switching modules never loses changes
   useEffect(() => {
     return () => {
-      if (isDirtyStep1Ref.current) void handleSaveStep1(false, { silent: true });
-      if (isDirtyStep2Ref.current) void handleSaveStep2(false, { silent: true });
-      if (isDirtyStep3Ref.current) void handleSaveStep3(false, { silent: true });
-      if (isDirtyStep4Ref.current) void handleSaveStep4(false, { silent: true });
-      if (isDirtyStep5Ref.current) void handleSaveStep5(false, { silent: true });
+      if (isDirtyStep1Ref.current) void handleSaveStep1Ref.current(false, { silent: true });
+      if (isDirtyStep2Ref.current) void handleSaveStep2Ref.current(false, { silent: true });
+      if (isDirtyStep3Ref.current) void handleSaveStep3Ref.current(false, { silent: true });
+      if (isDirtyStep4Ref.current) void handleSaveStep4Ref.current(false, { silent: true });
+      if (isDirtyStep5Ref.current) void handleSaveStep5Ref.current(false, { silent: true });
     };
   }, []);
 
@@ -3067,7 +3125,7 @@ export function ModuleJWorkspace({
   .sub-th th { background: #334155; }
   .bold-row { font-weight: 700; background: #f1f5f9; }
   .emerald-row { font-weight: 700; background: #ecfdf5; color: #065f46; }
-  .indigo-row { font-weight: 700; background: #eef2ff; color: #1e1b4b; }
+  .emerald-row { font-weight: 700; background: #f0fdf4; color: #064e3b; }
   .neg { color: #be123c; }
   .pos { color: #047857; }
   .card { border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 15px; margin-top: 10px; background: #f8fafc; font-size: 12.5px; }
@@ -3187,7 +3245,7 @@ export function ModuleJWorkspace({
           <td class="neg">-${currencySymbol}${y3.fixedOverheadsOpEx.toLocaleString()}</td>
           <td class="neg">-${currencySymbol}${tot.fixedOverheadsOpEx.toLocaleString()}</td>
         </tr>
-        <tr class="indigo-row">
+        <tr class="emerald-row">
           <td>EBITDA (Operating Profit / Loss Before Write-Offs &amp; Tax)</td>
           <td>${currencySymbol}${y1.ebitda.toLocaleString()}</td>
           <td>${currencySymbol}${y2.ebitda.toLocaleString()}</td>
@@ -3287,7 +3345,7 @@ export function ModuleJWorkspace({
               <td class="neg">-${currencySymbol}${y2.cashOutflowsOperating.toLocaleString()}</td>
               <td class="neg">-${currencySymbol}${y3.cashOutflowsOperating.toLocaleString()}</td>
             </tr>
-            <tr class="indigo-row">
+            <tr class="emerald-row">
               <td>Closing Bank Balance (End of Year)</td>
               <td>${y1.endingBankBalance < 0 ? '-' : ''}${currencySymbol}${Math.abs(y1.endingBankBalance).toLocaleString()}</td>
               <td>${y2.endingBankBalance < 0 ? '-' : ''}${currencySymbol}${Math.abs(y2.endingBankBalance).toLocaleString()}</td>
@@ -3378,7 +3436,7 @@ export function ModuleJWorkspace({
           <td>${currencySymbol}${(step1Data.monthlyTeamSalariesYear3 * 12).toLocaleString()}</td>
           <td style="text-align:left;font-size:10px;">EMPLOYMENT_GRANT</td>
         </tr>
-        <tr class="indigo-row">
+        <tr class="emerald-row">
           <td>Employer Payroll Tax Auto-Pilot (${step1Data.employerPayrollTaxRatePercent}%)</td>
           <td style="text-align:left;">${isUK ? 'Employer Class 1 NIC (13.8%) + Pension (3%)' : 'Irish Employer PRSI (11.15%)'}</td>
           <td>${currencySymbol}${step1Metrics.monthlyEmployerTaxY1.toLocaleString()}</td>
@@ -3932,74 +3990,91 @@ export function ModuleJWorkspace({
       {/* ------------------------------------------------------------- */}
       {/* MODULE J TOP HEADER BANNER (Strict GEMINI.md Rule 6.1 Standard) */}
       {/* ------------------------------------------------------------- */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-indigo-900 to-violet-900 p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-indigo-400/40 bg-indigo-500/30 text-indigo-100 text-[10px] shrink-0">
+              <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200 text-[10px] shrink-0">
                 Module J • 3-Year Financials, 36-Month Cashflow &amp; Tax Auto-Pilot
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
-                <Sparkles className="mr-1 h-3 w-3" />
+                <CheckCircle2 className="mr-1 h-3 w-3" />
                 {completedCoreStepsCount} of 4 Core Steps Ready
               </Badge>
               <Badge className="border-amber-400/30 bg-amber-500/20 text-amber-200 text-[10px] shrink-0">
                 {isUK ? '🇬🇧 UK HMRC / Start Up Loans / Innovate UK Rules' : '🇮🇪 IE Revenue / LEO / Enterprise Ireland Rules'}
               </Badge>
+              {/* Sleek inline Terminology Mode toggle pill */}
+              <div className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900/80 p-0.5 text-[10px] text-slate-300">
+                <span className="px-1.5 text-slate-400 font-medium">Mode:</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStep1Data((prev) => ({
+                      ...prev,
+                      viewLanguageMode: 'PLAIN_ENGLISH_FOUNDER',
+                    }))
+                  }
+                  className={`rounded-md px-2 py-0.5 font-medium transition-all ${
+                    isPlainMode
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Founder View
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStep1Data((prev) => ({
+                      ...prev,
+                      viewLanguageMode: 'OFFICIAL_GRANT_ACCOUNTANT',
+                    }))
+                  }
+                  className={`rounded-md px-2 py-0.5 font-medium transition-all ${
+                    !isPlainMode
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Grant/Accountant View
+                </button>
+              </div>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module J: No-Spreadsheet Financials &amp; 36-Month Cashflow
             </h1>
-            <p className="max-w-2xl text-xs text-indigo-100/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               Turn the numbers you already built in Modules D–I into a grant-compliant 3-Year Profit &amp; Loss and 36-Month Cashflow—with plain-English translations and 1-click Excel / Google Drive export.
             </p>
           </div>
 
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))}
+                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                <Sliders className="mr-1.5 h-3.5 w-3.5" />
+                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+              </Button>
               {onBackToModuleI && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={onBackToModuleI}
-                  className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                  className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Module I
                 </Button>
               )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleExportSpreadsheet('XLS')}
-                className="border-emerald-400/40 bg-emerald-500/20 text-xs text-emerald-100 hover:bg-emerald-500/30"
-              >
-                <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
-                Export Excel (.xls)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleExportSpreadsheet('CSV')}
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
-              >
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                Google Sheets / Drive (.csv)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setOpenStep((prev) => (prev === 'ALL' ? 0 : 'ALL'))}
-                className="border-indigo-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
-              >
-                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
-              </Button>
             </div>
-            <div className="text-right text-[11px] text-indigo-200">
+            <div className="text-right text-[11px] text-slate-300">
               Module J Progress:{' '}
               <strong className="text-white">
                 {Math.round((completedCoreStepsCount / 4) * 100)}%
@@ -4009,84 +4084,40 @@ export function ModuleJWorkspace({
           </div>
         </div>
 
-        {/* Global Founder vs. Grant/Accountant View Toggle Bar */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-400/30 bg-indigo-950/60 px-3.5 py-2.5">
-          <div className="flex items-center gap-2 text-xs text-indigo-100">
-            <Eye className="h-4 w-4 text-amber-300 shrink-0" />
-            <span>
-              <strong>Terminology Mode:</strong> Switch between everyday plain-English explanations and formal grant/accountant labels at any time.
-            </span>
-          </div>
-          <div className="inline-flex rounded-lg border border-indigo-400/30 bg-indigo-900/70 p-0.5">
-            <button
-              type="button"
-              onClick={() =>
-                setStep1Data((prev) => ({
-                  ...prev,
-                  viewLanguageMode: 'PLAIN_ENGLISH_FOUNDER',
-                }))
-              }
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition-all ${
-                isPlainMode
-                  ? 'bg-white text-indigo-950 shadow-xs'
-                  : 'text-indigo-200 hover:text-white'
-              }`}
-            >
-              Plain-English Founder View
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                setStep1Data((prev) => ({
-                  ...prev,
-                  viewLanguageMode: 'OFFICIAL_GRANT_ACCOUNTANT',
-                }))
-              }
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition-all ${
-                !isPlainMode
-                  ? 'bg-emerald-400 text-slate-950 shadow-xs'
-                  : 'text-indigo-200 hover:text-white'
-              }`}
-            >
-              Official Grant &amp; Accountant View
-            </button>
-          </div>
-        </div>
-
-        {/* Step Navigation Strip (Tile Grid Standard) */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-indigo-800/70 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+        {/* Step Navigation Strip (Tile Grid Standard matching Modules A-I, K, L) */}
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-800 pt-4 sm:grid-cols-3 lg:grid-cols-5">
           {[
             {
               step: 'Step 1',
-              title: '1. Bills & Tax Auto-Pilot',
+              title: 'Bills & Tax Auto-Pilot',
               done: isStep1Complete,
               targetId: 'module-j-step-1',
               stepNum: 1,
             },
             {
               step: 'Step 2',
-              title: '2. Payment Timing & Cash',
+              title: 'Payment Timing & Cash',
               done: isStep2Complete,
               targetId: 'module-j-step-2',
               stepNum: 2,
             },
             {
               step: 'Step 3',
-              title: '3. 36-Mo Cash Trough',
+              title: '36-Month Cash Trough',
               done: isStep3Complete,
               targetId: 'module-j-step-3',
               stepNum: 3,
             },
             {
               step: 'Step 4',
-              title: '4. 3-Yr P&L & Stress Test',
+              title: '3-Yr P&L & Stress Test',
               done: isStep4Complete,
               targetId: 'module-j-step-4',
               stepNum: 4,
             },
             {
               step: 'Overview',
-              title: '5. Overview Brief',
+              title: 'Overview Brief',
               done: isStep5Complete,
               targetId: 'module-j-step-5',
               stepNum: 5,
@@ -4113,18 +4144,18 @@ export function ModuleJWorkspace({
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/40 bg-emerald-950/30 text-emerald-100'
-                      : 'border-indigo-800/60 bg-indigo-950/40 text-indigo-300/70'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
-                  <span>{item.step}</span>
+                  <span className="font-semibold text-white/90 text-xs">{item.step}</span>
                   {item.done ? (
                     <Check className="h-3.5 w-3.5 text-emerald-300" />
                   ) : isStepOpen ? (
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                   ) : null}
                 </div>
-                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">{item.title}</div>
               </button>
             );
           })}
@@ -4139,19 +4170,19 @@ export function ModuleJWorkspace({
         <div
           id="module-j-step-1"
           onClick={() => setOpenStep(1)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 1: {isPlainMode ? 'Monthly Bills, Payroll & Tax Auto-Pilot' : 'Fixed Overheads (OpEx), Payroll & Statutory Tax Provision'}
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -4180,7 +4211,7 @@ export function ModuleJWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep1Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -4199,7 +4230,7 @@ export function ModuleJWorkspace({
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep1Complete ? <Check className="h-4 w-4" /> : '1'}
@@ -4252,7 +4283,7 @@ export function ModuleJWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 1 ? null : 1))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -4275,7 +4306,7 @@ export function ModuleJWorkspace({
                 variant="outline"
                 onClick={handleGenerateAiStep1}
                 disabled={isGeneratingAiStep1 || isVaultReadonly}
-                className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
                 {isGeneratingAiStep1 ? (
                   <>
@@ -4284,7 +4315,7 @@ export function ModuleJWorkspace({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                    <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Generate / Calibrate with AI
                   </>
                 )}
@@ -4305,21 +4336,21 @@ export function ModuleJWorkspace({
 
             {/* Collapsible Micro-Coaching Drawer: Why Are We Asking This? */}
             {activeWhyCard === 1 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div className="space-y-1.5">
-                      <p className="font-semibold text-indigo-950">
+                      <p className="font-semibold text-slate-950">
                         Why Grant Assessors &amp; Banks Check Your Monthly Bills &amp; Taxes First
                       </p>
-                      <p className="text-indigo-800">
+                      <p className="text-emerald-900">
                         The #1 reason first-time financial projections get rejected by{' '}
                         <strong>{isUK ? 'British Business Bank Start Up Loans and Innovate UK' : 'Irish Local Enterprise Offices (LEO) and Enterprise Ireland'}</strong>{' '}
                         is <em>&quot;hidden statutory costs&quot;</em>: founders list a €40,000 employee salary but forget the mandatory{' '}
                         <strong>{isUK ? '13.8% Employer National Insurance + 3% Workplace Pension' : '11.15% Employer PRSI'}</strong>, or they treat collected VAT as their own profit.
                       </p>
-                      <p className="text-indigo-800">
+                      <p className="text-emerald-900">
                         By auto-importing your costs from Modules D–I and turning on the Tax Auto-Pilot here, your 3-Year P&amp;L and 36-Month Cashflow become instant underwriter-grade without you writing a single spreadsheet formula.
                       </p>
                     </div>
@@ -4327,7 +4358,7 @@ export function ModuleJWorkspace({
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-500 hover:text-indigo-800 text-xs px-1"
+                    className="text-emerald-700 hover:text-emerald-900 text-xs px-1"
                   >
                     ✕
                   </button>
@@ -4376,17 +4407,17 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 1.0: LIVE UPSTREAM AUTO-IMPORT BANNER (MODULES D–I)       */}
             {/* --------------------------------------------------------- */}
-            <div className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/60 via-white to-violet-50/60 p-4 shadow-2xs">
+            <div className="rounded-xl border border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/60 p-4 shadow-2xs">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-indigo-600 shrink-0" />
+                    <Sparkles className="h-4 w-4 text-emerald-700 shrink-0" />
                     <h3 className="text-sm font-bold text-slate-900">
                       You Already Did 85% of the Maths! (Live Upstream Auto-Import)
                     </h3>
                     <Badge
                       variant="outline"
-                      className="border-indigo-200 bg-indigo-50 text-[10px] text-indigo-700"
+                      className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800"
                     >
                       Connected to Modules D, E, F, G, H &amp; I
                     </Badge>
@@ -4402,7 +4433,7 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleSyncFromUpstreamModules}
                   disabled={isVaultReadonly}
-                  className="h-8 border-indigo-200 bg-white text-xs font-semibold text-indigo-700 hover:bg-indigo-50 shrink-0"
+                  className="h-8 border-slate-200 bg-white text-xs font-semibold text-emerald-800 hover:bg-emerald-50 shrink-0"
                 >
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                   Re-Sync Latest from Modules D–I
@@ -4410,11 +4441,11 @@ export function ModuleJWorkspace({
               </div>
 
               {/* 5 Upstream Snapshot Pills */}
-              <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 border-t border-indigo-100/70 pt-3 text-xs">
+              <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 border-t border-slate-100/70 pt-3 text-xs">
                 <button
                   type="button"
                   onClick={() => onNavigateToModule?.('MOD_D_PRODUCT_BUILD')}
-                  className="rounded-lg border border-indigo-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-indigo-300"
+                  className="rounded-lg border border-slate-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-emerald-300"
                 >
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">
                     Mod D • Tech Stack
@@ -4423,13 +4454,13 @@ export function ModuleJWorkspace({
                     {currencySymbol}
                     {upstreamBaseline.monthlyTechStackCost}/mo
                   </div>
-                  <span className="text-[10px] text-indigo-600">Edit in Mod D →</span>
+                  <span className="text-[10px] text-emerald-700">Edit in Mod D →</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => onNavigateToModule?.('MOD_E_OPERATIONS')}
-                  className="rounded-lg border border-indigo-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-indigo-300"
+                  className="rounded-lg border border-slate-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-emerald-300"
                 >
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">
                     Mod E • Premises &amp; CapEx
@@ -4447,7 +4478,7 @@ export function ModuleJWorkspace({
                 <button
                   type="button"
                   onClick={() => onNavigateToModule?.('MOD_F_COFOUNDER_TEAM')}
-                  className="rounded-lg border border-indigo-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-indigo-300"
+                  className="rounded-lg border border-slate-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-emerald-300"
                 >
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">
                     Mod F • Survival &amp; Team
@@ -4460,13 +4491,13 @@ export function ModuleJWorkspace({
                     ).toLocaleString()}
                     /mo
                   </div>
-                  <span className="text-[10px] text-indigo-600">Edit in Mod F →</span>
+                  <span className="text-[10px] text-emerald-700">Edit in Mod F →</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => onNavigateToModule?.('MOD_H_REVENUE')}
-                  className="rounded-lg border border-indigo-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-indigo-300"
+                  className="rounded-lg border border-slate-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-emerald-300"
                 >
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">
                     Mod H • Price &amp; Export
@@ -4475,13 +4506,13 @@ export function ModuleJWorkspace({
                     {currencySymbol}
                     {upstreamBaseline.headlinePriceNet} • {upstreamBaseline.exportSharePercentFromModH}% Export
                   </div>
-                  <span className="text-[10px] text-indigo-600">Edit in Mod H →</span>
+                  <span className="text-[10px] text-emerald-700">Edit in Mod H →</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => onNavigateToModule?.('MOD_I_MARKETING')}
-                  className="rounded-lg border border-indigo-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-indigo-300"
+                  className="rounded-lg border border-slate-100/80 bg-white/90 p-2.5 text-left transition-all hover:border-emerald-300"
                 >
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">
                     Mod I • Marketing Spend
@@ -4512,7 +4543,7 @@ export function ModuleJWorkspace({
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-indigo-600" />
+                  <Building2 className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-sm font-bold text-slate-900">
                     1.1{' '}
                     {isPlainMode
@@ -4543,7 +4574,7 @@ export function ModuleJWorkspace({
                       }}
                       className={`cursor-pointer rounded-xl border p-4 transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-500'
+                          ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
                           : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
                       }`}
                     >
@@ -4553,7 +4584,7 @@ export function ModuleJWorkspace({
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {isSelected && (
-                            <div className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-white">
+                            <div className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-white">
                               <Check className="h-2.5 w-2.5" />
                             </div>
                           )}
@@ -4561,7 +4592,7 @@ export function ModuleJWorkspace({
                             variant="secondary"
                             className={`text-[9px] px-1.5 py-0.5 shrink-0 ${
                               isSelected
-                                ? 'bg-indigo-600 text-white'
+                                ? 'bg-emerald-700 text-white'
                                 : 'bg-slate-100 text-slate-700'
                             }`}
                           >
@@ -4572,7 +4603,7 @@ export function ModuleJWorkspace({
                       <p className="mt-1.5 text-[11px] text-slate-600 leading-snug">
                         {opt.description}
                       </p>
-                      <div className="mt-2.5 border-t border-slate-100 pt-2 text-[10px] text-indigo-700">
+                      <div className="mt-2.5 border-t border-slate-100 pt-2 text-[10px] text-emerald-800">
                         <span className="font-semibold">Assessor Lens: </span>
                         {opt.grantNote}
                       </div>
@@ -4583,7 +4614,7 @@ export function ModuleJWorkspace({
 
               {/* Mandatory "OTHER" Custom Input (Strict GEMINI.md Rule 1.5) */}
               {step1Data.operatingCostPosture === 'OTHER' && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                   <Label className="text-xs font-bold text-slate-900">
                     Describe Your Custom Operating Cost Setup
                   </Label>
@@ -4611,7 +4642,7 @@ export function ModuleJWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-indigo-600" />
+                    <Layers className="h-4 w-4 text-emerald-700" />
                     <h3 className="text-sm font-bold text-slate-900">
                       1.2{' '}
                       {isPlainMode
@@ -4647,7 +4678,7 @@ export function ModuleJWorkspace({
                     variant="outline"
                     onClick={handleAddOverheadItem}
                     disabled={isVaultReadonly}
-                    className="h-8 border-indigo-200 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                    className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50"
                   >
                     <Plus className="mr-1 h-3.5 w-3.5" />
                     Add Monthly Bill
@@ -4739,7 +4770,7 @@ export function ModuleJWorkspace({
                               <span>•</span>
                               <Badge
                                 variant="outline"
-                                className="border-indigo-200 bg-indigo-50/60 text-[10px] text-indigo-700"
+                                className="border-slate-200 bg-slate-50 text-[10px] text-emerald-800"
                               >
                                 {item.sourceModuleLabel}
                               </Badge>
@@ -4755,7 +4786,7 @@ export function ModuleJWorkspace({
                                 }
                                 placeholder="Specify custom overhead category..."
                                 disabled={isVaultReadonly}
-                                className="mt-1.5 h-7 bg-indigo-50/30 text-base sm:text-[11px]"
+                                className="mt-1.5 h-7 bg-slate-50 text-base sm:text-[11px]"
                               />
                             )}
                           </td>
@@ -4887,7 +4918,7 @@ export function ModuleJWorkspace({
                           ? 'Total Monthly Fixed Bills (Ex-Payroll)'
                           : 'Total Fixed Operating Overheads (Ex-Payroll)'}
                       </td>
-                      <td className="px-3 py-3 text-sm text-indigo-700">
+                      <td className="px-3 py-3 text-sm text-emerald-800">
                         {currencySymbol}
                         {step1Metrics.monthlyFixedOpExY1.toLocaleString()}/mo
                       </td>
@@ -4916,7 +4947,7 @@ export function ModuleJWorkspace({
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Landmark className="h-4 w-4 text-indigo-600" />
+                  <Landmark className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-sm font-bold text-slate-900">
                     1.3{' '}
                     {isPlainMode
@@ -5060,7 +5091,7 @@ export function ModuleJWorkspace({
                         ? 'UK Employer NIC + Pension %'
                         : 'IE Employer PRSI Tax %'}
                     </Label>
-                    <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px]">
+                    <Badge className="bg-slate-100 text-emerald-900 border-slate-200 text-[10px]">
                       Auto-Pilot ON
                     </Badge>
                   </div>
@@ -5129,7 +5160,7 @@ export function ModuleJWorkspace({
                         }}
                         className={`cursor-pointer rounded-xl border p-3.5 transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-500'
+                            ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white hover:border-slate-300'
                         }`}
                       >
@@ -5138,7 +5169,7 @@ export function ModuleJWorkspace({
                             {isPlainMode ? vOpt.plainTitle : vOpt.accountantTitle}
                           </span>
                           {isSelected && (
-                            <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
+                            <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
                               <Check className="h-2.5 w-2.5" />
                             </div>
                           )}
@@ -5159,7 +5190,7 @@ export function ModuleJWorkspace({
 
                 {/* Mandatory OTHER Input for VAT Strategy (Strict GEMINI.md Rule 1.5) */}
                 {step1Data.vatRegistrationStrategy === 'OTHER' && (
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                     <Label className="text-xs font-bold text-slate-900">
                       Describe Your Custom VAT / Indirect Tax Arrangement
                     </Label>
@@ -5194,7 +5225,7 @@ export function ModuleJWorkspace({
                           : 'Mandatory for Irish LEO Priming/Feasibility & Enterprise Ireland to prove non-displacement of local competitors.'}
                       </p>
                     </div>
-                    <Badge className="bg-indigo-600 text-white text-xs px-2.5 py-0.5">
+                    <Badge className="bg-emerald-700 text-white text-xs px-2.5 py-0.5">
                       {step1Data.exportRevenueSharePercent}% Export /{' '}
                       {100 - step1Data.exportRevenueSharePercent}% Domestic
                     </Badge>
@@ -5213,7 +5244,7 @@ export function ModuleJWorkspace({
                       }))
                     }
                     disabled={isVaultReadonly}
-                    className="w-full accent-indigo-600 cursor-pointer"
+                    className="w-full accent-emerald-700 cursor-pointer"
                   />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -5272,7 +5303,7 @@ export function ModuleJWorkspace({
             <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 sm:p-6 shadow-xs space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200/60 text-indigo-700">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 border border-slate-200/60 text-emerald-800">
                     <Scale className="h-4 w-4" />
                   </div>
                   <div>
@@ -5288,7 +5319,7 @@ export function ModuleJWorkspace({
                 </div>
                 <Badge
                   variant="outline"
-                  className="border-indigo-200 bg-indigo-50 text-[10px] font-semibold text-indigo-700"
+                  className="border-slate-200 bg-emerald-50 text-[10px] font-semibold text-emerald-800"
                 >
                   {isPlainMode ? 'Plain-English Mode Active' : 'Official Grant Underwriter Mode'}
                 </Badge>
@@ -5333,7 +5364,7 @@ export function ModuleJWorkspace({
                       <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                         {isPlainMode ? 'Team + Employer Taxes' : 'Loaded Payroll & PRSI/NIC'}
                       </span>
-                      <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
+                      <Badge className="bg-slate-100 text-emerald-900 text-[10px]">
                         +{step1Data.employerPayrollTaxRatePercent}% Tax
                       </Badge>
                     </div>
@@ -5344,7 +5375,7 @@ export function ModuleJWorkspace({
                     </div>
                     <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
                       Includes{' '}
-                      <strong className="text-indigo-700">
+                      <strong className="text-emerald-800">
                         {currencySymbol}
                         {step1Metrics.monthlyEmployerTaxY1.toLocaleString()}/mo
                       </strong>{' '}
@@ -5357,13 +5388,13 @@ export function ModuleJWorkspace({
                 </div>
 
                 {/* Card 3: Total Monthly Burn */}
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/30 p-4.5 shadow-xs flex flex-col justify-between transition-all">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4.5 shadow-xs flex flex-col justify-between transition-all">
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                         {isPlainMode ? 'Total Monthly Burn' : 'Total Monthly Cash Outflow'}
                       </span>
-                      <Badge className="bg-indigo-600 text-white text-[10px]">
+                      <Badge className="bg-emerald-700 text-white text-[10px]">
                         Y1 Baseline
                       </Badge>
                     </div>
@@ -5372,7 +5403,7 @@ export function ModuleJWorkspace({
                       {step1Metrics.totalMonthlyBurnY1.toLocaleString()}
                       <span className="text-xs font-normal text-slate-500"> /mo</span>
                     </div>
-                    <div className="mt-3 rounded-lg bg-white border border-indigo-100 px-2.5 py-1.5 text-xs text-slate-700">
+                    <div className="mt-3 rounded-lg bg-white border border-slate-100 px-2.5 py-1.5 text-xs text-slate-700">
                       CapEx Depreciation:{' '}
                       <strong>
                         {currencySymbol}
@@ -5380,7 +5411,7 @@ export function ModuleJWorkspace({
                       </strong>
                     </div>
                   </div>
-                  <div className="mt-4 border-t border-indigo-100 pt-2.5 text-[11px] leading-normal text-indigo-900">
+                  <div className="mt-4 border-t border-slate-100 pt-2.5 text-[11px] leading-normal text-slate-900">
                     <strong>Assessor Lens:</strong> Feeds directly into your Step 3 36-Month Cash Trough &amp; Runway curve.
                   </div>
                 </div>
@@ -5447,9 +5478,9 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep1}
                   disabled={isGeneratingAiStep1 || isVaultReadonly}
-                  className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                  className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
                 >
-                  <Wand2 className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                  <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep1 ? 'Synthesizing...' : 'Write Summary with AI'}
                 </Button>
               </div>
@@ -5465,7 +5496,7 @@ export function ModuleJWorkspace({
                 }
                 disabled={isVaultReadonly}
                 placeholder="Explain your Year 1–3 monthly bills, how you keep costs lean before revenue scales, and how employer payroll taxes and VAT are handled..."
-                className="w-full rounded-xl border border-slate-300 p-3 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                className="w-full rounded-xl border border-slate-300 p-3 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
               />
 
               {step1Data.grantAssessorTip && (
@@ -5484,7 +5515,7 @@ export function ModuleJWorkspace({
               <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                    <HelpCircle className="h-4 w-4 text-indigo-600" />
+                    <HelpCircle className="h-4 w-4 text-emerald-700" />
                     <span>
                       Not 100% sure on an insurance quote, accountant fee, or VAT rule yet? Park it in Open Questions so you don&apos;t lose momentum:
                     </span>
@@ -5505,7 +5536,7 @@ export function ModuleJWorkspace({
                     variant="outline"
                     onClick={handleParkStep1Question}
                     disabled={isParkingStep1 || !parkingQuestionStep1.trim() || isVaultReadonly}
-                    className="h-8 border-indigo-200 text-xs font-medium text-indigo-700 hover:bg-indigo-50 shrink-0"
+                    className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50 shrink-0"
                   >
                     Park It in Open Questions
                   </Button>
@@ -5539,7 +5570,7 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep1}
                   disabled={isGeneratingAiStep1 || isVaultReadonly}
-                  className="text-xs border-violet-200 text-violet-700 hover:bg-violet-50"
+                  className="text-xs border-slate-200 text-emerald-800 hover:bg-slate-50"
                 >
                   <Wand2 className="mr-1.5 h-3.5 w-3.5" />
                   AI Calibrate Step 1
@@ -5566,7 +5597,7 @@ export function ModuleJWorkspace({
                   size="sm"
                   onClick={() => handleSaveStep1(true)}
                   disabled={saveStatusStep1 === 'saving'}
-                  className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                 >
                   Save &amp; Next: Payment Timing
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -5585,19 +5616,19 @@ export function ModuleJWorkspace({
         <div
           id="module-j-step-2"
           onClick={() => setOpenStep(2)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                  isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 2:{' '}
                   {isPlainMode
                     ? 'Payment Timing, Stock Delays & Seasonality ("Paper Profit vs. Bank Cash")'
@@ -5626,7 +5657,7 @@ export function ModuleJWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep2Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -5645,7 +5676,7 @@ export function ModuleJWorkspace({
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                    isStep2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
@@ -5698,7 +5729,7 @@ export function ModuleJWorkspace({
                 size="sm"
                 variant="outline"
                 onClick={() => setActiveWhyCard((prev) => (prev === 2 ? null : 2))}
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -5719,9 +5750,9 @@ export function ModuleJWorkspace({
                 variant="outline"
                 onClick={handleGenerateAiStep2}
                 disabled={isGeneratingAiStep2 || isVaultReadonly}
-                className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
-                <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                 {isGeneratingAiStep2
                   ? 'Calibrating Working Capital...'
                   : 'Auto-Generate / Calibrate with AI'}
@@ -5741,10 +5772,10 @@ export function ModuleJWorkspace({
 
             {/* Collapsible Micro-Coaching Drawer: WHY (Rule 6.1) */}
             {activeWhyCard === 2 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1.5">
-                    <div className="font-bold text-indigo-950">
+                    <div className="font-bold text-slate-950">
                       Why Grant Assessors &amp; Banks Obsess Over &quot;Working Capital Timing&quot;
                     </div>
                     <p>
@@ -5757,7 +5788,7 @@ export function ModuleJWorkspace({
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-500 hover:text-indigo-800 font-bold px-1"
+                    className="text-emerald-700 hover:text-emerald-900 font-bold px-1"
                   >
                     ✕
                   </button>
@@ -5794,12 +5825,12 @@ export function ModuleJWorkspace({
 
           <CardContent className="space-y-6 pt-6">
             {aiMessageStep2 && (
-              <div className="rounded-lg border border-violet-200 bg-violet-50/80 px-3.5 py-2.5 text-xs font-medium text-violet-900 flex items-center justify-between gap-2">
+              <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-xs font-medium text-slate-900 flex items-center justify-between gap-2">
                 <span>✨ {aiMessageStep2}</span>
                 <button
                   type="button"
                   onClick={() => setAiMessageStep2(null)}
-                  className="text-violet-600 hover:text-violet-900 font-bold"
+                  className="text-emerald-700 hover:text-slate-900 font-bold"
                 >
                   ✕
                 </button>
@@ -5822,7 +5853,7 @@ export function ModuleJWorkspace({
                     Choose how long it takes for a sale to turn into cleared cash in your business bank account.
                   </p>
                 </div>
-                <Badge variant="outline" className="text-[10px] border-indigo-200 text-indigo-700">
+                <Badge variant="outline" className="text-[10px] border-slate-200 text-emerald-800">
                   Effective Lag: {step2Metrics.effectiveDebtorDays} Days
                 </Badge>
               </div>
@@ -5843,8 +5874,8 @@ export function ModuleJWorkspace({
                       }
                       className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600 shadow-xs'
-                          : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/60'
+                          ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                       }`}
                     >
                       <div>
@@ -5853,7 +5884,7 @@ export function ModuleJWorkspace({
                             {opt.badge}
                           </span>
                           {isSelected && (
-                            <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
                           )}
                         </div>
                         <div className="mt-2 text-xs font-bold text-slate-900">
@@ -5863,7 +5894,7 @@ export function ModuleJWorkspace({
                           {opt.description}
                         </p>
                       </div>
-                      <div className="mt-2.5 border-t border-slate-100 pt-1.5 text-[10px] font-medium text-indigo-700">
+                      <div className="mt-2.5 border-t border-slate-100 pt-1.5 text-[10px] font-medium text-emerald-800">
                         {opt.grantNote}
                       </div>
                     </button>
@@ -5873,9 +5904,9 @@ export function ModuleJWorkspace({
 
               {/* Mandatory "OTHER" Custom Input + Custom Debtor Days (Strict GEMINI.md Rule 1.5) */}
               {step2Data.customerCollectionTiming === 'OTHER' && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold text-indigo-950">
+                    <Label className="text-xs font-semibold text-slate-950">
                       Describe Your Custom Customer Payment Terms:
                     </Label>
                     <Input
@@ -5893,7 +5924,7 @@ export function ModuleJWorkspace({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-indigo-950">
+                    <Label className="text-xs font-semibold text-slate-950">
                       Custom Average Debtor Days (0–120):
                     </Label>
                     <Input
@@ -5953,8 +5984,8 @@ export function ModuleJWorkspace({
                         }
                         className={`rounded-xl border p-3 text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-white ring-1 ring-indigo-600 shadow-2xs'
-                            : 'border-slate-200 bg-white/80 hover:border-indigo-200'
+                            ? 'border-emerald-700 bg-white ring-1 ring-emerald-700 shadow-2xs'
+                            : 'border-slate-200 bg-white/80 hover:border-emerald-300'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1">
@@ -5962,7 +5993,7 @@ export function ModuleJWorkspace({
                             {opt.badge}
                           </span>
                           {isSelected && (
-                            <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
                           )}
                         </div>
                         <div className="mt-1.5 text-xs font-bold text-slate-900">
@@ -5975,8 +6006,8 @@ export function ModuleJWorkspace({
                 </div>
 
                 {step2Data.inventoryStockTiming === 'OTHER' && (
-                  <div className="rounded-xl border border-indigo-200 bg-white p-3 space-y-1.5">
-                    <Label className="text-xs font-semibold text-indigo-950">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-950">
                       Describe Your Custom Stock or Supplier Payment Terms:
                     </Label>
                     <Input
@@ -6005,7 +6036,7 @@ export function ModuleJWorkspace({
                         ? 'Which Month Do Paying Sales Start?'
                         : 'Commercial Revenue Commencement Month (M1–M12)'}
                     </Label>
-                    <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
+                    <Badge className="bg-slate-100 text-emerald-900 text-[10px]">
                       Month {step2Data.monthToStartRevenue}
                     </Badge>
                   </div>
@@ -6025,7 +6056,7 @@ export function ModuleJWorkspace({
                       }))
                     }
                     disabled={isVaultReadonly}
-                    className="w-full accent-indigo-600"
+                    className="w-full accent-emerald-700"
                   />
                   <div className="flex justify-between text-[10px] text-slate-500">
                     <span>Month 1 (Immediate Sales)</span>
@@ -6060,7 +6091,7 @@ export function ModuleJWorkspace({
                         }))
                       }
                       disabled={isVaultReadonly}
-                      className="w-full accent-indigo-600"
+                      className="w-full accent-emerald-700"
                     />
                   </div>
                 )}
@@ -6080,7 +6111,7 @@ export function ModuleJWorkspace({
                       {step2Metrics.debtorCashLockup.toLocaleString()}
                     </strong>
                   </div>
-                  <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-indigo-950">
+                  <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-slate-950">
                     <span>Total Working Capital Cash Tie-Up:</span>
                     <span>
                       {currencySymbol}
@@ -6123,8 +6154,8 @@ export function ModuleJWorkspace({
                       }
                       className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600 shadow-xs'
-                          : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50/60'
+                          ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                       }`}
                     >
                       <div>
@@ -6133,7 +6164,7 @@ export function ModuleJWorkspace({
                             {opt.badge}
                           </span>
                           {isSelected && (
-                            <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
                           )}
                         </div>
                         <div className="mt-2 text-xs font-bold text-slate-900">
@@ -6149,8 +6180,8 @@ export function ModuleJWorkspace({
               </div>
 
               {step2Data.seasonalityRampCurve === 'OTHER' && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 space-y-1.5">
-                  <Label className="text-xs font-semibold text-indigo-950">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-950">
                     Describe Your Custom Seasonal Sales Pattern:
                   </Label>
                   <Input
@@ -6185,8 +6216,8 @@ export function ModuleJWorkspace({
                     </p>
                   </div>
                   <div className="flex items-center gap-3 text-[11px]">
-                    <span className="flex items-center gap-1.5 text-indigo-300">
-                      <span className="h-2.5 w-2.5 rounded-xs bg-indigo-400 inline-block" />
+                    <span className="flex items-center gap-1.5 text-slate-300">
+                      <span className="h-2.5 w-2.5 rounded-xs bg-emerald-600 inline-block" />
                       Paper Sales ({currencySymbol}
                       {step2Metrics.totalInvoicedY1.toLocaleString()})
                     </span>
@@ -6225,7 +6256,7 @@ export function ModuleJWorkspace({
                               <div
                                 title={`Month ${mRow.month} Invoiced: ${currencySymbol}${mRow.invoicedRevenue.toLocaleString()}`}
                                 style={{ height: `${invHeight}px` }}
-                                className="w-3 rounded-t-xs bg-indigo-400/90 transition-all"
+                                className="w-3 rounded-t-xs bg-emerald-600 transition-all"
                               />
                               <div
                                 title={`Month ${mRow.month} Bank Cash: ${currencySymbol}${mRow.cashCollected.toLocaleString()}`}
@@ -6257,7 +6288,7 @@ export function ModuleJWorkspace({
             <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 sm:p-6 shadow-xs space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200/60 text-indigo-700">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 border border-slate-200/60 text-emerald-800">
                     <Clock className="h-4 w-4" />
                   </div>
                   <div>
@@ -6273,7 +6304,7 @@ export function ModuleJWorkspace({
                 </div>
                 <Badge
                   variant="outline"
-                  className="border-indigo-200 bg-indigo-50 text-[10px] font-semibold text-indigo-700"
+                  className="border-slate-200 bg-emerald-50 text-[10px] font-semibold text-emerald-800"
                 >
                   Feeds Step 3 Cash Trough
                 </Badge>
@@ -6325,7 +6356,7 @@ export function ModuleJWorkspace({
                     </div>
                     <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
                       Rolls into Y2 M13:{' '}
-                      <strong className="text-indigo-700">
+                      <strong className="text-emerald-800">
                         {currencySymbol}
                         {step2Metrics.yearEndUnpaidInvoicesAR.toLocaleString()}
                       </strong>
@@ -6366,13 +6397,13 @@ export function ModuleJWorkspace({
                 </div>
 
                 {/* Card 4: Peak Working Capital Requirement */}
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/30 p-4.5 shadow-xs flex flex-col justify-between transition-all">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4.5 shadow-xs flex flex-col justify-between transition-all">
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                         {isPlainMode ? 'Total Working Capital Tie-Up' : 'Peak Working Capital Lockup'}
                       </span>
-                      <Badge className="bg-indigo-600 text-white text-[10px]">
+                      <Badge className="bg-emerald-700 text-white text-[10px]">
                         Cash Buffer Target
                       </Badge>
                     </div>
@@ -6380,11 +6411,11 @@ export function ModuleJWorkspace({
                       {currencySymbol}
                       {step2Metrics.peakWorkingCapitalLockup.toLocaleString()}
                     </div>
-                    <div className="mt-3 rounded-lg bg-white border border-indigo-100 px-2.5 py-1.5 text-xs text-slate-700">
+                    <div className="mt-3 rounded-lg bg-white border border-slate-100 px-2.5 py-1.5 text-xs text-slate-700">
                       Auto-added to Step 3 Funding Gap
                     </div>
                   </div>
-                  <div className="mt-4 border-t border-indigo-100 pt-2.5 text-[11px] leading-normal text-indigo-900">
+                  <div className="mt-4 border-t border-slate-100 pt-2.5 text-[11px] leading-normal text-slate-900">
                     <strong>Assessor Lens:</strong> Justification for UK Start Up Loans, Microfinance Ireland, or LEO working capital support.
                   </div>
                 </div>
@@ -6413,9 +6444,9 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep2}
                   disabled={isGeneratingAiStep2 || isVaultReadonly}
-                  className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                  className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
                 >
-                  <Wand2 className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                  <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep2 ? 'Synthesizing...' : 'Write Summary with AI'}
                 </Button>
               </div>
@@ -6431,7 +6462,7 @@ export function ModuleJWorkspace({
                 }
                 disabled={isVaultReadonly}
                 placeholder="Explain your customer payment terms (e.g. instant card vs 30-day B2B invoice), any upfront stock or pre-launch build months, and how seasonal peaks affect your cashflow..."
-                className="w-full rounded-xl border border-slate-300 p-3 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                className="w-full rounded-xl border border-slate-300 p-3 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
               />
 
               {step2Data.grantAssessorTip && (
@@ -6449,7 +6480,7 @@ export function ModuleJWorkspace({
               {/* Momentum Protection: Park It in Open Questions (Rule 1.3) */}
               <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                  <HelpCircle className="h-4 w-4 text-indigo-600" />
+                  <HelpCircle className="h-4 w-4 text-emerald-700" />
                   <span>
                     Unsure what payment terms enterprise buyers or wholesalers in your sector demand? Park it in Open Questions:
                   </span>
@@ -6469,7 +6500,7 @@ export function ModuleJWorkspace({
                     variant="outline"
                     onClick={handleParkStep2Question}
                     disabled={isParkingStep2 || !parkingQuestionStep2.trim() || isVaultReadonly}
-                    className="h-8 border-indigo-200 text-xs font-medium text-indigo-700 hover:bg-indigo-50 shrink-0"
+                    className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50 shrink-0"
                   >
                     Park It in Open Questions
                   </Button>
@@ -6501,7 +6532,7 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep2}
                   disabled={isGeneratingAiStep2 || isVaultReadonly}
-                  className="text-xs border-violet-200 text-violet-700 hover:bg-violet-50"
+                  className="text-xs border-slate-200 text-emerald-800 hover:bg-slate-50"
                 >
                   <Wand2 className="mr-1.5 h-3.5 w-3.5" />
                   AI Calibrate Step 2
@@ -6528,7 +6559,7 @@ export function ModuleJWorkspace({
                   size="sm"
                   onClick={() => handleSaveStep2(true)}
                   disabled={saveStatusStep2 === 'saving'}
-                  className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                 >
                   Save &amp; Next: 36-Month Cash Trough
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -6546,7 +6577,7 @@ export function ModuleJWorkspace({
         <div
           id="module-j-step-3"
           onClick={() => setOpenStep(3)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -6554,13 +6585,13 @@ export function ModuleJWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   isStep3Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 3: 36-Month Cashflow Curve, &ldquo;Cash Trough&rdquo; &amp; Grant Reimbursement Bridge
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -6588,7 +6619,7 @@ export function ModuleJWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep3Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -6609,7 +6640,7 @@ export function ModuleJWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     isStep3Complete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
@@ -6632,7 +6663,7 @@ export function ModuleJWorkspace({
                     >
                       {isStep3Complete ? 'Complete' : 'In Progress'}
                     </Badge>
-                    <Badge className="shrink-0 bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-medium">
+                    <Badge className="shrink-0 bg-emerald-50 text-emerald-800 border-slate-200 text-[10px] font-medium">
                       36-Month Runway &amp; Grant Arrears Engine
                     </Badge>
                   </div>
@@ -6668,7 +6699,7 @@ export function ModuleJWorkspace({
                   onClick={() =>
                     setActiveWhyCard((prev) => (prev === 3 ? null : 3))
                   }
-                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <HelpCircle className="mr-1 h-3.5 w-3.5" />
                   Why Are We Asking This?
@@ -6691,9 +6722,9 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep3}
                   disabled={isGeneratingAiStep3 || isVaultReadonly}
-                  className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                  className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
                 >
-                  <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                  <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep3
                     ? 'Calibrating Cash Trough...'
                     : 'Calibrate Cashflow & Funding Stack with AI'}
@@ -6711,7 +6742,7 @@ export function ModuleJWorkspace({
                   }
                   className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
                     isPlainMode
-                      ? 'bg-white text-indigo-900 shadow-xs'
+                      ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -6727,7 +6758,7 @@ export function ModuleJWorkspace({
                   }
                   className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
                     !isPlainMode
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-emerald-700 text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -6738,10 +6769,10 @@ export function ModuleJWorkspace({
 
             {/* Collapsible Why Card */}
             {activeWhyCard === 3 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1.5">
-                    <p className="font-bold text-indigo-950">
+                    <p className="font-bold text-slate-950">
                       Why &ldquo;The Cash Trough&rdquo; &amp; Grant Reimbursement Timing Matter
                     </p>
                     <p>
@@ -6756,7 +6787,7 @@ export function ModuleJWorkspace({
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-500 hover:text-indigo-800 font-bold px-1"
+                    className="text-emerald-700 hover:text-emerald-900 font-bold px-1"
                   >
                     ✕
                   </button>
@@ -6793,8 +6824,8 @@ export function ModuleJWorkspace({
 
           <CardContent className="space-y-6 pt-6">
             {aiMessageStep3 && (
-              <div className="flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs text-violet-900">
-                <Sparkles className="h-4 w-4 text-violet-600 shrink-0" />
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900">
+                <Sparkles className="h-4 w-4 text-emerald-700 shrink-0" />
                 <span>{aiMessageStep3}</span>
               </div>
             )}
@@ -6806,7 +6837,7 @@ export function ModuleJWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Landmark className="h-4 w-4 text-indigo-600" />
+                    <Landmark className="h-4 w-4 text-emerald-700" />
                     3.1{' '}
                     {isPlainMode
                       ? 'How Do You Plan to Fund Your Early Cash Dip?'
@@ -6824,7 +6855,7 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleMatchRecommendedRaiseStep3}
                   disabled={isVaultReadonly}
-                  className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <Calculator className="mr-1 h-3.5 w-3.5" />
                   Auto-Size Stack to Cover My Cash Trough ({currencySymbol}
@@ -6850,7 +6881,7 @@ export function ModuleJWorkspace({
                       }}
                       className={`cursor-pointer rounded-xl border p-3.5 transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-500'
+                          ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
                           : 'border-slate-200 bg-white hover:border-slate-300'
                       }`}
                     >
@@ -6862,7 +6893,7 @@ export function ModuleJWorkspace({
                           variant="secondary"
                           className={`text-[9px] px-1.5 py-0.5 shrink-0 ${
                             isSelected
-                              ? 'bg-indigo-600 text-white'
+                              ? 'bg-emerald-700 text-white'
                               : 'bg-slate-100 text-slate-700'
                           }`}
                         >
@@ -6872,7 +6903,7 @@ export function ModuleJWorkspace({
                       <p className="mt-1.5 text-[11px] text-slate-600 leading-snug">
                         {opt.description}
                       </p>
-                      <div className="mt-2 border-t border-slate-100 pt-1.5 text-[10px] text-indigo-700">
+                      <div className="mt-2 border-t border-slate-100 pt-1.5 text-[10px] text-emerald-800">
                         <span className="font-semibold">Assessor Lens: </span>
                         {opt.grantNote}
                       </div>
@@ -6883,7 +6914,7 @@ export function ModuleJWorkspace({
 
               {/* Mandatory "OTHER" Custom Input (Strict GEMINI.md Rule 1.5) */}
               {step3Data.primaryFundingStrategy === 'OTHER' && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                   <Label className="text-xs font-bold text-slate-900">
                     Describe Your Custom Funding &amp; Runway Strategy
                   </Label>
@@ -7000,7 +7031,7 @@ export function ModuleJWorkspace({
                         }
                         className={`h-9 rounded-md border px-2 text-[10px] font-semibold ${
                           step3Data.safetyBufferPercent === pct
-                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                            ? 'border-emerald-700 bg-emerald-700 text-white'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                         }`}
                       >
@@ -7084,7 +7115,7 @@ export function ModuleJWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-indigo-600" />
+                    <DollarSign className="h-4 w-4 text-emerald-700" />
                     3.3{' '}
                     {isPlainMode
                       ? 'Your Funding Stack & "Grant Reimbursement Delay" Bridge'
@@ -7117,7 +7148,7 @@ export function ModuleJWorkspace({
                     variant="outline"
                     onClick={handleAddFundingSource}
                     disabled={isVaultReadonly}
-                    className="h-8 border-indigo-200 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                    className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50"
                   >
                     <Plus className="mr-1 h-3.5 w-3.5" />
                     Add Funding Source
@@ -7254,7 +7285,7 @@ export function ModuleJWorkspace({
 
                       {/* Mandatory "OTHER" Custom Input on Funding Source Row */}
                       {src.sourceType === 'OTHER' && (
-                        <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-2.5">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                           <Label className="text-[11px] font-bold text-slate-900">
                             Specify Custom Funding Source Type
                           </Label>
@@ -7288,7 +7319,7 @@ export function ModuleJWorkspace({
                               })
                             }
                             disabled={isVaultReadonly}
-                            className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-700"
                           />
                           <span>
                             {isPlainMode
@@ -7338,7 +7369,7 @@ export function ModuleJWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-indigo-500/20 text-indigo-200 border-indigo-400/30 text-[10px]">
+                    <Badge className="bg-emerald-500/20 text-slate-300 border-emerald-400/30 text-[10px]">
                       36-Month / 12-Quarter Cashflow Simulator
                     </Badge>
                     <Badge className="bg-amber-500/20 text-amber-200 border-amber-400/30 text-[10px]">
@@ -7408,7 +7439,7 @@ export function ModuleJWorkspace({
                               title={`${qRow.yearLabel} Pre-Funding Operating Cash: ${currencySymbol}${opVal.toLocaleString()}`}
                               style={{ height: `${opHeight}px` }}
                               className={`w-3 rounded-t-xs transition-all ${
-                                opVal < 0 ? 'bg-rose-400/90' : 'bg-indigo-400/90'
+                                opVal < 0 ? 'bg-rose-400/90' : 'bg-emerald-600'
                               }`}
                             />
                             <div
@@ -7490,7 +7521,7 @@ export function ModuleJWorkspace({
                             {currencySymbol}
                             {qRow.operatingOutflow.toLocaleString()}
                           </td>
-                          <td className="px-3 py-2 text-indigo-300 font-medium">
+                          <td className="px-3 py-2 text-slate-300 font-medium">
                             {currencySymbol}
                             {qRow.grantAndFundingInflow.toLocaleString()}
                           </td>
@@ -7528,7 +7559,7 @@ export function ModuleJWorkspace({
             <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 sm:p-6 shadow-xs space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200/60 text-indigo-700">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 border border-slate-200/60 text-emerald-800">
                     <TrendingUp className="h-4 w-4" />
                   </div>
                   <div>
@@ -7544,7 +7575,7 @@ export function ModuleJWorkspace({
                 </div>
                 <Badge
                   variant="outline"
-                  className="border-indigo-200 bg-indigo-50 text-[10px] font-semibold text-indigo-700"
+                  className="border-slate-200 bg-emerald-50 text-[10px] font-semibold text-emerald-800"
                 >
                   Feeds Step 4 3-Year Statements
                 </Badge>
@@ -7587,7 +7618,7 @@ export function ModuleJWorkspace({
                       <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                         {isPlainMode ? 'Recommended Total Raise' : 'Target Capital Requirement'}
                       </span>
-                      <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
+                      <Badge className="bg-slate-100 text-emerald-900 text-[10px]">
                         +{step3Data.safetyBufferPercent}% Buffer
                       </Badge>
                     </div>
@@ -7597,7 +7628,7 @@ export function ModuleJWorkspace({
                     </div>
                     <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
                       Stacked So Far:{' '}
-                      <strong className="text-indigo-700">
+                      <strong className="text-emerald-800">
                         {currencySymbol}
                         {step3Metrics.totalStackedFunding.toLocaleString()}
                       </strong>
@@ -7705,9 +7736,9 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep3}
                   disabled={isGeneratingAiStep3 || isVaultReadonly}
-                  className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                  className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
                 >
-                  <Wand2 className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                  <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep3 ? 'Synthesizing...' : 'Write Summary with AI'}
                 </Button>
               </div>
@@ -7723,7 +7754,7 @@ export function ModuleJWorkspace({
                 }
                 disabled={isVaultReadonly}
                 placeholder="Explain your lowest cash point (Cash Trough), why you included a 20% safety buffer, and how your Day-1 savings/loan cover upfront spend while waiting for grant reimbursement..."
-                className="w-full rounded-xl border border-slate-300 p-3 text-base sm:text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                className="w-full rounded-xl border border-slate-300 p-3 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
               />
 
               {step3Data.grantAssessorTip && (
@@ -7741,7 +7772,7 @@ export function ModuleJWorkspace({
               {/* Momentum Protection: Park It in Open Questions (Rule 1.3) */}
               <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                  <HelpCircle className="h-4 w-4 text-indigo-600" />
+                  <HelpCircle className="h-4 w-4 text-emerald-700" />
                   <span>
                     Unsure how long your local LEO or Innovate UK grant claim takes to reimburse, or whether you qualify for a startup loan? Park it in Open Questions:
                   </span>
@@ -7763,7 +7794,7 @@ export function ModuleJWorkspace({
                     disabled={
                       isParkingStep3 || !parkingQuestionStep3.trim() || isVaultReadonly
                     }
-                    className="h-8 border-indigo-200 text-xs font-medium text-indigo-700 hover:bg-indigo-50 shrink-0"
+                    className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50 shrink-0"
                   >
                     Park It in Open Questions
                   </Button>
@@ -7795,7 +7826,7 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep3}
                   disabled={isGeneratingAiStep3 || isVaultReadonly}
-                  className="text-xs border-violet-200 text-violet-700 hover:bg-violet-50"
+                  className="text-xs border-slate-200 text-emerald-800 hover:bg-slate-50"
                 >
                   <Wand2 className="mr-1.5 h-3.5 w-3.5" />
                   AI Calibrate Step 3
@@ -7822,7 +7853,7 @@ export function ModuleJWorkspace({
                   size="sm"
                   onClick={() => handleSaveStep3(true)}
                   disabled={saveStatusStep3 === 'saving'}
-                  className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                 >
                   Save &amp; Next: 3-Year P&amp;L &amp; Stress-Test
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -7840,7 +7871,7 @@ export function ModuleJWorkspace({
         <div
           id="module-j-step-4"
           onClick={() => setOpenStep(4)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -7848,13 +7879,13 @@ export function ModuleJWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   isStep4Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   {isPlainMode
                     ? 'Step 4: 3-Year Profit & Loss, 36-Month Cashflow Table, Stress-Tester & IP Placeholder'
                     : 'Step 4: Official 3-Year P&L Statement, 36-Month Cashflow Schedule, Sensitivity Stress-Test & IP Shield'}
@@ -7886,7 +7917,7 @@ export function ModuleJWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep4Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -7906,7 +7937,7 @@ export function ModuleJWorkspace({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     isStep4Complete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep4Complete ? <Check className="h-4 w-4" /> : '4'}
@@ -7930,7 +7961,7 @@ export function ModuleJWorkspace({
                     </Badge>
                     <Badge
                       variant="outline"
-                      className="shrink-0 border-indigo-200 bg-indigo-50 text-[10px] font-medium text-indigo-700"
+                      className="shrink-0 border-slate-200 bg-emerald-50 text-[10px] font-medium text-emerald-800"
                     >
                       {isPlainMode
                         ? 'Plain-English Founder View'
@@ -7972,7 +8003,7 @@ export function ModuleJWorkspace({
                 onClick={() =>
                   setActiveWhyCard((prev) => (prev === 4 ? null : 4))
                 }
-                className="h-7 border-indigo-200 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -8006,9 +8037,9 @@ export function ModuleJWorkspace({
                 variant="outline"
                 onClick={handleGenerateAiStep4}
                 disabled={isGeneratingAiStep4 || isVaultReadonly}
-                className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
-                <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                 {isGeneratingAiStep4
                   ? 'Drafting Assumptions...'
                   : 'Auto-Generate / Calibrate with AI'}
@@ -8017,10 +8048,10 @@ export function ModuleJWorkspace({
 
             {/* Collapsible Micro-Coaching Drawer: Why Are We Asking This? */}
             {activeWhyCard === 4 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1.5">
-                    <p className="font-bold text-indigo-950">
+                    <p className="font-bold text-slate-950">
                       Why Grant Committees &amp; Banks Require Both a 3-Year P&amp;L and a 36-Month Cashflow Table
                     </p>
                     <p className="leading-relaxed">
@@ -8036,7 +8067,7 @@ export function ModuleJWorkspace({
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
+                    className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-bold text-emerald-800 hover:bg-slate-100"
                   >
                     ✕
                   </button>
@@ -8073,15 +8104,15 @@ export function ModuleJWorkspace({
 
           <CardContent className="space-y-6 pt-6">
             {aiMessageStep4 && (
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-violet-200 bg-violet-50/80 px-3.5 py-2.5 text-xs text-violet-900">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-xs text-slate-900">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 shrink-0 text-violet-600" />
+                  <Sparkles className="h-4 w-4 shrink-0 text-emerald-700" />
                   <span>{aiMessageStep4}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAiMessageStep4(null)}
-                  className="text-xs font-bold text-violet-700 hover:text-violet-950"
+                  className="text-xs font-bold text-emerald-800 hover:text-slate-950"
                 >
                   ✕
                 </button>
@@ -8118,7 +8149,7 @@ export function ModuleJWorkspace({
                       }))
                     }
                     disabled={isVaultReadonly}
-                    className="h-7 border-indigo-200 bg-white text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                    className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50"
                   >
                     <RefreshCw className="mr-1 h-3 w-3" />
                     Reset to Official Base Case
@@ -8142,8 +8173,8 @@ export function ModuleJWorkspace({
                       }
                       className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20'
-                          : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
+                          ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20'
+                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                       }`}
                     >
                       <div>
@@ -8155,7 +8186,7 @@ export function ModuleJWorkspace({
                             variant="outline"
                             className={`text-[10px] font-semibold ${
                               isSelected
-                                ? 'border-indigo-300 bg-indigo-100 text-indigo-800'
+                                ? 'border-emerald-300 bg-slate-100 text-emerald-900'
                                 : 'border-slate-200 bg-slate-50 text-slate-600'
                             }`}
                           >
@@ -8180,7 +8211,7 @@ export function ModuleJWorkspace({
 
               {/* Mandatory "OTHER" Custom Stress-Test Controls per GEMINI.md Rule 5 */}
               {step4Data.activeStressScenario === 'OTHER' && (
-                <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-4 space-y-3">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                     <div className="sm:col-span-1">
                       <Label className="text-xs font-semibold text-slate-800">
@@ -8333,7 +8364,7 @@ export function ModuleJWorkspace({
                     </Label>
                     <Badge
                       variant="outline"
-                      className="border-indigo-200 bg-indigo-50 text-[10px] font-semibold text-indigo-700"
+                      className="border-slate-200 bg-emerald-50 text-[10px] font-semibold text-emerald-800"
                     >
                       {isPlainMode
                         ? step4Metrics.scenarioPreset.plainTitle
@@ -8368,9 +8399,9 @@ export function ModuleJWorkspace({
                     size="sm"
                     variant="outline"
                     onClick={() => handleExportSpreadsheet('CSV')}
-                    className="h-7 border-indigo-200 bg-indigo-50/70 text-[11px] font-semibold text-indigo-800 hover:bg-indigo-100"
+                    className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-900 hover:bg-slate-100"
                   >
-                    <Download className="mr-1.5 h-3.5 w-3.5 text-indigo-700" />
+                    <Download className="mr-1.5 h-3.5 w-3.5 text-emerald-800" />
                     Google Sheets / Drive (.csv)
                   </Button>
                 </div>
@@ -8394,7 +8425,7 @@ export function ModuleJWorkspace({
                       <th className="px-3 py-2.5 text-right font-bold">
                         Year 3 (M25–M36)
                       </th>
-                      <th className="py-2.5 pl-3 pr-4 text-right font-bold text-indigo-200">
+                      <th className="py-2.5 pl-3 pr-4 text-right font-bold text-slate-300">
                         3-Year Total
                       </th>
                     </tr>
@@ -8420,7 +8451,7 @@ export function ModuleJWorkspace({
                           {y.grossTurnoverExVat.toLocaleString()}
                         </td>
                       ))}
-                      <td className="py-2.5 pl-3 pr-4 text-right font-extrabold text-indigo-900 bg-indigo-50/40">
+                      <td className="py-2.5 pl-3 pr-4 text-right font-extrabold text-slate-900 bg-slate-50">
                         {currencySymbol}
                         {step4Metrics.totals3Year.grossTurnoverExVat.toLocaleString()}
                       </td>
@@ -8430,7 +8461,7 @@ export function ModuleJWorkspace({
                     <tr className="text-slate-600">
                       <td className="py-2 pl-6 pr-3">
                         <div className="flex items-center gap-1.5">
-                          <Globe className="h-3.5 w-3.5 text-indigo-500" />
+                          <Globe className="h-3.5 w-3.5 text-emerald-700" />
                           <span>
                             {isPlainMode
                               ? `↳ Of Which: International / Export Sales (${step1Data.exportRevenueSharePercent}%)`
@@ -8439,12 +8470,12 @@ export function ModuleJWorkspace({
                         </div>
                       </td>
                       {step4Metrics.pnlYears.map((y) => (
-                        <td key={y.year} className="px-3 py-2 text-right text-indigo-700 font-medium">
+                        <td key={y.year} className="px-3 py-2 text-right text-emerald-800 font-medium">
                           {currencySymbol}
                           {y.exportTurnoverExVat.toLocaleString()}
                         </td>
                       ))}
-                      <td className="py-2 pl-3 pr-4 text-right font-semibold text-indigo-800 bg-indigo-50/20">
+                      <td className="py-2 pl-3 pr-4 text-right font-semibold text-emerald-900 bg-slate-50">
                         {currencySymbol}
                         {step4Metrics.totals3Year.exportTurnoverExVat.toLocaleString()}
                       </td>
@@ -8470,7 +8501,7 @@ export function ModuleJWorkspace({
                           {y.directCogsAndFees.toLocaleString()}
                         </td>
                       ))}
-                      <td className="py-2.5 pl-3 pr-4 text-right font-semibold text-rose-800 bg-indigo-50/20">
+                      <td className="py-2.5 pl-3 pr-4 text-right font-semibold text-rose-800 bg-slate-50">
                         -{currencySymbol}
                         {step4Metrics.totals3Year.directCogsAndFees.toLocaleString()}
                       </td>
@@ -8527,7 +8558,7 @@ export function ModuleJWorkspace({
                           {y.payrollAndDrawingsTotal.toLocaleString()}
                         </td>
                       ))}
-                      <td className="py-2.5 pl-3 pr-4 text-right font-semibold text-slate-900 bg-indigo-50/20">
+                      <td className="py-2.5 pl-3 pr-4 text-right font-semibold text-slate-900 bg-slate-50">
                         -{currencySymbol}
                         {step4Metrics.totals3Year.payrollAndDrawingsTotal.toLocaleString()}
                       </td>
@@ -8551,7 +8582,7 @@ export function ModuleJWorkspace({
                           {y.fixedOverheadsOpEx.toLocaleString()}
                         </td>
                       ))}
-                      <td className="py-2.5 pl-3 pr-4 text-right font-semibold text-slate-900 bg-indigo-50/20">
+                      <td className="py-2.5 pl-3 pr-4 text-right font-semibold text-slate-900 bg-slate-50">
                         -{currencySymbol}
                         {step4Metrics.totals3Year.fixedOverheadsOpEx.toLocaleString()}
                       </td>
@@ -8583,13 +8614,13 @@ export function ModuleJWorkspace({
                           </div>
                         </td>
                       ))}
-                      <td className="py-2.5 pl-3 pr-4 text-right bg-indigo-50/40">
+                      <td className="py-2.5 pl-3 pr-4 text-right bg-slate-50">
                         <div>
                           {step4Metrics.totals3Year.ebitda < 0 ? '-' : ''}
                           {currencySymbol}
                           {Math.abs(step4Metrics.totals3Year.ebitda).toLocaleString()}
                         </div>
-                        <div className="text-[10px] font-medium text-indigo-700">
+                        <div className="text-[10px] font-medium text-emerald-800">
                           {step4Metrics.totals3Year.ebitdaMarginPercent}% EBITDA
                         </div>
                       </td>
@@ -8616,7 +8647,7 @@ export function ModuleJWorkspace({
                           {(y.capExDepreciation + y.loanInterestExpense).toLocaleString()}
                         </td>
                       ))}
-                      <td className="py-2 pl-3 pr-4 text-right font-medium bg-indigo-50/20">
+                      <td className="py-2 pl-3 pr-4 text-right font-medium bg-slate-50">
                         -{currencySymbol}
                         {(
                           step4Metrics.totals3Year.capExDepreciation +
@@ -8640,14 +8671,14 @@ export function ModuleJWorkspace({
                           {y.corporationTax.toLocaleString()}
                         </td>
                       ))}
-                      <td className="py-2 pl-3 pr-4 text-right font-medium bg-indigo-50/20">
+                      <td className="py-2 pl-3 pr-4 text-right font-medium bg-slate-50">
                         -{currencySymbol}
                         {step4Metrics.totals3Year.corporationTax.toLocaleString()}
                       </td>
                     </tr>
 
                     {/* 10. Net Profit After Tax (PAT) */}
-                    <tr className="border-t-2 border-slate-300 bg-indigo-50/70 font-extrabold text-slate-900">
+                    <tr className="border-t-2 border-slate-300 bg-emerald-50/70 font-extrabold text-slate-900">
                       <td className="py-3 pl-4 pr-3">
                         <div>
                           {isPlainMode
@@ -8673,9 +8704,9 @@ export function ModuleJWorkspace({
                         </td>
                       ))}
                       <td
-                        className={`py-3 pl-3 pr-4 text-right bg-indigo-100/80 ${
+                        className={`py-3 pl-3 pr-4 text-right bg-slate-100/80 ${
                           step4Metrics.totals3Year.netProfitAfterTax >= 0
-                            ? 'text-indigo-950'
+                            ? 'text-slate-950'
                             : 'text-rose-800'
                         }`}
                       >
@@ -8686,7 +8717,7 @@ export function ModuleJWorkspace({
                             step4Metrics.totals3Year.netProfitAfterTax
                           ).toLocaleString()}
                         </div>
-                        <div className="text-[10px] font-bold text-indigo-800">
+                        <div className="text-[10px] font-bold text-emerald-900">
                           {step4Metrics.totals3Year.netMarginPercent}% 3-Yr Net
                         </div>
                       </td>
@@ -8727,7 +8758,7 @@ export function ModuleJWorkspace({
                       onClick={() => setCashflowGranularityStep4(tab.id)}
                       className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
                         cashflowGranularityStep4 === tab.id
-                          ? 'bg-white text-indigo-700 shadow-2xs'
+                          ? 'bg-white text-emerald-800 shadow-2xs'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
@@ -8769,7 +8800,7 @@ export function ModuleJWorkspace({
                             +{currencySymbol}
                             {yr.cashInflowsTotal.toLocaleString()}
                           </td>
-                          <td className="px-3 py-2.5 text-right font-medium text-indigo-700">
+                          <td className="px-3 py-2.5 text-right font-medium text-emerald-800">
                             +{currencySymbol}
                             {yr.fundingAndGrantsInflow.toLocaleString()}
                           </td>
@@ -8801,7 +8832,7 @@ export function ModuleJWorkspace({
                             +{currencySymbol}
                             {q.cashCollected.toLocaleString()}
                           </td>
-                          <td className="px-3 py-2 text-right text-indigo-700">
+                          <td className="px-3 py-2 text-right text-emerald-800">
                             +{currencySymbol}
                             {q.fundingAndGrantInflow.toLocaleString()}
                           </td>
@@ -8845,7 +8876,7 @@ export function ModuleJWorkspace({
                               +{currencySymbol}
                               {m.cashCollected.toLocaleString()}
                             </td>
-                            <td className="px-3 py-2 text-right text-indigo-700">
+                            <td className="px-3 py-2 text-right text-emerald-800">
                               +{currencySymbol}
                               {totFund.toLocaleString()}
                             </td>
@@ -8875,17 +8906,17 @@ export function ModuleJWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* SECTION 4.4: CORPORATE / IP CHECKLIST & PERKS PLACEHOLDER     */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-3 rounded-xl border border-indigo-200/80 bg-indigo-50/30 p-4 sm:p-5">
+            <div className="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50 p-4 sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-indigo-600" />
-                    <Label className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                    <Building2 className="h-4 w-4 text-emerald-700" />
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-950">
                       4. Corporate Structure, IP Assignment &amp; Banking Perks (Placeholder)
                     </Label>
                     <Badge
                       variant="outline"
-                      className="border-indigo-300 bg-white text-[10px] font-semibold text-indigo-700"
+                      className="border-emerald-300 bg-white text-[10px] font-semibold text-emerald-800"
                     >
                       Synced with Module G Launchpad
                     </Badge>
@@ -8904,7 +8935,7 @@ export function ModuleJWorkspace({
                   onClick={() =>
                     setShowCorporateIpPartnerDrawerStep4((prev) => !prev)
                   }
-                  className="h-7 border-indigo-200 bg-white text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                  className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50"
                 >
                   {showCorporateIpPartnerDrawerStep4
                     ? 'Hide Incorporation & IP Partners'
@@ -8930,8 +8961,8 @@ export function ModuleJWorkspace({
                       }
                       className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-white ring-2 ring-indigo-500/20'
-                          : 'border-slate-200 bg-white/80 hover:border-indigo-300'
+                          ? 'border-emerald-700 bg-white ring-2 ring-emerald-700/20'
+                          : 'border-slate-200 bg-white/80 hover:border-emerald-300'
                       }`}
                     >
                       <div>
@@ -8957,7 +8988,7 @@ export function ModuleJWorkspace({
 
               {/* Mandatory "OTHER" Custom Input for Corporate/IP Status */}
               {step4Data.corporateIpReadinessStatus === 'OTHER' && (
-                <div className="rounded-lg border border-indigo-200 bg-white p-3">
+                <div className="rounded-lg border border-slate-200 bg-white p-3">
                   <Label className="text-xs font-semibold text-slate-800">
                     Specify Custom Corporate / IP Structure
                   </Label>
@@ -9018,7 +9049,7 @@ export function ModuleJWorkspace({
             <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 sm:p-6 shadow-xs space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-indigo-200/60 bg-indigo-50 text-indigo-700">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200/60 bg-emerald-50 text-emerald-800">
                     <TrendingUp className="h-4 w-4" />
                   </div>
                   <div>
@@ -9047,7 +9078,7 @@ export function ModuleJWorkspace({
                       </span>
                       <Badge
                         variant="outline"
-                        className="border-indigo-200 bg-indigo-50 text-[10px] font-semibold text-indigo-700"
+                        className="border-slate-200 bg-emerald-50 text-[10px] font-semibold text-emerald-800"
                       >
                         {step1Data.exportRevenueSharePercent}% Export
                       </Badge>
@@ -9225,9 +9256,9 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep4}
                   disabled={isGeneratingAiStep4 || isVaultReadonly}
-                  className="h-7 border-violet-200 bg-white text-[11px] font-semibold text-violet-700 hover:bg-violet-50"
+                  className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-slate-50"
                 >
-                  <Wand2 className="mr-1.5 h-3.5 w-3.5 text-violet-600" />
+                  <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep4
                     ? 'Synthesizing...'
                     : 'Auto-Generate Assumptions Note with AI'}
@@ -9245,11 +9276,11 @@ export function ModuleJWorkspace({
                   }))
                 }
                 placeholder="Click 'Auto-Generate Assumptions Note with AI' above or write a brief note explaining your 3-Year revenue growth, gross margin, and how your cash buffer handles a downside stress test..."
-                className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
+                className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base sm:text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
               />
 
               {step4Data.grantAssessorTip && (
-                <div className="rounded-lg border border-indigo-200/80 bg-indigo-50/60 p-3 text-xs text-indigo-950">
+                <div className="rounded-lg border border-slate-200/80 bg-slate-50 p-3 text-xs text-slate-950">
                   <span className="font-bold">Underwriter Tip: </span>
                   {step4Data.grantAssessorTip}
                 </div>
@@ -9301,9 +9332,9 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep4}
                   disabled={isGeneratingAiStep4 || isVaultReadonly}
-                  className="text-xs border-violet-200 text-violet-700 hover:bg-violet-50"
+                  className="text-xs border-slate-200 text-emerald-800 hover:bg-slate-50"
                 >
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-600" />
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                   AI Calibrate Step 4
                 </Button>
               </div>
@@ -9328,7 +9359,7 @@ export function ModuleJWorkspace({
                   size="sm"
                   onClick={() => handleSaveStep4(true)}
                   disabled={saveStatusStep4 === 'saving'}
-                  className="bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700"
+                  className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                 >
                   Save &amp; Next: Module J Overview Brief
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -9346,7 +9377,7 @@ export function ModuleJWorkspace({
         <div
           id="module-j-step-5"
           onClick={() => setOpenStep(5)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50/40 to-violet-50/40 p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -9354,7 +9385,7 @@ export function ModuleJWorkspace({
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                   isStep5Complete
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 text-white'
+                    : 'bg-slate-900 text-white'
                 }`}
               >
                 {isStep5Complete ? (
@@ -9364,7 +9395,7 @@ export function ModuleJWorkspace({
                 )}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600">
+                <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   Step 5: Module J Final Overview Brief &amp; AI Underwriter Audit
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -9379,7 +9410,7 @@ export function ModuleJWorkspace({
                 className={
                   isStep5Complete
                     ? 'shrink-0 text-[10px] font-medium bg-emerald-100 text-emerald-800 border-emerald-300'
-                    : 'shrink-0 text-[10px] font-medium border-indigo-300 bg-indigo-50 text-indigo-700'
+                    : 'shrink-0 text-[10px] font-medium border-emerald-300 bg-emerald-50 text-emerald-800'
                 }
               >
                 {completedCoreStepsCount}/4 Sections Ready
@@ -9387,7 +9418,7 @@ export function ModuleJWorkspace({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 shrink-0 px-2.5 text-xs font-medium text-indigo-600 group-hover:bg-indigo-50"
+                className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
                 {isStep5Complete ? 'Open Overview' : 'Review Overview'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -9398,16 +9429,16 @@ export function ModuleJWorkspace({
       ) : (
         <Card
           id="module-j-step-5"
-          className="scroll-mt-24 rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 shadow-sm"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm"
         >
-          <CardHeader className="border-b border-indigo-100 pb-4">
+          <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     isStep5Complete
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}
                 >
                   {isStep5Complete ? (
@@ -9426,14 +9457,14 @@ export function ModuleJWorkspace({
                       className={
                         isStep5Complete
                           ? 'shrink-0 text-[10px] font-medium bg-emerald-100 text-emerald-800 border-emerald-300'
-                          : 'shrink-0 text-[10px] font-medium border-indigo-300 bg-indigo-50 text-indigo-700'
+                          : 'shrink-0 text-[10px] font-medium border-emerald-300 bg-emerald-50 text-emerald-800'
                       }
                     >
                       {completedCoreStepsCount}/4 Sections Ready
                     </Badge>
                     <Badge
                       variant="outline"
-                      className="shrink-0 text-[10px] font-medium border-violet-200 bg-violet-50 text-violet-700"
+                      className="shrink-0 text-[10px] font-medium border-slate-200 bg-slate-50 text-emerald-800"
                     >
                       {isUK
                         ? 'UK Start Up Loans / Innovate UK Ready'
@@ -9472,7 +9503,7 @@ export function ModuleJWorkspace({
                 onClick={() =>
                   setActiveWhyCard((prev) => (prev === 5 ? null : 5))
                 }
-                className="h-7 border-indigo-200 bg-white text-[11px] font-medium text-indigo-700 hover:bg-indigo-50"
+                className="h-7 border-slate-200 bg-white text-[11px] font-medium text-emerald-800 hover:bg-emerald-50"
               >
                 <HelpCircle className="mr-1 h-3.5 w-3.5" />
                 Why Are We Asking This?
@@ -9505,9 +9536,9 @@ export function ModuleJWorkspace({
                 variant="outline"
                 onClick={handleGenerateAiStep5}
                 disabled={isGeneratingAiStep5 || isVaultReadonly}
-                className="h-7 border-violet-200 bg-violet-50/60 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
-                <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                 {isGeneratingAiStep5
                   ? 'Auditing 3-Year Financials...'
                   : 'Re-Run AI Underwriter Audit & Brief'}
@@ -9516,7 +9547,7 @@ export function ModuleJWorkspace({
 
             {/* Collapsible Micro-Coaching Drawer: Why */}
             {activeWhyCard === 5 && (
-              <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900">
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
                 <div className="flex items-start justify-between gap-2">
                   <div className="font-semibold">
                     Why a 1-Page Executive Financial Brief &amp; Blind-Spot Audit Matters
@@ -9524,7 +9555,7 @@ export function ModuleJWorkspace({
                   <button
                     type="button"
                     onClick={() => setActiveWhyCard(null)}
-                    className="text-indigo-500 hover:text-indigo-800"
+                    className="text-emerald-700 hover:text-emerald-900"
                   >
                     ✕
                   </button>
@@ -9557,15 +9588,15 @@ export function ModuleJWorkspace({
             )}
 
             {aiMessageStep5 && (
-              <div className="mt-3 flex items-center justify-between rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs text-violet-900">
+              <div className="mt-3 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-900">
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-violet-600 shrink-0" />
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
                   {aiMessageStep5}
                 </span>
                 <button
                   type="button"
                   onClick={() => setAiMessageStep5(null)}
-                  className="text-violet-500 hover:text-violet-800"
+                  className="text-emerald-700 hover:text-emerald-900"
                 >
                   ✕
                 </button>
@@ -9580,7 +9611,7 @@ export function ModuleJWorkspace({
             <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-indigo-200/60 bg-indigo-50 text-indigo-700">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200/60 bg-emerald-50 text-emerald-800">
                     <CheckCircle2 className="h-4 w-4" />
                   </div>
                   <div>
@@ -9594,7 +9625,7 @@ export function ModuleJWorkspace({
                 </div>
                 <Badge
                   variant="outline"
-                  className="border-indigo-200 bg-indigo-50 text-[10px] font-semibold text-indigo-700"
+                  className="border-slate-200 bg-emerald-50 text-[10px] font-semibold text-emerald-800"
                 >
                   {completedCoreStepsCount} of 4 Core Financial Steps Calibrated
                 </Badge>
@@ -9672,7 +9703,7 @@ export function ModuleJWorkspace({
                       <div className="mt-1.5 text-xs font-bold text-slate-900">
                         {item.title}
                       </div>
-                      <div className="mt-2 text-base font-extrabold text-indigo-950">
+                      <div className="mt-2 text-base font-extrabold text-slate-950">
                         {item.metric}
                       </div>
                       <p className="mt-1 text-[11px] text-slate-600">
@@ -9685,7 +9716,7 @@ export function ModuleJWorkspace({
                         size="sm"
                         variant="ghost"
                         onClick={() => setOpenStep(item.step)}
-                        className="h-7 w-full justify-between px-2 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                        className="h-7 w-full justify-between px-2 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50"
                       >
                         <span>Edit Step {item.step}</span>
                         <ArrowRight className="h-3 w-3" />
@@ -9720,9 +9751,9 @@ export function ModuleJWorkspace({
                   variant="outline"
                   onClick={handleGenerateAiStep5}
                   disabled={isGeneratingAiStep5 || isVaultReadonly}
-                  className="h-7 border-violet-200 bg-violet-50/70 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+                  className="h-7 border-slate-200 bg-slate-50 text-[11px] font-medium text-emerald-800 hover:bg-slate-100"
                 >
-                  <Sparkles className="mr-1 h-3.5 w-3.5 text-violet-600" />
+                  <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep5 ? 'Refreshing...' : 'Refresh Blind-Spot Audit'}
                 </Button>
               </div>
@@ -9739,7 +9770,7 @@ export function ModuleJWorkspace({
                           ? 'border-rose-200 bg-rose-50/40'
                           : isWarn
                           ? 'border-amber-200 bg-amber-50/40'
-                          : 'border-indigo-200 bg-indigo-50/30'
+                          : 'border-slate-200 bg-slate-50'
                       }`}
                     >
                       <div>
@@ -9751,7 +9782,7 @@ export function ModuleJWorkspace({
                                 ? 'border-rose-300 bg-rose-100 text-[10px] font-bold text-rose-800'
                                 : isWarn
                                 ? 'border-amber-300 bg-amber-100 text-[10px] font-bold text-amber-900'
-                                : 'border-indigo-300 bg-indigo-100 text-[10px] font-bold text-indigo-800'
+                                : 'border-emerald-300 bg-slate-100 text-[10px] font-bold text-emerald-900'
                             }
                           >
                             {spot.severity}
@@ -9768,7 +9799,7 @@ export function ModuleJWorkspace({
                         </p>
                       </div>
                       <div className="mt-3 rounded-lg border border-white/80 bg-white/90 p-2.5 text-[11px] text-slate-700">
-                        <span className="font-bold text-indigo-700">
+                        <span className="font-bold text-emerald-800">
                           Recommended Action:{' '}
                         </span>
                         {spot.actionableFix}
@@ -9779,8 +9810,8 @@ export function ModuleJWorkspace({
               </div>
 
               {step5Data.aiAssessorTip && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5 text-xs text-indigo-950">
-                  <span className="font-bold text-indigo-800">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
+                  <span className="font-bold text-emerald-900">
                     Underwriter Tip ({isUK ? 'UK Start Up Loans / Innovate UK' : 'IE LEO / Enterprise Ireland'}):{' '}
                   </span>
                   {step5Data.aiAssessorTip}
@@ -9818,8 +9849,8 @@ export function ModuleJWorkspace({
                       }
                       className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20'
-                          : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
+                          ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20'
+                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
                       }`}
                     >
                       <div>
@@ -9831,7 +9862,7 @@ export function ModuleJWorkspace({
                             variant="outline"
                             className={
                               isSelected
-                                ? 'border-indigo-300 bg-indigo-100 text-[10px] text-indigo-800'
+                                ? 'border-emerald-300 bg-slate-100 text-[10px] text-emerald-900'
                                 : 'border-slate-200 text-[10px] text-slate-500'
                             }
                           >
@@ -9848,8 +9879,8 @@ export function ModuleJWorkspace({
               </div>
 
               {step5Data.financeReadinessConfidence === 'OTHER' && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 space-y-1.5">
-                  <Label className="text-xs font-semibold text-indigo-950">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-950">
                     Describe Your Custom Financial / Funding Posture
                   </Label>
                   <Input
@@ -9899,7 +9930,7 @@ export function ModuleJWorkspace({
                     onClick={() => handleExportSpreadsheet('CSV')}
                     className="h-8 border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    <Download className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <Download className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Google Sheets / Drive (.csv)
                   </Button>
                   <Button
@@ -9909,7 +9940,7 @@ export function ModuleJWorkspace({
                     onClick={handleCopyBriefMarkdown}
                     className="h-8 border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    <Copy className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <Copy className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     {copiedBriefSuccessStep5
                       ? '✓ Copied Markdown'
                       : 'Copy Brief (.md)'}
@@ -9921,7 +9952,7 @@ export function ModuleJWorkspace({
                     onClick={handleDownloadHtmlBrief}
                     className="h-8 border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    <Printer className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                    <Printer className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Download 1-Page HTML Brief
                   </Button>
                 </div>
@@ -9938,7 +9969,7 @@ export function ModuleJWorkspace({
                   }))
                 }
                 placeholder="Summarize your 3-Year revenue trajectory, gross margin, 36-month cash trough, and funding bridge..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-base sm:text-xs leading-relaxed text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-none"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-base sm:text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-none"
               />
             </div>
 
