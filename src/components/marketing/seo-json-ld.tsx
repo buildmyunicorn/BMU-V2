@@ -12,6 +12,10 @@ export function LandingSeoJsonLd({ edition }: { edition: LandingEdition }) {
     edition === 'IE' ? 'EUR' : edition === 'UK' ? 'GBP' : 'USD';
   const soloPrice =
     edition === 'IE' ? '79.00' : edition === 'UK' ? '69.00' : '89.00';
+  const cofounderPrice =
+    edition === 'IE' ? '129.00' : edition === 'UK' ? '109.00' : '139.00';
+  const cohortPrice =
+    edition === 'IE' ? '1475.00' : edition === 'UK' ? '1275.00' : '1595.00';
   const pageUrl =
     edition === 'IE'
       ? 'https://startuppreflight.com/ie'
@@ -43,12 +47,28 @@ export function LandingSeoJsonLd({ edition }: { edition: LandingEdition }) {
         name: 'Starter Tier (Module A — Free Forever)',
         price: '0.00',
         priceCurrency: currency,
+        description: 'Free ideation canvas, customer storyboard, domain availability check and Things to Consider AI review.',
       },
       {
         '@type': 'Offer',
-        name: 'Solo Founder 6-Month Pass (Modules A–L)',
+        name: 'Solo Founder 6-Month Program (Modules A–L)',
         price: soloPrice,
         priceCurrency: currency,
+        description: 'Structured 6-month grant-readiness program for 1 founder: live surveys, 3-year cashflow, breakeven engine, and official grant exports.',
+      },
+      {
+        '@type': 'Offer',
+        name: 'Co-Founder & Team Program (3 Venture Tracks • 3 Seats)',
+        price: cofounderPrice,
+        priceCurrency: currency,
+        description: 'Multi-seat 6-month program for co-founder teams: 12 awkward questions blind alignment survey, clone/pivot engine, and shared workspace.',
+      },
+      {
+        '@type': 'Offer',
+        name: 'Accelerator & Cohort Batch Program (25 Founder Seats)',
+        price: cohortPrice,
+        priceCurrency: currency,
+        description: 'Institutional batch program for accelerators and incubators: 25 all-access founder seats, real-time Director Command Center, and batch grant audit.',
       },
     ],
   };

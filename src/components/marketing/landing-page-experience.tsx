@@ -29,6 +29,7 @@ import {
   XCircle,
   HelpCircle,
   Ticket,
+  Building2,
   Menu,
   X,
 } from 'lucide-react';
@@ -92,7 +93,7 @@ function getModulesForEdition(edition: LandingEdition): ModuleCardConfig[] {
           ? 'Proves International Export Potential & Non-Displacement'
           : 'Proves Addressable Market & Competitive Edge for Assessors',
       icon: BarChart3,
-      badge: 'Full Pass',
+      badge: '6-Month Program',
       badgeVariant: 'secondary',
     },
     {
@@ -118,7 +119,7 @@ function getModulesForEdition(edition: LandingEdition): ModuleCardConfig[] {
         ? 'Ruthless V1 Scope & Build-vs-Buy Technical Roadmap'
         : 'Structures Grant Work Packages (WP1–n) & Build Quotes',
       icon: Wrench,
-      badge: 'Full Pass',
+      badge: '6-Month Program',
       badgeVariant: 'secondary',
     },
     {
@@ -133,7 +134,7 @@ function getModulesForEdition(edition: LandingEdition): ModuleCardConfig[] {
           ? 'Enforces IE LEO 3-Quote Rules & Laptop Ban Compliance'
           : 'Enforces UK Innovate UK Capital Usage & Risk Register Rules',
       icon: Briefcase,
-      badge: 'Full Pass',
+      badge: '6-Month Program',
       badgeVariant: 'secondary',
     },
     {
@@ -163,7 +164,7 @@ function getModulesForEdition(edition: LandingEdition): ModuleCardConfig[] {
           ? 'CRO Registration, .ie Domain, Banking & Tax Clearance Prep'
           : 'Companies House, .co.uk Domain, Banking & Insurance Prep',
       icon: ShieldCheck,
-      badge: 'Full Pass',
+      badge: '6-Month Program',
       badgeVariant: 'secondary',
     },
     {
@@ -176,7 +177,7 @@ function getModulesForEdition(edition: LandingEdition): ModuleCardConfig[] {
         ? 'Interactive Crossover Graph & What-If Stress-Test Sandbox'
         : 'Writes Defensible Written Sales Assumptions for Assessors',
       icon: DollarSign,
-      badge: 'Full Pass',
+      badge: '6-Month Program',
       badgeVariant: 'secondary',
     },
     {
@@ -187,7 +188,7 @@ function getModulesForEdition(edition: LandingEdition): ModuleCardConfig[] {
         'Turn your early waitlist leads into paying customers with a practical outreach playbook, 4Ps positioning, and reverse-engineered marketing budget.',
       outcomeHook: 'Concrete First-10-Customers Acquisition Playbook',
       icon: Megaphone,
-      badge: 'Full Pass',
+      badge: '6-Month Program',
       badgeVariant: 'secondary',
     },
     {
@@ -198,7 +199,7 @@ function getModulesForEdition(edition: LandingEdition): ModuleCardConfig[] {
         'Answer guided plain-English questions to generate 36-month cashflow projections, localized tax/payroll overheads, and your exact funding trough.',
       outcomeHook: 'Auto-Builds 36-Month Cashflow & Exact Funding Need',
       icon: Scale,
-      badge: 'Full Pass',
+      badge: '6-Month Program',
       badgeVariant: 'secondary',
     },
     {
@@ -321,10 +322,10 @@ export function LandingPageExperience({
   // Pricing values per edition
   const pricingCurrency =
     edition === 'IE'
-      ? { symbol: '€', solo: '79', cofounder: '129', vault: '7' }
+      ? { symbol: '€', solo: '79', cofounder: '129', vault: '7', cohort: '1,475', cohortSeat: '59' }
       : edition === 'UK'
-        ? { symbol: '£', solo: '69', cofounder: '109', vault: '6' }
-        : { symbol: '$', solo: '89', cofounder: '139', vault: '8' };
+        ? { symbol: '£', solo: '69', cofounder: '109', vault: '6', cohort: '1,275', cohortSeat: '51' }
+        : { symbol: '$', solo: '89', cofounder: '139', vault: '8', cohort: '1,595', cohortSeat: '64' };
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
@@ -369,16 +370,16 @@ export function LandingPageExperience({
             {/* Edition-Specific Headline */}
             {edition === 'GLOBAL' && (
               <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:leading-[1.12]">
-                Turn your raw startup idea into a{' '}
+                The structured 6-month program to get your startup{' '}
                 <span className="text-slate-950 font-extrabold">
-                  stress-tested, structured Business Plan.
+                  funded &amp; grant-ready.
                 </span>
               </h1>
             )}
 
             {edition === 'IE' && (
               <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:leading-[1.12]">
-                Shape your startup idea.{' '}
+                Join the 6-month program.{' '}
                 <span className="text-emerald-800 font-extrabold">
                   Unlock €2,500 to €80,000+ in Irish startup grants.
                 </span>
@@ -387,7 +388,7 @@ export function LandingPageExperience({
 
             {edition === 'UK' && (
               <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:leading-[1.12]">
-                Shape your startup idea.{' '}
+                Join the 6-month program.{' '}
                 <span className="text-slate-950 font-extrabold">
                   Unlock UK Start Up Loans, Innovate UK &amp; SEIS.
                 </span>
@@ -398,11 +399,11 @@ export function LandingPageExperience({
             {edition === 'GLOBAL' && (
               <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
                 Stop staring at blank Word documents and intimidating 12-tab
-                Excel templates. Tell us your idea in plain English—our
-                supportive AI Co-Founder helps you spot blind spots, validate
+                Excel templates. Join our self-guided 6-month program with your
+                supportive AI Co-Founder to spot blind spots, validate
                 real customer demand, align with your co-founder, and build a{' '}
                 <strong className="font-semibold text-slate-900">
-                  bank- and investor-ready Business Plan &amp; 3-Year Financial
+                  bank- and investor-ready venture dossier &amp; 3-Year Financial
                   Model
                 </strong>{' '}
                 step by step.
@@ -417,9 +418,9 @@ export function LandingPageExperience({
                   (€5k), New Frontiers (€30k stipend), and SURE tax refunds
                 </strong>{' '}
                 on the table because applications and cashflow spreadsheets look
-                too intimidating. Tell us your idea in plain English—we help you
-                gather real buyer proof and compile the exact pack Irish
-                assessors ask for.
+                too intimidating. Our structured 6-month program guides you step by step
+                through real buyer validation, compliance checks, and the exact
+                pack Irish assessors require.
               </p>
             )}
 
@@ -431,8 +432,8 @@ export function LandingPageExperience({
                   UK Smart Grants, and HMRC 50% SEIS angel tax relief
                 </strong>{' '}
                 because survival budgets, 9-question applications, and
-                36-month cashflows look too complex. Tell us your idea in plain
-                English—we guide you from raw concept to submission-ready.
+                36-month cashflows look too complex. Our structured 6-month program
+                guides you step by step from raw concept to submission-ready.
               </p>
             )}
 
@@ -441,13 +442,13 @@ export function LandingPageExperience({
               <Link href="/register" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="h-12 w-full bg-emerald-700 hover:bg-emerald-800 px-7 text-sm font-bold text-white shadow-md  sm:w-auto"
+                  className="h-12 w-full bg-emerald-700 hover:bg-emerald-800 px-7 text-sm font-bold text-white shadow-md sm:w-auto"
                 >
                   {edition === 'GLOBAL'
-                    ? 'Start Your Business Plan Free (Module A)'
+                    ? 'Start the Free Program (Module A)'
                     : edition === 'IE'
-                      ? 'Start Free Idea & Irish Grant Check'
-                      : 'Start Free Idea & UK Funding Check'}
+                      ? 'Start Free Irish Grant Program'
+                      : 'Start Free UK Grant Program'}
                   <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
               </Link>
@@ -457,7 +458,7 @@ export function LandingPageExperience({
                   size="lg"
                   className="h-12 w-full border-slate-300 bg-white px-6 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:w-auto"
                 >
-                  See How All 12 Modules Work
+                  See How the 12-Module Program Works
                 </Button>
               </a>
             </div>
@@ -1009,16 +1010,16 @@ export function LandingPageExperience({
                 Simple, founder-friendly pricing
               </h2>
               <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-600">
-                Start with <strong>Module A 100% Free Forever</strong>. Only
-                upgrade to a 6-Month Builder Pass when you&apos;re ready to
-                unlock Modules B–L, live customer surveys, 3-year financials,
-                and full plan exports.
+                Start with <strong>Module A 100% Free Forever</strong>. Join the{' '}
+                <strong>6-Month Program</strong> when you&apos;re ready to get
+                grant-ready, validate real customers, build 3-year financials,
+                and compile your official submission pack.
               </p>
             </div>
 
-            <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
               {/* Tier 1: Free Hook */}
-              <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+              <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-slate-900">
@@ -1031,7 +1032,7 @@ export function LandingPageExperience({
                       {pricingCurrency.symbol}0
                     </span>
                     <span className="text-xs text-slate-500">
-                      forever • no card needed
+                      forever • no card
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-slate-600">
@@ -1045,7 +1046,7 @@ export function LandingPageExperience({
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      <span>1-Page Concept Canvas &amp; Customer Storyboard</span>
+                      <span>1-Page Concept Canvas &amp; Storyboard</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
@@ -1056,15 +1057,14 @@ export function LandingPageExperience({
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                       <span>
-                        Supportive AI &ldquo;Things to Consider&rdquo; Blind-Spot
-                        Review
+                        Supportive AI &ldquo;Things to Consider&rdquo; Review
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                       <span>
                         Founder-Idea Fit Scorecard (0–100)
-                        {edition !== 'GLOBAL' && ' & Grant Sector Pre-Check'}
+                        {edition !== 'GLOBAL' && ' & Sector Pre-Check'}
                       </span>
                     </li>
                   </ul>
@@ -1074,7 +1074,7 @@ export function LandingPageExperience({
                   <Link href="/register">
                     <Button
                       variant="outline"
-                      className="w-full border-slate-200 font-semibold text-emerald-800 hover:bg-emerald-50"
+                      className="w-full border-slate-200 font-semibold text-emerald-800 hover:bg-emerald-50 text-xs"
                     >
                       Start Module A Free →
                     </Button>
@@ -1082,17 +1082,17 @@ export function LandingPageExperience({
                 </div>
               </div>
 
-              {/* Tier 2: Solo Founder 6-Month Pass */}
-              <div className="relative flex flex-col justify-between rounded-2xl border-2 border-emerald-700 bg-white p-6 shadow-md">
+              {/* Tier 2: Solo Founder 6-Month Program */}
+              <div className="relative flex flex-col justify-between rounded-2xl border-2 border-emerald-700 bg-white p-5 shadow-md sm:p-6">
                 <div className="absolute -top-3 right-5 rounded-full bg-emerald-700 px-3 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
                   Most Popular
                 </div>
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-slate-900">
-                      Solo Founder Pass
+                      Solo Founder Program
                     </span>
-                    <Badge variant="default">6-Month Full Access</Badge>
+                    <Badge variant="default">6-Month Program</Badge>
                   </div>
                   <div className="mt-3 flex items-baseline gap-1">
                     <span className="text-3xl font-extrabold text-slate-900">
@@ -1100,12 +1100,12 @@ export function LandingPageExperience({
                       {pricingCurrency.solo}
                     </span>
                     <span className="text-xs text-slate-500">
-                      one-time 6-month pass
+                      6-month enrollment
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-slate-600">
-                    Everything a solo founder needs to validate customers, build
-                    3-year financials, and compile a complete plan.
+                    The complete 6-month program to validate real market demand,
+                    build 3-year financials, and get statutory grant-ready.
                   </p>
                   <ul className="mt-5 space-y-2.5 text-xs text-slate-700">
                     <li className="flex items-start gap-2">
@@ -1117,28 +1117,27 @@ export function LandingPageExperience({
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
-                        1 Startup Plan + 1 Founder Seat
+                        6 Months Program Access • 1 Venture Track
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
-                        Hosted Public Customer Survey &amp; Waitlist Link + QR
+                        Hosted Public Survey &amp; Waitlist Link + QR
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
-                        &ldquo;Pocket Profit&rdquo; Breakeven &amp; 36-Month
-                        Cashflow Builder
+                        &ldquo;Pocket Profit&rdquo; Breakeven &amp; 36-Mo Cashflow
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
                         {edition === 'GLOBAL'
-                          ? 'Pre-Flight AI Contradiction Audit & Full Business Plan Export'
-                          : 'Grant Readiness Matcher + All 5 Official Export Modes'}
+                          ? 'Pre-Flight AI Audit & Venture Dossier Export'
+                          : 'Grant Readiness Matcher + 5 Export Modes'}
                       </span>
                     </li>
                   </ul>
@@ -1146,21 +1145,21 @@ export function LandingPageExperience({
 
                 <div className="mt-6">
                   <Link href="/register">
-                    <Button className="w-full bg-emerald-700 hover:bg-emerald-800 font-semibold text-white ">
-                      Start Free, Upgrade Anytime →
+                    <Button className="w-full bg-emerald-700 hover:bg-emerald-800 font-semibold text-white text-xs">
+                      Join 6-Month Program →
                     </Button>
                   </Link>
                 </div>
               </div>
 
-              {/* Tier 3: Co-Founder & Multi-Idea Pass */}
-              <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+              {/* Tier 3: Co-Founder & Team Program */}
+              <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-slate-900">
-                      Co-Founder &amp; Pivot Pass
+                      Co-Founder &amp; Team
                     </span>
-                    <Badge variant="secondary">3 Plans • 3 Seats</Badge>
+                    <Badge variant="secondary">3 Tracks • 3 Seats</Badge>
                   </div>
                   <div className="mt-3 flex items-baseline gap-1">
                     <span className="text-3xl font-extrabold text-slate-900">
@@ -1168,48 +1167,45 @@ export function LandingPageExperience({
                       {pricingCurrency.cofounder}
                     </span>
                     <span className="text-xs text-slate-500">
-                      one-time 6-month pass
+                      6-month enrollment
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-slate-600">
                     For co-founder teams or serial founders testing &amp;
-                    comparing up to 3 different startup concepts.
+                    comparing up to 3 venture concepts side by side.
                   </p>
                   <ul className="mt-5 space-y-2.5 text-xs text-slate-700">
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
-                        Everything in Solo Pass + <strong>Up to 3 Plans</strong>
+                        Everything in Solo Program + <strong>Up to 3 Venture Tracks</strong>
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
-                        <strong>Up to 3 Co-Founder / Mentor Seats</strong>
+                        <strong>3 Co-Founder / Advisor Seats</strong>
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
-                        Unlocks Multi-Seat{' '}
+                        Multi-Seat{' '}
                         <strong>
-                          Blind-Reveal Co-Founder Alignment Survey (12 Awkward
-                          Questions)
+                          Blind-Reveal Alignment Survey (12 Questions)
                         </strong>
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
-                        1-Click Plan Clone &amp; Pivot Engine
+                        1-Click Venture Clone &amp; Pivot Engine
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <span>
-                        Keep read-only vault forever after 6 mos (or{' '}
-                        {pricingCurrency.symbol}
-                        {pricingCurrency.vault}/mo Living Vault)
+                        Keep read-only vault forever after 6 mos
                       </span>
                     </li>
                   </ul>
@@ -1219,41 +1215,119 @@ export function LandingPageExperience({
                   <Link href="/register">
                     <Button
                       variant="outline"
-                      className="w-full border-slate-200 font-semibold text-emerald-800 hover:bg-emerald-50"
+                      className="w-full border-slate-200 font-semibold text-emerald-800 hover:bg-emerald-50 text-xs"
                     >
-                      Start With Co-Founder Team →
+                      Enroll With Co-Founders →
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Tier 4: Accelerator & Cohort Batch */}
+              <div className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-950 p-5 text-white shadow-md sm:p-6">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-white">
+                      Accelerator Batch
+                    </span>
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
+                      25 Seats
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex items-baseline gap-1">
+                    <span className="text-xs text-slate-400">from</span>
+                    <span className="text-3xl font-extrabold text-white">
+                      {pricingCurrency.symbol}
+                      {pricingCurrency.cohort}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      /batch
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] font-medium text-emerald-400">
+                    {pricingCurrency.symbol}{pricingCurrency.cohortSeat} / founder
+                  </p>
+                  <p className="mt-2 text-xs text-slate-300">
+                    For Accelerators, University Incubators, LEOs &amp; Growth Hubs managing an entire batch.
+                  </p>
+                  <ul className="mt-5 space-y-2.5 text-xs text-slate-200">
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      <span>
+                        <strong>25 All-Access Founder Licenses</strong> (Modules A–L)
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      <span>
+                        <strong>Director Command Center</strong> &amp; Batch Heatmap
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      <span>
+                        <strong>Early-Warning Dropout Radar</strong> (equity &amp; runway)
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      <span>
+                        {edition === 'GLOBAL'
+                          ? '1-Click Batch Investor Data Room Audit'
+                          : 'Batch Grant Pre-Audit (LEO, EI, Innovate UK)'}
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      <span>
+                        Permanent Free Living Vault for all 25 alumni
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="mt-6">
+                  <Link href="/cohorts">
+                    <Button
+                      className="w-full bg-emerald-600 font-semibold text-white hover:bg-emerald-500 text-xs"
+                    >
+                      Explore Accelerator OS →
                     </Button>
                   </Link>
                 </div>
               </div>
             </div>
 
-            {/* Cohort / Voucher Redemption Callout */}
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-xs text-slate-600">
-              <div className="flex items-center gap-2">
-                <Ticket className="h-4 w-4 text-emerald-700" />
-                <span>
-                  Part of a{' '}
-                  <strong>
-                    University Incubator, Ireland LEO, UK Growth Hub, or Partner
-                    Cohort
-                  </strong>
-                  ?
-                </span>
-              </div>
-              <div className="flex items-center gap-4">
-                <Link
-                  href="/cohorts"
-                  className="font-medium text-slate-500 hover:text-emerald-700 transition"
-                >
-                  Program Licensing ↗
-                </Link>
-                <Link
-                  href="/redeem"
-                  className="font-bold text-emerald-700 hover:underline"
-                >
-                  Redeem Your Cohort Code →
-                </Link>
+            {/* Cohort & Accelerator Executive Callout */}
+            <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
+              <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <Building2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Managing a University Incubator, Ireland LEO, UK Growth Hub, or Accelerator?
+                    </h3>
+                    <p className="mt-0.5 text-xs text-slate-600">
+                      Standardize 20+ startups on a uniform blueprint, free mentors from document janitor work, and track batch health with automated risk alerts. Starting at {pricingCurrency.symbol}{pricingCurrency.cohort} for 25 seats.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-3">
+                  <Link
+                    href="/redeem"
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  >
+                    Redeem Batch Code
+                  </Link>
+                  <Link
+                    href="/cohorts"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition"
+                  >
+                    Explore Accelerator OS <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
               </div>
             </div>
 
@@ -1391,7 +1465,7 @@ export function LandingPageExperience({
                   size="lg"
                   className="border-emerald-400/50 bg-transparent px-6 text-sm font-semibold text-white hover:bg-slate-800/50"
                 >
-                  Sign In to Existing Plan
+                  Sign In to Your Workspace
                 </Button>
               </Link>
             </div>

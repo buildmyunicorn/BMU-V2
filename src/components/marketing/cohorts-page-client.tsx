@@ -44,6 +44,10 @@ const GOAL_OPTIONS = [
 
 const FAQS = [
   {
+    q: 'How much does cohort licensing cost and how does procurement work?',
+    a: 'Cohort licensing starts at €1,475 (£1,275 / $1,595) for a full 25-founder batch, which includes all 12 modules for every startup, the real-time Director Command Center, and batch grant audits. Because the investment is under €2,000, it readily qualifies for fast-track departmental credit card or single-signoff purchase order approval without lengthy public tender delays.',
+  },
+  {
     q: 'How do our founders access Startup Preflight?',
     a: 'We issue a single, branded institutional voucher code (e.g. UCD-SUMMER27 or LEO-DUBLIN-BATCH). Founders simply visit startuppreflight.com/redeem, enter the code, and immediately unlock all 12 modules without needing to enter credit card details.',
   },
@@ -245,7 +249,7 @@ export function CohortsPageClient() {
     organizationName: '',
     organizationType: 'UNIVERSITY',
     customOrganizationType: '',
-    cohortSize: '25_50',
+    cohortSize: 'STANDARD_25',
     regionalFocus: 'IE_UK',
     targetStartDate: 'NEXT_QUARTER',
     notes: '',
@@ -334,25 +338,28 @@ export function CohortsPageClient() {
 
         <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6">
           {/* Eyebrow Pill */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-emerald-50/90 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 shadow-2xs backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-emerald-50/90 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 shadow-2xs backdrop-blur-sm">
             <GraduationCap className="h-4 w-4 text-emerald-700" />
-            <span>Preflight for Accelerators &amp; Cohorts</span>
+            <span>Accelerator &amp; Cohort OS</span>
+            <span className="text-emerald-300">•</span>
+            <span className="font-semibold text-emerald-900">
+              Starting at €1,475 for 25 Founder Seats
+            </span>
             <span className="hidden text-slate-400 sm:inline">•</span>
-            <span className="hidden font-normal text-slate-900 sm:inline">
-              For Universities, Incubators, LEOs &amp; Growth Hubs
+            <span className="hidden font-normal text-slate-700 sm:inline">
+              Low-Value Procurement Friendly
             </span>
           </div>
 
           <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-            Turn Raw Founder Ideas Into{' '}
+            The Operating System for Managing Your{' '}
             <span className="text-slate-900">
-              Investment &amp; Grant-Ready
-            </span>{' '}
-            Businesses.
+              Entire Startup Batch.
+            </span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-slate-600 sm:text-lg">
-            The structured operating system for early-stage startup cohorts. Equip every founder in your batch with a self-guided AI co-founder across ideation, customer validation, financial modeling, and grant prep — while your mentors track clean, standardized plans without wading through messy spreadsheets.
+            Eliminate messy Word docs and broken spreadsheets. Benchmark 20+ startups on a standardized 12-module blueprint, monitor batch health in real time, catch co-founder fallout before Demo Day, and pre-screen grant compliance — all from one institutional director command center.
           </p>
 
           {/* CTA Cluster */}
@@ -362,26 +369,41 @@ export function CohortsPageClient() {
                 size="lg"
                 className="w-full h-12 rounded-full bg-emerald-700 px-7 text-sm font-semibold text-white shadow-md shadow-emerald-950/10 transition hover:bg-emerald-800 sm:w-auto"
               >
-                Explore Cohort Command Center
+                Explore Batch Command Center
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </a>
-            <a href="#inquiry-form" className="w-full sm:w-auto">
+            <a href="#pricing" className="w-full sm:w-auto">
               <Button
                 size="lg"
                 variant="outline"
                 className="w-full h-12 rounded-full border-slate-300 bg-white px-6 text-sm font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:text-slate-900 sm:w-auto"
               >
-                <Calendar className="mr-2 h-4 w-4 text-slate-500" />
-                Schedule a 15-Min Walkthrough
+                View Batch Pricing &amp; Packages
+              </Button>
+            </a>
+            <a href="#inquiry-form" className="w-full sm:w-auto">
+              <Button
+                size="lg"
+                variant="ghost"
+                className="w-full h-12 rounded-full px-5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900 sm:w-auto"
+              >
+                <Calendar className="mr-2 h-4 w-4 text-emerald-700" />
+                Schedule Walkthrough
               </Button>
             </a>
           </div>
 
           {/* Trust Banner */}
           <div className="mt-12 rounded-2xl border border-slate-200/90 bg-white/80 p-4 shadow-xs backdrop-blur-sm sm:p-5">
-            <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-              Pre-configured for Regional &amp; Institutional Underwriting Standards
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 text-xs">
+              <span className="font-semibold tracking-wide text-slate-500 uppercase">
+                Institutional Underwriting &amp; Procurement Standards
+              </span>
+              <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Under €2,000 / £2,000 Micro-Procurement Limits
+              </span>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-6 text-xs font-medium text-slate-700 sm:gap-10">
               <span className="flex items-center gap-1.5">
@@ -829,46 +851,278 @@ export function CohortsPageClient() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Consultative Callout: Tailored Program Licensing */}
-          <div className="mt-12 rounded-2xl border border-slate-800 border border-slate-800 bg-slate-950 text-white shadow-xs p-8 sm:p-10 shadow-lg text-center sm:text-left">
-            <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-              <div className="max-w-2xl">
-                <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-600/30 text-xs font-semibold">
-                  Tailored Cohort Licensing
+      {/* ===================================================================== */}
+      {/* 2.5 TRANSPARENT BATCH PRICING & PROCUREMENT TIERS                     */}
+      {/* ===================================================================== */}
+      <section
+        id="pricing"
+        className="scroll-mt-16 border-b border-slate-200/80 bg-slate-100/70 py-16 sm:py-24"
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="text-center">
+            <Badge
+              variant="outline"
+              className="border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold uppercase tracking-wider"
+            >
+              Batch Licensing &amp; Institutional Tiers
+            </Badge>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+              Transparent, Low-Procurement Batch Pricing
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-xs sm:text-sm text-slate-600">
+              Priced under standard institutional and university micro-procurement thresholds (&lt;€2,000 / £2,000) for instant credit card checkout or single-signoff purchase orders.
+            </p>
+          </div>
+
+          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+            {/* Standard Batch (25 Seats) */}
+            <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-7">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Standard Batch
+                </span>
+                <Badge variant="outline" className="border-slate-300 text-slate-700 text-[10px] font-semibold">
+                  25 Founder Seats
                 </Badge>
-                <h3 className="mt-2 text-xl font-bold text-white sm:text-2xl">
-                  No Rigid Off-the-Shelf Pricing. Built Around Your Intake Schedule.
-                </h3>
-                <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-300">
-                  Every accelerator, university, and regional enterprise board operates on distinct batch timelines, cohort sizes, and mentor models. Rather than fixed per-user paywalls, we partner with you to structure an institutional agreement tailored to your exact intake requirements.
-                </p>
-                <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-300">
-                  <span className="flex items-center gap-1.5">
-                    <Check className="h-4 w-4 text-emerald-400" />
-                    Single batch or rolling multi-cohort agreements
+              </div>
+
+              <div className="mt-4">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+                    €1,475
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <Check className="h-4 w-4 text-emerald-400" />
-                    Dedicated mentor onboarding workshop
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Check className="h-4 w-4 text-emerald-400" />
-                    Permanent free read-only vault for all alumni
-                  </span>
+                  <span className="text-xs font-medium text-slate-500">/ batch</span>
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-xs text-emerald-700 font-medium">
+                  <span>€59 per founder seat</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-500">UK: £1,275 • US: $1,595</span>
                 </div>
               </div>
 
-              <div className="shrink-0">
-                <a href="#inquiry-form">
+              <p className="mt-4 text-xs leading-relaxed text-slate-600">
+                Ideal for university venture labs, early-stage incubators, and regional enterprise boards running focused 8-to-12 week founder cohorts.
+              </p>
+
+              <div className="mt-6 flex-1 space-y-2.5 border-t border-slate-100 pt-5 text-xs text-slate-700">
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>25 full founder program seats</strong> across all 12 modules (A–L)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Director Command Center</strong> with real-time batch progress</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Dropout radar &amp; team alerts</strong> for early intervention</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Blind-Reveal Co-Founder Heatmaps</strong> (Module F)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>LEO, EI &amp; Innovate UK</strong> grant pre-screening</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Public Mom-Test surveys</strong> hosted at startuppreflight.com/v/[slug]</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Permanent Alumni Vault</strong> for read-only long-term tracking</span>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-4 border-t border-slate-100">
+                <a href="#inquiry-form" className="block w-full">
                   <Button
-                    size="lg"
-                    className="h-12 rounded-full bg-emerald-700 px-7 text-xs sm:text-sm font-semibold text-white shadow-md hover:bg-emerald-800"
+                    onClick={() => setFormData((prev) => ({ ...prev, cohortSize: 'STANDARD_25' }))}
+                    className="w-full h-11 rounded-xl bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800"
                   >
-                    Schedule a 15-Minute Program Walkthrough →
+                    Select Standard Batch (25 Seats)
                   </Button>
                 </a>
               </div>
+            </div>
+
+            {/* Scale Batch (50 Seats) — Featured */}
+            <div className="relative flex flex-col rounded-2xl border-2 border-emerald-600 bg-white p-6 shadow-md sm:p-7">
+              <div className="absolute -top-3.5 inset-x-0 flex items-center justify-center text-center">
+                <Badge className="bg-emerald-700 text-white border-0 text-[11px] font-bold px-3 py-0.5 shadow-sm text-center justify-center whitespace-nowrap">
+                  Most Popular for Accelerators
+                </Badge>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Scale Batch
+                </span>
+                <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-semibold">
+                  50 Founder Seats
+                </Badge>
+              </div>
+
+              <div className="mt-4">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+                    €2,650
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">/ batch</span>
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-xs text-emerald-700 font-medium">
+                  <span>€53 per founder seat (Save 10%)</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-500">UK: £2,295 • US: $2,875</span>
+                </div>
+              </div>
+
+              <p className="mt-4 text-xs leading-relaxed text-slate-600">
+                Tailored for competitive, multi-track accelerators and leading incubators managing multiple concurrent tracks.
+              </p>
+
+              <div className="mt-6 flex-1 space-y-2.5 border-t border-slate-100 pt-5 text-xs text-slate-700">
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>50 full founder program seats</strong> across all 12 modules</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Everything in Standard Batch</strong>, plus:</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Up to 3 sub-cohort tracks</strong> (e.g. Health, FinTech, Climate)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>60-minute live mentor onboarding</strong> &amp; calibration session</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Consolidated funder &amp; board impact pack</strong> (CSV + PDF export)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Custom invite slug &amp; branded cohort welcome</strong></span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Priority institutional Slack / WhatsApp support</strong></span>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-4 border-t border-slate-100">
+                <a href="#inquiry-form" className="block w-full">
+                  <Button
+                    onClick={() => setFormData((prev) => ({ ...prev, cohortSize: 'SCALE_50' }))}
+                    className="w-full h-11 rounded-xl bg-emerald-700 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800"
+                  >
+                    Select Scale Batch (50 Seats)
+                  </Button>
+                </a>
+              </div>
+            </div>
+
+            {/* Annual Portfolio (100+ Seats) */}
+            <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-7">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Annual Portfolio
+                </span>
+                <Badge variant="outline" className="border-slate-300 text-slate-700 text-[10px] font-semibold">
+                  100+ Founder Seats
+                </Badge>
+              </div>
+
+              <div className="mt-4">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+                    From €4,500
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">/ year</span>
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-xs text-emerald-700 font-medium">
+                  <span>Volume tiered per intake</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-500">UK: £3,900 • US: $4,900</span>
+                </div>
+              </div>
+
+              <p className="mt-4 text-xs leading-relaxed text-slate-600">
+                For university entrepreneurship centres, multi-campus innovation hubs, and national enterprise networks with ongoing annual intakes.
+              </p>
+
+              <div className="mt-6 flex-1 space-y-2.5 border-t border-slate-100 pt-5 text-xs text-slate-700">
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>100+ rolling founder seats</strong> across 12 months</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Everything in Scale Batch</strong>, plus:</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Unlimited cohorts &amp; recurring seasonal intakes</strong></span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Custom regional grant rubrics</strong> &amp; university criteria</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Dedicated Partner Success Manager</strong></span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>LMS &amp; university SSO integration</strong> readiness</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <span><strong>Formal vendor setup</strong>, VAT invoicing &amp; PO payment</span>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-4 border-t border-slate-100">
+                <a href="#inquiry-form" className="block w-full">
+                  <Button
+                    onClick={() => setFormData((prev) => ({ ...prev, cohortSize: 'CAMPUS_100' }))}
+                    variant="outline"
+                    className="w-full h-11 rounded-xl border-slate-300 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                  >
+                    Contact for Institutional Plan
+                  </Button>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Institutional Procurement Assurance Banner */}
+          <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <div className="flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                    Institutional Micro-Procurement Friendly (&lt;€2,000 / £2,000)
+                  </h4>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    Our Standard Batch (€1,475 / £1,275) fits within low-value micro-procurement thresholds for Ireland (LEO, EI, Universities) and the UK (Universities, Growth Hubs), allowing departmental card payment or single PO sign-off with zero public tender delays.
+                  </p>
+                </div>
+              </div>
+              <a href="#inquiry-form" className="shrink-0">
+                <Button size="sm" variant="outline" className="border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                  Request Instant Quote / PO
+                </Button>
+              </a>
             </div>
           </div>
         </div>
@@ -881,13 +1135,13 @@ export function CohortsPageClient() {
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div className="text-center">
             <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700 text-xs font-bold uppercase tracking-wider">
-              The Cohort Bottleneck
+              The Accelerator Bottleneck
             </Badge>
             <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Why Running Early-Stage Batches Breaks Down
+              Why Managing Early-Stage Batches Breaks Down
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
-              Program managers and mentors spend dozens of hours reviewing unstructured materials instead of providing high-leverage strategic advice.
+              Program managers and lead mentors waste 60%+ of their advisory time deciphering broken templates instead of driving commercial strategy.
             </p>
           </div>
 
@@ -900,7 +1154,7 @@ export function CohortsPageClient() {
                 The 40-Page Messy Doc Trap
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                Every founder submits their plan in a different format. Half the batch skips competitor analysis; the other half has zero realistic financial assumptions. Mentors spend the first month deciphering drafts.
+                Every founder submits their plan in a different format—half-finished Notion docs, 60-page PDF brain dumps, or formula-broken Excel spreadsheets. Comparing progress across 25 startups becomes impossible.
               </p>
             </div>
 
@@ -909,10 +1163,10 @@ export function CohortsPageClient() {
                 <Flame className="h-5 w-5" />
               </div>
               <h3 className="mt-4 text-base font-bold text-slate-900">
-                Blind Spots Discovered Too Late
+                Fatal Disputes &amp; Runway Shocks Discovered Too Late
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                Unresolved equity splits, unvalidated customer willingness-to-pay, or missing 3-quote supplier schedules surface two weeks before Demo Day or statutory grant deadlines.
+                Unresolved equity splits, co-founder commitment fallout, and catastrophic runway miscalculations stay hidden until Week 10—right before Demo Day or statutory grant submission deadlines.
               </p>
             </div>
 
@@ -921,10 +1175,10 @@ export function CohortsPageClient() {
                 <Users2 className="h-5 w-5" />
               </div>
               <h3 className="mt-4 text-base font-bold text-slate-900">
-                Repetitive, Low-Leverage Mentorship
+                Mentors Trapped in "Document Janitor Work"
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                Mentors spend critical 1-on-1 advisor sessions explaining basic concepts like TAM/SAM/SOM or debugging broken Excel models, instead of focusing on distribution and product traction.
+                Advisors spend critical 1-on-1 coaching sessions explaining basic TAM/SAM/SOM definitions or repairing broken unit economics rather than opening customer doors and sharpening market wedge.
               </p>
             </div>
           </div>
@@ -938,13 +1192,13 @@ export function CohortsPageClient() {
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div className="text-center">
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-bold uppercase tracking-wider">
-              The Preflight Platform
+              The Preflight Architecture
             </Badge>
             <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              5 Pillars That Elevate Your Startup Program
+              5 Executive Pillars for Accelerator &amp; Program Directors
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
-              A complete, standardized infrastructure that turns early-stage batches into high-performing, grant-ready ventures.
+              A single, rigorous standard that turns early-stage cohorts into high-performing, grant-ready ventures.
             </p>
           </div>
 
@@ -958,14 +1212,14 @@ export function CohortsPageClient() {
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900">
-                      Standardized 12-Module Operating System
+                      Standardized 12-Module Batch Architecture (Apples-to-Apples Portfolio Review)
                     </h3>
                     <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 text-[11px]">
                       Capture First, Expand Second
                     </Badge>
                   </div>
                   <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    From Founder Motivations &amp; Beachhead Personas to Ruthless Product Filtering and Go-To-Market playbooks, every founder is guided through an identical, rigorous standard. Advisors receive consistent, clean summaries rather than disparate documents.
+                    Every startup in your cohort progresses through an identical, rigorous standard—from problem-founder fit and Mom-Test customer surveys to 3-year cashflow models and supplier quotes. Program directors can instantly benchmark 25+ teams on an objective, unified rubric.
                   </p>
                 </div>
               </div>
@@ -980,14 +1234,14 @@ export function CohortsPageClient() {
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900">
-                      Automated Ireland &amp; UK Grant Underwriting Engine
+                      Real-Time Cohort Health &amp; Early Dropout Radar (Intervene in Week 3, Not Week 10)
                     </h3>
                     <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 text-[11px]">
-                      Zero Rejection Pre-Screening
+                      Zero Blind Spots
                     </Badge>
                   </div>
                   <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    Pre-checks applicant plans against statutory non-displacement criteria, mandatory 3-quote supplier schedules, and laptop expenditure limits for Ireland LEO &amp; Enterprise Ireland, and compiles Innovate UK IFS 9-question responses and British Business Bank workbooks.
+                    Monitor active completion velocity across every module. Our automated alert engine flags teams stalled in ideation, struggling with survey collection, or exhibiting early dropout signals—enabling program directors to intervene proactively before teams quit.
                   </p>
                 </div>
               </div>
@@ -1002,14 +1256,14 @@ export function CohortsPageClient() {
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900">
-                      Blind-Reveal Co-Founder Alignment (12 Awkward Questions)
+                      Mentor Capacity &amp; Advisor ROI Multiplier (Zero Document Janitor Work)
                     </h3>
                     <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 text-[11px]">
-                      Team Survival Shield
+                      High-Leverage Coaching
                     </Badge>
                   </div>
                   <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    Co-founder disputes are the #1 killer of accelerator teams. Our blind-reveal survey asks co-founders sensitive questions in private (equity splits, financial survival runway, time dedication, IP transfer) and generates a shared heatmap so mentors can mediate before conflict arises.
+                    Eliminate hours of advisor onboarding and doc-sorting. Mentors arrive at 1-on-1 sessions with an auto-synthesized 1-page preflight brief, high-confidence unit economics, and verified survey proof—unlocking pure strategic leverage.
                   </p>
                 </div>
               </div>
@@ -1024,14 +1278,14 @@ export function CohortsPageClient() {
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900">
-                      Live Customer Validation &amp; Mom-Test Survey Engine
+                      Statutory Grant Pre-Screening &amp; Funder Reporting (LEO, Enterprise Ireland &amp; Innovate UK)
                     </h3>
                     <Badge variant="secondary" className="bg-amber-50 text-amber-700 text-[11px]">
-                      Real Market Proof
+                      Statutory Compliance
                     </Badge>
                   </div>
                   <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    Every startup can generate a bias-free survey, launch a hosted public page (<code className="rounded bg-slate-100 px-1 py-0.5 text-slate-800">startuppreflight.com/v/[slug]</code>), test willingness-to-pay tiers, and synthesize qualitative feedback into quantifiable demand blocks.
+                    Pre-checks every team's plan against statutory regional grant rules: LEO 3-quote supplier schedules, laptop expenditure caps, and export/non-displacement tests in Ireland; Innovate UK IFS 9-question rubrics and Start Up Loans in the UK. Turn batch outcomes into auditable funder reports.
                   </p>
                 </div>
               </div>
@@ -1046,14 +1300,14 @@ export function CohortsPageClient() {
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900">
-                      No-Spreadsheet "Pocket Profit" 3-Year Financial Model
+                      Investor-Grade Demo Day Curation &amp; Alumni Living Vault (Permanent Ecosystem Value)
                     </h3>
                     <Badge variant="secondary" className="bg-blue-50 text-blue-700 text-[11px]">
-                      Stress-Tested Runway
+                      Permanent Ecosystem Value
                     </Badge>
                   </div>
                   <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    Translates operational headcount, platform transaction fees, and survival budgets into a verified 36-month cashflow trough, breakeven crossover graph, and Worst-Case / Aggressive Growth scenario sandboxes.
+                    Curate high-signal venture profiles for demo day investors. When the program concludes, founders retain permanent read-only access to their living preflight vault, ensuring long-term institutional alumni value and longitudinal tracking.
                   </p>
                 </div>
               </div>
@@ -1187,7 +1441,7 @@ export function CohortsPageClient() {
                         organizationName: '',
                         organizationType: 'UNIVERSITY',
                         customOrganizationType: '',
-                        cohortSize: '25_50',
+                        cohortSize: 'STANDARD_25',
                         regionalFocus: 'IE_UK',
                         targetStartDate: 'NEXT_QUARTER',
                         notes: '',
@@ -1304,10 +1558,10 @@ export function CohortsPageClient() {
                       onChange={(e) => setFormData({ ...formData, cohortSize: e.target.value })}
                       className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
                     >
-                      <option value="10_25">10 – 25 Startups</option>
-                      <option value="25_50">25 – 50 Startups</option>
-                      <option value="50_100">50 – 100 Startups</option>
-                      <option value="100_PLUS">100+ Startups / Campus-Wide</option>
+                      <option value="STANDARD_25">Standard Batch — 25 Seats (€1,475 / £1,275)</option>
+                      <option value="SCALE_50">Scale Batch — 50 Seats (€2,650 / £2,295)</option>
+                      <option value="CAMPUS_100">Annual Portfolio — 100+ Seats (From €4,500 / £3,900)</option>
+                      <option value="CUSTOM">Custom Multi-Campus / Rolling Intakes</option>
                     </select>
                   </div>
 

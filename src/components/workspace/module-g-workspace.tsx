@@ -1702,6 +1702,7 @@ export function ModuleGWorkspace({
                       : 'Domain Registrars (.ie / .co.uk / .com)'
                   }
                   compact
+                  hidePromoCode
                 />
                 <PartnerSlot
                   slot="OPS_STEP_2_EMAIL"
@@ -1713,6 +1714,7 @@ export function ModuleGWorkspace({
                   selectedDomain={selectedDomainForClaim || data.step2.primaryDomain}
                   title="Official @company Business Email"
                   compact
+                  hidePromoCode
                 />
               </div>
 

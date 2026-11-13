@@ -3,19 +3,20 @@ import type { Metadata } from 'next';
 import { CohortsPageClient } from '@/components/marketing/cohorts-page-client';
 
 export const metadata: Metadata = {
-  title: 'Preflight for Accelerators, Incubators & Cohorts | Startup Preflight',
+  title: 'Preflight for Accelerators & Cohorts | Batch Management & Business Plan OS',
   description:
-    'The structured operating system for startup cohorts, university incubators, and enterprise agencies. Standardize business plans, run live customer validation, and pre-screen Ireland & UK grant applications for your entire batch.',
+    'The institutional operating system for startup accelerators, university incubators, and enterprise agencies. Standardize 20+ startups on a 12-module blueprint, monitor cohort health in real-time, and pre-screen Ireland & UK grant applications. Starting at €1,475 for 25 seats.',
   keywords: [
     'accelerator software',
-    'incubator platform',
+    'incubator portfolio management',
     'cohort licensing',
-    'university venture lab software',
     'startup batch operating system',
     'accelerator curriculum platform',
+    'university venture lab software',
     'LEO feasibility cohort platform',
     'Enterprise Ireland New Frontiers tool',
     'Innovate UK smart grant accelerator',
+    'batch progress tracker',
     'founder business plan reviewer',
     'co-founder alignment survey',
     'startup readiness scorecard',
@@ -27,9 +28,9 @@ export const metadata: Metadata = {
     canonical: 'https://startuppreflight.com/cohorts',
   },
   openGraph: {
-    title: 'Preflight for Accelerators & Cohorts — Startup Preflight',
+    title: 'Preflight for Accelerators & Cohorts — Batch Management & Underwriting OS',
     description:
-      'Turn raw founder ideas into investment and grant-ready businesses. Standardize business plans, run live customer validation, and track batch progress in real-time.',
+      'The operating system for startup accelerators, incubators, and enterprise agencies. Standardize business plans across your batch, catch team disputes before Demo Day, and pre-screen grant compliance. Starting at €1,475 for 25 seats.',
     url: 'https://startuppreflight.com/cohorts',
     siteName: 'Startup Preflight',
     locale: 'en_IE',
@@ -45,9 +46,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Preflight for Accelerators & Cohorts — Startup Preflight',
+    title: 'Preflight for Accelerators & Cohorts — Batch Management & Underwriting OS',
     description:
-      'The structured operating system for accelerator cohorts, university incubators, and enterprise agencies. Track batch progress, validation proof, and grant readiness.',
+      'The structured operating system for accelerator cohorts, university incubators, and enterprise agencies. Track batch progress, validation proof, and grant readiness. Starting at €1,475 for 25 seats.',
     images: ['https://startuppreflight.com/og-image.png'],
   },
   robots: {
@@ -91,14 +92,33 @@ const softwareApplicationJsonLd = {
   applicationCategory: 'BusinessApplication',
   url: 'https://startuppreflight.com/cohorts',
   description:
-    'A standardized cohort operating system and business planning platform for startup accelerators, university incubators, and enterprise development agencies across Ireland and the UK.',
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'EUR',
-    description: 'Custom institutional cohort and batch licensing based on intake size and program requirements',
-    availability: 'https://schema.org/InStock',
-  },
+    'A standardized cohort operating system and portfolio management platform for startup accelerators, university incubators, and enterprise development agencies across Ireland and the UK.',
+  offers: [
+    {
+      '@type': 'Offer',
+      name: 'Standard Cohort Batch (25 Founder Seats)',
+      price: '1475.00',
+      priceCurrency: 'EUR',
+      description: 'Complete 25-founder accelerator batch license: all 12 modules for each startup, real-time Director Command Center, and batch grant audit.',
+      availability: 'https://schema.org/InStock',
+    },
+    {
+      '@type': 'Offer',
+      name: 'Scale Cohort Batch (50 Founder Seats)',
+      price: '2650.00',
+      priceCurrency: 'EUR',
+      description: '50-founder dual-track batch license with live mentor calibration workshop and consolidated funder reporting.',
+      availability: 'https://schema.org/InStock',
+    },
+    {
+      '@type': 'Offer',
+      name: 'Annual Multi-Batch Portfolio License',
+      price: '4500.00',
+      priceCurrency: 'EUR',
+      description: 'Unlimited rolling cohorts across the academic/program year with customized grant rubrics and dedicated partner support.',
+      availability: 'https://schema.org/InStock',
+    },
+  ],
   provider: {
     '@type': 'Organization',
     name: 'Startup Preflight',
@@ -114,6 +134,14 @@ const faqPageJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
   mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'How much does cohort licensing cost and how does procurement work?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Cohort licensing starts at €1,475 (£1,275 / $1,595) for a full 25-founder batch, which includes all 12 modules for every startup, the real-time Director Command Center, and batch grant audits. Because the investment is under €2,000, it readily qualifies for fast-track departmental credit card or single-signoff purchase order approval without lengthy public tender delays.',
+      },
+    },
     {
       '@type': 'Question',
       name: 'How do our founders access Startup Preflight?',

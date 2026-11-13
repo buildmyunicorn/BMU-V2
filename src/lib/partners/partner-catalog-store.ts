@@ -653,7 +653,7 @@ export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
     perkDescription:
       'Ireland’s #1 accredited .ie registrar. Fast-tracks .ie domain verification using your CRO number, RBN, or Startup Preflight business plan summary.',
     badgeText: 'Founder Domain Perk',
-    promoCode: 'PREFLIGHTDNS',
+    promoCode: null,
     countryScope: 'ALL',
     actionType: 'AFFILIATE_LINK',
     actionLabel: 'Claim Domain on Blacknight',
@@ -679,7 +679,7 @@ export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
     perkDescription:
       'Zero-markup domain registration with free domain privacy protection, DNSSEC, and 1-click Google Workspace MX record auto-configuration.',
     badgeText: 'Free Privacy Protection',
-    promoCode: 'NEWCOM598',
+    promoCode: null,
     countryScope: 'ALL',
     actionType: 'AFFILIATE_LINK',
     actionLabel: 'Claim Domain on Namecheap',
@@ -709,7 +709,7 @@ export const DEFAULT_PARTNER_OFFERS: PartnerOfferRecord[] = [
     perkDescription:
       'Replace consumer @gmail.com addresses before applying for LEO, Enterprise Ireland, or UK Start Up Loans. Includes 14-day free trial + 15% off Business Starter/Standard.',
     badgeText: 'Recommended by Grant Assessors',
-    promoCode: 'WORKSPACE15',
+    promoCode: null,
     countryScope: 'ALL',
     actionType: 'AFFILIATE_LINK',
     actionLabel: 'Activate Google Workspace Perk',

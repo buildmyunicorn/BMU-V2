@@ -5,16 +5,17 @@ import { LandingSeoJsonLd } from '@/components/marketing/seo-json-ld';
 
 export const metadata: Metadata = {
   title:
-    'Startup Preflight — Turn Your Startup Idea Into a Structured Business Plan',
+    'Startup Preflight — 6-Month Program to Get Your Startup Funded & Grant-Ready',
   description:
-    'Turn your raw startup idea into a stress-tested Business Plan, live customer validation survey, co-founder alignment heatmap, and 3-year financial model without spreadsheets.',
+    'Join the self-guided 6-month program to turn your raw startup idea into a stress-tested venture dossier, live customer validation, co-founder alignment heatmap, and 3-year financial model.',
   keywords: [
-    'AI business plan builder',
-    'startup business plan generator',
+    'startup readiness program',
+    'grant readiness program',
     'validate startup idea',
     'no spreadsheet startup financial model',
     'co-founder alignment questions',
     'customer validation survey builder',
+    'AI business plan builder',
     'startup preflight',
   ],
   alternates: {
@@ -28,9 +29,9 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title:
-      'Startup Preflight — Your Supportive AI Co-Founder & Business Plan Engine',
+      'Startup Preflight — 6-Month Program to Get You Funded & Grant-Ready',
     description:
-      'Get your startup idea out of your head and into a structured, stress-tested Business Plan & 3-Year Financial Model without touching a blank spreadsheet.',
+      'Join the structured 6-month program. Validate real demand, model 3-year cashflow, and build an investor-grade venture without spreadsheets.',
     url: 'https://startuppreflight.com',
     siteName: 'Startup Preflight',
     locale: 'en_US',
@@ -40,7 +41,7 @@ export const metadata: Metadata = {
         url: '/images/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Startup Preflight — Supportive AI Co-Founder & Business Plan Engine',
+        alt: 'Startup Preflight — 6-Month Program to Get Funded & Grant-Ready',
         type: 'image/png',
       },
     ],
@@ -48,9 +49,9 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title:
-      'Startup Preflight — Your Supportive AI Co-Founder & Business Plan Engine',
+      'Startup Preflight — 6-Month Program to Get You Funded & Grant-Ready',
     description:
-      'Get your startup idea out of your head and into a structured, stress-tested Business Plan & 3-Year Financial Model without touching a blank spreadsheet.',
+      'Join the structured 6-month program. Validate real demand, model 3-year cashflow, and build an investor-grade venture without spreadsheets.',
     images: ['/images/og-image.png'],
   },
 };

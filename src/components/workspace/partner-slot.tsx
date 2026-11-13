@@ -80,6 +80,7 @@ interface PartnerSlotProps {
     actionType: 'AFFILIATE_LINK' | 'WARM_INTRO_MODAL' | 'PAID_STRIPE_CONCIERGE'
   ) => void;
   onPaidConciergeOrderSubmitted?: (order: PaidConciergeOrderSummary) => void;
+  hidePromoCode?: boolean;
 }
 
 export function PartnerSlot({
@@ -97,7 +98,12 @@ export function PartnerSlot({
   compact = false,
   onPartnerActionTriggered,
   onPaidConciergeOrderSubmitted,
+  hidePromoCode = false,
 }: PartnerSlotProps) {
+  const shouldHidePromoCode =
+    hidePromoCode ||
+    slot === 'OPS_STEP_2_DOMAIN' ||
+    slot === 'OPS_STEP_2_EMAIL';
   const [offers, setOffers] = useState<PartnerOfferRecord[]>(() =>
     DEFAULT_PARTNER_OFFERS.filter((o) => o.isActive && o.slotKey === slot)
   );
@@ -632,8 +638,8 @@ export function PartnerSlot({
                     </div>
                   )}
 
-                  {/* Optional Promo Code Pill */}
-                  {partner.promoCode && (
+                  {/* Optional Promo Code Pill (hidden when shouldHidePromoCode is true) */}
+                  {!shouldHidePromoCode && partner.promoCode && (
                     <div className="mt-2.5 flex items-center justify-between rounded-md border border-dashed border-slate-200 bg-slate-50 px-2.5 py-1.5">
                       <div className="text-[11px] text-slate-900">
                         Founder Code:{' '}
