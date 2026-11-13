@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Sparkles,
@@ -726,15 +726,19 @@ export function ModuleCWorkspace({
         }));
       }
 
-      // Build lookup of current in-memory state by slug, then map strictly over incomingSurveys
+      // Build lookup of current in-memory state by id and slug, then map strictly over incomingSurveys
       // so deleted surveys are never resurrected while in-memory edits/responses on existing surveys are preserved
+      const prevById = new Map<string, SavedValidationSurvey>();
       const prevBySlug = new Map<string, SavedValidationSurvey>();
       for (const s of prev) {
-        prevBySlug.set(s.publicSlug, s);
+        if (s.id) prevById.set(s.id, s);
+        if (s.publicSlug) prevBySlug.set(s.publicSlug, s);
       }
 
       return incomingSurveys.map((inc) => {
-        const curr = prevBySlug.get(inc.publicSlug);
+        const curr =
+          (inc.id ? prevById.get(inc.id) : undefined) ||
+          (inc.publicSlug ? prevBySlug.get(inc.publicSlug) : undefined);
         if (!curr) {
           return {
             ...inc,
@@ -752,9 +756,17 @@ export function ModuleCWorkspace({
             ? curr.questions
             : inc.questions;
         return {
-          ...curr,
           ...inc,
-          title: curr.title.trim() || inc.title,
+          ...curr,
+          title: curr.title !== undefined ? curr.title : (inc.title || ''),
+          introDescription:
+            curr.introDescription !== undefined
+              ? curr.introDescription
+              : (inc.introDescription || ''),
+          waitlistIncentiveText:
+            curr.waitlistIncentiveText !== undefined
+              ? curr.waitlistIncentiveText
+              : (inc.waitlistIncentiveText || ''),
           isPublished: Boolean(curr.isPublished || inc.isPublished),
           publishedAt: curr.publishedAt || inc.publishedAt,
           questions: deduplicateSurveyQuestionsClient(chosenQuestions || []),
@@ -1116,14 +1128,41 @@ export function ModuleCWorkspace({
   const isSurveyPublished = Boolean(activeSurvey?.isPublished);
   const isSurveyLocked = isVaultReadonly || isSurveyPublished;
 
-  // Helper to update the active survey in state & persist immediately (always reads live refs)
+  // Debounced persistence refs to prevent race conditions and input stutter on rapid typing
+  const saveDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSaveRef = useRef<{
+    survey: SavedValidationSurvey;
+    allSurveys: SavedValidationSurvey[];
+  } | null>(null);
+
+  // Unmount flush: persist pending survey changes immediately if user navigates away before debounce fires
+  useEffect(() => {
+    return () => {
+      if (saveDebounceTimerRef.current) {
+        clearTimeout(saveDebounceTimerRef.current);
+        saveDebounceTimerRef.current = null;
+      }
+      if (pendingSaveRef.current) {
+        const { survey: toSave, allSurveys: toSaveAll } = pendingSaveRef.current;
+        pendingSaveRef.current = null;
+        void onSaveSurvey(toSave, toSaveAll);
+      }
+    };
+  }, [onSaveSurvey]);
+
+  // Helper to update the active survey in state & persist (debounced for text inputs or immediate)
   const updateActiveSurvey = async (
     updater: (current: SavedValidationSurvey) => SavedValidationSurvey,
-    statusMessage?: string
+    optionsOrMessage?: string | { debounce?: boolean; statusMessage?: string }
   ) => {
     const currentActive = activeSurveyRef.current;
     const currentAll = surveysRef.current;
     if (!currentActive) return;
+
+    const options =
+      typeof optionsOrMessage === 'string'
+        ? { statusMessage: optionsOrMessage }
+        : optionsOrMessage;
 
     const rawUpdated = updater(currentActive);
     const updatedSurvey: SavedValidationSurvey = {
@@ -1137,9 +1176,31 @@ export function ModuleCWorkspace({
     surveysRef.current = nextSurveys;
     activeSurveyRef.current = updatedSurvey;
     setSurveys(nextSurveys);
-    await onSaveSurvey(updatedSurvey, nextSurveys);
-    if (statusMessage) {
-      setStatusBanner(statusMessage);
+
+    if (options?.debounce) {
+      pendingSaveRef.current = { survey: updatedSurvey, allSurveys: nextSurveys };
+      if (saveDebounceTimerRef.current) {
+        clearTimeout(saveDebounceTimerRef.current);
+      }
+      saveDebounceTimerRef.current = setTimeout(async () => {
+        saveDebounceTimerRef.current = null;
+        if (pendingSaveRef.current) {
+          const { survey: toSave, allSurveys: toSaveAll } = pendingSaveRef.current;
+          pendingSaveRef.current = null;
+          await onSaveSurvey(toSave, toSaveAll);
+        }
+      }, 400);
+    } else {
+      if (saveDebounceTimerRef.current) {
+        clearTimeout(saveDebounceTimerRef.current);
+        saveDebounceTimerRef.current = null;
+      }
+      pendingSaveRef.current = null;
+      await onSaveSurvey(updatedSurvey, nextSurveys);
+    }
+
+    if (options?.statusMessage) {
+      setStatusBanner(options.statusMessage);
     }
   };
 
@@ -1190,10 +1251,10 @@ export function ModuleCWorkspace({
           (curr) => ({
             ...curr,
             title:
-              curr.title.trim() ||
+              curr.title ||
               localCopy?.title ||
               cloudRes.survey?.title ||
-              curr.title,
+              '',
             isPublished: Boolean(
               curr.isPublished ||
                 localCopy?.isPublished ||
@@ -1468,7 +1529,8 @@ export function ModuleCWorkspace({
 
   const handleUpdateQuestion = (
     questionId: string,
-    patch: Partial<SurveyQuestionItem>
+    patch: Partial<SurveyQuestionItem>,
+    options?: { debounce?: boolean }
   ) => {
     if (!activeSurvey || isSurveyLocked) return;
     const nextQuestions = activeSurvey.questions.map((q) => {
@@ -1491,10 +1553,13 @@ export function ModuleCWorkspace({
       return updated;
     });
 
-    updateActiveSurvey((curr) => ({
-      ...curr,
-      questions: nextQuestions,
-    }));
+    updateActiveSurvey(
+      (curr) => ({
+        ...curr,
+        questions: nextQuestions,
+      }),
+      options
+    );
   };
 
   const handleMoveQuestion = (index: number, direction: 'UP' | 'DOWN') => {
@@ -2093,7 +2158,8 @@ export function ModuleCWorkspace({
       : null;
 
   const handleUpdateOutreachTemplates = (
-    patch: Partial<SurveyOutreachTemplates>
+    patch: Partial<SurveyOutreachTemplates>,
+    options?: { debounce?: boolean }
   ) => {
     if (!activeSurvey || isVaultReadonly) return;
     const base =
@@ -2103,10 +2169,13 @@ export function ModuleCWorkspace({
       ...base,
       ...patch,
     };
-    void updateActiveSurvey((curr) => ({
-      ...curr,
-      outreachTemplates: updatedTemplates,
-    }));
+    void updateActiveSurvey(
+      (curr) => ({
+        ...curr,
+        outreachTemplates: updatedTemplates,
+      }),
+      options
+    );
   };
 
   const handleRegenerateOutreachTemplates = async () => {
@@ -3912,10 +3981,13 @@ export function ModuleCWorkspace({
                   value={activeSurvey.title}
                   onChange={(e) => {
                     if (isSurveyLocked) return;
-                    updateActiveSurvey((curr) => ({
-                      ...curr,
-                      title: e.target.value,
-                    }));
+                    updateActiveSurvey(
+                      (curr) => ({
+                        ...curr,
+                        title: e.target.value,
+                      }),
+                      { debounce: true }
+                    );
                   }}
                   placeholder={`e.g., ${plan.title}: 60-Second Workflow & Frustrations Check`}
                   className="text-sm font-medium"
@@ -3931,10 +4003,13 @@ export function ModuleCWorkspace({
                   value={activeSurvey.introDescription}
                   onChange={(e) => {
                     if (isSurveyLocked) return;
-                    updateActiveSurvey((curr) => ({
-                      ...curr,
-                      introDescription: e.target.value,
-                    }));
+                    updateActiveSurvey(
+                      (curr) => ({
+                        ...curr,
+                        introDescription: e.target.value,
+                      }),
+                      { debounce: true }
+                    );
                   }}
                   placeholder="e.g., Hi! We're researching how people handle this workflow today and what causes the biggest headaches. Takes ~60 seconds — no login or sales pitch!"
                   className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600"
@@ -4092,9 +4167,13 @@ export function ModuleCWorkspace({
                           disabled={isSurveyLocked}
                           value={q.questionText}
                           onChange={(e) =>
-                            handleUpdateQuestion(q.id, {
-                              questionText: e.target.value,
-                            })
+                            handleUpdateQuestion(
+                              q.id,
+                              {
+                                questionText: e.target.value,
+                              },
+                              { debounce: true }
+                            )
                           }
                           placeholder="Type your question (e.g., Thinking back over the last month, how often did you deal with...)"
                           className="text-sm font-semibold text-slate-900"
@@ -4213,9 +4292,13 @@ export function ModuleCWorkspace({
                                   onChange={(e) => {
                                     const nextOpts = [...(q.options || [])];
                                     nextOpts[optIdx] = e.target.value;
-                                    handleUpdateQuestion(q.id, {
-                                      options: nextOpts,
-                                    });
+                                    handleUpdateQuestion(
+                                      q.id,
+                                      {
+                                        options: nextOpts,
+                                      },
+                                      { debounce: true }
+                                    );
                                   }}
                                   className="h-8 bg-white text-xs"
                                 />
@@ -4277,9 +4360,13 @@ export function ModuleCWorkspace({
                               disabled={isSurveyLocked}
                               value={q.scaleMinLabel || ''}
                               onChange={(e) =>
-                                handleUpdateQuestion(q.id, {
-                                  scaleMinLabel: e.target.value,
-                                })
+                                handleUpdateQuestion(
+                                  q.id,
+                                  {
+                                    scaleMinLabel: e.target.value,
+                                  },
+                                  { debounce: true }
+                                )
                               }
                               placeholder="1 = Not painful at all"
                               className="h-8 bg-white text-xs"
@@ -4293,9 +4380,13 @@ export function ModuleCWorkspace({
                               disabled={isSurveyLocked}
                               value={q.scaleMaxLabel || ''}
                               onChange={(e) =>
-                                handleUpdateQuestion(q.id, {
-                                  scaleMaxLabel: e.target.value,
-                                })
+                                handleUpdateQuestion(
+                                  q.id,
+                                  {
+                                    scaleMaxLabel: e.target.value,
+                                  },
+                                  { debounce: true }
+                                )
                               }
                               placeholder="5 = Urgent daily headache"
                               className="h-8 bg-white text-xs"
@@ -4427,10 +4518,13 @@ export function ModuleCWorkspace({
                     value={activeSurvey.waitlistIncentiveText}
                     onChange={(e) => {
                       if (isSurveyLocked) return;
-                      updateActiveSurvey((curr) => ({
-                        ...curr,
-                        waitlistIncentiveText: e.target.value,
-                      }));
+                      updateActiveSurvey(
+                        (curr) => ({
+                          ...curr,
+                          waitlistIncentiveText: e.target.value,
+                        }),
+                        { debounce: true }
+                      );
                     }}
                     placeholder="e.g., Want early beta access + 30% off at launch? Drop your email below:"
                     className="text-xs"
@@ -4735,9 +4829,12 @@ export function ModuleCWorkspace({
                                   ''
                                 }
                                 onChange={(e) =>
-                                  handleUpdateOutreachTemplates({
-                                    customChannelName: e.target.value,
-                                  })
+                                  handleUpdateOutreachTemplates(
+                                    {
+                                      customChannelName: e.target.value,
+                                    },
+                                    { debounce: true }
+                                  )
                                 }
                                 placeholder="e.g., Substack Newsletter, IndieHackers Forum, Local Meetup Group..."
                                 className="bg-white text-xs"
@@ -4758,9 +4855,12 @@ export function ModuleCWorkspace({
                                   ''
                                 }
                                 onChange={(e) =>
-                                  handleUpdateOutreachTemplates({
-                                    coldEmailSubject: e.target.value,
-                                  })
+                                  handleUpdateOutreachTemplates(
+                                    {
+                                      coldEmailSubject: e.target.value,
+                                    },
+                                    { debounce: true }
+                                  )
                                 }
                                 placeholder="Quick 60-sec question..."
                                 className="bg-white text-xs font-medium"
@@ -4780,37 +4880,43 @@ export function ModuleCWorkspace({
                               onChange={(e) => {
                                 const val = e.target.value;
                                 if (selectedOutreachChannel === 'LINKEDIN_DM') {
-                                  handleUpdateOutreachTemplates({
-                                    linkedinDm: val,
-                                  });
+                                  handleUpdateOutreachTemplates(
+                                    { linkedinDm: val },
+                                    { debounce: true }
+                                  );
                                 } else if (
                                   selectedOutreachChannel === 'COMMUNITY_POST'
                                 ) {
-                                  handleUpdateOutreachTemplates({
-                                    communityPost: val,
-                                  });
+                                  handleUpdateOutreachTemplates(
+                                    { communityPost: val },
+                                    { debounce: true }
+                                  );
                                 } else if (
                                   selectedOutreachChannel === 'WHATSAPP_SMS'
                                 ) {
-                                  handleUpdateOutreachTemplates({
-                                    whatsappBlurb: val,
-                                  });
+                                  handleUpdateOutreachTemplates(
+                                    { whatsappBlurb: val },
+                                    { debounce: true }
+                                  );
                                 } else if (
                                   selectedOutreachChannel === 'COLD_EMAIL'
                                 ) {
-                                  handleUpdateOutreachTemplates({
-                                    coldEmailBody: val,
-                                  });
+                                  handleUpdateOutreachTemplates(
+                                    { coldEmailBody: val },
+                                    { debounce: true }
+                                  );
                                 } else if (
                                   selectedOutreachChannel === 'IN_PERSON_PITCH'
                                 ) {
-                                  handleUpdateOutreachTemplates({
-                                    inPersonPitch: val,
-                                  });
+                                  handleUpdateOutreachTemplates(
+                                    { inPersonPitch: val },
+                                    { debounce: true }
+                                  );
                                 } else {
-                                  handleUpdateOutreachTemplates({
-                                    customChannelMessage: val,
-                                  });
+                                  handleUpdateOutreachTemplates(
+                                    { customChannelMessage: val },
+                                    { debounce: true }
+                                  );
                                 }
                               }}
                               className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-hidden"
@@ -4955,9 +5061,12 @@ export function ModuleCWorkspace({
                             effectiveOutreachTemplates.qrFlyerHeadline || ''
                           }
                           onChange={(e) =>
-                            handleUpdateOutreachTemplates({
-                              qrFlyerHeadline: e.target.value,
-                            })
+                            handleUpdateOutreachTemplates(
+                              {
+                                qrFlyerHeadline: e.target.value,
+                              },
+                              { debounce: true }
+                            )
                           }
                           placeholder="Got 60 Seconds? Share Your Honest Experience"
                           className="bg-white text-xs"
@@ -4973,9 +5082,12 @@ export function ModuleCWorkspace({
                             effectiveOutreachTemplates.qrFlyerSubtext || ''
                           }
                           onChange={(e) =>
-                            handleUpdateOutreachTemplates({
-                              qrFlyerSubtext: e.target.value,
-                            })
+                            handleUpdateOutreachTemplates(
+                              {
+                                qrFlyerSubtext: e.target.value,
+                              },
+                              { debounce: true }
+                            )
                           }
                           placeholder="Scan with your phone camera • 5 quick questions • No login required"
                           className="bg-white text-xs"

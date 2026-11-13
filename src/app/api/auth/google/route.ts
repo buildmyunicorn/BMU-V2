@@ -12,15 +12,10 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const from = url.searchParams.get('from') || 'login';
   const returnTo = url.searchParams.get('returnTo');
-  const termsAccepted = url.searchParams.get('termsAccepted') === 'true';
+  // On the register page, clicking "Continue with Google" provides clickwrap consent to terms & privacy
+  const termsAccepted = url.searchParams.get('termsAccepted') === 'true' || from === 'register';
 
   const origin = resolvePublicOrigin(req);
-
-  if (from === 'register' && !termsAccepted) {
-    const redirectUrl = new URL('/register', origin);
-    redirectUrl.searchParams.set('error', 'terms_required');
-    return NextResponse.redirect(redirectUrl);
-  }
 
   // If Google OAuth credentials are not configured, redirect back with a helpful explanation
   if (!clientId || !clientSecret) {

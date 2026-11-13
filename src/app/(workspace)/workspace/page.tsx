@@ -531,6 +531,7 @@ export default function WorkspacePage() {
 
   // Workspace UX Interactive States
   const [isDashboardOpen, setIsDashboardOpen] = useState(true);
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   const [activeModule, setActiveModule] =
     useState<ModuleCode>('MOD_A_IDEATION');
   const [isMasterDocumentOpen, setIsMasterDocumentOpen] = useState(false);
@@ -756,6 +757,10 @@ export default function WorkspacePage() {
 
         if (typeof window !== 'undefined') {
           const searchParams = new URLSearchParams(window.location.search);
+          const welcomeParam = searchParams.get('welcome');
+          if (welcomeParam === 'true') {
+            setShowWelcomeBanner(true);
+          }
           const viewParam = searchParams.get('view');
           const moduleParam = searchParams.get('module');
           const conciergePaidParam = searchParams.get('concierge_paid');
@@ -6150,8 +6155,8 @@ export default function WorkspacePage() {
                 className="h-8 border-slate-200 bg-slate-50 px-2.5 text-xs font-bold text-emerald-800 hover:bg-slate-100"
               >
                 <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Project Dashboard</span>
-                <span className="sm:hidden">Dashboard</span>
+                <span className="hidden md:inline">Project Dashboard</span>
+                <span className="md:hidden">Dashboard</span>
               </Button>
             )}
           </div>
@@ -6195,8 +6200,8 @@ export default function WorkspacePage() {
               title="How to Use Modules, Button Colors & Jargon Key"
             >
               <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
-              <span className="hidden sm:inline">Module Guide</span>
-              <span className="sm:hidden">Guide</span>
+              <span className="hidden md:inline">Module Guide</span>
+              <span className="md:hidden">Guide</span>
             </Button>
 
             <GlobalFeedbackButton
@@ -6216,7 +6221,7 @@ export default function WorkspacePage() {
                 className="px-2 text-xs text-slate-600 sm:px-3"
               >
                 <User className="h-3.5 w-3.5 text-emerald-700" />
-                <span className="hidden sm:inline">My Account</span>
+                <span className="hidden md:inline">My Account</span>
               </Button>
             </Link>
 
@@ -6794,6 +6799,32 @@ export default function WorkspacePage() {
               navigateToModuleWithHistory(targetMod);
             }}
           />
+
+          {showWelcomeBanner && (
+            <div className="mb-6 flex items-center justify-between rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-4 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-950">
+                    Welcome to your founder workspace, {session.user.name.split(' ')[0]}! 🚀
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    Your venture project is initialized. Start with Module A to extract your concept canvas, or explore your project roadmap below.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWelcomeBanner(false)}
+                className="ml-3 rounded-lg p-1 text-slate-400 transition-colors hover:bg-emerald-100 hover:text-slate-700"
+                title="Dismiss welcome greeting"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
           {isDashboardOpen ? (
             <ProjectDashboardView

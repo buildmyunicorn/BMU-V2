@@ -18,6 +18,21 @@ export function AutosaveStatusIndicator({
   onRetry,
   className = '',
 }: AutosaveStatusIndicatorProps) {
+  // Gracefully fade the prominent "Saved" alert to a subtle quiet indicator after 10 seconds
+  const [fadedSaved, setFadedSaved] = React.useState(false);
+
+  React.useEffect(() => {
+    if (status === 'saved') {
+      setFadedSaved(false);
+      const timer = setTimeout(() => {
+        setFadedSaved(true);
+      }, 10000);
+      return () => clearTimeout(timer);
+    } else {
+      setFadedSaved(false);
+    }
+  }, [status, lastSavedAt]);
+
   // Format the time as HH:mm:ss if available
   const formattedTime = lastSavedAt
     ? lastSavedAt.toLocaleTimeString([], {
@@ -34,7 +49,7 @@ export function AutosaveStatusIndicator({
           ? 'border-slate-200 bg-emerald-50/80 text-emerald-800 shadow-2xs'
           : status === 'error'
             ? 'border-amber-300 bg-amber-50 text-amber-800'
-            : status === 'saved'
+            : status === 'saved' && !fadedSaved
               ? 'border-emerald-200/70 bg-emerald-50/60 text-emerald-800'
               : 'border-slate-200/80 bg-slate-50/80 text-slate-500'
       } ${className}`}
@@ -51,7 +66,7 @@ export function AutosaveStatusIndicator({
         </>
       )}
 
-      {status === 'saved' && (
+      {status === 'saved' && !fadedSaved && (
         <>
           <span className="flex h-3 w-3 items-center justify-center rounded-full bg-emerald-600 text-white">
             <Check className="h-2 w-2 stroke-[3]" />
@@ -64,6 +79,13 @@ export function AutosaveStatusIndicator({
               </span>
             )}
           </span>
+        </>
+      )}
+
+      {status === 'saved' && fadedSaved && (
+        <>
+          <Cloud className="h-3 w-3 text-emerald-600" />
+          <span className="hidden text-slate-500 sm:inline">Saved</span>
         </>
       )}
 

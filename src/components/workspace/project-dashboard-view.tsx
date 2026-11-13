@@ -327,7 +327,7 @@ export function ProjectDashboardView({
                 className="w-full sm:w-auto border-white/25 bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition shadow-xs"
               >
                 <Map className="mr-1.5 h-3.5 w-3.5 text-slate-300" />
-                {isVentureMapOpen ? 'Hide Venture Map' : 'What to Expect Map'}
+                {isVentureMapOpen ? 'Hide Venture Map' : 'Show Venture Map'}
                 {isVentureMapOpen ? (
                   <ChevronUp className="ml-1 h-3.5 w-3.5" />
                 ) : (
@@ -839,12 +839,12 @@ export function ProjectDashboardView({
                   <Compass className="h-5 w-5" />
                 </div>
                 <Badge className="border-slate-200 bg-emerald-50 text-[10px] font-bold text-emerald-900">
-                  STEP 1 • BUILD
+                  WORKFLOW 1 • BUILD
                 </Badge>
               </div>
 
               <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-emerald-800">
-                Founder Workspace (Modules A–L)
+                Founder Workspace (12 Core Modules)
               </h3>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
                 Your guided step-by-step builder to stress-test your startup
@@ -886,7 +886,7 @@ export function ProjectDashboardView({
                   <BookOpen className="h-5 w-5" />
                 </div>
                 <Badge className="border-emerald-200 bg-emerald-50 text-[10px] font-bold text-emerald-800">
-                  STEP 2 • REVIEW
+                  WORKFLOW 2 • REVIEW
                 </Badge>
               </div>
 
@@ -895,8 +895,8 @@ export function ProjectDashboardView({
               </h3>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
                 Your single source of truth. Read your entire startup blueprint
-                from top to bottom in one continuous, zero-hallucination
-                executive document.
+                from top to bottom in one continuous, executive-ready document
+                backed by your verified source data.
               </p>
             </div>
 
@@ -937,7 +937,7 @@ export function ProjectDashboardView({
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <Badge className="border-slate-200 bg-slate-50 text-[10px] font-bold text-emerald-900">
-                  STEP 3 • COMPILE &amp; EXPORT
+                  WORKFLOW 3 • COMPILE &amp; EXPORT
                 </Badge>
               </div>
 
@@ -988,7 +988,7 @@ export function ProjectDashboardView({
                     <Landmark className="h-5 w-5" />
                   </div>
                   <Badge className="border-amber-200 bg-amber-100/80 text-[10px] font-bold text-amber-900">
-                    STEP 4 • APPLY
+                    WORKFLOW 4 • APPLY
                   </Badge>
                 </div>
 
@@ -996,7 +996,7 @@ export function ProjectDashboardView({
                   Apply for Grants
                 </h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-                  Direct portal links, plan completeness checklist, 31 Irish LEO contacts, and AI portal question answerer.
+                  Direct portal links, plan completeness checklist, 31 Irish LEO contacts, and an AI grant application co-pilot.
                 </p>
               </div>
 
@@ -1035,20 +1035,20 @@ export function ProjectDashboardView({
           <div>
             <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
               {isGrantSupported
-                ? '2. Validation, Pricing & Non-Dilutive Funding'
-                : '2. Validation, Pricing & Unit Economics'}
+                ? 'Featured Interactive Tools & Fast Shortcuts'
+                : 'Featured Interactive Tools'}
             </h2>
             <p className="text-xs text-slate-500">
               {isGrantSupported
-                ? `Jump straight into customer surveys, interactive breakeven stress-testing, and grant matching for ${planTitle}.`
-                : `Jump straight into customer surveys and interactive breakeven stress-testing for ${planTitle}.`}
+                ? `Jump directly into standalone interactive engines (Module C Customer Surveys, Module H Breakeven Sandbox, and Module K Grants Hub) without stepping through sequential modules.`
+                : `Jump directly into standalone interactive engines (Module C Customer Surveys and Module H Breakeven Sandbox) without stepping through sequential modules.`}
             </p>
           </div>
           <Badge
             variant="outline"
             className="border-emerald-200 bg-emerald-50/70 text-[10px] font-bold text-emerald-800"
           >
-            LIVE TOOLS
+            STANDALONE SHORTCUTS
           </Badge>
         </div>
 

@@ -95,18 +95,6 @@ export default function RegisterPage() {
 
   function handleGoogleRegister() {
     setErrorMsg(null);
-    if (!acceptedTerms) {
-      setTermsHighlightError(true);
-      setErrorMsg(
-        'Please tick the box below to agree to the Terms of Service and Privacy Policy before creating your account.'
-      );
-      const el = document.getElementById('accept-terms');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.focus();
-      }
-      return;
-    }
     setIsSubmitting(true);
     window.location.href = '/api/auth/google?from=register&termsAccepted=true';
   }
@@ -264,6 +252,26 @@ export default function RegisterPage() {
                   <GoogleIcon className="h-4 w-4 shrink-0" />
                   <span>Continue with Google</span>
                 </Button>
+                <p className="mt-2 text-center text-[11px] text-slate-500">
+                  By clicking Continue with Google, you agree to our{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-900"
+                  >
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-900"
+                  >
+                    Privacy Policy
+                  </Link>.
+                </p>
               </div>
 
               <div className="relative flex items-center justify-center">

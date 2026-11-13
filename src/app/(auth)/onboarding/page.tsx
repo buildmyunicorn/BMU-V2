@@ -204,7 +204,7 @@ export default function OnboardingPage() {
       completeFounderOnboarding(payload);
     }
 
-    router.push('/workspace');
+    router.push('/workspace?welcome=true');
   }
 
   return (

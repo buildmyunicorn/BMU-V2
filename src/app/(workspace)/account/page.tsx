@@ -309,7 +309,7 @@ export default function AccountPage() {
   const aiPercent = Math.min(100, Math.round((aiUsed / aiLimit) * 100));
 
   return (
-    <div className="min-h-screen bg-slate-50/70 pb-16">
+    <div className="min-h-screen bg-slate-50/70 pb-28">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:px-8">
         <div className="flex w-full items-center justify-between">
@@ -456,8 +456,8 @@ export default function AccountPage() {
                   Founder Profile & Regional Defaults
                 </CardTitle>
                 <CardDescription className="text-xs text-slate-500">
-                  Personalize your workspace defaults. Your jurisdiction controls localized
-                  grant schemes (IE LEO vs. UK Innovate UK) and default currency.
+                  Personalise your workspace defaults. Your jurisdiction controls localised
+                  grant schemes (Ireland&apos;s LEO vs. UK&apos;s Innovate UK) and default currency.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
@@ -935,9 +935,7 @@ export default function AccountPage() {
                     The Startup Preflight Vault Guarantee
                   </div>
                   <p>
-                    Even if you cancel your subscription or your pass expires, your data is never lost or deleted.
-                    Your workspace enters <strong>Read-Only Vault Mode</strong>, allowing you to access, read, review, and export
-                    your compiled business plans, financial models, and survey responses whenever you need them.
+                    We never hold your work hostage. Even if you cancel your subscription or your pass expires, your data remains safely preserved in <strong>Read-Only Vault Mode</strong>. You can review, copy, and export your compiled business plans, financial models, and customer validation responses at any time (unless you choose to schedule your account for deletion).
                   </p>
                 </div>
               </div>
@@ -955,11 +953,12 @@ export default function AccountPage() {
               <CardHeader className="border-b border-slate-100 pb-4">
                 <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <Download className="h-4 w-4 text-emerald-700" />
-                  Data Portability (GDPR Article 20)
+                  Raw Data Export &amp; Portability Archive (GDPR Article 20)
                 </CardTitle>
                 <CardDescription className="text-xs text-slate-500">
                   Your business model, financial numbers, and grant dossiers are 100% your property.
-                  You can download your complete startup archive at any time.
+                  You can download a complete, machine-readable JSON archive of all your startup data at any time in accordance with GDPR data portability.
+                  (Formatted Word documents, PDFs, and official grant dossiers can be compiled anytime from Business Plan Studio in Module L).
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
@@ -970,7 +969,7 @@ export default function AccountPage() {
                     </p>
                     <ul className="mt-1.5 list-disc pl-5 space-y-0.5 text-[11px] text-slate-500">
                       <li>All 12 module payloads (Ideation, Market, Build, Operations, Team, Launchpad, Revenue, Finance, Grants, Business Plan).</li>
-                      <li>Validation survey questions, Mom Test feedback, and respondent responses.</li>
+                      <li>Validation survey questions, customer discovery feedback (using Rob Fitzpatrick&apos;s &ldquo;The Mom Test&rdquo; methodology), and respondent responses.</li>
                       <li>Full timestamped audit metadata and financial breakeven numbers.</li>
                     </ul>
                   </div>
@@ -1005,11 +1004,10 @@ export default function AccountPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-base font-bold text-red-950">
-                    Danger Zone: Deactivate & Delete Account
+                    Danger Zone: Schedule Account Deletion
                   </h3>
                   <p className="mt-1 text-xs text-red-800/90 leading-relaxed">
-                    Deactivating your account will schedule all your startup plans and workspaces for deletion.
-                    Any live hosted validation surveys and waitlist capture pages will be immediately taken offline.
+                    Scheduling account deletion will immediately deactivate your workspace and take any live hosted validation surveys and waitlist capture pages offline.
                   </p>
 
                   <div className="mt-3 rounded-lg border border-red-200 bg-white/90 p-3.5 text-xs text-red-900">
@@ -1018,9 +1016,7 @@ export default function AccountPage() {
                       30-Day Recovery Grace Period
                     </div>
                     <p className="mt-1 text-[11px] text-red-700 leading-normal">
-                      Your account will enter a 30-day soft-delete grace period. If you change your mind,
-                      you can simply log back in within 30 days to reactivate your workspace. After 30 days,
-                      all data will be permanently wiped from the database.
+                      Your account enters a 30-day grace period. If you change your mind, simply log back in within 30 days to cancel deletion and reactivate your workspace. After 30 days, all your startup data, plans, and files will be permanently and irreversibly purged from our database.
                     </p>
                   </div>
 
@@ -1071,12 +1067,12 @@ export default function AccountPage() {
                         {deletingAccount ? (
                           <>
                             <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                            Deactivating Account...
+                            Scheduling Deletion...
                           </>
                         ) : (
                           <>
                             <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                            Deactivate Account (30-Day Soft Delete)
+                            Schedule Account for Deletion (30-Day Grace Period)
                           </>
                         )}
                       </Button>
