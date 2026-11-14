@@ -162,7 +162,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 25,
           wordLimit: 350,
           sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_J_FINANCE'],
-          compiledResponseText: `The venture projects net new full-time employment creation across Years 1 to 3, supporting regional and national high-value employment. Salaries are benchmarked against industry standards with full statutory Employer PRSI (11.05%) budgeted.`,
+          compiledResponseText: `The venture projects net new full-time employment creation across Years 1 to 3, supporting regional and national high-value employment. Salaries are benchmarked against industry standards with full statutory Employer PRSI (11.15%) budgeted.`,
         },
         {
           id: 'sec-7',

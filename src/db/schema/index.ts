@@ -214,6 +214,7 @@ export const users = pgTable('users', {
   image: text('image'),
   role: userRoleEnum('role').default('FOUNDER').notNull(),
   status: userStatusEnum('status').default('ACTIVE').notNull(),
+  sessionVersion: integer('session_version').default(1).notNull(),
   suspensionReason: text('suspension_reason'),
   adminInternalNotes: text('admin_internal_notes'),
   lastActiveAt: timestamp('last_active_at').defaultNow(),
@@ -659,8 +660,8 @@ export const surveyBoostOrders = pgTable('survey_boost_orders', {
   surveyId: uuid('survey_id')
     .references(() => validationSurveys.id, { onDelete: 'cascade' })
     .notNull(),
-  userId: text('user_id')
-    .references(() => users.id)
+  userId: uuid('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
   tierId: text('tier_id').notNull(),
   tierName: text('tier_name').notNull(),

@@ -75,12 +75,23 @@ export function ModuleKCapitalStackStep({
     (isUK ? 'GB_BBB_START_UP_LOAN' : 'IE_LEO_PRIMING');
   const targetGrantDef = SUPPORTED_GRANT_PROGRAMS[selectedGrantKey];
 
-  // Derive target funding gap from Module J or default reasonable baseline
-  const baselineGapFromModJ =
+  // Derive target funding gap from Module J recommended capital raise or stacked sources
+  const modJRecommendedRaise = Number(
+    plan.moduleJData?.step3CashflowGap?.recommendedCapitalRaise || 0
+  );
+  const modJStackedTotal =
     plan.moduleJData?.step3CashflowGap?.fundingSources?.reduce(
       (acc, s) => acc + (Number(s.amount) || 0),
       0
-    ) || (isUK ? 50000 : 60000);
+    ) || 0;
+  const baselineGapFromModJ =
+    modJRecommendedRaise > 0
+      ? modJRecommendedRaise
+      : modJStackedTotal > 0
+        ? modJStackedTotal
+        : isUK
+          ? 50000
+          : 60000;
 
   const existingStep2 = plan.moduleKData?.step2CapitalStack;
 
@@ -214,26 +225,39 @@ export function ModuleKCapitalStackStep({
       .reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
   }, [fundingSources]);
 
-  // Projected Equity Dilution (assuming typical £/€300k–€750k post-money early valuation)
+  // Projected Post-Money Equity Dilution (assuming £/€500k pre-money early valuation; uncapped)
   const projectedEquityDilution = useMemo(() => {
     if (totalAngel <= 0) return 0;
-    const assumedValuation = 500000;
-    return Math.min(25, Math.round((totalAngel / assumedValuation) * 100));
+    const assumedPreMoneyValuation = 500000;
+    const postMoneyValuation = assumedPreMoneyValuation + totalAngel;
+    return Math.min(95, Math.round((totalAngel / postMoneyValuation) * 1000) / 10);
   }, [totalAngel]);
 
   // Assessor Soundness Score (0-100)
   const assessorSoundnessScore = useMemo(() => {
     let score = 50;
-    // Skin in the game reward (aim for 20-50%)
+    // Skin in the game reward (aim for 25-60%)
     if (skinInTheGamePercent >= 25 && skinInTheGamePercent <= 60) score += 25;
     else if (skinInTheGamePercent > 0) score += 15;
-    // Balanced allocation (has grant aid)
-    if (totalGrants > 0) score += 15;
+    // Balanced allocation: non-dilutive grant aid in grant jurisdictions, or diversified stack in commercial-only regions
+    if (isGrantsEnabled) {
+      if (totalGrants > 0) score += 15;
+    } else if (totalLoans > 0 || totalAngel > 0 || skinInTheGamePercent >= 40) {
+      score += 15;
+    }
     // Difference between target gap and total allocated
     const diff = Math.abs(totalTargetFundingGap - totalAllocated);
-    if (diff < totalTargetFundingGap * 0.05) score += 10;
+    if (totalTargetFundingGap > 0 && diff <= totalTargetFundingGap * 0.05) score += 10;
     return Math.min(100, Math.max(20, score));
-  }, [skinInTheGamePercent, totalGrants, totalTargetFundingGap, totalAllocated]);
+  }, [
+    skinInTheGamePercent,
+    isGrantsEnabled,
+    totalGrants,
+    totalLoans,
+    totalAngel,
+    totalTargetFundingGap,
+    totalAllocated,
+  ]);
 
   const handleUpdateAmount = (id: string, newAmount: number) => {
     setFundingSources((prev) =>

@@ -284,6 +284,7 @@ import {
 } from '@/app/actions/module-l';
 import { MasterDocumentWorkspace } from '@/components/workspace/master-document-workspace';
 import { GrantApplicationCenterView } from '@/components/workspace/grant-application-center-view';
+import { saveGrantCenterDataAction } from '@/app/actions/grant-applications';
 import { AskMyStartupView } from '@/components/workspace/ask-my-startup-view';
 import { evaluatePlanGrantReadiness } from '@/lib/grants/grant-readiness-evaluator';
 import type { SavedGrantCenterData } from '@/lib/auth/session-store';
@@ -6932,6 +6933,10 @@ export default function WorkspacePage() {
                     };
                     saveBmuSession(updatedSession);
                     return updatedSession;
+                  });
+                  await saveGrantCenterDataAction({
+                    planId: currentPlan.id,
+                    grantCenterData: updatedData,
                   });
                 });
               }}

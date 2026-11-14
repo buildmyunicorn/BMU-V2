@@ -50,10 +50,14 @@ export function ModuleKReimbursementBridgeStep({
   const isUK = plan.hqCountryCode === 'GB';
   const currencySymbol = isUK ? '£' : '€';
 
-  // Inherit grant context from Step 1 or fallback
+  // Inherit grant context from Step 1 or fallback (Start Up Loans are upfront loans, not arrears grants)
+  const rawSelectedGrantKey = plan.moduleKData?.step1Audit?.selectedGrantKey;
   const selectedGrantKey =
-    plan.moduleKData?.step1Audit?.selectedGrantKey ||
-    (isUK ? 'GB_BBB_START_UP_LOAN' : 'IE_LEO_PRIMING');
+    !rawSelectedGrantKey || rawSelectedGrantKey === 'GB_BBB_START_UP_LOAN'
+      ? isUK
+        ? 'GB_INNOVATE_UK_SMART'
+        : 'IE_LEO_PRIMING'
+      : rawSelectedGrantKey;
   const targetGrantDef = SUPPORTED_GRANT_PROGRAMS[selectedGrantKey];
 
   // Inherit total budget and grant allocation from Step 2
@@ -110,25 +114,56 @@ export function ModuleKReimbursementBridgeStep({
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
+  // Timeline phases
+  const claimLagDays = estimatedClaimTurnaroundWeeks * 7;
+  const netFloatLagDays = Math.max(0, claimLagDays - vendorPaymentTermsDays);
+
+  // Baseline monthly operating burn from Module J Step 1 (if populated)
+  const monthlyOperatingBurn = useMemo(() => {
+    const s1 = plan.moduleJData?.step1OverheadsTax;
+    if (!s1) return 0;
+    const opEx = (s1.overheadLineItems || []).reduce(
+      (sum, item) => sum + (Number(item.monthlyCostYear1) || 0),
+      0
+    );
+    const salaries = Number(s1.monthlyTeamSalariesYear1) || 0;
+    const tax = s1.autoApplyEmployerPayrollTax
+      ? Math.round((salaries * (Number(s1.employerPayrollTaxRatePercent) || 0)) / 100)
+      : 0;
+    const drawings = Number(s1.monthlyFounderDrawingsYear1) || 0;
+    return opEx + salaries + tax + drawings;
+  }, [plan.moduleJData?.step1OverheadsTax]);
+
   // Core Underwriting Calculations:
-  // How much cash must be disbursed before grant reimbursement check clears?
-  // If vendor terms are 60 days and turnaround is 12 weeks (~84 days), company floats invoices for ~24 days.
-  // Peak liquidity required is the vouched milestone cost that must be paid upfront to get stamped receipt.
+  // Under IE LEO / Enterprise Ireland / UK Innovate UK vouching guidelines, companies must clear 100%
+  // of the supplier milestone invoice upfront (`grantEligibleVouchedBudget`) to produce a cleared bank
+  // statement, plus cover operating burn across `netFloatLagDays` while awaiting arrears reimbursement.
   const minimumLiquidityBufferRequired = useMemo(() => {
-    // Under assessor guidelines, companies must clear 100% of the invoice before submitting claim
-    // The peak cash required is at least the grant amount itself plus milestone operating buffer
-    return Math.round(expectedGrantDrawdownAmount * 1.15);
-  }, [expectedGrantDrawdownAmount]);
+    const fullVouchedInvoiceOutflow = Math.max(
+      0,
+      grantEligibleVouchedBudget,
+      expectedGrantDrawdownAmount
+    );
+    const floatMonths = netFloatLagDays / 30;
+    const floatOperatingBuffer =
+      netFloatLagDays > 0
+        ? monthlyOperatingBurn > 0
+          ? Math.round(monthlyOperatingBurn * floatMonths)
+          : Math.round(fullVouchedInvoiceOutflow * 0.1)
+        : 0;
+    return fullVouchedInvoiceOutflow + floatOperatingBuffer;
+  }, [
+    grantEligibleVouchedBudget,
+    expectedGrantDrawdownAmount,
+    netFloatLagDays,
+    monthlyOperatingBurn,
+  ]);
 
   const liquiditySafetySurplusOrDeficit = useMemo(() => {
     return actualConfirmedBridgeLiquidity - minimumLiquidityBufferRequired;
   }, [actualConfirmedBridgeLiquidity, minimumLiquidityBufferRequired]);
 
   const isAssessorLiquidityCompliant = liquiditySafetySurplusOrDeficit >= 0;
-
-  // Timeline phases
-  const claimLagDays = estimatedClaimTurnaroundWeeks * 7;
-  const netFloatLagDays = Math.max(0, claimLagDays - vendorPaymentTermsDays);
 
   const handleGenerateAiNarrative = async () => {
     if (isVaultReadonly || isGeneratingAi) return;

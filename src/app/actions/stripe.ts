@@ -82,16 +82,17 @@ export async function createStripeCheckoutSessionAction(
       .where(eq(userEntitlements.userId, dbUserId))
       .limit(1);
 
-    // Living Vault (€7/mo) is strictly a post-6-Month-Pass renewal add-on, never a €7 bypass from FREE_HOOK.
+    // Living Vault (€7/mo) is strictly a post-Pass renewal add-on, never a €7 bypass from FREE_HOOK.
     if (input.planType === 'LIVING_VAULT_MONTHLY') {
       const eligibleForLivingVault =
         entitlement?.planType === 'SIX_MONTH_SOLO' ||
-        entitlement?.planType === 'SIX_MONTH_COFOUNDER';
+        entitlement?.planType === 'SIX_MONTH_COFOUNDER' ||
+        entitlement?.planType === 'COHORT_PASS';
       if (!eligibleForLivingVault) {
         return {
           success: false,
           error:
-            'The Living Vault micro-subscription is an extension for 6-Month Pass holders. Please purchase a 6-Month Solo or Co-Founder Pass first.',
+            'The Living Vault micro-subscription is an extension for 6-Month Pass and Cohort Pass holders. Please purchase a 6-Month Solo or Co-Founder Pass first.',
         };
       }
     }

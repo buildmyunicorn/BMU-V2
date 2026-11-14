@@ -2,7 +2,7 @@ CREATE TABLE "survey_boost_orders" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"plan_id" uuid NOT NULL,
 	"survey_id" uuid NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" uuid NOT NULL,
 	"tier_id" text NOT NULL,
 	"tier_name" text NOT NULL,
 	"target_responses" integer NOT NULL,
@@ -47,4 +47,4 @@ ALTER TABLE "survey_responses" ADD COLUMN "source" text DEFAULT 'ORGANIC' NOT NU
 ALTER TABLE "survey_responses" ADD COLUMN "boost_order_id" text;--> statement-breakpoint
 ALTER TABLE "survey_boost_orders" ADD CONSTRAINT "survey_boost_orders_plan_id_startup_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."startup_plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "survey_boost_orders" ADD CONSTRAINT "survey_boost_orders_survey_id_validation_surveys_id_fk" FOREIGN KEY ("survey_id") REFERENCES "public"."validation_surveys"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "survey_boost_orders" ADD CONSTRAINT "survey_boost_orders_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "survey_boost_orders" ADD CONSTRAINT "survey_boost_orders_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;

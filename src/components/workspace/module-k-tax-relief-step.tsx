@@ -93,10 +93,24 @@ export function ModuleKTaxReliefStep({
     }
   }, [primaryTaxScheme]);
 
-  // Tax savings calculated
+  // Tax savings calculated (respecting statutory HMRC SEIS £250k / EIS £5M / Revenue EII €5.5M caps;
+  // Irish SURE is a founder PAYE tax refund tracked in `founderEstimatedPayeRefundForSure`, not an angel relief)
   const estimatedInvestorTaxSavings = useMemo(() => {
-    return Math.round(targetReliefRaiseAmount * (investorReliefPercentage / 100));
-  }, [targetReliefRaiseAmount, investorReliefPercentage]);
+    if (primaryTaxScheme === 'IE_SURE_FOUNDER_PAYE_REFUND') {
+      return 0;
+    }
+    const cleanRaise = Math.max(0, Number(targetReliefRaiseAmount) || 0);
+    const statutoryCap =
+      primaryTaxScheme === 'GB_SEIS_SEED_ENTERPRISE'
+        ? 250_000
+        : primaryTaxScheme === 'GB_EIS_ENTERPRISE_INVESTMENT'
+          ? 5_000_000
+          : primaryTaxScheme === 'IE_EII_EMPLOYMENT_INVESTMENT_INCENTIVE'
+            ? 5_500_000
+            : cleanRaise;
+    const qualifyingRaise = Math.min(cleanRaise, statutoryCap);
+    return Math.round(qualifyingRaise * (investorReliefPercentage / 100));
+  }, [primaryTaxScheme, targetReliefRaiseAmount, investorReliefPercentage]);
 
   // Irish SURE specific fields
   const [founderPriorEmploymentYearsForSure, setFounderPriorEmploymentYearsForSure] = useState<number>(

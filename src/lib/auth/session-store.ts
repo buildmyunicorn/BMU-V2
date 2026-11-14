@@ -2287,6 +2287,9 @@ export interface CashflowFundingGapStep3Data {
   fundingSources: FundingSourceLineItem[];
   loanInterestRatePercent: number; // e.g. 6% UK Start Up Loan / MFI
   loanTermMonths: number; // e.g. 36 or 60 months
+  recommendedCapitalRaise?: number;
+  operatingCashTroughAmount?: number;
+  lowestFundedBankBalance?: number;
   fundingGapNarrative: string;
   grantAssessorTip?: string;
   lastSavedAt?: string;
@@ -2508,6 +2511,7 @@ export interface SavedModuleKData {
   step3ReimbursementBridge?: ModuleKStep3ReimbursementBridgeSavedData;
   step4TaxRelief?: ModuleKStep4TaxReliefSavedData;
   step5FundingBrief?: ModuleKStep5FundingBriefSavedData;
+  grantCenterData?: SavedGrantCenterData;
   completionPercentage?: number;
   thingsToConsider?: BlindSpotItem[];
   lastSavedAt?: string;

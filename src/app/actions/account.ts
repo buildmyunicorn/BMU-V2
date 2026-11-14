@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { db, ensureDatabaseSchemaSynced } from '@/db';
 import {
   users,
@@ -14,6 +14,7 @@ import {
 import {
   getVerifiedActiveFounderFromCookie,
   requireVerifiedSuperAdminSession,
+  setServerSessionCookie,
   clearServerSessionCookie,
   verifyPassword,
   hashPassword,
@@ -265,13 +266,22 @@ export async function updateFounderPasswordAction(input: {
 
     const newHash = hashPassword(input.newPassword);
 
-    await db
+    const [updatedUser] = await db
       .update(users)
       .set({
         passwordHash: newHash,
+        sessionVersion: sql`${users.sessionVersion} + 1`,
         updatedAt: new Date(),
       })
-      .where(eq(users.id, user.id));
+      .where(eq(users.id, user.id))
+      .returning({ sessionVersion: users.sessionVersion });
+
+    // Re-issue cookie for the current device with the rotated sessionVersion while revoking all other sessions
+    await setServerSessionCookie({
+      userId: user.id,
+      email: activeUser.email,
+      sessionVersion: updatedUser?.sessionVersion ?? (activeUser.sessionVersion + 1),
+    });
 
     return { ok: true };
   } catch (err: any) {
@@ -538,30 +548,33 @@ export async function softDeleteFounderAccountAction(input: {
 
     const now = new Date();
 
-    // 1. Mark user as SOFT_DELETED
-    await db
-      .update(users)
-      .set({
-        status: 'SOFT_DELETED',
-        deletedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(users.id, user.id));
-
-    // 2. Take user's validation surveys offline
-    const userPlans = await db
-      .select({ id: startupPlans.id })
-      .from(startupPlans)
-      .where(eq(startupPlans.ownerUserId, user.id));
-
-    for (const plan of userPlans) {
-      await db
-        .update(validationSurveys)
+    // 1 & 2. Atomically mark user as SOFT_DELETED, rotate sessionVersion, and take validation surveys offline
+    await db.transaction(async (tx) => {
+      await tx
+        .update(users)
         .set({
-          isActive: false,
+          status: 'SOFT_DELETED',
+          sessionVersion: sql`${users.sessionVersion} + 1`,
+          deletedAt: now,
+          updatedAt: now,
         })
-        .where(eq(validationSurveys.planId, plan.id));
-    }
+        .where(eq(users.id, user.id));
+
+      const userPlans = await tx
+        .select({ id: startupPlans.id })
+        .from(startupPlans)
+        .where(eq(startupPlans.ownerUserId, user.id));
+
+      if (userPlans.length > 0) {
+        const planIds = userPlans.map((p) => p.id);
+        await tx
+          .update(validationSurveys)
+          .set({
+            isActive: false,
+          })
+          .where(inArray(validationSurveys.planId, planIds));
+      }
+    });
 
     // 3. Cancel active Stripe subscriptions if any
     const [entitlement] = await db

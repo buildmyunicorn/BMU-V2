@@ -91,6 +91,12 @@ import type {
 } from '@/lib/auth/session-store';
 import type { BlindSpotItem } from '@/db/schema';
 import {
+  computeModuleHBlendedPricing,
+  computeMonthlyUnitFrictionAndCogs,
+  normalizeBillingCadence,
+  normalizePriceToMonthlyAccrualNet,
+} from '@/lib/finance/cross-module-normalizer';
+import {
   saveModuleIStep1PositioningAction,
   generateModuleIPositioningAction,
   saveModuleIStep2FourPsAction,
@@ -179,9 +185,11 @@ export function resolveUpstreamHeadlinePrice(
 
     if (chosenTier) {
       const amount = chosenTier.priceGross || chosenTier.priceNetOfTax;
+      const normCadence = normalizeBillingCadence(chosenTier.billingFrequency);
       let cadence = ' / month';
-      if (chosenTier.billingFrequency === 'ANNUAL') cadence = ' / year';
-      else if (chosenTier.billingFrequency === 'ONE_OFF') cadence = ' one-off';
+      if (normCadence === 'ANNUAL') cadence = ' / year';
+      else if (normCadence === 'QUARTERLY') cadence = ' / quarter';
+      else if (normCadence === 'ONE_OFF') cadence = ' one-off';
 
       const tierTag = chosenTier.isRecommendedDefault ? 'Flagship' : 'Tier';
       return {
@@ -300,32 +308,49 @@ export function resolveUpstreamUnitEconomics(
   const tiers = modH?.step2PricingTiers;
   const salesAssumptions = modH?.step4SalesAssumptions;
 
-  // 1. Net price per customer
+  // 1. Net monthly accrual price per customer (normalizing ANNUAL / 12 and QUARTERLY / 3 so LTV & CAC payback are never inflated 12x)
+  const defaultVat = (plan.hqCountryCode || 'IE').toUpperCase() === 'GB' ? 20 : 23;
+  const blendedPricing = computeModuleHBlendedPricing(modH, defaultVat);
   let netPrice = 79;
-  if (typeof tiers?.blendedAveragePriceNet === 'number' && tiers.blendedAveragePriceNet > 0) {
-    netPrice = tiers.blendedAveragePriceNet;
-  } else if (typeof calc?.activePriceSlider === 'number' && calc.activePriceSlider > 0) {
-    netPrice = calc.activePriceSlider;
+  if (
+    modH?.step2PricingTiers?.tiers?.length ||
+    (typeof tiers?.blendedAveragePriceNet === 'number' && tiers.blendedAveragePriceNet > 0) ||
+    (typeof calc?.activePriceSlider === 'number' && calc.activePriceSlider > 0)
+  ) {
+    netPrice = blendedPricing.effectiveMonthlyAccrualNetPrice;
   } else {
     const resolvedPrice = resolveUpstreamHeadlinePrice(plan, currencySymbol);
     const parsedNum = parseFloat(resolvedPrice.priceHeadline.replace(/[^0-9.]/g, ''));
     if (!isNaN(parsedNum) && parsedNum > 0) {
-      netPrice = parsedNum;
+      const headlineLower = resolvedPrice.priceHeadline.toLowerCase();
+      const headlineCadence =
+        headlineLower.includes('/ year') || headlineLower.includes('/ yr')
+          ? 'ANNUAL'
+          : headlineLower.includes('/ quarter')
+            ? 'QUARTERLY'
+            : headlineLower.includes('one-off')
+              ? 'ONE_OFF'
+              : 'MONTHLY';
+      netPrice = normalizePriceToMonthlyAccrualNet(parsedNum, headlineCadence);
     }
   }
 
-  // 2. Friction costs & Pocket Profit (Contribution Margin) per customer
+  // 2. Friction costs & Monthly Pocket Profit (Contribution Margin) per customer
   const friction = calc?.frictionCosts;
   let pocketProfit = Math.round(netPrice * 0.78);
   if (friction) {
-    const stripeFee =
-      netPrice * ((friction.paymentGatewayPercent ?? 1.7) / 100) +
-      (friction.paymentGatewayFixedCents ?? 25) / 100;
-    const variableCogs = friction.directVariableCogsPerUnit ?? 0;
-    const refundBuffer = netPrice * ((friction.disputeRefundBufferPercent ?? 2) / 100);
-    const affiliateCut = netPrice * ((friction.affiliateCommissionPercent ?? 0) / 100);
-    const totalFriction = stripeFee + variableCogs + refundBuffer + affiliateCut;
-    pocketProfit = Math.max(5, Math.round((netPrice - totalFriction) * 100) / 100);
+    const unitCalc = computeMonthlyUnitFrictionAndCogs({
+      monthlyAccrualNetPrice: netPrice,
+      monthlyAccrualGrossPrice:
+        Math.round(netPrice * (1 + blendedPricing.effectiveTaxRatePercent / 100) * 100) / 100,
+      dominantBillingCadence: blendedPricing.dominantBillingCadence,
+      paymentGatewayPercent: friction.paymentGatewayPercent ?? 1.7,
+      paymentGatewayFixedCents: friction.paymentGatewayFixedCents ?? 25,
+      directVariableCogsPerUnit: friction.directVariableCogsPerUnit ?? 0,
+      disputeRefundBufferPercent: friction.disputeRefundBufferPercent ?? 2,
+      affiliateCommissionPercent: friction.affiliateCommissionPercent ?? 0,
+    });
+    pocketProfit = Math.max(5, unitCalc.monthlyPocketProfitPerCustomer);
   }
 
   const grossMarginPercent =
@@ -367,8 +392,7 @@ export function resolveUpstreamUnitEconomics(
   const churnOrRepeat = salesAssumptions?.expectedMonthlyChurnOrRepeatPercent;
   const isOneOffModel =
     revModel?.revenueModelVehicle === 'ONE_OFF_TRANSACTION' ||
-    revModel?.billingCadenceDefault === 'ONE_OFF' ||
-    revModel?.billingCadenceDefault === 'PROJECT_MILESTONE';
+    normalizeBillingCadence(revModel?.billingCadenceDefault) === 'ONE_OFF';
   const catLower = (plan.industryCategory || '').toLowerCase();
   const isEcommerceOrRepeat =
     catLower.includes('e-commerce') ||

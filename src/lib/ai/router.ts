@@ -2,13 +2,20 @@ import { GoogleGenAI } from '@google/genai';
 import { eq, sql } from 'drizzle-orm';
 import {
   db,
+  ensureDatabaseSchemaSynced,
   users,
   userEntitlements,
   aiPrompts,
   aiUsageLogs,
   type BlindSpotItem,
 } from '@/db';
-import { canAccessModule, canConsumeAiCredits, type EntitlementSnapshot } from '@/lib/entitlements';
+import {
+  VALID_BYOK_GEMINI_KEY_REGEX,
+  canAccessModule,
+  canConsumeAiCredits,
+  isEntitlementInVaultMode,
+  type EntitlementSnapshot,
+} from '@/lib/entitlements';
 import {
   checkRateLimit,
   decryptByokApiKey,
@@ -183,19 +190,14 @@ function isValidUuid(val: string | undefined | null): val is string {
 
 function isValidByokGeminiKey(customKey?: string | null): customKey is string {
   if (!customKey) return false;
-  const trimmed = customKey.trim();
-  // Real Google AI Studio keys begin with AIza (~39 chars) or Vertex Express API keys begin with AQ.
-  return /^(AIza[0-9A-Za-z_-]{31,}|AQ\.[0-9A-Za-z_-]{20,})$/.test(trimmed);
+  return VALID_BYOK_GEMINI_KEY_REGEX.test(customKey.trim());
 }
 
 function isVertexExpressApiKey(key?: string | null): boolean {
   return Boolean(key && key.trim().startsWith('AQ.'));
 }
 
-function hasConfiguredGeminiKey(customKey?: string | null): string | null {
-  if (isValidByokGeminiKey(customKey)) {
-    return customKey.trim();
-  }
+function hasConfiguredPlatformGeminiKey(): string | null {
   const vertexKey = process.env.VERTEX_API_KEY?.trim();
   if (vertexKey && isVertexExpressApiKey(vertexKey)) {
     return vertexKey;
@@ -225,6 +227,46 @@ function hasConfiguredGeminiKey(customKey?: string | null): string | null {
 }
 
 /**
+ * Tracks pre-call atomic DB credit reservations that completed live Gemini generation
+ * and are awaiting telemetry logging in `recordGeminiUsageAndIncrementCredits`.
+ */
+const settledCreditReservations = new Map<string, number>();
+
+async function refundOnePlatformCredit(userId: string): Promise<void> {
+  try {
+    await db
+      .update(userEntitlements)
+      .set({
+        aiCreditsUsedThisMonth: sql`GREATEST(0, ${userEntitlements.aiCreditsUsedThisMonth} - 1)`,
+        updatedAt: new Date(),
+      })
+      .where(eq(userEntitlements.userId, userId));
+  } catch {
+    // Best-effort credit refund on upstream failure
+  }
+}
+
+/**
+ * Refunds a settled platform AI credit if post-parse domain validation rejects the AI output.
+ */
+export async function refundSettledGeminiCredit(
+  verifiedUserId: string | null,
+  usedByokKey: boolean = false
+): Promise<void> {
+  if (usedByokKey || !verifiedUserId || !isValidUuid(verifiedUserId)) return;
+  const count = settledCreditReservations.get(verifiedUserId) ?? 0;
+  if (count > 0) {
+    if (count === 1) {
+      settledCreditReservations.delete(verifiedUserId);
+    } else {
+      settledCreditReservations.set(verifiedUserId, count - 1);
+    }
+  }
+  cachedDailyPlatformCallCount = Math.max(0, cachedDailyPlatformCallCount - 1);
+  await refundOnePlatformCredit(verifiedUserId);
+}
+
+/**
  * Resolves the active Vertex AI Gemini model name.
  * In GCP project `startuppreflight`, legacy `gemini-2.5-*` models return 404 on Vertex AI,
  * while `gemini-3.8-flash` and `gemini-3.5-flash` are provisioned and active.
@@ -232,70 +274,215 @@ function hasConfiguredGeminiKey(customKey?: string | null): string | null {
 function resolveVertexModelName(requestedModel?: string): string {
   const override = process.env.VERTEX_GEMINI_MODEL?.trim();
   if (override) return override;
-  if (!requestedModel || requestedModel.startsWith('gemini-2.5') || requestedModel.startsWith('gemini-2.0') || requestedModel.startsWith('gemini-1.5')) {
+  if (
+    !requestedModel ||
+    requestedModel.startsWith('gemini-2.5') ||
+    requestedModel.startsWith('gemini-2.0') ||
+    requestedModel.startsWith('gemini-1.5')
+  ) {
     return 'gemini-3.8-flash';
   }
   return requestedModel;
 }
 
-export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
-  const useVertex =
-    process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' ||
-    process.env.VERTEX_AI === 'true' ||
-    isVertexExpressApiKey(activeApiKey) ||
-    isVertexExpressApiKey(process.env.VERTEX_API_KEY) ||
-    isVertexExpressApiKey(process.env.GEMINI_API_KEY);
+function stripJsonCodeFences(rawText: string): string {
+  return rawText
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+}
 
-  // If founder provided a verified AIza... BYOK key from AI Studio, use direct AI Studio client
-  if (activeApiKey && activeApiKey.startsWith('AIza') && process.env.GOOGLE_GENAI_USE_VERTEXAI !== 'true') {
-    return new GoogleGenAI({ apiKey: activeApiKey });
+export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
+  let isByok = false;
+  let reservedForUserId: string | null = null;
+  let resolvedKey: string | null = activeApiKey ? activeApiKey.trim() : null;
+
+  if (resolvedKey?.startsWith('byok:')) {
+    isByok = true;
+    resolvedKey = resolvedKey.slice('byok:'.length).trim();
+  } else if (resolvedKey?.startsWith('plat:')) {
+    const rest = resolvedKey.slice('plat:'.length);
+    const sepIdx = rest.indexOf(':');
+    if (sepIdx > 0) {
+      reservedForUserId = rest.slice(0, sepIdx);
+      resolvedKey = rest.slice(sepIdx + 1).trim();
+    }
   }
 
-  if (useVertex) {
-    const vertexApiKey = activeApiKey && isVertexExpressApiKey(activeApiKey)
-      ? activeApiKey.trim()
-      : isVertexExpressApiKey(process.env.VERTEX_API_KEY)
-        ? process.env.VERTEX_API_KEY!.trim()
-        : isVertexExpressApiKey(process.env.GEMINI_API_KEY)
-          ? process.env.GEMINI_API_KEY!.trim()
-          : null;
+  let underlyingClient: GoogleGenAI;
+  let executeRawGenerate: (params: any) => Promise<any>;
 
-    const primaryClient = vertexApiKey
-      ? new GoogleGenAI({ vertexai: true, apiKey: vertexApiKey })
-      : new GoogleGenAI({
-          vertexai: true,
-          project: process.env.GOOGLE_CLOUD_PROJECT || 'startuppreflight',
-          location: process.env.GOOGLE_CLOUD_LOCATION || 'global',
+  if (isByok) {
+    // STRICT BYOK FIREWALL:
+    // 1. AIza... keys ALWAYS route directly to Google AI Studio (vertexai: false), even when GOOGLE_GENAI_USE_VERTEXAI=true.
+    // 2. AQ.... Vertex Express keys route ONLY with the user's key and NEVER fall back to Startup Preflight's GCP ADC or platform env keys.
+    if (!resolvedKey || !isValidByokGeminiKey(resolvedKey)) {
+      throw new Error('INVALID_BYOK_API_KEY');
+    }
+    if (resolvedKey.startsWith('AIza')) {
+      underlyingClient = new GoogleGenAI({
+        vertexai: false,
+        apiKey: resolvedKey,
+      });
+      const boundGenerate = underlyingClient.models.generateContent.bind(
+        underlyingClient.models
+      );
+      executeRawGenerate = (params: any) => boundGenerate(params);
+    } else {
+      underlyingClient = new GoogleGenAI({
+        vertexai: true,
+        apiKey: resolvedKey,
+      });
+      const boundGenerate = underlyingClient.models.generateContent.bind(
+        underlyingClient.models
+      );
+      executeRawGenerate = (params: any) =>
+        boundGenerate({
+          ...params,
+          model: resolveVertexModelName(params?.model),
+        });
+    }
+  } else {
+    const useVertex =
+      process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' ||
+      process.env.VERTEX_AI === 'true' ||
+      isVertexExpressApiKey(resolvedKey) ||
+      isVertexExpressApiKey(process.env.VERTEX_API_KEY) ||
+      isVertexExpressApiKey(process.env.GEMINI_API_KEY);
+
+    if (
+      resolvedKey &&
+      resolvedKey.startsWith('AIza') &&
+      process.env.GOOGLE_GENAI_USE_VERTEXAI !== 'true'
+    ) {
+      underlyingClient = new GoogleGenAI({ apiKey: resolvedKey });
+      const boundGenerate = underlyingClient.models.generateContent.bind(
+        underlyingClient.models
+      );
+      executeRawGenerate = (params: any) => boundGenerate(params);
+    } else if (useVertex) {
+      const vertexApiKey =
+        resolvedKey && isVertexExpressApiKey(resolvedKey)
+          ? resolvedKey
+          : isVertexExpressApiKey(process.env.VERTEX_API_KEY)
+            ? process.env.VERTEX_API_KEY!.trim()
+            : isVertexExpressApiKey(process.env.GEMINI_API_KEY)
+              ? process.env.GEMINI_API_KEY!.trim()
+              : null;
+
+      underlyingClient = vertexApiKey
+        ? new GoogleGenAI({ vertexai: true, apiKey: vertexApiKey })
+        : new GoogleGenAI({
+            vertexai: true,
+            project: process.env.GOOGLE_CLOUD_PROJECT || 'startuppreflight',
+            location: process.env.GOOGLE_CLOUD_LOCATION || 'global',
+          });
+
+      const adcGlobalFallbackClient = new GoogleGenAI({
+        vertexai: true,
+        project: process.env.GOOGLE_CLOUD_PROJECT || 'startuppreflight',
+        location: 'global',
+      });
+
+      const originalGenerateContent =
+        underlyingClient.models.generateContent.bind(underlyingClient.models);
+      const fallbackGenerateContent =
+        adcGlobalFallbackClient.models.generateContent.bind(
+          adcGlobalFallbackClient.models
+        );
+
+      executeRawGenerate = async (params: any) => {
+        const upgradedParams = {
+          ...params,
+          model: resolveVertexModelName(params?.model),
+        };
+        try {
+          return await originalGenerateContent(upgradedParams);
+        } catch (primaryErr) {
+          if (vertexApiKey) {
+            return await fallbackGenerateContent(upgradedParams);
+          }
+          throw primaryErr;
+        }
+      };
+    } else {
+      underlyingClient = new GoogleGenAI({
+        apiKey: resolvedKey || process.env.GEMINI_API_KEY || '',
+      });
+      const boundGenerate = underlyingClient.models.generateContent.bind(
+        underlyingClient.models
+      );
+      executeRawGenerate = (params: any) => boundGenerate(params);
+    }
+  }
+
+  underlyingClient.models.generateContent = async (params: any) => {
+    const shouldReserveCredit =
+      !isByok && reservedForUserId && isValidUuid(reservedForUserId);
+
+    if (shouldReserveCredit && reservedForUserId) {
+      const maxDailyCalls = getMaxDailyPlatformAiCalls();
+      if (cachedDailyPlatformCallCount >= maxDailyCalls) {
+        throw new Error('DAILY_PLATFORM_AI_CEILING_REACHED');
+      }
+
+      // Atomic row-locked credit reservation BEFORE calling live Gemini prevents parallel TOCTOU overruns
+      const [reservedRow] = await db
+        .update(userEntitlements)
+        .set({
+          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(
+          sql`${userEntitlements.userId} = ${reservedForUserId} AND ${userEntitlements.aiCreditsUsedThisMonth} < ${userEntitlements.monthlyAiCreditsLimit}`
+        )
+        .returning({
+          aiCreditsUsedThisMonth: userEntitlements.aiCreditsUsedThisMonth,
         });
 
-    const adcGlobalFallbackClient = new GoogleGenAI({
-      vertexai: true,
-      project: process.env.GOOGLE_CLOUD_PROJECT || 'startuppreflight',
-      location: 'global',
-    });
-
-    const originalGenerateContent = primaryClient.models.generateContent.bind(primaryClient.models);
-    const fallbackGenerateContent = adcGlobalFallbackClient.models.generateContent.bind(adcGlobalFallbackClient.models);
-
-    primaryClient.models.generateContent = async (params: any) => {
-      const upgradedParams = {
-        ...params,
-        model: resolveVertexModelName(params?.model),
-      };
-      try {
-        return await originalGenerateContent(upgradedParams);
-      } catch (primaryErr) {
-        if (vertexApiKey) {
-          return await fallbackGenerateContent(upgradedParams);
-        }
-        throw primaryErr;
+      if (!reservedRow) {
+        throw new Error('AI_CREDIT_LIMIT_EXHAUSTED_RACE');
       }
-    };
 
-    return primaryClient;
-  }
+      cachedDailyPlatformCallCount += 1;
 
-  return new GoogleGenAI({ apiKey: activeApiKey || process.env.GEMINI_API_KEY || '' });
+      try {
+        const response = await executeRawGenerate(params);
+        const rawText = (response?.text || '').trim();
+        if (!rawText) {
+          throw new Error('EMPTY_GEMINI_RESPONSE');
+        }
+        if (params?.config?.responseMimeType === 'application/json') {
+          JSON.parse(stripJsonCodeFences(rawText));
+        }
+
+        settledCreditReservations.set(
+          reservedForUserId,
+          (settledCreditReservations.get(reservedForUserId) ?? 0) + 1
+        );
+        return response;
+      } catch (genErr) {
+        cachedDailyPlatformCallCount = Math.max(
+          0,
+          cachedDailyPlatformCallCount - 1
+        );
+        await refundOnePlatformCredit(reservedForUserId);
+        throw genErr;
+      }
+    }
+
+    const response = await executeRawGenerate(params);
+    const rawText = (response?.text || '').trim();
+    if (!rawText) {
+      throw new Error('EMPTY_GEMINI_RESPONSE');
+    }
+    if (params?.config?.responseMimeType === 'application/json') {
+      JSON.parse(stripJsonCodeFences(rawText));
+    }
+    return response;
+  };
+
+  return underlyingClient;
 }
 
 export interface AuthorizedGeminiCallContext {
@@ -313,11 +500,12 @@ export interface AuthorizedGeminiCallContext {
 /**
  * Strict Server-Side AI Billing Firewall (`authorizeAndPrepareGeminiCall`).
  * Enforces:
- * 1. Never trusts client-passed `userId` — resolves authenticated session strictly from signed HttpOnly cookie.
+ * 1. Never trusts client-passed `userId` — resolves authenticated session strictly from signed HttpOnly cookie + DB `session_version`.
  * 2. Fails closed to zero-cost `smart-synthesizer` if unauthenticated, suspended, or DB is unreachable.
- * 3. Checks `user_entitlements.ai_credits_used_this_month` against `monthly_ai_credits_limit`.
- * 4. Enforces per-user burst rate limits (max 8 calls/minute, 60 calls/hour).
- * 5. Decrypts BYOK key in server memory only, or enforces the 500/day Global Platform Circuit Breaker on the platform key.
+ * 3. Atomically resets monthly AI credits on the 1st of each UTC calendar month (`credits_reset_at`).
+ * 4. Checks `user_entitlements.ai_credits_used_this_month` against `monthly_ai_credits_limit` (reserved atomically before execution).
+ * 5. Enforces per-user burst rate limits (max 8 calls/minute, 60 calls/hour).
+ * 6. Isolates BYOK keys strictly from platform Vertex ADC/env keys, and enforces the 500/day Global Platform Circuit Breaker on the platform key.
  */
 export async function authorizeAndPrepareGeminiCall(
   promptKey: string,
@@ -325,9 +513,11 @@ export async function authorizeAndPrepareGeminiCall(
 ): Promise<AuthorizedGeminiCallContext> {
   const founderSession = await getServerSessionCookie();
   const adminSession = await getAdminSessionCookie();
-  const session = founderSession || adminSession;
 
-  if (!session || !isValidUuid(session.userId)) {
+  if (
+    (!founderSession || !isValidUuid(founderSession.userId)) &&
+    (!adminSession || !isValidUuid(adminSession.userId))
+  ) {
     // Unauthenticated or local demo preview: NEVER touch live GEMINI_API_KEY.
     return {
       canCallLiveGemini: false,
@@ -340,28 +530,100 @@ export async function authorizeAndPrepareGeminiCall(
     };
   }
 
-  const verifiedUserId = session.userId;
-
   try {
-    // Verify user is ACTIVE in PostgreSQL
-    const [dbUser] = await db
-      .select({ id: users.id, status: users.status })
-      .from(users)
-      .where(eq(users.id, verifiedUserId))
-      .limit(1);
+    await ensureDatabaseSchemaSynced();
 
-    if (!dbUser || dbUser.status !== 'ACTIVE') {
+    let dbUser: {
+      id: string;
+      status: 'ACTIVE' | 'SUSPENDED' | 'SOFT_DELETED';
+      sessionVersion: number;
+      deletedAt: Date | null;
+      role: 'FOUNDER' | 'MENTOR' | 'TENANT_ADMIN' | 'SUPER_ADMIN';
+    } | null = null;
+
+    if (founderSession && isValidUuid(founderSession.userId)) {
+      const [candidate] = await db
+        .select({
+          id: users.id,
+          status: users.status,
+          sessionVersion: users.sessionVersion,
+          deletedAt: users.deletedAt,
+          role: users.role,
+        })
+        .from(users)
+        .where(eq(users.id, founderSession.userId))
+        .limit(1);
+
+      if (
+        candidate &&
+        candidate.status === 'ACTIVE' &&
+        !candidate.deletedAt &&
+        (founderSession.sv ?? 1) === (candidate.sessionVersion ?? 1)
+      ) {
+        dbUser = candidate;
+      }
+    }
+
+    if (
+      !dbUser &&
+      adminSession &&
+      adminSession.role === 'SUPER_ADMIN' &&
+      isValidUuid(adminSession.userId)
+    ) {
+      const [adminCandidate] = await db
+        .select({
+          id: users.id,
+          status: users.status,
+          sessionVersion: users.sessionVersion,
+          deletedAt: users.deletedAt,
+          role: users.role,
+        })
+        .from(users)
+        .where(eq(users.id, adminSession.userId))
+        .limit(1);
+
+      if (
+        adminCandidate &&
+        adminCandidate.role === 'SUPER_ADMIN' &&
+        adminCandidate.status === 'ACTIVE' &&
+        !adminCandidate.deletedAt &&
+        (adminSession.sv ?? 1) === (adminCandidate.sessionVersion ?? 1)
+      ) {
+        dbUser = adminCandidate;
+      }
+    }
+
+    if (!dbUser) {
       return {
         canCallLiveGemini: false,
         creditCheckBlocked: true,
-        blockReason: 'Account is not active.',
+        blockReason: 'Account is not active or session has expired.',
         activeApiKey: null,
-        verifiedUserId,
+        verifiedUserId: (founderSession || adminSession)?.userId ?? null,
         usedByokKey: false,
         currentCreditsUsed: 0,
         systemInstruction: defaultSystemInstruction,
       };
     }
+
+    const verifiedUserId = dbUser.id;
+
+    // Lazy 1st-of-UTC-month atomic rollover on `credits_reset_at`
+    await db
+      .update(userEntitlements)
+      .set({
+        aiCreditsUsedThisMonth: sql`CASE
+          WHEN ${userEntitlements.creditsResetAt} IS NOT NULL
+            OR ${userEntitlements.updatedAt} < (date_trunc('month', NOW() AT TIME ZONE 'UTC'))
+          THEN 0
+          ELSE ${userEntitlements.aiCreditsUsedThisMonth}
+        END`,
+        creditsResetAt: sql`date_trunc('month', NOW() AT TIME ZONE 'UTC') + INTERVAL '1 month'`,
+        updatedAt: new Date(),
+      })
+      .where(
+        sql`${userEntitlements.userId} = ${verifiedUserId} AND (${userEntitlements.creditsResetAt} IS NULL OR ${userEntitlements.creditsResetAt} <= (NOW() AT TIME ZONE 'UTC'))`
+      );
 
     const [entRow] = await db
       .select()
@@ -382,13 +644,44 @@ export async function authorizeAndPrepareGeminiCall(
       };
     }
 
-    const rawDecryptedByok = decryptByokApiKey(entRow.customApiKeyEncrypted);
+    const hasStoredByokValue = Boolean(
+      entRow.customApiKeyEncrypted && entRow.customApiKeyEncrypted.trim()
+    );
     const isByokTierEligible =
-      entRow.planType === 'APPSUMO_LTD' && entRow.stackedCodesCount >= 3;
+      (entRow.planType === 'APPSUMO_LTD' && entRow.stackedCodesCount >= 3) ||
+      dbUser.role === 'SUPER_ADMIN';
+    const rawDecryptedByok = hasStoredByokValue
+      ? decryptByokApiKey(entRow.customApiKeyEncrypted)
+      : null;
+
+    if (hasStoredByokValue && isByokTierEligible) {
+      if (!isValidByokGeminiKey(rawDecryptedByok)) {
+        // FAIL CLOSED: Never silently bill the platform key when a saved BYOK key fails decryption or format check
+        return {
+          canCallLiveGemini: false,
+          creditCheckBlocked: true,
+          blockReason:
+            'Your saved Bring-Your-Own Gemini API key could not be verified. Please re-enter a valid Google AI Studio (AIza...) key or clear it in Account Settings.',
+          activeApiKey: null,
+          verifiedUserId,
+          usedByokKey: false,
+          planType: entRow.planType,
+          currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
+          systemInstruction: defaultSystemInstruction,
+        };
+      }
+    }
+
     const validByokKey =
       isByokTierEligible && isValidByokGeminiKey(rawDecryptedByok)
         ? rawDecryptedByok.trim()
         : null;
+
+    const effectiveVaultReadonly = isEntitlementInVaultMode({
+      planType: entRow.planType,
+      accessExpiresAt: entRow.accessExpiresAt,
+      isVaultReadonly: entRow.isVaultReadonly,
+    });
 
     const snapshot: EntitlementSnapshot = {
       userId: entRow.userId,
@@ -401,19 +694,21 @@ export async function authorizeAndPrepareGeminiCall(
       whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
       customApiKeyEncrypted: validByokKey,
       accessExpiresAt: entRow.accessExpiresAt,
-      isVaultReadonly: entRow.isVaultReadonly,
+      isVaultReadonly: effectiveVaultReadonly,
     };
 
     const isPaidModulePrompt =
       /^MOD_[BCDEFGHIJKL]_/i.test(promptKey) ||
       /^(MASTER_DOC|STUDIO_|BUSINESS_PLAN)/i.test(promptKey);
-    if (isPaidModulePrompt) {
+    if (isPaidModulePrompt && dbUser.role !== 'SUPER_ADMIN') {
       const modAccess = canAccessModule(snapshot, 'MOD_B_MARKET');
       if (!modAccess.allowed) {
         return {
           canCallLiveGemini: false,
           creditCheckBlocked: true,
-          blockReason: modAccess.reason || 'Paid Pass required for Modules B–L AI synthesis.',
+          blockReason:
+            modAccess.reason ||
+            'Paid Pass required for Modules B–L AI synthesis.',
           activeApiKey: null,
           verifiedUserId,
           usedByokKey: false,
@@ -459,9 +754,9 @@ export async function authorizeAndPrepareGeminiCall(
     }
 
     const usedByokKey = Boolean(validByokKey);
-    const activeApiKey = hasConfiguredGeminiKey(validByokKey);
+    const rawPlatformKey = usedByokKey ? null : hasConfiguredPlatformGeminiKey();
 
-    if (!activeApiKey) {
+    if (!usedByokKey && !rawPlatformKey) {
       return {
         canCallLiveGemini: false,
         creditCheckBlocked: false,
@@ -506,10 +801,6 @@ export async function authorizeAndPrepareGeminiCall(
           systemInstruction: defaultSystemInstruction,
         };
       }
-
-      // Pre-increment in-memory daily counter immediately upon authorization
-      // so concurrent requests or failed parses cannot bypass the ceiling.
-      cachedDailyPlatformCallCount += 1;
     }
 
     let systemInstruction = defaultSystemInstruction;
@@ -525,6 +816,10 @@ export async function authorizeAndPrepareGeminiCall(
     } catch {
       // Keep default system instruction
     }
+
+    const activeApiKey = usedByokKey
+      ? `byok:${validByokKey}`
+      : `plat:${verifiedUserId}:${rawPlatformKey}`;
 
     return {
       canCallLiveGemini: true,
@@ -564,22 +859,69 @@ export async function recordGeminiUsageAndIncrementCredits(params: {
     return params.fallbackCreditsUsed;
   }
 
+  // Deterministic smart-synthesizer fallback never consumes paid AI credits
+  if (params.modelUsed === 'smart-synthesizer') {
+    const pendingSettled =
+      settledCreditReservations.get(params.verifiedUserId) ?? 0;
+    if (!params.usedByokKey && pendingSettled > 0) {
+      await refundSettledGeminiCredit(params.verifiedUserId, false);
+    }
+    try {
+      const [ent] = await db
+        .select({
+          aiCreditsUsedThisMonth: userEntitlements.aiCreditsUsedThisMonth,
+        })
+        .from(userEntitlements)
+        .where(eq(userEntitlements.userId, params.verifiedUserId))
+        .limit(1);
+      return ent?.aiCreditsUsedThisMonth ?? params.fallbackCreditsUsed;
+    } catch {
+      return params.fallbackCreditsUsed;
+    }
+  }
+
   let creditsUsedAfter = params.usedByokKey
     ? params.fallbackCreditsUsed
     : params.fallbackCreditsUsed + 1;
+
   try {
     if (!params.usedByokKey) {
-      const [updatedEnt] = await db
-        .update(userEntitlements)
-        .set({
-          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(userEntitlements.userId, params.verifiedUserId))
-        .returning();
+      const settledCount =
+        settledCreditReservations.get(params.verifiedUserId) ?? 0;
 
-      if (updatedEnt) {
-        creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
+      if (settledCount > 0) {
+        if (settledCount === 1) {
+          settledCreditReservations.delete(params.verifiedUserId);
+        } else {
+          settledCreditReservations.set(
+            params.verifiedUserId,
+            settledCount - 1
+          );
+        }
+        const [ent] = await db
+          .select({
+            aiCreditsUsedThisMonth: userEntitlements.aiCreditsUsedThisMonth,
+          })
+          .from(userEntitlements)
+          .where(eq(userEntitlements.userId, params.verifiedUserId))
+          .limit(1);
+        if (ent) {
+          creditsUsedAfter = ent.aiCreditsUsedThisMonth;
+        }
+      } else {
+        const [updatedEnt] = await db
+          .update(userEntitlements)
+          .set({
+            aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(eq(userEntitlements.userId, params.verifiedUserId))
+          .returning({
+            aiCreditsUsedThisMonth: userEntitlements.aiCreditsUsedThisMonth,
+          });
+        if (updatedEnt) {
+          creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
+        }
       }
     }
 

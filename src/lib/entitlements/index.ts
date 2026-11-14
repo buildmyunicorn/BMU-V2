@@ -140,6 +140,8 @@ export function calculatePassLimits(
 /**
  * Checks whether a time-limited pass (6-Month Pass or Cohort Pass) has expired
  * and should drop into Read-Only "Vault Mode".
+ * Lifetime (`APPSUMO_LTD`), `FREE_HOOK`, and unexpired passes (`accessExpiresAt > referenceDate`)
+ * are never locked into Read-Only Vault Mode even if a separate micro-subscription was canceled.
  */
 export function isEntitlementInVaultMode(
   entitlement: Pick<
@@ -148,19 +150,19 @@ export function isEntitlementInVaultMode(
   >,
   referenceDate: Date = new Date()
 ): boolean {
-  if (entitlement.isVaultReadonly) {
-    return true;
-  }
-  if (entitlement.planType === 'APPSUMO_LTD' || entitlement.planType === 'FREE_HOOK') {
+  if (
+    entitlement.planType === 'APPSUMO_LTD' ||
+    entitlement.planType === 'FREE_HOOK'
+  ) {
     return false;
   }
-  if (
-    entitlement.accessExpiresAt &&
-    entitlement.accessExpiresAt.getTime() < referenceDate.getTime()
-  ) {
-    return true;
+  if (entitlement.accessExpiresAt) {
+    const expiryTime = new Date(entitlement.accessExpiresAt).getTime();
+    if (!Number.isNaN(expiryTime)) {
+      return expiryTime <= referenceDate.getTime();
+    }
   }
-  return false;
+  return Boolean(entitlement.isVaultReadonly);
 }
 
 /**
@@ -284,6 +286,9 @@ export function canInviteCollaborator(
   return { allowed: true, currentLimit: entitlement.maxSeatsPerPlan };
 }
 
+export const VALID_BYOK_GEMINI_KEY_REGEX =
+  /^(AIza[0-9A-Za-z._-]{30,}|AQ\.[0-9A-Za-z._-]{20,})$/;
+
 /**
  * Checks if the user has available AI credits this month (or a valid BYOK API key configured).
  */
@@ -307,7 +312,7 @@ export function canConsumeAiCredits(
     (trimmedByok === 'enc_gemini_byok_active' ||
       trimmedByok.startsWith('enc:v1:') ||
       trimmedByok.startsWith('enc:v2:') ||
-      /^(AIza|AQ\.)[0-9A-Za-z._-]{25,}$/.test(trimmedByok)) &&
+      VALID_BYOK_GEMINI_KEY_REGEX.test(trimmedByok)) &&
       entitlement.planType === 'APPSUMO_LTD' &&
       entitlement.stackedCodesCount >= 3
   );
@@ -395,11 +400,13 @@ export function checkFeatureEntitlement(
       return { allowed: true };
 
     case 'COFOUNDER_INVITE':
-    case 'COFOUNDER_ALIGNMENT_INTERVIEW':
       return canInviteCollaborator(
         entitlement,
         context?.currentSeatsCount ?? 1
       );
+
+    case 'COFOUNDER_ALIGNMENT_INTERVIEW':
+      return canInviteCollaborator(entitlement, 1);
 
     case 'WHITE_LABEL_EXPORT':
       if (!entitlement.whiteLabelExportEnabled) {

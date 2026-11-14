@@ -1176,11 +1176,13 @@ export async function createPartnerConciergeStripeCheckoutAction(input: {
       },
     ];
 
+    const verifiedAddonsForCheckout: PartnerCheckoutAddonField[] = [];
     for (const requestedAddon of input.selectedAddons || []) {
       const verifiedAddon = canonicalAddonById.get(requestedAddon.id);
       if (!verifiedAddon) continue;
       const addonCents = Math.round(Number(verifiedAddon.priceAmount || 0) * 100);
       if (addonCents > 0) {
+        verifiedAddonsForCheckout.push(verifiedAddon);
         lineItems.push({
           price_data: {
             currency: canonicalCurrency,
@@ -1201,6 +1203,39 @@ export async function createPartnerConciergeStripeCheckoutAction(input: {
     const cancelUrl = `${origin}/workspace?concierge_cancelled=true`;
     const verifiedFounderEmail =
       founderSession?.email || input.founderEmail?.trim() || undefined;
+    const verifiedAddonIdsCsv = verifiedAddonsForCheckout
+      .map((a) => a.id)
+      .join(',');
+
+    // Pre-create a PENDING_PAYMENT order record so Stripe webhooks and post-checkout intake stay atomically linked
+    const [pendingReferralEvent] = await db
+      .insert(partnerReferralEvents)
+      .values({
+        partnerId: canonicalOffer.id,
+        partnerName: canonicalOffer.name,
+        partnerSlug: canonicalOffer.slug,
+        slotKey: canonicalOffer.slotKey,
+        eventType: 'PAID_CONCIERGE_ORDER',
+        planId:
+          input.planId && /^[0-9a-f-]{36}$/i.test(input.planId)
+            ? input.planId
+            : null,
+        planTitle: input.planTitle || 'Startup Formation',
+        founderName: founderSession?.name || 'Founder',
+        founderEmail: verifiedFounderEmail || '',
+        countryCode: canonicalOffer.countryScope === 'GB' ? 'GB' : 'IE',
+        selectedDomain: null,
+        destinationUrl: canonicalOffer.referralUrl,
+        intakeAnswersJson: {
+          base_package_price_numeric: String(canonicalBaseAmount),
+          verified_addon_ids: verifiedAddonIdsCsv,
+          concierge_email_dispatched: 'false',
+        },
+        leadStatus: 'PENDING_PAYMENT',
+        estimatedBountyAmount: null,
+        adminNotes: 'Pending Stripe Concierge Checkout',
+      })
+      .returning({ id: partnerReferralEvents.id });
 
     const session = await stripe.checkout.sessions.create({
       customer_email: verifiedFounderEmail,
@@ -1212,14 +1247,26 @@ export async function createPartnerConciergeStripeCheckoutAction(input: {
       client_reference_id: founderSession?.userId || adminSession?.userId || undefined,
       metadata: {
         orderType: 'PAID_STRIPE_CONCIERGE',
+        referralEventId: pendingReferralEvent?.id || '',
         userId: founderSession?.userId || adminSession?.userId || '',
         partnerSlug: canonicalOffer.slug,
         partnerName: canonicalOffer.name,
         slotKey: canonicalOffer.slotKey,
         planId: input.planId || '',
         founderEmail: verifiedFounderEmail || '',
+        basePriceAmount: String(canonicalBaseAmount),
+        verifiedAddonIds: verifiedAddonIdsCsv,
       },
     });
+
+    if (pendingReferralEvent?.id && session.id) {
+      await db
+        .update(partnerReferralEvents)
+        .set({
+          adminNotes: `Stripe Session Created (${session.id}) • Awaiting Payment`,
+        })
+        .where(eq(partnerReferralEvents.id, pendingReferralEvent.id));
+    }
 
     if (session.url) {
       return {
@@ -1288,6 +1335,13 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
 
   let verifiedCurrency = (input.currency || 'EUR').toUpperCase();
   let verifiedTotalPaid = Number(input.totalPaidAmount || 0);
+  let verifiedBasePriceAmount = Number(input.basePriceAmount || 0);
+  let verifiedSelectedAddons: PartnerCheckoutAddonField[] = Array.isArray(
+    input.selectedAddons
+  )
+    ? input.selectedAddons
+    : [];
+  let verifiedReferralEventId: string | null = null;
   let paymentRef = rawRef || 'UNVERIFIED';
 
   const fallbackEvent: PartnerReferralEventRecord = {
@@ -1404,12 +1458,52 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
       }
 
       paymentRef = checkoutSession.id;
+      verifiedReferralEventId =
+        checkoutSession.metadata?.referralEventId &&
+        /^[0-9a-f-]{36}$/i.test(checkoutSession.metadata.referralEventId)
+          ? checkoutSession.metadata.referralEventId
+          : null;
       if (typeof checkoutSession.amount_total === 'number') {
         verifiedTotalPaid = Math.round(checkoutSession.amount_total) / 100;
       }
       if (checkoutSession.currency) {
         verifiedCurrency = checkoutSession.currency.toUpperCase();
       }
+
+      // Reconstruct paid base package & add-ons strictly from canonical DB offer + Stripe session metadata (never trust post-payment client payload)
+      await ensureDatabaseSchemaSynced();
+      const [dbOfferForVerify] = await db
+        .select()
+        .from(partnerOffers)
+        .where(eq(partnerOffers.slug, input.partnerSlug))
+        .limit(1);
+      const catalogOfferForVerify = DEFAULT_PARTNER_OFFERS.find(
+        (p) => p.slug === input.partnerSlug
+      );
+      const canonicalOfferForVerify = dbOfferForVerify
+        ? mapDbOfferToRecord(dbOfferForVerify)
+        : catalogOfferForVerify;
+
+      verifiedBasePriceAmount = Number(
+        checkoutSession.metadata?.basePriceAmount ??
+          canonicalOfferForVerify?.checkoutPriceAmount ??
+          input.basePriceAmount ??
+          150
+      );
+      const paidAddonIds = new Set(
+        (checkoutSession.metadata?.verifiedAddonIds || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      );
+      const canonicalAddonList = Array.isArray(
+        canonicalOfferForVerify?.checkoutAddonsJson
+      )
+        ? canonicalOfferForVerify!.checkoutAddonsJson
+        : [];
+      verifiedSelectedAddons = canonicalAddonList.filter((a) =>
+        paidAddonIds.has(a.id)
+      );
     } catch (stripeVerifyErr: any) {
       return {
         ok: false,
@@ -1420,26 +1514,6 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
           stripeVerifyErr?.message ||
           'Unable to verify Stripe payment session.',
         event: fallbackEvent,
-      };
-    }
-
-    // Prevent replay of an already-dispatched Stripe session ID
-    await ensureDatabaseSchemaSynced();
-    const existingDispatched = await db
-      .select()
-      .from(partnerReferralEvents)
-      .where(
-        sql`${partnerReferralEvents.adminNotes} LIKE ${'%' + paymentRef + '%'}`
-      )
-      .limit(1);
-
-    if (existingDispatched.length > 0) {
-      return {
-        ok: true,
-        persistedToDb: true,
-        emailSent: true,
-        paymentRef,
-        event: mapDbEventToRecord(existingDispatched[0]),
       };
     }
   } else {
@@ -1462,16 +1536,17 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
     verifiedCurrency === 'GBP' ? '£' : verifiedCurrency === 'USD' ? '$' : '€';
 
   const selectedAddonLabels =
-    input.selectedAddons && input.selectedAddons.length > 0
-      ? input.selectedAddons
+    verifiedSelectedAddons.length > 0
+      ? verifiedSelectedAddons
           .map((a) => `${a.label} (+${currencySymbol}${a.priceAmount})`)
           .join(', ')
       : 'None (Base Package Only)';
 
   const enrichedAnswers: Record<string, string> = {
     stripe_payment_status: `PAID ${currencySymbol}${verifiedTotalPaid} (${verifiedCurrency}) • Ref: ${paymentRef}`,
-    base_package_price: `${currencySymbol}${input.basePriceAmount}`,
+    base_package_price: `${currencySymbol}${verifiedBasePriceAmount}`,
     selected_optional_addons: selectedAddonLabels,
+    concierge_email_dispatched: 'true',
     ...input.intakeAnswers,
   };
 
@@ -1481,8 +1556,8 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
   fallbackEvent.adminNotes = `Paid Stripe Concierge Order (${paymentRef}) dispatched to ${recipientEmail}`;
 
   const addonRowsHtml =
-    input.selectedAddons && input.selectedAddons.length > 0
-      ? input.selectedAddons
+    verifiedSelectedAddons.length > 0
+      ? verifiedSelectedAddons
           .map(
             (addon) => `
           <tr>
@@ -1517,6 +1592,112 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
   const subjectLine = `[PAID INCORPORATION ORDER • ${currencySymbol}${verifiedTotalPaid}] ${companyName1} — ${input.founderName}`;
   const safeFounderEmail = founderSession?.email || input.founderEmail.trim();
 
+  // Atomically claim dispatch in PostgreSQL BEFORE sending the Resend email so concurrent calls never send duplicate formation orders
+  let persistedEventRow: typeof partnerReferralEvents.$inferSelect | null = null;
+  let alreadyDispatchedRow: typeof partnerReferralEvents.$inferSelect | null = null;
+  let persistedToDb = false;
+
+  if (!isAdminSandbox && !isOfflineDevSandbox) {
+    try {
+      await ensureDatabaseSchemaSynced();
+      await db.transaction(async (tx) => {
+        let lockedExisting: typeof partnerReferralEvents.$inferSelect | undefined;
+        if (verifiedReferralEventId) {
+          const rows = await tx
+            .select()
+            .from(partnerReferralEvents)
+            .where(eq(partnerReferralEvents.id, verifiedReferralEventId))
+            .for('update');
+          lockedExisting = rows[0];
+        }
+        if (!lockedExisting) {
+          const byRefRows = await tx
+            .select()
+            .from(partnerReferralEvents)
+            .where(
+              sql`${partnerReferralEvents.adminNotes} LIKE ${'%' + paymentRef + '%'}`
+            )
+            .for('update');
+          lockedExisting = byRefRows[0];
+        }
+
+        if (
+          lockedExisting &&
+          lockedExisting.intakeAnswersJson?.concierge_email_dispatched === 'true'
+        ) {
+          alreadyDispatchedRow = lockedExisting;
+          return;
+        }
+
+        if (lockedExisting) {
+          const [updated] = await tx
+            .update(partnerReferralEvents)
+            .set({
+              planId:
+                input.planId && /^[0-9a-f-]{36}$/i.test(input.planId)
+                  ? input.planId
+                  : lockedExisting.planId,
+              planTitle: companyName1,
+              founderName: input.founderName.trim(),
+              founderEmail: safeFounderEmail,
+              countryCode: input.countryCode || lockedExisting.countryCode || 'IE',
+              destinationUrl: `mailto:${recipientEmail}`,
+              intakeAnswersJson: enrichedAnswers,
+              leadStatus: 'BOUNTY_PAID',
+              estimatedBountyAmount: `${currencySymbol}${verifiedTotalPaid} Paid via Stripe`,
+              adminNotes: `Paid Stripe Concierge Order (${paymentRef}) • Dispatched to ${recipientEmail}`,
+            })
+            .where(eq(partnerReferralEvents.id, lockedExisting.id))
+            .returning();
+          persistedEventRow = updated ?? null;
+          persistedToDb = true;
+        } else {
+          const [inserted] = await tx
+            .insert(partnerReferralEvents)
+            .values({
+              partnerId: input.partnerId,
+              partnerName: input.partnerName,
+              partnerSlug: input.partnerSlug,
+              slotKey: input.slotKey,
+              eventType: 'PAID_CONCIERGE_ORDER',
+              planId:
+                input.planId && /^[0-9a-f-]{36}$/i.test(input.planId)
+                  ? input.planId
+                  : null,
+              planTitle: companyName1,
+              founderName: input.founderName.trim(),
+              founderEmail: safeFounderEmail,
+              countryCode: input.countryCode || 'IE',
+              selectedDomain: null,
+              destinationUrl: `mailto:${recipientEmail}`,
+              intakeAnswersJson: enrichedAnswers,
+              leadStatus: 'BOUNTY_PAID',
+              estimatedBountyAmount: `${currencySymbol}${verifiedTotalPaid} Paid via Stripe`,
+              adminNotes: `Paid Stripe Concierge Order (${paymentRef}) • Dispatched to ${recipientEmail}`,
+            })
+            .returning();
+          persistedEventRow = inserted ?? null;
+          persistedToDb = true;
+        }
+      });
+
+      if (alreadyDispatchedRow) {
+        return {
+          ok: true,
+          persistedToDb: true,
+          emailSent: true,
+          paymentRef,
+          event: mapDbEventToRecord(alreadyDispatchedRow),
+        };
+      }
+    } catch (claimErr) {
+      console.error(
+        '[SPF Concierge] Error claiming concierge dispatch row:',
+        claimErr
+      );
+    }
+  }
+
   const emailHtml = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">
       <div style="background:#065f46;color:#ffffff;padding:18px 22px;border-radius:8px;margin-bottom:20px;">
@@ -1536,7 +1717,7 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
           <tbody>
             <tr>
               <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;color:#065f46;">Base Package: <strong>${escapeHtml(input.partnerName)} Incorporation</strong></td>
-              <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;font-weight:700;color:#065f46;text-align:right;">${currencySymbol}${escapeHtml(String(input.basePriceAmount))}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;font-weight:700;color:#065f46;text-align:right;">${currencySymbol}${escapeHtml(String(verifiedBasePriceAmount))}</td>
             </tr>
             ${addonRowsHtml}
             <tr>
@@ -1618,34 +1799,43 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
       },
     });
 
-    const inserted = await db
-      .insert(partnerReferralEvents)
-      .values({
-        partnerId: input.partnerId,
-        partnerName: input.partnerName,
-        partnerSlug: input.partnerSlug,
-        slotKey: input.slotKey,
-        eventType: 'PAID_CONCIERGE_ORDER',
-        planId: input.planId && /^[0-9a-f-]{36}$/i.test(input.planId) ? input.planId : null,
-        planTitle: companyName1,
-        founderName: input.founderName.trim(),
-        founderEmail: safeFounderEmail,
-        countryCode: input.countryCode || 'IE',
-        selectedDomain: null,
-        destinationUrl: `mailto:${recipientEmail}`,
-        intakeAnswersJson: enrichedAnswers,
-        leadStatus: 'BOUNTY_PAID',
-        estimatedBountyAmount: `${currencySymbol}${verifiedTotalPaid} Paid via Stripe`,
-        adminNotes: `Paid Stripe Concierge Order (${paymentRef}) • Dispatched to ${recipientEmail}`,
-      })
-      .returning();
+    if (!persistedEventRow) {
+      const inserted = await db
+        .insert(partnerReferralEvents)
+        .values({
+          partnerId: input.partnerId,
+          partnerName: input.partnerName,
+          partnerSlug: input.partnerSlug,
+          slotKey: input.slotKey,
+          eventType: 'PAID_CONCIERGE_ORDER',
+          planId:
+            input.planId && /^[0-9a-f-]{36}$/i.test(input.planId)
+              ? input.planId
+              : null,
+          planTitle: companyName1,
+          founderName: input.founderName.trim(),
+          founderEmail: safeFounderEmail,
+          countryCode: input.countryCode || 'IE',
+          selectedDomain: null,
+          destinationUrl: `mailto:${recipientEmail}`,
+          intakeAnswersJson: enrichedAnswers,
+          leadStatus: 'BOUNTY_PAID',
+          estimatedBountyAmount: `${currencySymbol}${verifiedTotalPaid} Paid via Stripe`,
+          adminNotes: `Paid Stripe Concierge Order (${paymentRef}) • Dispatched to ${recipientEmail}`,
+        })
+        .returning();
+      persistedEventRow = inserted[0] ?? null;
+      persistedToDb = Boolean(persistedEventRow);
+    }
 
     return {
       ok: true,
-      persistedToDb: true,
+      persistedToDb,
       emailSent,
       paymentRef,
-      event: mapDbEventToRecord(inserted[0]),
+      event: persistedEventRow
+        ? mapDbEventToRecord(persistedEventRow)
+        : fallbackEvent,
     };
   } catch {
     return {

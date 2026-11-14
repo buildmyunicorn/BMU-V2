@@ -47,6 +47,7 @@ import {
   polishBusinessPlanChapterAction,
   compileAllBusinessPlanSectionsAction,
 } from '@/app/actions/business-plan-studio';
+import { computeModuleBMarketSizingTotals } from '@/lib/finance/cross-module-normalizer';
 
 export interface BusinessPlanStudioWorkspaceProps {
   plan: ActiveStartupPlan;
@@ -908,26 +909,17 @@ export function BusinessPlanStudioWorkspace({
     setIsCompilingAll(true);
     setCompileAllProgress({ current: 0, total: activeVersion.sections?.length || 0 });
 
-    const segments = plan.moduleBData?.marketSizing?.segments || [];
-    let samCalc = 0;
-    let somCalc = 0;
-    segments.forEach((s) => {
-      const price = parseFloat(s.pricePerCustomerInput || '0') || 0;
-      const reachable = parseFloat(s.reachableCustomersInTargetMarketsInput || '0') || 0;
-      const year1 = parseFloat(s.year1To2CustomerGoalInput || '0') || 0;
-      samCalc += price * reachable;
-      somCalc += price * year1;
-    });
-    if (samCalc === 0) samCalc = 250000;
-    if (somCalc === 0) somCalc = 50000;
-    const tamCalc = samCalc * 5;
+    const marketTotals = computeModuleBMarketSizingTotals(plan.moduleBData);
+    const marketLine = marketTotals.hasMarketSizingData
+      ? `TAM ${formatPlanCurrency(marketTotals.tamAnnual, currency)}, SAM ${formatPlanCurrency(marketTotals.samAnnual, currency)}, SOM ${formatPlanCurrency(marketTotals.somAnnual, currency)}.`
+      : 'Market sizing (TAM/SAM/SOM) not yet entered in Module B Step 3.';
 
     const summaryFactPack = `
 VENTURE: "${plan.title}" (${plan.industryCategory || 'Startup'}) in ${selectedCountry} (${currency}).
 PROBLEM: ${plan.conceptCanvas?.coreProblem || 'Market pain points identified'}
 SOLUTION: ${plan.conceptCanvas?.proposedSolution || 'High-margin structured product'}
 CUSTOMER: ${plan.conceptCanvas?.targetCustomer || 'Target beachhead persona'}
-MARKET: TAM ${formatPlanCurrency(tamCalc, currency)}, SAM ${formatPlanCurrency(samCalc, currency)}, SOM ${formatPlanCurrency(somCalc, currency)}.
+MARKET: ${marketLine}
 VALIDATION: ${plan.moduleCData?.surveys?.[0]?.responses?.length || 0} customer discovery responses, ${plan.moduleCData?.surveys?.[0]?.aiInsightsSummary?.headlineTakeaway || 'Validated willingness to pay'}.
 PRICING & REVENUE: Target pricing modeled in Module H Pocket Profit breakeven.
 HEADCOUNT & SURVIVAL: Scheduled hiring and founder survival budget verified in Module F.

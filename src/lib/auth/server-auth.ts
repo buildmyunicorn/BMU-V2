@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { cookies, headers } from 'next/headers';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db, ensureDatabaseSchemaSynced } from '@/db';
 import {
   planCollaborators,
@@ -54,6 +54,7 @@ export interface SessionTokenPayload {
   userId: string;
   email: string;
   role?: 'SUPER_ADMIN' | 'FOUNDER';
+  sv?: number;
   iat: number;
 }
 
@@ -233,12 +234,14 @@ function verifyPayload(
 export async function setServerSessionCookie(payload: {
   userId: string;
   email: string;
+  sessionVersion?: number;
 }): Promise<void> {
   const token = signPayload(
     {
       userId: payload.userId,
       email: payload.email,
       role: 'FOUNDER',
+      sv: payload.sessionVersion ?? 1,
       iat: Date.now(),
     },
     'spf-founder-cookie-v1'
@@ -279,12 +282,14 @@ export async function clearServerSessionCookie(): Promise<void> {
 export async function setAdminSessionCookie(payload: {
   userId: string;
   email: string;
+  sessionVersion?: number;
 }): Promise<void> {
   const token = signPayload(
     {
       userId: payload.userId,
       email: payload.email,
       role: 'SUPER_ADMIN',
+      sv: payload.sessionVersion ?? 1,
       iat: Date.now(),
     },
     'spf-super-admin-cookie-v1'
@@ -367,6 +372,7 @@ export async function getVerifiedActiveFounderFromCookie(): Promise<{
   emailVerified: boolean;
   hasPassword: boolean;
   cohortId: string | null;
+  sessionVersion: number;
   iat: number;
 } | null> {
   const session = await getServerSessionCookie();
@@ -382,6 +388,7 @@ export async function getVerifiedActiveFounderFromCookie(): Promise<{
         name: users.name,
         role: users.role,
         status: users.status,
+        sessionVersion: users.sessionVersion,
         deletedAt: users.deletedAt,
         emailVerified: users.emailVerified,
         passwordHash: users.passwordHash,
@@ -391,7 +398,12 @@ export async function getVerifiedActiveFounderFromCookie(): Promise<{
       .where(eq(users.id, session.userId))
       .limit(1);
 
-    if (!dbUser || dbUser.status !== 'ACTIVE' || dbUser.deletedAt) {
+    if (
+      !dbUser ||
+      dbUser.status !== 'ACTIVE' ||
+      dbUser.deletedAt ||
+      (session.sv ?? 1) !== (dbUser.sessionVersion ?? 1)
+    ) {
       return null;
     }
 
@@ -403,6 +415,7 @@ export async function getVerifiedActiveFounderFromCookie(): Promise<{
       emailVerified: dbUser.emailVerified,
       hasPassword: Boolean(dbUser.passwordHash),
       cohortId: dbUser.cohortId,
+      sessionVersion: dbUser.sessionVersion ?? 1,
       iat: session.iat,
     };
   } catch {
@@ -438,6 +451,7 @@ export async function requireVerifiedSuperAdminSession(): Promise<SessionTokenPa
         email: users.email,
         role: users.role,
         status: users.status,
+        sessionVersion: users.sessionVersion,
         deletedAt: users.deletedAt,
       })
       .from(users)
@@ -448,7 +462,8 @@ export async function requireVerifiedSuperAdminSession(): Promise<SessionTokenPa
       !dbAdmin ||
       dbAdmin.role !== 'SUPER_ADMIN' ||
       dbAdmin.status !== 'ACTIVE' ||
-      dbAdmin.deletedAt
+      dbAdmin.deletedAt ||
+      (adminSession.sv ?? 1) !== (dbAdmin.sessionVersion ?? 1)
     ) {
       return null;
     }
@@ -457,6 +472,7 @@ export async function requireVerifiedSuperAdminSession(): Promise<SessionTokenPa
       userId: dbAdmin.id,
       email: dbAdmin.email,
       role: 'SUPER_ADMIN',
+      sv: dbAdmin.sessionVersion ?? 1,
       iat: adminSession.iat,
     };
   } catch {
@@ -518,6 +534,11 @@ export function checkRateLimit(
 export function mapDbEntitlementRowToSnapshot(
   entRow: typeof userEntitlements.$inferSelect
 ): EntitlementSnapshot {
+  const effectiveVaultReadonly = isEntitlementInVaultMode({
+    planType: entRow.planType,
+    accessExpiresAt: entRow.accessExpiresAt,
+    isVaultReadonly: entRow.isVaultReadonly,
+  });
   return {
     userId: entRow.userId,
     planType: entRow.planType,
@@ -529,15 +550,15 @@ export function mapDbEntitlementRowToSnapshot(
     whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
     customApiKeyEncrypted: entRow.customApiKeyEncrypted,
     accessExpiresAt: entRow.accessExpiresAt,
-    isVaultReadonly: entRow.isVaultReadonly,
+    isVaultReadonly: effectiveVaultReadonly,
   };
 }
 
 /**
  * Strict server-side authorization, IDOR prevention & entitlement enforcement helper.
  * Verifies:
- * 1. Valid signed HttpOnly session cookie (founder or super_admin).
- * 2. Active non-deleted user in PostgreSQL (`users.status === 'ACTIVE'`).
+ * 1. Valid signed HttpOnly session cookie (founder or super_admin) without stale founder cookie shadowing a valid admin cookie.
+ * 2. Active non-deleted user in PostgreSQL (`users.status === 'ACTIVE'` & matching `session_version`).
  * 3. Plan ownership (`startup_plans.owner_user_id`) or accepted collaborator seat (`plan_collaborators`).
  * 4. Optional server-side module paywall (`requiredModule`), Read-Only Vault lock (`requireWrite`), and feature gate (`requiredFeature`).
  */
@@ -562,9 +583,8 @@ export async function verifyActiveSessionAndPlanOwnership(
 
   const founderSession = await getServerSessionCookie();
   const adminSession = await getAdminSessionCookie();
-  const activeSession = founderSession || adminSession;
 
-  if (!activeSession) {
+  if (!founderSession && !adminSession) {
     return {
       authorized: false,
       isLocalPreview: false,
@@ -579,14 +599,19 @@ export async function verifyActiveSessionAndPlanOwnership(
     process.env.NODE_ENV === 'development' &&
     process.env.ALLOW_OFFLINE_DEV_AUTH === 'true';
 
-  if (!UUID_REGEX.test(activeSession.userId)) {
+  const fallbackSession = founderSession || adminSession!;
+
+  if (
+    (!founderSession || !UUID_REGEX.test(founderSession.userId)) &&
+    (!adminSession || !UUID_REGEX.test(adminSession.userId))
+  ) {
     if (isDevOfflineAllowed && isLocalPlanId) {
       return {
         authorized: true,
         isLocalPreview: true,
-        userId: activeSession.userId,
-        email: activeSession.email,
-        isSuperAdmin: activeSession.role === 'SUPER_ADMIN',
+        userId: fallbackSession.userId,
+        email: fallbackSession.email,
+        isSuperAdmin: fallbackSession.role === 'SUPER_ADMIN',
       };
     }
     return {
@@ -602,24 +627,76 @@ export async function verifyActiveSessionAndPlanOwnership(
   try {
     await ensureDatabaseSchemaSynced();
 
-    const [dbUser] = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        status: users.status,
-        deletedAt: users.deletedAt,
-        role: users.role,
-      })
-      .from(users)
-      .where(eq(users.id, activeSession.userId))
-      .limit(1);
+    let dbUser: {
+      id: string;
+      email: string;
+      status: 'ACTIVE' | 'SUSPENDED' | 'SOFT_DELETED';
+      sessionVersion: number;
+      deletedAt: Date | null;
+      role: 'FOUNDER' | 'MENTOR' | 'TENANT_ADMIN' | 'SUPER_ADMIN';
+    } | null = null;
 
-    if (!dbUser || dbUser.status !== 'ACTIVE' || dbUser.deletedAt) {
+    if (founderSession && UUID_REGEX.test(founderSession.userId)) {
+      const [candidate] = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          status: users.status,
+          sessionVersion: users.sessionVersion,
+          deletedAt: users.deletedAt,
+          role: users.role,
+        })
+        .from(users)
+        .where(eq(users.id, founderSession.userId))
+        .limit(1);
+
+      if (
+        candidate &&
+        candidate.status === 'ACTIVE' &&
+        !candidate.deletedAt &&
+        (founderSession.sv ?? 1) === (candidate.sessionVersion ?? 1)
+      ) {
+        dbUser = candidate;
+      }
+    }
+
+    // If founder cookie was absent, stale, or suspended, fall back to a valid Super Admin cookie rather than shadowing it
+    if (
+      !dbUser &&
+      adminSession &&
+      adminSession.role === 'SUPER_ADMIN' &&
+      UUID_REGEX.test(adminSession.userId)
+    ) {
+      const [adminCandidate] = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          status: users.status,
+          sessionVersion: users.sessionVersion,
+          deletedAt: users.deletedAt,
+          role: users.role,
+        })
+        .from(users)
+        .where(eq(users.id, adminSession.userId))
+        .limit(1);
+
+      if (
+        adminCandidate &&
+        adminCandidate.role === 'SUPER_ADMIN' &&
+        adminCandidate.status === 'ACTIVE' &&
+        !adminCandidate.deletedAt &&
+        (adminSession.sv ?? 1) === (adminCandidate.sessionVersion ?? 1)
+      ) {
+        dbUser = adminCandidate;
+      }
+    }
+
+    if (!dbUser) {
       return {
         authorized: false,
         isLocalPreview: false,
-        userId: activeSession.userId,
-        email: activeSession.email,
+        userId: fallbackSession.userId,
+        email: fallbackSession.email,
         isSuperAdmin: false,
         reason: 'USER_SUSPENDED_OR_NOT_FOUND',
       };
@@ -697,10 +774,18 @@ export async function verifyActiveSessionAndPlanOwnership(
     }
 
     if (!isSuperAdmin && options) {
+      // Multi-plan creation and clone/pivot always consume the CALLER's own entitlement, never a host plan owner's
+      const featureUsesCallerEntitlement =
+        options.requiredFeature === 'MULTI_PLAN_CREATE' ||
+        options.requiredFeature === 'CLONE_AND_PIVOT';
+      const targetEntitlementUserId = featureUsesCallerEntitlement
+        ? dbUser.id
+        : entitlementOwnerUserId;
+
       const [entRow] = await db
         .select()
         .from(userEntitlements)
-        .where(eq(userEntitlements.userId, entitlementOwnerUserId))
+        .where(eq(userEntitlements.userId, targetEntitlementUserId))
         .limit(1);
 
       if (!entRow) {
@@ -742,9 +827,34 @@ export async function verifyActiveSessionAndPlanOwnership(
       }
 
       if (options.requiredFeature) {
+        let currentPlansCount: number | undefined;
+        let currentSeatsCount: number | undefined;
+
+        if (
+          options.requiredFeature === 'MULTI_PLAN_CREATE' ||
+          options.requiredFeature === 'CLONE_AND_PIVOT'
+        ) {
+          const [countRow] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(startupPlans)
+            .where(eq(startupPlans.ownerUserId, dbUser.id));
+          currentPlansCount = Number(countRow?.count ?? 0);
+        } else if (
+          options.requiredFeature === 'COFOUNDER_INVITE' &&
+          planId &&
+          !isLocalPlanId
+        ) {
+          const [seatRow] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(planCollaborators)
+            .where(eq(planCollaborators.planId, planId));
+          currentSeatsCount = 1 + Number(seatRow?.count ?? 0);
+        }
+
         const featAccess = checkFeatureEntitlement(
           snapshot,
-          options.requiredFeature
+          options.requiredFeature,
+          { currentPlansCount, currentSeatsCount }
         );
         if (!featAccess.allowed) {
           return {
@@ -771,8 +881,8 @@ export async function verifyActiveSessionAndPlanOwnership(
     return {
       authorized: false,
       isLocalPreview: false,
-      userId: activeSession.userId,
-      email: activeSession.email,
+      userId: fallbackSession.userId,
+      email: fallbackSession.email,
       isSuperAdmin: false,
       reason: 'DATABASE_UNAVAILABLE',
     };

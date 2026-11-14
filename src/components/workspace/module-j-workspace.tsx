@@ -81,6 +81,16 @@ import {
   generateModuleJExecutiveBriefAction,
   parkModuleJOpenQuestionAction,
 } from '@/app/actions/module-j';
+import {
+  computeAccrualVsInvoicedCashSchedule,
+  computeModuleFCompensationSchedule,
+  computeModuleHBlendedPricing,
+  computeMonthlyUnitFrictionAndCogs,
+  extractModuleDCosts,
+  extractModuleECosts,
+  type CompensationMonthItem,
+} from '@/lib/finance/cross-module-normalizer';
+import { getCountryRulePack } from '@/lib/localization';
 
 export interface ModuleJWorkspaceProps {
   plan: ActiveStartupPlan;
@@ -734,112 +744,92 @@ export interface UpstreamFinancialBaseline {
   monthlyInsuranceCost: number;
   totalCapExEquipment: number;
   monthlyFounderDrawings: number;
+  monthlyFounderDrawingsY2: number;
+  monthlyFounderDrawingsY3: number;
   monthlyTeamSalariesY1: number;
   monthlyTeamSalariesY2: number;
   monthlyTeamSalariesY3: number;
+  monthlyNonTaxableContractorsY1: number;
+  monthlyNonTaxableContractorsY2: number;
+  monthlyNonTaxableContractorsY3: number;
+  compMonths36: CompensationMonthItem[];
   monthlyMarketingSpend: number;
   isPaidAdsOptedOutInModI: boolean;
   exportSharePercentFromModH: number;
   headlinePriceNet: number;
   unitDirectCogs: number;
   targetCustomersY1: number;
+  annualShareWeight: number;
+  quarterlyShareWeight: number;
+  monthlyOrOneOffShareWeight: number;
 }
 
 export function resolveUpstreamFinancialBaseline(
   plan: Partial<ActiveStartupPlan>,
   selectedCountry?: string
 ): UpstreamFinancialBaseline {
-  const isUK = (selectedCountry || plan.hqCountryCode) === 'GB';
+  const country = (selectedCountry || plan.hqCountryCode || 'IE').toUpperCase();
+  const isUK = country === 'GB' || country === 'UK';
+  const defaultVatRate = isUK ? 20 : 23;
 
-  // 1. Module D: Tech Stack & Build Costs
-  const modDBuild = plan.moduleDData?.buildVsBuy;
-  const monthlyTechStackCost =
-    Number((modDBuild as any)?.estimatedMonthlyRunCost) ||
-    Number((modDBuild as any)?.monthlySaaSBudget) ||
-    120;
-  const oneOffBuildCost =
-    Number((modDBuild as any)?.estimatedUpfrontBuildCost) ||
-    Number((modDBuild as any)?.v1BuildBudget) ||
-    0;
+  // 1. Module D: Tech Stack & Build Costs (structured items + work packages)
+  const modDCosts = extractModuleDCosts(plan.moduleDData);
+  const monthlyTechStackCost = modDCosts.hasExplicitTechStackCosts
+    ? Math.round(modDCosts.monthlyTechStackCost)
+    : 120;
+  const oneOffBuildCost = Math.round(modDCosts.oneOffBuildCost);
 
-  // 2. Module E: Premises, Insurance & CapEx Equipment
-  const modEPremises = plan.moduleEData?.premisesAndEquipment;
+  // 2. Module E: Premises, Leased Equipment, Insurance & Purchased CapEx (excluding ALREADY_OWNED_BYOD)
+  const modECosts = extractModuleECosts(plan.moduleEData);
   const monthlyPremisesCost =
-    Number(modEPremises?.monthlyPremisesAndUtilitiesCost) ||
-    Number((modEPremises as any)?.monthlyRentOrFee) ||
-    0;
+    modECosts.monthlyPremisesCost + modECosts.monthlyLeasedEquipmentCost;
+  const totalCapExEquipment = modECosts.totalPurchasedCapExExVat;
+  const monthlyInsuranceCost = modECosts.monthlyInsuranceCost ?? 60;
 
-  const equipmentItems = Array.isArray(modEPremises?.equipmentItems)
-    ? modEPremises.equipmentItems
-    : [];
-  const totalCapExEquipment = equipmentItems.reduce(
-    (sum, item) => sum + (Number(item.totalCostExVat) || 0),
-    0
-  );
+  // 3. Module F: Founder Survival Budget & 3-Year Hiring Plan (per-founder PAYE offset, quarter pro-rata, 0% contractor tax)
+  const comp = computeModuleFCompensationSchedule(plan.moduleFData, country);
+  const monthlyFounderDrawings = comp.years[1].monthlyFounderDrawingsAvg;
+  const monthlyFounderDrawingsY2 = comp.years[2].monthlyFounderDrawingsAvg;
+  const monthlyFounderDrawingsY3 = comp.years[3].monthlyFounderDrawingsAvg;
 
-  const modEInsurance = plan.moduleEData?.permitsAndInsurance;
-  const annualInsurance =
-    Number(modEInsurance?.estimatedAnnualInsurancePremium) || 720;
-  const monthlyInsuranceCost = Math.round(annualInsurance / 12);
+  const y1Salaries = comp.years[1].monthlyTeamSalariesAndContractorsAvg;
+  const y2Salaries =
+    comp.hasExplicitHiringRoles || comp.years[2].monthlyTeamSalariesAndContractorsAvg > 0
+      ? comp.years[2].monthlyTeamSalariesAndContractorsAvg
+      : 3500;
+  const y3Salaries =
+    comp.hasExplicitHiringRoles || comp.years[3].monthlyTeamSalariesAndContractorsAvg > 0
+      ? comp.years[3].monthlyTeamSalariesAndContractorsAvg
+      : 7500;
 
-  // 3. Module F: Founder Survival Budget & 3-Year Hiring Plan
-  const modFStep3 = plan.moduleFData?.step3SurvivalBudgetData;
-  const monthlyFounderDrawings = (() => {
-    if (modFStep3?.founderBudgets?.length) {
-      const sum = modFStep3.founderBudgets.reduce((acc, b) => {
-        const core =
-          (Number(b.housingAndUtilities) || 0) +
-          (Number(b.groceriesAndEssentials) || 0) +
-          (Number(b.transportAndCommute) || 0) +
-          (Number(b.debtAndLoanCommitments) || 0) +
-          (Number(b.dependentsAndFamily) || 0);
-        return acc + Math.max(0, core - (Number(b.incomeOffsetCushion) || 0));
-      }, 0);
-      if (sum > 0) return Math.round(sum);
-    }
-    return isUK ? 2200 : 2500;
-  })();
-
-  const modFStep5 = plan.moduleFData?.step5HiringPlanData;
-  const { y1Salaries, y2Salaries, y3Salaries } = (() => {
-    let y1Ann = 0;
-    let y2Ann = 0;
-    let y3Ann = 0;
-    if (modFStep5?.roles?.length) {
-      for (const role of modFStep5.roles) {
-        if (
-          role.compensationModel === 'PURE_SWEAT_EQUITY' ||
-          role.compensationModel === 'ADVISORY_EQUITY'
-        ) {
-          continue;
-        }
-        const gross = Number(role.grossAnnualSalary) || 0;
-        if (role.yearScheduled <= 1) y1Ann += gross;
-        if (role.yearScheduled <= 2) y2Ann += gross;
-        if (role.yearScheduled <= 3) y3Ann += gross;
-      }
-    }
-    const c1 = Number(modFStep5?.contractorBudgetYear1) || 0;
-    const c2 = Number(modFStep5?.contractorBudgetYear2) || 0;
-    const c3 = Number(modFStep5?.contractorBudgetYear3) || 0;
-
-    return {
-      y1Salaries: Math.round((y1Ann + c1) / 12),
-      y2Salaries: Math.round((y2Ann + c2) / 12) || 3500,
-      y3Salaries: Math.round((y3Ann + c3) / 12) || 7500,
-    };
-  })();
-
-  // 4. Module H: Revenue, COGS & Export Share
-  const modHStep2 = plan.moduleHData?.step2PricingTiers;
+  // 4. Module H: Monthly Accrual Revenue, Full Friction + COGS & Export Share
   const modHStep3 = plan.moduleHData?.step3BreakevenCalculator;
-  const headlinePriceNet =
-    Number(modHStep3?.activePriceSlider) ||
-    Number(modHStep2?.blendedAveragePriceNet) ||
-    49;
-  const unitDirectCogs =
-    Number(modHStep3?.frictionCosts?.directVariableCogsPerUnit) ||
-    Math.max(2, Math.round(headlinePriceNet * 0.12));
+  const pricing = computeModuleHBlendedPricing(plan.moduleHData, defaultVatRate);
+  const headlinePriceNet = Math.max(1, pricing.effectiveMonthlyAccrualNetPrice);
+
+  const friction = modHStep3?.frictionCosts;
+  const explicitUpstreamUnitCogs =
+    Math.round((modDCosts.unitBuildCogs + modECosts.unitOrderFulfillmentCost) * 100) / 100;
+  const rawDirectVariableCogs =
+    friction?.directVariableCogsPerUnit !== undefined
+      ? Number(friction.directVariableCogsPerUnit)
+      : explicitUpstreamUnitCogs > 0
+        ? explicitUpstreamUnitCogs
+        : Math.max(2, Math.round(headlinePriceNet * 0.12));
+
+  const unitFriction = computeMonthlyUnitFrictionAndCogs({
+    monthlyAccrualNetPrice: headlinePriceNet,
+    monthlyAccrualGrossPrice: pricing.effectiveMonthlyAccrualGrossPrice,
+    dominantBillingCadence: pricing.dominantBillingCadence,
+    paymentGatewayPercent:
+      friction?.paymentGatewayPercent ?? modDCosts.channelBlendedFeePercent ?? 1.7,
+    paymentGatewayFixedCents: friction?.paymentGatewayFixedCents ?? 25,
+    directVariableCogsPerUnit: rawDirectVariableCogs,
+    disputeRefundBufferPercent: friction?.disputeRefundBufferPercent ?? 1,
+    affiliateCommissionPercent: friction?.affiliateCommissionPercent ?? 0,
+  });
+  const unitDirectCogs = unitFriction.totalMonthlyUnitCogsAndFees;
+
   const targetCustomersY1 = Number(modHStep3?.activeCustomerSlider) || 120;
   const exportSharePercentFromModH =
     modHStep3?.exportSalesPercent !== undefined
@@ -877,15 +867,24 @@ export function resolveUpstreamFinancialBaseline(
     monthlyInsuranceCost,
     totalCapExEquipment,
     monthlyFounderDrawings,
+    monthlyFounderDrawingsY2,
+    monthlyFounderDrawingsY3,
     monthlyTeamSalariesY1: y1Salaries,
     monthlyTeamSalariesY2: y2Salaries,
     monthlyTeamSalariesY3: y3Salaries,
+    monthlyNonTaxableContractorsY1: comp.years[1].monthlyNonTaxableContractorsAvg,
+    monthlyNonTaxableContractorsY2: comp.years[2].monthlyNonTaxableContractorsAvg,
+    monthlyNonTaxableContractorsY3: comp.years[3].monthlyNonTaxableContractorsAvg,
+    compMonths36: comp.months36,
     monthlyMarketingSpend,
     isPaidAdsOptedOutInModI,
     exportSharePercentFromModH,
     headlinePriceNet,
     unitDirectCogs,
     targetCustomersY1,
+    annualShareWeight: pricing.annualShareWeight,
+    quarterlyShareWeight: pricing.quarterlyShareWeight,
+    monthlyOrOneOffShareWeight: pricing.monthlyOrOneOffShareWeight,
   };
 }
 
@@ -1045,14 +1044,22 @@ export function ModuleJWorkspace({
       monthlyTeamSalariesYear2: upstreamBaseline.monthlyTeamSalariesY2,
       monthlyTeamSalariesYear3: upstreamBaseline.monthlyTeamSalariesY3,
       autoApplyEmployerPayrollTax: true,
-      employerPayrollTaxRatePercent: isUK ? 16.8 : 11.15, // UK 13.8% NIC + 3% Pension vs IE 11.15% PRSI
+      employerPayrollTaxRatePercent:
+        Math.round(
+          ((getCountryRulePack(effectiveCountry).employerPayrollTaxPercent ||
+            (isUK ? 13.8 : 11.15)) +
+            (isUK ? 3.0 : 0)) *
+            100
+        ) / 100,
       corporationTaxRatePercent: isUK ? 19.0 : 12.5,
       vatRegistrationStrategy:
         upstreamBaseline.totalCapExEquipment > 2000
           ? 'REGISTERED_FROM_DAY_1'
           : 'REGISTER_AT_THRESHOLD',
       otherVatRegistrationStrategyText: '',
-      standardVatRatePercent: isUK ? 20.0 : 23.0,
+      standardVatRatePercent:
+        getCountryRulePack(effectiveCountry).standardTaxRatePercent ||
+        (isUK ? 20.0 : 23.0),
       exportRevenueSharePercent: upstreamBaseline.exportSharePercentFromModH,
       exportTargetMarketsSummary: isUK
         ? 'Ireland, EU Single Market & North America'
@@ -1117,15 +1124,43 @@ export function ModuleJWorkspace({
       ? Number(step1Data.employerPayrollTaxRatePercent) || 0
       : 0;
 
-    const monthlyEmployerTaxY1 = Math.round(
-      ((Number(step1Data.monthlyTeamSalariesYear1) || 0) * taxRate) / 100
+    // Exclude non-taxable contractor retainers from statutory employer payroll tax
+    const taxableSalariesY1 = Math.max(
+      0,
+      (Number(step1Data.monthlyTeamSalariesYear1) || 0) -
+        upstreamBaseline.monthlyNonTaxableContractorsY1
     );
-    const monthlyEmployerTaxY2 = Math.round(
-      ((Number(step1Data.monthlyTeamSalariesYear2) || 0) * taxRate) / 100
+    const taxableSalariesY2 = Math.max(
+      0,
+      (Number(step1Data.monthlyTeamSalariesYear2) || 0) -
+        upstreamBaseline.monthlyNonTaxableContractorsY2
     );
-    const monthlyEmployerTaxY3 = Math.round(
-      ((Number(step1Data.monthlyTeamSalariesYear3) || 0) * taxRate) / 100
+    const taxableSalariesY3 = Math.max(
+      0,
+      (Number(step1Data.monthlyTeamSalariesYear3) || 0) -
+        upstreamBaseline.monthlyNonTaxableContractorsY3
     );
+
+    const monthlyEmployerTaxY1 = Math.round((taxableSalariesY1 * taxRate) / 100);
+    const monthlyEmployerTaxY2 = Math.round((taxableSalariesY2 * taxRate) / 100);
+    const monthlyEmployerTaxY3 = Math.round((taxableSalariesY3 * taxRate) / 100);
+
+    // Per-founder PAYE-replaces-drawings rule in Years 2 & 3
+    const isDrawingsUnmodifiedFromUpstream =
+      Math.round(Number(step1Data.monthlyFounderDrawingsYear1) || 0) ===
+      Math.round(upstreamBaseline.monthlyFounderDrawings);
+    const monthlyFounderDrawingsY2 = isDrawingsUnmodifiedFromUpstream
+      ? upstreamBaseline.monthlyFounderDrawingsY2
+      : upstreamBaseline.monthlyFounderDrawingsY2 > 0 ||
+          (Number(step1Data.monthlyTeamSalariesYear2) || 0) === 0
+        ? Number(step1Data.monthlyFounderDrawingsYear1) || 0
+        : 0;
+    const monthlyFounderDrawingsY3 = isDrawingsUnmodifiedFromUpstream
+      ? upstreamBaseline.monthlyFounderDrawingsY3
+      : upstreamBaseline.monthlyFounderDrawingsY3 > 0 ||
+          (Number(step1Data.monthlyTeamSalariesYear3) || 0) === 0
+        ? Number(step1Data.monthlyFounderDrawingsYear1) || 0
+        : 0;
 
     const totalMonthlyPayrollAndDrawingsY1 =
       (Number(step1Data.monthlyFounderDrawingsYear1) || 0) +
@@ -1150,6 +1185,8 @@ export function ModuleJWorkspace({
       monthlyEmployerTaxY1,
       monthlyEmployerTaxY2,
       monthlyEmployerTaxY3,
+      monthlyFounderDrawingsY2,
+      monthlyFounderDrawingsY3,
       totalMonthlyPayrollAndDrawingsY1,
       totalMonthlyBurnY1,
       annualCapExDepreciation,
@@ -1233,7 +1270,23 @@ export function ModuleJWorkspace({
     const unitCogs = Math.max(0, upstreamBaseline.unitDirectCogs);
     const startMonth = Math.max(1, Math.min(12, Number(step2Data.monthToStartRevenue) || 1));
 
-    // Build Month 1..12 Invoiced Revenue vs. Actual Cash Collected in Bank
+    // Build Month 1..12 Accrual Revenue vs. Upfront Cohort Billing & Bank Cash Collected
+    const activeCustomers12: number[] = [];
+    for (let m = 1; m <= 12; m++) {
+      if (m < startMonth) {
+        activeCustomers12.push(0);
+      } else {
+        const weight = rampOpt.monthlyWeights[m - 1] ?? 1.0;
+        activeCustomers12.push(Math.max(1, Math.round(avgMonthlyTargetCustomers * weight)));
+      }
+    }
+
+    const revCash12 = computeAccrualVsInvoicedCashSchedule(
+      activeCustomers12,
+      netPrice,
+      upstreamBaseline
+    );
+
     const monthlySchedule: Array<{
       month: number;
       customers: number;
@@ -1243,30 +1296,17 @@ export function ModuleJWorkspace({
     }> = [];
 
     for (let m = 1; m <= 12; m++) {
-      if (m < startMonth) {
-        monthlySchedule.push({
-          month: m,
-          customers: 0,
-          invoicedRevenue: 0,
-          cashCollected: 0,
-          directCogsOutflow: 0,
-        });
-        continue;
-      }
-      const weight = rampOpt.monthlyWeights[m - 1] ?? 1.0;
-      const customers = Math.max(1, Math.round(avgMonthlyTargetCustomers * weight));
-      const invoicedRevenue = Math.round(customers * netPrice);
-      const directCogsOutflow = Math.round(customers * unitCogs);
+      const customers = activeCustomers12[m - 1];
       monthlySchedule.push({
         month: m,
         customers,
-        invoicedRevenue,
-        cashCollected: 0, // populated next based on debtor lag
-        directCogsOutflow,
+        invoicedRevenue: revCash12.accrualRevenueByMonth[m - 1],
+        cashCollected: 0, // populated next based on debtor lag on billed cash
+        directCogsOutflow: Math.round(customers * unitCogs),
       });
     }
 
-    // Apply debtor lag (0, 15, 30, 60, or custom days) across Month 1..12
+    // Apply debtor lag (0, 15, 30, 60, or custom days) across Month 1..12 billed invoices
     const monthShiftFloat = effectiveDebtorDays / 30;
     const wholeMonthsDelay = Math.floor(monthShiftFloat);
     const fractionalRemainder = monthShiftFloat - wholeMonthsDelay;
@@ -1275,17 +1315,27 @@ export function ModuleJWorkspace({
       const sameShiftIdx = i - wholeMonthsDelay;
       const prevShiftIdx = i - wholeMonthsDelay - 1;
       const fromSameShift =
-        sameShiftIdx >= 0 ? monthlySchedule[sameShiftIdx].invoicedRevenue * (1 - fractionalRemainder) : 0;
+        sameShiftIdx >= 0
+          ? revCash12.cashBilledBeforeDebtorLagByMonth[sameShiftIdx] * (1 - fractionalRemainder)
+          : 0;
       const fromPrevShift =
-        prevShiftIdx >= 0 ? monthlySchedule[prevShiftIdx].invoicedRevenue * fractionalRemainder : 0;
+        prevShiftIdx >= 0
+          ? revCash12.cashBilledBeforeDebtorLagByMonth[prevShiftIdx] * fractionalRemainder
+          : 0;
       monthlySchedule[i].cashCollected = Math.round(fromSameShift + fromPrevShift);
     }
 
     const totalInvoicedY1 = monthlySchedule.reduce((s, r) => s + r.invoicedRevenue, 0);
+    const totalBilledInvoicesY1 = revCash12.cashBilledBeforeDebtorLagByMonth.reduce(
+      (s, v) => s + v,
+      0
+    );
     const totalCashCollectedY1 = monthlySchedule.reduce((s, r) => s + r.cashCollected, 0);
-    const yearEndUnpaidInvoicesAR = Math.max(0, totalInvoicedY1 - totalCashCollectedY1);
+    const yearEndUnpaidInvoicesAR = Math.max(0, totalBilledInvoicesY1 - totalCashCollectedY1);
     const year1CashCollectionEfficiencyPercent =
-      totalInvoicedY1 > 0 ? Math.round((totalCashCollectedY1 / totalInvoicedY1) * 100) : 100;
+      totalBilledInvoicesY1 > 0
+        ? Math.min(100, Math.round((totalCashCollectedY1 / totalBilledInvoicesY1) * 100))
+        : 100;
 
     // Upfront inventory cash lockup + pre-revenue burn lockup
     const avgMonthlyCogsY1 = Math.round(
@@ -1387,7 +1437,25 @@ export function ModuleJWorkspace({
     const unitCogs = Math.max(0, upstreamBaseline.unitDirectCogs);
     const startMonth = Math.max(1, Math.min(12, Number(step2Data.monthToStartRevenue) || 1));
 
-    // 1. Build 36 months of invoiced revenue and direct COGS
+    // 1. Build 36 months of accrual revenue, upfront cohort billing, and direct COGS
+    const customers36: number[] = [];
+    for (let m = 1; m <= 36; m++) {
+      const year: 1 | 2 | 3 = m <= 12 ? 1 : m <= 24 ? 2 : 3;
+      const monthIdxInYear = (m - 1) % 12;
+      const weight = rampOpt.monthlyWeights[monthIdxInYear] ?? 1.0;
+      const baseCustomers =
+        year === 1 ? avgY1Customers : year === 2 ? avgY2Customers : avgY3Customers;
+      customers36.push(
+        m < startMonth ? 0 : Math.max(1, Math.round(baseCustomers * weight))
+      );
+    }
+
+    const revCash36 = computeAccrualVsInvoicedCashSchedule(
+      customers36,
+      netPrice,
+      upstreamBaseline
+    );
+
     const rawMonths: Array<{
       month: number;
       year: 1 | 2 | 3;
@@ -1408,13 +1476,8 @@ export function ModuleJWorkspace({
     for (let m = 1; m <= 36; m++) {
       const year: 1 | 2 | 3 = m <= 12 ? 1 : m <= 24 ? 2 : 3;
       const quarter = Math.ceil(m / 3);
-      const monthIdxInYear = (m - 1) % 12;
-      const weight = rampOpt.monthlyWeights[monthIdxInYear] ?? 1.0;
-
-      const baseCustomers =
-        year === 1 ? avgY1Customers : year === 2 ? avgY2Customers : avgY3Customers;
-      const customers = m < startMonth ? 0 : Math.max(1, Math.round(baseCustomers * weight));
-      const invoicedRevenue = Math.round(customers * netPrice);
+      const customers = customers36[m - 1];
+      const invoicedRevenue = revCash36.accrualRevenueByMonth[m - 1];
       const directCogsOutflow = Math.round(customers * unitCogs);
 
       const fixedOpExAndPayrollOutflow =
@@ -1422,17 +1485,18 @@ export function ModuleJWorkspace({
           ? step1Metrics.totalMonthlyBurnY1
           : year === 2
           ? step1Metrics.monthlyFixedOpExY2 +
-            (Number(step1Data.monthlyFounderDrawingsYear1) || 0) +
+            step1Metrics.monthlyFounderDrawingsY2 +
             (Number(step1Data.monthlyTeamSalariesYear2) || 0) +
             step1Metrics.monthlyEmployerTaxY2
           : step1Metrics.monthlyFixedOpExY3 +
-            (Number(step1Data.monthlyFounderDrawingsYear1) || 0) +
+            step1Metrics.monthlyFounderDrawingsY3 +
             (Number(step1Data.monthlyTeamSalariesYear3) || 0) +
             step1Metrics.monthlyEmployerTaxY3;
 
       const oneOffCapExAndStockOutflow =
         m === 1
           ? (Number(step1Data.totalCapExEquipmentValue) || 0) +
+            upstreamBaseline.oneOffBuildCost +
             step2Metrics.upfrontStockCashLockup
           : 0;
 
@@ -1454,7 +1518,7 @@ export function ModuleJWorkspace({
       });
     }
 
-    // 2. Apply Debtor Days Lag across all 36 months
+    // 2. Apply Debtor Days Lag across all 36 months of billed cohort invoices
     const monthShiftFloat = step2Metrics.effectiveDebtorDays / 30;
     const wholeMonthsDelay = Math.floor(monthShiftFloat);
     const fractionalRemainder = monthShiftFloat - wholeMonthsDelay;
@@ -1463,9 +1527,13 @@ export function ModuleJWorkspace({
       const sameIdx = i - wholeMonthsDelay;
       const prevIdx = i - wholeMonthsDelay - 1;
       const fromSame =
-        sameIdx >= 0 ? rawMonths[sameIdx].invoicedRevenue * (1 - fractionalRemainder) : 0;
+        sameIdx >= 0
+          ? revCash36.cashBilledBeforeDebtorLagByMonth[sameIdx] * (1 - fractionalRemainder)
+          : 0;
       const fromPrev =
-        prevIdx >= 0 ? rawMonths[prevIdx].invoicedRevenue * fractionalRemainder : 0;
+        prevIdx >= 0
+          ? revCash36.cashBilledBeforeDebtorLagByMonth[prevIdx] * fractionalRemainder
+          : 0;
       rawMonths[i].cashCollected = Math.round(fromSame + fromPrev);
     }
 
@@ -1536,7 +1604,7 @@ export function ModuleJWorkspace({
         row.oneOffCapExAndStockOutflow;
 
       row.netOperatingCashflow = row.cashCollected - totalOutflowBeforeDebt;
-      runningOperatingCash += row.netOperatingCashflow;
+      runningOperatingCash += row.netOperatingCashflow - row.loanRepaymentOutflow;
       row.operatingCashBalance = runningOperatingCash;
 
       if (runningOperatingCash < operatingCashTroughAmount) {
@@ -1547,7 +1615,7 @@ export function ModuleJWorkspace({
       if (
         cashflowPositiveMonth === null &&
         row.month >= startMonth &&
-        row.netOperatingCashflow > 0
+        row.netOperatingCashflow - row.loanRepaymentOutflow > 0
       ) {
         cashflowPositiveMonth = row.month;
       }
@@ -1579,7 +1647,11 @@ export function ModuleJWorkspace({
       upfrontNonArrearsFunding +
       reimbursedGrantTotal;
 
-    const fundingSurplusOrDeficit = totalStackedFunding - recommendedCapitalRaise;
+    const rawStackDiff = totalStackedFunding - recommendedCapitalRaise;
+    const fundingSurplusOrDeficit =
+      lowestFundedBankBalance < 0
+        ? Math.min(rawStackDiff, lowestFundedBankBalance)
+        : rawStackDiff;
 
     // Aggregate into 12 Quarters (Q1..Q12) for visual chart and table
     const quarterlySchedule: Array<{
@@ -1762,20 +1834,32 @@ export function ModuleJWorkspace({
       fundedBankBalance: number;
     }> = [];
 
+    const stressedCustomers36: number[] = [];
+    for (let m = 1; m <= 36; m++) {
+      const year: 1 | 2 | 3 = m <= 12 ? 1 : m <= 24 ? 2 : 3;
+      const monthIdxInYear = (m - 1) % 12;
+      const weight = rampOpt.monthlyWeights[monthIdxInYear] ?? 1.0;
+      const baseCustomers =
+        year === 1 ? avgY1Customers : year === 2 ? avgY2Customers : avgY3Customers;
+      stressedCustomers36.push(
+        m < stressedStartMonth
+          ? 0
+          : Math.max(1, Math.round(baseCustomers * weight * revMultiplier))
+      );
+    }
+
+    const stressedRevCash36 = computeAccrualVsInvoicedCashSchedule(
+      stressedCustomers36,
+      netPrice,
+      upstreamBaseline
+    );
+
     for (let m = 1; m <= 36; m++) {
       const year: 1 | 2 | 3 = m <= 12 ? 1 : m <= 24 ? 2 : 3;
       const quarter = Math.ceil(m / 3);
-      const monthIdxInYear = (m - 1) % 12;
-      const weight = rampOpt.monthlyWeights[monthIdxInYear] ?? 1.0;
+      const rawCustomers = stressedCustomers36[m - 1];
 
-      const baseCustomers =
-        year === 1 ? avgY1Customers : year === 2 ? avgY2Customers : avgY3Customers;
-      const rawCustomers =
-        m < stressedStartMonth
-          ? 0
-          : Math.max(1, Math.round(baseCustomers * weight * revMultiplier));
-
-      const invoicedRevenue = Math.round(rawCustomers * netPrice);
+      const invoicedRevenue = stressedRevCash36.accrualRevenueByMonth[m - 1];
       const directCogsOutflow = Math.round(rawCustomers * unitCogs * costMultiplier);
 
       const baseFixedOpEx =
@@ -1790,16 +1874,17 @@ export function ModuleJWorkspace({
         year === 1
           ? step1Metrics.totalMonthlyPayrollAndDrawingsY1
           : year === 2
-          ? (Number(step1Data.monthlyFounderDrawingsYear1) || 0) +
+          ? step1Metrics.monthlyFounderDrawingsY2 +
             (Number(step1Data.monthlyTeamSalariesYear2) || 0) +
             step1Metrics.monthlyEmployerTaxY2
-          : (Number(step1Data.monthlyFounderDrawingsYear1) || 0) +
+          : step1Metrics.monthlyFounderDrawingsY3 +
             (Number(step1Data.monthlyTeamSalariesYear3) || 0) +
             step1Metrics.monthlyEmployerTaxY3;
 
       const oneOffCapExAndStockOutflow =
         m === 1
           ? (Number(step1Data.totalCapExEquipmentValue) || 0) +
+            upstreamBaseline.oneOffBuildCost +
             step2Metrics.upfrontStockCashLockup
           : 0;
 
@@ -1821,7 +1906,7 @@ export function ModuleJWorkspace({
       });
     }
 
-    // Apply Debtor Days Lag across all 36 stressed months
+    // Apply Debtor Days Lag across all 36 stressed months of billed cohort invoices
     const monthShiftFloat = step2Metrics.effectiveDebtorDays / 30;
     const wholeMonthsDelay = Math.floor(monthShiftFloat);
     const fractionalRemainder = monthShiftFloat - wholeMonthsDelay;
@@ -1831,10 +1916,14 @@ export function ModuleJWorkspace({
       const prevIdx = i - wholeMonthsDelay - 1;
       const fromSame =
         sameIdx >= 0
-          ? stressedMonths[sameIdx].invoicedRevenue * (1 - fractionalRemainder)
+          ? stressedRevCash36.cashBilledBeforeDebtorLagByMonth[sameIdx] *
+            (1 - fractionalRemainder)
           : 0;
       const fromPrev =
-        prevIdx >= 0 ? stressedMonths[prevIdx].invoicedRevenue * fractionalRemainder : 0;
+        prevIdx >= 0
+          ? stressedRevCash36.cashBilledBeforeDebtorLagByMonth[prevIdx] *
+            fractionalRemainder
+          : 0;
       stressedMonths[i].cashCollected = Math.round(fromSame + fromPrev);
     }
 
@@ -2072,8 +2161,8 @@ export function ModuleJWorkspace({
             : 'Grant Reimbursement Arrears Timing vs. Upfront Working Capital',
         severity: step4Metrics.lowestStressedBankBalance < 0 ? 'CRITICAL' : 'WARNING',
         description: isUK
-          ? `Innovate UK and Start Up Loans disburse funds in arrears or scheduled tranches. With ${currencySymbol}${step1Metrics.totalMonthlyBurnY1.toLocaleString()}/mo in Year 1 burn and ${step2Metrics.effectiveDebtorDays}-day customer payment terms, your pre-funding cash trough reaches -${currencySymbol}${step3Metrics.operatingCashTroughAmount.toLocaleString()} in Month ${step3Metrics.operatingCashTroughMonth}.`
-          : `Irish LEO Priming/Feasibility grants reimburse vouched receipts in arrears ONLY after you spend the cash first. With ${currencySymbol}${step1Metrics.totalMonthlyBurnY1.toLocaleString()}/mo in Year 1 burn and ${step2Metrics.effectiveDebtorDays}-day debtor terms, your pre-funding cash trough reaches -${currencySymbol}${step3Metrics.operatingCashTroughAmount.toLocaleString()} in Month ${step3Metrics.operatingCashTroughMonth}.`,
+          ? `Innovate UK and Start Up Loans disburse funds in arrears or scheduled tranches. With ${currencySymbol}${step1Metrics.totalMonthlyBurnY1.toLocaleString()}/mo in Year 1 burn and ${step2Metrics.effectiveDebtorDays}-day customer payment terms, your pre-funding cash trough reaches -${currencySymbol}${Math.abs(step3Metrics.operatingCashTroughAmount).toLocaleString()} in Month ${step3Metrics.operatingCashTroughMonth}.`
+          : `Irish LEO Priming/Feasibility grants reimburse vouched receipts in arrears ONLY after you spend the cash first. With ${currencySymbol}${step1Metrics.totalMonthlyBurnY1.toLocaleString()}/mo in Year 1 burn and ${step2Metrics.effectiveDebtorDays}-day debtor terms, your pre-funding cash trough reaches -${currencySymbol}${Math.abs(step3Metrics.operatingCashTroughAmount).toLocaleString()} in Month ${step3Metrics.operatingCashTroughMonth}.`,
         actionableFix: step4Metrics.isSolventUnderStress
           ? `Maintain your ${currencySymbol}${step3Metrics.totalStackedFunding.toLocaleString()} capital stack in Step 3 so your lowest stressed bank balance stays positive (+${currencySymbol}${step4Metrics.lowestStressedBankBalance.toLocaleString()} in Month ${step4Metrics.lowestStressedMonth}).`
           : `Increase upfront non-arrears bridge funding (founder equity or ${isUK ? 'Start Up Loan' : 'Microfinance Ireland loan'}) by at least ${currencySymbol}${Math.abs(step4Metrics.lowestStressedBankBalance).toLocaleString()} in Step 3.`,
@@ -2120,7 +2209,7 @@ export function ModuleJWorkspace({
         step2Metrics.effectiveDebtorDays
       }-day customer payment collection lags (${currencySymbol}${step2Metrics.peakWorkingCapitalLockup.toLocaleString()} peak working capital lockup), and grant reimbursement arrears. The resulting Month ${
         step3Metrics.operatingCashTroughMonth
-      } pre-funding cash trough of -${currencySymbol}${step3Metrics.operatingCashTroughAmount.toLocaleString()} is bridged by ${currencySymbol}${step3Metrics.totalStackedFunding.toLocaleString()} in stacked funding, maintaining a lowest stressed bank balance of ${currencySymbol}${step4Metrics.lowestStressedBankBalance.toLocaleString()} in Month ${
+      } pre-funding cash trough of -${currencySymbol}${Math.abs(step3Metrics.operatingCashTroughAmount).toLocaleString()} is bridged by ${currencySymbol}${step3Metrics.totalStackedFunding.toLocaleString()} in stacked funding, maintaining a lowest stressed bank balance of ${currencySymbol}${step4Metrics.lowestStressedBankBalance.toLocaleString()} in Month ${
         step4Metrics.lowestStressedMonth
       }.`,
       aiAssessorTip: isUK
@@ -2625,6 +2714,9 @@ export function ModuleJWorkspace({
     try {
       const updatedStep3: CashflowFundingGapStep3Data = {
         ...step3Data,
+        recommendedCapitalRaise: step3Metrics.recommendedCapitalRaise,
+        operatingCashTroughAmount: step3Metrics.operatingCashTroughAmount,
+        lowestFundedBankBalance: step3Metrics.lowestFundedBankBalance,
         lastSavedAt: new Date().toISOString(),
       };
       await onSaveStep3CashflowGap?.(updatedStep3, 75);

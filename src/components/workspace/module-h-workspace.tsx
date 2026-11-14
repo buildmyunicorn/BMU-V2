@@ -74,6 +74,13 @@ import {
   generateSalesAssumptionsNarrativeAction,
   generateModuleHRevenueBriefAction,
 } from '@/app/actions/module-h';
+import {
+  computeModuleFCompensationSchedule,
+  extractModuleDCosts,
+  extractModuleECosts,
+  getCadenceMonthsMultiplier,
+  normalizePriceToMonthlyAccrualNet,
+} from '@/lib/finance/cross-module-normalizer';
 
 interface ModuleHWorkspaceProps {
   plan: ActiveStartupPlan;
@@ -291,14 +298,19 @@ export function ModuleHWorkspace({
     };
   });
 
-  // Calculate blended average order value net of tax
+  // Calculate blended monthly accrual net revenue per customer (ANNUAL / 12, QUARTERLY / 3, MONTHLY / 1)
   const calculateBlendedAverage = (tiers: PricingTierItem[]): number => {
     if (tiers.length === 0) return 0;
     const totalMix = tiers.reduce((sum, t) => sum + (Number(t.salesMixPercent) || 0), 0);
-    if (totalMix === 0) return tiers[0].priceNetOfTax || 0;
+    const getMonthlyNetForTier = (t: PricingTierItem) =>
+      normalizePriceToMonthlyAccrualNet(
+        Number(t.priceNetOfTax) || 0,
+        t.billingFrequency || step1Data.billingCadenceDefault
+      );
+    if (totalMix === 0) return getMonthlyNetForTier(tiers[0]);
 
     const weightedSum = tiers.reduce(
-      (sum, t) => sum + (Number(t.priceNetOfTax) || 0) * (Number(t.salesMixPercent) || 0),
+      (sum, t) => sum + getMonthlyNetForTier(t) * (Number(t.salesMixPercent) || 0),
       0
     );
     return Math.round((weightedSum / totalMix) * 100) / 100;
@@ -310,21 +322,30 @@ export function ModuleHWorkspace({
     0
   );
 
-  // Blended average gross sticker price (including VAT/tax) across tiers
+  // Blended monthly gross sticker price (including VAT/tax, normalized to monthly equivalent)
   const calculateBlendedGrossAverage = (tiers: PricingTierItem[]): number => {
     if (tiers.length === 0) return 0;
     const totalMix = tiers.reduce((sum, t) => sum + (Number(t.salesMixPercent) || 0), 0);
-    const getGrossForTier = (t: PricingTierItem) => {
+    const getMonthlyGrossForTier = (t: PricingTierItem) => {
       const taxRate = t.taxRatePercent ?? defaultVatRate;
-      if (t.priceGross !== undefined && t.priceGross > 0) return t.priceGross;
+      const cadenceMult = getCadenceMonthsMultiplier(
+        t.billingFrequency || step1Data.billingCadenceDefault
+      );
+      if (t.priceGross !== undefined && t.priceGross > 0) {
+        return Math.round((t.priceGross / cadenceMult) * 100) / 100;
+      }
       if (t.priceNetOfTax > 0) {
-        return Math.round(t.priceNetOfTax * (1 + taxRate / 100) * 100) / 100;
+        return (
+          Math.round(
+            ((t.priceNetOfTax * (1 + taxRate / 100)) / cadenceMult) * 100
+          ) / 100
+        );
       }
       return 0;
     };
-    if (totalMix === 0) return getGrossForTier(tiers[0]);
+    if (totalMix === 0) return getMonthlyGrossForTier(tiers[0]);
     const weightedSum = tiers.reduce(
-      (sum, t) => sum + getGrossForTier(t) * (Number(t.salesMixPercent) || 0),
+      (sum, t) => sum + getMonthlyGrossForTier(t) * (Number(t.salesMixPercent) || 0),
       0
     );
     return Math.round((weightedSum / totalMix) * 100) / 100;
@@ -339,70 +360,55 @@ export function ModuleHWorkspace({
   // -------------------------------------------------------------
   // STEP 3 STATE: POCKET PROFIT & 3-YEAR BREAKEVEN ENGINE
   // -------------------------------------------------------------
-  // 1. Auto-pull canonical payroll & survival budgets from Module F
+  // 1. Auto-pull canonical payroll & survival budgets from Module F (with per-founder PAYE offset, quarter pro-rata & 0% contractor tax)
   const modFData = plan.moduleFData;
-  const modFStep3 = modFData?.step3SurvivalBudgetData;
   const modFStep5 = modFData?.step5HiringPlanData;
-
-  const canonicalSurvivalMonthly = (() => {
-    if (modFStep3?.founderBudgets?.length) {
-      const total = modFStep3.founderBudgets.reduce((sum, b) => {
-        const core =
-          (Number(b.housingAndUtilities) || 0) +
-          (Number(b.groceriesAndEssentials) || 0) +
-          (Number(b.transportAndCommute) || 0) +
-          (Number(b.debtAndLoanCommitments) || 0) +
-          (Number(b.dependentsAndFamily) || 0);
-        return sum + Math.max(0, core - (Number(b.incomeOffsetCushion) || 0));
-      }, 0);
-      if (total > 0) return Math.round(total);
-    }
-    return 2500;
-  })();
+  const modFComp = computeModuleFCompensationSchedule(modFData, selectedCountry);
+  const canonicalSurvivalMonthly = modFComp.canonicalMonthlySurvivalTotal;
 
   const canonicalHiringPayroll = (() => {
-    let y1Annual = 0;
-    let y2Annual = 0;
-    let y3Annual = 0;
-    if (modFStep5?.roles?.length) {
-      for (const role of modFStep5.roles) {
-        if (role.compensationModel === 'PURE_SWEAT_EQUITY' || role.compensationModel === 'ADVISORY_EQUITY') {
-          continue;
-        }
-        const gross = Number(role.grossAnnualSalary) || 0;
-        const employerTaxRate = selectedCountry === 'GB' ? 0.138 : 0.1105; // UK NIC vs IE PRSI
-        const loaded = gross * (1 + employerTaxRate);
-        if (role.yearScheduled <= 1) y1Annual += loaded;
-        if (role.yearScheduled <= 2) y2Annual += loaded;
-        if (role.yearScheduled <= 3) y3Annual += loaded;
-      }
-    }
-    const c1 = Number(modFStep5?.contractorBudgetYear1) || 0;
-    const c2 = Number(modFStep5?.contractorBudgetYear2) || 0;
-    const c3 = Number(modFStep5?.contractorBudgetYear3) || 0;
-
-    const y1Mo = Math.round((y1Annual + c1) / 12) || canonicalSurvivalMonthly;
-    const y2Mo = Math.round((y2Annual + c2) / 12) || Math.round(y1Mo * 2.2);
-    const y3Mo = Math.round((y3Annual + c3) / 12) || Math.round(y1Mo * 3.8);
+    const y1Mo = modFComp.years[1].monthlyTotalCompensationAvg || canonicalSurvivalMonthly;
+    const y2Mo =
+      modFComp.years[2].monthlyTotalCompensationAvg > 0 &&
+      (modFComp.hasExplicitHiringRoles || modFComp.years[2].monthlyTotalCompensationAvg !== y1Mo)
+        ? modFComp.years[2].monthlyTotalCompensationAvg
+        : Math.round(y1Mo * 1.8);
+    const y3Mo =
+      modFComp.years[3].monthlyTotalCompensationAvg > 0 &&
+      (modFComp.hasExplicitHiringRoles || modFComp.years[3].monthlyTotalCompensationAvg !== y1Mo)
+        ? modFComp.years[3].monthlyTotalCompensationAvg
+        : Math.round(y1Mo * 2.8);
 
     return { y1Mo, y2Mo, y3Mo, hasModFRoles: Boolean(modFStep5?.roles?.length) };
   })();
 
-  // 2. Auto-pull channel fee % from Module D Step 2
-  const defaultGatewayPercent =
-    moduleDChannelMatrix?.estimatedBlendedFeePercent !== undefined
-      ? Number(moduleDChannelMatrix.estimatedBlendedFeePercent)
-      : 2.0;
+  // 2. Auto-pull costs & channel fees from Module D & Module E
+  const modDCosts = extractModuleDCosts(plan.moduleDData);
+  const modECosts = extractModuleECosts(plan.moduleEData);
 
-  // 3. Auto-pull baseline monthly overheads from Module E (premises/equipment)
+  const defaultGatewayPercent =
+    modDCosts.channelBlendedFeePercent !== null
+      ? modDCosts.channelBlendedFeePercent
+      : moduleDChannelMatrix?.estimatedBlendedFeePercent !== undefined
+        ? Number(moduleDChannelMatrix.estimatedBlendedFeePercent)
+        : 2.0;
+
+  // 3. Auto-pull baseline monthly overheads from Module D (tech stack) & Module E (premises, leased equipment, insurance)
   const defaultFixedOverheads = (() => {
-    const modEPremises = plan.moduleEData?.premisesAndEquipment;
-    const rent = Number((modEPremises as any)?.monthlyRentOrFee) || 0;
-    return rent > 0 ? rent + 250 : 350; // e.g., software stack, accounting, insurance baseline
+    const rentAndLeased = modECosts.monthlyPremisesCost + modECosts.monthlyLeasedEquipmentCost;
+    const techStack = modDCosts.hasExplicitTechStackCosts ? modDCosts.monthlyTechStackCost : 120;
+    const insurance = modECosts.monthlyInsuranceCost ?? 60;
+    const accountingAndAdmin = 140;
+    return Math.max(150, Math.round(rentAndLeased + techStack + insurance + accountingAndAdmin));
   })();
 
-  // Default direct variable cost per sale benchmark (10% of net price or €4 minimum)
-  const defaultVariableCogs = Math.max(2, Math.round(blendedAveragePrice * 0.12 * 100) / 100);
+  // 4. Auto-pull direct variable unit COGS from Module D (PER_UNIT_COGS) + Module E (order lifecycle stages)
+  const upstreamExplicitUnitCogs =
+    Math.round((modDCosts.unitBuildCogs + modECosts.unitOrderFulfillmentCost) * 100) / 100;
+  const defaultVariableCogs =
+    upstreamExplicitUnitCogs > 0
+      ? upstreamExplicitUnitCogs
+      : Math.max(2, Math.round(blendedAveragePrice * 0.12 * 100) / 100);
 
   const [step3Data, setStep3Data] = useState<BreakevenCalculatorStep3Data>(() => {
     const existing = plan.moduleHData?.step3BreakevenCalculator;
@@ -505,11 +511,19 @@ export function ModuleHWorkspace({
   const simulatedGrossStickerPrice =
     Math.round((simulatedNetPrice + simulatedVatAmount) * 100) / 100;
 
-  // Per-sale friction deductions
+  // Per-sale friction deductions (Stripe % applies to VAT-inclusive gross checkout amount; fixed cents prorated across billing cadence)
+  const dominantCadenceMult = getCadenceMonthsMultiplier(
+    step2Data.tiers.find((t) => t.isRecommendedDefault)?.billingFrequency ||
+      step2Data.tiers[0]?.billingFrequency ||
+      step1Data.billingCadenceDefault
+  );
   const gatewayFeeAmount =
     Math.round(
-      (simulatedNetPrice * ((step3Data.frictionCosts.paymentGatewayPercent || 0) / 100) +
-        (step3Data.frictionCosts.paymentGatewayFixedCents || 0) / 100) *
+      (simulatedGrossStickerPrice *
+        ((step3Data.frictionCosts.paymentGatewayPercent || 0) / 100) +
+        (step3Data.frictionCosts.paymentGatewayFixedCents || 0) /
+          100 /
+          dominantCadenceMult) *
         100
     ) / 100;
 

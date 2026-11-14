@@ -1,15 +1,19 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db, planModulesData } from '@/db';
 import type {
   ActiveStartupPlan,
   SavedCustomPortalQuestion,
   SavedGrantApplicationTracker,
+  SavedGrantCenterData,
+  SavedModuleBData,
+  SavedModuleCData,
+  SavedModuleDData,
+  SavedModuleEData,
   SavedModuleFData,
   SavedModuleHData,
   SavedModuleJData,
-  SavedModuleKData,
   SavedModuleLData,
 } from '@/lib/auth/session-store';
 import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
@@ -17,7 +21,14 @@ import {
   authorizeAndPrepareGeminiCall,
   getGenAiClient,
   recordGeminiUsageAndIncrementCredits,
+  refundSettledGeminiCredit,
 } from '@/lib/ai/router';
+import {
+  computeDeterministicPlanFinancialSummary,
+  computeModuleFCompensationSchedule,
+  computeModuleHBlendedPricing,
+  matchRoleToExistingFounder,
+} from '@/lib/finance/cross-module-normalizer';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -27,7 +38,11 @@ export interface AnswerQuestionFromPlanParams {
   questionText: string;
   grantSlug?: string;
   targetLength: 'SHORT' | 'STANDARD' | 'DETAILED';
-  assessorLens: 'ECONOMIC_EXPORT' | 'R_AND_D_INNOVATION' | 'UNDERWRITING_REPAYMENT' | 'COMMERCIAL_INVESTOR';
+  assessorLens:
+    | 'ECONOMIC_EXPORT'
+    | 'R_AND_D_INNOVATION'
+    | 'UNDERWRITING_REPAYMENT'
+    | 'COMMERCIAL_INVESTOR';
   planSnapshot: ActiveStartupPlan;
 }
 
@@ -43,6 +58,7 @@ interface ExtractedPlanMetrics {
   oneLiner: string;
   targetCustomer: string;
   problem: string;
+  hasConceptCanvas: boolean;
   currentFTE: number;
   y1NewFTE: number;
   y2NewFTE: number;
@@ -50,11 +66,15 @@ interface ExtractedPlanMetrics {
   y1TotalStaff: number;
   y2TotalStaff: number;
   y3TotalStaff: number;
+  hasPromoterBio: boolean;
   promoterName: string;
   promoterBio: string;
+  monthlySurvivalFormatted: string;
+  hasHiringRoles: boolean;
   y1RoleTitles: string[];
   y2RoleTitles: string[];
   y3RoleTitles: string[];
+  hasFinancialInputs: boolean;
   y1Turnover: string;
   y2Turnover: string;
   y3Turnover: string;
@@ -62,126 +82,269 @@ interface ExtractedPlanMetrics {
   y2Profit: string;
   troughAmount: string;
   breakevenUnits: string;
+  grossMarginPercent: number;
   pricingSummary: string;
+  hasPricingData: boolean;
   currency: string;
+  currSym: string;
+  hasMarketData: boolean;
   beachhead: string;
   competitors: string;
   wedge: string;
   exportPosture: string;
   surveyCount: number;
   interviewCount: number;
+  hasValidationData: boolean;
+  hasWorkPackages: boolean;
+  formFactor: string;
   workPackagesSummary: string;
+  riskSummary: string;
+  equipmentSummary: string;
 }
 
 function extractKeyMetrics(
-  planInput: any,
-  modFOverride?: any,
-  modJOverride?: any,
-  modHOverride?: any,
-  modLOverride?: any,
-  modBOverride?: any,
-  modCOverride?: any,
-  modDOverride?: any,
-  modEOverride?: any
+  planInput?: Partial<ActiveStartupPlan> | null,
+  modFOverride?: SavedModuleFData | null,
+  modJOverride?: SavedModuleJData | null,
+  modHOverride?: SavedModuleHData | null,
+  _modLOverride?: SavedModuleLData | null,
+  modBOverride?: SavedModuleBData | null,
+  modCOverride?: SavedModuleCData | null,
+  modDOverride?: SavedModuleDData | null,
+  modEOverride?: SavedModuleEData | null
 ): ExtractedPlanMetrics {
   const plan = planInput || {};
-  const title = plan.title || 'Our Venture';
+  const title = plan.title?.trim() || 'Our Venture';
   const oneLiner =
-    plan.oneLinerSummary ||
-    plan.conceptCanvas?.proposedSolution ||
-    'innovative venture';
-  const targetCustomer =
-    plan.conceptCanvas?.targetCustomer || 'target market';
-  const problem =
-    plan.conceptCanvas?.coreProblem || 'addressing an acute customer friction';
+    plan.oneLinerSummary?.trim() ||
+    plan.conceptCanvas?.proposedSolution?.trim() ||
+    '';
+  const targetCustomer = plan.conceptCanvas?.targetCustomer?.trim() || '';
+  const problem = plan.conceptCanvas?.coreProblem?.trim() || '';
+  const hasConceptCanvas = Boolean(oneLiner || targetCustomer || problem);
 
   const currency = plan.baseCurrency || 'EUR';
-  const currSym = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : '€';
+  const currSym =
+    currency === 'GBP'
+      ? '£'
+      : currency === 'USD'
+        ? '$'
+        : currency === 'AUD'
+          ? 'A$'
+          : currency === 'CAD'
+            ? 'C$'
+            : '€';
+  const country = (plan.hqCountryCode || 'IE').toUpperCase();
 
-  // Module F data
+  // Module F data (real schema fields)
   const modF = modFOverride || plan.moduleFData;
   const promoters = modF?.promoterProfiles?.teamMembers || [];
-  const leadPromoter = promoters[0]?.fullName || 'Thomas Walsh';
+  const leadPromoter = promoters[0]?.fullName?.trim() || 'Lead Founder';
+  const rawBio = promoters[0]?.compiled150WordNarrative?.trim() || '';
+  const hasPromoterBio = rawBio.length > 0;
   const promoterBio =
-    promoters[0]?.compiled150WordNarrative ||
-    'Experienced software engineer and technical architect with 8+ years building enterprise web applications, certified graduate of the LEO Start Your Own Business programme with full in-house product execution capability.';
+    rawBio || 'Promoter 150-word biography not yet recorded in Module F Step 1.';
 
-  const currentFTE = Number(modF?.step5HiringPlanData?.currentFullTime) || (promoters.length ? promoters.length : 1);
-  const y1NewFTE = Number(modF?.step5HiringPlanData?.year1NewFullTime) || 1;
-  const y2NewFTE = Number(modF?.step5HiringPlanData?.year2NewFullTime) || 2;
-  const y3NewFTE = Number(modF?.step5HiringPlanData?.year3NewFullTime) || 2;
+  const compSchedule = computeModuleFCompensationSchedule(modF, country);
+  const monthlySurvivalFormatted = compSchedule.hasExplicitSurvivalBudgets
+    ? `${currSym}${compSchedule.canonicalMonthlySurvivalTotal.toLocaleString()}/month`
+    : 'Not yet recorded in Module F Step 3';
 
-  const y1TotalStaff = currentFTE + y1NewFTE;
-  const y2TotalStaff = currentFTE + y1NewFTE + y2NewFTE;
-  const y3TotalStaff = currentFTE + y1NewFTE + y2NewFTE + y3NewFTE;
+  const founderCountFte =
+    promoters.length > 0
+      ? promoters.reduce((sum, m) => {
+          if (
+            m.roleClassification === 'ADVISOR_BOARD' ||
+            m.roleClassification === 'FRACTIONAL_EXECUTIVE'
+          ) {
+            return sum;
+          }
+          if (
+            m.weeklyCommitment === 'PART_TIME_20_TO_30H' ||
+            m.weeklyCommitment === 'EVENING_WEEKEND_10_TO_15H'
+          ) {
+            return sum + 0.5;
+          }
+          return sum + 1;
+        }, 0)
+      : 1;
 
-  const allRoles: any[] = [
-    ...(modF?.step5HiringPlanData?.roles || []),
-    ...(modF?.step5HiringPlanData?.rolesToHire || []),
-  ];
+  const allRoles = modF?.step5HiringPlanData?.roles || [];
+  const founderBudgets = modF?.step3SurvivalBudgetData?.founderBudgets || [];
 
+  let y1NewFTE = 0;
+  let y2NewFTE = 0;
+  let y3NewFTE = 0;
   const y1RoleTitles: string[] = [];
   const y2RoleTitles: string[] = [];
   const y3RoleTitles: string[] = [];
 
   for (const r of allRoles) {
-    const yr = Number(r.yearScheduled || r.year);
-    const titleStr = r.title || r.roleTitle;
-    const salaryStr = r.grossAnnualSalary || r.salaryGross ? ` (${currSym}${Number(r.grossAnnualSalary || r.salaryGross).toLocaleString()})` : '';
+    const match = matchRoleToExistingFounder(r, promoters, founderBudgets);
+    if (match.isExistingFounder) {
+      continue;
+    }
+    const yr = Number(r.yearScheduled);
+    const fteVal =
+      r.employmentMode === 'FULL_TIME'
+        ? 1
+        : r.employmentMode === 'PART_TIME'
+          ? 0.5
+          : 0;
+    if (yr === 1) y1NewFTE += fteVal;
+    if (yr === 2) y2NewFTE += fteVal;
+    if (yr === 3) y3NewFTE += fteVal;
+
+    const titleStr = r.title?.trim();
     if (!titleStr) continue;
+    const salaryStr =
+      (Number(r.grossAnnualSalary) || 0) > 0
+        ? ` (${currSym}${Number(r.grossAnnualSalary).toLocaleString()})`
+        : '';
     const formatted = `${titleStr}${salaryStr}`;
     if (yr === 1 && !y1RoleTitles.includes(formatted)) y1RoleTitles.push(formatted);
     if (yr === 2 && !y2RoleTitles.includes(formatted)) y2RoleTitles.push(formatted);
     if (yr === 3 && !y3RoleTitles.includes(formatted)) y3RoleTitles.push(formatted);
   }
 
-  // Module J / H Financials
+  const currentFTE = Math.max(0.5, founderCountFte);
+  const y1TotalStaff = currentFTE + y1NewFTE;
+  const y2TotalStaff = currentFTE + y1NewFTE + y2NewFTE;
+  const y3TotalStaff = currentFTE + y1NewFTE + y2NewFTE + y3NewFTE;
+
+  // Module H & J real financials
   const modJ = modJOverride || plan.moduleJData;
   const modH = modHOverride || plan.moduleHData;
-  const y1Turnover = modJ?.projections?.year1Revenue ? `${currSym}${Number(modJ.projections.year1Revenue).toLocaleString()}` : `${currSym}68,400`;
-  const y2Turnover = modJ?.projections?.year2Revenue ? `${currSym}${Number(modJ.projections.year2Revenue).toLocaleString()}` : `${currSym}248,000`;
-  const y3Turnover = modJ?.projections?.year3Revenue ? `${currSym}${Number(modJ.projections.year3Revenue).toLocaleString()}` : `${currSym}620,000`;
-  const y1Profit = modJ?.projections?.year1OperatingProfit ? `${currSym}${Number(modJ.projections.year1OperatingProfit).toLocaleString()}` : `${currSym}24,200`;
-  const y2Profit = modJ?.projections?.year2OperatingProfit ? `${currSym}${Number(modJ.projections.year2OperatingProfit).toLocaleString()}` : `${currSym}96,000`;
-  const troughAmount = modJ?.cashflowTrough?.maxTrough ? `${currSym}${Number(modJ.cashflowTrough.maxTrough).toLocaleString()}` : `${currSym}11,800`;
+  const modD = modDOverride || plan.moduleDData;
+  const modE = modEOverride || plan.moduleEData;
 
-  const breakevenUnits = modH?.step3BreakevenCalculator?.activeCustomerSlider
-    ? `${modH.step3BreakevenCalculator.activeCustomerSlider} units/month`
-    : '19 passes/month';
+  const finSummary = computeDeterministicPlanFinancialSummary(plan, {
+    modD,
+    modE,
+    modF,
+    modH,
+    modJ,
+  });
 
-  const pricingSummary = modH?.step1RevenueModel?.pricingTiers
-    ? modH.step1RevenueModel.pricingTiers.map((t: any) => `${t.name}: ${currSym}${t.price}`).join(', ')
-    : 'Solo Pass (€79) / Co-Founder Pass (€129) / Micro-Subscription (€7/mo)';
+  const defaultVat = country === 'GB' ? 20 : 23;
+  const blendedPricing = computeModuleHBlendedPricing(modH, defaultVat);
+  const tiers = modH?.step2PricingTiers?.tiers || [];
+  const hasPricingData = Boolean(
+    tiers.length > 0 || modH?.step3BreakevenCalculator?.activePriceSlider
+  );
+
+  const pricingSummary =
+    tiers.length > 0
+      ? tiers
+          .map((t) => {
+            const cadenceSuffix =
+              t.billingFrequency === 'ANNUAL'
+                ? '/yr'
+                : t.billingFrequency === 'ONE_OFF'
+                  ? ' one-off'
+                  : '/mo';
+            return `${t.name}: ${currSym}${t.priceNetOfTax}${cadenceSuffix}`;
+          })
+          .join(', ')
+      : hasPricingData
+        ? `${currSym}${blendedPricing.effectiveMonthlyAccrualNetPrice}/mo`
+        : 'Pricing tiers not yet recorded in Module H';
+
+  const y1Turnover = finSummary.hasFinancialInputs
+    ? `${currSym}${finSummary.year1Revenue.toLocaleString()}`
+    : 'Not yet modeled in Module J';
+  const y2Turnover = finSummary.hasFinancialInputs
+    ? `${currSym}${finSummary.year2Revenue.toLocaleString()}`
+    : 'Not yet modeled in Module J';
+  const y3Turnover = finSummary.hasFinancialInputs
+    ? `${currSym}${finSummary.year3Revenue.toLocaleString()}`
+    : 'Not yet modeled in Module J';
+  const y1Profit = finSummary.hasFinancialInputs
+    ? `${currSym}${finSummary.year1OperatingProfit.toLocaleString()}`
+    : 'Not yet modeled in Module J';
+  const y2Profit = finSummary.hasFinancialInputs
+    ? `${currSym}${finSummary.year2OperatingProfit.toLocaleString()}`
+    : 'Not yet modeled in Module J';
+  const troughAmount = finSummary.hasFinancialInputs
+    ? `${currSym}${finSummary.peakCashflowTrough.toLocaleString()}`
+    : 'Not yet modeled in Module J';
+  const breakevenUnits =
+    finSummary.hasFinancialInputs && finSummary.breakevenMonthlyCustomers > 0
+      ? `${finSummary.breakevenMonthlyCustomers} customers/month`
+      : 'Not yet modeled in Module H';
 
   // Module B data
   const modB = modBOverride || plan.moduleBData;
-  const beachhead = modB?.beachhead?.beachheadSegment || 'Early-stage tech and grant-seeking founders in Ireland & UK';
-  const competitors = (modB?.competitorsAndStatusQuo?.competitors || []).map((c: any) => c.name).join(', ') || 'Traditional grant consultancies and fragmented Excel templates';
-  const wedge = modB?.competitiveWedge?.competitiveEdgeSummary || 'Opinionated, 12-module self-service operating system with automated blind-spot detection and instant portal answers';
-  const exportPosture = plan.exportPotential === 'EXPORTING_INTERNATIONALLY'
-    ? 'International B2B SaaS export model serving Ireland, UK, and European founders with zero local displacement'
-    : 'Domestic market focus';
+  const beachhead =
+    modB?.beachhead?.beachheadSegment?.trim() ||
+    targetCustomer ||
+    'Not yet recorded in Module B';
+  const competitorsList = (modB?.competitorsAndStatusQuo?.competitors || [])
+    .map((c) => c.name?.trim())
+    .filter(Boolean);
+  const competitors =
+    competitorsList.length > 0
+      ? competitorsList.join(', ')
+      : 'Not yet recorded in Module B';
+  const wedge =
+    (modB?.competitiveWedge as unknown as Record<string, string> | undefined)
+      ?.competitiveEdgeSummary?.trim() ||
+    plan.conceptCanvas?.unfairAdvantage?.trim() ||
+    'Not yet recorded in Module B';
+  const hasMarketData = Boolean(
+    modB?.beachhead?.beachheadSegment?.trim() || competitorsList.length > 0
+  );
+  const exportPosture =
+    plan.exportPotential === 'EXPORTING_INTERNATIONALLY'
+      ? `International export focus across ${(plan.targetMarketsArray || [country]).join(', ')}`
+      : `Domestic market focus (${country})`;
 
-  // Module C data
+  // Module C data — never fabricate survey/interview counts when 0
   const modC = modCOverride || plan.moduleCData;
   const surveyCount = (modC?.surveys || []).reduce(
-    (acc: number, s: any) => acc + (s.responses?.length || 0),
+    (acc, s) =>
+      acc +
+      (s.responses || []).filter((r) => !r.isSimulated).length,
     0
-  ) || 8;
-  const interviewCount = (modC?.interviewLogs?.length || 0) || 3;
+  );
+  const interviewCount = (modC?.interviewLogs || []).length;
+  const hasValidationData = surveyCount > 0 || interviewCount > 0;
 
-  // Module D data
-  const modD = modDOverride || plan.moduleDData;
+  // Module D & E data
   const wpList = modD?.workPackagesAndFlow?.workPackages || [];
-  const workPackagesSummary = wpList.length > 0
-    ? wpList.map((w: any) => `${w.id || 'WP'}: ${w.title}`).join(', ')
-    : 'WP1: Core Extraction Engine, WP2: Pocket Profit Breakeven Model, WP3: LEO/Innovate UK Rules Engine, WP4: Pre-Flight Audit Compiler';
+  const hasWorkPackages = wpList.length > 0;
+  const formFactor =
+    (modD?.productVehicle as unknown as Record<string, string> | undefined)
+      ?.formFactor || 'Not yet recorded in Module D';
+  const workPackagesSummary = hasWorkPackages
+    ? wpList
+        .map((w) => `${w.wpCode || w.id || 'WP'}: ${w.title}`)
+        .join('; ')
+    : 'Not yet recorded in Module D Step 5';
+
+  const riskItems = modE?.riskRegister?.riskItems || [];
+  const riskSummary =
+    riskItems.length > 0
+      ? riskItems
+          .slice(0, 4)
+          .map((r) => `${r.riskTitle} (Mitigation: ${r.mitigationAndContingencyPlan})`)
+          .join('; ')
+      : 'Not yet recorded in Module E Step 3';
+
+  const equipItems = modE?.premisesAndEquipment?.equipmentItems || [];
+  const equipmentSummary =
+    equipItems.length > 0
+      ? equipItems
+          .map((e) => `${e.assetName} (${currSym}${Number(e.totalCostExVat || 0).toLocaleString()})`)
+          .join(', ')
+      : 'No capital equipment items scheduled in Module E Step 2';
 
   return {
     title,
-    oneLiner,
-    targetCustomer,
-    problem,
+    oneLiner: oneLiner || 'Not yet recorded in Module A',
+    targetCustomer: targetCustomer || 'Not yet recorded in Module A',
+    problem: problem || 'Not yet recorded in Module A',
+    hasConceptCanvas,
     currentFTE,
     y1NewFTE,
     y2NewFTE,
@@ -189,11 +352,15 @@ function extractKeyMetrics(
     y1TotalStaff,
     y2TotalStaff,
     y3TotalStaff,
+    hasPromoterBio,
     promoterName: leadPromoter,
     promoterBio,
+    monthlySurvivalFormatted,
+    hasHiringRoles: y1RoleTitles.length + y2RoleTitles.length + y3RoleTitles.length > 0,
     y1RoleTitles,
     y2RoleTitles,
     y3RoleTitles,
+    hasFinancialInputs: finSummary.hasFinancialInputs,
     y1Turnover,
     y2Turnover,
     y3Turnover,
@@ -201,29 +368,38 @@ function extractKeyMetrics(
     y2Profit,
     troughAmount,
     breakevenUnits,
+    grossMarginPercent: finSummary.grossMarginPercent,
     pricingSummary,
+    hasPricingData,
     currency,
+    currSym,
+    hasMarketData,
     beachhead,
     competitors,
     wedge,
     exportPosture,
     surveyCount,
     interviewCount,
+    hasValidationData,
+    hasWorkPackages,
+    formFactor,
     workPackagesSummary,
+    riskSummary,
+    equipmentSummary,
   };
 }
 
 function buildDeterministicFallbackAnswer(
   params: AnswerQuestionFromPlanParams,
   dbOverrides?: {
-    modF?: any;
-    modJ?: any;
-    modH?: any;
-    modL?: any;
-    modB?: any;
-    modC?: any;
-    modD?: any;
-    modE?: any;
+    modF?: SavedModuleFData | null;
+    modJ?: SavedModuleJData | null;
+    modH?: SavedModuleHData | null;
+    modL?: SavedModuleLData | null;
+    modB?: SavedModuleBData | null;
+    modC?: SavedModuleCData | null;
+    modD?: SavedModuleDData | null;
+    modE?: SavedModuleEData | null;
   }
 ): SavedCustomPortalQuestion {
   const { questionText, targetLength, assessorLens, planSnapshot } = params;
@@ -242,8 +418,8 @@ function buildDeterministicFallbackAnswer(
 
   let answer = '';
   const citations: string[] = [];
+  const missingWarnings: string[] = [];
 
-  // 1. Primary Market Research & Customer Validation Intent
   if (
     /market\s*research|customer\s*validation|primary\s*research|survey|interview|evidence\s*of\s*demand|demonstrat.*demand|traction|proof|feedback|pilot|mom\s*test|validat/i.test(
       qLower
@@ -252,280 +428,115 @@ function buildDeterministicFallbackAnswer(
     citations.push('Module C (Customer Surveys & Validation Engine)');
     citations.push('Module B (Market Research & Beachhead)');
 
-    if (targetLength === 'SHORT') {
-      answer = `To validate real market demand, ${metrics.title} executed direct primary research using the 'Mom Test' methodology across two core channels: structured customer surveys (${metrics.surveyCount} validated founder responses) and ${metrics.interviewCount} deep 1-on-1 founder interviews. Key findings revealed that over 60% of applicants face severe grant rejections due to unverified unit economics and spreadsheet dread, with respondents confirming explicit willingness to pay for self-service preflight software (from ${metrics.pricingSummary}). This primary evidence directly validated customer willingness-to-pay and shaped our automated compliance roadmap.`;
+    if (!metrics.hasValidationData) {
+      missingWarnings.push(
+        'No primary survey responses or 1-on-1 customer interviews are recorded in Module C yet.'
+      );
+      answer = `Primary customer validation metrics are not yet recorded in ${metrics.title}'s plan for: "${questionText}".\n\nPlease log your customer discovery survey responses or 1-on-1 Mom Test interviews in Module C (Customer Surveys & Validation Engine) so we can cite verified respondent counts and willingness-to-pay evidence without guessing.`;
     } else {
-      answer = `We have conducted rigorous primary market research and direct customer validation to demonstrate strong commercial demand for ${metrics.title}:
-
-1. Structured Customer Surveys (${metrics.surveyCount} Validated Responses):
-We deployed targeted surveys to pre-seed, pre-incorporation, and grant-seeking founders across Ireland and the UK. Over 60% of respondents identified business plan formatting, spreadsheet modeling, and grant eligibility rules as their single largest operational hurdle, with multiple respondents reporting previous grant application rejections due to unvetted unit economics.
-
-2. Qualitative 1-on-1 Founder Interviews (${metrics.interviewCount} In-Depth Sessions):
-Sole promoter ${metrics.promoterName} conducted structured 1-on-1 interviews applying the 'Mom Test' framework to uncover actual founder behavior rather than speculative opinions. Founders consistently highlighted 'spreadsheet dread' and conflicting advice from boutique advisors as acute pain points, explicitly confirming their willingness to purchase self-service preflight software priced between €79 and €129.
-
-3. Commercial Demand & Roadmap Alignment:
-This direct primary feedback governed our product architecture, confirming that founders prioritize automated compliance checks, instant breakeven calculations, and portal-ready exports over static consultancy documents.
-
-By grounding our development in verified customer pain, ${metrics.title} enters the market with validated demand, clear product-market alignment, and a low customer acquisition barrier.`;
+      answer =
+        targetLength === 'SHORT'
+          ? `${metrics.title} has validated customer demand among ${metrics.beachhead} through ${metrics.surveyCount} non-simulated survey responses and ${metrics.interviewCount} structured 1-on-1 customer discovery interviews recorded in Module C, directly informing our V1 scope and pricing (${metrics.pricingSummary}).`
+          : `${metrics.title} has conducted direct primary market validation with our beachhead customer segment (${metrics.beachhead}):\n\n1. Customer Discovery Surveys: ${metrics.surveyCount} verified customer responses collected in Module C.\n2. Qualitative 1-on-1 Interviews: ${metrics.interviewCount} structured customer interviews logged in Module C.\n3. Commercial Alignment: Findings directly shaped our core problem focus (${metrics.problem}) and pricing model (${metrics.pricingSummary}).`;
     }
-  }
-
-  // 2. Risks & Risk Mitigation Intent (Check before generic technical)
-  else if (/risk|mitigat|challenge|barrier|contingency/i.test(qLower)) {
+  } else if (/risk|mitigat|challenge|barrier|contingency/i.test(qLower)) {
     citations.push('Module E (Operations & Risk Register)');
-    citations.push('Module G (Launchpad & Compliance)');
-
-    answer = `${metrics.title} maintains a proactive risk management framework addressing 4 core categories:
-
-1. Technical & Infrastructure Risk:
-*Risk:* Third-party API rate limits or latency.
-*Mitigation:* Architectural fallback to deterministic smart-synthesizer engines and local caching, maintaining 100% platform availability.
-
-2. Market Adoption Risk:
-*Risk:* Slower customer conversion during initial launch.
-*Mitigation:* Validated Mom-Test demand, low-friction self-service pricing (€79 pass), and institutional distribution partnerships with enterprise hubs.
-
-3. Regulatory & Compliance Risk:
-*Risk:* Updates to state grant guidelines.
-*Mitigation:* Dynamic, parameterized rule engine updated centrally to reflect evolving LEO and Enterprise Ireland rubrics.
-
-4. Financial & Cashflow Risk:
-*Risk:* Delayed grant claim reimbursement.
-*Mitigation:* Lean operating expenditure, low breakeven volume (${metrics.breakevenUnits}), and a funded cash buffer covering peak trough requirements.`;
-  }
-
-  // 3. Staff / Headcount / Hiring Intent
-  else if (/staff|headcount|hire|team\s*size|employee|worker|people|job|fte/i.test(qLower)) {
-    citations.push('Module F (Team, Roles & Headcount)');
-    citations.push('Module L (Chapter 4: Job Creation Plan)');
-
-    const isTwoYears = /two\s*year|2\s*year|year\s*2/i.test(qLower);
-    const isThreeYears = /three\s*year|3\s*year|year\s*3/i.test(qLower);
-    const isOneYear = /one\s*year|1\s*year|year\s*1/i.test(qLower);
-
-    const y2RolesDesc =
-      metrics.y2RoleTitles.length > 0
-        ? metrics.y2RoleTitles.join(' and ')
-        : 'Customer Success & Grant Specialist (€42,000) and Senior Full-Stack Engineer (€65,000)';
-
-    const y1RolesDesc =
-      metrics.y1RoleTitles.length > 0
-        ? metrics.y1RoleTitles.join(' and ')
-        : 'Full-Stack Software Engineer (€55,000)';
-
-    if (isTwoYears) {
-      if (targetLength === 'SHORT') {
-        answer = `In two years (Year 2), ${metrics.title} projects a total team of ${metrics.y2TotalStaff} full-time staff. The company scales from ${metrics.currentFTE} current founder promoter (${metrics.promoterName}) by adding ${metrics.y1NewFTE} full-time hire in Year 1 (${y1RolesDesc}) and ${metrics.y2NewFTE} full-time hires in Year 2 (${y2RolesDesc}).`;
-      } else {
-        answer = `In two years (Year 2), ${metrics.title} will have a total team of ${metrics.y2TotalStaff} full-time staff (FTE).\n\nThe venture is currently operated full-time by sole promoter ${metrics.promoterName} (${metrics.currentFTE} FTE), who leads all product engineering and commercial execution. Our structured 3-year job creation trajectory is as follows:\n\n• Current: ${metrics.currentFTE} full-time founder promoter.\n• Year 1: +${metrics.y1NewFTE} full-time hire (${y1RolesDesc}), bringing the total operational team to ${metrics.y1TotalStaff} staff.\n• Year 2 (in 2 years): +${metrics.y2NewFTE} strategic full-time hires (${y2RolesDesc}), bringing total organization headcount to ${metrics.y2TotalStaff} staff.\n\nAll planned hires are direct, high-value technical and customer support positions designed to support platform scaling and cohort onboarding while maintaining cashflow sustainability.`;
-      }
-    } else if (isThreeYears) {
-      answer = `In three years (Year 3), ${metrics.title} projects a total team of ${metrics.y3TotalStaff} full-time staff.\n\nHeadcount scales sustainably from ${metrics.currentFTE} current promoter to ${metrics.y1TotalStaff} in Year 1 (+${metrics.y1NewFTE}), ${metrics.y2TotalStaff} in Year 2 (+${metrics.y2NewFTE}), and reaches ${metrics.y3TotalStaff} full-time positions in Year 3 with the addition of dedicated growth and AI systems specialists.`;
-    } else if (isOneYear) {
-      answer = `In one year (Year 1), ${metrics.title} will operate with ${metrics.y1TotalStaff} full-time staff: lead promoter ${metrics.promoterName} plus ${metrics.y1NewFTE} full-time hire (${y1RolesDesc}).`;
+    if (metrics.riskSummary.startsWith('Not yet recorded')) {
+      missingWarnings.push('Project Risk Register items have not been added in Module E Step 3.');
+      answer = `Formal risk register items have not yet been recorded in ${metrics.title}'s workspace. Please complete Module E Step 3 (Project Risk Register) across technical, commercial, financial, and regulatory categories to generate a portal-ready mitigation summary.`;
     } else {
-      answer = `Under our 3-year human capital plan, ${metrics.title} scales from ${metrics.currentFTE} full-time promoter today to ${metrics.y1TotalStaff} staff in Year 1, ${metrics.y2TotalStaff} staff in Year 2, and ${metrics.y3TotalStaff} full-time employees in Year 3. Planned hires include technical engineering, customer success, and partner distribution specialists.`;
+      answer = `${metrics.title} maintains a structured risk register in Module E covering key operational, commercial, and financial exposures:\n\n${metrics.riskSummary}\n\nFinancial liquidity is further monitored against our modeled breakeven volume (${metrics.breakevenUnits}) and cashflow trough (${metrics.troughAmount}).`;
     }
-  }
-
-  // 3. Revenue / Turnover / Financials / Cashflow / Margins / Breakeven Intent
-  else if (/revenue|turnover|profit|financial|projection|cashflow|margin|breakeven|pricing|unit\s*economic|sales\s*forecast/i.test(qLower)) {
+  } else if (
+    /staff|headcount|hire|team\s*size|employee|worker|people|job|fte/i.test(qLower)
+  ) {
+    citations.push('Module F (Team, Roles & Headcount)');
+    if (!metrics.hasHiringRoles) {
+      missingWarnings.push(
+        'No net-new Year 1–3 hires are scheduled in Module F Step 5 yet; showing current founder FTE only.'
+      );
+    }
+    const y1Desc =
+      metrics.y1RoleTitles.length > 0
+        ? metrics.y1RoleTitles.join(', ')
+        : 'no external hires scheduled in Year 1';
+    const y2Desc =
+      metrics.y2RoleTitles.length > 0
+        ? metrics.y2RoleTitles.join(', ')
+        : 'no additional hires scheduled in Year 2';
+    answer = `Under ${metrics.title}'s 3-year job creation plan (Module F), headcount scales from ${metrics.currentFTE} FTE today (${metrics.promoterName}) to ${metrics.y1TotalStaff} FTE in Year 1 (+${metrics.y1NewFTE}: ${y1Desc}), ${metrics.y2TotalStaff} FTE in Year 2 (+${metrics.y2NewFTE}: ${y2Desc}), and ${metrics.y3TotalStaff} FTE in Year 3 (+${metrics.y3NewFTE}).`;
+  } else if (
+    /revenue|turnover|profit|financial|projection|cashflow|margin|breakeven|pricing|unit\s*economic|sales\s*forecast/i.test(
+      qLower
+    )
+  ) {
     citations.push('Module H (Revenue & Pricing)');
     citations.push('Module J (Financial Forecasts)');
-    citations.push('Module L (Chapter 5: Financial Viability)');
-
-    if (targetLength === 'SHORT') {
-      answer = `${metrics.title} operates a high-margin software model (${metrics.pricingSummary}) with an exceptional gross margin of 96.9%. We project Year 1 turnover of ${metrics.y1Turnover} (profit: ${metrics.y1Profit}), scaling to ${metrics.y2Turnover} in Year 2 (profit: ${metrics.y2Profit}) and ${metrics.y3Turnover} in Year 3. Operational breakeven requires just ${metrics.breakevenUnits}, and the peak cashflow trough of ${metrics.troughAmount} (Month 3) is fully protected by founder capital and grant funding.`;
+    if (!metrics.hasFinancialInputs) {
+      missingWarnings.push(
+        'Pricing tiers (Module H) and 36-month financial assumptions (Module J) have not been saved yet.'
+      );
+      answer = `Financial projections and pricing tiers are not yet recorded for ${metrics.title}. Please complete Module H (Pricing & Pocket Profit Breakeven) and Module J (36-Month Financial Builder) so exact Year 1–3 turnover, operating profit, and cashflow trough figures can be cited.`;
     } else {
-      answer = `${metrics.title} demonstrates disciplined, milestone-driven financial viability across the 36-month planning horizon:
-
-• Revenue & Profit Trajectory:
-  - Year 1: Turnover of ${metrics.y1Turnover} with an operating profit of ${metrics.y1Profit}.
-  - Year 2: Turnover of ${metrics.y2Turnover} with an operating profit of ${metrics.y2Profit}.
-  - Year 3: Turnover reaches ${metrics.y3Turnover} as international expansion accelerates.
-
-• Unit Economics & Margins:
-Our software business model (${metrics.pricingSummary}) achieves an average order value of €155 against direct variable token and transaction costs of €4.75, delivering an industry-leading 96.9% gross margin.
-
-• Breakeven & Cashflow Protection:
-Monthly operational breakeven is achieved at just ${metrics.breakevenUnits}. The peak cashflow trough is strictly contained at ${metrics.troughAmount} in Month 3, fully secured by founder equity contribution of €15,000 and matching grant assistance, ensuring zero solvency risk during platform rollout.`;
+      answer = `${metrics.title} models commercial pricing at ${metrics.pricingSummary} (${metrics.grossMarginPercent}% contribution margin), reaching monthly operational breakeven at ${metrics.breakevenUnits}.\n\n• Year 1 Projected Turnover: ${metrics.y1Turnover} (Operating Profit: ${metrics.y1Profit})\n• Year 2 Projected Turnover: ${metrics.y2Turnover} (Operating Profit: ${metrics.y2Profit})\n• Year 3 Projected Turnover: ${metrics.y3Turnover}\n• Peak Working Capital Trough: ${metrics.troughAmount}`;
     }
-  }
-
-  // 4. Technical Innovation / Work Packages / Architecture / Tech Stack / Milestones Intent
-  else if (/technical|innovation|r&d|work\s*package|architecture|tech\s*stack|wp1|feasibility|deliver|approach|milestone|timeline|roadmap|schedule/i.test(qLower)) {
+  } else if (
+    /technical|innovation|r&d|work\s*package|architecture|tech\s*stack|wp1|feasibility|deliver|approach|milestone|timeline|roadmap|schedule/i.test(
+      qLower
+    )
+  ) {
     citations.push('Module D (Product Build & Work Packages)');
-    citations.push('Module L (Chapter 3: Technical Blueprint)');
-
-    if (targetLength === 'SHORT') {
-      answer = `${metrics.title} is engineered across 4 formal Work Packages: WP1 Core Extraction Engine (M1–M2), WP2 Pocket Profit Breakeven Model (M3–M4), WP3 LEO/Innovate UK Regulatory Rules Engine (M5–M7), and WP4 Pre-Flight Audit Compiler (M8–M10). Built on modern enterprise infrastructure using Next.js 15, TypeScript, Drizzle ORM on PostgreSQL, and server-side AI billing circuit breakers (500 calls/day), the platform delivers verified deterministic accuracy while eliminating technical debt.`;
+    if (!metrics.hasWorkPackages) {
+      missingWarnings.push('Work Packages (WP1..n) have not been defined in Module D Step 5.');
+      answer = `Structured Work Packages and technical milestones are not yet recorded for ${metrics.title}. Please complete Module D Step 5 (Work Packages & Delivery Roadmap) to generate a milestone-by-milestone technical execution answer.`;
     } else {
-      answer = `${metrics.title} is developed through a disciplined engineering architecture divided into 4 formal Work Packages and milestones:
-
-• WP1: Core Extraction & Validation Engine (Months 1–2):
-Automated prompt extraction and Mom Test survey builder capturing unstructured founder inputs into structured data models.
-
-• WP2: Pocket Profit & Living Breakeven Synthesizer (Months 3–4):
-Real-time financial calculation engine computing dynamic pricing crossover, cashflow troughs, and unit economics without spreadsheets.
-
-• WP3: LEO & Innovate UK Regulatory Rules Engine (Months 5–7):
-Comprehensive eligibility checker enforcing state agency rubrics (including 3-quote procurement rules, salary caps, and non-displacement criteria).
-
-• WP4: Pre-Flight Audit Compiler & Living Grant Dossier (Months 8–10):
-Automated compilation generating official PDF dossiers and verified answers for online portal submissions.
-
-Technology Stack & Execution:
-Built on modern enterprise infrastructure using Next.js 15 App Router, TypeScript, Drizzle ORM on managed PostgreSQL, Better-Auth security, and strict server-side AI billing circuit breakers (500 calls/day platform ceiling) to guarantee 99.9% uptime and zero cost overruns.`;
+      answer = `${metrics.title} (${metrics.formFactor}) executes delivery across structured Work Packages recorded in Module D:\n\n${metrics.workPackagesSummary}`;
     }
-  }
-
-  // 5. Competitors / Moat / Differentiation Intent
-  else if (/competitor|moat|advantage|differentiat|wedge|rival|alternative|status\s*quo/i.test(qLower)) {
+  } else if (
+    /competitor|moat|advantage|differentiat|wedge|rival|alternative|status\s*quo/i.test(
+      qLower
+    )
+  ) {
     citations.push('Module B (Market & Competitors)');
-    citations.push('Module L (Chapter 2: Competitive Wedge)');
-
-    answer = `${metrics.title} differentiates itself decisively against existing market alternatives:
-
-• Status Quo & Competitors:
-Founders currently rely on either generic AI tools (which hallucinate financial figures and fail grant eligibility rules), expensive boutique grant consultancies (€3,000–€7,000 upfront fees with 50%+ rejection rates), or fragmented spreadsheets.
-
-• Our Competitive Wedge:
-${metrics.wedge}.
-
-• Key Strategic Advantages:
-1. Deterministic Accuracy: Integrated financial logic eliminates spreadsheet formula errors and guarantees mathematical consistency.
-2. Instant Accessibility: Founders complete an audit-ready plan in days for €79–€129, democratizing access to enterprise supports.
-3. Agency Rule Alignment: Built-in compliance checks automatically enforce Local Enterprise Office and Innovate UK submission rubrics.`;
-  }
-
-  // 6. Export / Displacement / Economy Intent
-  else if (/export|displacement|additionality|international|market\s*size|tam|sam|economic\s*impact/i.test(qLower)) {
+    if (!metrics.hasMarketData) {
+      missingWarnings.push('Competitors and Competitive Wedge have not been completed in Module B.');
+    }
+    answer = `${metrics.title} targets ${metrics.beachhead}.\n\n• Existing Alternatives / Competitors: ${metrics.competitors}\n• Competitive Wedge & Differentiation: ${metrics.wedge}`;
+  } else if (
+    /export|displacement|additionality|international|market\s*size|tam|sam|economic\s*impact/i.test(
+      qLower
+    )
+  ) {
     citations.push('Module B (Market & Export Analysis)');
-    citations.push('Module L (Appendix F: Non-Displacement Memo)');
-
-    answer = `${metrics.title} is architected for high-growth international export with zero domestic displacement: ${metrics.exportPosture}.
-
-• Export Strategy:
-As a pure digital software platform, ${metrics.title} scales seamlessly beyond Ireland into the UK, European, and broader English-speaking startup ecosystems. International expansion accounts for over 65% of projected Year 2–3 revenues.
-
-• Additionality & Non-Displacement:
-The venture targets innovative tech and productized service founders. It does not displace local domestic retail, personal services, or high-street commercial trade, fulfilling statutory enterprise agency additionality requirements.
-
-• Economic Multiplier:
-By helping early-stage ventures secure non-dilutive capital and establish viable unit economics, ${metrics.title} accelerates sustainable job creation across the wider enterprise ecosystem.`;
-  }
-
-  // 7. Promoter Background / Management Team Intent
-  else if (/promoter|founder|management\s*team|experience|background|qualification|lead|capability/i.test(qLower)) {
+    answer = `${metrics.title} operates with the following market & export posture: ${metrics.exportPosture}, serving ${metrics.beachhead} with differentiation rooted in: ${metrics.wedge}.`;
+  } else if (
+    /promoter|founder|management\s*team|experience|background|qualification|lead|capability/i.test(
+      qLower
+    )
+  ) {
     citations.push('Module F (Promoter Profiles & Team)');
-    citations.push('Module L (Chapter 4: Promoter Capability)');
-
-    answer = `The venture is spearheaded by lead promoter ${metrics.promoterName}, who brings a verified track record in software engineering and commercial execution:
-
-• Technical & Domain Expertise:
-${metrics.promoterBio}
-
-• Enterprise Governance:
-${metrics.promoterName} has completed the Local Enterprise Office Start Your Own Business programme, demonstrating sound commercial acumen and statutory compliance.
-
-• Full-Time Dedication:
-The promoter is 100% committed full-time to the venture, supported by a lean verified personal survival budget (€2,330/month) and personal cash reserves, ensuring uncompromised execution focus.`;
-  }
-
-
-  // 9. Commercialization / Go-To-Market Intent
-  else if (/commercial|go-to-market|acquisition|marketing|channel|first\s*10|distribution/i.test(qLower)) {
-    citations.push('Module I (Marketing & Sales Strategy)');
-    citations.push('Module C (Customer Surveys)');
-
-    answer = `${metrics.title} executes a targeted, multi-channel customer acquisition strategy focused on founder momentum:
-
-• Channel 1: Direct Founder Communities & Waitlists:
-Leveraging waitlist leads generated from our customer validation surveys and high-value educational content on startup finance and grant readiness.
-
-• Channel 2: Institutional & Hub Partnerships:
-Partnering with university incubators, accelerator programmes, and regional enterprise centres that require cohort members to submit standardized feasibility plans.
-
-• Channel 3: Organic Search & Grant Radar Tools:
-Publishing comprehensive guides on LEO Feasibility, Enterprise Ireland New Frontiers, and Innovate UK criteria, capturing high-intent founders at the exact moment of grant preparation.
-
-• Conversion Optimization:
-Offering a free Module A concept canvas hook, converting founders into paid passes through immediate value demonstration and instant grant readiness scoring.`;
-  }
-
-  // 10. Funding Requirement / Project Budget / Use of Funds Intent
-  else if (/funding\s*requirement|use\s*of\s*funds|project\s*cost|budget|eligible\s*cost|grant\s*(fund|spend|use|expenditure)|how\s*will.*(fund|money|spend)|capital\s*expenditure|capex|spend\s*the\s*money|finance\s*the\s*project/i.test(qLower)) {
-    citations.push('Module E (Premises, Equipment & 3 Quotes)');
-    citations.push('Module J (Financial Model & Funding Gap)');
-    citations.push('Module K (Grants & Funding Matcher)');
-
-    if (targetLength === 'SHORT') {
-      answer = `Project funding for ${metrics.title} is strictly allocated across 4 eligible expenditure categories: WP1–WP4 technical engineering, development infrastructure compliant with 3-quote procurement rules, customer onboarding/marketing, and working capital buffer covering our peak cashflow trough of ${metrics.troughAmount}. State grant aid is matched 50% by founder cash equity.`;
-    } else {
-      answer = `The project funding for ${metrics.title} will be strictly deployed across 4 eligible, audited expenditure categories:
-
-1. Technical Development & Engineering Delivery (WP1–WP4):
-Direct technical execution of our 4 Work Packages (Extraction Engine, Pocket Profit Breakeven Model, Regulatory Rules Engine, and Pre-Flight Audit Compiler), engaging vetted specialized engineering contractors adhering strictly to state 3-quote procurement rules.
-
-2. Infrastructure & Capital Equipment:
-Procurement of dedicated developer workstations, secure hosting infrastructure, and compliance verification toolchains adhering to statutory capital depreciation criteria (excluding ineligible personal laptops).
-
-3. Customer Onboarding & Pilot Cohorts:
-Direct distribution kits, Mom Test survey scaling, and pilot cohort onboarding with regional enterprise centres and university incubators across Ireland and the UK.
-
-4. Working Capital & Cashflow Trough Protection:
-Capital reserves protecting the venture through its maximum cashflow trough (${metrics.troughAmount}), ensuring seamless runway until monthly operational breakeven (${metrics.breakevenUnits}) is reached.
-
-Matching Funds:
-Grant funding is backed 50% by founder matching equity (€15,000) and reinvested retained cashflow, ensuring zero debt leverage and total solvency.`;
+    if (!metrics.hasPromoterBio) {
+      missingWarnings.push(
+        'Promoter 150-word biography is not yet recorded in Module F Step 1.'
+      );
     }
-  }
-
-  // 11. Intellectual Property (IP) Strategy Intent
-  else if (/intellectual\s*property|\bip\b|patent|trade\s*mark|trademark|proprietary|copyright|protect.*(idea|technology|solution)|ownership/i.test(qLower)) {
-    citations.push('Module G (Launchpad & Legal Setup)');
-    citations.push('Module D (Product Build & Tech Stack)');
-
-    answer = `${metrics.title} maintains a clear, defensible Intellectual Property (IP) and legal protection strategy:
-
-1. 100% Corporate IP Assignment:
-All underlying source code, algorithms, prompt chains, and architecture models created by lead promoter ${metrics.promoterName} are formally assigned to the operating corporate entity via standard Founder IP Assignment Deeds (Module G Step 6), ensuring a clean, unencumbered cap table for future investors and grant bodies.
-
-2. Proprietary Financial Synthesis Engine:
-Our 'Pocket Profit' breakeven calculator and real-time state grant rules engines operate on proprietary algorithmic logic, preventing commoditization by generic language models.
-
-3. Trademark & Brand Protection:
-Registration of the ${metrics.title} brand name, logo, and digital domain assets (.com, .ie, .co.uk) across Ireland, the UK, and Europe.
-
-4. Trade Secrets & Data Security:
-Platform data, customer survey logs, and financial projections are isolated through strict row-level tenant security, AES-256-GCM encryption at rest, and zero client-side credential exposure.`;
-  }
-
-  // 12. Problem, Solution, Business Idea & Executive Overview Intent
-  else if (/problem|solution|business\s*idea|describe\s*(your|the|my|our)\s*(business|startup|product|venture|company)|executive\s*summary|overview|what\s*do\s*(you|we)\s*do|value\s*proposition|150\s*word|pitch/i.test(qLower)) {
+    answer = `${metrics.title} is led by ${metrics.promoterName} (${metrics.currentFTE} FTE).\n\n• Promoter Capability Summary: ${metrics.promoterBio}\n• Personal Survival Budget (Module F Step 3): ${metrics.monthlySurvivalFormatted}`;
+  } else if (
+    /problem|solution|business\s*idea|describe\s*(your|the|my|our)\s*(business|startup|product|venture|company)|executive\s*summary|overview|what\s*do\s*(you|we)\s*do|value\s*proposition|150\s*word|pitch/i.test(
+      qLower
+    )
+  ) {
     citations.push('Module A (Concept Canvas)');
-    citations.push('Module L (Executive Summary)');
-
-    const cleanProblem = metrics.problem.replace(/\.+$/, '');
-    const cleanOneLiner = metrics.oneLiner.replace(/\.+$/, '');
-    const cleanCustomer = metrics.targetCustomer.replace(/\.+$/, '');
-
-    let lensContext = '';
-    if (assessorLens === 'ECONOMIC_EXPORT') {
-      lensContext = `From an economic growth and export perspective, ${metrics.title} serves international and high-growth founders without displacing local domestic retail, scaling through cloud software delivery.`;
-    } else if (assessorLens === 'R_AND_D_INNOVATION') {
-      lensContext = `From a technical and R&D perspective, ${metrics.title} eliminates compliance and financial modeling bottlenecks through deterministic underwriting rules and visual unit-economics synthesis.`;
-    } else if (assessorLens === 'UNDERWRITING_REPAYMENT') {
-      lensContext = `From a financial underwriting perspective, ${metrics.title} maintains a 96.9% gross margin, a low monthly breakeven threshold (${metrics.breakevenUnits}), and verified founder equity backing.`;
+    if (!metrics.hasConceptCanvas) {
+      missingWarnings.push('Module A Concept Canvas fields are not yet completed.');
+      answer = `Core problem, target customer, and proposed solution are not yet recorded in Module A for ${metrics.title}. Please complete your 1-Page Concept Canvas in Module A Step 3 first.`;
     } else {
-      lensContext = `From a commercial scalability perspective, ${metrics.title} pairs 96.9% software gross margins with a low breakeven threshold (${metrics.breakevenUnits}) and validated primary customer demand.`;
+      answer = `1. Core Problem (${metrics.targetCustomer}):\n${metrics.problem}\n\n2. Proposed Solution (${metrics.title}):\n${metrics.oneLiner}\n\n3. Commercial & Underwriting Fit (${assessorLens}):\nPricing: ${metrics.pricingSummary} | Breakeven: ${metrics.breakevenUnits} | Export Posture: ${metrics.exportPosture}.`;
     }
-
-    answer = `1. The Core Problem:\n${cleanProblem}. Today, founders are forced to choose between generic AI chatbots that hallucinate financial figures, complex 40-tab spreadsheets, or expensive boutique consultants charging €3,000–€7,000 upfront.\n\n2. How ${metrics.title} Solves It:\nBuilt specifically for ${cleanCustomer.charAt(0).toLowerCase() + cleanCustomer.slice(1)}, ${metrics.title} is ${cleanOneLiner.charAt(0).toLowerCase() + cleanOneLiner.slice(1)}. Founders are guided step-by-step across 12 structured modules—from Mom Test customer surveys (Module C) and visual Pocket Profit breakeven modeling (Module H) to automated Irish LEO and UK Innovate UK compliance checks (Modules K & L).\n\n3. Commercial & Underwriting Fit:\n${lensContext}`;
-  }
-
-  // Unmatched question in fallback: explicitly state that the information is missing from the plan
-  else {
+  } else {
+    missingWarnings.push(
+      'Specific details for this portal question were not found in deterministic fallback mode.'
+    );
     answer = `We don't have that specific information recorded in the ${metrics.title} startup plan yet to answer: "${questionText}".\n\nPlease add the relevant details in the corresponding workspace module (Modules A–L) so we can generate a verified answer directly from your plan data.`;
   }
 
@@ -537,6 +548,7 @@ Platform data, customer survey logs, and financial projections are isolated thro
     assessorLens,
     answerText: answer,
     sourceModuleCitations: citations,
+    missingDataWarnings: missingWarnings.length > 0 ? missingWarnings : undefined,
     askedAt: new Date().toISOString(),
   };
 }
@@ -544,18 +556,21 @@ Platform data, customer survey logs, and financial projections are isolated thro
 export async function answerQuestionFromStartupPlanAction(
   params: AnswerQuestionFromPlanParams
 ): Promise<AnswerQuestionFromPlanResult> {
-  const { planId, questionText, targetLength, assessorLens, planSnapshot } = params;
+  const { planId, questionText, targetLength, assessorLens, planSnapshot } =
+    params;
 
   if (!planId || !UUID_REGEX.test(planId) || !questionText?.trim()) {
     return {
       success: false,
-      question: buildDeterministicFallbackAnswer(params),
+      question: buildDeterministicFallbackAnswer({
+        ...params,
+        planSnapshot: {} as ActiveStartupPlan,
+      }),
       aiEngineUsed: 'smart-synthesizer',
       error: 'Missing required question text or valid plan ID.',
     };
   }
 
-  // Enforce plan ownership and Module K entitlement BEFORE reading any planModulesData rows
   const planAuth = await verifyActiveSessionAndPlanOwnership(planId, {
     requiredModule: 'MOD_K_GRANTS_FUNDING',
   });
@@ -564,22 +579,21 @@ export async function answerQuestionFromStartupPlanAction(
       success: false,
       question: buildDeterministicFallbackAnswer({
         ...params,
-        planSnapshot: {} as any,
+        planSnapshot: {} as ActiveStartupPlan,
       }),
       aiEngineUsed: 'smart-synthesizer',
       error: planAuth.reason || 'Unauthorized access to startup plan.',
     };
   }
 
-  // Fetch all module rows from DB to ensure complete, fresh plan data
-  let dbModF: any = null;
-  let dbModJ: any = null;
-  let dbModH: any = null;
-  let dbModL: any = null;
-  let dbModB: any = null;
-  let dbModC: any = null;
-  let dbModD: any = null;
-  let dbModE: any = null;
+  let dbModF: SavedModuleFData | null = null;
+  let dbModJ: SavedModuleJData | null = null;
+  let dbModH: SavedModuleHData | null = null;
+  let dbModL: SavedModuleLData | null = null;
+  let dbModB: SavedModuleBData | null = null;
+  let dbModC: SavedModuleCData | null = null;
+  let dbModD: SavedModuleDData | null = null;
+  let dbModE: SavedModuleEData | null = null;
 
   try {
     const dbModules = await db
@@ -591,17 +605,28 @@ export async function answerQuestionFromStartupPlanAction(
       .where(eq(planModulesData.planId, planId));
 
     for (const row of dbModules) {
-      if (row.moduleCode === 'MOD_F_COFOUNDER_TEAM') dbModF = row.inputs;
-      if (row.moduleCode === 'MOD_J_FINANCE') dbModJ = row.inputs;
-      if (row.moduleCode === 'MOD_H_REVENUE') dbModH = row.inputs;
-      if (row.moduleCode === 'MOD_L_BUSINESS_PLAN') dbModL = row.inputs;
-      if (row.moduleCode === 'MOD_B_MARKET') dbModB = row.inputs;
-      if (row.moduleCode === 'MOD_C_SURVEYS_FEEDBACK') dbModC = row.inputs;
-      if (row.moduleCode === 'MOD_D_PRODUCT_BUILD') dbModD = row.inputs;
-      if (row.moduleCode === 'MOD_E_OPERATIONS') dbModE = row.inputs;
+      if (row.moduleCode === 'MOD_F_COFOUNDER_TEAM')
+        dbModF = row.inputs as SavedModuleFData;
+      if (row.moduleCode === 'MOD_J_FINANCE')
+        dbModJ = row.inputs as SavedModuleJData;
+      if (row.moduleCode === 'MOD_H_REVENUE')
+        dbModH = row.inputs as SavedModuleHData;
+      if (row.moduleCode === 'MOD_L_BUSINESS_PLAN')
+        dbModL = row.inputs as SavedModuleLData;
+      if (row.moduleCode === 'MOD_B_MARKET')
+        dbModB = row.inputs as SavedModuleBData;
+      if (row.moduleCode === 'MOD_C_SURVEYS_FEEDBACK')
+        dbModC = row.inputs as SavedModuleCData;
+      if (row.moduleCode === 'MOD_D_PRODUCT_BUILD')
+        dbModD = row.inputs as SavedModuleDData;
+      if (row.moduleCode === 'MOD_E_OPERATIONS')
+        dbModE = row.inputs as SavedModuleEData;
     }
-  } catch (err: any) {
-    console.warn('[GrantAction] DB fetch warning:', err?.message);
+  } catch (err: unknown) {
+    console.warn(
+      '[GrantAction] DB fetch warning:',
+      err instanceof Error ? err.message : String(err)
+    );
   }
 
   const dbOverrides = {
@@ -626,15 +651,17 @@ export async function answerQuestionFromStartupPlanAction(
     dbModE
   );
 
-  // 1. Authorize AI call via router (promptKey, defaultSystemInstruction)
   let geminiAuth;
   try {
     geminiAuth = await authorizeAndPrepareGeminiCall(
       'MOD_K_GRANT_QA_COPILOT',
       'You are an expert Grant Assessor and Startup Preflight Evaluation Specialist.'
     );
-  } catch (err: any) {
-    console.warn('[GrantAction] AI auth check fallback:', err?.message);
+  } catch (err: unknown) {
+    console.warn(
+      '[GrantAction] AI auth check fallback:',
+      err instanceof Error ? err.message : String(err)
+    );
     const fallbackQ = buildDeterministicFallbackAnswer(params, dbOverrides);
     return {
       success: true,
@@ -652,23 +679,19 @@ export async function answerQuestionFromStartupPlanAction(
     };
   }
 
-  // 2. Synthesize all structured facts from Modules A-L into context
-  const surveyCount = (planSnapshot.moduleCData?.surveys || []).reduce(
-    (acc, s) => acc + (s.responses?.length || 0),
-    0
-  );
-
-  const modF = dbModF || planSnapshot.moduleFData;
   const modL = dbModL || planSnapshot.moduleLData;
   const compiledSections = modL?.step3Compiler?.sections || [];
   const compiledNarratives = compiledSections
-    .map((s: any) => `SECTION ${s.sectionNumber} (${s.title}):\n${s.compiledResponseText || ''}`)
+    .map(
+      (s) =>
+        `SECTION ${s.sectionNumber} (${s.title}):\n${s.compiledResponseText || ''}`
+    )
     .join('\n\n');
 
   const planDataSummary = `
 PROJECT NAME: ${metrics.title}
 ONE-LINER: ${metrics.oneLiner}
-INDUSTRY: ${planSnapshot.industryCategory || 'B2B SaaS / AI Application'}
+INDUSTRY: ${planSnapshot.industryCategory || 'Not specified'}
 HQ COUNTRY: ${planSnapshot.hqCountryCode || 'IE'} (${metrics.currency})
 EXPORT POTENTIAL: ${metrics.exportPosture}
 
@@ -676,8 +699,8 @@ MODULE A (CONCEPT CANVAS):
 - Target Customer: ${metrics.targetCustomer}
 - Core Problem: ${metrics.problem}
 - Proposed Solution: ${metrics.oneLiner}
-- Unfair Advantage: ${planSnapshot.conceptCanvas?.unfairAdvantage || metrics.wedge}
-- Revenue / Grant Fit: ${planSnapshot.conceptCanvas?.revenueAndGrantFit || 'LEO Feasibility Study & Priming candidate'}
+- Unfair Advantage: ${planSnapshot.conceptCanvas?.unfairAdvantage || 'Not yet recorded in Module A'}
+- Revenue / Grant Fit: ${planSnapshot.conceptCanvas?.revenueAndGrantFit || 'Not yet recorded in Module A'}
 
 MODULE B (MARKET & COMPETITORS):
 - Beachhead Segment: ${metrics.beachhead}
@@ -685,41 +708,46 @@ MODULE B (MARKET & COMPETITORS):
 - Competitive Wedge / Moat: ${metrics.wedge}
 
 MODULE C (VALIDATION & SURVEYS):
-- Survey Responses Count: ${surveyCount} validated primary responses
-- Customer Interviews Logged: ${planSnapshot.moduleCData?.interviewLogs?.length || 3} deep founder interviews
-- Validation Finding: Over 60% of applicants face severe grant document and financial model rejection.
+- Non-Simulated Survey Responses Count: ${metrics.surveyCount}
+- Customer Interviews Logged: ${metrics.interviewCount}
 
 MODULE D (PRODUCT & ROADMAP):
-- Form Factor: ${planSnapshot.moduleDData?.productVehicle?.formFactor || 'Web-based SaaS application'}
-- Work Packages: ${planSnapshot.moduleDData?.workPackagesAndFlow?.workPackages?.map((w) => w.title).join(', ') || 'WP1 UX & Assessment Engine, WP2 Real-Time Financial Synthesizer, WP3 Grant Dossier Compiler'}
+- Form Factor: ${metrics.formFactor}
+- Work Packages: ${metrics.workPackagesSummary}
 
-MODULE E (OPERATIONS & EQUIPMENT):
-- Equipment Schedule: ${planSnapshot.moduleEData?.premisesAndEquipment?.equipmentItems?.map((e) => `${e.assetName} (${metrics.currency} ${e.totalCostExVat})`).join(', ') || 'None scheduled'}
+MODULE E (OPERATIONS, RISKS & EQUIPMENT):
+- Equipment Schedule: ${metrics.equipmentSummary}
+- Risk Register Summary: ${metrics.riskSummary}
 
 MODULE F (TEAM, GOVERNANCE & 3-YEAR HEADCOUNT):
-- Current Full-Time Team: ${metrics.currentFTE} FTE (${metrics.promoterName}, Founder & Chief Executive Promoter)
-- Year 1 Headcount: ${metrics.y1TotalStaff} staff (+${metrics.y1NewFTE} full-time hire: ${metrics.y1RoleTitles.join(', ') || 'Software Engineer'})
-- Year 2 Headcount (IN TWO YEARS): ${metrics.y2TotalStaff} staff (+${metrics.y2NewFTE} full-time hires: ${metrics.y2RoleTitles.join(', ') || 'Customer Success Specialist & Senior Engineer'})
-- Year 3 Headcount (IN THREE YEARS): ${metrics.y3TotalStaff} staff (+${metrics.y3NewFTE} full-time hires: ${metrics.y3RoleTitles.join(', ') || 'Growth Lead & AI Engineer'})
-- Founder Bio: ${modF?.promoterProfiles?.teamMembers?.[0]?.compiled150WordNarrative || 'Experienced full-stack engineer and product builder.'}
+- Current Founder / Team FTE: ${metrics.currentFTE} FTE (${metrics.promoterName})
+- Founder Personal Survival Budget: ${metrics.monthlySurvivalFormatted}
+- Year 1 Headcount: ${metrics.y1TotalStaff} FTE (+${metrics.y1NewFTE} net new FTE: ${metrics.y1RoleTitles.join(', ') || 'None scheduled'})
+- Year 2 Headcount (IN TWO YEARS): ${metrics.y2TotalStaff} FTE (+${metrics.y2NewFTE} net new FTE: ${metrics.y2RoleTitles.join(', ') || 'None scheduled'})
+- Year 3 Headcount (IN THREE YEARS): ${metrics.y3TotalStaff} FTE (+${metrics.y3NewFTE} net new FTE: ${metrics.y3RoleTitles.join(', ') || 'None scheduled'})
+- Founder Bio: ${metrics.promoterBio}
 
 MODULE H (PRICING & REVENUE MODEL):
 - Pricing Model: ${metrics.pricingSummary}
 - Operational Breakeven Volume: ${metrics.breakevenUnits}
-- Gross Margin: >95% software margin
+- Contribution Margin: ${metrics.hasFinancialInputs ? `${metrics.grossMarginPercent}%` : 'Not yet modeled in Module H'}
 
 MODULE J (36-MONTH FINANCIAL FORECASTS):
 - Year 1 Turnover: ${metrics.y1Turnover} (Operating Profit: ${metrics.y1Profit})
 - Year 2 Turnover: ${metrics.y2Turnover} (Operating Profit: ${metrics.y2Profit})
 - Year 3 Turnover: ${metrics.y3Turnover}
-- Peak Cashflow Trough: ${metrics.troughAmount} in Month 3
+- Peak Cashflow Trough: ${metrics.troughAmount}
 
 MODULE L (OFFICIAL COMPILED GRANT DOSSIER CHAPTERS):
-${compiledNarratives || 'Refer to verified module summaries above.'}
+${compiledNarratives || 'No compiled Module L chapters saved yet.'}
 `;
 
   const targetWordCount =
-    targetLength === 'SHORT' ? '75–120 words' : targetLength === 'STANDARD' ? '200–260 words' : '350–420 words';
+    targetLength === 'SHORT'
+      ? '75–120 words'
+      : targetLength === 'STANDARD'
+        ? '200–260 words'
+        : '350–420 words';
 
   const prompt = `
 You are an expert Grant Assessor and Startup Preflight Evaluation Specialist assisting the founder of "${metrics.title}".
@@ -739,28 +767,22 @@ ${planDataSummary}
 
 CRITICAL RULES FOR ACCURACY AND TONE:
 1. DIRECT ANSWER MANDATE:
-   - You MUST directly and explicitly answer the official portal question in the very first sentence.
-   - If the question asks about staffing, headcount, team size, or hiring (e.g., "how many staff will I have in two years"):
-     Directly state the exact headcount in two years (Year 2 Total: ${metrics.y2TotalStaff} full-time staff), explain how it scales from ${metrics.currentFTE} current founder to ${metrics.y1TotalStaff} in Year 1 and ${metrics.y2TotalStaff} in Year 2, and explicitly name the specific roles being hired (${metrics.y2RoleTitles.join(' and ')}).
-   - If the question asks about revenue, profit, turnover, or breakeven: Cite the exact numbers from Module J/H (${metrics.y1Turnover} in Year 1, ${metrics.y2Turnover} in Year 2, breakeven of ${metrics.breakevenUnits}).
-   - If the question asks about competitors or moat: Cite Module B (${metrics.competitors}; wedge: ${metrics.wedge}).
-   - NEVER provide a generic, formulaic problem/solution elevator pitch unless the user specifically asked for an elevator pitch or concept overview.
+   - Directly and explicitly answer the official portal question in the very first sentence.
+   - Cite ONLY numbers, roles, competitors, and milestones present in STARTUP PLAN STRUCTURED FACTS above.
 2. NATURAL HUMAN FOUNDER VOICE:
-   - Write in confident, articulate, professional, natural English as if written by an experienced founder or grant consultant.
-   - Avoid robotic AI clichés like "We address a core friction: [X] facing [Y]".
-   - Write in first-person plural ("We", "Our venture", "${metrics.title}").
-3. ACCURACY, EVIDENCE & MISSING DATA MANDATE:
-   - Base your answer STRICTLY on the STARTUP PLAN STRUCTURED FACTS provided above. Never invent arbitrary numbers, locations, or roles not supported by the plan.
-   - If the portal question asks for specific information that is missing or not recorded in the startup plan data, DO NOT guess and DO NOT return a generic overview. State clearly in "answerText" that we do not know / this specific information is not recorded in the startup plan yet, explain what detail is missing, and tell the founder which Module (A–L) to add it in. Also list it in "missingDataWarnings".
-   - Cite the exact module sources where the facts originate.
+   - Write in confident, articulate, professional English in first-person plural ("We", "${metrics.title}").
+3. STRICT ZERO-HALLUCINATION & MISSING DATA MANDATE:
+   - NEVER invent numbers, tech stacks, survey counts, founder names, or revenue figures when a field says "Not yet recorded" or "Not yet modeled".
+   - If critical facts required to answer the question are missing from STARTUP PLAN STRUCTURED FACTS, state clearly which Module (A–L) needs to be completed and list the gap in "missingDataWarnings".
 4. Output valid JSON matching this schema:
 {
-  "answerText": "string containing the complete copy-ready answer formatted with paragraphs if standard/detailed",
-  "sourceModuleCitations": ["Array of module names where facts were drawn, e.g. 'Module F (Team, Roles & Headcount)', 'Module L (Chapter 4: Job Creation Plan)'"],
+  "answerText": "string containing the complete copy-ready answer",
+  "sourceModuleCitations": ["Array of module names where facts were drawn"],
   "missingDataWarnings": ["Optional array of warnings if facts were missing from the plan"]
 }
 `;
 
+  let generateSucceededOnWire = false;
   try {
     const aiClient = getGenAiClient(geminiAuth.activeApiKey);
     const response = await aiClient.models.generateContent({
@@ -772,6 +794,26 @@ CRITICAL RULES FOR ACCURACY AND TONE:
         temperature: 0.2,
       },
     });
+    generateSucceededOnWire = true;
+
+    const rawResponseText = (response.text?.trim() || '')
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    if (!rawResponseText) {
+      throw new Error('Empty JSON response from Gemini');
+    }
+
+    const parsed = JSON.parse(rawResponseText) as {
+      answerText?: string;
+      sourceModuleCitations?: string[];
+      missingDataWarnings?: string[];
+    };
+
+    if (!parsed.answerText || !parsed.answerText.trim()) {
+      throw new Error('Parsed response missing answerText');
+    }
 
     await recordGeminiUsageAndIncrementCredits({
       verifiedUserId: geminiAuth.verifiedUserId,
@@ -784,24 +826,21 @@ CRITICAL RULES FOR ACCURACY AND TONE:
       fallbackCreditsUsed: geminiAuth.currentCreditsUsed,
     });
 
-    const rawResponseText = (response.text?.trim() || '{}')
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
-    const parsed = JSON.parse(rawResponseText);
-
     const savedQ: SavedCustomPortalQuestion = {
       id: `cq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       grantSlug: params.grantSlug,
       questionText,
       targetLength,
       assessorLens,
-      answerText: parsed.answerText || buildDeterministicFallbackAnswer(params, dbOverrides).answerText,
+      answerText: parsed.answerText.trim(),
       sourceModuleCitations:
-        Array.isArray(parsed.sourceModuleCitations) && parsed.sourceModuleCitations.length > 0
+        Array.isArray(parsed.sourceModuleCitations) &&
+        parsed.sourceModuleCitations.length > 0
           ? parsed.sourceModuleCitations
-          : ['Module F (Team, Roles & Headcount)', 'Module L (Chapter 4: Job Creation Plan)'],
-      missingDataWarnings: Array.isArray(parsed.missingDataWarnings) ? parsed.missingDataWarnings : undefined,
+          : ['Module K (Grants & Funding Hub)'],
+      missingDataWarnings: Array.isArray(parsed.missingDataWarnings)
+        ? parsed.missingDataWarnings
+        : undefined,
       askedAt: new Date().toISOString(),
     };
 
@@ -810,7 +849,13 @@ CRITICAL RULES FOR ACCURACY AND TONE:
       question: savedQ,
       aiEngineUsed: 'gemini-2.5-flash',
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (generateSucceededOnWire && geminiAuth.verifiedUserId) {
+      await refundSettledGeminiCredit(
+        geminiAuth.verifiedUserId,
+        geminiAuth.usedByokKey
+      );
+    }
     console.error('[GrantAction] AI generation error:', err);
     const fallbackQ = buildDeterministicFallbackAnswer(params, dbOverrides);
     return {
@@ -821,12 +866,101 @@ CRITICAL RULES FOR ACCURACY AND TONE:
   }
 }
 
+async function ensureModKEnumExists(): Promise<void> {
+  try {
+    await db.execute(
+      sql`ALTER TYPE "public"."module_code" ADD VALUE IF NOT EXISTS 'MOD_K_GRANTS_FUNDING'`
+    );
+  } catch {
+    // Ignore if already present
+  }
+}
+
+export async function saveGrantCenterDataAction(params: {
+  planId: string;
+  grantCenterData: SavedGrantCenterData;
+}): Promise<{ success: boolean; error?: string }> {
+  const { planId, grantCenterData } = params;
+  if (!planId || !UUID_REGEX.test(planId)) {
+    return { success: false, error: 'Missing valid planId' };
+  }
+
+  const verified = await verifyActiveSessionAndPlanOwnership(planId, {
+    requiredModule: 'MOD_K_GRANTS_FUNDING',
+    requireWrite: true,
+  });
+  if (!verified.authorized || !verified.userId) {
+    return {
+      success: false,
+      error: verified.reason || 'Unauthorized or plan not found',
+    };
+  }
+
+  try {
+    await ensureModKEnumExists();
+    const nowIso = new Date().toISOString();
+
+    await db.transaction(async (tx) => {
+      const existingRows = await tx
+        .select()
+        .from(planModulesData)
+        .where(
+          and(
+            eq(planModulesData.planId, planId),
+            eq(planModulesData.moduleCode, 'MOD_K_GRANTS_FUNDING')
+          )
+        )
+        .for('update');
+
+      const currentJson: Record<string, unknown> =
+        existingRows.length > 0 &&
+        typeof existingRows[0].structuredInputsJsonb === 'object' &&
+        existingRows[0].structuredInputsJsonb !== null
+          ? (existingRows[0].structuredInputsJsonb as Record<string, unknown>)
+          : {};
+
+      const updatedJson: Record<string, unknown> = {
+        ...currentJson,
+        grantCenterData: {
+          ...grantCenterData,
+          lastVisitedAt: grantCenterData.lastVisitedAt || nowIso,
+        },
+        lastSavedAt: nowIso,
+      };
+
+      if (existingRows.length > 0) {
+        await tx
+          .update(planModulesData)
+          .set({
+            structuredInputsJsonb: updatedJson,
+            updatedAt: new Date(),
+          })
+          .where(eq(planModulesData.id, existingRows[0].id));
+      } else {
+        await tx.insert(planModulesData).values({
+          planId,
+          moduleCode: 'MOD_K_GRANTS_FUNDING',
+          structuredInputsJsonb: updatedJson,
+        });
+      }
+    });
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('[GrantAction] Failed to persist grantCenterData:', err);
+    return {
+      success: false,
+      error: 'Failed to save Grant Center progress to database',
+    };
+  }
+}
+
 export async function saveGrantTrackerStatusAction(params: {
   planId: string;
   grantSlug: string;
   tracker: Partial<SavedGrantApplicationTracker>;
 }): Promise<{ success: boolean; error?: string }> {
-  const { planId, grantSlug } = params;
+  const { planId, grantSlug, tracker } = params;
   if (!planId || !UUID_REGEX.test(planId) || !grantSlug) {
     return { success: false, error: 'Missing valid planId or grantSlug' };
   }
@@ -836,8 +970,86 @@ export async function saveGrantTrackerStatusAction(params: {
     requireWrite: true,
   });
   if (!verified.authorized || !verified.userId) {
-    return { success: false, error: verified.reason || 'Unauthorized or plan not found' };
+    return {
+      success: false,
+      error: verified.reason || 'Unauthorized or plan not found',
+    };
   }
 
-  return { success: true };
+  try {
+    await ensureModKEnumExists();
+    const nowIso = new Date().toISOString();
+
+    await db.transaction(async (tx) => {
+      const existingRows = await tx
+        .select()
+        .from(planModulesData)
+        .where(
+          and(
+            eq(planModulesData.planId, planId),
+            eq(planModulesData.moduleCode, 'MOD_K_GRANTS_FUNDING')
+          )
+        )
+        .for('update');
+
+      const currentJson: Record<string, unknown> =
+        existingRows.length > 0 &&
+        typeof existingRows[0].structuredInputsJsonb === 'object' &&
+        existingRows[0].structuredInputsJsonb !== null
+          ? (existingRows[0].structuredInputsJsonb as Record<string, unknown>)
+          : {};
+
+      const existingCenter =
+        (currentJson.grantCenterData as SavedGrantCenterData | undefined) || {};
+      const existingApps = existingCenter.applications || {};
+      const prevTracker = existingApps[grantSlug] || {
+        grantSlug,
+        status: 'NOT_STARTED' as const,
+      };
+
+      const mergedCenter: SavedGrantCenterData = {
+        ...existingCenter,
+        applications: {
+          ...existingApps,
+          [grantSlug]: {
+            ...prevTracker,
+            ...tracker,
+            grantSlug,
+            lastUpdatedAt: nowIso,
+          },
+        },
+        lastVisitedAt: nowIso,
+      };
+
+      const updatedJson: Record<string, unknown> = {
+        ...currentJson,
+        grantCenterData: mergedCenter,
+        lastSavedAt: nowIso,
+      };
+
+      if (existingRows.length > 0) {
+        await tx
+          .update(planModulesData)
+          .set({
+            structuredInputsJsonb: updatedJson,
+            updatedAt: new Date(),
+          })
+          .where(eq(planModulesData.id, existingRows[0].id));
+      } else {
+        await tx.insert(planModulesData).values({
+          planId,
+          moduleCode: 'MOD_K_GRANTS_FUNDING',
+          structuredInputsJsonb: updatedJson,
+        });
+      }
+    });
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('[GrantAction] Failed to save grant tracker status:', err);
+    return {
+      success: false,
+      error: 'Failed to persist grant tracker status',
+    };
+  }
 }

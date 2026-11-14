@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, ensureDatabaseSchemaSynced } from '@/db';
 import { users, userEntitlements, startupPlans } from '@/db/schema';
 import {
@@ -28,7 +28,12 @@ export async function GET(req: NextRequest) {
 
   const cookieStore = await cookies();
   const rawSavedState = cookieStore.get('spf_oauth_state')?.value;
-  let savedState: { state: string; from?: string; returnTo?: string } | null = null;
+  let savedState: {
+    state: string;
+    from?: string;
+    termsAccepted?: boolean;
+    returnTo?: string;
+  } | null = null;
 
   if (rawSavedState) {
     try {
@@ -165,12 +170,14 @@ export async function GET(req: NextRequest) {
       .limit(1);
 
     let userId: string;
+    let activeSessionVersion = 1;
     let isNewUser = false;
 
     if (existingUser) {
       if (
         existingUser.status === 'SUSPENDED' ||
-        existingUser.status === 'SOFT_DELETED'
+        existingUser.status === 'SOFT_DELETED' ||
+        existingUser.deletedAt
       ) {
         const redirectUrl = new URL(fallbackPath, origin);
         redirectUrl.searchParams.set('error', 'account_suspended');
@@ -179,59 +186,87 @@ export async function GET(req: NextRequest) {
 
       userId = existingUser.id;
 
-      // Neutralize pre-squatted unverified password accounts when verified Google owner logs in
-      const nextPasswordHash = existingUser.emailVerified
-        ? existingUser.passwordHash
-        : null;
+      if (!existingUser.emailVerified) {
+        // Neutralize pre-squatted unverified password accounts when verified Google owner logs in:
+        // 1. Purge any pre-squatted plans created on the unverified account.
+        // 2. Clear passwordHash and increment sessionVersion so any pre-squatter cookie is immediately revoked.
+        const [reclaimedUser] = await db.transaction(async (tx) => {
+          await tx
+            .delete(startupPlans)
+            .where(eq(startupPlans.ownerUserId, existingUser.id));
 
-      // Update image, emailVerified and lastActiveAt on login
-      await db
-        .update(users)
-        .set({
-          image: existingUser.image || cleanImage,
-          emailVerified: true,
-          passwordHash: nextPasswordHash,
-          lastActiveAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, existingUser.id));
+          return tx
+            .update(users)
+            .set({
+              name: cleanName || existingUser.name,
+              image: cleanImage || existingUser.image,
+              emailVerified: true,
+              passwordHash: null,
+              sessionVersion: sql`${users.sessionVersion} + 1`,
+              lastActiveAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(users.id, existingUser.id))
+            .returning({ sessionVersion: users.sessionVersion });
+        });
+        activeSessionVersion = reclaimedUser?.sessionVersion ?? (existingUser.sessionVersion ?? 1) + 1;
+      } else {
+        activeSessionVersion = existingUser.sessionVersion ?? 1;
+        await db
+          .update(users)
+          .set({
+            image: existingUser.image || cleanImage,
+            emailVerified: true,
+            lastActiveAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, existingUser.id));
+      }
     } else {
       isNewUser = true;
       const tenantId = await ensureDefaultTenantId();
-
-      const [createdUser] = await db
-        .insert(users)
-        .values({
-          tenantId,
-          email: cleanEmail,
-          name: cleanName,
-          image: cleanImage,
-          emailVerified: true,
-          lastActiveAt: new Date(),
-          role: 'FOUNDER',
-          status: 'ACTIVE',
-          founderProfileJson: {
+      const freeLimits = calculatePassLimits('FREE_HOOK');
+      const initialProfileJson = savedState.termsAccepted
+        ? {
             termsAcceptedAt: new Date().toISOString(),
             termsVersion: '2026-04',
-          },
-        })
-        .returning();
+          }
+        : {};
+
+      const createdUser = await db.transaction(async (tx) => {
+        const [insertedUser] = await tx
+          .insert(users)
+          .values({
+            tenantId,
+            email: cleanEmail,
+            name: cleanName,
+            image: cleanImage,
+            emailVerified: true,
+            lastActiveAt: new Date(),
+            role: 'FOUNDER',
+            status: 'ACTIVE',
+            sessionVersion: 1,
+            founderProfileJson: initialProfileJson,
+          })
+          .returning();
+
+        await tx.insert(userEntitlements).values({
+          userId: insertedUser.id,
+          planType: 'FREE_HOOK',
+          stackedCodesCount: 0,
+          maxStartupPlans: freeLimits.maxStartupPlans,
+          maxSeatsPerPlan: freeLimits.maxSeatsPerPlan,
+          monthlyAiCreditsLimit: freeLimits.monthlyAiCreditsLimit,
+          aiCreditsUsedThisMonth: 0,
+          whiteLabelExportEnabled: false,
+          isVaultReadonly: false,
+        });
+
+        return insertedUser;
+      });
 
       userId = createdUser.id;
-
-      // Create initial FREE_HOOK entitlements
-      const freeLimits = calculatePassLimits('FREE_HOOK');
-      await db.insert(userEntitlements).values({
-        userId: createdUser.id,
-        planType: 'FREE_HOOK',
-        stackedCodesCount: 0,
-        maxStartupPlans: freeLimits.maxStartupPlans,
-        maxSeatsPerPlan: freeLimits.maxSeatsPerPlan,
-        monthlyAiCreditsLimit: freeLimits.monthlyAiCreditsLimit,
-        aiCreditsUsedThisMonth: 0,
-        whiteLabelExportEnabled: false,
-        isVaultReadonly: false,
-      });
+      activeSessionVersion = createdUser.sessionVersion ?? 1;
 
       // Fire welcome email asynchronously
       sendSystemEmail({
@@ -276,6 +311,7 @@ export async function GET(req: NextRequest) {
     await setServerSessionCookie({
       userId,
       email: cleanEmail,
+      sessionVersion: activeSessionVersion,
     });
 
     const destination = sanitizeInternalReturnPath(

@@ -24,6 +24,7 @@ import {
   authorizeAndPrepareGeminiCall,
   getGenAiClient,
   recordGeminiUsageAndIncrementCredits,
+  refundSettledGeminiCredit,
 } from '@/lib/ai/router';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1451,19 +1452,12 @@ Respond strictly in the requested JSON format. Ensure word count constraints (li
       },
     });
 
-    await recordGeminiUsageAndIncrementCredits({
-      verifiedUserId: geminiAuth.verifiedUserId,
-      planId,
-      promptKey: 'ASK_PREFLIGHT_AI',
-      modelUsed: 'gemini-2.5-flash',
-      inputTokens: response.usageMetadata?.promptTokenCount || 900,
-      outputTokens: response.usageMetadata?.candidatesTokenCount || 350,
-      usedByokKey: geminiAuth.usedByokKey,
-      fallbackCreditsUsed: geminiAuth.currentCreditsUsed,
-    });
-
     const rawText = (response.text || '').trim();
     if (!rawText) {
+      await refundSettledGeminiCredit(
+        geminiAuth.verifiedUserId,
+        geminiAuth.usedByokKey
+      );
       throw new Error('Empty response received from Gemini.');
     }
 
@@ -1481,6 +1475,25 @@ Respond strictly in the requested JSON format. Ensure word count constraints (li
     };
 
     const cleanMarkdown = sanitizeHumanAnswer(parsed.answerMarkdown || '');
+    if (!cleanMarkdown.trim()) {
+      await refundSettledGeminiCredit(
+        geminiAuth.verifiedUserId,
+        geminiAuth.usedByokKey
+      );
+      throw new Error('Empty markdown answer parsed from Gemini.');
+    }
+
+    await recordGeminiUsageAndIncrementCredits({
+      verifiedUserId: geminiAuth.verifiedUserId,
+      planId,
+      promptKey: 'ASK_PREFLIGHT_AI',
+      modelUsed: 'gemini-2.5-flash',
+      inputTokens: response.usageMetadata?.promptTokenCount || 900,
+      outputTokens: response.usageMetadata?.candidatesTokenCount || 350,
+      usedByokKey: geminiAuth.usedByokKey,
+      fallbackCreditsUsed: geminiAuth.currentCreditsUsed,
+    });
+
     const wordCount = cleanMarkdown.trim().split(/\s+/).filter(Boolean).length;
 
     const finalAnswer: AskStartupAnswer = {

@@ -3,32 +3,15 @@
 import { db, grantsDirectory } from '@/db';
 import { eq, desc } from 'drizzle-orm';
 import { requireVerifiedSuperAdminSession } from '@/lib/auth/server-auth';
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import { ensureDefaultGrantsSeededInDb } from '@/lib/grants/ensure-grants';
 import {
   authorizeAndPrepareGeminiCall,
+  getGenAiClient,
   recordGeminiUsageAndIncrementCredits,
+  refundSettledGeminiCredit,
   sanitizePromptInput,
 } from '@/lib/ai/router';
-
-function getGenAiClient(apiKey: string): GoogleGenAI {
-  const isVertex =
-    process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' ||
-    process.env.VERTEX_AI === 'true';
-
-  if (isVertex) {
-    if (apiKey && apiKey !== 'VERTEX_AI_ACTIVE') {
-      return new GoogleGenAI({ apiKey });
-    }
-    return new GoogleGenAI({
-      vertexai: true,
-      project: process.env.GOOGLE_CLOUD_PROJECT || 'startuppreflight',
-      location: process.env.GOOGLE_CLOUD_LOCATION || 'europe-west1',
-    });
-  }
-
-  return new GoogleGenAI({ apiKey: apiKey || process.env.GEMINI_API_KEY || '' });
-}
 
 export type GrantDirectoryRecord = typeof grantsDirectory.$inferSelect;
 
@@ -196,6 +179,17 @@ Be precise with:
       },
     });
 
+    const text = response.text?.trim() || '{}';
+    const parsed = JSON.parse(text) as ExtractedGrantResult;
+
+    if (!parsed.slug || !parsed.grantName) {
+      await refundSettledGeminiCredit(
+        authCtx.verifiedUserId,
+        authCtx.usedByokKey
+      );
+      return { success: false, error: 'AI response did not include required grant fields' };
+    }
+
     await recordGeminiUsageAndIncrementCredits({
       verifiedUserId: authCtx.verifiedUserId,
       promptKey: 'ADMIN_GRANT_EXTRACT',
@@ -205,13 +199,6 @@ Be precise with:
       usedByokKey: authCtx.usedByokKey,
       fallbackCreditsUsed: authCtx.currentCreditsUsed,
     });
-
-    const text = response.text?.trim() || '{}';
-    const parsed = JSON.parse(text) as ExtractedGrantResult;
-
-    if (!parsed.slug || !parsed.grantName) {
-      return { success: false, error: 'AI response did not include required grant fields' };
-    }
 
     // Auto-prefix slug with country code if missing
     const prefix = (parsed.countryCode || 'ie').toLowerCase();

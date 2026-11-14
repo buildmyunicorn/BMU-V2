@@ -30,8 +30,10 @@ import {
   ensureDefaultTenantId,
 } from '@/lib/auth/server-auth';
 import {
+  VALID_BYOK_GEMINI_KEY_REGEX,
   calculateAppSumoTierLimits,
   calculatePassLimits,
+  isEntitlementInVaultMode,
   type EntitlementSnapshot,
 } from '@/lib/entitlements';
 import {
@@ -570,6 +572,7 @@ async function buildSessionFromDbUser(
               : modKGrantsInputs.thingsToConsider,
           }
         : undefined,
+      grantCenterData: modKGrantsInputs.grantCenterData,
       moduleLData: modL
         ? {
             ...modLInputs,
@@ -628,7 +631,11 @@ async function buildSessionFromDbUser(
           ? 'enc_gemini_byok_active'
           : null,
         accessExpiresAt: entRow.accessExpiresAt,
-        isVaultReadonly: entRow.isVaultReadonly,
+        isVaultReadonly: isEntitlementInVaultMode({
+          planType: entRow.planType,
+          accessExpiresAt: entRow.accessExpiresAt,
+          isVaultReadonly: entRow.isVaultReadonly,
+        }),
       }
     : {
         userId: dbUser.id,
@@ -1013,6 +1020,7 @@ export async function registerFounderAction(input: {
     await setServerSessionCookie({
       userId: createdUser.id,
       email: createdUser.email,
+      sessionVersion: createdUser.sessionVersion ?? 1,
     });
 
     const now = new Date();
@@ -1284,6 +1292,7 @@ export async function loginFounderAction(input: {
     await setServerSessionCookie({
       userId: foundUser.id,
       email: foundUser.email,
+      sessionVersion: foundUser.sessionVersion ?? 1,
     });
 
     const session = await buildSessionFromDbUser(foundUser);
@@ -1352,32 +1361,16 @@ export async function completeOnboardingAction(input: {
       .where(eq(users.id, cookiePayload.userId))
       .limit(1);
 
-    if (!dbUser || dbUser.status !== 'ACTIVE' || dbUser.deletedAt) {
+    if (
+      !dbUser ||
+      dbUser.status !== 'ACTIVE' ||
+      dbUser.deletedAt ||
+      (cookiePayload.sv ?? 1) !== (dbUser.sessionVersion ?? 1)
+    ) {
       return {
         ok: false,
         error: 'Unauthorized or suspended account.',
         mode: 'cloud_sql',
-      };
-    }
-
-    const [entRow] = await db
-      .select()
-      .from(userEntitlements)
-      .where(eq(userEntitlements.userId, dbUser.id))
-      .limit(1);
-
-    const existingPlans = await db
-      .select({ id: startupPlans.id })
-      .from(startupPlans)
-      .where(eq(startupPlans.ownerUserId, dbUser.id));
-
-    const maxAllowed = entRow?.maxStartupPlans ?? 1;
-    if (existingPlans.length >= maxAllowed) {
-      const session = await buildSessionFromDbUser(dbUser);
-      return {
-        ok: true,
-        mode: 'cloud_sql',
-        session,
       };
     }
 
@@ -1394,43 +1387,8 @@ export async function completeOnboardingAction(input: {
         ? Array.from(new Set([input.hqCountryCode, 'GB', 'EU', 'US']))
         : [input.hqCountryCode];
 
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        founderProfileJson: {
-          founderStage: input.founderStage,
-          teamStructure: input.teamStructure,
-          primaryHat: input.primaryHat,
-          regionOrCounty: input.regionOrCounty.trim(),
-        },
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, dbUser.id))
-      .returning();
-
     const cleanTitle = input.planTitle.trim() || 'My First Startup Plan';
     const cleanSummary = input.oneLinerSummary.trim();
-
-    const [createdPlan] = await db
-      .insert(startupPlans)
-      .values({
-        ownerUserId: dbUser.id,
-        tenantId: dbUser.tenantId,
-        cohortId: dbUser.cohortId,
-        title: cleanTitle,
-        oneLinerSummary: cleanSummary,
-        industryCategory: input.industryCategory,
-        hqCountryCode: input.hqCountryCode,
-        baseCurrency: countryPack.defaultCurrency,
-        targetMarketsArray: targetMarkets,
-        grantComplianceMetadataJson: {
-          fundingTrackMode: resolvedTrack,
-        },
-        currentModuleStep: 'MOD_A_STEP_1',
-        status: 'ACTIVE',
-      })
-      .returning();
-
     const initialTeamType =
       input.teamStructure === 'CO_FOUNDERS'
         ? 'COFOUNDER_TEAM'
@@ -1438,22 +1396,78 @@ export async function completeOnboardingAction(input: {
           ? 'SEEKING_COFOUNDER'
           : 'SOLO_FOUNDER';
 
-    await db.insert(planModulesData).values({
-      planId: createdPlan.id,
-      moduleCode: 'MOD_A_IDEATION',
-      structuredInputsJsonb: {
-        brainDumpText: cleanSummary,
-        exportPotential: input.exportPotential,
-        fundingTrackMode: resolvedTrack,
-        teamAndBudget: {
-          teamStructureType: initialTeamType,
-          skillCoverage: 'BUILD_IN_HOUSE',
-          startingBudgetBracket: '1K_TO_5K',
-          teamAndFundingNotes: '',
+    const updatedUser = await db.transaction(async (tx) => {
+      const [lockedEntRow] = await tx
+        .select()
+        .from(userEntitlements)
+        .where(eq(userEntitlements.userId, dbUser.id))
+        .for('update');
+
+      const existingPlans = await tx
+        .select({ id: startupPlans.id })
+        .from(startupPlans)
+        .where(eq(startupPlans.ownerUserId, dbUser.id));
+
+      const maxAllowed = lockedEntRow?.maxStartupPlans ?? 1;
+      if (existingPlans.length >= maxAllowed) {
+        return dbUser;
+      }
+
+      const [createdPlan] = await tx
+        .insert(startupPlans)
+        .values({
+          ownerUserId: dbUser.id,
+          tenantId: dbUser.tenantId,
+          cohortId: dbUser.cohortId,
+          title: cleanTitle,
+          oneLinerSummary: cleanSummary,
+          industryCategory: input.industryCategory,
+          hqCountryCode: input.hqCountryCode,
+          baseCurrency: countryPack.defaultCurrency,
+          targetMarketsArray: targetMarkets,
+          grantComplianceMetadataJson: {
+            fundingTrackMode: resolvedTrack,
+          },
+          currentModuleStep: 'MOD_A_STEP_1',
+          status: 'ACTIVE',
+        })
+        .returning();
+
+      await tx.insert(planModulesData).values({
+        planId: createdPlan.id,
+        moduleCode: 'MOD_A_IDEATION',
+        structuredInputsJsonb: {
+          brainDumpText: cleanSummary,
+          exportPotential: input.exportPotential,
+          fundingTrackMode: resolvedTrack,
+          teamAndBudget: {
+            teamStructureType: initialTeamType,
+            skillCoverage: 'BUILD_IN_HOUSE',
+            startingBudgetBracket: '1K_TO_5K',
+            teamAndFundingNotes: '',
+          },
         },
-      },
-      aiThingsToConsiderJsonb: [],
-      completionPercentage: cleanSummary ? 15 : 0,
+        aiThingsToConsiderJsonb: [],
+        completionPercentage: cleanSummary ? 15 : 0,
+      });
+
+      const [savedUser] = await tx
+        .update(users)
+        .set({
+          founderProfileJson: {
+            ...(dbUser.founderProfileJson || {}),
+            founderStage: input.founderStage,
+            teamStructure: input.teamStructure,
+            primaryHat: input.primaryHat,
+            regionOrCounty: input.regionOrCounty.trim(),
+            lastActivePlanId: createdPlan.id,
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, dbUser.id))
+        .returning();
+
+      return savedUser ?? dbUser;
     });
 
     const session = await buildSessionFromDbUser(updatedUser);
@@ -1500,10 +1514,13 @@ export async function getCurrentCloudSessionAction(): Promise<{
       .where(eq(users.id, cookiePayload.userId))
       .limit(1);
 
-    if (!dbUser || dbUser.status === 'SUSPENDED' || dbUser.status === 'SOFT_DELETED') {
-      if (dbUser && (dbUser.status === 'SUSPENDED' || dbUser.status === 'SOFT_DELETED')) {
-        await clearServerSessionCookie();
-      }
+    if (
+      !dbUser ||
+      dbUser.status !== 'ACTIVE' ||
+      dbUser.deletedAt ||
+      (cookiePayload.sv ?? 1) !== (dbUser.sessionVersion ?? 1)
+    ) {
+      await clearServerSessionCookie();
       return {
         dbConnected: true,
         authenticated: false,
@@ -1555,6 +1572,15 @@ export async function saveByokApiKeyServerAction(rawApiKey: string): Promise<{
 
     const trimmed = rawApiKey.trim();
     if (trimmed) {
+      if (!VALID_BYOK_GEMINI_KEY_REGEX.test(trimmed)) {
+        return {
+          ok: false,
+          hasActiveKey: false,
+          error:
+            'Please enter a valid Google AI Studio API key (starting with "AIza...") or Vertex Express key ("AQ...").',
+        };
+      }
+
       const [entRow] = await db
         .select()
         .from(userEntitlements)

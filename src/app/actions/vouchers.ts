@@ -523,6 +523,7 @@ export async function redeemVoucherOrCohortCodeAction(
 
         let updatedEntRow: typeof userEntitlements.$inferSelect;
         if (currentEnt) {
+          const resetCreditsOnUpgrade = currentEnt.planType === 'FREE_HOOK';
           const [updated] = await tx
             .update(userEntitlements)
             .set({
@@ -531,6 +532,7 @@ export async function redeemVoucherOrCohortCodeAction(
               maxStartupPlans: limits.maxStartupPlans,
               maxSeatsPerPlan: limits.maxSeatsPerPlan,
               monthlyAiCreditsLimit: limits.monthlyAiCreditsLimit,
+              ...(resetCreditsOnUpgrade ? { aiCreditsUsedThisMonth: 0 } : {}),
               whiteLabelExportEnabled: limits.whiteLabelExportEnabled,
               isVaultReadonly: false,
               accessExpiresAt: null,
@@ -575,6 +577,16 @@ export async function redeemVoucherOrCohortCodeAction(
       let updatedEntRow: typeof userEntitlements.$inferSelect;
       if (currentEnt) {
         const keepLifetime = currentEnt.planType === 'APPSUMO_LTD';
+        const resetCreditsOnUpgrade = currentEnt.planType === 'FREE_HOOK';
+        const mergedExpiry =
+          keepLifetime
+            ? null
+            : currentEnt.accessExpiresAt &&
+                passLimits.accessExpiresAt &&
+                currentEnt.accessExpiresAt.getTime() >
+                  passLimits.accessExpiresAt.getTime()
+              ? currentEnt.accessExpiresAt
+              : passLimits.accessExpiresAt;
         const [updated] = await tx
           .update(userEntitlements)
           .set({
@@ -591,7 +603,8 @@ export async function redeemVoucherOrCohortCodeAction(
               currentEnt.monthlyAiCreditsLimit,
               passLimits.monthlyAiCreditsLimit
             ),
-            accessExpiresAt: keepLifetime ? null : passLimits.accessExpiresAt,
+            ...(resetCreditsOnUpgrade ? { aiCreditsUsedThisMonth: 0 } : {}),
+            accessExpiresAt: mergedExpiry,
             isVaultReadonly: false,
             updatedAt: now,
           })

@@ -11,6 +11,10 @@ import {
   startupPlans,
   validationSurveys,
   surveyResponses,
+  surveyBoostOrders,
+  quoteRfpRequests,
+  quotePartnerResponses,
+  cohortStaff,
   planCollaborators,
   planModulesData,
   openQuestionsParkingLot,
@@ -232,6 +236,7 @@ export async function loginSuperAdminAction(input: {
       await setAdminSessionCookie({
         userId: existingUser.id,
         email: existingUser.email,
+        sessionVersion: existingUser.sessionVersion ?? 1,
       });
 
       return {
@@ -299,6 +304,7 @@ export async function loginSuperAdminAction(input: {
     await setAdminSessionCookie({
       userId: createdAdmin.id,
       email: createdAdmin.email,
+      sessionVersion: createdAdmin.sessionVersion ?? 1,
     });
 
     return {
@@ -665,27 +671,30 @@ export async function suspendOrReactivateUserAction(input: {
       const cleanReason =
         input.reason?.trim() || 'Account suspended by administrator.';
 
-      await db
-        .update(users)
-        .set({
-          status: 'SUSPENDED',
-          suspensionReason: cleanReason,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, input.userId));
+      await db.transaction(async (tx) => {
+        await tx
+          .update(users)
+          .set({
+            status: 'SUSPENDED',
+            sessionVersion: sql`${users.sessionVersion} + 1`,
+            suspensionReason: cleanReason,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, input.userId));
 
-      const ownedPlans = await db
-        .select({ id: startupPlans.id })
-        .from(startupPlans)
-        .where(eq(startupPlans.ownerUserId, input.userId));
+        const ownedPlans = await tx
+          .select({ id: startupPlans.id })
+          .from(startupPlans)
+          .where(eq(startupPlans.ownerUserId, input.userId));
 
-      if (ownedPlans.length > 0) {
-        const planIds = ownedPlans.map((p) => p.id);
-        await db
-          .update(validationSurveys)
-          .set({ isActive: false })
-          .where(inArray(validationSurveys.planId, planIds));
-      }
+        if (ownedPlans.length > 0) {
+          const planIds = ownedPlans.map((p) => p.id);
+          await tx
+            .update(validationSurveys)
+            .set({ isActive: false })
+            .where(inArray(validationSurveys.planId, planIds));
+        }
+      });
     } else {
       await db
         .update(users)
@@ -730,27 +739,30 @@ export async function softDeleteOrRestoreUserAction(input: {
 
   try {
     if (input.action === 'SOFT_DELETE') {
-      await db
-        .update(users)
-        .set({
-          status: 'SOFT_DELETED',
-          deletedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, input.userId));
+      await db.transaction(async (tx) => {
+        await tx
+          .update(users)
+          .set({
+            status: 'SOFT_DELETED',
+            sessionVersion: sql`${users.sessionVersion} + 1`,
+            deletedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, input.userId));
 
-      const ownedPlans = await db
-        .select({ id: startupPlans.id })
-        .from(startupPlans)
-        .where(eq(startupPlans.ownerUserId, input.userId));
+        const ownedPlans = await tx
+          .select({ id: startupPlans.id })
+          .from(startupPlans)
+          .where(eq(startupPlans.ownerUserId, input.userId));
 
-      if (ownedPlans.length > 0) {
-        const planIds = ownedPlans.map((p) => p.id);
-        await db
-          .update(validationSurveys)
-          .set({ isActive: false })
-          .where(inArray(validationSurveys.planId, planIds));
-      }
+        if (ownedPlans.length > 0) {
+          const planIds = ownedPlans.map((p) => p.id);
+          await tx
+            .update(validationSurveys)
+            .set({ isActive: false })
+            .where(inArray(validationSurveys.planId, planIds));
+        }
+      });
     } else {
       await db
         .update(users)
@@ -818,78 +830,117 @@ export async function permanentlyDeleteUserAction(input: {
       };
     }
 
-    // Step 1: Explicitly cascade delete all plans owned by this user
-    const ownedPlans = await db
-      .select({ id: startupPlans.id })
-      .from(startupPlans)
-      .where(eq(startupPlans.ownerUserId, input.userId));
+    await ensureDatabaseSchemaSynced();
 
-    if (ownedPlans.length > 0) {
-      const planIds = ownedPlans.map((p) => p.id);
+    await db.transaction(async (tx) => {
+      // Step 1: Explicitly cascade delete all plans owned by this user
+      const ownedPlans = await tx
+        .select({ id: startupPlans.id })
+        .from(startupPlans)
+        .where(eq(startupPlans.ownerUserId, input.userId));
 
-      // 1a: Find and delete survey responses, then surveys
-      const surveys = await db
-        .select({ id: validationSurveys.id })
-        .from(validationSurveys)
-        .where(inArray(validationSurveys.planId, planIds));
+      if (ownedPlans.length > 0) {
+        const planIds = ownedPlans.map((p) => p.id);
 
-      if (surveys.length > 0) {
-        const surveyIds = surveys.map((s) => s.id);
-        await db
-          .delete(surveyResponses)
-          .where(inArray(surveyResponses.surveyId, surveyIds));
-        await db
-          .delete(validationSurveys)
-          .where(inArray(validationSurveys.id, surveyIds));
+        // 1a: Delete survey boost orders & quote RFPs/responses tied to these plans
+        await tx
+          .delete(surveyBoostOrders)
+          .where(inArray(surveyBoostOrders.planId, planIds));
+
+        const rfpRows = await tx
+          .select({ id: quoteRfpRequests.id })
+          .from(quoteRfpRequests)
+          .where(inArray(quoteRfpRequests.planId, planIds));
+        if (rfpRows.length > 0) {
+          await tx
+            .delete(quotePartnerResponses)
+            .where(
+              inArray(
+                quotePartnerResponses.rfpId,
+                rfpRows.map((r) => r.id)
+              )
+            );
+          await tx
+            .delete(quoteRfpRequests)
+            .where(inArray(quoteRfpRequests.planId, planIds));
+        }
+
+        // 1b: Find and delete survey responses, then surveys
+        const surveys = await tx
+          .select({ id: validationSurveys.id })
+          .from(validationSurveys)
+          .where(inArray(validationSurveys.planId, planIds));
+
+        if (surveys.length > 0) {
+          const surveyIds = surveys.map((s) => s.id);
+          await tx
+            .delete(surveyResponses)
+            .where(inArray(surveyResponses.surveyId, surveyIds));
+          await tx
+            .delete(validationSurveys)
+            .where(inArray(validationSurveys.id, surveyIds));
+        }
+
+        // 1c: Delete open questions, module data, and collaborators on these plans
+        await tx
+          .delete(openQuestionsParkingLot)
+          .where(inArray(openQuestionsParkingLot.planId, planIds));
+        await tx
+          .delete(planModulesData)
+          .where(inArray(planModulesData.planId, planIds));
+        await tx
+          .delete(planCollaborators)
+          .where(inArray(planCollaborators.planId, planIds));
+
+        // 1d: Unlink AI usage logs referencing these plans
+        await tx
+          .update(aiUsageLogs)
+          .set({ planId: null })
+          .where(inArray(aiUsageLogs.planId, planIds));
+
+        // 1e: Delete the startup plans
+        await tx
+          .delete(startupPlans)
+          .where(inArray(startupPlans.id, planIds));
       }
 
-      // 1b: Delete open questions, module data, and collaborators on these plans
-      await db
-        .delete(openQuestionsParkingLot)
-        .where(inArray(openQuestionsParkingLot.planId, planIds));
-      await db
-        .delete(planModulesData)
-        .where(inArray(planModulesData.planId, planIds));
-      await db
+      // Step 2: Delete any remaining boost orders or quote RFPs created by this user on external plans
+      await tx
+        .delete(surveyBoostOrders)
+        .where(eq(surveyBoostOrders.userId, input.userId));
+      await tx
+        .delete(quoteRfpRequests)
+        .where(eq(quoteRfpRequests.founderUserId, input.userId));
+
+      // Step 3: Delete collaborator entries for this user on any external plans & unlink cohort staff
+      await tx
         .delete(planCollaborators)
-        .where(inArray(planCollaborators.planId, planIds));
+        .where(eq(planCollaborators.userId, input.userId));
+      await tx
+        .update(cohortStaff)
+        .set({ userId: null })
+        .where(eq(cohortStaff.userId, input.userId));
 
-      // 1c: Unlink AI usage logs referencing these plans
-      await db
+      // Step 4: Unlink vouchers redeemed by this user
+      await tx
+        .update(vouchers)
+        .set({ redeemedByUserId: null })
+        .where(eq(vouchers.redeemedByUserId, input.userId));
+
+      // Step 5: Unlink AI usage logs created by this user
+      await tx
         .update(aiUsageLogs)
-        .set({ planId: null })
-        .where(inArray(aiUsageLogs.planId, planIds));
+        .set({ userId: null })
+        .where(eq(aiUsageLogs.userId, input.userId));
 
-      // 1d: Delete the startup plans
-      await db
-        .delete(startupPlans)
-        .where(inArray(startupPlans.id, planIds));
-    }
+      // Step 6: Delete user entitlements
+      await tx
+        .delete(userEntitlements)
+        .where(eq(userEntitlements.userId, input.userId));
 
-    // Step 2: Delete collaborator entries for this user on any external plans
-    await db
-      .delete(planCollaborators)
-      .where(eq(planCollaborators.userId, input.userId));
-
-    // Step 3: Unlink vouchers redeemed by this user
-    await db
-      .update(vouchers)
-      .set({ redeemedByUserId: null })
-      .where(eq(vouchers.redeemedByUserId, input.userId));
-
-    // Step 4: Unlink AI usage logs created by this user
-    await db
-      .update(aiUsageLogs)
-      .set({ userId: null })
-      .where(eq(aiUsageLogs.userId, input.userId));
-
-    // Step 5: Delete user entitlements
-    await db
-      .delete(userEntitlements)
-      .where(eq(userEntitlements.userId, input.userId));
-
-    // Step 6: Finally delete the user row from PostgreSQL
-    await db.delete(users).where(eq(users.id, input.userId));
+      // Step 7: Finally delete the user row from PostgreSQL
+      await tx.delete(users).where(eq(users.id, input.userId));
+    });
 
     return { ok: true, dbConnected: true };
   } catch (err) {

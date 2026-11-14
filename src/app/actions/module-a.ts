@@ -3,6 +3,7 @@
 import { and, eq } from 'drizzle-orm';
 import {
   db,
+  users,
   startupPlans,
   planModulesData,
   openQuestionsParkingLot,
@@ -498,98 +499,148 @@ export async function cloneStartupPlanAction(input: {
     };
   }
 
+  // Only the plan owner (or Super Admin) may clone a plan into their own account
+  if (ownership.role === 'COLLABORATOR' && !ownership.isSuperAdmin) {
+    return {
+      ok: false,
+      error: 'Only the primary plan owner can clone and pivot this startup plan.',
+    };
+  }
+
+  const callerUserId = ownership.userId;
+  const callerEmail = (ownership.email || '').trim().toLowerCase();
+
   try {
-    // Check user entitlements for plan limits
-    const [entRow] = await db
-      .select({ maxStartupPlans: userEntitlements.maxStartupPlans })
-      .from(userEntitlements)
-      .where(eq(userEntitlements.userId, ownership.userId))
-      .limit(1);
+    const txResult = await db.transaction(async (tx) => {
+      // Lock caller's entitlement row to serialize concurrent clone requests against maxStartupPlans
+      const [lockedEnt] = await tx
+        .select({ maxStartupPlans: userEntitlements.maxStartupPlans })
+        .from(userEntitlements)
+        .where(eq(userEntitlements.userId, callerUserId))
+        .for('update');
 
-    const maxPlans = entRow?.maxStartupPlans ?? 1;
+      if (!ownership.isSuperAdmin) {
+        const maxPlans = lockedEnt?.maxStartupPlans ?? 1;
+        const existingPlans = await tx
+          .select({ id: startupPlans.id })
+          .from(startupPlans)
+          .where(eq(startupPlans.ownerUserId, callerUserId));
 
-    // Count user's current plans
-    const existingPlans = await db
-      .select({ id: startupPlans.id })
-      .from(startupPlans)
-      .where(eq(startupPlans.ownerUserId, ownership.userId));
+        if (existingPlans.length >= maxPlans) {
+          return {
+            ok: false as const,
+            limitReached: true,
+            error: `You have reached your limit of ${maxPlans} active Startup Plan${maxPlans === 1 ? '' : 's'}. Upgrade your pass to create additional plans.`,
+          };
+        }
+      }
 
-    if (existingPlans.length >= maxPlans) {
-      return {
-        ok: false,
-        limitReached: true,
-        error: `You have reached your limit of ${maxPlans} active Startup Plan${maxPlans === 1 ? '' : 's'}. Upgrade your pass to create additional plans.`,
-      };
-    }
+      const [callerUserRow] = await tx
+        .select({ cohortId: users.cohortId, tenantId: users.tenantId })
+        .from(users)
+        .where(eq(users.id, callerUserId))
+        .limit(1);
 
-    // Query the source plan
-    const [sourcePlan] = await db
-      .select()
-      .from(startupPlans)
-      .where(eq(startupPlans.id, input.sourcePlanId))
-      .limit(1);
+      const [sourcePlan] = await tx
+        .select()
+        .from(startupPlans)
+        .where(eq(startupPlans.id, input.sourcePlanId))
+        .limit(1);
 
-    if (!sourcePlan) {
-      return { ok: false, error: 'Source plan not found.' };
-    }
+      if (!sourcePlan) {
+        return { ok: false as const, error: 'Source plan not found.' };
+      }
 
-    const cleanTitle = input.newTitle?.trim() || `${sourcePlan.title} (Pivot)`;
+      const cleanTitle = input.newTitle?.trim() || `${sourcePlan.title} (Pivot)`;
+      // Only carry cohortId forward if the cloning owner actually belongs to that cohort
+      const safeCohortId =
+        sourcePlan.cohortId && callerUserRow?.cohortId === sourcePlan.cohortId
+          ? sourcePlan.cohortId
+          : null;
 
-    // Insert cloned plan row with parentPlanId pointing to source plan
-    const [createdPlan] = await db
-      .insert(startupPlans)
-      .values({
-        ownerUserId: ownership.userId,
-        tenantId: sourcePlan.tenantId,
-        cohortId: sourcePlan.cohortId,
-        parentPlanId: sourcePlan.id,
-        title: cleanTitle,
-        oneLinerSummary: sourcePlan.oneLinerSummary,
-        industryCategory: sourcePlan.industryCategory,
-        grantEligibilitySector: sourcePlan.grantEligibilitySector,
-        innovateUkResearchCategory: sourcePlan.innovateUkResearchCategory,
-        productVehicleType: sourcePlan.productVehicleType,
-        primarySalesChannel: sourcePlan.primarySalesChannel,
-        selectedBuildTier: sourcePlan.selectedBuildTier,
-        hqCountryCode: sourcePlan.hqCountryCode,
-        localAuthorityOrRegion: sourcePlan.localAuthorityOrRegion,
-        baseCurrency: sourcePlan.baseCurrency,
-        targetMarketsArray: sourcePlan.targetMarketsArray,
-        targetLaunchDate: sourcePlan.targetLaunchDate,
-        currentModuleStep: sourcePlan.currentModuleStep,
-        grantComplianceMetadataJson: sourcePlan.grantComplianceMetadataJson,
-        ideaComparatorScoresJson: sourcePlan.ideaComparatorScoresJson,
-        status: 'ACTIVE',
-      })
-      .returning();
+      const [createdPlan] = await tx
+        .insert(startupPlans)
+        .values({
+          ownerUserId: callerUserId,
+          tenantId: callerUserRow?.tenantId || sourcePlan.tenantId,
+          cohortId: safeCohortId,
+          parentPlanId: sourcePlan.id,
+          title: cleanTitle,
+          oneLinerSummary: sourcePlan.oneLinerSummary,
+          industryCategory: sourcePlan.industryCategory,
+          grantEligibilitySector: sourcePlan.grantEligibilitySector,
+          innovateUkResearchCategory: sourcePlan.innovateUkResearchCategory,
+          productVehicleType: sourcePlan.productVehicleType,
+          primarySalesChannel: sourcePlan.primarySalesChannel,
+          selectedBuildTier: sourcePlan.selectedBuildTier,
+          hqCountryCode: sourcePlan.hqCountryCode,
+          localAuthorityOrRegion: sourcePlan.localAuthorityOrRegion,
+          baseCurrency: sourcePlan.baseCurrency,
+          targetMarketsArray: sourcePlan.targetMarketsArray,
+          targetLaunchDate: sourcePlan.targetLaunchDate,
+          currentModuleStep: sourcePlan.currentModuleStep,
+          grantComplianceMetadataJson: sourcePlan.grantComplianceMetadataJson,
+          ideaComparatorScoresJson: sourcePlan.ideaComparatorScoresJson,
+          status: 'ACTIVE',
+        })
+        .returning();
 
-    // Copy all planModulesData
-    const sourceModules = await db
-      .select()
-      .from(planModulesData)
-      .where(eq(planModulesData.planId, sourcePlan.id));
+      const sourceModules = await tx
+        .select()
+        .from(planModulesData)
+        .where(eq(planModulesData.planId, sourcePlan.id));
 
-    if (sourceModules.length > 0) {
-      await db.insert(planModulesData).values(
-        sourceModules.map((mod) => ({
-          planId: createdPlan.id,
-          moduleCode: mod.moduleCode,
-          structuredInputsJsonb: mod.structuredInputsJsonb,
-          aiThingsToConsiderJsonb: mod.aiThingsToConsiderJsonb,
-          completionPercentage: mod.completionPercentage,
-        }))
-      );
-    }
+      if (sourceModules.length > 0) {
+        await tx.insert(planModulesData).values(
+          sourceModules.map((mod) => {
+            let safeInputs = mod.structuredInputsJsonb;
+            // Preserve Blind-Reveal Co-Founder Alignment secrecy on unrevealed MOD_F responses from other team members
+            if (
+              mod.moduleCode === 'MOD_F_COFOUNDER_TEAM' &&
+              safeInputs &&
+              typeof safeInputs === 'object'
+            ) {
+              const modFObj = safeInputs as Record<string, any>;
+              const rawStep4 = modFObj.step4AlignmentData;
+              if (
+                rawStep4 &&
+                !rawStep4.isRevealed &&
+                Array.isArray(rawStep4.responses)
+              ) {
+                const members: Array<{ id?: string; email?: string }> =
+                  modFObj.promoterProfiles?.teamMembers || [];
+                safeInputs = {
+                  ...modFObj,
+                  step4AlignmentData: {
+                    ...rawStep4,
+                    responses: rawStep4.responses.filter((resp: any) => {
+                      const matched = members.find((m) => m.id === resp?.memberId);
+                      const mEmail = (matched?.email || '').trim().toLowerCase();
+                      return Boolean(callerEmail && mEmail === callerEmail);
+                    }),
+                  },
+                };
+              }
+            }
 
-    // Copy open questions
-    try {
-      const sourceQuestions = await db
+            return {
+              planId: createdPlan.id,
+              moduleCode: mod.moduleCode,
+              structuredInputsJsonb: safeInputs,
+              aiThingsToConsiderJsonb: mod.aiThingsToConsiderJsonb,
+              completionPercentage: mod.completionPercentage,
+            };
+          })
+        );
+      }
+
+      const sourceQuestions = await tx
         .select()
         .from(openQuestionsParkingLot)
         .where(eq(openQuestionsParkingLot.planId, sourcePlan.id));
 
       if (sourceQuestions.length > 0) {
-        await db.insert(openQuestionsParkingLot).values(
+        await tx.insert(openQuestionsParkingLot).values(
           sourceQuestions.map((q) => ({
             planId: createdPlan.id,
             sourceModule: q.sourceModule,
@@ -599,20 +650,15 @@ export async function cloneStartupPlanAction(input: {
           }))
         );
       }
-    } catch (qErr) {
-      console.warn('[SPF Clone] Non-fatal error copying open questions:', qErr);
-    }
 
-    // Copy surveys with unique slugs
-    try {
-      const sourceSurveys = await db
+      const sourceSurveys = await tx
         .select()
         .from(validationSurveys)
         .where(eq(validationSurveys.planId, sourcePlan.id));
 
       for (const srv of sourceSurveys) {
         const newSlug = `${srv.publicSlug.slice(0, 36)}-pivot-${Math.random().toString(36).slice(2, 7)}`;
-        await db.insert(validationSurveys).values({
+        await tx.insert(validationSurveys).values({
           planId: createdPlan.id,
           publicSlug: newSlug,
           title: `${srv.title} (Pivot)`,
@@ -625,26 +671,21 @@ export async function cloneStartupPlanAction(input: {
           interviewLogsJsonb: srv.interviewLogsJsonb,
         });
       }
-    } catch (surveyErr) {
-      console.warn('[SPF Clone] Non-fatal error copying surveys:', surveyErr);
-    }
 
-    return {
-      ok: true,
-      newPlanId: createdPlan.id,
-      newPlanTitle: createdPlan.title,
-    };
+      return {
+        ok: true as const,
+        newPlanId: createdPlan.id,
+        newPlanTitle: createdPlan.title,
+      };
+    });
+
+    return txResult;
   } catch (err: any) {
-    console.warn('[SPF Clone Plan] DB clone failed, falling back to local clone:', err);
-    // Graceful fallback: return ok: true with generated local UUID so the founder's session is not blocked
-    const fallbackId =
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    console.error('[SPF Clone Plan] DB clone transaction failed:', err);
     return {
-      ok: true,
-      newPlanId: fallbackId,
-      newPlanTitle: (input.newTitle || 'My Cloned Plan').trim(),
+      ok: false,
+      error:
+        'Unable to clone your startup plan right now. Please try again in a moment.',
     };
   }
 }

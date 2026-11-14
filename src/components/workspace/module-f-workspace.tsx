@@ -73,8 +73,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 import {
   formatPlanCurrency,
+  getCountryRulePack,
   type SupportedCountryCode,
 } from '@/lib/localization';
+import {
+  computeModuleFCompensationSchedule,
+  getQuarterProRataYearFactor,
+  matchRoleToExistingFounder,
+} from '@/lib/finance/cross-module-normalizer';
 import type {
   ActiveStartupPlan,
   TeamMemberProfileItem,
@@ -1770,7 +1776,7 @@ export function buildDefaultStep5DataForPlan(
       grossAnnualSalary: 0,
       isGrantReimbursableEligible: member.roleClassification === 'FOUNDER_PROMOTER' || member.roleClassification === 'KEY_TEAM_MEMBER',
       isRdTaxCreditEligible: department === 'ENGINEERING_PRODUCT',
-      equityGrantPercent: member.equitySharePercent || 0,
+      equityGrantPercent: 0,
       vestingYears: 4,
       cliffMonths: 12,
       notes: `Imported from Step 1 Team Profiles (${member.fullName || 'Member'}). Set target salary or sweat equity mode.`,
@@ -2271,8 +2277,21 @@ export function ModuleFWorkspace({
 
   // Step 5 Calculations & Completeness
   const isGb = selectedCountry === 'GB';
-  const employerTaxRate = isGb ? 0.138 : 0.1115; // 13.8% UK NIC vs 11.15% IE Class A PRSI
+  const countryPackStep5 = getCountryRulePack(selectedCountry);
+  const employerTaxRate = countryPackStep5.employerPayrollTaxPercent / 100;
   const employerPensionRate = isGb ? 0.03 : 0.0; // 3% UK auto-enrolment workplace pension
+
+  const step5CompSchedule = computeModuleFCompensationSchedule(
+    {
+      promoterProfiles: step1Data,
+      step3SurvivalBudgetData: step3Data,
+      step5HiringPlanData: step5Data,
+    },
+    selectedCountry
+  );
+  const founderSalaryWarningsByRoleId = new Map(
+    step5CompSchedule.founderSalaryWarnings.map((w) => [w.roleId, w])
+  );
 
   // Cumulative Flow-Through:
   // Year 1 includes roles added in Year 1.
@@ -2298,51 +2317,81 @@ export function ModuleFWorkspace({
     }, 0);
   }
 
-  function calculateYearFinancials(roles: PlannedRoleItem[], contractorBudget: number) {
+  function calculateYearFinancials(
+    roles: PlannedRoleItem[],
+    contractorBudget: number,
+    targetYear: 1 | 2 | 3
+  ) {
+    const getEffectiveYearSalary = (r: PlannedRoleItem) => {
+      if (
+        r.compensationModel === 'PURE_SWEAT_EQUITY' ||
+        r.compensationModel === 'ADVISORY_EQUITY'
+      ) {
+        return 0;
+      }
+      const rawAnnual = Number(r.grossAnnualSalary) || 0;
+      const proRata =
+        r.yearScheduled === targetYear
+          ? getQuarterProRataYearFactor(r.targetQuarter)
+          : 1.0;
+      return Math.round(rawAnnual * proRata);
+    };
+
     const grossWages = roles.reduce((sum, r) => {
-      if (r.compensationModel === 'PURE_SWEAT_EQUITY') return sum;
-      return sum + (Number(r.grossAnnualSalary) || 0);
+      return sum + getEffectiveYearSalary(r);
     }, 0);
 
     const employerTaxes = roles.reduce((sum, r) => {
-      if (r.compensationModel === 'PURE_SWEAT_EQUITY') return sum;
-      const salary = Number(r.grossAnnualSalary) || 0;
+      if (r.employmentMode === 'CONTRACTOR_RETAINER') return sum;
+      const salary = getEffectiveYearSalary(r);
+      if (salary <= 0) return sum;
       const tax = salary * employerTaxRate;
       const pension = salary * employerPensionRate;
-      return sum + tax + pension;
+      return sum + Math.round(tax + pension);
     }, 0);
 
     const fullyLoadedPayroll = grossWages + employerTaxes;
     const totalCashBurn = fullyLoadedPayroll + (Number(contractorBudget) || 0);
 
-    const totalEquityPoolPledged = roles.reduce(
-      (sum, r) => sum + (Number(r.equityGrantPercent) || 0),
-      0
-    );
+    const totalEquityPoolPledged = roles.reduce((sum, r) => {
+      const founderMatch = matchRoleToExistingFounder(
+        r,
+        step1Data.teamMembers,
+        step3Data.founderBudgets
+      );
+      if (founderMatch.isExistingFounder) return sum;
+      return sum + (Number(r.equityGrantPercent) || 0);
+    }, 0);
 
     // Potential grant subsidy estimate:
     // IE LEO Priming: up to 50% of new direct employee salary capped at €10,000 per employee
     // UK Innovate UK: typically 70% direct labour on eligible R&D work packages
     const eligibleGrantRoles = roles.filter(
-      (r) => r.isGrantReimbursableEligible && r.compensationModel !== 'PURE_SWEAT_EQUITY'
+      (r) =>
+        r.isGrantReimbursableEligible &&
+        r.compensationModel !== 'PURE_SWEAT_EQUITY' &&
+        r.compensationModel !== 'ADVISORY_EQUITY'
     );
     const estimatedGrantSubsidy = isGb
       ? eligibleGrantRoles.reduce(
-          (sum, r) => sum + Math.round((Number(r.grossAnnualSalary) || 0) * 0.5),
+          (sum, r) => sum + Math.round(getEffectiveYearSalary(r) * 0.7),
           0
         )
       : eligibleGrantRoles.reduce(
           (sum, r) =>
-            sum + Math.min(10000, Math.round((Number(r.grossAnnualSalary) || 0) * 0.5)),
+            sum + Math.min(10000, Math.round(getEffectiveYearSalary(r) * 0.5)),
           0
         );
 
     // R&D Tax Credit payroll offset estimate (IE 30%, UK 20% SME RDEC/ERIS)
     const eligibleRdRoles = roles.filter(
-      (r) => r.isRdTaxCreditEligible && r.compensationModel !== 'PURE_SWEAT_EQUITY'
+      (r) =>
+        r.isRdTaxCreditEligible &&
+        r.compensationModel !== 'PURE_SWEAT_EQUITY' &&
+        r.compensationModel !== 'ADVISORY_EQUITY'
     );
     const estimatedRdOffset = eligibleRdRoles.reduce((sum, r) => {
-      const salary = Number(r.grossAnnualSalary) || 0;
+      const salary = getEffectiveYearSalary(r);
       return sum + Math.round(salary * (isGb ? 0.2 : 0.3));
     }, 0);
 
@@ -2357,9 +2406,9 @@ export function ModuleFWorkspace({
     };
   }
 
-  const y1Stats = calculateYearFinancials(step5RolesYear1, step5Data.contractorBudgetYear1);
-  const y2Stats = calculateYearFinancials(step5RolesYear2, step5Data.contractorBudgetYear2);
-  const y3Stats = calculateYearFinancials(step5RolesYear3, step5Data.contractorBudgetYear3);
+  const y1Stats = calculateYearFinancials(step5RolesYear1, step5Data.contractorBudgetYear1, 1);
+  const y2Stats = calculateYearFinancials(step5RolesYear2, step5Data.contractorBudgetYear2, 2);
+  const y3Stats = calculateYearFinancials(step5RolesYear3, step5Data.contractorBudgetYear3, 3);
 
   const step5Complete =
     Boolean(step5Data.hiringPosture) &&
@@ -8120,14 +8169,32 @@ export function ModuleFWorkspace({
                       const isFlowedFromPriorYear = role.yearScheduled < activeYearTab;
                       const gross = Number(role.grossAnnualSalary) || 0;
                       const isPureSweat =
-                        role.compensationModel === 'PURE_SWEAT_EQUITY';
-                      const taxCost = isPureSweat ? 0 : gross * employerTaxRate;
-                      const pensionCost = isPureSweat
-                        ? 0
-                        : gross * employerPensionRate;
+                        role.compensationModel === 'PURE_SWEAT_EQUITY' ||
+                        role.compensationModel === 'ADVISORY_EQUITY';
+                      const isContractorRole =
+                        role.employmentMode === 'CONTRACTOR_RETAINER';
+                      const proRataInTabYear =
+                        role.yearScheduled === activeYearTab
+                          ? getQuarterProRataYearFactor(role.targetQuarter)
+                          : 1.0;
+                      const effectiveGrossInTabYear = Math.round(
+                        gross * proRataInTabYear
+                      );
+                      const taxCost =
+                        isPureSweat || isContractorRole
+                          ? 0
+                          : effectiveGrossInTabYear * employerTaxRate;
+                      const pensionCost =
+                        isPureSweat || isContractorRole
+                          ? 0
+                          : effectiveGrossInTabYear * employerPensionRate;
                       const loadedCost = isPureSweat
                         ? 0
-                        : gross + taxCost + pensionCost;
+                        : Math.round(
+                            effectiveGrossInTabYear + taxCost + pensionCost
+                          );
+                      const survivalShortfallWarning =
+                        founderSalaryWarningsByRoleId.get(role.id);
 
                       return (
                         <div
@@ -8196,39 +8263,63 @@ export function ModuleFWorkspace({
                                       )?.badge
                                     }
                                   </Badge>
-                                  {Number(role.equityGrantPercent) > 0 && (
-                                    <span className="text-[10px] font-bold text-emerald-800">
-                                      ⚡ {role.equityGrantPercent}% Equity
-                                    </span>
+                                  {Number(role.equityGrantPercent) > 0 &&
+                                    !matchRoleToExistingFounder(
+                                      role,
+                                      step1Data.teamMembers,
+                                      step3Data.founderBudgets
+                                    ).isExistingFounder && (
+                                      <span className="text-[10px] font-bold text-emerald-800">
+                                        ⚡ {role.equityGrantPercent}% Equity
+                                      </span>
+                                    )}
+                                  {survivalShortfallWarning && (
+                                    <Badge
+                                      variant="outline"
+                                      className="border-amber-300 bg-amber-50 text-[9px] font-medium text-amber-900 font-mono tabular-nums"
+                                      title={`Est. monthly PAYE net take-home (${formatPlanCurrency(
+                                        survivalShortfallWarning.estimatedMonthlyNetTakeHome,
+                                        countryPackStep5.defaultCurrency
+                                      )}) is below Step 3 Personal Survival Budget (${formatPlanCurrency(
+                                        survivalShortfallWarning.monthlySurvivalBudget,
+                                        countryPackStep5.defaultCurrency
+                                      )}/mo)`}
+                                    >
+                                      <AlertTriangle className="mr-1 h-2.5 w-2.5 text-amber-700" />
+                                      Net &lt; Survival Budget (-
+                                      {formatPlanCurrency(
+                                        survivalShortfallWarning.monthlyShortfall,
+                                        countryPackStep5.defaultCurrency
+                                      )}
+                                      /mo)
+                                    </Badge>
                                   )}
                                 </div>
-                                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-0.5">
+                                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-0.5 font-mono tabular-nums">
                                     <span>
                                       Gross:{' '}
                                       <strong>
                                         {isPureSweat
-                                          ? `${selectedCountry === 'GB' ? '£0' : '€0'} (Sweat Equity)`
+                                          ? `${formatPlanCurrency(0, countryPackStep5.defaultCurrency)} (Sweat Equity)`
                                           : formatPlanCurrency(
                                               gross,
-                                              selectedCountry === 'GB'
-                                                ? 'GBP'
-                                                : 'EUR'
+                                              countryPackStep5.defaultCurrency
                                             )}
                                       </strong>
                                     </span>
                                     {!isPureSweat && (
                                       <span>
-                                        Fully-Loaded:{' '}
+                                        Y{activeYearTab} Cash Cost:{' '}
                                         <strong className="text-slate-800">
                                           {formatPlanCurrency(
                                             loadedCost,
-                                            selectedCountry === 'GB' ? 'GBP' : 'EUR'
+                                            countryPackStep5.defaultCurrency
                                           )}
                                         </strong>
                                       </span>
                                     )}
                                     {role.isGrantReimbursableEligible && (
-                                      <span className="text-emerald-600 font-semibold">
+                                      <span className="text-emerald-600 font-sans font-semibold">
                                         ✓ LEO/Innovate UK Candidate
                                       </span>
                                     )}

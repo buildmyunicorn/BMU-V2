@@ -19,6 +19,7 @@ import type {
 } from '@/lib/auth/session-store';
 import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
 import type { SupportedCountryCode } from '@/lib/localization';
+import { computeModuleFCompensationSchedule } from '@/lib/finance/cross-module-normalizer';
 import {
   generatePricingStrategyJustificationViaRouter,
   type GeneratePricingStrategyJustificationResult,
@@ -391,6 +392,18 @@ export async function getCanonicalPayrollBaselineAction(input: {
   }
 
   try {
+    const [planRow] = await db
+      .select({
+        hqCountryCode: startupPlans.hqCountryCode,
+        baseCurrency: startupPlans.baseCurrency,
+      })
+      .from(startupPlans)
+      .where(eq(startupPlans.id, input.planId))
+      .limit(1);
+
+    const hqCountry = planRow?.hqCountryCode || 'IE';
+    const baseCurrency = planRow?.baseCurrency || (hqCountry === 'GB' ? 'GBP' : 'EUR');
+
     const modFRecord = await db
       .select()
       .from(planModulesData)
@@ -403,71 +416,38 @@ export async function getCanonicalPayrollBaselineAction(input: {
       .limit(1);
 
     if (modFRecord.length === 0) {
+      const defaultComp = computeModuleFCompensationSchedule(null, hqCountry);
+      const y1 = defaultComp.years[1].monthlyTotalCompensationAvg;
       return {
         ok: true,
-        year1MonthlyPayroll: 3500,
-        year2MonthlyPayroll: 8500,
-        year3MonthlyPayroll: 16000,
-        personalSurvivalBudgetMonthly: 2500,
-        currency: 'EUR',
+        year1MonthlyPayroll: y1,
+        year2MonthlyPayroll: Math.round(y1 * 1.8),
+        year3MonthlyPayroll: Math.round(y1 * 2.8),
+        personalSurvivalBudgetMonthly: defaultComp.canonicalMonthlySurvivalTotal,
+        currency: baseCurrency,
         sourceModuleFFound: false,
       };
     }
 
     const modFData = modFRecord[0].structuredInputsJsonb as SavedModuleFData;
-    const step5 = modFData?.step5HiringPlanData;
-    const step3 = modFData?.step3SurvivalBudgetData;
-
-    // Calculate monthly founder survival budget across all co-founders if defined
-    let survivalBudgetMonthly = 2500;
-    if (step3?.founderBudgets && Array.isArray(step3.founderBudgets) && step3.founderBudgets.length > 0) {
-      const totalMonthly = step3.founderBudgets.reduce((sum, b) => {
-        const core =
-          (Number(b.housingAndUtilities) || 0) +
-          (Number(b.groceriesAndEssentials) || 0) +
-          (Number(b.transportAndCommute) || 0) +
-          (Number(b.debtAndLoanCommitments) || 0) +
-          (Number(b.dependentsAndFamily) || 0);
-        const netRequired = Math.max(0, core - (Number(b.incomeOffsetCushion) || 0));
-        return sum + netRequired;
-      }, 0);
-      if (totalMonthly > 0) {
-        survivalBudgetMonthly = Math.round(totalMonthly);
-      }
-    }
-
-    // Calculate Y1, Y2, Y3 monthly payroll from Step 5 roles if present
-    let y1AnnualTotal = 0;
-    let y2AnnualTotal = 0;
-    let y3AnnualTotal = 0;
-
-    if (step5?.roles && Array.isArray(step5.roles)) {
-      for (const role of step5.roles) {
-        const gross = Number(role.grossAnnualSalary) || 0;
-        const taxRate = 0.11; // Standard employer social contribution
-        const fullyLoaded = gross * (1 + taxRate);
-        if (role.yearScheduled <= 1) y1AnnualTotal += fullyLoaded;
-        if (role.yearScheduled <= 2) y2AnnualTotal += fullyLoaded;
-        if (role.yearScheduled <= 3) y3AnnualTotal += fullyLoaded;
-      }
-    }
-
-    // Add contractor budgets
-    const y1Contractor = Number(step5?.contractorBudgetYear1) || 0;
-    const y2Contractor = Number(step5?.contractorBudgetYear2) || 0;
-    const y3Contractor = Number(step5?.contractorBudgetYear3) || 0;
-
-    const y1Monthly = Math.round((y1AnnualTotal + y1Contractor) / 12) || (survivalBudgetMonthly + 1000);
-    const y2Monthly = Math.round((y2AnnualTotal + y2Contractor) / 12) || (y1Monthly * 2.2);
-    const y3Monthly = Math.round((y3AnnualTotal + y3Contractor) / 12) || (y1Monthly * 4.2);
+    const comp = computeModuleFCompensationSchedule(modFData, hqCountry);
+    const y1Monthly = comp.years[1].monthlyTotalCompensationAvg || comp.canonicalMonthlySurvivalTotal;
+    const y2Monthly =
+      comp.hasExplicitHiringRoles || comp.years[2].monthlyTotalCompensationAvg !== y1Monthly
+        ? comp.years[2].monthlyTotalCompensationAvg
+        : Math.round(y1Monthly * 1.8);
+    const y3Monthly =
+      comp.hasExplicitHiringRoles || comp.years[3].monthlyTotalCompensationAvg !== y1Monthly
+        ? comp.years[3].monthlyTotalCompensationAvg
+        : Math.round(y1Monthly * 2.8);
 
     return {
       ok: true,
       year1MonthlyPayroll: y1Monthly,
       year2MonthlyPayroll: y2Monthly,
       year3MonthlyPayroll: y3Monthly,
-      personalSurvivalBudgetMonthly: survivalBudgetMonthly,
-      currency: 'EUR',
+      personalSurvivalBudgetMonthly: comp.canonicalMonthlySurvivalTotal,
+      currency: baseCurrency,
       sourceModuleFFound: true,
     };
   } catch (err) {

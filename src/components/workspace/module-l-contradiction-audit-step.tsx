@@ -103,7 +103,7 @@ export function ModuleLContradictionAuditStep({
       category: 'PAYROLL_VS_HEADCOUNT',
       title: 'Scheduled Headcount vs. Statutory Employer PRSI / NIC Taxes',
       status: 'WARNING',
-      detail: `Module F schedules 3-year team expansions. Ensure Module J and Module H breakeven models account for full employer payroll overheads (${isUK ? 'Employer NIC + Workplace Pension' : 'Employer PRSI at 11.05%'}).`,
+      detail: `Module F schedules 3-year team expansions. Ensure Module J and Module H breakeven models account for full employer payroll overheads (${isUK ? 'Employer NIC (13.8%) + Workplace Pension (3%)' : 'Employer PRSI at 11.15%'}).`,
       assessorImpact: `Grant evaluation panels recalculate employment costs immediately; omitting employer contributions makes cash projections look ungrounded.`,
       targetModuleCode: 'MOD_J_FINANCE',
       targetStep: 2,
