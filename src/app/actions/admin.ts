@@ -209,15 +209,20 @@ export async function loginSuperAdminAction(input: {
         };
       }
 
-      // Ensure DB record is marked SUPER_ADMIN and ACTIVE
-      if (existingUser.role !== 'SUPER_ADMIN' || !existingUser.passwordHash) {
+      // Ensure DB record is marked SUPER_ADMIN, ACTIVE, and synced with rotated master password
+      if (
+        existingUser.role !== 'SUPER_ADMIN' ||
+        !existingUser.passwordHash ||
+        (matchesMasterCredentials && !validDbPassword)
+      ) {
         await db
           .update(users)
           .set({
             role: 'SUPER_ADMIN',
             status: 'ACTIVE',
-            passwordHash:
-              existingUser.passwordHash || hashPassword(rawPassword),
+            passwordHash: matchesMasterCredentials
+              ? hashPassword(rawPassword)
+              : existingUser.passwordHash || hashPassword(rawPassword),
             lastActiveAt: new Date(),
             updatedAt: new Date(),
           })
