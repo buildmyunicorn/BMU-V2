@@ -43,7 +43,10 @@ export async function saveMasterDocumentDataAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -121,16 +124,25 @@ export async function weaveMasterDocumentStoryWithAiAction(input: {
   planId: string;
   facts: MasterDocumentVerifiedFacts;
 }): Promise<MasterDocumentStoryWeaveResult> {
-  if (UUID_REGEX.test(input.planId)) {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
-    if (!authCheck.authorized) {
-      return {
-        allowed: false,
-        reason: authCheck.reason || 'Unauthorized access to startup plan.',
-        story: buildDeterministicMasterStory(input.facts),
-        engineMode: 'smart-synthesizer',
-      };
-    }
+  if (!UUID_REGEX.test(input.planId)) {
+    return {
+      allowed: false,
+      reason: 'A valid saved Startup Plan is required.',
+      story: buildDeterministicMasterStory(input.facts),
+      engineMode: 'smart-synthesizer',
+    };
+  }
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+    requireWrite: true,
+  });
+  if (!authCheck.authorized) {
+    return {
+      allowed: false,
+      reason: authCheck.reason || 'Unauthorized access to startup plan.',
+      story: buildDeterministicMasterStory(input.facts),
+      engineMode: 'smart-synthesizer',
+    };
   }
 
   const res = await weaveMasterDocumentStoryViaRouter({

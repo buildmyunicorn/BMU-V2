@@ -67,6 +67,8 @@ export default function LoginPage() {
             'This account has been suspended. Please contact support.',
           db_error:
             'Database error while signing in with Google. Please try again or use email login.',
+          unverified_google_email:
+            'Your Google email address is not verified. Please verify your email in Google first.',
           oauth_error:
             'An error occurred during Google sign-in. Please try again.',
         };
@@ -75,17 +77,26 @@ export default function LoginPage() {
     }
 
     if (hasActiveBmuSession()) {
-      const returnUrl = typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('returnUrl') ||
-          new URLSearchParams(window.location.search).get('redirect')
-        : null;
-      if (returnUrl && returnUrl.startsWith('/')) {
-        router.replace(returnUrl);
-      } else {
-        router.replace('/workspace');
-      }
+      const returnUrl =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('returnUrl') ||
+            new URLSearchParams(window.location.search).get('redirect')
+          : null;
+      router.replace(sanitizeClientReturnPath(returnUrl));
     }
   }, [router]);
+
+  function sanitizeClientReturnPath(raw: string | null): string {
+    if (
+      !raw ||
+      !raw.startsWith('/') ||
+      raw.startsWith('//') ||
+      raw.includes('\\')
+    ) {
+      return '/workspace';
+    }
+    return raw;
+  }
 
   async function handleStandardLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -95,7 +106,7 @@ export default function LoginPage() {
       ? new URLSearchParams(window.location.search).get('returnUrl') ||
         new URLSearchParams(window.location.search).get('redirect')
       : null;
-    const destination = returnUrl && returnUrl.startsWith('/') ? returnUrl : '/workspace';
+    const destination = sanitizeClientReturnPath(returnUrl);
 
     if (!email.trim() || !password.trim()) {
       setErrorMsg('Please enter both your email address and password.');
@@ -162,22 +173,8 @@ export default function LoginPage() {
       }
       router.replace(destination);
     } catch {
-      const cachedForEmail = loadBmuSessionForEmail(email);
-      if (cachedForEmail && cachedForEmail.plans.length > 0) {
-        saveBmuSession(cachedForEmail);
-      } else {
-        const base = getDefaultDemoSession();
-        if (email.trim()) {
-          base.user.email = email.trim();
-        }
-        const recoveredPlans = recoverAllRealPlansFromBrowserStorage();
-        if (recoveredPlans.length > 0) {
-          base.plans = recoveredPlans;
-          base.activePlanId = recoveredPlans[0].id;
-        }
-        saveBmuSession(base);
-      }
-      router.replace(destination);
+      setErrorMsg('Unable to reach the authentication server. Please check your connection and try again.');
+      setIsSubmitting(false);
     }
   }
 
@@ -188,8 +185,9 @@ export default function LoginPage() {
       ? new URLSearchParams(window.location.search).get('returnUrl') ||
         new URLSearchParams(window.location.search).get('redirect')
       : null;
-    const dest = returnUrl && returnUrl.startsWith('/')
-      ? `/api/auth/google?from=login&returnTo=${encodeURIComponent(returnUrl)}`
+    const safeReturn = returnUrl ? sanitizeClientReturnPath(returnUrl) : null;
+    const dest = safeReturn && safeReturn !== '/workspace'
+      ? `/api/auth/google?from=login&returnTo=${encodeURIComponent(safeReturn)}`
       : '/api/auth/google?from=login';
     window.location.href = dest;
   }

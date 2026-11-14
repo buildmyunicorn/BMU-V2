@@ -77,10 +77,26 @@ export async function generateStaticParams() {
   return Array.from(paramsMap.values());
 }
 
+const ALLOWED_GRANT_COUNTRIES = new Set(['ie', 'uk', 'gb']);
+
+function safeJsonLdStringify(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+}
+
 // Generate Rich SEO Metadata for Google
 export async function generateMetadata({ params }: GrantPageProps): Promise<Metadata> {
   const { country, slug } = await params;
-  const countryCodeUpper = country.toUpperCase() === 'UK' ? 'GB' : country.toUpperCase();
+  const normalizedCountry = (country || '').toLowerCase();
+  if (!ALLOWED_GRANT_COUNTRIES.has(normalizedCountry)) {
+    return {
+      title: 'Grant Not Found | Startup Preflight',
+      robots: { index: false },
+    };
+  }
+  const countryCodeUpper = normalizedCountry === 'uk' ? 'GB' : normalizedCountry.toUpperCase();
 
   try {
     let grant = await db.query.grantsDirectory.findFirst({
@@ -165,7 +181,11 @@ export async function generateMetadata({ params }: GrantPageProps): Promise<Meta
 
 export default async function GrantDetailPage({ params }: GrantPageProps) {
   const { country, slug } = await params;
-  const countryCodeUpper = country.toUpperCase() === 'UK' ? 'GB' : country.toUpperCase();
+  const normalizedCountry = (country || '').toLowerCase();
+  if (!ALLOWED_GRANT_COUNTRIES.has(normalizedCountry)) {
+    notFound();
+  }
+  const countryCodeUpper = normalizedCountry === 'uk' ? 'GB' : normalizedCountry.toUpperCase();
 
   let grant: typeof grantsDirectory.$inferSelect | undefined;
 
@@ -238,7 +258,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
       {/* Inject JSON-LD */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
       />
 
       {/* Modern SaaS Header */}
@@ -606,7 +626,7 @@ export default async function GrantDetailPage({ params }: GrantPageProps) {
                     </div>
                   </div>
 
-                  {grant.officialUrl && (
+                  {grant.officialUrl && /^https?:\/\//i.test(grant.officialUrl) && (
                     <div className="mt-5 border-t border-slate-200/80 pt-4">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                         Official Agency Resources

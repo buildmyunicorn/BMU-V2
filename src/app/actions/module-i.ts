@@ -70,10 +70,16 @@ export async function saveModuleIStep1PositioningAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      // Local preview or unauthenticated session — allow client-side state to continue smoothly
-      return { ok: true, persistedToCloudSql: false };
+      return {
+        ok: false,
+        persistedToCloudSql: false,
+        error: authCheck.reason || 'Unauthorized access to Module I.',
+      };
     }
 
     await ensureModuleIEnumInPostgres();
@@ -175,7 +181,12 @@ export async function generateModuleIPositioningAction(params: {
   // If planId provided, attempt optional DB verification without blocking fallback synthesis
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      await verifyActiveSessionAndPlanOwnership(params.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+    });
+    if (!authCheck.authorized) {
+      return { allowed: false, reason: authCheck.reason } as any;
+    }
     } catch {
       // Continue to router for graceful synthesis/fallback
     }
@@ -197,10 +208,16 @@ export async function saveModuleIStep2FourPsAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      // Local preview or unauthenticated session
-      return { ok: true, persistedToCloudSql: false };
+      return {
+        ok: false,
+        persistedToCloudSql: false,
+        error: authCheck.reason || 'Unauthorized access to Module I.',
+      };
     }
 
     await ensureModuleIEnumInPostgres();
@@ -289,7 +306,12 @@ export async function generateModuleIFourPsAction(
 ): Promise<GenerateModuleIFourPsResult> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      await verifyActiveSessionAndPlanOwnership(params.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+    });
+    if (!authCheck.authorized) {
+      return { allowed: false, reason: authCheck.reason } as any;
+    }
     } catch {
       // Continue to router for graceful synthesis/fallback
     }
@@ -311,9 +333,12 @@ export async function saveModuleIStep3First10Action(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: false, persistedToCloudSql: false, error: 'Unauthorized' };
+      return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized' };
     }
 
     await ensureModuleIEnumInPostgres();
@@ -406,7 +431,12 @@ export async function generateModuleIFirst10Action(
 ): Promise<GenerateModuleIFirst10Result> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      await verifyActiveSessionAndPlanOwnership(params.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+    });
+    if (!authCheck.authorized) {
+      return { allowed: false, reason: authCheck.reason } as any;
+    }
     } catch {
       // Continue to router for graceful synthesis/fallback
     }
@@ -423,7 +453,12 @@ export async function generateModuleIObjectionBustersAction(
 ): Promise<GenerateModuleIObjectionBustersResult> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      await verifyActiveSessionAndPlanOwnership(params.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+    });
+    if (!authCheck.authorized) {
+      return { allowed: false, reason: authCheck.reason } as any;
+    }
     } catch {
       // Continue to router for graceful synthesis/fallback
     }
@@ -445,9 +480,16 @@ export async function saveModuleIStep4BudgetAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return {
+        ok: false,
+        persistedToCloudSql: false,
+        error: authCheck.reason || 'Unauthorized access to Module I.',
+      };
     }
 
     await ensureModuleIEnumInPostgres();
@@ -535,7 +577,12 @@ export async function generateModuleIBudgetAction(
 ): Promise<GenerateModuleIBudgetResult> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      await verifyActiveSessionAndPlanOwnership(params.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+    });
+    if (!authCheck.authorized) {
+      return { allowed: false, reason: authCheck.reason } as any;
+    }
     } catch {
       // Continue to router for graceful synthesis/fallback
     }
@@ -560,9 +607,16 @@ export async function saveModuleIStep5BriefAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return {
+        ok: false,
+        persistedToCloudSql: false,
+        error: authCheck.reason || 'Unauthorized access to Module I.',
+      };
     }
 
     await ensureModuleIEnumInPostgres();
@@ -641,7 +695,12 @@ export async function generateModuleIMarketingBriefAction(
 ): Promise<GenerateModuleIMarketingBriefResult> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      await verifyActiveSessionAndPlanOwnership(params.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+    });
+    if (!authCheck.authorized) {
+      return { allowed: false, reason: authCheck.reason } as any;
+    }
     } catch {
       // Continue to router
     }
@@ -662,9 +721,12 @@ export async function parkModuleIOpenQuestionAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_I_MARKETING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, questionId: `local-${Date.now()}` };
+      return { ok: false, error: authCheck.reason || 'Unauthorized access to Module I.' };
     }
 
     await ensureModuleIEnumInPostgres();

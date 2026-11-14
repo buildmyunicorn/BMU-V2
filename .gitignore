@@ -24,8 +24,11 @@ yarn-error.log*
 .env*.local
 .env
 
-# database backups
+# database backups & dumps
 /backups/
+backups/
+codebase.txt
+*.sql
 
 # typescript
 *.tsbuildinfo

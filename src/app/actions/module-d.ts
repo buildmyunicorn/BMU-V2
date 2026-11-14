@@ -72,7 +72,10 @@ export async function saveModuleDStep1ProductVehicleAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_D_PRODUCT_BUILD',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -157,7 +160,10 @@ export async function parkModuleDOpenQuestionAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_D_PRODUCT_BUILD',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -211,7 +217,10 @@ export async function saveModuleDStep2ChannelMatrixAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_D_PRODUCT_BUILD',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -319,7 +328,10 @@ export async function saveModuleDStep3ScopeFilterAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_D_PRODUCT_BUILD',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -430,7 +442,10 @@ export async function saveModuleDStep4BuildVsBuyAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_D_PRODUCT_BUILD',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -543,7 +558,10 @@ export async function saveModuleDStep5WorkPackagesAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_D_PRODUCT_BUILD',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -658,7 +676,10 @@ export async function saveModuleDStep6BlindSpotAuditAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_D_PRODUCT_BUILD',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }

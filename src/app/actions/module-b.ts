@@ -43,7 +43,10 @@ export async function saveModuleBStep1BeachheadAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_B_MARKET',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -128,7 +131,10 @@ export async function parkModuleBOpenQuestionAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_B_MARKET',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -159,7 +165,10 @@ export async function saveModuleBStep2CompetitorsAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_B_MARKET',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -262,7 +271,10 @@ export async function saveModuleBStep3MarketSizingAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_B_MARKET',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -363,7 +375,10 @@ export async function saveModuleBStep4CompetitiveWedgeAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_B_MARKET',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -463,7 +478,10 @@ export async function saveModuleBStep5CompleteAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_B_MARKET',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }

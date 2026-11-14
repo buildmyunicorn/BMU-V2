@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
+import { Suspense } from 'react';
 import { StripeSandboxBadge } from '@/components/ui/stripe-sandbox-badge';
+import { LocalDevTroubleshootingDock } from '@/components/dev/local-dev-troubleshooting-dock';
 import './globals.css';
 
 const defaultSiteUrl =
@@ -68,6 +70,11 @@ export default function RootLayout({
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased print:bg-white">
         <StripeSandboxBadge />
         {children}
+        {process.env.NODE_ENV !== 'production' && (
+          <Suspense fallback={null}>
+            <LocalDevTroubleshootingDock />
+          </Suspense>
+        )}
       </body>
       <Script
         strategy="afterInteractive"

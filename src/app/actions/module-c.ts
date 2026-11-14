@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   db,
   startupPlans,
@@ -29,6 +29,7 @@ import {
 import type { SupportedCountryCode } from '@/lib/localization';
 import {
   verifyActiveSessionAndPlanOwnership,
+  getTrustedClientIp,
   checkRateLimit,
 } from '@/lib/auth/server-auth';
 import {
@@ -137,10 +138,16 @@ export async function saveValidationSurveyAction(input: {
   allSurveys: SavedValidationSurvey[];
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
-    return { ok: true, persistedToCloudSql: false };
+    return { ok: false, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_C_SURVEYS_FEEDBACK',
+    requireWrite: true,
+    ...(input.survey?.isPublished
+      ? { requiredFeature: 'PUBLIC_SURVEY_PUBLISH' as const }
+      : {}),
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -469,10 +476,13 @@ export async function deleteValidationSurveyAction(input: {
   remainingSurveys: SavedValidationSurvey[];
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
-    return { ok: true, persistedToCloudSql: false };
+    return { ok: false, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_C_SURVEYS_FEEDBACK',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -603,7 +613,8 @@ export async function getPublicSurveyBySlugAction(publicSlug: string): Promise<{
       found: true,
       survey: {
         id: row.id,
-        planId: row.planId,
+        // Never leak internal startup_plans UUID on public unauthenticated /v/[slug]
+        planId: '',
         publicSlug: row.publicSlug,
         title: row.title,
         introDescription: row.introDescription || '',
@@ -639,12 +650,14 @@ export async function getFounderSurveyResponsesBySlugAction(input: {
   found: boolean;
   survey?: SavedValidationSurvey & { planTitle?: string };
 }> {
-  const cleanSlug = decodeURIComponent(input.publicSlug).trim().slice(0, 140);
-  if (!cleanSlug) {
+  const cleanSlug = decodeURIComponent(input.publicSlug || '').trim().slice(0, 140);
+  if (!cleanSlug || !input.planId || !UUID_REGEX.test(input.planId)) {
     return { found: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_C_SURVEYS_FEEDBACK',
+  });
   if (!authCheck.authorized) {
     return { found: false };
   }
@@ -661,7 +674,7 @@ export async function getFounderSurveyResponsesBySlugAction(input: {
     }
 
     const row = rows[0];
-    if (UUID_REGEX.test(input.planId) && row.planId !== input.planId) {
+    if (row.planId !== input.planId) {
       return { found: false };
     }
 
@@ -797,9 +810,11 @@ export async function submitPublicSurveyResponseAction(input: {
     return { ok: false, persistedToCloudSql: false };
   }
 
-  // Anti-spam rate limit: max 15 submissions per minute per public survey slug
+  // Anti-spam rate limit: max 15 submissions per minute per slug AND max 6 per minute per client IP
+  const clientIp = await getTrustedClientIp();
   const rateLimit = checkRateLimit(`survey:submit:${cleanSlug}`, 15, 60_000);
-  if (!rateLimit.allowed) {
+  const ipRateLimit = checkRateLimit(`survey:submit_ip:${cleanSlug}:${clientIp}`, 6, 60_000);
+  if (!rateLimit.allowed || !ipRateLimit.allowed) {
     return { ok: false, persistedToCloudSql: false };
   }
 
@@ -842,21 +857,34 @@ export async function submitPublicSurveyResponseAction(input: {
       return { ok: false, persistedToCloudSql: false };
     }
 
-    const isPanel = Boolean(input.prolificPid || input.boostOrderId);
-    const sourceTag = input.prolificPid ? 'PROLIFIC_PANEL' : isPanel ? 'BOOST_ORDER' : 'ORGANIC';
+    const validBoostOrderId =
+      input.boostOrderId && UUID_REGEX.test(input.boostOrderId)
+        ? input.boostOrderId
+        : null;
+    const cleanProlificPid =
+      typeof input.prolificPid === 'string'
+        ? input.prolificPid.trim().slice(0, 80)
+        : '';
+
+    const isPanel = Boolean(cleanProlificPid || validBoostOrderId);
+    const sourceTag = cleanProlificPid ? 'PROLIFIC_PANEL' : isPanel ? 'BOOST_ORDER' : 'ORGANIC';
 
     const [insertedResp] = await db
       .insert(surveyResponses)
       .values({
         surveyId: surveyRow.id,
         source: sourceTag,
-        boostOrderId: input.boostOrderId || null,
+        boostOrderId: validBoostOrderId,
         answersJsonb: {
           answers: sanitizedAnswers,
-          respondentNameOrRole: sanitizedNameOrRole || (input.prolificPid ? `Verified Respondent (${input.prolificPid.slice(0, 8)})` : undefined),
+          respondentNameOrRole:
+            sanitizedNameOrRole ||
+            (cleanProlificPid
+              ? `Verified Respondent (${cleanProlificPid.slice(0, 8)})`
+              : undefined),
           // Public route submissions are always real respondents, never simulated
           isSimulated: false,
-          prolificPid: input.prolificPid || undefined,
+          prolificPid: cleanProlificPid || undefined,
           clientResponseId: String(
             input.response.clientResponseId || input.response.id || ''
           ).slice(0, 100),
@@ -866,8 +894,8 @@ export async function submitPublicSurveyResponseAction(input: {
       })
       .returning();
 
-    // If linked to an active boost order, increment delivered_responses in survey_boost_orders
-    if (input.boostOrderId) {
+    // If linked to an active boost order FOR THIS SURVEY, increment delivered_responses safely
+    if (validBoostOrderId) {
       await db
         .update(surveyBoostOrders)
         .set({
@@ -875,7 +903,17 @@ export async function submitPublicSurveyResponseAction(input: {
           status: sql`CASE WHEN ${surveyBoostOrders.deliveredResponses} + 1 >= ${surveyBoostOrders.targetResponses} THEN 'COMPLETED' ELSE 'PARTIALLY_DELIVERED' END`,
           completedAt: sql`CASE WHEN ${surveyBoostOrders.deliveredResponses} + 1 >= ${surveyBoostOrders.targetResponses} THEN NOW() ELSE NULL END`,
         })
-        .where(eq(surveyBoostOrders.id, input.boostOrderId as any));
+        .where(
+          and(
+            eq(surveyBoostOrders.id, validBoostOrderId as any),
+            eq(surveyBoostOrders.surveyId, surveyRow.id),
+            inArray(surveyBoostOrders.status, [
+              'PAID',
+              'DISPATCHED_TO_PANEL',
+              'PARTIALLY_DELIVERED',
+            ])
+          )
+        );
     }
 
     // Also sync the new response into plan_modules_data (MOD_C_SURVEYS_FEEDBACK) for this plan
@@ -1049,10 +1087,13 @@ export async function saveCustomerInterviewLogsAction(input: {
   activeSurveySlug?: string;
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
-    return { ok: true, persistedToCloudSql: false };
+    return { ok: false, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_C_SURVEYS_FEEDBACK',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -1144,10 +1185,13 @@ export async function parkModuleCOpenQuestionAction(input: {
   questionText: string;
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId) || !input.questionText.trim()) {
-    return { ok: true, persistedToCloudSql: false };
+    return { ok: false, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_C_SURVEYS_FEEDBACK',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -1174,10 +1218,13 @@ export async function saveModuleCBlindSpotsAction(input: {
   thingsToConsider: BlindSpotItem[];
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId)) {
-    return { ok: true, persistedToCloudSql: false };
+    return { ok: false, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_C_SURVEYS_FEEDBACK',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }

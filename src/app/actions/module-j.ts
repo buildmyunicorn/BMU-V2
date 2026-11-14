@@ -63,9 +63,12 @@ export async function saveModuleJStep1OverheadsTaxAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_J_FINANCE',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return { ok: false, persistedToCloudSql: false };
     }
 
     await ensureModuleJEnumInPostgres();
@@ -152,6 +155,19 @@ export async function saveModuleJStep1OverheadsTaxAction(input: {
 export async function generateModuleJOverheadsTaxAction(
   params: GenerateModuleJOverheadsTaxParams
 ): Promise<GenerateModuleJOverheadsTaxResult> {
+  if (params.planId && UUID_REGEX.test(params.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_J_FINANCE',
+    });
+    if (!authCheck.authorized) {
+      return {
+        allowed: false,
+        overheadsAndTaxNarrative: '',
+        grantAssessorTip: authCheck.reason || 'Unauthorized',
+        engineMode: 'smart-synthesizer',
+      };
+    }
+  }
   return generateModuleJOverheadsTaxViaRouter(params);
 }
 
@@ -178,6 +194,19 @@ export async function saveModuleJStep2WorkingCapitalAction(input: {
 export async function generateModuleJWorkingCapitalAction(
   params: GenerateModuleJWorkingCapitalParams
 ): Promise<GenerateModuleJWorkingCapitalResult> {
+  if (params.planId && UUID_REGEX.test(params.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_J_FINANCE',
+    });
+    if (!authCheck.authorized) {
+      return {
+        allowed: false,
+        workingCapitalNarrative: '',
+        grantAssessorTip: authCheck.reason || 'Unauthorized',
+        engineMode: 'smart-synthesizer',
+      };
+    }
+  }
   return generateModuleJWorkingCapitalViaRouter(params);
 }
 
@@ -204,6 +233,19 @@ export async function saveModuleJStep3CashflowGapAction(input: {
 export async function generateModuleJCashflowFundingGapAction(
   params: GenerateModuleJCashflowFundingGapParams
 ): Promise<GenerateModuleJCashflowFundingGapResult> {
+  if (params.planId && UUID_REGEX.test(params.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_J_FINANCE',
+    });
+    if (!authCheck.authorized) {
+      return {
+        allowed: false,
+        fundingGapNarrative: '',
+        grantAssessorTip: authCheck.reason || 'Unauthorized',
+        engineMode: 'smart-synthesizer',
+      };
+    }
+  }
   return generateModuleJCashflowFundingGapViaRouter(params);
 }
 
@@ -230,6 +272,19 @@ export async function saveModuleJStep4StatementsAction(input: {
 export async function generateModuleJStatementsStressTestAction(
   params: GenerateModuleJStatementsStressTestParams
 ): Promise<GenerateModuleJStatementsStressTestResult> {
+  if (params.planId && UUID_REGEX.test(params.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_J_FINANCE',
+    });
+    if (!authCheck.authorized) {
+      return {
+        allowed: false,
+        writtenFinancialAssumptionsBlock: '',
+        grantAssessorTip: authCheck.reason || 'Unauthorized',
+        engineMode: 'smart-synthesizer',
+      };
+    }
+  }
   return generateModuleJStatementsStressTestViaRouter(params);
 }
 
@@ -256,6 +311,21 @@ export async function saveModuleJStep5BriefAction(input: {
 export async function generateModuleJExecutiveBriefAction(
   params: GenerateModuleJExecutiveBriefParams
 ): Promise<GenerateModuleJExecutiveBriefResult> {
+  if (params.planId && UUID_REGEX.test(params.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+      requiredModule: 'MOD_J_FINANCE',
+    });
+    if (!authCheck.authorized) {
+      return {
+        allowed: false,
+        blindSpots: [],
+        financeReadinessConfidence: 'NEEDS_UNIT_ECONOMICS_RECALIBRATION',
+        executiveFinancialSummaryNarrative: '',
+        aiAssessorTip: authCheck.reason || 'Unauthorized',
+        engineMode: 'smart-synthesizer',
+      };
+    }
+  }
   return generateModuleJExecutiveBriefViaRouter(params);
 }
 
@@ -273,9 +343,12 @@ export async function parkModuleJOpenQuestionAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_J_FINANCE',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return { ok: false, persistedToCloudSql: false };
     }
 
     await ensureModuleJEnumInPostgres();
@@ -322,9 +395,12 @@ export async function saveModuleJStepGenericAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_J_FINANCE',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return { ok: false, persistedToCloudSql: false };
     }
 
     await ensureModuleJEnumInPostgres();

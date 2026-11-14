@@ -59,9 +59,12 @@ export async function saveModuleHStep1RevenueModelAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_H_REVENUE',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
-    return { ok: false, persistedToCloudSql: false, error: 'Unauthorized plan access' };
+    return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized plan access' };
   }
 
   try {
@@ -157,9 +160,12 @@ export async function saveModuleHStep2PricingTiersAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_H_REVENUE',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
-    return { ok: false, persistedToCloudSql: false, error: 'Unauthorized plan access' };
+    return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized plan access' };
   }
 
   try {
@@ -254,9 +260,12 @@ export async function saveModuleHStep3BreakevenCalculatorAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_H_REVENUE',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
-    return { ok: false, persistedToCloudSql: false, error: 'Unauthorized plan access' };
+    return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized plan access' };
   }
 
   try {
@@ -366,7 +375,9 @@ export async function getCanonicalPayrollBaselineAction(input: {
     };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_H_REVENUE',
+  });
   if (!authCheck.authorized) {
     return {
       ok: false,
@@ -502,7 +513,9 @@ export async function generatePricingStrategyJustificationAction(input: {
 
   if (UUID_REGEX.test(input.planId)) {
     try {
-      const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+      const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+        requiredModule: 'MOD_H_REVENUE',
+      });
       if (authCheck.authorized) {
         const planRows = await db
           .select()
@@ -624,7 +637,9 @@ export async function generateBreakevenAssessorNarrativeAction(input: {
 
   if (UUID_REGEX.test(input.planId)) {
     try {
-      const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+      const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+        requiredModule: 'MOD_H_REVENUE',
+      });
       if (authCheck.authorized) {
         const planRows = await db
           .select()
@@ -700,9 +715,12 @@ export async function saveModuleHStep4SalesAssumptionsAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_H_REVENUE',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
-    return { ok: false, persistedToCloudSql: false, error: 'Unauthorized plan access' };
+    return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized plan access' };
   }
 
   try {
@@ -814,7 +832,9 @@ export async function generateSalesAssumptionsNarrativeAction(input: {
 
   if (UUID_REGEX.test(input.planId)) {
     try {
-      const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+      const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+        requiredModule: 'MOD_H_REVENUE',
+      });
       if (authCheck.authorized) {
         const planRows = await db
           .select()
@@ -889,9 +909,12 @@ export async function saveModuleHStep5RevenueBriefAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_H_REVENUE',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
-    return { ok: false, persistedToCloudSql: false, error: 'Unauthorized plan access' };
+    return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized plan access' };
   }
 
   try {
@@ -999,6 +1022,21 @@ export async function generateModuleHRevenueBriefAction(input: {
   let hqCountryCode: SupportedCountryCode = input.hqCountryCode || 'IE';
 
   if (UUID_REGEX.test(input.planId)) {
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_H_REVENUE',
+    });
+    if (!authCheck.authorized) {
+      return {
+        allowed: false,
+        reason: authCheck.reason || 'Unauthorized plan access.',
+        blindSpots: [],
+        revenueReadinessConfidence: 'PRICING_TESTING_RECOMMENDED',
+        executiveCommercialSummaryNarrative: '',
+        assessorTip: 'Unauthorized access to startup plan.',
+        engineMode: 'smart-synthesizer',
+      };
+    }
+
     try {
       const [planRow] = await db
         .select({

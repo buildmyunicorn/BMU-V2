@@ -9,3 +9,8 @@ README.md
 .env.*
 coverage
 dist
+/backups
+backups
+backups/
+codebase.txt
+*.sql

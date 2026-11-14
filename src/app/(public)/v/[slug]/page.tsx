@@ -235,6 +235,14 @@ export default function PublicValidationSurveyPage() {
       prolificPid: prolificPid || undefined,
     });
 
+    if (!submitRes.ok) {
+      setSubmitting(false);
+      setValidationError(
+        'Unable to record your response right now (this survey may be paused or rate-limited). Please try again in a moment.'
+      );
+      return;
+    }
+
     const finalResponse: SavedSurveyResponse = {
       ...newResponse,
       id: submitRes.savedResponseId || newResponse.id,
@@ -248,8 +256,8 @@ export default function PublicValidationSurveyPage() {
     setSubmitted(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // If this respondent is from Prolific, start countdown and auto-redirect to Prolific submission completion URL
-    if (prolificPid) {
+    // Only redirect Prolific respondents after server verification (`submitRes.ok && submitRes.persistedToCloudSql`)
+    if (prolificPid && submitRes.persistedToCloudSql) {
       setProlificRedirectTimer(4);
       const timer = setInterval(() => {
         setProlificRedirectTimer((prev) => {

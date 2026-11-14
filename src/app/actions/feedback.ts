@@ -3,7 +3,20 @@
 import { db } from '@/db';
 import { supportTickets, emailLogs, users, userEntitlements } from '@/db/schema';
 import { sql, eq } from 'drizzle-orm';
-import { getServerSessionCookie, checkRateLimit } from '@/lib/auth/server-auth';
+import {
+  getVerifiedActiveFounderFromCookie,
+  getTrustedClientIp,
+  checkRateLimit,
+} from '@/lib/auth/server-auth';
+
+function escapeHtml(value: string | null | undefined): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 import { resend, EMAIL_DEFAULTS } from '@/lib/email/resend';
 import type {
   SupportTicketType,
@@ -89,44 +102,35 @@ async function ensureTableReady(): Promise<void> {
 export async function submitFeedbackAction(
   input: SubmitFeedbackInput
 ): Promise<SubmitFeedbackResponse> {
-  const cleanTitle = (input.title || '').replace(/[\r\n\t]+/g, ' ').trim();
-  const cleanDesc = (input.description || '').trim();
+  const cleanTitle = String(input?.title || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 200);
+  const cleanDesc = String(input?.description || '').trim().slice(0, 5000);
 
   if (!cleanDesc) {
     return { ok: false, error: 'Please enter a description for your feedback.' };
   }
 
   // 1. Resolve User Session & Source
-  const session = await getServerSessionCookie();
+  const activeFounder = await getVerifiedActiveFounderFromCookie();
+  const clientIp = await getTrustedClientIp();
   let source: SupportTicketSource = 'PUBLIC_VISITOR';
-  let finalEmail = (input.reporterEmail || '').trim() || null;
-  let finalName = (input.reporterName || '').trim() || null;
+  let finalEmail = String(input.reporterEmail || '').trim().slice(0, 254) || null;
+  let finalName = String(input.reporterName || '').trim().slice(0, 120) || null;
   let finalPlanType: string | null = null;
 
-  if (session && session.userId) {
+  if (activeFounder) {
     source = 'FOUNDER_SUPPORT';
-    finalEmail = session.email || finalEmail;
+    finalEmail = activeFounder.email || finalEmail;
+    if (activeFounder.name && !finalName) {
+      finalName = activeFounder.name;
+    }
 
     try {
-      const [userRow] = await db
-        .select({
-          name: users.name,
-          email: users.email,
-        })
-        .from(users)
-        .where(eq(users.id, session.userId))
-        .limit(1);
-
-      if (userRow?.name && !finalName) {
-        finalName = userRow.name;
-      }
-
       const [entitlementRow] = await db
         .select({
           planType: userEntitlements.planType,
         })
         .from(userEntitlements)
-        .where(eq(userEntitlements.userId, session.userId))
+        .where(eq(userEntitlements.userId, activeFounder.userId))
         .limit(1);
 
       if (entitlementRow?.planType) {
@@ -137,11 +141,12 @@ export async function submitFeedbackAction(
     }
   }
 
-  // Rate-limiting check for spam prevention (10 submissions per 5 minutes per email/IP)
-  const rateLimitKey = `feedback:${finalEmail || 'anonymous'}`;
+  // Rate-limiting check for spam prevention (5 per IP + 10 per email per 5 minutes)
+  const ipLimit = checkRateLimit(`feedback:ip:${clientIp}`, 5, 5 * 60 * 1000);
+  const rateLimitKey = `feedback:${finalEmail || clientIp}`;
   const rateLimit = checkRateLimit(rateLimitKey, 10, 5 * 60 * 1000);
   const globalLimit = checkRateLimit('feedback:global', 40, 5 * 60 * 1000);
-  if (!rateLimit.allowed || !globalLimit.allowed) {
+  if (!ipLimit.allowed || !rateLimit.allowed || !globalLimit.allowed) {
     return {
       ok: false,
       error: 'You have submitted several feedback items recently. Please wait a few minutes before submitting again.',
@@ -263,6 +268,25 @@ async function sendAdminNotificationEmail(ticket: {
   const rawSubject = `[Startup Preflight] ${originBadge} ${typeEmoji} ${ticket.title}`;
   const subject = rawSubject.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
 
+  const safePriority = escapeHtml(ticket.priority);
+  const safeTitle = escapeHtml(ticket.title);
+  const safeReporterName = ticket.reporterName ? escapeHtml(ticket.reporterName) : '';
+  const safeReporterEmail = escapeHtml(ticket.reporterEmail || 'Anonymous');
+  const safePlanType = ticket.userPlanType ? escapeHtml(ticket.userPlanType) : '';
+  const safeModuleScope = escapeHtml(ticket.moduleScope);
+  const safeStepContext = ticket.stepContext ? escapeHtml(ticket.stepContext) : '';
+  const safePageUrl = ticket.pageUrl ? escapeHtml(ticket.pageUrl) : '';
+  const safePlanTitle = ticket.planTitle ? escapeHtml(ticket.planTitle) : '';
+  const safeDeviceInfo = ticket.deviceInfo ? escapeHtml(ticket.deviceInfo) : '';
+  const safeDescription = escapeHtml(ticket.description);
+  const safeExpectedBehavior = ticket.expectedBehavior
+    ? escapeHtml(ticket.expectedBehavior)
+    : '';
+  const safeReplyTo =
+    ticket.reporterEmail && /^[^\s@\r\n]+@[^\s@\r\n]+\.[^\s@\r\n]+$/.test(ticket.reporterEmail)
+      ? ticket.reporterEmail
+      : EMAIL_DEFAULTS.replyTo;
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -275,13 +299,13 @@ async function sendAdminNotificationEmail(ticket: {
     .badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
     .badge-founder { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
     .badge-visitor { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
-    .badge-admin { background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; }
+    .badge-admin { background: #e2e8f0; color: #0f172a; border: 1px solid #cbd5e1; }
     .content { padding: 24px; }
     .field-row { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
     .label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
     .value { font-size: 14px; color: #0f172a; font-weight: 500; }
     .box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; font-size: 13px; color: #334155; margin-top: 8px; white-space: pre-wrap; }
-    .btn { display: inline-block; background: #4f46e5; color: #ffffff !important; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; margin-top: 16px; }
+    .btn { display: inline-block; background: #047857; color: #ffffff !important; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; margin-top: 16px; }
   </style>
 </head>
 <body>
@@ -295,38 +319,36 @@ async function sendAdminNotificationEmail(ticket: {
               ? 'badge-visitor'
               : 'badge-admin'
         }">${originBadge}</span>
-        <span style="font-size: 12px; color: #cbd5e1; margin-left: 8px;">Priority: <strong>${ticket.priority}</strong></span>
+        <span style="font-size: 12px; color: #cbd5e1; margin-left: 8px;">Priority: <strong>${safePriority}</strong></span>
       </div>
-      <h2 style="margin: 0; font-size: 18px; font-weight: 700;">${ticket.title}</h2>
+      <h2 style="margin: 0; font-size: 18px; font-weight: 700;">${safeTitle}</h2>
     </div>
     <div class="content">
       <div class="field-row">
         <div class="label">Reporter</div>
         <div class="value">
-          ${ticket.reporterName ? `<strong>${ticket.reporterName}</strong> &lt;` : ''}${
-            ticket.reporterEmail || 'Anonymous'
-          }${ticket.reporterName ? '&gt;' : ''}
-          ${ticket.userPlanType ? `<span style="color: #64748b; font-size: 12px;"> · Plan: ${ticket.userPlanType}</span>` : ''}
+          ${safeReporterName ? `<strong>${safeReporterName}</strong> &lt;` : ''}${safeReporterEmail}${safeReporterName ? '&gt;' : ''}
+          ${safePlanType ? `<span style="color: #64748b; font-size: 12px;"> · Plan: ${safePlanType}</span>` : ''}
         </div>
       </div>
 
       <div class="field-row">
         <div class="label">Location &amp; Context</div>
         <div class="value">
-          <strong>${ticket.moduleScope}</strong>
-          ${ticket.stepContext ? ` › ${ticket.stepContext}` : ''}
-          ${ticket.pageUrl ? `<br /><span style="font-size: 12px; color: #64748b;">Route: <code>${ticket.pageUrl}</code></span>` : ''}
-          ${ticket.planTitle ? `<br /><span style="font-size: 12px; color: #64748b;">Active Plan: <strong>${ticket.planTitle}</strong></span>` : ''}
+          <strong>${safeModuleScope}</strong>
+          ${safeStepContext ? ` › ${safeStepContext}` : ''}
+          ${safePageUrl ? `<br /><span style="font-size: 12px; color: #64748b;">Route: <code>${safePageUrl}</code></span>` : ''}
+          ${safePlanTitle ? `<br /><span style="font-size: 12px; color: #64748b;">Active Plan: <strong>${safePlanTitle}</strong></span>` : ''}
         </div>
       </div>
 
       ${
-        ticket.deviceInfo
+        safeDeviceInfo
           ? `
       <div class="field-row">
         <div class="label">Device &amp; Telemetry</div>
         <div class="value" style="font-family: monospace; font-size: 12px; color: #475569;">
-          📱 ${ticket.deviceInfo}
+          📱 ${safeDeviceInfo}
         </div>
       </div>
       `
@@ -335,15 +357,15 @@ async function sendAdminNotificationEmail(ticket: {
 
       <div style="margin-top: 16px;">
         <div class="label">Feedback / Issue Details</div>
-        <div class="box">${ticket.description}</div>
+        <div class="box">${safeDescription}</div>
       </div>
 
       ${
-        ticket.expectedBehavior
+        safeExpectedBehavior
           ? `
       <div style="margin-top: 16px;">
         <div class="label">Expected Behavior</div>
-        <div class="box" style="background: #f0fdf4; border-color: #bbf7d0; color: #166534;">${ticket.expectedBehavior}</div>
+        <div class="box" style="background: #f0fdf4; border-color: #bbf7d0; color: #166534;">${safeExpectedBehavior}</div>
       </div>
       `
           : ''
@@ -363,7 +385,7 @@ async function sendAdminNotificationEmail(ticket: {
       const { data, error } = await resend.emails.send({
         from: EMAIL_DEFAULTS.notificationsFrom,
         to: [adminRecipient],
-        replyTo: ticket.reporterEmail || EMAIL_DEFAULTS.replyTo,
+        replyTo: safeReplyTo,
         subject,
         html,
       });

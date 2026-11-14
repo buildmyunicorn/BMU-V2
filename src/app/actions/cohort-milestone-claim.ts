@@ -237,55 +237,53 @@ function validateCorporateWorkEmail(
   };
 }
 
+function escapeHtml(raw: string | undefined | null): string {
+  if (!raw) return '';
+  return String(raw)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /**
  * Fetches the active Cohort & Milestone Gate status for a founder's Startup Plan.
  */
 export async function getCohortMilestoneStateForPlanAction(
   planId: string,
-  clientFallback?: { cohortCode?: string; userEmail?: string }
+  _clientFallback?: { cohortCode?: string; userEmail?: string }
 ): Promise<CohortMilestonePlanState> {
   try {
     await ensureDatabaseSchemaSynced();
 
+    if (!planId || !UUID_REGEX.test(planId)) {
+      return { ok: true, enrolledInCohort: false };
+    }
+
     const authCheck = await verifyActiveSessionAndPlanOwnership(planId);
-    if (!authCheck.authorized && !authCheck.isLocalPreview) {
+    if (!authCheck.authorized || !authCheck.userId) {
       return { ok: false, enrolledInCohort: false, error: 'Unauthorized' };
     }
 
-    let planRow: (typeof startupPlans.$inferSelect) | undefined;
-    if (planId && UUID_REGEX.test(planId)) {
-      const [foundPlan] = await db
-        .select()
-        .from(startupPlans)
-        .where(eq(startupPlans.id, planId))
-        .limit(1);
-      planRow = foundPlan;
-    }
+    const [planRow] = await db
+      .select()
+      .from(startupPlans)
+      .where(eq(startupPlans.id, planId))
+      .limit(1);
 
     let userRow: (typeof users.$inferSelect) | undefined;
-    if (authCheck.userId && UUID_REGEX.test(authCheck.userId)) {
+    if (UUID_REGEX.test(authCheck.userId)) {
       const [foundUser] = await db
         .select()
         .from(users)
         .where(eq(users.id, authCheck.userId))
         .limit(1);
       userRow = foundUser;
-    } else if (authCheck.email || clientFallback?.userEmail) {
-      const targetEmail = (authCheck.email || clientFallback?.userEmail || '')
-        .trim()
-        .toLowerCase();
-      if (targetEmail) {
-        const [foundUser] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, targetEmail))
-          .limit(1);
-        userRow = foundUser;
-      }
     }
 
-    // Resolve Cohort ID from plan -> user -> fallback inviteCode
-    let resolvedCohortId = planRow?.cohortId || userRow?.cohortId || null;
+    // Resolve Cohort ID strictly from authenticated plan/user rows (never clientFallback inviteCode/userEmail)
+    const resolvedCohortId = planRow?.cohortId || userRow?.cohortId || null;
     let cohortRow: (typeof cohorts.$inferSelect) | undefined;
 
     if (resolvedCohortId && UUID_REGEX.test(resolvedCohortId)) {
@@ -295,24 +293,6 @@ export async function getCohortMilestoneStateForPlanAction(
         .where(eq(cohorts.id, resolvedCohortId))
         .limit(1);
       cohortRow = foundCohort;
-    }
-
-    if (!cohortRow && clientFallback?.cohortCode) {
-      const cleanCode = clientFallback.cohortCode.trim().toUpperCase();
-      const cleanAlpha = cleanCode.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-      if (cleanCode) {
-        const [foundByCode] = await db
-          .select()
-          .from(cohorts)
-          .where(
-            sql`UPPER(${cohorts.inviteCode}) = ${cleanCode} OR UPPER(REPLACE(${cohorts.inviteCode}, '-', '')) = ${cleanAlpha}`
-          )
-          .limit(1);
-        cohortRow = foundByCode;
-        if (cohortRow) {
-          resolvedCohortId = cohortRow.id;
-        }
-      }
     }
 
     if (!cohortRow) {
@@ -396,8 +376,10 @@ function buildPartnerMilestoneNotificationHtml(
 ): string {
   const modBadgesHtml = dossier.requiredModules
     .map((modCode) => {
-      const pct = dossier.moduleProgressMap[modCode] ?? 100;
-      const shortLabel = modCode.replace('MOD_', 'Module ').replace(/_/g, ' ');
+      const pct = dossier.moduleProgressMap[modCode] ?? 0;
+      const shortLabel = escapeHtml(
+        modCode.replace('MOD_', 'Module ').replace(/_/g, ' ')
+      );
       return `<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border-radius:6px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;font-size:12px;font-weight:600;">✓ ${shortLabel} (${pct}%)</span>`;
     })
     .join('');
@@ -407,25 +389,25 @@ function buildPartnerMilestoneNotificationHtml(
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Cohort Milestone Qualified: ${dossier.executiveSummary.startupTitle}</title>
+  <title>Cohort Milestone Qualified: ${escapeHtml(dossier.executiveSummary.startupTitle)}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
   <div style="max-width:640px;margin:24px auto;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 12px rgba(15,23,42,0.05);">
-    <div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%);padding:28px 32px;color:#ffffff;">
+    <div style="background:#0f172a;padding:28px 32px;color:#ffffff;">
       <div style="display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(16,185,129,0.2);border:1px solid rgba(52,211,153,0.4);color:#6ee7b7;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">
         ✓ Milestone Verification Passed
       </div>
       <h1 style="margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;color:#ffffff;">
-        ${dossier.rewardLabel}
+        ${escapeHtml(dossier.rewardLabel)}
       </h1>
-      <p style="margin:6px 0 0 0;font-size:13px;color:#c7d2fe;">
-        Partner Program: <strong>${dossier.organizationName}</strong> (${dossier.cohortName} • Code: <code>${dossier.inviteCode}</code>)
+      <p style="margin:6px 0 0 0;font-size:13px;color:#cbd5e1;">
+        Partner Program: <strong>${escapeHtml(dossier.organizationName)}</strong> (${escapeHtml(dossier.cohortName)} • Code: <code>${escapeHtml(dossier.inviteCode)}</code>)
       </p>
     </div>
 
     <div style="padding:28px 32px;">
       <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#334155;">
-        A startup enrolled in <strong>${dossier.cohortName}</strong> has completed the mandatory Startup Preflight validation &amp; readiness gate (<strong>${dossier.overallProgressPercent}% progress</strong> vs. ${dossier.requiredProgressPercent}% required) and submitted their verified corporate details to claim <strong>${dossier.rewardLabel}</strong>.
+        A startup enrolled in <strong>${escapeHtml(dossier.cohortName)}</strong> has completed the mandatory Startup Preflight validation &amp; readiness gate (<strong>${dossier.overallProgressPercent}% progress</strong> vs. ${dossier.requiredProgressPercent}% required) and submitted their verified corporate details to claim <strong>${escapeHtml(dossier.rewardLabel)}</strong>.
       </p>
 
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:22px;">
@@ -435,27 +417,27 @@ function buildPartnerMilestoneNotificationHtml(
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <tr>
             <td style="padding:5px 0;color:#64748b;width:170px;">Startup / Venture Name:</td>
-            <td style="padding:5px 0;font-weight:700;color:#0f172a;">${dossier.executiveSummary.startupTitle}</td>
+            <td style="padding:5px 0;font-weight:700;color:#0f172a;">${escapeHtml(dossier.executiveSummary.startupTitle)}</td>
           </tr>
           <tr>
             <td style="padding:5px 0;color:#64748b;">Official Company Domain:</td>
-            <td style="padding:5px 0;font-weight:700;color:#4f46e5;">
-              <a href="https://${dossier.verifiedDomain}" style="color:#4f46e5;text-decoration:none;">https://${dossier.verifiedDomain}</a>
+            <td style="padding:5px 0;font-weight:700;color:#047857;">
+              <a href="https://${escapeHtml(dossier.verifiedDomain)}" style="color:#047857;text-decoration:none;">https://${escapeHtml(dossier.verifiedDomain)}</a>
             </td>
           </tr>
           <tr>
             <td style="padding:5px 0;color:#64748b;">Verified Work Email:</td>
             <td style="padding:5px 0;font-weight:700;color:#0f172a;">
-              <a href="mailto:${dossier.verifiedWorkEmail}" style="color:#0f172a;text-decoration:underline;">${dossier.verifiedWorkEmail}</a>
+              <a href="mailto:${escapeHtml(dossier.verifiedWorkEmail)}" style="color:#0f172a;text-decoration:underline;">${escapeHtml(dossier.verifiedWorkEmail)}</a>
             </td>
           </tr>
           <tr>
             <td style="padding:5px 0;color:#64748b;">Founder Name:</td>
-            <td style="padding:5px 0;font-weight:600;color:#1e293b;">${dossier.claimedByName}</td>
+            <td style="padding:5px 0;font-weight:600;color:#1e293b;">${escapeHtml(dossier.claimedByName)}</td>
           </tr>
           <tr>
             <td style="padding:5px 0;color:#64748b;">HQ &amp; Sector:</td>
-            <td style="padding:5px 0;color:#334155;">${dossier.executiveSummary.hqCountryCode} • ${dossier.executiveSummary.industryCategory}</td>
+            <td style="padding:5px 0;color:#334155;">${escapeHtml(dossier.executiveSummary.hqCountryCode)} • ${escapeHtml(dossier.executiveSummary.industryCategory)}</td>
           </tr>
         </table>
       </div>
@@ -474,40 +456,40 @@ function buildPartnerMilestoneNotificationHtml(
           3. Executive Venture Snapshot
         </div>
         <p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#1e293b;">
-          <strong>One-Liner:</strong> ${dossier.executiveSummary.oneLiner || '—'}
+          <strong>One-Liner:</strong> ${escapeHtml(dossier.executiveSummary.oneLiner) || '—'}
         </p>
         ${
           dossier.executiveSummary.coreProblem
-            ? `<p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#334155;"><strong>Core Problem:</strong> ${dossier.executiveSummary.coreProblem}</p>`
+            ? `<p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#334155;"><strong>Core Problem:</strong> ${escapeHtml(dossier.executiveSummary.coreProblem)}</p>`
             : ''
         }
         ${
           dossier.executiveSummary.proposedSolution
-            ? `<p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#334155;"><strong>Proposed Solution:</strong> ${dossier.executiveSummary.proposedSolution}</p>`
+            ? `<p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#334155;"><strong>Proposed Solution:</strong> ${escapeHtml(dossier.executiveSummary.proposedSolution)}</p>`
             : ''
         }
         ${
           dossier.executiveSummary.beachheadPersona
-            ? `<p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#334155;"><strong>Beachhead Customer:</strong> ${dossier.executiveSummary.beachheadPersona}</p>`
+            ? `<p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#334155;"><strong>Beachhead Customer:</strong> ${escapeHtml(dossier.executiveSummary.beachheadPersona)}</p>`
             : ''
         }
         ${
           dossier.executiveSummary.mvpProductVehicle
-            ? `<p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#334155;"><strong>Product Architecture (Module D):</strong> ${dossier.executiveSummary.mvpProductVehicle}</p>`
+            ? `<p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#334155;"><strong>Product Architecture (Module D):</strong> ${escapeHtml(dossier.executiveSummary.mvpProductVehicle)}</p>`
             : ''
         }
         <p style="margin:0;font-size:12px;color:#475569;">
-          <strong>Customer Validation (Module C):</strong> ${dossier.executiveSummary.surveyRespondentsCount ?? 0} survey responses • ${dossier.executiveSummary.waitlistLeadsCount ?? 0} early waitlist leads
+          <strong>Customer Validation (Module C):</strong> ${Number(dossier.executiveSummary.surveyRespondentsCount ?? 0)} survey responses • ${Number(dossier.executiveSummary.waitlistLeadsCount ?? 0)} early waitlist leads
         </p>
         ${
           dossier.founderNotes
-            ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9;font-size:13px;color:#1e293b;"><strong>Founder Note / Account ID:</strong> ${dossier.founderNotes}</div>`
+            ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9;font-size:13px;color:#1e293b;"><strong>Founder Note / Account ID:</strong> ${escapeHtml(dossier.founderNotes)}</div>`
             : ''
         }
       </div>
 
       <div style="text-align:center;padding-top:8px;">
-        <a href="${EMAIL_DEFAULTS.appUrl}/admin" style="display:inline-block;padding:12px 24px;border-radius:10px;background:#4f46e5;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;">
+        <a href="${EMAIL_DEFAULTS.appUrl}/admin" style="display:inline-block;padding:12px 24px;border-radius:10px;background:#047857;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;">
           Review Cohort Dossier in Startup Preflight
         </a>
       </div>
@@ -531,7 +513,7 @@ function buildFounderClaimReceiptHtml(
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Milestone Reward Claim Submitted: ${dossier.rewardLabel}</title>
+  <title>Milestone Reward Claim Submitted: ${escapeHtml(dossier.rewardLabel)}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
   <div style="max-width:600px;margin:24px auto;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
@@ -540,29 +522,29 @@ function buildFounderClaimReceiptHtml(
         ✓ Partner Verification Dispatched
       </div>
       <h1 style="margin:0;font-size:20px;font-weight:800;color:#ffffff;">
-        Your Claim for "${dossier.rewardLabel}" Has Been Sent!
+        Your Claim for "${escapeHtml(dossier.rewardLabel)}" Has Been Sent!
       </h1>
     </div>
     <div style="padding:26px 30px;">
       <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#334155;">
-        Hi ${dossier.claimedByName},
+        Hi ${escapeHtml(dossier.claimedByName)},
       </p>
       <p style="margin:0 0 18px 0;font-size:14px;line-height:1.6;color:#334155;">
-        Congratulations on reaching <strong>${dossier.overallProgressPercent}% readiness</strong> on Startup Preflight! Your verified venture dossier for <strong>${dossier.executiveSummary.startupTitle}</strong> has been transmitted to the <strong>${dossier.organizationName}</strong> program team.
+        Congratulations on reaching <strong>${dossier.overallProgressPercent}% readiness</strong> on Startup Preflight! Your verified venture dossier for <strong>${escapeHtml(dossier.executiveSummary.startupTitle)}</strong> has been transmitted to the <strong>${escapeHtml(dossier.organizationName)}</strong> program team.
       </p>
 
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;margin-bottom:20px;font-size:13px;">
-        <div style="margin-bottom:6px;"><strong>Program Cohort:</strong> ${dossier.cohortName}</div>
-        <div style="margin-bottom:6px;"><strong>Verified Domain:</strong> https://${dossier.verifiedDomain}</div>
-        <div style="margin-bottom:6px;"><strong>Verified Work Email:</strong> ${dossier.verifiedWorkEmail}</div>
+        <div style="margin-bottom:6px;"><strong>Program Cohort:</strong> ${escapeHtml(dossier.cohortName)}</div>
+        <div style="margin-bottom:6px;"><strong>Verified Domain:</strong> https://${escapeHtml(dossier.verifiedDomain)}</div>
+        <div style="margin-bottom:6px;"><strong>Verified Work Email:</strong> ${escapeHtml(dossier.verifiedWorkEmail)}</div>
         <div><strong>Status:</strong> Partner Notified — Pending Benefit Activation</div>
       </div>
 
       ${
         instructionNotes
-          ? `<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:16px 18px;margin-bottom:20px;font-size:13px;color:#1e1b4b;">
-              <strong>Next Steps from ${dossier.organizationName}:</strong><br/>
-              <span style="line-height:1.5;">${instructionNotes}</span>
+          ? `<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:16px 18px;margin-bottom:20px;font-size:13px;color:#065f46;">
+              <strong>Next Steps from ${escapeHtml(dossier.organizationName)}:</strong><br/>
+              <span style="line-height:1.5;">${escapeHtml(instructionNotes)}</span>
             </div>`
           : ''
       }
@@ -608,15 +590,26 @@ export async function claimCohortMilestoneRewardAction(input: {
   try {
     await ensureDatabaseSchemaSynced();
 
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
-    if (!authCheck.authorized && !authCheck.isLocalPreview) {
+    if (!input.planId || !UUID_REGEX.test(input.planId)) {
       return {
         ok: false,
-        error: 'You must be signed in as the owner of this startup plan to claim cohort rewards.',
+        error: 'A cloud-saved startup plan is required to claim institutional cohort rewards.',
       };
     }
 
-    const rateKey = `cohort:claim:${authCheck.userId || input.planId}`;
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requireWrite: true,
+    });
+    if (!authCheck.authorized || !authCheck.userId) {
+      return {
+        ok: false,
+        error:
+          authCheck.reason ||
+          'You must be signed in as the owner of this startup plan to claim cohort rewards.',
+      };
+    }
+
+    const rateKey = `cohort:claim:${authCheck.userId}`;
     const rateLimit = checkRateLimit(rateKey, 5, 60_000);
     if (!rateLimit.allowed) {
       return {
@@ -625,10 +618,7 @@ export async function claimCohortMilestoneRewardAction(input: {
       };
     }
 
-    const stateRes = await getCohortMilestoneStateForPlanAction(input.planId, {
-      cohortCode: input.clientFallback?.cohortCode,
-      userEmail: input.clientFallback?.userEmail,
-    });
+    const stateRes = await getCohortMilestoneStateForPlanAction(input.planId);
 
     if (!stateRes.ok || !stateRes.enrolledInCohort || !stateRes.cohort) {
       return {
@@ -682,21 +672,15 @@ export async function claimCohortMilestoneRewardAction(input: {
     }
     const cleanWorkEmail = emailCheck.cleanEmail;
 
-    // 3. Re-verify Milestone Progress & Required Modules (combining DB module rows & client snapshot)
-    const mergedModuleProgress: Record<string, number> = {
-      ...(input.clientProgressSnapshot?.moduleProgressMap || {}),
-    };
+    // 3. Re-verify Milestone Progress & Required Modules strictly from DB rows (never trust clientProgressSnapshot)
+    const mergedModuleProgress: Record<string, number> = {};
 
-    if (input.planId && UUID_REGEX.test(input.planId)) {
-      const dbModRows = await db
-        .select()
-        .from(planModulesData)
-        .where(eq(planModulesData.planId, input.planId));
-      for (const row of dbModRows) {
-        const dbPct = row.completionPercentage ?? 0;
-        const currentPct = mergedModuleProgress[row.moduleCode] ?? 0;
-        mergedModuleProgress[row.moduleCode] = Math.max(dbPct, currentPct);
-      }
+    const dbModRows = await db
+      .select()
+      .from(planModulesData)
+      .where(eq(planModulesData.planId, input.planId));
+    for (const row of dbModRows) {
+      mergedModuleProgress[row.moduleCode] = row.completionPercentage ?? 0;
     }
 
     const requiredMods = milestoneConfig.requiredModules || [];
@@ -704,8 +688,7 @@ export async function claimCohortMilestoneRewardAction(input: {
       (modCode) => (mergedModuleProgress[modCode] ?? 0) >= 50
     );
 
-    const overallProgressPercent = Math.max(
-      input.clientProgressSnapshot?.overallProgressPercent || 0,
+    const overallProgressPercent =
       requiredMods.length > 0
         ? Math.round(
             requiredMods.reduce(
@@ -713,8 +696,7 @@ export async function claimCohortMilestoneRewardAction(input: {
               0
             ) / requiredMods.length
           )
-        : 0
-    );
+        : 0;
 
     if (overallProgressPercent < milestoneConfig.requiredProgressPercent) {
       return {
@@ -858,18 +840,19 @@ export async function claimCohortMilestoneRewardAction(input: {
 
     dossier.resendMessageId = resendMessageId;
 
-    // 5. Also dispatch confirmation receipt to the founder's verified work email
-    const founderSubject = `✓ Claim Submitted: ${milestoneConfig.rewardLabel} (${cohort.organizationName})`;
+    // 5. Dispatch confirmation receipt ONLY to the authenticated founder's account email (prevents email bombing arbitrary addresses)
+    const founderSubject = `✓ Claim Submitted: ${milestoneConfig.rewardLabel} (${cohort.organizationName})`.replace(/[\r\n\t]+/g, ' ').trim();
     const founderHtml = buildFounderClaimReceiptHtml(
       dossier,
       milestoneConfig.instructionNotes
     );
 
-    if (resend) {
+    const safeFounderReceiptRecipient = authCheck.email || accountEmail;
+    if (resend && safeFounderReceiptRecipient) {
       resend.emails
         .send({
           from: EMAIL_DEFAULTS.from,
-          to: [cleanWorkEmail],
+          to: [safeFounderReceiptRecipient],
           replyTo: EMAIL_DEFAULTS.replyTo,
           subject: founderSubject,
           html: founderHtml,

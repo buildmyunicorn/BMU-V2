@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
-import { resolvePublicOrigin } from '@/lib/auth/oauth-helpers';
+import {
+  resolvePublicOrigin,
+  sanitizeInternalReturnPath,
+} from '@/lib/auth/oauth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +40,10 @@ export async function GET(req: NextRequest) {
   authUrl.searchParams.set('access_type', 'offline');
   authUrl.searchParams.set('prompt', 'select_account');
 
+  const safeReturnTo = returnTo
+    ? sanitizeInternalReturnPath(returnTo, '/workspace')
+    : undefined;
+
   // Store CSRF state & original intent in a secure HttpOnly cookie (10 min TTL)
   const cookieStore = await cookies();
   cookieStore.set(
@@ -44,12 +51,14 @@ export async function GET(req: NextRequest) {
     JSON.stringify({
       state,
       from: from === 'register' ? 'register' : 'login',
-      returnTo: returnTo && returnTo.startsWith('/') ? returnTo : undefined,
+      termsAccepted,
+      returnTo: safeReturnTo,
     }),
     {
       httpOnly: true,
       sameSite: 'lax',
-      secure: origin.startsWith('https://'),
+      secure:
+        process.env.NODE_ENV === 'production' || origin.startsWith('https://'),
       path: '/',
       maxAge: 10 * 60, // 10 minutes
     }

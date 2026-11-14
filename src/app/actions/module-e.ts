@@ -85,7 +85,10 @@ export async function saveModuleEStep1OperationsBlueprintAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_E_OPERATIONS',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -170,7 +173,10 @@ export async function parkModuleEOpenQuestionAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_E_OPERATIONS',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -230,7 +236,10 @@ export async function saveModuleEStep2PremisesEquipmentAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_E_OPERATIONS',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -343,7 +352,10 @@ export async function saveModuleEStep3RiskRegisterAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_E_OPERATIONS',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -456,7 +468,10 @@ export async function saveModuleEStep4SupportReturnsAndQcAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_E_OPERATIONS',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -571,7 +586,10 @@ export async function saveModuleEStep5PermitsAndInsuranceAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_E_OPERATIONS',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -685,7 +703,10 @@ export async function saveModuleEStep6BlindSpotAuditAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_E_OPERATIONS',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }

@@ -11,11 +11,15 @@ import {
   cohortInquiries,
   users,
   userEntitlements,
+  startupPlans,
   tenants,
   type CohortMilestoneConfig,
   type CohortIntakeType,
 } from '@/db';
-import { getAdminSessionCookie, checkRateLimit } from '@/lib/auth/server-auth';
+import {
+  requireVerifiedSuperAdminSession,
+  checkRateLimit,
+} from '@/lib/auth/server-auth';
 import {
   calculateAppSumoTierLimits,
   calculatePassLimits,
@@ -72,7 +76,7 @@ export interface AdminCohortSummary {
  * Verifies caller has an active Super Admin server session
  */
 async function verifyAdminAuth(): Promise<boolean> {
-  const session = await getAdminSessionCookie();
+  const session = await requireVerifiedSuperAdminSession();
   return Boolean(session && session.role === 'SUPER_ADMIN');
 }
 
@@ -611,6 +615,61 @@ export async function manageCohortStaffAction(params: {
   } catch (err) {
     console.error('[Admin Vouchers] Failed to manage cohort staff:', err);
     return { ok: false, error: 'Failed to update cohort staff.' };
+  }
+}
+
+/**
+ * 3D. DELETE COHORT
+ * Safely removes an institutional cohort.
+ * - Detaches associated startup_plans (sets cohort_id to null)
+ * - Detaches associated users (sets cohort_id to null)
+ * - Deletes associated cohort_staff entries
+ * - Deletes the cohort record
+ */
+export async function deleteCohortAction(params: {
+  cohortId: string;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+}> {
+  const isAdmin = await verifyAdminAuth();
+  if (!isAdmin) {
+    return { ok: false, error: 'Unauthorized: Super Admin access required.' };
+  }
+
+  if (!params.cohortId) {
+    return { ok: false, error: 'Cohort ID is required.' };
+  }
+
+  await ensureDatabaseSchemaSynced();
+
+  try {
+    // 1. Detach startup_plans from this cohort
+    await db
+      .update(startupPlans)
+      .set({ cohortId: null })
+      .where(eq(startupPlans.cohortId, params.cohortId));
+
+    // 2. Detach users from this cohort
+    await db
+      .update(users)
+      .set({ cohortId: null })
+      .where(eq(users.cohortId, params.cohortId));
+
+    // 3. Remove cohort staff
+    await db
+      .delete(cohortStaff)
+      .where(eq(cohortStaff.cohortId, params.cohortId));
+
+    // 4. Delete the cohort itself
+    await db
+      .delete(cohorts)
+      .where(eq(cohorts.id, params.cohortId));
+
+    return { ok: true };
+  } catch (err) {
+    console.error('[Admin Vouchers] Failed to delete cohort:', err);
+    return { ok: false, error: 'Failed to delete cohort. Please check server logs.' };
   }
 }
 

@@ -132,15 +132,20 @@ function sanitizeBaseLabel(rawInput: string): string {
     .split('/')[0]
     .split('.')[0]
     .replace(/[^a-z0-9-]/g, '')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/g, '');
   return cleaned;
 }
 
 export async function GET(request: NextRequest) {
   const forwardedFor = request.headers.get('x-forwarded-for');
+  const xffHops = forwardedFor
+    ? forwardedFor.split(',').map((h) => h.trim()).filter(Boolean)
+    : [];
   const clientIp =
-    request.headers.get('cf-connecting-ip') ||
-    (forwardedFor ? forwardedFor.split(',')[0].trim() : 'anon');
+    request.headers.get('cf-connecting-ip')?.trim() ||
+    (xffHops.length > 0 ? xffHops[xffHops.length - 1] : 'anon');
 
   const rl = checkRateLimit(`domain_check:${clientIp}`, 30, 60_000);
   if (!rl.allowed) {

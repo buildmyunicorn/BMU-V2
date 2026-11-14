@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import type { ModuleCode } from '@/lib/entitlements';
 import {
-  getAdminSessionCookie,
+  requireVerifiedSuperAdminSession,
   getServerSessionCookie,
   checkRateLimit,
 } from '@/lib/auth/server-auth';
@@ -99,11 +99,11 @@ export async function runPersonaPlatformAuditAction(input: {
   ok: boolean;
   report: PersonaAuditReport;
 }> {
-  const adminSession = await getAdminSessionCookie();
+  const adminSession = await requireVerifiedSuperAdminSession();
   const founderSession = await getServerSessionCookie();
   const callerId = adminSession?.userId || founderSession?.userId || 'anon';
   const rl = checkRateLimit(`persona_audit:${callerId}`, 15, 60_000);
-  if (!rl.allowed || (process.env.NODE_ENV === 'production' && !adminSession)) {
+  if (!rl.allowed || (process.env.NODE_ENV !== 'development' && !adminSession)) {
     throw new Error('Unauthorized or rate-limited persona audit request.');
   }
 

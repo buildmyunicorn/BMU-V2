@@ -8,7 +8,7 @@ import {
   aiUsageLogs,
   type BlindSpotItem,
 } from '@/db';
-import { canConsumeAiCredits, type EntitlementSnapshot } from '@/lib/entitlements';
+import { canAccessModule, canConsumeAiCredits, type EntitlementSnapshot } from '@/lib/entitlements';
 import {
   checkRateLimit,
   decryptByokApiKey,
@@ -404,6 +404,26 @@ export async function authorizeAndPrepareGeminiCall(
       isVaultReadonly: entRow.isVaultReadonly,
     };
 
+    const isPaidModulePrompt =
+      /^MOD_[BCDEFGHIJKL]_/i.test(promptKey) ||
+      /^(MASTER_DOC|STUDIO_|BUSINESS_PLAN)/i.test(promptKey);
+    if (isPaidModulePrompt) {
+      const modAccess = canAccessModule(snapshot, 'MOD_B_MARKET');
+      if (!modAccess.allowed) {
+        return {
+          canCallLiveGemini: false,
+          creditCheckBlocked: true,
+          blockReason: modAccess.reason || 'Paid Pass required for Modules B–L AI synthesis.',
+          activeApiKey: null,
+          verifiedUserId,
+          usedByokKey: false,
+          planType: entRow.planType,
+          currentCreditsUsed: entRow.aiCreditsUsedThisMonth,
+          systemInstruction: defaultSystemInstruction,
+        };
+      }
+    }
+
     const creditCheck = canConsumeAiCredits(snapshot, 1);
     if (!creditCheck.allowed) {
       return {
@@ -544,19 +564,23 @@ export async function recordGeminiUsageAndIncrementCredits(params: {
     return params.fallbackCreditsUsed;
   }
 
-  let creditsUsedAfter = params.fallbackCreditsUsed + 1;
+  let creditsUsedAfter = params.usedByokKey
+    ? params.fallbackCreditsUsed
+    : params.fallbackCreditsUsed + 1;
   try {
-    const [updatedEnt] = await db
-      .update(userEntitlements)
-      .set({
-        aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(userEntitlements.userId, params.verifiedUserId))
-      .returning();
+    if (!params.usedByokKey) {
+      const [updatedEnt] = await db
+        .update(userEntitlements)
+        .set({
+          aiCreditsUsedThisMonth: sql`${userEntitlements.aiCreditsUsedThisMonth} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(userEntitlements.userId, params.verifiedUserId))
+        .returning();
 
-    if (updatedEnt) {
-      creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
+      if (updatedEnt) {
+        creditsUsedAfter = updatedEnt.aiCreditsUsedThisMonth;
+      }
     }
 
     await db.insert(aiUsageLogs).values({
@@ -12125,6 +12149,17 @@ Respond ONLY with a valid JSON object matching this schema:
         },
       });
 
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: (params as { planId?: string }).planId,
+        promptKey: 'MOD_I_FOUR_PS',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 350,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 280,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
+      });
+
       const responseText = response.text;
       if (responseText) {
         const parsed = JSON.parse(responseText);
@@ -12640,6 +12675,17 @@ Respond ONLY with a valid JSON object matching this schema:
         },
       });
 
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: (params as { planId?: string }).planId,
+        promptKey: 'MOD_I_FIRST_10',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 380,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 320,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
+      });
+
       const text = response.text?.trim() || '';
       if (text) {
         const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
@@ -12999,6 +13045,17 @@ Respond ONLY with a valid JSON object matching this schema:
         },
       });
 
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: (params as { planId?: string }).planId,
+        promptKey: 'MOD_I_OBJECTION_BUSTERS',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 300,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 220,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
+      });
+
       const text = response.text?.trim() || '';
       if (text) {
         const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
@@ -13245,6 +13302,17 @@ Respond ONLY with a valid JSON object matching this schema:
           maxOutputTokens: 2048,
           responseMimeType: 'application/json',
         },
+      });
+
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: (params as { planId?: string }).planId,
+        promptKey: 'MOD_I_BUDGET_CAC',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 360,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 260,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
       });
 
       const text = response.text?.trim() || '';
@@ -13578,6 +13646,17 @@ Return strictly JSON:
         },
       });
 
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_I_MARKETING_BRIEF',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 420,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 340,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
+      });
+
       const text = response.text ? response.text.trim() : '';
       if (text) {
         const parsed = JSON.parse(text);
@@ -13717,6 +13796,17 @@ Return strictly JSON:
         },
       });
 
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_J_OVERHEADS_TAX',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 300,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 220,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
+      });
+
       const text = response.text ? response.text.trim() : '';
       if (text) {
         const parsed = JSON.parse(text);
@@ -13823,6 +13913,17 @@ Return strictly JSON:
           temperature: 0.3,
           maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
+      });
+
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_J_WORKING_CAPITAL',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 300,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 220,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
       });
 
       const text = response.text ? response.text.trim() : '';
@@ -13939,6 +14040,17 @@ Return strictly JSON:
         },
       });
 
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_J_CASHFLOW_FUNDING_GAP',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 320,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 240,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
+      });
+
       const text = response.text ? response.text.trim() : '';
       if (text) {
         const parsed = JSON.parse(text);
@@ -14046,6 +14158,17 @@ Return strictly JSON:
           temperature: 0.3,
           maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
+      });
+
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_J_STATEMENTS_STRESS_TEST',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 320,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 240,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
       });
 
       const text = response.text ? response.text.trim() : '';
@@ -14217,6 +14340,17 @@ Return strictly JSON with:
         },
       });
 
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_J_EXECUTIVE_BRIEF',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 380,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 300,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
+      });
+
       const text = response.text ? response.text.trim() : '';
       if (text) {
         const parsed = JSON.parse(text);
@@ -14366,6 +14500,17 @@ Synthesize an assessor-level evaluation overview in strict JSON format:
         },
       });
 
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_K_GRANT_AUDIT',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 320,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 240,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
+      });
+
       const rawText = response.text || '';
       const parsed = JSON.parse(rawText);
 
@@ -14468,6 +14613,17 @@ Write a formal underwriter strategy narrative and practical assessor tip in stri
           temperature: 0.3,
           maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
+      });
+
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_K_CAPITAL_STACK',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 320,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 240,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
       });
 
       const rawText = response.text || '';
@@ -14580,6 +14736,17 @@ Write a formal reimbursement bridge narrative and assessor tip in strict JSON fo
         },
       });
 
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_K_REIMBURSEMENT_BRIDGE',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 320,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 240,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
+      });
+
       const rawText = response.text || '';
       const parsed = JSON.parse(rawText);
 
@@ -14679,6 +14846,17 @@ Write a formal investor pitch narrative and insider underwriter tip in strict JS
           temperature: 0.3,
           maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
+      });
+
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_K_TAX_RELIEF',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 300,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 220,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
       });
 
       const rawText = response.text || '';
@@ -14937,6 +15115,17 @@ Generate an assessor-grade funding strategy brief, phased grant application road
           temperature: 0.3,
           maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
         },
+      });
+
+      await recordGeminiUsageAndIncrementCredits({
+        verifiedUserId: authCtx.verifiedUserId,
+        planId: params.planId,
+        promptKey: 'MOD_K_FUNDING_BRIEF',
+        modelUsed: 'gemini-2.5-flash',
+        inputTokens: response.usageMetadata?.promptTokenCount || 420,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 340,
+        usedByokKey: authCtx.usedByokKey,
+        fallbackCreditsUsed: authCtx.currentCreditsUsed,
       });
 
       const rawText = response.text || '';

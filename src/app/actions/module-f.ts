@@ -65,7 +65,10 @@ export async function saveModuleFStep1PromoterProfilesAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_F_COFOUNDER_TEAM',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -151,7 +154,10 @@ export async function saveModuleFStep2RoleMatrixAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_F_COFOUNDER_TEAM',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -237,7 +243,10 @@ export async function saveModuleFStep3SurvivalBudgetAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_F_COFOUNDER_TEAM',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -323,7 +332,10 @@ export async function saveModuleFStep4AlignmentAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_F_COFOUNDER_TEAM',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -345,11 +357,76 @@ export async function saveModuleFStep4AlignmentAction(input: {
     const existingPayload = (existingMod[0]?.structuredInputsJsonb ??
       {}) as SavedModuleFData;
 
+    const existingResponses = existingPayload.step4AlignmentData?.responses || [];
+    const incomingResponses = Array.isArray(input.step4AlignmentData?.responses)
+      ? input.step4AlignmentData.responses
+      : [];
+
+    // Protect blind co-founder answers:
+    // 1. If a collaborator saves, only allow updating their own matched memberId (by email)
+    //    while preserving all other co-founders' existing answers.
+    // 2. Never wipe an existing co-founder's non-empty answers with an empty or redacted object.
+    const teamMembers = existingPayload.promoterProfiles?.teamMembers || [];
+    const callerEmail = (authCheck.email || '').trim().toLowerCase();
+    const matchedCallerMember = callerEmail
+      ? teamMembers.find((m) => (m.email || '').trim().toLowerCase() === callerEmail)
+      : undefined;
+
+    const mergedByMemberId = new Map<string, (typeof incomingResponses)[number]>();
+    for (const prev of existingResponses) {
+      if (prev?.memberId) {
+        mergedByMemberId.set(prev.memberId, prev);
+      }
+    }
+
+    for (const inc of incomingResponses) {
+      if (!inc?.memberId) continue;
+      if (
+        authCheck.role === 'COLLABORATOR' &&
+        matchedCallerMember &&
+        inc.memberId !== matchedCallerMember.id
+      ) {
+        continue;
+      }
+
+      const prev = mergedByMemberId.get(inc.memberId);
+      const incAnswers = inc.answers || {};
+      const hasLockedPlaceholder = Object.values(incAnswers).some(
+        (a) => a?.selectedOption === '[LOCKED_UNTIL_REVEAL]'
+      );
+      if (hasLockedPlaceholder && prev) {
+        continue;
+      }
+      if (
+        prev &&
+        Object.keys(prev.answers || {}).length > 0 &&
+        Object.keys(incAnswers).length === 0
+      ) {
+        continue;
+      }
+      mergedByMemberId.set(inc.memberId, inc);
+    }
+
+    const mergedResponses = Array.from(mergedByMemberId.values());
+
+    // Only allow `isRevealed: true` if every participating member (>= 2) has answered at least 1 question
+    // OR if already revealed previously.
+    const wasRevealed = Boolean(existingPayload.step4AlignmentData?.isRevealed);
+    const completedMembersCount = mergedResponses.filter(
+      (r) => Object.keys(r.answers || {}).length > 0
+    ).length;
+    const safeIsRevealed =
+      wasRevealed ||
+      (Boolean(input.step4AlignmentData?.isRevealed) &&
+        (mergedResponses.length <= 1 || completedMembersCount >= 2));
+
     const nowIso = new Date().toISOString();
     const updatedPayload: SavedModuleFData = {
       ...existingPayload,
       step4AlignmentData: {
         ...input.step4AlignmentData,
+        responses: mergedResponses,
+        isRevealed: safeIsRevealed,
         lastSavedAt: nowIso,
       },
       lastSavedAt: nowIso,
@@ -409,7 +486,10 @@ export async function saveModuleFStep5HiringPlanAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_F_COFOUNDER_TEAM',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -496,7 +576,10 @@ export async function saveModuleFStep6BlindSpotAuditAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_F_COFOUNDER_TEAM',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -580,7 +663,10 @@ export async function parkModuleFOpenQuestionAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_F_COFOUNDER_TEAM',
+    requireWrite: true,
+  });
   if (!authCheck.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }

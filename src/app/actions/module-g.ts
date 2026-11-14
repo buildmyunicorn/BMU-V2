@@ -39,9 +39,16 @@ export async function saveModuleGLaunchpadDataAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_G_LAUNCHPAD',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return {
+        ok: false,
+        persistedToCloudSql: false,
+        error: authCheck.reason || 'Unauthorized access to Module G Launchpad.',
+      };
     }
 
     await ensureModuleGEnumInPostgres();

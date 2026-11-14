@@ -1,7 +1,7 @@
 'use server';
 
 import crypto from 'crypto';
-import { desc, eq, and } from 'drizzle-orm';
+import { desc, eq, and, inArray } from 'drizzle-orm';
 import {
   db,
   ensureDatabaseSchemaSynced,
@@ -10,7 +10,6 @@ import {
   partnerOffers,
   partnerReferralEvents,
   startupPlans,
-  users,
 } from '@/db';
 import type {
   QuoteRfpWorkPackageItem,
@@ -18,7 +17,8 @@ import type {
 } from '@/db/schema';
 import {
   verifyActiveSessionAndPlanOwnership,
-  getAdminSessionCookie,
+  getTrustedClientIp,
+  checkRateLimit,
 } from '@/lib/auth/server-auth';
 import { sendSystemEmail } from '@/lib/email/send';
 import { EMAIL_DEFAULTS } from '@/lib/email/resend';
@@ -48,10 +48,33 @@ export async function submitThreeQuoteRfpAction(input: {
   error?: string;
 }> {
   try {
-    const verified = await verifyActiveSessionAndPlanOwnership(input.planId);
-    if (!verified || !verified.authorized) {
-      return { ok: false, error: 'Unauthorized: Access to this plan is restricted.' };
+    if (!input.planId || !/^[0-9a-f-]{36}$/i.test(input.planId)) {
+      return { ok: false, error: 'Valid startup plan ID required.' };
     }
+    const targetMod =
+      input.sourceModule === 'MOD_E_OPERATIONS'
+        ? 'MOD_E_OPERATIONS'
+        : 'MOD_D_PRODUCT_BUILD';
+    const verified = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: targetMod,
+      requireWrite: true,
+    });
+    if (!verified || !verified.authorized || !verified.userId) {
+      return {
+        ok: false,
+        error: verified?.reason || 'Unauthorized: Access to this plan is restricted.',
+      };
+    }
+
+    const rfpRl = checkRateLimit(`quote_rfp_submit:${verified.userId}`, 6, 15 * 60_000);
+    if (!rfpRl.allowed) {
+      return {
+        ok: false,
+        error: 'Too many RFP dispatches in a short window. Please wait a few minutes.',
+      };
+    }
+
+    const verifiedFounderEmail = verified.email || input.founderContact.email;
 
     await ensureDatabaseSchemaSynced();
 
@@ -207,7 +230,7 @@ export async function submitThreeQuoteRfpAction(input: {
     const workspaceUrl = `${appUrl}/workspace?planId=${plan.id}&module=${input.sourceModule}`;
 
     await sendSystemEmail({
-      to: input.founderContact.email,
+      to: verifiedFounderEmail,
       template: 'QUOTE_RFP_FOUNDER_RECEIPT',
       subject: `⚡ 3-Quote Request Dispatched for "${input.projectTitle}"`,
       props: {
@@ -394,6 +417,52 @@ export async function submitQuoteResponseAction(input: {
   error?: string;
 }> {
   try {
+    const cleanToken = (typeof input?.magicToken === 'string' ? input.magicToken : '').trim();
+    if (!cleanToken || !/^[a-f0-9]{32,128}$/i.test(cleanToken)) {
+      return { ok: false, error: 'Invalid quotation token format.' };
+    }
+
+    const clientIp = await getTrustedClientIp();
+    const tokenRl = checkRateLimit(`quote_submit:${cleanToken}`, 5, 3_600_000);
+    const ipRl = checkRateLimit(`quote_submit_ip:${clientIp}`, 12, 3_600_000);
+    if (!tokenRl.allowed || !ipRl.allowed) {
+      return { ok: false, error: 'Too many quote submission attempts. Please wait before retrying.' };
+    }
+
+    const netVal = Number(input.quoteAmountNet);
+    if (!Number.isFinite(netVal) || netVal <= 0 || netVal > 10_000_000) {
+      return { ok: false, error: 'Quote amount must be a valid positive number up to 10,000,000.' };
+    }
+
+    const weeksVal =
+      input.estimatedWeeks !== undefined && input.estimatedWeeks !== null
+        ? Math.max(1, Math.min(260, Math.round(Number(input.estimatedWeeks))))
+        : null;
+
+    const cleanNotes =
+      typeof input.quoteNotes === 'string'
+        ? input.quoteNotes.trim().slice(0, 5000) || null
+        : null;
+
+    const cleanFileUrl = typeof input.quoteFileUrl === 'string' ? input.quoteFileUrl.trim() : '';
+    const isSafePdfDataUri =
+      cleanFileUrl.length <= 21_000_000 &&
+      /^data:application\/pdf;base64,[A-Za-z0-9+/=\s]+$/.test(cleanFileUrl);
+    const isSafeHttpsUrl =
+      cleanFileUrl.length <= 2048 && /^https:\/\/[^\s"'<>]+$/i.test(cleanFileUrl);
+
+    if (!cleanFileUrl || (!isSafePdfDataUri && !isSafeHttpsUrl)) {
+      return {
+        ok: false,
+        error: 'Quote attachment must be a valid PDF upload or HTTPS document link.',
+      };
+    }
+
+    const cleanFileName =
+      typeof input.quoteFileName === 'string'
+        ? input.quoteFileName.replace(/[^\w.\- ()]/g, '_').slice(0, 180) || 'supplier-quote.pdf'
+        : 'supplier-quote.pdf';
+
     await ensureDatabaseSchemaSynced();
 
     const [respRow] = await db
@@ -416,7 +485,7 @@ export async function submitQuoteResponseAction(input: {
       .from(quotePartnerResponses)
       .innerJoin(quoteRfpRequests, eq(quotePartnerResponses.rfpId, quoteRfpRequests.id))
       .innerJoin(partnerOffers, eq(quotePartnerResponses.partnerId, partnerOffers.id))
-      .where(eq(quotePartnerResponses.magicToken, input.magicToken))
+      .where(eq(quotePartnerResponses.magicToken, cleanToken))
       .limit(1);
 
     if (!respRow) {
@@ -427,7 +496,18 @@ export async function submitQuoteResponseAction(input: {
       return { ok: false, error: 'This quote submission link has expired.' };
     }
 
-    const netAmountStr = input.quoteAmountNet.toFixed(2);
+    if (
+      respRow.status === 'QUOTE_SUBMITTED' ||
+      respRow.status === 'DECLINED' ||
+      respRow.status === 'EXPIRED'
+    ) {
+      return {
+        ok: false,
+        error: 'An official quote has already been submitted for this invitation.',
+      };
+    }
+
+    const netAmountStr = netVal.toFixed(2);
     const submittedDate = new Date();
 
     // 1. Update quote_partner_responses
@@ -436,10 +516,10 @@ export async function submitQuoteResponseAction(input: {
       .set({
         status: 'QUOTE_SUBMITTED',
         quoteAmountNet: netAmountStr,
-        estimatedWeeks: input.estimatedWeeks || null,
-        quoteNotes: input.quoteNotes?.trim() || null,
-        quoteFileUrl: input.quoteFileUrl,
-        quoteFileName: input.quoteFileName,
+        estimatedWeeks: weeksVal,
+        quoteNotes: cleanNotes,
+        quoteFileUrl: cleanFileUrl,
+        quoteFileName: cleanFileName,
         submittedAt: submittedDate,
       })
       .where(eq(quotePartnerResponses.id, respRow.responseId));
@@ -466,9 +546,10 @@ export async function submitQuoteResponseAction(input: {
       })
       .where(eq(quoteRfpRequests.id, respRow.rfpId));
 
-    // 3. Auto-notify the founder via Resend Email
+    // 3. Auto-notify the founder via Resend Email (omit huge base64 data URIs from email href)
     const appUrl = EMAIL_DEFAULTS.appUrl;
     const workspaceUrl = `${appUrl}/workspace?planId=${respRow.planId}&module=${respRow.sourceModule}`;
+    const emailSafeQuoteUrl = isSafeHttpsUrl ? cleanFileUrl : workspaceUrl;
 
     await sendSystemEmail({
       to: respRow.founderContactInfo.email,
@@ -481,9 +562,9 @@ export async function submitQuoteResponseAction(input: {
         partnerLogo: respRow.partnerLogo || '🏢',
         quoteAmountNet: netAmountStr,
         quoteCurrency: respRow.currency,
-        estimatedWeeks: input.estimatedWeeks,
-        quoteNotes: input.quoteNotes,
-        quoteFileUrl: input.quoteFileUrl,
+        estimatedWeeks: weeksVal ?? undefined,
+        quoteNotes: cleanNotes ?? undefined,
+        quoteFileUrl: emailSafeQuoteUrl,
         workspaceUrl,
       },
     });
@@ -530,9 +611,12 @@ export async function getPlanQuotesAction(planId: string): Promise<{
   error?: string;
 }> {
   try {
+    if (!planId || !/^[0-9a-f-]{36}$/i.test(planId)) {
+      return { ok: false, rfps: [], error: 'Valid plan ID required.' };
+    }
     const verified = await verifyActiveSessionAndPlanOwnership(planId);
-    if (!verified) {
-      return { ok: false, rfps: [], error: 'Unauthorized plan access.' };
+    if (!verified || !verified.authorized || !verified.userId) {
+      return { ok: false, rfps: [], error: verified?.reason || 'Unauthorized plan access.' };
     }
 
     await ensureDatabaseSchemaSynced();
@@ -546,6 +630,8 @@ export async function getPlanQuotesAction(planId: string): Promise<{
     if (rfpRows.length === 0) {
       return { ok: true, rfps: [] };
     }
+
+    const rfpIds = rfpRows.map((r) => r.id);
 
     const responsesRows = await db
       .select({
@@ -564,7 +650,8 @@ export async function getPlanQuotesAction(planId: string): Promise<{
         submittedAt: quotePartnerResponses.submittedAt,
       })
       .from(quotePartnerResponses)
-      .leftJoin(partnerOffers, eq(quotePartnerResponses.partnerId, partnerOffers.id));
+      .leftJoin(partnerOffers, eq(quotePartnerResponses.partnerId, partnerOffers.id))
+      .where(inArray(quotePartnerResponses.rfpId, rfpIds));
 
     const responsesByRfp = new Map<string, typeof responsesRows>();
     for (const r of responsesRows) {

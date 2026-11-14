@@ -20,7 +20,13 @@ import type {
 } from '@/lib/auth/session-store';
 import type { SupportedCountryCode } from '@/lib/localization';
 import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
-import { authorizeAndPrepareGeminiCall, getGenAiClient } from '@/lib/ai/router';
+import {
+  authorizeAndPrepareGeminiCall,
+  getGenAiClient,
+  recordGeminiUsageAndIncrementCredits,
+} from '@/lib/ai/router';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type AskStartupPersona =
   | 'ELEVATOR_PITCH'
@@ -1261,7 +1267,7 @@ export async function askStartupPlanAction(
 
   // 2. Plan Authentication & Verification
   const authCheck = await verifyActiveSessionAndPlanOwnership(planId);
-  if (!authCheck.authorized && !authCheck.isLocalPreview) {
+  if (!authCheck.authorized) {
     return { success: false, error: 'Unauthorized access to this startup plan.' };
   }
 
@@ -1280,7 +1286,7 @@ export async function askStartupPlanAction(
   };
 
   try {
-    const isDbPlan = planId && !planId.startsWith('demo-') && !planId.startsWith('local-');
+    const isDbPlan = Boolean(planId && UUID_REGEX.test(planId));
     if (isDbPlan) {
       const planRows = await db.select().from(startupPlans).where(eq(startupPlans.id, planId));
       if (planRows.length > 0) {
@@ -1349,8 +1355,8 @@ export async function askStartupPlanAction(
 
   // 5. Authorize Live Gemini Call
   const geminiAuth = await authorizeAndPrepareGeminiCall(
-    planId,
-    `AskMyStartup: ${trimmedQ.slice(0, 100)}`
+    'ASK_PREFLIGHT_AI',
+    'You are Ask Preflight AI, an executive startup advisor grounded strictly in the founder startup plan.'
   );
 
   if (!geminiAuth.canCallLiveGemini || !geminiAuth.activeApiKey) {
@@ -1443,6 +1449,17 @@ Respond strictly in the requested JSON format. Ensure word count constraints (li
         temperature: 0.2,
         maxOutputTokens: 2048,
       },
+    });
+
+    await recordGeminiUsageAndIncrementCredits({
+      verifiedUserId: geminiAuth.verifiedUserId,
+      planId,
+      promptKey: 'ASK_PREFLIGHT_AI',
+      modelUsed: 'gemini-2.5-flash',
+      inputTokens: response.usageMetadata?.promptTokenCount || 900,
+      outputTokens: response.usageMetadata?.candidatesTokenCount || 350,
+      usedByokKey: geminiAuth.usedByokKey,
+      fallbackCreditsUsed: geminiAuth.currentCreditsUsed,
     });
 
     const rawText = (response.text || '').trim();

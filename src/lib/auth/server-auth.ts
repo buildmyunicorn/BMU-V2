@@ -1,18 +1,27 @@
 import crypto from 'crypto';
-import { cookies } from 'next/headers';
-import { eq } from 'drizzle-orm';
+import { cookies, headers } from 'next/headers';
+import { and, eq } from 'drizzle-orm';
 import { db, ensureDatabaseSchemaSynced } from '@/db';
-import { startupPlans, users } from '@/db/schema';
+import {
+  planCollaborators,
+  startupPlans,
+  tenants,
+  userEntitlements,
+  users,
+} from '@/db/schema';
+import {
+  canAccessModule,
+  checkFeatureEntitlement,
+  isEntitlementInVaultMode,
+  type EntitlementSnapshot,
+  type ModuleCode,
+  type PaywallFeature,
+} from '@/lib/entitlements';
 
 const SESSION_COOKIE_NAME = 'spf_session_token';
 const LEGACY_SESSION_COOKIE_NAME = 'bmu_session_token';
 const ADMIN_SESSION_COOKIE_NAME = 'spf_super_admin_token';
 const LEGACY_ADMIN_SESSION_COOKIE_NAME = 'bmu_super_admin_token';
-
-// Never fall back to a static public secret in production.
-// If BETTER_AUTH_SECRET is missing in production, generate an ephemeral per-instance secret
-// and log a critical warning so tokens cannot be forged externally.
-const EPHEMERAL_FALLBACK_SECRET = crypto.randomBytes(32).toString('hex');
 
 function getSessionSecret(): string {
   const configured =
@@ -21,12 +30,18 @@ function getSessionSecret(): string {
     return configured;
   }
   if (process.env.NODE_ENV === 'production') {
-    console.error(
-      '[Startup Preflight SECURITY WARNING] BETTER_AUTH_SECRET is missing or too short in production! Using ephemeral secret.'
+    throw new Error(
+      '[Startup Preflight SECURITY] BETTER_AUTH_SECRET (>= 16 chars) is required in production.'
     );
-    return EPHEMERAL_FALLBACK_SECRET;
   }
   return 'bmu-v2-local-dev-only-secret-do-not-use-in-prod-2026';
+}
+
+function derivePurposeKey(purpose: string): Buffer {
+  const masterSecret = getSessionSecret();
+  return Buffer.from(
+    crypto.hkdfSync('sha256', masterSecret, '', purpose, 32)
+  );
 }
 
 const FOUNDER_TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
@@ -42,11 +57,23 @@ export interface SessionTokenPayload {
   iat: number;
 }
 
+export interface PlanAuthOptions {
+  requiredModule?: ModuleCode;
+  requireWrite?: boolean;
+  requiredFeature?: PaywallFeature;
+}
+
 /**
  * Hash a plaintext password with a random 16-byte salt using Node's native scrypt.
- * Zero native C++ dependencies required inside Docker / Cloud Run.
+ * Enforces runtime string type and bounded length (8..128 chars) to prevent scrypt DoS or TypeError.
  */
 export function hashPassword(password: string): string {
+  if (typeof password !== 'string') {
+    throw new Error('Password must be a string.');
+  }
+  if (password.length < 8 || password.length > 128) {
+    throw new Error('Password must be between 8 and 128 characters.');
+  }
   const salt = crypto.randomBytes(16).toString('hex');
   const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
   return `${salt}:${derivedKey}`;
@@ -54,32 +81,58 @@ export function hashPassword(password: string): string {
 
 /**
  * Verify a plaintext password against a stored `salt:hash` string using constant-time comparison.
+ * Accepts 1..128 chars so existing legacy 6-7 char passwords still verify without throwing TypeError.
  */
-export function verifyPassword(password: string, storedHash: string): boolean {
+export function verifyPassword(password: unknown, storedHash: unknown): boolean {
+  if (typeof password !== 'string' || typeof storedHash !== 'string') {
+    return false;
+  }
+  if (password.length === 0 || password.length > 128) {
+    return false;
+  }
   const parts = storedHash.split(':');
   if (parts.length !== 2) return false;
   const [salt, keyHex] = parts;
-  const keyBuffer = Buffer.from(keyHex, 'hex');
-  const derivedBuffer = crypto.scryptSync(password, salt, 64);
-  if (keyBuffer.length !== derivedBuffer.length) return false;
-  return crypto.timingSafeEqual(keyBuffer, derivedBuffer);
+  if (!salt || !keyHex || keyHex.length !== 128) return false;
+  try {
+    const keyBuffer = Buffer.from(keyHex, 'hex');
+    const derivedBuffer = crypto.scryptSync(password, salt, 64);
+    if (keyBuffer.length !== derivedBuffer.length) return false;
+    return crypto.timingSafeEqual(keyBuffer, derivedBuffer);
+  } catch {
+    return false;
+  }
 }
 
 /**
  * AES-256-GCM encryption for Bring-Your-Own-Key (BYOK) Gemini API keys at rest.
- * Format: `enc:v1:<ivHex>:<authTagHex>:<ciphertextHex>`
+ * Writes `enc:v2:<ivHex>:<authTagHex>:<ciphertextHex>` using HKDF-separated subkey,
+ * while preserving backward-compatible decryption for existing `enc:v1:...` rows.
  */
-function getByokEncryptionKey(): Buffer {
+function getByokEncryptionKeyV2(): Buffer {
+  const explicitKey = process.env.BYOK_ENCRYPTION_KEY?.trim();
+  if (explicitKey && explicitKey.length >= 16) {
+    return Buffer.from(
+      crypto.hkdfSync('sha256', explicitKey, '', 'spf-byok-aes256gcm-v2', 32)
+    );
+  }
+  return derivePurposeKey('spf-byok-aes256gcm-v2');
+}
+
+function getLegacyByokEncryptionKeyV1(): Buffer {
   const rawSecret =
     process.env.BYOK_ENCRYPTION_KEY?.trim() || getSessionSecret();
   return crypto.createHash('sha256').update(`bmu-byok-v1:${rawSecret}`).digest();
 }
 
 export function encryptByokApiKey(rawApiKey: string): string {
+  if (typeof rawApiKey !== 'string') return '';
   const trimmed = rawApiKey.trim();
   if (!trimmed) return '';
-  if (trimmed.startsWith('enc:v1:')) return trimmed;
-  const key = getByokEncryptionKey();
+  if (trimmed.startsWith('enc:v2:') || trimmed.startsWith('enc:v1:')) {
+    return trimmed;
+  }
+  const key = getByokEncryptionKeyV2();
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   const encrypted = Buffer.concat([
@@ -87,22 +140,26 @@ export function encryptByokApiKey(rawApiKey: string): string {
     cipher.final(),
   ]);
   const authTag = cipher.getAuthTag();
-  return `enc:v1:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
+  return `enc:v2:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
-export function decryptByokApiKey(storedValue: string | null | undefined): string | null {
-  if (!storedValue) return null;
+export function decryptByokApiKey(
+  storedValue: string | null | undefined
+): string | null {
+  if (!storedValue || typeof storedValue !== 'string') return null;
   const trimmed = storedValue.trim();
   if (!trimmed || trimmed === 'enc_gemini_byok_active') return null;
-  if (!trimmed.startsWith('enc:v1:')) {
-    // Legacy plaintext key compatibility (only if it looks like a valid Gemini API key)
+  if (!trimmed.startsWith('enc:v1:') && !trimmed.startsWith('enc:v2:')) {
     return trimmed.length >= 20 ? trimmed : null;
   }
   try {
     const parts = trimmed.split(':');
     if (parts.length !== 5) return null;
-    const [, , ivHex, authTagHex, cipherHex] = parts;
-    const key = getByokEncryptionKey();
+    const [, version, ivHex, authTagHex, cipherHex] = parts;
+    const key =
+      version === 'v2'
+        ? getByokEncryptionKeyV2()
+        : getLegacyByokEncryptionKeyV1();
     const iv = Buffer.from(ivHex, 'hex');
     const authTag = Buffer.from(authTagHex, 'hex');
     const encrypted = Buffer.from(cipherHex, 'hex');
@@ -118,23 +175,30 @@ export function decryptByokApiKey(storedValue: string | null | undefined): strin
   }
 }
 
-function signPayload(payload: SessionTokenPayload): string {
-  const secret = getSessionSecret();
+function signPayload(
+  payload: SessionTokenPayload,
+  purpose: 'spf-founder-cookie-v1' | 'spf-super-admin-cookie-v1'
+): string {
+  const key = derivePurposeKey(purpose);
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signature = crypto
-    .createHmac('sha256', secret)
+    .createHmac('sha256', key)
     .update(data)
     .digest('base64url');
   return `${data}.${signature}`;
 }
 
-function verifyPayload(token: string, maxAgeMs: number = FOUNDER_TOKEN_TTL_MS): SessionTokenPayload | null {
+function verifyPayload(
+  token: string,
+  purpose: 'spf-founder-cookie-v1' | 'spf-super-admin-cookie-v1',
+  maxAgeMs: number
+): SessionTokenPayload | null {
   try {
     const [data, signature] = token.split('.');
     if (!data || !signature) return null;
-    const secret = getSessionSecret();
+    const key = derivePurposeKey(purpose);
     const expectedSig = crypto
-      .createHmac('sha256', secret)
+      .createHmac('sha256', key)
       .update(data)
       .digest('base64url');
     const sigBuf = Buffer.from(signature, 'utf8');
@@ -148,7 +212,12 @@ function verifyPayload(token: string, maxAgeMs: number = FOUNDER_TOKEN_TTL_MS): 
     const decoded = JSON.parse(
       Buffer.from(data, 'base64url').toString('utf8')
     ) as SessionTokenPayload;
-    if (!decoded || typeof decoded.iat !== 'number' || !decoded.userId) {
+    if (
+      !decoded ||
+      typeof decoded.iat !== 'number' ||
+      typeof decoded.userId !== 'string' ||
+      !decoded.userId
+    ) {
       return null;
     }
     const ageMs = Date.now() - decoded.iat;
@@ -165,11 +234,15 @@ export async function setServerSessionCookie(payload: {
   userId: string;
   email: string;
 }): Promise<void> {
-  const token = signPayload({
-    userId: payload.userId,
-    email: payload.email,
-    iat: Date.now(),
-  });
+  const token = signPayload(
+    {
+      userId: payload.userId,
+      email: payload.email,
+      role: 'FOUNDER',
+      iat: Date.now(),
+    },
+    'spf-founder-cookie-v1'
+  );
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
@@ -187,7 +260,7 @@ export async function getServerSessionCookie(): Promise<SessionTokenPayload | nu
       cookieStore.get(SESSION_COOKIE_NAME)?.value ||
       cookieStore.get(LEGACY_SESSION_COOKIE_NAME)?.value;
     if (!token) return null;
-    return verifyPayload(token, FOUNDER_TOKEN_TTL_MS);
+    return verifyPayload(token, 'spf-founder-cookie-v1', FOUNDER_TOKEN_TTL_MS);
   } catch {
     return null;
   }
@@ -207,19 +280,22 @@ export async function setAdminSessionCookie(payload: {
   userId: string;
   email: string;
 }): Promise<void> {
-  const token = signPayload({
-    userId: payload.userId,
-    email: payload.email,
-    role: 'SUPER_ADMIN',
-    iat: Date.now(),
-  });
+  const token = signPayload(
+    {
+      userId: payload.userId,
+      email: payload.email,
+      role: 'SUPER_ADMIN',
+      iat: Date.now(),
+    },
+    'spf-super-admin-cookie-v1'
+  );
   const cookieStore = await cookies();
   cookieStore.set(ADMIN_SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: 60 * 60 * 12, // 12 hours for admin session security
+    maxAge: 60 * 60 * 12, // 12 hours
   });
 }
 
@@ -230,7 +306,11 @@ export async function getAdminSessionCookie(): Promise<SessionTokenPayload | nul
       cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value ||
       cookieStore.get(LEGACY_ADMIN_SESSION_COOKIE_NAME)?.value;
     if (!token) return null;
-    const payload = verifyPayload(token, ADMIN_TOKEN_TTL_MS);
+    const payload = verifyPayload(
+      token,
+      'spf-super-admin-cookie-v1',
+      ADMIN_TOKEN_TTL_MS
+    );
     if (!payload || payload.role !== 'SUPER_ADMIN') return null;
     return payload;
   } catch {
@@ -245,6 +325,142 @@ export async function clearAdminSessionCookie(): Promise<void> {
     cookieStore.delete(LEGACY_ADMIN_SESSION_COOKIE_NAME);
   } catch {
     // Ignore if called outside request context
+  }
+}
+
+/**
+ * Resolves the client IP safely behind Google Cloud Run / Cloudflare reverse proxies
+ * for anti-brute-force rate limiting. Uses the rightmost X-Forwarded-For hop when
+ * cf-connecting-ip is absent so client-forged left-side XFF entries cannot rotate buckets.
+ */
+export async function getTrustedClientIp(): Promise<string> {
+  try {
+    const hdrs = await headers();
+    const cfIp = hdrs.get('cf-connecting-ip')?.trim();
+    if (cfIp) return cfIp.slice(0, 64);
+    const xff = hdrs.get('x-forwarded-for');
+    if (xff) {
+      const hops = xff
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const trustedHop = hops.length >= 2 ? hops[hops.length - 2] : hops[0];
+      if (trustedHop) return trustedHop.slice(0, 64);
+    }
+    const realIp = hdrs.get('x-real-ip')?.trim();
+    if (realIp) return realIp.slice(0, 64);
+  } catch {
+    // Outside request context
+  }
+  return 'unknown-ip';
+}
+
+/**
+ * Verifies the founder cookie against PostgreSQL (`users`) so suspended, soft-deleted,
+ * or non-UUID sessions are immediately rejected.
+ */
+export async function getVerifiedActiveFounderFromCookie(): Promise<{
+  userId: string;
+  email: string;
+  name: string;
+  role: 'FOUNDER' | 'MENTOR' | 'TENANT_ADMIN' | 'SUPER_ADMIN';
+  emailVerified: boolean;
+  hasPassword: boolean;
+  cohortId: string | null;
+  iat: number;
+} | null> {
+  const session = await getServerSessionCookie();
+  if (!session || !UUID_REGEX.test(session.userId)) {
+    return null;
+  }
+  try {
+    await ensureDatabaseSchemaSynced();
+    const [dbUser] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+        status: users.status,
+        deletedAt: users.deletedAt,
+        emailVerified: users.emailVerified,
+        passwordHash: users.passwordHash,
+        cohortId: users.cohortId,
+      })
+      .from(users)
+      .where(eq(users.id, session.userId))
+      .limit(1);
+
+    if (!dbUser || dbUser.status !== 'ACTIVE' || dbUser.deletedAt) {
+      return null;
+    }
+
+    return {
+      userId: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
+      role: dbUser.role,
+      emailVerified: dbUser.emailVerified,
+      hasPassword: Boolean(dbUser.passwordHash),
+      cohortId: dbUser.cohortId,
+      iat: session.iat,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Verifies the Super Admin cookie against PostgreSQL (`users`) so demoted or suspended
+ * admins lose privileges immediately rather than after the 12-hour cookie TTL.
+ */
+export async function requireVerifiedSuperAdminSession(): Promise<SessionTokenPayload | null> {
+  const adminSession = await getAdminSessionCookie();
+  if (!adminSession || adminSession.role !== 'SUPER_ADMIN') {
+    return null;
+  }
+
+  const isDevOfflineAllowed =
+    process.env.NODE_ENV === 'development' &&
+    process.env.ALLOW_OFFLINE_DEV_AUTH === 'true';
+
+  if (!UUID_REGEX.test(adminSession.userId)) {
+    return isDevOfflineAllowed && adminSession.userId === 'super-admin-local'
+      ? adminSession
+      : null;
+  }
+
+  try {
+    await ensureDatabaseSchemaSynced();
+    const [dbAdmin] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        role: users.role,
+        status: users.status,
+        deletedAt: users.deletedAt,
+      })
+      .from(users)
+      .where(eq(users.id, adminSession.userId))
+      .limit(1);
+
+    if (
+      !dbAdmin ||
+      dbAdmin.role !== 'SUPER_ADMIN' ||
+      dbAdmin.status !== 'ACTIVE' ||
+      dbAdmin.deletedAt
+    ) {
+      return null;
+    }
+
+    return {
+      userId: dbAdmin.id,
+      email: dbAdmin.email,
+      role: 'SUPER_ADMIN',
+      iat: adminSession.iat,
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -281,7 +497,6 @@ export function checkRateLimit(
   activeTimestamps.push(now);
   rateLimitBuckets.set(bucketKey, activeTimestamps);
 
-  // Periodic cleanup to prevent unbounded Map growth
   if (rateLimitBuckets.size > 5000) {
     for (const [key, timestamps] of rateLimitBuckets.entries()) {
       const filtered = timestamps.filter((ts) => ts > now - 3600_000);
@@ -300,19 +515,42 @@ export function checkRateLimit(
   };
 }
 
+export function mapDbEntitlementRowToSnapshot(
+  entRow: typeof userEntitlements.$inferSelect
+): EntitlementSnapshot {
+  return {
+    userId: entRow.userId,
+    planType: entRow.planType,
+    stackedCodesCount: entRow.stackedCodesCount,
+    maxStartupPlans: entRow.maxStartupPlans,
+    maxSeatsPerPlan: entRow.maxSeatsPerPlan,
+    monthlyAiCreditsLimit: entRow.monthlyAiCreditsLimit,
+    aiCreditsUsedThisMonth: entRow.aiCreditsUsedThisMonth,
+    whiteLabelExportEnabled: entRow.whiteLabelExportEnabled,
+    customApiKeyEncrypted: entRow.customApiKeyEncrypted,
+    accessExpiresAt: entRow.accessExpiresAt,
+    isVaultReadonly: entRow.isVaultReadonly,
+  };
+}
+
 /**
- * Strict server-side authorization & IDOR prevention helper.
+ * Strict server-side authorization, IDOR prevention & entitlement enforcement helper.
  * Verifies:
- * 1. The request has a valid signed HttpOnly session cookie (founder or super_admin).
- * 2. The user exists in PostgreSQL and has status === 'ACTIVE'.
- * 3. If a real database `planId` is supplied, the plan belongs to `session.userId` (or caller is SUPER_ADMIN).
+ * 1. Valid signed HttpOnly session cookie (founder or super_admin).
+ * 2. Active non-deleted user in PostgreSQL (`users.status === 'ACTIVE'`).
+ * 3. Plan ownership (`startup_plans.owner_user_id`) or accepted collaborator seat (`plan_collaborators`).
+ * 4. Optional server-side module paywall (`requiredModule`), Read-Only Vault lock (`requireWrite`), and feature gate (`requiredFeature`).
  */
-export async function verifyActiveSessionAndPlanOwnership(planId?: string): Promise<{
+export async function verifyActiveSessionAndPlanOwnership(
+  planId?: string,
+  options?: PlanAuthOptions
+): Promise<{
   authorized: boolean;
   isLocalPreview: boolean;
   userId: string | null;
   email: string | null;
   isSuperAdmin: boolean;
+  role?: 'OWNER' | 'COLLABORATOR' | 'SUPER_ADMIN';
   reason?: string;
 }> {
   const isLocalPlanId =
@@ -329,7 +567,7 @@ export async function verifyActiveSessionAndPlanOwnership(planId?: string): Prom
   if (!activeSession) {
     return {
       authorized: false,
-      isLocalPreview: isLocalPlanId,
+      isLocalPreview: false,
       userId: null,
       email: null,
       isSuperAdmin: false,
@@ -337,57 +575,61 @@ export async function verifyActiveSessionAndPlanOwnership(planId?: string): Prom
     };
   }
 
-  // Super-admin virtual session (master env credentials) or DB user check
-  let isSuperAdmin = Boolean(adminSession && adminSession.role === 'SUPER_ADMIN');
+  const isDevOfflineAllowed =
+    process.env.NODE_ENV === 'development' &&
+    process.env.ALLOW_OFFLINE_DEV_AUTH === 'true';
 
-  if (
-    activeSession.userId === 'super-admin-root' ||
-    activeSession.userId === 'super-admin-local'
-  ) {
-    isSuperAdmin = true;
-  } else if (
-    activeSession.userId === 'local-founder-session' ||
-    activeSession.userId.startsWith('local-') ||
-    activeSession.userId.startsWith('demo-') ||
-    !UUID_REGEX.test(activeSession.userId)
-  ) {
+  if (!UUID_REGEX.test(activeSession.userId)) {
+    if (isDevOfflineAllowed && isLocalPlanId) {
+      return {
+        authorized: true,
+        isLocalPreview: true,
+        userId: activeSession.userId,
+        email: activeSession.email,
+        isSuperAdmin: activeSession.role === 'SUPER_ADMIN',
+      };
+    }
     return {
-      authorized: true,
-      isLocalPreview: true,
-      userId: activeSession.userId,
-      email: activeSession.email,
+      authorized: false,
+      isLocalPreview: false,
+      userId: null,
+      email: null,
       isSuperAdmin: false,
+      reason: 'INVALID_SESSION_USER_ID',
     };
   }
 
   try {
     await ensureDatabaseSchemaSynced();
 
-    if (!isSuperAdmin) {
-      const [dbUser] = await db
-        .select({
-          id: users.id,
-          status: users.status,
-          role: users.role,
-        })
-        .from(users)
-        .where(eq(users.id, activeSession.userId))
-        .limit(1);
+    const [dbUser] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        status: users.status,
+        deletedAt: users.deletedAt,
+        role: users.role,
+      })
+      .from(users)
+      .where(eq(users.id, activeSession.userId))
+      .limit(1);
 
-      if (!dbUser || dbUser.status !== 'ACTIVE') {
-        return {
-          authorized: false,
-          isLocalPreview: false,
-          userId: activeSession.userId,
-          email: activeSession.email,
-          isSuperAdmin: false,
-          reason: 'USER_SUSPENDED_OR_NOT_FOUND',
-        };
-      }
-      if (dbUser.role === 'SUPER_ADMIN') {
-        isSuperAdmin = true;
-      }
+    if (!dbUser || dbUser.status !== 'ACTIVE' || dbUser.deletedAt) {
+      return {
+        authorized: false,
+        isLocalPreview: false,
+        userId: activeSession.userId,
+        email: activeSession.email,
+        isSuperAdmin: false,
+        reason: 'USER_SUSPENDED_OR_NOT_FOUND',
+      };
     }
+
+    const isSuperAdmin = dbUser.role === 'SUPER_ADMIN';
+    let entitlementOwnerUserId = dbUser.id;
+    let resolvedRole: 'OWNER' | 'COLLABORATOR' | 'SUPER_ADMIN' = isSuperAdmin
+      ? 'SUPER_ADMIN'
+      : 'OWNER';
 
     if (planId && !isLocalPlanId && !isSuperAdmin) {
       const [planRow] = await db
@@ -403,40 +645,165 @@ export async function verifyActiveSessionAndPlanOwnership(planId?: string): Prom
         return {
           authorized: false,
           isLocalPreview: false,
-          userId: activeSession.userId,
-          email: activeSession.email,
+          userId: dbUser.id,
+          email: dbUser.email,
           isSuperAdmin,
           reason: 'PLAN_NOT_FOUND',
         };
       }
 
-      if (planRow.ownerUserId !== activeSession.userId) {
+      if (planRow.ownerUserId !== dbUser.id) {
+        const [collabRow] = await db
+          .select({
+            id: planCollaborators.id,
+            role: planCollaborators.role,
+          })
+          .from(planCollaborators)
+          .where(
+            and(
+              eq(planCollaborators.planId, planId),
+              eq(planCollaborators.userId, dbUser.id),
+              eq(planCollaborators.inviteAccepted, true)
+            )
+          )
+          .limit(1);
+
+        if (!collabRow) {
+          return {
+            authorized: false,
+            isLocalPreview: false,
+            userId: dbUser.id,
+            email: dbUser.email,
+            isSuperAdmin,
+            reason: 'PLAN_OWNERSHIP_MISMATCH',
+          };
+        }
+
+        if (options?.requireWrite && collabRow.role === 'ADVISOR_READONLY') {
+          return {
+            authorized: false,
+            isLocalPreview: false,
+            userId: dbUser.id,
+            email: dbUser.email,
+            isSuperAdmin,
+            role: 'COLLABORATOR',
+            reason: 'ADVISOR_READ_ONLY',
+          };
+        }
+
+        entitlementOwnerUserId = planRow.ownerUserId;
+        resolvedRole = 'COLLABORATOR';
+      }
+    }
+
+    if (!isSuperAdmin && options) {
+      const [entRow] = await db
+        .select()
+        .from(userEntitlements)
+        .where(eq(userEntitlements.userId, entitlementOwnerUserId))
+        .limit(1);
+
+      if (!entRow) {
         return {
           authorized: false,
           isLocalPreview: false,
-          userId: activeSession.userId,
-          email: activeSession.email,
-          isSuperAdmin,
-          reason: 'PLAN_OWNERSHIP_MISMATCH',
+          userId: dbUser.id,
+          email: dbUser.email,
+          isSuperAdmin: false,
+          reason: 'MISSING_ENTITLEMENT_RECORD',
         };
+      }
+
+      const snapshot = mapDbEntitlementRowToSnapshot(entRow);
+
+      if (options.requiredModule) {
+        const modAccess = canAccessModule(snapshot, options.requiredModule);
+        if (!modAccess.allowed) {
+          return {
+            authorized: false,
+            isLocalPreview: false,
+            userId: dbUser.id,
+            email: dbUser.email,
+            isSuperAdmin: false,
+            reason: modAccess.reason || 'PAYWALL_MODULE_LOCKED',
+          };
+        }
+      }
+
+      if (options.requireWrite && isEntitlementInVaultMode(snapshot)) {
+        return {
+          authorized: false,
+          isLocalPreview: false,
+          userId: dbUser.id,
+          email: dbUser.email,
+          isSuperAdmin: false,
+          reason: 'VAULT_READONLY',
+        };
+      }
+
+      if (options.requiredFeature) {
+        const featAccess = checkFeatureEntitlement(
+          snapshot,
+          options.requiredFeature
+        );
+        if (!featAccess.allowed) {
+          return {
+            authorized: false,
+            isLocalPreview: false,
+            userId: dbUser.id,
+            email: dbUser.email,
+            isSuperAdmin: false,
+            reason: featAccess.reason || 'FEATURE_LOCKED',
+          };
+        }
       }
     }
 
     return {
       authorized: true,
       isLocalPreview: isLocalPlanId,
-      userId: activeSession.userId,
-      email: activeSession.email,
+      userId: dbUser.id,
+      email: dbUser.email,
       isSuperAdmin,
+      role: resolvedRole,
     };
   } catch {
     return {
       authorized: false,
-      isLocalPreview: isLocalPlanId,
+      isLocalPreview: false,
       userId: activeSession.userId,
       email: activeSession.email,
       isSuperAdmin: false,
       reason: 'DATABASE_UNAVAILABLE',
     };
   }
+}
+
+/**
+ * Server-only helper (not a public Server Action) that ensures the global 'default' tenant exists.
+ */
+export async function ensureDefaultTenantId(): Promise<string> {
+  const existing = await db
+    .select()
+    .from(tenants)
+    .where(eq(tenants.slug, 'default'))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return existing[0].id;
+  }
+
+  const [created] = await db
+    .insert(tenants)
+    .values({
+      slug: 'default',
+      name: 'Startup Preflight Global',
+      brandingJson: {
+        primaryColor: '#047857',
+        accentColor: '#0f172a',
+      },
+    })
+    .returning();
+
+  return created.id;
 }

@@ -3,13 +3,18 @@ import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db, ensureDatabaseSchemaSynced } from '@/db';
 import { users, userEntitlements, startupPlans } from '@/db/schema';
-import { setServerSessionCookie } from '@/lib/auth/server-auth';
-import { ensureDefaultTenantId } from '@/app/actions/auth';
+import {
+  setServerSessionCookie,
+  ensureDefaultTenantId,
+} from '@/lib/auth/server-auth';
 import { calculatePassLimits } from '@/lib/entitlements';
 import { sendSystemEmail } from '@/lib/email/send';
 import { EMAIL_DEFAULTS } from '@/lib/email/resend';
 import { dispatchAdminSignupAlert } from '@/lib/email/admin-alerts';
-import { resolvePublicOrigin } from '@/lib/auth/oauth-helpers';
+import {
+  resolvePublicOrigin,
+  sanitizeInternalReturnPath,
+} from '@/lib/auth/oauth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,6 +144,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  if (googleProfile.email_verified !== true) {
+    const redirectUrl = new URL(fallbackPath, origin);
+    redirectUrl.searchParams.set('error', 'unverified_google_email');
+    return NextResponse.redirect(redirectUrl);
+  }
+
   const cleanName =
     googleProfile.name?.trim() || cleanEmail.split('@')[0] || 'Founder';
   const cleanImage = googleProfile.picture || null;
@@ -168,12 +179,19 @@ export async function GET(req: NextRequest) {
 
       userId = existingUser.id;
 
-      // Update image and emailVerified if needed
+      // Neutralize pre-squatted unverified password accounts when verified Google owner logs in
+      const nextPasswordHash = existingUser.emailVerified
+        ? existingUser.passwordHash
+        : null;
+
+      // Update image, emailVerified and lastActiveAt on login
       await db
         .update(users)
         .set({
           image: existingUser.image || cleanImage,
           emailVerified: true,
+          passwordHash: nextPasswordHash,
+          lastActiveAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(users.id, existingUser.id));
@@ -189,6 +207,7 @@ export async function GET(req: NextRequest) {
           name: cleanName,
           image: cleanImage,
           emailVerified: true,
+          lastActiveAt: new Date(),
           role: 'FOUNDER',
           status: 'ACTIVE',
           founderProfileJson: {
@@ -259,8 +278,13 @@ export async function GET(req: NextRequest) {
       email: cleanEmail,
     });
 
-    // 5. Route to onboarding for brand new users or founders without plans
-    if (isNewUser) {
+    const destination = sanitizeInternalReturnPath(
+      savedState?.returnTo,
+      '/workspace'
+    );
+
+    // 5. Route to onboarding for brand new users or founders without plans (unless returning to a checkout flow)
+    if (isNewUser && destination === '/workspace') {
       return NextResponse.redirect(new URL('/onboarding', origin));
     }
 
@@ -270,14 +294,9 @@ export async function GET(req: NextRequest) {
       .where(eq(startupPlans.ownerUserId, userId))
       .limit(1);
 
-    if (existingPlans.length === 0) {
+    if (existingPlans.length === 0 && destination === '/workspace') {
       return NextResponse.redirect(new URL('/onboarding', origin));
     }
-
-    const destination =
-      savedState?.returnTo && savedState.returnTo.startsWith('/')
-        ? savedState.returnTo
-        : '/workspace';
 
     return NextResponse.redirect(new URL(destination, origin));
   } catch (dbErr) {

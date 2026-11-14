@@ -3328,6 +3328,27 @@ export function clearActiveBmuSession(): void {
   try {
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    window.localStorage.removeItem(REAL_PLANS_VAULT_KEY);
+    window.localStorage.removeItem(DELETED_PLAN_IDS_KEY);
+    window.localStorage.removeItem(PUBLIC_SURVEYS_REGISTRY_KEY);
+    window.localStorage.removeItem(LEGACY_PUBLIC_SURVEYS_REGISTRY_KEY);
+
+    const keysToPurge: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (
+        k &&
+        (k.startsWith('spf_') ||
+          k.startsWith('bmu_') ||
+          k.startsWith(PER_USER_STORAGE_PREFIX) ||
+          k.startsWith(LEGACY_PER_USER_STORAGE_PREFIX))
+      ) {
+        keysToPurge.push(k);
+      }
+    }
+    for (const k of keysToPurge) {
+      window.localStorage.removeItem(k);
+    }
   } catch {
     // Ignore storage removal errors
   }

@@ -35,12 +35,12 @@ export class ProlificService {
     return process.env.PROLIFIC_API_TOKEN || null;
   }
 
-  private static getDefaultWorkspaceId(): string {
-    return process.env.PROLIFIC_DEFAULT_WORKSPACE_ID || '6aeb567b587ae49b75bc6305';
+  private static getDefaultWorkspaceId(): string | null {
+    return process.env.PROLIFIC_DEFAULT_WORKSPACE_ID?.trim() || null;
   }
 
-  private static getDefaultProjectId(): string {
-    return process.env.PROLIFIC_DEFAULT_PROJECT_ID || '6aeb567c587ae49b75bc6309';
+  private static getDefaultProjectId(): string | null {
+    return process.env.PROLIFIC_DEFAULT_PROJECT_ID?.trim() || null;
   }
 
   /**
@@ -99,6 +99,12 @@ export class ProlificService {
     }
 
     const projectId = this.getDefaultProjectId();
+    if (!projectId) {
+      return {
+        success: false,
+        error: 'PROLIFIC_DEFAULT_PROJECT_ID is not configured in server environment.',
+      };
+    }
     const completionCode = input.completionCode || 'SPF_SURVEY_VERIFIED';
     const estimatedMins = input.estimatedCompletionTimeMinutes || 3;
     // Base reward: £0.50 (50p) for 3 mins corresponds to £10.00/hr, well above Prolific's £6.00/hr baseline
@@ -149,7 +155,7 @@ export class ProlificService {
     };
 
     try {
-      const res = await fetch(`${PROLIFIC_API_BASE}/projects/${projectId}/studies/`, {
+      const res = await fetch(`${PROLIFIC_API_BASE}/projects/${encodeURIComponent(projectId)}/studies/`, {
         method: 'POST',
         headers: {
           Authorization: `Token ${token}`,
@@ -190,7 +196,7 @@ export class ProlificService {
     if (!token) return { success: false, error: 'PROLIFIC_API_TOKEN is not configured.' };
 
     try {
-      const res = await fetch(`${PROLIFIC_API_BASE}/studies/${studyId}/transition/`, {
+      const res = await fetch(`${PROLIFIC_API_BASE}/studies/${encodeURIComponent(studyId)}/transition/`, {
         method: 'POST',
         headers: {
           Authorization: `Token ${token}`,
@@ -223,7 +229,7 @@ export class ProlificService {
     if (!token) return { success: false, error: 'PROLIFIC_API_TOKEN is not configured.' };
 
     try {
-      const res = await fetch(`${PROLIFIC_API_BASE}/studies/${studyId}/`, {
+      const res = await fetch(`${PROLIFIC_API_BASE}/studies/${encodeURIComponent(studyId)}/`, {
         headers: {
           Authorization: `Token ${token}`,
           'Content-Type': 'application/json',
@@ -271,6 +277,12 @@ export class ProlificService {
     if (!token) return { success: false, error: 'PROLIFIC_API_TOKEN is not configured.' };
 
     const workspaceId = this.getDefaultWorkspaceId();
+    if (!workspaceId) {
+      return {
+        success: false,
+        error: 'PROLIFIC_DEFAULT_WORKSPACE_ID is not configured in server environment.',
+      };
+    }
     const filters: any[] = [];
 
     // Country Filter (current-country-of-residence: "0" = UK, "1" = US, "2" = Ireland)

@@ -1,7 +1,6 @@
 'use server';
 
-import { headers } from 'next/headers';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db, ensureDatabaseSchemaSynced } from '@/db';
 import {
   users,
@@ -13,12 +12,13 @@ import {
   type StartupHat,
 } from '@/db/schema';
 import {
-  getServerSessionCookie,
-  getAdminSessionCookie,
+  getVerifiedActiveFounderFromCookie,
+  requireVerifiedSuperAdminSession,
   clearServerSessionCookie,
   verifyPassword,
   hashPassword,
 } from '@/lib/auth/server-auth';
+import { getTrustedAppOrigin } from '@/lib/auth/oauth-helpers';
 import { stripe } from '@/lib/stripe/client';
 import type { SupportedCountryCode } from '@/lib/localization';
 
@@ -28,7 +28,9 @@ export interface AccountProfileData {
   email: string;
   role: string;
   status: string;
+  hasPassword?: boolean;
   createdAt: string;
+  lastActiveAt: string | null;
   founderProfile: {
     founderStage?: string;
     teamStructure?: string;
@@ -61,9 +63,9 @@ export async function getAccountDetailsAction(): Promise<{
   error?: string;
 }> {
   try {
-    const session = await getServerSessionCookie();
-    if (!session?.userId) {
-      return { ok: false, error: 'Not authenticated. Please sign in.' };
+    const activeUser = await getVerifiedActiveFounderFromCookie();
+    if (!activeUser) {
+      return { ok: false, error: 'Not authenticated or account inactive. Please sign in.' };
     }
 
     await ensureDatabaseSchemaSynced();
@@ -71,7 +73,7 @@ export async function getAccountDetailsAction(): Promise<{
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.id, session.userId))
+      .where(eq(users.id, activeUser.userId))
       .limit(1);
 
     if (!user || user.status === 'SUSPENDED' || user.status === 'SOFT_DELETED') {
@@ -91,6 +93,14 @@ export async function getAccountDetailsAction(): Promise<{
 
     const founderProfile = (user.founderProfileJson as any) || {};
 
+    // Background touch of lastActiveAt if more than 15 minutes since last active
+    if (!user.lastActiveAt || Date.now() - new Date(user.lastActiveAt).getTime() > 15 * 60 * 1000) {
+      db.update(users)
+        .set({ lastActiveAt: new Date() })
+        .where(eq(users.id, user.id))
+        .catch(() => {});
+    }
+
     return {
       ok: true,
       profile: {
@@ -99,7 +109,9 @@ export async function getAccountDetailsAction(): Promise<{
         email: user.email,
         role: user.role,
         status: user.status,
+        hasPassword: Boolean(user.passwordHash),
         createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
+        lastActiveAt: user.lastActiveAt ? user.lastActiveAt.toISOString() : null,
         founderProfile: {
           founderStage: founderProfile.founderStage || 'VALIDATING_IDEA',
           teamStructure: founderProfile.teamStructure || 'SOLO_FOUNDER',
@@ -145,13 +157,13 @@ export async function updateFounderProfileAction(input: {
   notifyOnGrantDeadlines?: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
   try {
-    const session = await getServerSessionCookie();
-    if (!session?.userId) {
-      return { ok: false, error: 'Not authenticated.' };
+    const activeUser = await getVerifiedActiveFounderFromCookie();
+    if (!activeUser) {
+      return { ok: false, error: 'Not authenticated or account suspended.' };
     }
 
-    if (!input.name || input.name.trim().length < 2) {
-      return { ok: false, error: 'Name must be at least 2 characters.' };
+    if (typeof input?.name !== 'string' || input.name.trim().length < 2 || input.name.trim().length > 160) {
+      return { ok: false, error: 'Name must be between 2 and 160 characters.' };
     }
 
     await ensureDatabaseSchemaSynced();
@@ -159,18 +171,21 @@ export async function updateFounderProfileAction(input: {
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.id, session.userId))
+      .where(eq(users.id, activeUser.userId))
       .limit(1);
 
-    if (!user) {
-      return { ok: false, error: 'User not found.' };
+    if (!user || user.status !== 'ACTIVE') {
+      return { ok: false, error: 'User not found or inactive.' };
     }
 
     const existingJson = (user.founderProfileJson as any) || {};
     const updatedJson = {
       ...existingJson,
       primaryHat: input.primaryHat ?? existingJson.primaryHat,
-      regionOrCounty: input.regionOrCounty !== undefined ? input.regionOrCounty.trim() : existingJson.regionOrCounty,
+      regionOrCounty:
+        typeof input.regionOrCounty === 'string'
+          ? input.regionOrCounty.trim().slice(0, 120)
+          : existingJson.regionOrCounty,
       defaultCountryCode: input.defaultCountryCode ?? existingJson.defaultCountryCode ?? 'IE',
       notifyOnSurveyResponse: input.notifyOnSurveyResponse ?? existingJson.notifyOnSurveyResponse ?? true,
       notifyOnGrantDeadlines: input.notifyOnGrantDeadlines ?? existingJson.notifyOnGrantDeadlines ?? true,
@@ -179,7 +194,7 @@ export async function updateFounderProfileAction(input: {
     await db
       .update(users)
       .set({
-        name: input.name.trim(),
+        name: input.name.trim().slice(0, 160),
         founderProfileJson: updatedJson,
         updatedAt: new Date(),
       })
@@ -193,7 +208,8 @@ export async function updateFounderProfileAction(input: {
 }
 
 /**
- * Changes founder password after constant-time verification of current password.
+ * Changes founder password after constant-time verification of current password
+ * (or recent Google OAuth sign-in within 5 minutes for OAuth-only accounts).
  */
 export async function updateFounderPasswordAction(input: {
   currentPassword: string;
@@ -201,17 +217,13 @@ export async function updateFounderPasswordAction(input: {
   confirmPassword: string;
 }): Promise<{ ok: boolean; error?: string }> {
   try {
-    const session = await getServerSessionCookie();
-    if (!session?.userId) {
-      return { ok: false, error: 'Not authenticated.' };
+    const activeUser = await getVerifiedActiveFounderFromCookie();
+    if (!activeUser) {
+      return { ok: false, error: 'Not authenticated or account suspended.' };
     }
 
-    if (!input.currentPassword) {
-      return { ok: false, error: 'Please enter your current password.' };
-    }
-
-    if (!input.newPassword || input.newPassword.length < 8) {
-      return { ok: false, error: 'New password must be at least 8 characters long.' };
+    if (typeof input?.newPassword !== 'string' || input.newPassword.length < 8 || input.newPassword.length > 128) {
+      return { ok: false, error: 'New password must be between 8 and 128 characters long.' };
     }
 
     if (input.newPassword !== input.confirmPassword) {
@@ -223,18 +235,31 @@ export async function updateFounderPasswordAction(input: {
     const [user] = await db
       .select({ id: users.id, passwordHash: users.passwordHash })
       .from(users)
-      .where(eq(users.id, session.userId))
+      .where(eq(users.id, activeUser.userId))
       .limit(1);
 
     if (!user) {
       return { ok: false, error: 'User not found.' };
     }
 
-    // If user has a passwordHash, verify it
     if (user.passwordHash) {
+      if (typeof input.currentPassword !== 'string' || !input.currentPassword) {
+        return { ok: false, error: 'Please enter your current password.' };
+      }
       const isValid = verifyPassword(input.currentPassword, user.passwordHash);
       if (!isValid) {
         return { ok: false, error: 'Current password is incorrect.' };
+      }
+    } else {
+      // Google OAuth-only account setting a password for the first time:
+      // require fresh re-authentication within the last 5 minutes to prevent session-hijack takeover.
+      const FIVE_MINUTES_MS = 5 * 60 * 1000;
+      if (!activeUser.iat || Date.now() - activeUser.iat > FIVE_MINUTES_MS) {
+        return {
+          ok: false,
+          error:
+            'Because your account uses Google Sign-In without a password, please sign out and sign back in with Google within the last 5 minutes before setting a password.',
+        };
       }
     }
 
@@ -265,9 +290,9 @@ export async function createStripeCustomerPortalAction(): Promise<{
   error?: string;
 }> {
   try {
-    const session = await getServerSessionCookie();
-    if (!session?.userId) {
-      return { ok: false, error: 'Not authenticated.' };
+    const activeUser = await getVerifiedActiveFounderFromCookie();
+    if (!activeUser) {
+      return { ok: false, error: 'Not authenticated or account suspended.' };
     }
 
     await ensureDatabaseSchemaSynced();
@@ -275,46 +300,26 @@ export async function createStripeCustomerPortalAction(): Promise<{
     const [entitlement] = await db
       .select({ stripeCustomerId: userEntitlements.stripeCustomerId })
       .from(userEntitlements)
-      .where(eq(userEntitlements.userId, session.userId))
+      .where(eq(userEntitlements.userId, activeUser.userId))
       .limit(1);
 
     let customerId = entitlement?.stripeCustomerId;
 
     if (!customerId) {
-      // Find user email to search or create a Stripe customer
-      const [user] = await db
-        .select({ email: users.email, name: users.name })
-        .from(users)
-        .where(eq(users.id, session.userId))
-        .limit(1);
-
-      if (!user) {
-        return { ok: false, error: 'User not found.' };
-      }
-
-      // Check if Stripe customer exists by email
-      const existingCustomers = await stripe.customers.list({
-        email: user.email,
-        limit: 1,
+      // Never look up existing Stripe customers by unverified email (`stripe.customers.list({ email })`),
+      // which would let an unverified account open another person's Stripe Billing Portal.
+      const newCustomer = await stripe.customers.create({
+        email: activeUser.email,
+        name: activeUser.name,
+        metadata: { spf_user_id: activeUser.userId },
       });
+      customerId = newCustomer.id;
 
-      if (existingCustomers.data.length > 0) {
-        customerId = existingCustomers.data[0].id;
-      } else {
-        const newCustomer = await stripe.customers.create({
-          email: user.email,
-          name: user.name,
-          metadata: { spf_user_id: session.userId },
-        });
-        customerId = newCustomer.id;
-      }
-
-      // Save stripeCustomerId
       if (customerId) {
         await db
           .insert(userEntitlements)
           .values({
-            userId: session.userId,
+            userId: activeUser.userId,
             stripeCustomerId: customerId,
             updatedAt: new Date(),
           })
@@ -325,11 +330,7 @@ export async function createStripeCustomerPortalAction(): Promise<{
       }
     }
 
-    const headerList = await headers();
-    const origin =
-      headerList.get('origin') ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      'http://localhost:3000';
+    const origin = getTrustedAppOrigin();
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
@@ -357,9 +358,9 @@ export async function cancelMicroSubscriptionAction(): Promise<{
   error?: string;
 }> {
   try {
-    const session = await getServerSessionCookie();
-    if (!session?.userId) {
-      return { ok: false, error: 'Not authenticated.' };
+    const activeUser = await getVerifiedActiveFounderFromCookie();
+    if (!activeUser) {
+      return { ok: false, error: 'Not authenticated or account suspended.' };
     }
 
     await ensureDatabaseSchemaSynced();
@@ -367,11 +368,10 @@ export async function cancelMicroSubscriptionAction(): Promise<{
     const [entitlement] = await db
       .select({ stripeCustomerId: userEntitlements.stripeCustomerId })
       .from(userEntitlements)
-      .where(eq(userEntitlements.userId, session.userId))
+      .where(eq(userEntitlements.userId, activeUser.userId))
       .limit(1);
 
     if (entitlement?.stripeCustomerId) {
-      // Find active subscriptions on Stripe
       const subscriptions = await stripe.subscriptions.list({
         customer: entitlement.stripeCustomerId,
         status: 'active',
@@ -405,9 +405,9 @@ export async function exportCompleteFounderDataArchive(): Promise<{
   error?: string;
 }> {
   try {
-    const session = await getServerSessionCookie();
-    if (!session?.userId) {
-      return { ok: false, error: 'Not authenticated.' };
+    const activeUser = await getVerifiedActiveFounderFromCookie();
+    if (!activeUser) {
+      return { ok: false, error: 'Not authenticated or account suspended.' };
     }
 
     await ensureDatabaseSchemaSynced();
@@ -422,7 +422,7 @@ export async function exportCompleteFounderDataArchive(): Promise<{
         founderProfileJson: users.founderProfileJson,
       })
       .from(users)
-      .where(eq(users.id, session.userId))
+      .where(eq(users.id, activeUser.userId))
       .limit(1);
 
     if (!user) {
@@ -486,27 +486,25 @@ export async function exportCompleteFounderDataArchive(): Promise<{
 
 /**
  * 30-Day Soft Delete Account Action.
- * 1. Verifies password.
- * 2. Marks user status as 'SOFT_DELETED' and records deletedAt timestamp.
- * 3. Takes active validation surveys offline.
- * 4. Cancels any active Stripe subscriptions.
- * 5. Clears the server session cookie.
  */
 export async function softDeleteFounderAccountAction(input: {
   passwordConfirmation: string;
   confirmationPhrase: string;
 }): Promise<{ ok: boolean; error?: string }> {
   try {
-    if (input.confirmationPhrase.trim().toUpperCase() !== 'DELETE MY ACCOUNT') {
+    if (
+      typeof input?.confirmationPhrase !== 'string' ||
+      input.confirmationPhrase.trim().toUpperCase() !== 'DELETE MY ACCOUNT'
+    ) {
       return {
         ok: false,
         error: 'Please type "DELETE MY ACCOUNT" exactly to confirm deactivation.',
       };
     }
 
-    const session = await getServerSessionCookie();
-    if (!session?.userId) {
-      return { ok: false, error: 'Not authenticated.' };
+    const activeUser = await getVerifiedActiveFounderFromCookie();
+    if (!activeUser) {
+      return { ok: false, error: 'Not authenticated or account already deactivated.' };
     }
 
     await ensureDatabaseSchemaSynced();
@@ -514,18 +512,27 @@ export async function softDeleteFounderAccountAction(input: {
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.id, session.userId))
+      .where(eq(users.id, activeUser.userId))
       .limit(1);
 
     if (!user) {
       return { ok: false, error: 'User not found.' };
     }
 
-    // Verify password if hash exists
     if (user.passwordHash) {
       const isValid = verifyPassword(input.passwordConfirmation, user.passwordHash);
       if (!isValid) {
         return { ok: false, error: 'Incorrect password. Account deactivation aborted.' };
+      }
+    } else {
+      // OAuth-only account: require recent login within the last 5 minutes
+      const FIVE_MINUTES_MS = 5 * 60 * 1000;
+      if (!activeUser.iat || Date.now() - activeUser.iat > FIVE_MINUTES_MS) {
+        return {
+          ok: false,
+          error:
+            'For security, Google Sign-In accounts must sign in again within the last 5 minutes before deactivating the account.',
+        };
       }
     }
 
@@ -596,12 +603,15 @@ export async function restoreSoftDeletedAccountAction(email: string): Promise<{
   error?: string;
 }> {
   try {
-    const adminSession = await getAdminSessionCookie();
-    if (!adminSession || adminSession.role !== 'SUPER_ADMIN') {
+    const adminSession = await requireVerifiedSuperAdminSession();
+    if (!adminSession) {
       return {
         ok: false,
         error: 'Unauthorized: Only a Super Administrator can restore a deactivated account.',
       };
+    }
+    if (typeof email !== 'string' || !email.trim()) {
+      return { ok: false, error: 'Valid email required.' };
     }
     const cleanEmail = email.trim().toLowerCase();
     await ensureDatabaseSchemaSynced();
@@ -616,7 +626,6 @@ export async function restoreSoftDeletedAccountAction(email: string): Promise<{
       return { ok: false, error: 'No deactivated account found with this email.' };
     }
 
-    // Check if within 30-day window
     if (user.deletedAt) {
       const msSinceDelete = Date.now() - user.deletedAt.getTime();
       const daysSinceDelete = msSinceDelete / (1000 * 60 * 60 * 24);
@@ -629,7 +638,6 @@ export async function restoreSoftDeletedAccountAction(email: string): Promise<{
       }
     }
 
-    // Reactivate user
     await db
       .update(users)
       .set({

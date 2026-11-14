@@ -17,8 +17,8 @@ import {
   type CohortMilestoneConfig,
 } from '@/db';
 import {
-  getServerSessionCookie,
-  getAdminSessionCookie,
+  getVerifiedActiveFounderFromCookie,
+  requireVerifiedSuperAdminSession,
 } from '@/lib/auth/server-auth';
 import { resend, EMAIL_DEFAULTS } from '@/lib/email/resend';
 import {
@@ -102,6 +102,8 @@ export interface CohortPortalStartup {
   verifiedWorkEmail?: string | null;
   claimDossier?: any;
   createdAt: string;
+  lastActiveAt?: string | null;
+  isPendingPlan?: boolean;
 }
 
 export interface CohortPortalData {
@@ -356,12 +358,9 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
   try {
     await ensureDatabaseSchemaSynced();
 
-    const founderSession = await getServerSessionCookie();
-    const adminSession = await getAdminSessionCookie();
-    const isSuperAdmin =
-      Boolean(adminSession && adminSession.role === 'SUPER_ADMIN') ||
-      founderSession?.userId === 'super-admin-root' ||
-      founderSession?.userId === 'super-admin-local';
+    const founderSession = await getVerifiedActiveFounderFromCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
+    const isSuperAdmin = Boolean(adminSession && adminSession.role === 'SUPER_ADMIN');
 
     const cleanInput = (cohortIdOrCode || '').trim();
 
@@ -423,6 +422,7 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
       staffRecords = await db
         .select({
           id: cohortStaff.id,
+          userId: cohortStaff.userId,
           name: cohortStaff.name,
           email: cohortStaff.email,
           role: cohortStaff.role,
@@ -432,19 +432,21 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
     }
 
     // Check Authorization:
-    // If Super Admin, always allowed.
-    // If Founder Session, check if their email or userId matches staff.
+    // Super Admin always allowed; Founder Session allowed only if userId matches OR verified email matches staff.
     let isStaffMember = false;
-    if (founderSession?.email) {
+    if (founderSession) {
       const lowerSessionEmail = founderSession.email.toLowerCase();
       isStaffMember = staffRecords.some(
-        (s) => s.email && s.email.toLowerCase() === lowerSessionEmail
+        (s) =>
+          (s.userId && s.userId === founderSession.userId) ||
+          (founderSession.emailVerified &&
+            s.email &&
+            s.email.toLowerCase() === lowerSessionEmail)
       );
     }
 
-    // In production, strictly enforce director/mentor or super-admin role
-    const isProduction = process.env.NODE_ENV === 'production';
-    if (isProduction && !isSuperAdmin && !isStaffMember) {
+    const isDemoCohort = cleanInput.toLowerCase() === 'demo';
+    if (!isDemoCohort && !isSuperAdmin && !isStaffMember) {
       return {
         success: false,
         error: 'Unauthorized: Access restricted to assigned institutional cohort staff, directors, and administrators.',
@@ -452,7 +454,7 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
       };
     }
 
-    const isAuthorized = isSuperAdmin || isStaffMember || !isProduction;
+    const isAuthorized = isSuperAdmin || isStaffMember || isDemoCohort;
 
     // 3. Fetch Enrolled Startup Plans
     let startupList: CohortPortalStartup[] = [];
@@ -466,6 +468,7 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
             id: users.id,
             name: users.name,
             email: users.email,
+            lastActiveAt: users.lastActiveAt,
           },
         })
         .from(startupPlans)
@@ -475,7 +478,13 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
 
       // Also find users with cohortId whose plans might not have had cohortId backfilled
       const cohortUsers = await db
-        .select({ id: users.id })
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          createdAt: users.createdAt,
+          lastActiveAt: users.lastActiveAt,
+        })
         .from(users)
         .where(eq(users.cohortId, cohortRecord.id));
 
@@ -492,6 +501,7 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
               id: users.id,
               name: users.name,
               email: users.email,
+              lastActiveAt: users.lastActiveAt,
             },
           })
           .from(startupPlans)
@@ -505,6 +515,14 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
           }
         }
       }
+
+      // Identify enrolled cohort users who have registered but not created a startup plan yet
+      const userIdsWithPlans = new Set(
+        plans.map((p) => p.user?.id).filter(Boolean)
+      );
+      const pendingUsers = cohortUsers.filter(
+        (u) => !userIdsWithPlans.has(u.id)
+      );
 
       // Populate rich startup telemetry for each enrolled plan
       for (const item of plans) {
@@ -689,6 +707,56 @@ export async function getCohortPortalDataAction(cohortIdOrCode: string): Promise
           verifiedWorkEmail: p.verifiedCohortWorkEmail,
           claimDossier: claimData,
           createdAt: p.createdAt.toISOString(),
+          lastActiveAt: u?.lastActiveAt
+            ? (u.lastActiveAt instanceof Date ? u.lastActiveAt.toISOString() : new Date(u.lastActiveAt).toISOString())
+            : null,
+        });
+      }
+
+      // Also append enrolled founders who registered via cohort code but have not created a plan yet
+      for (const u of pendingUsers) {
+        const founderName = u.name || u.email.split('@')[0];
+        startupList.push({
+          id: `pending-user-${u.id}`,
+          name: `${founderName}'s Project (Awaiting Setup)`,
+          category: 'Awaiting Onboarding',
+          founders: u.name || u.email,
+          founderEmail: u.email,
+          avatarBg: 'bg-slate-700',
+          hqCountryCode: 'IE',
+          baseCurrency: 'EUR',
+          grantFocus: 'Awaiting Onboarding',
+          targetGrantAmount: '—',
+          overallProgress: 0,
+          currentModuleName: 'Account Created — Awaiting Plan Setup',
+          surveyResponsesCount: 0,
+          willingnessToPay: '—',
+          status: 'NEEDS_ATTENTION',
+          statusBadge: {
+            label: 'Awaiting Plan Setup',
+            bg: 'bg-amber-100 text-amber-900 border-amber-300',
+            dot: 'bg-amber-500',
+          },
+          oneLiner: `Enrolled founder registered with cohort code ${cohortRecord.inviteCode}, but has not completed onboarding or created a startup plan yet.`,
+          keyMetric: `Registered ${new Date(u.createdAt).toLocaleDateString()}`,
+          coFounderScore: 0,
+          coFounderStatus: 'Onboarding Incomplete',
+          mentorFlag: `Founder registered on ${new Date(u.createdAt).toLocaleDateString()} with cohort pass. Next action: Remind founder to complete /onboarding and set up their startup plan.`,
+          mentorNotes: '',
+          modulesBreakdown: {
+            ideation: 0,
+            surveys: 0,
+            product: 0,
+            team: 0,
+            financials: 0,
+            grantPack: 0,
+          },
+          milestoneStatus: 'IN_PROGRESS',
+          createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : new Date(u.createdAt).toISOString(),
+          lastActiveAt: u.lastActiveAt
+            ? (u.lastActiveAt instanceof Date ? u.lastActiveAt.toISOString() : new Date(u.lastActiveAt).toISOString())
+            : null,
+          isPendingPlan: true,
         });
       }
     }
@@ -769,14 +837,13 @@ export async function updateCohortStartupMentorNoteAction(params: {
 
     await ensureDatabaseSchemaSynced();
 
-    const founderSession = await getServerSessionCookie();
-    const adminSession = await getAdminSessionCookie();
+    const founderSession = await getVerifiedActiveFounderFromCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
     if (!founderSession && !adminSession) {
       return { success: false, error: 'Unauthorized session.' };
     }
 
     if (planId.startsWith('sample-') || !UUID_REGEX.test(planId)) {
-      // Local preview mutation
       return { success: true };
     }
 
@@ -792,11 +859,7 @@ export async function updateCohortStartupMentorNoteAction(params: {
 
     if (!plan) return { success: false, error: 'Startup plan not found' };
 
-    // Verify caller is Super Admin OR an assigned Director/Mentor for this cohort
-    const isSuperAdmin =
-      Boolean(adminSession && adminSession.role === 'SUPER_ADMIN') ||
-      founderSession?.userId === 'super-admin-root' ||
-      founderSession?.userId === 'super-admin-local';
+    const isSuperAdmin = Boolean(adminSession && adminSession.role === 'SUPER_ADMIN');
 
     if (!isSuperAdmin) {
       if (!plan.cohortId) {
@@ -812,8 +875,8 @@ export async function updateCohortStartupMentorNoteAction(params: {
         .where(
           and(
             eq(cohortStaff.cohortId, plan.cohortId),
-            founderSession?.email
-              ? sql`LOWER(${cohortStaff.email}) = ${founderSession.email.toLowerCase().trim()}`
+            founderSession?.email && founderSession.emailVerified
+              ? sql`(${cohortStaff.userId} = ${founderSession.userId} OR LOWER(${cohortStaff.email}) = ${founderSession.email.toLowerCase().trim()})`
               : eq(cohortStaff.userId, founderSession?.userId || '')
           )
         )
@@ -863,14 +926,13 @@ export async function reviewCohortMilestoneClaimAction(params: {
 
     await ensureDatabaseSchemaSynced();
 
-    const founderSession = await getServerSessionCookie();
-    const adminSession = await getAdminSessionCookie();
+    const founderSession = await getVerifiedActiveFounderFromCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
     if (!founderSession && !adminSession) {
       return { success: false, error: 'Unauthorized session.' };
     }
 
     if (planId.startsWith('sample-') || !UUID_REGEX.test(planId)) {
-      // Local preview mutation
       return { success: true };
     }
 
@@ -889,11 +951,7 @@ export async function reviewCohortMilestoneClaimAction(params: {
 
     if (!plan) return { success: false, error: 'Startup plan not found.' };
 
-    // Verify caller is Super Admin OR an assigned Director/Mentor for this cohort
-    const isSuperAdmin =
-      Boolean(adminSession && adminSession.role === 'SUPER_ADMIN') ||
-      founderSession?.userId === 'super-admin-root' ||
-      founderSession?.userId === 'super-admin-local';
+    const isSuperAdmin = Boolean(adminSession && adminSession.role === 'SUPER_ADMIN');
 
     if (!isSuperAdmin) {
       if (!plan.cohortId) {
@@ -909,8 +967,8 @@ export async function reviewCohortMilestoneClaimAction(params: {
         .where(
           and(
             eq(cohortStaff.cohortId, plan.cohortId),
-            founderSession?.email
-              ? sql`LOWER(${cohortStaff.email}) = ${founderSession.email.toLowerCase().trim()}`
+            founderSession?.email && founderSession.emailVerified
+              ? sql`(${cohortStaff.userId} = ${founderSession.userId} OR LOWER(${cohortStaff.email}) = ${founderSession.email.toLowerCase().trim()})`
               : eq(cohortStaff.userId, founderSession?.userId || '')
           )
         )
@@ -943,6 +1001,14 @@ export async function reviewCohortMilestoneClaimAction(params: {
       })
       .where(eq(startupPlans.id, planId));
 
+    const esc = (raw: string | undefined | null) =>
+      String(raw || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
     // If approved, notify founder via email
     if (decision === 'APPROVE' && plan.verifiedCohortWorkEmail && resend) {
       try {
@@ -954,13 +1020,13 @@ export async function reviewCohortMilestoneClaimAction(params: {
           subject: cleanRewardSubject,
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
-              <h2 style="color: #4f46e5; margin-top: 0;">Milestone Reward Activated!</h2>
-              <p>Hi team <strong>${plan.title}</strong>,</p>
-              <p>Great news! Your program directors have reviewed and approved your Milestone Acceleration Claim for <strong>${rewardLabel}</strong>.</p>
+              <h2 style="color: #065f46; margin-top: 0;">Milestone Reward Activated!</h2>
+              <p>Hi team <strong>${esc(plan.title)}</strong>,</p>
+              <p>Great news! Your program directors have reviewed and approved your Milestone Acceleration Claim for <strong>${esc(rewardLabel)}</strong>.</p>
               <div style="background-color: #f1f5f9; padding: 16px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 14px;"><strong>Verified Domain:</strong> ${plan.verifiedCohortDomain || 'Registered Domain'}</p>
+                <p style="margin: 0; font-size: 14px;"><strong>Verified Domain:</strong> ${esc(plan.verifiedCohortDomain || 'Registered Domain')}</p>
                 <p style="margin: 8px 0 0; font-size: 14px;"><strong>Status:</strong> Approved &amp; Active</p>
-                ${approvalNotes ? `<p style="margin: 8px 0 0; font-size: 14px;"><strong>Director Note:</strong> ${approvalNotes}</p>` : ''}
+                ${approvalNotes ? `<p style="margin: 8px 0 0; font-size: 14px;"><strong>Director Note:</strong> ${esc(approvalNotes)}</p>` : ''}
               </div>
               <p>You can view your activation dossier inside your Startup Preflight workspace at any time.</p>
               <p style="margin-top: 32px; font-size: 12px; color: #64748b;">Startup Preflight Cohort Operations Team</p>
@@ -1028,7 +1094,7 @@ export interface CohortStartupMasterDocumentData {
  */
 async function hydratePlanFromDb(planId: string): Promise<{
   plan: ActiveStartupPlan;
-  ownerUser: { id: string; name: string; email: string };
+  ownerUser: { id: string; name: string; email: string; lastActiveAt?: string | null };
   moduleProgressMap: Map<string, number>;
 } | null> {
   const [plan] = await db
@@ -1044,6 +1110,7 @@ async function hydratePlanFromDb(planId: string): Promise<{
       id: users.id,
       name: users.name,
       email: users.email,
+      lastActiveAt: users.lastActiveAt,
     })
     .from(users)
     .where(eq(users.id, plan.ownerUserId))
@@ -1234,7 +1301,14 @@ async function hydratePlanFromDb(planId: string): Promise<{
 
   return {
     plan: activeStartupPlan,
-    ownerUser: dbUser || { id: plan.ownerUserId, name: 'Anonymous Founder', email: '' },
+    ownerUser: dbUser
+      ? {
+          id: dbUser.id,
+          name: dbUser.name,
+          email: dbUser.email,
+          lastActiveAt: dbUser.lastActiveAt ? dbUser.lastActiveAt.toISOString() : null,
+        }
+      : { id: plan.ownerUserId, name: 'Anonymous Founder', email: '', lastActiveAt: null },
     moduleProgressMap: modMap,
   };
 }
@@ -1531,12 +1605,9 @@ export async function getCohortStartupMasterDocumentAction(params: {
 
     await ensureDatabaseSchemaSynced();
 
-    const founderSession = await getServerSessionCookie();
-    const adminSession = await getAdminSessionCookie();
-    const isSuperAdmin =
-      Boolean(adminSession && adminSession.role === 'SUPER_ADMIN') ||
-      founderSession?.userId === 'super-admin-root' ||
-      founderSession?.userId === 'super-admin-local';
+    const founderSession = await getVerifiedActiveFounderFromCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
+    const isSuperAdmin = Boolean(adminSession && adminSession.role === 'SUPER_ADMIN');
 
     const cleanCohort = cohortIdOrCode.trim();
 
@@ -1589,6 +1660,7 @@ export async function getCohortStartupMasterDocumentAction(params: {
       staffRecords = await db
         .select({
           id: cohortStaff.id,
+          userId: cohortStaff.userId,
           name: cohortStaff.name,
           email: cohortStaff.email,
           role: cohortStaff.role,
@@ -1598,15 +1670,18 @@ export async function getCohortStartupMasterDocumentAction(params: {
     }
 
     let isStaffMember = false;
-    if (founderSession?.email) {
+    if (founderSession) {
       const lowerSessionEmail = founderSession.email.toLowerCase();
       isStaffMember = staffRecords.some(
-        (s) => s.email && s.email.toLowerCase() === lowerSessionEmail
+        (s) =>
+          (s.userId && s.userId === founderSession.userId) ||
+          (founderSession.emailVerified &&
+            s.email &&
+            s.email.toLowerCase() === lowerSessionEmail)
       );
     }
 
-    const isProduction = process.env.NODE_ENV === 'production';
-    if (isProduction && !isSuperAdmin && !isStaffMember && cleanCohort.toLowerCase() !== 'demo') {
+    if (!isSuperAdmin && !isStaffMember && cleanCohort.toLowerCase() !== 'demo') {
       return {
         success: false,
         error: 'Unauthorized: Access restricted to assigned institutional cohort directors and mentors.',
@@ -1671,7 +1746,29 @@ export async function getCohortStartupMasterDocumentAction(params: {
       };
     }
 
-    // 4. Real Database Path
+    // 4. Real Database Path — enforce that target plan belongs to this cohort before hydrating!
+    if (!UUID_REGEX.test(planId)) {
+      return { success: false, error: 'Invalid startup plan ID.' };
+    }
+
+    const [planCohortCheck] = await db
+      .select({ id: startupPlans.id, cohortId: startupPlans.cohortId })
+      .from(startupPlans)
+      .where(eq(startupPlans.id, planId))
+      .limit(1);
+
+    if (!planCohortCheck) {
+      return { success: false, error: 'Startup plan could not be found.' };
+    }
+
+    if (!isSuperAdmin && planCohortCheck.cohortId !== cohortRecord.id) {
+      return {
+        success: false,
+        error: 'Unauthorized: This startup plan is not enrolled in your institutional cohort.',
+        isAuthorized: false,
+      };
+    }
+
     const hydrated = await hydratePlanFromDb(planId);
     if (!hydrated) {
       return { success: false, error: 'Startup plan could not be found.' };
@@ -1679,7 +1776,7 @@ export async function getCohortStartupMasterDocumentAction(params: {
 
     const { plan: activePlan, ownerUser, moduleProgressMap } = hydrated;
 
-    // Fetch all plans owned by this founder in this cohort (or across their account) for the Venture Switcher
+    // Fetch only plans owned by this founder IN THIS COHORT (never expose personal non-cohort plans)
     const allFounderPlans = await db
       .select({
         id: startupPlans.id,
@@ -1693,9 +1790,8 @@ export async function getCohortStartupMasterDocumentAction(params: {
       .where(eq(startupPlans.ownerUserId, ownerUser.id))
       .orderBy(desc(startupPlans.createdAt));
 
-    // Filter to plans associated with this cohort (or all if user enrolled in cohort)
     const cohortFounderPlans = allFounderPlans.filter(
-      (p) => p.cohortId === cohortRecord.id || !p.cohortId || p.id === planId
+      (p) => p.cohortId === cohortRecord.id || (isSuperAdmin && p.id === planId)
     );
 
     // Compute progress for each founder plan
@@ -1863,6 +1959,7 @@ export async function getCohortStartupMasterDocumentAction(params: {
       verifiedWorkEmail: dbPlanRaw?.verifiedCohortWorkEmail || null,
       claimDossier: claimData,
       createdAt: activePlan.id,
+      lastActiveAt: ownerUser.lastActiveAt || null,
     };
 
     return {

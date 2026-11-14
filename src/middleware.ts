@@ -56,6 +56,22 @@ function normalizeGeoHeader(rawCountry: string | null): string {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Edge guard for Super Admin routes (server actions also verify signature + DB status)
+  if (
+    (pathname === '/admin' || pathname.startsWith('/admin/')) &&
+    pathname !== '/admin/login' &&
+    !pathname.startsWith('/admin/login/')
+  ) {
+    const adminToken =
+      request.cookies.get('spf_super_admin_token')?.value ||
+      request.cookies.get('bmu_super_admin_token')?.value;
+    if (!adminToken) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = '/admin/login';
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   // Detect country from standard CDN / Cloud Run / Cloudflare / Vercel edge headers
   const edgeCountry =
     request.headers.get('cf-ipcountry') ||
@@ -93,5 +109,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/ie', '/uk', '/register', '/onboarding'],
+  matcher: ['/', '/ie', '/uk', '/register', '/onboarding', '/admin', '/admin/:path*'],
 };

@@ -62,9 +62,12 @@ export async function saveModuleLStep1ModeAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_L_BUSINESS_PLAN',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized' };
     }
 
     await ensureModuleLEnumInPostgres();
@@ -147,19 +150,22 @@ export async function saveModuleLStep1ModeAction(input: {
 export async function generateModuleLStep1MandateAction(
   params: GenerateModuleLStep1MandateParams
 ): Promise<GenerateModuleLStep1MandateResult> {
-  if (params.planId && UUID_REGEX.test(params.planId)) {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
-    if (!authCheck.authorized) {
-      return {
-        allowed: false,
-        reason: authCheck.reason || 'Unauthorized plan access.',
-        compilerMandateNotes: '',
-        assessorStrategyTip: '',
-        recommendedNarrativeTone: 'EVIDENCE_LED_ASSESSOR',
-        recommendedSubmissionObjective: 'NON_DILUTIVE_CAPITAL_GRANT',
-        engineMode: 'smart-synthesizer',
-      };
-    }
+  if (!params.planId || !UUID_REGEX.test(params.planId)) {
+    return generateModuleLStep1MandateViaRouter({ ...params, planId: undefined });
+  }
+  const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+  });
+  if (!authCheck.authorized) {
+    return {
+      allowed: false,
+      reason: authCheck.reason || 'Unauthorized plan access.',
+      compilerMandateNotes: '',
+      assessorStrategyTip: '',
+      recommendedNarrativeTone: 'EVIDENCE_LED_ASSESSOR',
+      recommendedSubmissionObjective: 'NON_DILUTIVE_CAPITAL_GRANT',
+      engineMode: 'smart-synthesizer',
+    };
   }
 
   return generateModuleLStep1MandateViaRouter(params);
@@ -171,19 +177,30 @@ export async function generateModuleLStep1MandateAction(
 export async function generateModuleLStep2AuditAction(
   params: GenerateModuleLStep2AuditParams
 ): Promise<GenerateModuleLStep2AuditResult> {
-  if (params.planId && UUID_REGEX.test(params.planId)) {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
-    if (!authCheck.authorized) {
-      return {
-        allowed: false,
-        reason: authCheck.reason || 'Unauthorized plan access.',
-        overallAuditScore: 0,
-        auditItems: [],
-        preFlightDefenseSummary: '',
-        aiAssessorTip: '',
-        engineMode: 'smart-synthesizer',
-      };
-    }
+  if (!params.planId || !UUID_REGEX.test(params.planId)) {
+    return {
+      allowed: false,
+      reason: 'A valid saved Startup Plan ID is required for Pre-Flight Audit.',
+      overallAuditScore: 0,
+      auditItems: [],
+      preFlightDefenseSummary: '',
+      aiAssessorTip: '',
+      engineMode: 'smart-synthesizer',
+    };
+  }
+  const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+  });
+  if (!authCheck.authorized) {
+    return {
+      allowed: false,
+      reason: authCheck.reason || 'Unauthorized plan access.',
+      overallAuditScore: 0,
+      auditItems: [],
+      preFlightDefenseSummary: '',
+      aiAssessorTip: '',
+      engineMode: 'smart-synthesizer',
+    };
   }
 
   return generateModuleLStep2AuditViaRouter(params);
@@ -195,17 +212,26 @@ export async function generateModuleLStep2AuditAction(
 export async function generateModuleLStep2DefenseAction(
   params: GenerateModuleLStep2DefenseParams
 ): Promise<GenerateModuleLStep2DefenseResult> {
-  if (params.planId && UUID_REGEX.test(params.planId)) {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
-    if (!authCheck.authorized) {
-      return {
-        allowed: false,
-        reason: authCheck.reason || 'Unauthorized plan access.',
-        defenseSummary: '',
-        aiAssessorTip: '',
-        engineMode: 'smart-synthesizer',
-      };
-    }
+  if (!params.planId || !UUID_REGEX.test(params.planId)) {
+    return {
+      allowed: false,
+      reason: 'A valid saved Startup Plan ID is required.',
+      defenseSummary: '',
+      aiAssessorTip: '',
+      engineMode: 'smart-synthesizer',
+    };
+  }
+  const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+  });
+  if (!authCheck.authorized) {
+    return {
+      allowed: false,
+      reason: authCheck.reason || 'Unauthorized plan access.',
+      defenseSummary: '',
+      aiAssessorTip: '',
+      engineMode: 'smart-synthesizer',
+    };
   }
 
   return generateModuleLStep2DefenseViaRouter(params);
@@ -224,7 +250,10 @@ export async function parkModuleLOpenQuestionAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_L_BUSINESS_PLAN',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
       return { ok: false, persistedToCloudSql: false };
     }
@@ -248,7 +277,9 @@ export async function parkModuleLOpenQuestionAction(input: {
 export async function generateModuleLStep3SectionAction(
   params: GenerateModuleLStep3SectionParams
 ): Promise<GenerateModuleLStep3SectionResult> {
-  const auth = await verifyActiveSessionAndPlanOwnership(params.planId);
+  const auth = await verifyActiveSessionAndPlanOwnership(params.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+  });
   if (!auth.authorized) {
     return {
       allowed: false,
@@ -268,7 +299,9 @@ export async function generateModuleLStep3SectionAction(
 export async function generateModuleLStep4AuditAction(
   params: GenerateModuleLStep4AuditParams
 ): Promise<GenerateModuleLStep4AuditResult> {
-  const auth = await verifyActiveSessionAndPlanOwnership(params.planId);
+  const auth = await verifyActiveSessionAndPlanOwnership(params.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+  });
   if (!auth.authorized) {
     return {
       allowed: false,
@@ -288,7 +321,9 @@ export async function generateModuleLStep4AuditAction(
 export async function generateModuleLStep5DossierAction(
   params: GenerateModuleLStep5DossierParams
 ): Promise<GenerateModuleLStep5DossierResult> {
-  const auth = await verifyActiveSessionAndPlanOwnership(params.planId);
+  const auth = await verifyActiveSessionAndPlanOwnership(params.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+  });
   if (!auth.authorized) {
     return {
       allowed: false,
@@ -327,7 +362,10 @@ export async function saveModuleLPartialDataAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_L_BUSINESS_PLAN',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
       return { ok: false, persistedToCloudSql: false };
     }

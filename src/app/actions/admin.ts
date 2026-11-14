@@ -1,5 +1,6 @@
 'use server';
 
+import crypto from 'crypto';
 import { eq, desc, inArray, sql } from 'drizzle-orm';
 import {
   db,
@@ -30,9 +31,10 @@ import {
   hashPassword,
   verifyPassword,
   setAdminSessionCookie,
-  getAdminSessionCookie,
+  requireVerifiedSuperAdminSession,
   clearAdminSessionCookie,
   checkRateLimit,
+  getTrustedClientIp,
 } from '@/lib/auth/server-auth';
 import {
   calculateAppSumoTierLimits,
@@ -40,24 +42,27 @@ import {
   type EntitlementPlanType,
 } from '@/lib/entitlements';
 
-const DEFAULT_SUPER_ADMIN_EMAIL = (
-  process.env.SUPER_ADMIN_EMAIL || 'admin@startuppreflight.com'
-)
-  .trim()
-  .toLowerCase();
+function getConfiguredSuperAdminEmail(): string | null {
+  const configured = process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase();
+  return configured && configured.includes('@') ? configured : null;
+}
 
-const LEGACY_SUPER_ADMIN_EMAIL = 'admin@buildmyunicorn.com';
-
-function getConfiguredMasterAdminPassword(): string {
+function getConfiguredMasterAdminPassword(): string | null {
   const configured = (
     process.env.SUPER_ADMIN_MASTER_PASSWORD ||
     process.env.SUPER_ADMIN_PASSWORD ||
     ''
   ).trim();
-  if (configured && configured.length >= 10) {
+  if (configured && configured.length >= 16) {
     return configured;
   }
-  return 'UnicornAdmin2026!';
+  return null;
+}
+
+function safeSecretEquals(a: string, b: string): boolean {
+  const digestA = crypto.createHash('sha256').update(a, 'utf8').digest();
+  const digestB = crypto.createHash('sha256').update(b, 'utf8').digest();
+  return crypto.timingSafeEqual(digestA, digestB);
 }
 
 export type AccountPresetType =
@@ -117,11 +122,7 @@ export interface AdminDashboardResponse {
  * Verifies that the current request has a valid HTTP-only Super Admin session cookie.
  */
 async function requireSuperAdminSession() {
-  const adminSession = await getAdminSessionCookie();
-  if (!adminSession || adminSession.role !== 'SUPER_ADMIN') {
-    return null;
-  }
-  return adminSession;
+  return await requireVerifiedSuperAdminSession();
 }
 
 /**
@@ -136,6 +137,17 @@ export async function loginSuperAdminAction(input: {
   error?: string;
   adminEmail?: string;
 }> {
+  if (
+    typeof input?.email !== 'string' ||
+    typeof input?.password !== 'string' ||
+    input.password.length > 128
+  ) {
+    return {
+      ok: false,
+      error: 'Please enter a valid Super Admin email and password.',
+    };
+  }
+
   const cleanEmail = input.email.trim().toLowerCase();
   const rawPassword = input.password;
 
@@ -146,21 +158,27 @@ export async function loginSuperAdminAction(input: {
     };
   }
 
-  const rateLimit = checkRateLimit(`admin:login:${cleanEmail}`, 5, 15 * 60_000);
-  if (!rateLimit.allowed) {
+  const clientIp = await getTrustedClientIp();
+  const emailRateLimit = checkRateLimit(`admin:login:${cleanEmail}`, 5, 15 * 60_000);
+  const ipRateLimit = checkRateLimit(`admin:login:ip:${clientIp}`, 10, 15 * 60_000);
+  if (!emailRateLimit.allowed || !ipRateLimit.allowed) {
+    const retryAfter = Math.max(
+      emailRateLimit.retryAfterSeconds,
+      ipRateLimit.retryAfterSeconds
+    );
     return {
       ok: false,
-      error: `Too many Super Admin sign-in attempts. Please wait ${rateLimit.retryAfterSeconds} seconds before trying again.`,
+      error: `Too many Super Admin sign-in attempts. Please wait ${retryAfter} seconds before trying again.`,
     };
   }
 
-  // Check if credentials match the configured master Super Admin credentials
+  const configuredAdminEmail = getConfiguredSuperAdminEmail();
   const masterPassword = getConfiguredMasterAdminPassword();
   const matchesMasterCredentials = Boolean(
-    masterPassword &&
-      (cleanEmail === DEFAULT_SUPER_ADMIN_EMAIL ||
-        cleanEmail === LEGACY_SUPER_ADMIN_EMAIL) &&
-      (rawPassword === masterPassword || rawPassword === 'UnicornAdmin2026!')
+    configuredAdminEmail &&
+      masterPassword &&
+      cleanEmail === configuredAdminEmail &&
+      safeSecretEquals(rawPassword, masterPassword)
   );
 
   try {
@@ -283,11 +301,13 @@ export async function loginSuperAdminAction(input: {
       adminEmail: createdAdmin.email,
     };
   } catch {
-    // Offline / local fallback: still strictly require master Super Admin credentials
-    if (!matchesMasterCredentials) {
+    const isDevOfflineAllowed =
+      process.env.NODE_ENV === 'development' &&
+      process.env.ALLOW_OFFLINE_DEV_AUTH === 'true';
+    if (!isDevOfflineAllowed || !matchesMasterCredentials) {
       return {
         ok: false,
-        error: 'Invalid Super Admin email or password.',
+        error: 'Authentication service temporarily unavailable or invalid credentials.',
       };
     }
 

@@ -12112,6 +12112,8 @@ export default function WorkspacePage() {
                       });
                       if (res.success && res.url) {
                         window.location.href = res.url;
+                      } else if (res.redirectToRegister) {
+                        window.location.href = res.redirectToRegister;
                       } else {
                         setIsRedirectingToStripe(false);
                         setStripeCheckoutError(
@@ -12161,6 +12163,8 @@ export default function WorkspacePage() {
                       });
                       if (res.success && res.url) {
                         window.location.href = res.url;
+                      } else if (res.redirectToRegister) {
+                        window.location.href = res.redirectToRegister;
                       } else {
                         setIsRedirectingToStripe(false);
                         setStripeCheckoutError(

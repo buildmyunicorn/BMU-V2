@@ -31,6 +31,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { formatRelativeTime, formatFullDateTime } from '@/lib/utils';
 import type {
   CohortPortalData,
   CohortPortalStartup,
@@ -703,9 +704,20 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                                   </span>
                                 )}
                               </div>
-                              <p className="truncate text-[11px] text-slate-400">
-                                {startup.founders}
-                              </p>
+                              <div className="flex items-center gap-1.5 truncate text-[11px] text-slate-400">
+                                <span className="truncate">{startup.founders}</span>
+                                {startup.lastActiveAt && (
+                                  <>
+                                    <span className="text-slate-600 shrink-0">•</span>
+                                    <span
+                                      className="shrink-0 text-[10px] text-slate-400 font-mono"
+                                      title={`Last active: ${formatFullDateTime(startup.lastActiveAt)}`}
+                                    >
+                                      Active {formatRelativeTime(startup.lastActiveAt)}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                               <p className="truncate text-[10px] text-slate-300/80">
                                 {startup.grantFocus}
                               </p>
@@ -807,7 +819,18 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                             {activeStartup.category}
                           </Badge>
                         </div>
-                        <p className="text-xs text-slate-400">{activeStartup.founders}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-slate-400">{activeStartup.founders}</p>
+                          {activeStartup.lastActiveAt && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded font-mono"
+                              title={`Exact timestamp: ${formatFullDateTime(activeStartup.lastActiveAt)}`}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Active {formatRelativeTime(activeStartup.lastActiveAt)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -818,6 +841,19 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                       </div>
                     </div>
                   </div>
+
+                  {/* Onboarding Incomplete Alert Banner */}
+                  {activeStartup.isPendingPlan && (
+                    <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-950/40 p-3 text-xs text-amber-200 space-y-1">
+                      <div className="flex items-center gap-2 font-bold text-amber-300">
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                        <span>Awaiting Onboarding &amp; Plan Creation</span>
+                      </div>
+                      <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                        This founder registered using cohort invite code <code className="rounded bg-amber-900/60 px-1 py-0.5 font-mono text-[10px] text-amber-200">{data.cohort.inviteCode}</code>, but has not completed initial onboarding or created a startup workspace yet. You can remind them via email below.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Executive Concept */}
                   <div className="mt-4 rounded-xl border border-slate-800/80 bg-slate-900/60 p-3 text-xs leading-relaxed text-slate-300">
@@ -1076,20 +1112,39 @@ export function CohortPortalDashboard({ initialData }: CohortPortalDashboardProp
                 {/* Footer Action */}
                 <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs">
                   <div className="text-slate-400 text-[11px]">
-                    Founder: <span className="text-slate-200">{activeStartup.founderEmail || activeStartup.founders}</span>
+                    <div>Founder: <span className="text-slate-200">{activeStartup.founderEmail || activeStartup.founders}</span></div>
+                    {activeStartup.lastActiveAt && (
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        Last active: <span className="text-slate-300 font-mono">{formatFullDateTime(activeStartup.lastActiveAt)}</span> ({formatRelativeTime(activeStartup.lastActiveAt)})
+                      </div>
+                    )}
                   </div>
-                  <Link
-                    href={`/cohort-portal/${data.cohort.id}/startups/${activeStartup.id}`}
-                  >
-                    <Button
-                      size="sm"
-                      className="h-8 text-xs font-semibold bg-emerald-700 hover:bg-emerald-700 text-white shadow-sm"
+                  {activeStartup.isPendingPlan ? (
+                    <a
+                      href={`mailto:${activeStartup.founderEmail}?subject=${encodeURIComponent(`Welcome to ${data.cohort.name} — Set Up Your Startup Plan`)}&body=${encodeURIComponent(`Hi ${activeStartup.founders.split(' ')[0]},\n\nWelcome to the ${data.cohort.name} program! We noticed you signed up using our cohort pass on Startup Preflight, but haven't set up your startup plan yet.\n\nPlease log in at https://startuppreflight.com/workspace to complete your onboarding and start building your plan.\n\nBest regards,\n${data.cohort.name} Program Team`)}`}
                     >
-                      <FileText className="mr-1.5 h-3.5 w-3.5" />
-                      <span>View Master Document</span>
-                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                    </Button>
-                  </Link>
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                      >
+                        <Mail className="mr-1.5 h-3.5 w-3.5" />
+                        <span>Remind Founder via Email</span>
+                      </Button>
+                    </a>
+                  ) : (
+                    <Link
+                      href={`/cohort-portal/${data.cohort.id}/startups/${activeStartup.id}`}
+                    >
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs font-semibold bg-emerald-700 hover:bg-emerald-700 text-white shadow-sm"
+                      >
+                        <FileText className="mr-1.5 h-3.5 w-3.5" />
+                        <span>View Master Document</span>
+                        <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             ) : (

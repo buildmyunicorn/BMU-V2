@@ -3,10 +3,10 @@
 import { stripe, isStripeConfigured } from '@/lib/stripe/client';
 import { STRIPE_PASS_PRODUCTS } from '@/lib/stripe/products';
 import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
+import { getTrustedAppOrigin } from '@/lib/auth/oauth-helpers';
 import { db } from '@/db';
 import { userEntitlements, users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { headers } from 'next/headers';
 
 export interface CreateCheckoutInput {
   planType: 'SIX_MONTH_SOLO' | 'SIX_MONTH_COFOUNDER' | 'LIVING_VAULT_MONTHLY';
@@ -17,7 +17,12 @@ export interface CreateCheckoutInput {
 
 export async function createStripeCheckoutSessionAction(
   input: CreateCheckoutInput
-): Promise<{ success: boolean; url?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  url?: string;
+  redirectToRegister?: string;
+  error?: string;
+}> {
   try {
     if (!isStripeConfigured()) {
       return {
@@ -27,8 +32,6 @@ export async function createStripeCheckoutSessionAction(
       };
     }
 
-    const authCheck = await verifyActiveSessionAndPlanOwnership();
-
     const productConfig = STRIPE_PASS_PRODUCTS[input.planType];
     if (!productConfig) {
       return {
@@ -37,7 +40,62 @@ export async function createStripeCheckoutSessionAction(
       };
     }
 
-    // Determine target currency (EUR, GBP, USD)
+    const authCheck = await verifyActiveSessionAndPlanOwnership();
+
+    // Require an authenticated founder session so `metadata.userId` is always populated
+    // and Stripe payments are never orphaned.
+    if (!authCheck.authorized || !authCheck.userId) {
+      return {
+        success: false,
+        redirectToRegister: `/register?plan=${encodeURIComponent(input.planType)}`,
+        error:
+          'Please create your free account or sign in first so your pass activates immediately after checkout.',
+      };
+    }
+
+    const dbUserId = authCheck.userId;
+
+    const [dbUser] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+      })
+      .from(users)
+      .where(eq(users.id, dbUserId))
+      .limit(1);
+
+    if (!dbUser) {
+      return {
+        success: false,
+        redirectToRegister: `/register?plan=${encodeURIComponent(input.planType)}`,
+        error: 'Founder account not found. Please sign in and try again.',
+      };
+    }
+
+    const [entitlement] = await db
+      .select({
+        planType: userEntitlements.planType,
+        stripeCustomerId: userEntitlements.stripeCustomerId,
+      })
+      .from(userEntitlements)
+      .where(eq(userEntitlements.userId, dbUserId))
+      .limit(1);
+
+    // Living Vault (€7/mo) is strictly a post-6-Month-Pass renewal add-on, never a €7 bypass from FREE_HOOK.
+    if (input.planType === 'LIVING_VAULT_MONTHLY') {
+      const eligibleForLivingVault =
+        entitlement?.planType === 'SIX_MONTH_SOLO' ||
+        entitlement?.planType === 'SIX_MONTH_COFOUNDER';
+      if (!eligibleForLivingVault) {
+        return {
+          success: false,
+          error:
+            'The Living Vault micro-subscription is an extension for 6-Month Pass holders. Please purchase a 6-Month Solo or Co-Founder Pass first.',
+        };
+      }
+    }
+
     const selectedCurrency = (input.currency || 'EUR').toUpperCase() as
       | 'EUR'
       | 'GBP'
@@ -45,65 +103,30 @@ export async function createStripeCheckoutSessionAction(
     const unitAmount =
       productConfig.prices[selectedCurrency] || productConfig.prices.EUR;
 
-    let dbUserId: string | null = null;
-    let customerEmail: string | undefined = input.guestEmail?.trim() || undefined;
-    let customerId: string | undefined = undefined;
+    let customerId: string | undefined = entitlement?.stripeCustomerId || undefined;
+    const customerEmail = dbUser.email;
 
-    if (authCheck.authorized && authCheck.userId) {
-      dbUserId = authCheck.userId;
-      const [dbUser] = await db
-        .select({
-          id: users.id,
-          email: users.email,
-          name: users.name,
-        })
-        .from(users)
-        .where(eq(users.id, authCheck.userId))
-        .limit(1);
+    if (!customerId && dbUser.email) {
+      const customer = await stripe.customers.create({
+        email: dbUser.email,
+        name: dbUser.name || undefined,
+        metadata: {
+          spf_user_id: dbUser.id,
+        },
+      });
+      customerId = customer.id;
 
-      if (dbUser) {
-        customerEmail = dbUser.email;
-        const [entitlement] = await db
-          .select({
-            stripeCustomerId: userEntitlements.stripeCustomerId,
-          })
-          .from(userEntitlements)
-          .where(eq(userEntitlements.userId, authCheck.userId))
-          .limit(1);
-
-        customerId = entitlement?.stripeCustomerId || undefined;
-
-        if (!customerId && dbUser.email) {
-          const customer = await stripe.customers.create({
-            email: dbUser.email,
-            name: dbUser.name || undefined,
-            metadata: {
-              spf_user_id: dbUser.id,
-            },
-          });
-          customerId = customer.id;
-
-          if (entitlement) {
-            await db
-              .update(userEntitlements)
-              .set({ stripeCustomerId: customerId })
-              .where(eq(userEntitlements.userId, dbUser.id));
-          }
-        }
+      if (entitlement) {
+        await db
+          .update(userEntitlements)
+          .set({ stripeCustomerId: customerId, updatedAt: new Date() })
+          .where(eq(userEntitlements.userId, dbUser.id));
       }
     }
 
-    // Compute return URLs
-    const headerList = await headers();
-    const origin =
-      headerList.get('origin') ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      'http://localhost:3000';
-
-    const successUrl = dbUserId
-      ? `${origin}/workspace?upgrade_success=true&session_id={CHECKOUT_SESSION_ID}`
-      : `${origin}/register?stripe_checkout=success&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${origin}/?stripe_cancelled=true`;
+    const origin = getTrustedAppOrigin();
+    const successUrl = `${origin}/workspace?upgrade_success=true&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${origin}/workspace?stripe_cancelled=true`;
 
     const lineItems: any[] = [
       {
@@ -130,9 +153,9 @@ export async function createStripeCheckoutSessionAction(
       mode: productConfig.mode,
       success_url: successUrl,
       cancel_url: cancelUrl,
-      client_reference_id: dbUserId || undefined,
+      client_reference_id: dbUserId,
       metadata: {
-        userId: dbUserId || '',
+        userId: dbUserId,
         guestEmail: customerEmail || '',
         planType: input.planType,
         planId: input.planId || '',

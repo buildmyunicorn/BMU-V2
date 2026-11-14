@@ -11,14 +11,10 @@ import {
 } from '@/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { ProlificService } from '@/lib/panels/prolific-service';
-import { getAdminSessionCookie } from '@/lib/auth/server-auth';
+import { requireVerifiedSuperAdminSession } from '@/lib/auth/server-auth';
 
 async function requireSuperAdmin() {
-  const session = await getAdminSessionCookie();
-  if (!session || session.role !== 'SUPER_ADMIN') {
-    return null;
-  }
-  return session;
+  return await requireVerifiedSuperAdminSession();
 }
 
 export interface AdminSurveyBoostData {

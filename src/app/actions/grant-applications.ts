@@ -13,7 +13,14 @@ import type {
   SavedModuleLData,
 } from '@/lib/auth/session-store';
 import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
-import { authorizeAndPrepareGeminiCall, getGenAiClient } from '@/lib/ai/router';
+import {
+  authorizeAndPrepareGeminiCall,
+  getGenAiClient,
+  recordGeminiUsageAndIncrementCredits,
+} from '@/lib/ai/router';
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface AnswerQuestionFromPlanParams {
   planId: string;
@@ -539,12 +546,28 @@ export async function answerQuestionFromStartupPlanAction(
 ): Promise<AnswerQuestionFromPlanResult> {
   const { planId, questionText, targetLength, assessorLens, planSnapshot } = params;
 
-  if (!planId || !questionText?.trim()) {
+  if (!planId || !UUID_REGEX.test(planId) || !questionText?.trim()) {
     return {
       success: false,
       question: buildDeterministicFallbackAnswer(params),
       aiEngineUsed: 'smart-synthesizer',
-      error: 'Missing required question text or plan ID.',
+      error: 'Missing required question text or valid plan ID.',
+    };
+  }
+
+  // Enforce plan ownership and Module K entitlement BEFORE reading any planModulesData rows
+  const planAuth = await verifyActiveSessionAndPlanOwnership(planId, {
+    requiredModule: 'MOD_K_GRANTS_FUNDING',
+  });
+  if (!planAuth.authorized || !planAuth.userId) {
+    return {
+      success: false,
+      question: buildDeterministicFallbackAnswer({
+        ...params,
+        planSnapshot: {} as any,
+      }),
+      aiEngineUsed: 'smart-synthesizer',
+      error: planAuth.reason || 'Unauthorized access to startup plan.',
     };
   }
 
@@ -603,10 +626,13 @@ export async function answerQuestionFromStartupPlanAction(
     dbModE
   );
 
-  // 1. Authorize AI call via router
+  // 1. Authorize AI call via router (promptKey, defaultSystemInstruction)
   let geminiAuth;
   try {
-    geminiAuth = await authorizeAndPrepareGeminiCall(planId, 'gemini-2.5-flash');
+    geminiAuth = await authorizeAndPrepareGeminiCall(
+      'MOD_K_GRANT_QA_COPILOT',
+      'You are an expert Grant Assessor and Startup Preflight Evaluation Specialist.'
+    );
   } catch (err: any) {
     console.warn('[GrantAction] AI auth check fallback:', err?.message);
     const fallbackQ = buildDeterministicFallbackAnswer(params, dbOverrides);
@@ -747,6 +773,17 @@ CRITICAL RULES FOR ACCURACY AND TONE:
       },
     });
 
+    await recordGeminiUsageAndIncrementCredits({
+      verifiedUserId: geminiAuth.verifiedUserId,
+      planId,
+      promptKey: 'MOD_K_GRANT_QA_COPILOT',
+      modelUsed: 'gemini-2.5-flash',
+      inputTokens: response.usageMetadata?.promptTokenCount || 900,
+      outputTokens: response.usageMetadata?.candidatesTokenCount || 350,
+      usedByokKey: geminiAuth.usedByokKey,
+      fallbackCreditsUsed: geminiAuth.currentCreditsUsed,
+    });
+
     const rawResponseText = (response.text?.trim() || '{}')
       .replace(/^```(?:json)?\s*/i, '')
       .replace(/\s*```$/i, '')
@@ -790,15 +827,16 @@ export async function saveGrantTrackerStatusAction(params: {
   tracker: Partial<SavedGrantApplicationTracker>;
 }): Promise<{ success: boolean; error?: string }> {
   const { planId, grantSlug } = params;
-  if (!planId || !grantSlug) return { success: false, error: 'Missing planId or grantSlug' };
+  if (!planId || !UUID_REGEX.test(planId) || !grantSlug) {
+    return { success: false, error: 'Missing valid planId or grantSlug' };
+  }
 
-  try {
-    const verified = await verifyActiveSessionAndPlanOwnership(planId);
-    if (!verified) {
-      return { success: false, error: 'Unauthorized or plan not found' };
-    }
-  } catch {
-    // Client-side storage fallback if local session
+  const verified = await verifyActiveSessionAndPlanOwnership(planId, {
+    requiredModule: 'MOD_K_GRANTS_FUNDING',
+    requireWrite: true,
+  });
+  if (!verified.authorized || !verified.userId) {
+    return { success: false, error: verified.reason || 'Unauthorized or plan not found' };
   }
 
   return { success: true };

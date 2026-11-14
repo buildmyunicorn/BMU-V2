@@ -41,6 +41,7 @@ import {
   generateVoucherBatchAction,
   createCohortAction,
   updateCohortAction,
+  deleteCohortAction,
   manageCohortStaffAction,
   revokeVoucherAction,
   exportAppSumoPlainCsvAction,
@@ -156,6 +157,10 @@ export function VouchersCohortsStudioTab({
   const [editRequireWorkEmail, setEditRequireWorkEmail] = useState(true);
   const [editInstructionNotes, setEditInstructionNotes] = useState('');
   const [isUpdatingCohort, setIsUpdatingCohort] = useState(false);
+
+  // Delete Cohort state
+  const [deletingCohort, setDeletingCohort] = useState<AdminCohortSummary | null>(null);
+  const [isDeletingCohort, setIsDeletingCohort] = useState(false);
 
   // Manage Staff Modal state
   const [managingStaffCohort, setManagingStaffCohort] = useState<AdminCohortSummary | null>(null);
@@ -427,6 +432,31 @@ export function VouchersCohortsStudioTab({
       onNotify('error', 'Unexpected error updating cohort.');
     } finally {
       setIsUpdatingCohort(false);
+    }
+  }
+
+  // Handle Delete Cohort
+  async function handleConfirmDeleteCohort() {
+    if (!deletingCohort) return;
+    setIsDeletingCohort(true);
+    try {
+      const res = await deleteCohortAction({ cohortId: deletingCohort.id });
+      if (!res.ok) {
+        onNotify('error', res.error || 'Failed to delete cohort.');
+        setIsDeletingCohort(false);
+        return;
+      }
+
+      onNotify('success', `Cohort "${deletingCohort.name}" deleted successfully.`);
+      setDeletingCohort(null);
+      if (editingCohort?.id === deletingCohort.id) {
+        setEditingCohort(null);
+      }
+      await onRefresh();
+    } catch {
+      onNotify('error', 'Unexpected error deleting cohort.');
+    } finally {
+      setIsDeletingCohort(false);
     }
   }
 
@@ -788,117 +818,105 @@ export function VouchersCohortsStudioTab({
                       </div>
                     </CardHeader>
 
-                    <CardContent className="space-y-3.5 text-xs">
-                      {/* Code and Magic Link bar */}
-                      <div className="rounded-lg bg-slate-50 p-2.5 font-mono text-xs flex items-center justify-between border border-slate-200">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span className="text-[11px] text-slate-400 font-sans">Code:</span>
-                          <span className="font-bold text-emerald-800">{c.inviteCode}</span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              navigator.clipboard.writeText(c.inviteCode);
-                              onNotify('success', `Copied cohort code ${c.inviteCode}`);
-                            }}
-                            title="Copy Invite Code"
-                            className="h-6 px-1.5 text-slate-500 hover:text-slate-800"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              navigator.clipboard.writeText(magicUrl);
-                              onNotify('success', `Copied registration link: ${magicUrl}`);
-                            }}
-                            title="Copy Magic Onboarding URL"
-                            className="h-6 px-1.5 text-emerald-700 hover:text-emerald-900 font-sans text-[10px]"
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            Magic Link
-                          </Button>
-                          <Link href={`/cohort-portal/${c.id}`} target="_blank">
+                    <CardContent className="space-y-3.5 text-xs flex-1 flex flex-col justify-between">
+                      <div className="space-y-3">
+                        {/* Code and Magic Link bar */}
+                        <div className="rounded-lg bg-slate-50 p-2.5 font-mono text-xs flex items-center justify-between border border-slate-200 gap-2">
+                          <div className="flex items-center gap-1.5 truncate min-w-0">
+                            <span className="text-[11px] text-slate-400 font-sans shrink-0">Code:</span>
+                            <span className="font-bold text-emerald-800 truncate">{c.inviteCode}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
                             <Button
                               type="button"
                               size="sm"
                               variant="ghost"
-                              title="Open Live Institutional Portal"
-                              className="h-6 px-1.5 text-emerald-700 hover:text-emerald-900 font-sans text-[10px]"
+                              onClick={() => {
+                                navigator.clipboard.writeText(c.inviteCode);
+                                onNotify('success', `Copied cohort code ${c.inviteCode}`);
+                              }}
+                              title="Copy Invite Code"
+                              className="h-6 px-1.5 text-slate-500 hover:text-slate-800"
                             >
-                              <GraduationCap className="h-3 w-3 mr-1" />
-                              Portal ↗
+                              <Copy className="h-3 w-3" />
                             </Button>
-                          </Link>
-                        </div>
-                      </div>
-
-                      {/* Seats Progress */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs text-slate-600">
-                          <span>Seats Claimed</span>
-                          <span className="font-bold text-slate-900">
-                            {c.seatsUsed} / {c.maxSeats} ({percent}%)
-                          </span>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              percent >= 90 ? 'bg-amber-500' : 'bg-emerald-700'
-                            }`}
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Milestone Gate Summary */}
-                      {c.milestoneConfig ? (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-[11px] text-amber-950 space-y-1">
-                          <div className="font-bold flex items-center gap-1 text-amber-900">
-                            <Target className="h-3.5 w-3.5 text-amber-600" />
-                            <span>Milestone Gate: {c.milestoneConfig.requiredProgressPercent}% Progress</span>
-                          </div>
-                          <div className="truncate text-amber-800">
-                            🎁 Reward: <span className="font-semibold">{c.milestoneConfig.rewardLabel}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-[10px] text-amber-700">
-                            <span>{(c.milestoneConfig.requiredModules || []).length} core modules required</span>
-                            {c.milestoneConfig.requireOfficialDomain && (
-                              <span className="rounded bg-amber-200/80 px-1 py-0.2 font-semibold">
-                                Domain check
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-2 text-[11px] text-slate-400">
-                          No milestone reward gate configured (Standard cohort access).
-                        </div>
-                      )}
-
-                      {/* Program Staff & Mentors */}
-                      <div className="border-t border-slate-100 pt-2 flex items-center justify-between text-[11px]">
-                        <div className="text-slate-500 flex items-center gap-1.5">
-                          <Users className="h-3.5 w-3.5 text-slate-400" />
-                          <span>Staff: {c.staff?.length || 0} assigned</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Link href={`/cohort-portal/${c.id}`} target="_blank">
                             <Button
                               type="button"
                               size="sm"
-                              variant="outline"
-                              className="h-6 px-2 text-[11px] border-slate-200 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100 font-medium"
+                              variant="ghost"
+                              onClick={() => {
+                                navigator.clipboard.writeText(magicUrl);
+                                onNotify('success', `Copied registration link: ${magicUrl}`);
+                              }}
+                              title="Copy Magic Onboarding URL"
+                              className="h-6 px-2 text-emerald-700 hover:text-emerald-900 font-sans text-[10px] hover:bg-emerald-50"
                             >
-                              <GraduationCap className="h-3 w-3 mr-1" />
-                              Portal ↗
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Copy Link
                             </Button>
-                          </Link>
+                          </div>
+                        </div>
+
+                        {/* Seats Progress */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs text-slate-600">
+                            <span>Seats Claimed</span>
+                            <span className="font-bold text-slate-900">
+                              {c.seatsUsed} / {c.maxSeats} ({percent}%)
+                            </span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                percent >= 90 ? 'bg-amber-500' : 'bg-emerald-700'
+                              }`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Milestone Gate Summary */}
+                        {c.milestoneConfig ? (
+                          <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-[11px] text-amber-950 space-y-1">
+                            <div className="font-bold flex items-center gap-1 text-amber-900">
+                              <Target className="h-3.5 w-3.5 text-amber-600" />
+                              <span>Milestone Gate: {c.milestoneConfig.requiredProgressPercent}% Progress</span>
+                            </div>
+                            <div className="truncate text-amber-800">
+                              🎁 Reward: <span className="font-semibold">{c.milestoneConfig.rewardLabel}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-amber-700">
+                              <span>{(c.milestoneConfig.requiredModules || []).length} core modules required</span>
+                              {c.milestoneConfig.requireOfficialDomain && (
+                                <span className="rounded bg-amber-200/80 px-1 py-0.2 font-semibold">
+                                  Domain check
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-slate-100 bg-slate-50 p-2 text-[11px] text-slate-400">
+                            No milestone reward gate configured (Standard cohort access).
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Program Staff & Actions Footer */}
+                      <div className="border-t border-slate-100 pt-3 space-y-2 mt-1">
+                        {/* Primary Action: Portal */}
+                        <Link href={`/cohort-portal/${c.id}`} target="_blank" className="block">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="w-full h-8 text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-medium shadow-2xs"
+                          >
+                            <GraduationCap className="h-3.5 w-3.5 mr-1.5" />
+                            Open Cohort Portal ↗
+                          </Button>
+                        </Link>
+
+                        {/* Secondary Actions: Staff, Edit, Delete */}
+                        <div className="grid grid-cols-3 gap-1.5">
                           <Button
                             type="button"
                             size="sm"
@@ -908,20 +926,33 @@ export function VouchersCohortsStudioTab({
                               setNewStaffEmail('');
                               setNewStaffName('');
                             }}
-                            className="h-6 px-2 text-[11px] border-slate-200 text-slate-700"
+                            className="h-7 text-[11px] px-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 font-normal truncate"
+                            title="Manage Staff & Mentors"
                           >
-                            <UserPlus className="h-3 w-3 mr-1" />
-                            Staff
+                            <UserPlus className="h-3 w-3 mr-1 shrink-0 text-slate-500" />
+                            <span className="truncate">Staff ({c.staff?.length || 0})</span>
                           </Button>
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
                             onClick={() => handleOpenEditCohort(c)}
-                            className="h-6 px-2 text-[11px] border-slate-200 text-emerald-800 hover:bg-emerald-50/70"
+                            className="h-7 text-[11px] px-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 font-normal"
+                            title="Edit Cohort Settings"
                           >
-                            <Settings className="h-3 w-3 mr-1" />
+                            <Settings className="h-3 w-3 mr-1 text-slate-500" />
                             Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setDeletingCohort(c)}
+                            className="h-7 text-[11px] px-1.5 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 font-normal"
+                            title="Delete this cohort"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1 text-rose-500" />
+                            Delete
                           </Button>
                         </div>
                       </div>
@@ -1901,29 +1932,44 @@ export function VouchersCohortsStudioTab({
                   )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between border-t border-slate-100 pt-4">
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => setEditingCohort(null)}
-                    className="text-xs"
+                    onClick={() => {
+                      const target = editingCohort;
+                      setEditingCohort(null);
+                      setDeletingCohort(target);
+                    }}
+                    className="text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                   >
-                    Cancel
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete Cohort
                   </Button>
-                  <Button
-                    type="submit"
-                    disabled={isUpdatingCohort}
-                    className="bg-emerald-700 text-xs text-white hover:bg-emerald-800 font-semibold"
-                  >
-                    {isUpdatingCohort ? (
-                      <>
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                        Saving Changes...
-                      </>
-                    ) : (
-                      'Save Changes'
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setEditingCohort(null)}
+                      className="text-xs"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isUpdatingCohort}
+                      className="bg-emerald-700 text-xs text-white hover:bg-emerald-800 font-semibold"
+                    >
+                      {isUpdatingCohort ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          Saving Changes...
+                        </>
+                      ) : (
+                        'Save Changes'
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </form>
             </CardContent>
@@ -2239,6 +2285,71 @@ export function VouchersCohortsStudioTab({
                     <>
                       <Download className="mr-1.5 h-3.5 w-3.5" />
                       Download AppSumo CSV
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 7: CONFIRM DELETE COHORT                                            */}
+      {/* ========================================================================= */}
+      {deletingCohort && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <Card className="w-full max-w-md border-rose-200 bg-white shadow-2xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    Delete Institutional Cohort?
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600 mt-1">
+                    Are you sure you want to delete <strong>{deletingCohort.name}</strong> ({deletingCohort.inviteCode})?
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-1">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 space-y-1.5">
+                <div className="font-semibold text-slate-800">What happens:</div>
+                <ul className="list-disc pl-4 space-y-1 text-[11px] text-slate-500">
+                  <li>The invite code (<strong>{deletingCohort.inviteCode}</strong>) will stop accepting new founders.</li>
+                  <li>The portal at <code>/cohort-portal/{deletingCohort.id}</code> will be removed.</li>
+                  <li>Existing founders keep their accounts and plans, but their cohort association is safely detached.</li>
+                </ul>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setDeletingCohort(null)}
+                  disabled={isDeletingCohort}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmDeleteCohort}
+                  disabled={isDeletingCohort}
+                  className="bg-rose-600 text-xs text-white hover:bg-rose-700 font-semibold"
+                >
+                  {isDeletingCohort ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      Delete Cohort
                     </>
                   )}
                 </Button>

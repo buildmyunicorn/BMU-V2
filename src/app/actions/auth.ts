@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, lt, sql } from 'drizzle-orm';
 import {
   db,
   ensureDatabaseSchemaSynced,
@@ -24,6 +24,10 @@ import {
   clearServerSessionCookie,
   checkRateLimit,
   encryptByokApiKey,
+  getTrustedClientIp,
+  getVerifiedActiveFounderFromCookie,
+  verifyActiveSessionAndPlanOwnership,
+  ensureDefaultTenantId,
 } from '@/lib/auth/server-auth';
 import {
   calculateAppSumoTierLimits,
@@ -76,34 +80,7 @@ export interface AuthActionResult {
   session?: BmuLocalSession;
 }
 
-/**
- * Ensures the global 'default' tenant exists in PostgreSQL before inserting users/plans.
- */
-export async function ensureDefaultTenantId(): Promise<string> {
-  const existing = await db
-    .select()
-    .from(tenants)
-    .where(eq(tenants.slug, 'default'))
-    .limit(1);
-
-  if (existing.length > 0) {
-    return existing[0].id;
-  }
-
-  const [created] = await db
-    .insert(tenants)
-    .values({
-      slug: 'default',
-      name: 'Startup Preflight Global',
-      brandingJson: {
-        primaryColor: '#4f46e5',
-        accentColor: '#f59e0b',
-      },
-    })
-    .returning();
-
-  return created.id;
-}
+// Internal tenant helper moved to src/lib/auth/server-auth.ts so it is not exposed as a public Server Action.
 
 /**
  * Builds a complete BmuLocalSession from a database user row.
@@ -490,14 +467,57 @@ async function buildSessionFromDbUser(
           }
         : undefined,
       moduleFData: modF
-        ? {
-            ...modFInputs,
-            completionPercentage:
-              modF.completionPercentage ?? modFInputs.completionPercentage,
-            thingsToConsider: Array.isArray(modF.aiThingsToConsiderJsonb)
-              ? modF.aiThingsToConsiderJsonb
-              : modFInputs.thingsToConsider,
-          }
+        ? (() => {
+            const callerEmail = (dbUser.email || '').trim().toLowerCase();
+            const teamMembers = modFInputs.promoterProfiles?.teamMembers || [];
+            const rawStep4 = modFInputs.step4AlignmentData;
+            const redactedStep4 =
+              rawStep4 && !rawStep4.isRevealed && Array.isArray(rawStep4.responses)
+                ? {
+                    ...rawStep4,
+                    responses: rawStep4.responses.map((resp) => {
+                      const matchedMember = teamMembers.find(
+                        (m) => m.id === resp.memberId
+                      );
+                      const memberEmail = (matchedMember?.email || '')
+                        .trim()
+                        .toLowerCase();
+                      const isOtherVerifiedParticipant =
+                        (Boolean(memberEmail) && memberEmail !== callerEmail) ||
+                        (plan.ownerUserId !== dbUser.id &&
+                          (!memberEmail || memberEmail !== callerEmail));
+                      if (!isOtherVerifiedParticipant) {
+                        return resp;
+                      }
+                      const lockedAnswers: typeof resp.answers = {};
+                      for (const [qKey, ans] of Object.entries(
+                        resp.answers || {}
+                      )) {
+                        if (ans) {
+                          lockedAnswers[qKey] = {
+                            questionKey: ans.questionKey,
+                            selectedOption: '[LOCKED_UNTIL_REVEAL]',
+                          };
+                        }
+                      }
+                      return {
+                        ...resp,
+                        answers: lockedAnswers,
+                      };
+                    }),
+                  }
+                : rawStep4;
+
+            return {
+              ...modFInputs,
+              ...(redactedStep4 ? { step4AlignmentData: redactedStep4 } : {}),
+              completionPercentage:
+                modF.completionPercentage ?? modFInputs.completionPercentage,
+              thingsToConsider: Array.isArray(modF.aiThingsToConsiderJsonb)
+                ? modF.aiThingsToConsiderJsonb
+                : modFInputs.thingsToConsider,
+            };
+          })()
         : undefined,
       moduleGData: modG
         ? {
@@ -651,13 +671,16 @@ async function buildSessionFromDbUser(
  */
 export async function setActivePlanServerAction(planId: string): Promise<void> {
   try {
-    const cookiePayload = await getServerSessionCookie();
-    if (!cookiePayload || !planId?.trim()) return;
+    const cleanPlanId = typeof planId === 'string' ? planId.trim() : '';
+    if (!cleanPlanId) return;
+
+    const verified = await verifyActiveSessionAndPlanOwnership(cleanPlanId);
+    if (!verified.authorized || !verified.userId) return;
 
     const [dbUser] = await db
       .select({ id: users.id, founderProfileJson: users.founderProfileJson })
       .from(users)
-      .where(eq(users.id, cookiePayload.userId))
+      .where(eq(users.id, verified.userId))
       .limit(1);
 
     if (!dbUser) return;
@@ -669,7 +692,7 @@ export async function setActivePlanServerAction(planId: string): Promise<void> {
       .set({
         founderProfileJson: {
           ...existingProfile,
-          lastActivePlanId: planId.trim(),
+          lastActivePlanId: cleanPlanId,
         },
         updatedAt: new Date(),
       })
@@ -689,9 +712,24 @@ export async function registerFounderAction(input: {
   voucherOrCohortCode?: string;
   acceptedTerms?: boolean;
 }): Promise<AuthActionResult> {
+  if (
+    typeof input?.email !== 'string' ||
+    typeof input?.password !== 'string' ||
+    typeof input?.name !== 'string'
+  ) {
+    return {
+      ok: false,
+      error: 'Invalid registration payload.',
+      mode: 'cloud_sql',
+    };
+  }
+
   const cleanEmail = input.email.trim().toLowerCase();
-  const cleanName = input.name.trim() || 'New Founder';
-  const cleanCode = input.voucherOrCohortCode?.trim().toUpperCase() || '';
+  const cleanName = input.name.trim().slice(0, 120) || 'New Founder';
+  const cleanCode =
+    typeof input.voucherOrCohortCode === 'string'
+      ? input.voucherOrCohortCode.trim().toUpperCase().slice(0, 64)
+      : '';
 
   if (!input.acceptedTerms) {
     return {
@@ -702,21 +740,56 @@ export async function registerFounderAction(input: {
     };
   }
 
-  if (!cleanEmail || !input.password || input.password.length < 6) {
+  if (
+    !cleanEmail ||
+    !cleanEmail.includes('@') ||
+    input.password.length < 8 ||
+    input.password.length > 128
+  ) {
     return {
       ok: false,
-      error: 'Please enter a valid email and a password of at least 6 characters.',
+      error:
+        'Please enter a valid email and a password between 8 and 128 characters.',
       mode: 'cloud_sql',
     };
   }
 
-  const rateLimit = checkRateLimit(`auth:register:${cleanEmail}`, 5, 10 * 60_000);
-  if (!rateLimit.allowed) {
+  const clientIp = await getTrustedClientIp();
+  const emailRateLimit = checkRateLimit(
+    `auth:register:${cleanEmail}`,
+    5,
+    10 * 60_000
+  );
+  const ipRateLimit = checkRateLimit(
+    `auth:register:ip:${clientIp}`,
+    10,
+    10 * 60_000
+  );
+  if (!emailRateLimit.allowed || !ipRateLimit.allowed) {
+    const retryAfter = Math.max(
+      emailRateLimit.retryAfterSeconds,
+      ipRateLimit.retryAfterSeconds
+    );
     return {
       ok: false,
-      error: `Too many registration attempts. Please wait ${rateLimit.retryAfterSeconds} seconds and try again.`,
+      error: `Too many registration attempts. Please wait ${retryAfter} seconds and try again.`,
       mode: 'cloud_sql',
     };
+  }
+
+  if (cleanCode) {
+    const codeIpLimit = checkRateLimit(
+      `auth:register:code:${clientIp}`,
+      6,
+      15 * 60_000
+    );
+    if (!codeIpLimit.allowed) {
+      return {
+        ok: false,
+        error: `Too many voucher/cohort code attempts. Please wait ${codeIpLimit.retryAfterSeconds} seconds.`,
+        mode: 'cloud_sql',
+      };
+    }
   }
 
   try {
@@ -810,104 +883,132 @@ export async function registerFounderAction(input: {
     const cohortId: string | null = matchedCohort ? matchedCohort.id : null;
     const passwordHash = hashPassword(input.password);
 
-    const [createdUser] = await db
-      .insert(users)
-      .values({
-        tenantId,
-        cohortId,
-        email: cleanEmail,
-        name: cleanName,
-        passwordHash,
-        emailVerified: true,
-        role: 'FOUNDER',
-        status: 'ACTIVE',
-        founderProfileJson: {
-          termsAcceptedAt: new Date().toISOString(),
-          termsVersion: '2026-04',
-        },
-      })
-      .returning();
+    const createdUser = await db.transaction(async (tx) => {
+      if (matchedCohort) {
+        const claimedCohort = await tx
+          .update(cohorts)
+          .set({ seatsUsed: sql`${cohorts.seatsUsed} + 1` })
+          .where(
+            and(
+              eq(cohorts.id, matchedCohort.id),
+              lt(cohorts.seatsUsed, cohorts.maxSeats)
+            )
+          )
+          .returning({ id: cohorts.id });
+        if (claimedCohort.length === 0) {
+          throw new Error('COHORT_FULL_RACE');
+        }
+      }
 
-    if (matchedCohort) {
-      const durationMonths = matchedCohort.accessDurationMonths || 6;
-      const cohortLimits = calculatePassLimits('COHORT_PASS', durationMonths);
-      await db.insert(userEntitlements).values({
-        userId: createdUser.id,
-        planType: 'COHORT_PASS',
-        stackedCodesCount: 0,
-        maxStartupPlans: cohortLimits.maxStartupPlans,
-        maxSeatsPerPlan: cohortLimits.maxSeatsPerPlan,
-        monthlyAiCreditsLimit: cohortLimits.monthlyAiCreditsLimit,
-        aiCreditsUsedThisMonth: 0,
-        whiteLabelExportEnabled: false,
-        accessExpiresAt:
-          matchedCohort.expiresAt || cohortLimits.accessExpiresAt,
-        isVaultReadonly: false,
-      });
+      const [insertedUser] = await tx
+        .insert(users)
+        .values({
+          tenantId,
+          cohortId,
+          email: cleanEmail,
+          name: cleanName,
+          passwordHash,
+          // Password signups start with emailVerified: false until confirmed via email or Google OAuth
+          // (Founders still enter Module A immediately with zero UX friction, while Cohort Staff & OAuth merge require verified email)
+          emailVerified: false,
+          role: 'FOUNDER',
+          status: 'ACTIVE',
+          founderProfileJson: {
+            termsAcceptedAt: new Date().toISOString(),
+            termsVersion: '2026-04',
+          },
+        })
+        .returning();
 
-      await db
-        .update(cohorts)
-        .set({ seatsUsed: sql`${cohorts.seatsUsed} + 1` })
-        .where(eq(cohorts.id, matchedCohort.id));
-    } else if (matchedVoucher) {
-      const rewardType = matchedVoucher.rewardType || 'APPSUMO_LTD';
-      const durationMonths = matchedVoucher.durationMonths || 6;
+      if (matchedVoucher) {
+        const claimedVoucher = await tx
+          .update(vouchers)
+          .set({
+            status: 'REDEEMED',
+            redeemedByUserId: insertedUser.id,
+            redeemedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(vouchers.id, matchedVoucher.id),
+              eq(vouchers.status, 'UNCLAIMED')
+            )
+          )
+          .returning({ id: vouchers.id });
+        if (claimedVoucher.length === 0) {
+          throw new Error('VOUCHER_ALREADY_REDEEMED_RACE');
+        }
+      }
 
-      if (rewardType === 'APPSUMO_LTD') {
-        const sumoLimits = calculateAppSumoTierLimits(1);
-        await db.insert(userEntitlements).values({
-          userId: createdUser.id,
-          planType: 'APPSUMO_LTD',
-          stackedCodesCount: 1,
-          maxStartupPlans: sumoLimits.maxStartupPlans,
-          maxSeatsPerPlan: sumoLimits.maxSeatsPerPlan,
-          monthlyAiCreditsLimit: sumoLimits.monthlyAiCreditsLimit,
-          aiCreditsUsedThisMonth: 0,
-          whiteLabelExportEnabled: sumoLimits.whiteLabelExportEnabled,
-          isVaultReadonly: false,
-        });
-      } else {
-        const passType =
-          rewardType === 'PASS_COFOUNDER'
-            ? 'SIX_MONTH_COFOUNDER'
-            : 'SIX_MONTH_SOLO';
-        const passLimits = calculatePassLimits(passType, durationMonths);
-        await db.insert(userEntitlements).values({
-          userId: createdUser.id,
-          planType: passType,
+      if (matchedCohort) {
+        const durationMonths = matchedCohort.accessDurationMonths || 6;
+        const cohortLimits = calculatePassLimits('COHORT_PASS', durationMonths);
+        await tx.insert(userEntitlements).values({
+          userId: insertedUser.id,
+          planType: 'COHORT_PASS',
           stackedCodesCount: 0,
-          maxStartupPlans: passLimits.maxStartupPlans,
-          maxSeatsPerPlan: passLimits.maxSeatsPerPlan,
-          monthlyAiCreditsLimit: passLimits.monthlyAiCreditsLimit,
+          maxStartupPlans: cohortLimits.maxStartupPlans,
+          maxSeatsPerPlan: cohortLimits.maxSeatsPerPlan,
+          monthlyAiCreditsLimit: cohortLimits.monthlyAiCreditsLimit,
           aiCreditsUsedThisMonth: 0,
           whiteLabelExportEnabled: false,
-          accessExpiresAt: passLimits.accessExpiresAt,
+          accessExpiresAt:
+            matchedCohort.expiresAt || cohortLimits.accessExpiresAt,
+          isVaultReadonly: false,
+        });
+      } else if (matchedVoucher) {
+        const rewardType = matchedVoucher.rewardType || 'APPSUMO_LTD';
+        const durationMonths = matchedVoucher.durationMonths || 6;
+
+        if (rewardType === 'APPSUMO_LTD') {
+          const sumoLimits = calculateAppSumoTierLimits(1);
+          await tx.insert(userEntitlements).values({
+            userId: insertedUser.id,
+            planType: 'APPSUMO_LTD',
+            stackedCodesCount: 1,
+            maxStartupPlans: sumoLimits.maxStartupPlans,
+            maxSeatsPerPlan: sumoLimits.maxSeatsPerPlan,
+            monthlyAiCreditsLimit: sumoLimits.monthlyAiCreditsLimit,
+            aiCreditsUsedThisMonth: 0,
+            whiteLabelExportEnabled: sumoLimits.whiteLabelExportEnabled,
+            isVaultReadonly: false,
+          });
+        } else {
+          const passType =
+            rewardType === 'PASS_COFOUNDER'
+              ? 'SIX_MONTH_COFOUNDER'
+              : 'SIX_MONTH_SOLO';
+          const passLimits = calculatePassLimits(passType, durationMonths);
+          await tx.insert(userEntitlements).values({
+            userId: insertedUser.id,
+            planType: passType,
+            stackedCodesCount: 0,
+            maxStartupPlans: passLimits.maxStartupPlans,
+            maxSeatsPerPlan: passLimits.maxSeatsPerPlan,
+            monthlyAiCreditsLimit: passLimits.monthlyAiCreditsLimit,
+            aiCreditsUsedThisMonth: 0,
+            whiteLabelExportEnabled: false,
+            accessExpiresAt: passLimits.accessExpiresAt,
+            isVaultReadonly: false,
+          });
+        }
+      } else {
+        const freeLimits = calculatePassLimits('FREE_HOOK');
+        await tx.insert(userEntitlements).values({
+          userId: insertedUser.id,
+          planType: 'FREE_HOOK',
+          stackedCodesCount: 0,
+          maxStartupPlans: freeLimits.maxStartupPlans,
+          maxSeatsPerPlan: freeLimits.maxSeatsPerPlan,
+          monthlyAiCreditsLimit: freeLimits.monthlyAiCreditsLimit,
+          aiCreditsUsedThisMonth: 0,
+          whiteLabelExportEnabled: false,
           isVaultReadonly: false,
         });
       }
 
-      await db
-        .update(vouchers)
-        .set({
-          status: 'REDEEMED',
-          redeemedByUserId: createdUser.id,
-          redeemedAt: new Date(),
-        })
-        .where(eq(vouchers.id, matchedVoucher.id));
-    } else {
-      const freeLimits = calculatePassLimits('FREE_HOOK');
-      await db.insert(userEntitlements).values({
-        userId: createdUser.id,
-        planType: 'FREE_HOOK',
-        stackedCodesCount: 0,
-        maxStartupPlans: freeLimits.maxStartupPlans,
-        maxSeatsPerPlan: freeLimits.maxSeatsPerPlan,
-        monthlyAiCreditsLimit: freeLimits.monthlyAiCreditsLimit,
-        aiCreditsUsedThisMonth: 0,
-        whiteLabelExportEnabled: false,
-        isVaultReadonly: false,
-      });
-    }
+      return insertedUser;
+    });
 
     await setServerSessionCookie({
       userId: createdUser.id,
@@ -1017,17 +1118,44 @@ export async function registerFounderAction(input: {
       session,
     };
   } catch (err) {
-    console.warn(
-      '[SPF Auth] PostgreSQL unreachable during register; using local fallback:',
+    if (err instanceof Error && err.message === 'VOUCHER_ALREADY_REDEEMED_RACE') {
+      return {
+        ok: false,
+        error: 'This voucher code was just claimed. Please use an unclaimed voucher code.',
+        mode: 'cloud_sql',
+      };
+    }
+    if (err instanceof Error && err.message === 'COHORT_FULL_RACE') {
+      return {
+        ok: false,
+        error: 'This cohort has reached its maximum seat capacity.',
+        mode: 'cloud_sql',
+      };
+    }
+
+    const isDevOfflineAllowed =
+      process.env.NODE_ENV === 'development' &&
+      process.env.ALLOW_OFFLINE_DEV_AUTH === 'true';
+    if (isDevOfflineAllowed) {
+      await setServerSessionCookie({
+        userId: 'local-founder-session',
+        email: cleanEmail,
+      });
+      return {
+        ok: true,
+        mode: 'local_fallback',
+      };
+    }
+
+    console.error(
+      '[SPF Auth] Registration error:',
       err instanceof Error ? err.message : err
     );
-    await setServerSessionCookie({
-      userId: 'local-founder-session',
-      email: cleanEmail,
-    });
     return {
-      ok: true,
-      mode: 'local_fallback',
+      ok: false,
+      error:
+        'Authentication service is temporarily unavailable. Please try again shortly.',
+      mode: 'cloud_sql',
     };
   }
 }
@@ -1039,13 +1167,47 @@ export async function loginFounderAction(input: {
   email: string;
   password: string;
 }): Promise<AuthActionResult> {
-  const cleanEmail = input.email.trim().toLowerCase();
-
-  const rateLimit = checkRateLimit(`auth:login:${cleanEmail}`, 8, 10 * 60_000);
-  if (!rateLimit.allowed) {
+  if (
+    typeof input?.email !== 'string' ||
+    typeof input?.password !== 'string' ||
+    input.password.length === 0 ||
+    input.password.length > 128
+  ) {
     return {
       ok: false,
-      error: `Too many sign-in attempts. Please wait ${rateLimit.retryAfterSeconds} seconds before trying again.`,
+      error: 'Invalid email or password.',
+      mode: 'cloud_sql',
+    };
+  }
+
+  const cleanEmail = input.email.trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    return {
+      ok: false,
+      error: 'Please enter a valid email address.',
+      mode: 'cloud_sql',
+    };
+  }
+
+  const clientIp = await getTrustedClientIp();
+  const emailRateLimit = checkRateLimit(
+    `auth:login:${cleanEmail}`,
+    8,
+    10 * 60_000
+  );
+  const ipRateLimit = checkRateLimit(
+    `auth:login:ip:${clientIp}`,
+    15,
+    10 * 60_000
+  );
+  if (!emailRateLimit.allowed || !ipRateLimit.allowed) {
+    const retryAfter = Math.max(
+      emailRateLimit.retryAfterSeconds,
+      ipRateLimit.retryAfterSeconds
+    );
+    return {
+      ok: false,
+      error: `Too many sign-in attempts. Please wait ${retryAfter} seconds before trying again.`,
       mode: 'cloud_sql',
     };
   }
@@ -1131,17 +1293,29 @@ export async function loginFounderAction(input: {
       session,
     };
   } catch (err) {
-    console.warn(
-      '[SPF Auth] PostgreSQL unreachable during login; using local fallback:',
+    const isDevOfflineAllowed =
+      process.env.NODE_ENV === 'development' &&
+      process.env.ALLOW_OFFLINE_DEV_AUTH === 'true';
+    if (isDevOfflineAllowed) {
+      await setServerSessionCookie({
+        userId: 'local-founder-session',
+        email: cleanEmail,
+      });
+      return {
+        ok: true,
+        mode: 'local_fallback',
+      };
+    }
+
+    console.error(
+      '[SPF Auth] Login error:',
       err instanceof Error ? err.message : err
     );
-    await setServerSessionCookie({
-      userId: 'local-founder-session',
-      email: cleanEmail,
-    });
     return {
-      ok: true,
-      mode: 'local_fallback',
+      ok: false,
+      error:
+        'Authentication service is temporarily unavailable. Please try again shortly.',
+      mode: 'cloud_sql',
     };
   }
 }
@@ -1178,10 +1352,32 @@ export async function completeOnboardingAction(input: {
       .where(eq(users.id, cookiePayload.userId))
       .limit(1);
 
-    if (!dbUser) {
+    if (!dbUser || dbUser.status !== 'ACTIVE' || dbUser.deletedAt) {
+      return {
+        ok: false,
+        error: 'Unauthorized or suspended account.',
+        mode: 'cloud_sql',
+      };
+    }
+
+    const [entRow] = await db
+      .select()
+      .from(userEntitlements)
+      .where(eq(userEntitlements.userId, dbUser.id))
+      .limit(1);
+
+    const existingPlans = await db
+      .select({ id: startupPlans.id })
+      .from(startupPlans)
+      .where(eq(startupPlans.ownerUserId, dbUser.id));
+
+    const maxAllowed = entRow?.maxStartupPlans ?? 1;
+    if (existingPlans.length >= maxAllowed) {
+      const session = await buildSessionFromDbUser(dbUser);
       return {
         ok: true,
-        mode: 'local_fallback',
+        mode: 'cloud_sql',
+        session,
       };
     }
 
@@ -1348,11 +1544,38 @@ export async function saveByokApiKeyServerAction(rawApiKey: string): Promise<{
   error?: string;
 }> {
   try {
-    const cookiePayload = await getServerSessionCookie();
-    if (!cookiePayload) {
+    if (typeof rawApiKey !== 'string' || rawApiKey.length > 512) {
+      return { ok: false, hasActiveKey: false, error: 'Invalid API key format.' };
+    }
+
+    const activeUser = await getVerifiedActiveFounderFromCookie();
+    if (!activeUser) {
       return { ok: false, hasActiveKey: false, error: 'Not authenticated' };
     }
+
     const trimmed = rawApiKey.trim();
+    if (trimmed) {
+      const [entRow] = await db
+        .select()
+        .from(userEntitlements)
+        .where(eq(userEntitlements.userId, activeUser.userId))
+        .limit(1);
+
+      if (
+        activeUser.role !== 'SUPER_ADMIN' &&
+        (!entRow ||
+          entRow.planType !== 'APPSUMO_LTD' ||
+          entRow.stackedCodesCount < 3)
+      ) {
+        return {
+          ok: false,
+          hasActiveKey: false,
+          error:
+            'Bring Your Own API Key (BYOK) requires Lifetime Tier 3 (3+ Stacked Codes).',
+        };
+      }
+    }
+
     const encryptedValue = trimmed ? encryptByokApiKey(trimmed) : null;
 
     await db
@@ -1361,7 +1584,7 @@ export async function saveByokApiKeyServerAction(rawApiKey: string): Promise<{
         customApiKeyEncrypted: encryptedValue,
         updatedAt: new Date(),
       })
-      .where(eq(userEntitlements.userId, cookiePayload.userId));
+      .where(eq(userEntitlements.userId, activeUser.userId));
 
     return {
       ok: true,

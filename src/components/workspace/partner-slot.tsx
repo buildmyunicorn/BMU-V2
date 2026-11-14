@@ -119,6 +119,7 @@ export function PartnerSlot({
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [isSubmittingIntro, setIsSubmittingIntro] = useState(false);
+  const [conciergeError, setConciergeError] = useState<string | null>(null);
   const [introSentSuccess, setIntroSentSuccess] = useState<{
     partnerName: string;
     recipientEmail: string;
@@ -143,12 +144,14 @@ export function PartnerSlot({
       const pending = JSON.parse(rawPending);
       if (pending && pending.slotKey === slot) {
         window.localStorage.removeItem(PENDING_CONCIERGE_ORDER_STORAGE_KEY);
-        const sessionId = params.get('session_id') || `cs_live_${Date.now()}`;
+        const sessionId = params.get('session_id') || '';
+        if (!sessionId.startsWith('cs_')) return;
 
         submitPaidPartnerConciergeOrderAction({
           ...pending,
           stripePaymentRef: sessionId,
         }).then((res) => {
+          if (!res.ok) return;
           if (res.event) {
             const existing = loadLocalReferralEvents();
             saveLocalReferralEvents([res.event, ...existing].slice(0, 250));
@@ -264,6 +267,7 @@ export function PartnerSlot({
     setCustomOtherAnswers({});
     setSelectedAddonIds([]);
     setAdditionalNotes('');
+    setConciergeError(null);
     setIntroSentSuccess(null);
     setActiveIntroPartner(partner);
   };
@@ -318,6 +322,7 @@ export function PartnerSlot({
     const companyChoice2 = formattedAnswers['proposed_company_name_2'] || '';
 
     setIsSubmittingIntro(true);
+    setConciergeError(null);
     try {
       if (!forceSandbox) {
         const stripeRes = await createPartnerConciergeStripeCheckoutAction({
@@ -335,7 +340,7 @@ export function PartnerSlot({
           countryCode: normalizedCountry,
         });
 
-        if (stripeRes.ok && stripeRes.checkoutUrl && !stripeRes.sandboxFallback) {
+        if (stripeRes.ok && stripeRes.checkoutUrl) {
           if (typeof window !== 'undefined') {
             window.localStorage.setItem(
               PENDING_CONCIERGE_ORDER_STORAGE_KEY,
@@ -364,9 +369,14 @@ export function PartnerSlot({
             return;
           }
         }
+
+        setConciergeError(
+          stripeRes.error || 'Unable to start Stripe Checkout. Please try again.'
+        );
+        return;
       }
 
-      // Sandbox / Direct Completion Flow: Immediately dispatch paid order email & update tracker
+      // Admin Sandbox Flow (requires verified Super Admin session on server)
       const orderRes = await submitPaidPartnerConciergeOrderAction({
         partnerId: partner.id,
         partnerName: partner.name,
@@ -383,8 +393,16 @@ export function PartnerSlot({
         currency,
         selectedAddons: chosenAddons,
         totalPaidAmount,
+        stripePaymentRef: 'ADMIN_SANDBOX',
         intakeAnswers: formattedAnswers,
       });
+
+      if (!orderRes.ok) {
+        setConciergeError(
+          orderRes.error || 'Unable to complete concierge order.'
+        );
+        return;
+      }
 
       if (orderRes.event) {
         const existing = loadLocalReferralEvents();
@@ -1052,6 +1070,12 @@ export function PartnerSlot({
                     />
                   </div>
 
+                  {conciergeError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                      {conciergeError}
+                    </div>
+                  )}
+
                   {/* Footer Actions */}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
                     <span className="text-[11px] text-slate-500 flex items-center gap-1">
@@ -1084,7 +1108,7 @@ export function PartnerSlot({
 
                       {isPaidModal ? (
                         <>
-                          {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith('pk_test_') && (
+                          {process.env.NODE_ENV !== 'production' && (
                             <Button
                               type="button"
                               size="sm"

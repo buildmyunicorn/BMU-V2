@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, and, sql, isNull } from 'drizzle-orm';
+import { eq, and, lt, sql, isNull } from 'drizzle-orm';
 import {
   db,
   ensureDatabaseSchemaSynced,
@@ -12,9 +12,9 @@ import {
 } from '@/db';
 import {
   getServerSessionCookie,
-  getAdminSessionCookie,
-  setServerSessionCookie,
+  requireVerifiedSuperAdminSession,
   checkRateLimit,
+  getTrustedClientIp,
 } from '@/lib/auth/server-auth';
 import {
   calculateAppSumoTierLimits,
@@ -58,83 +58,41 @@ export interface FounderVoucherStateResult {
   cohortCode?: string;
 }
 
-async function resolveAuthenticatedFounderUser(
-  clientContext?: FounderClientContext
-): Promise<(typeof users.$inferSelect) | null> {
+/**
+ * Strictly resolves the authenticated founder user by verified UUID session cookie.
+ * Never promotes non-UUID fallback cookies via email lookup.
+ */
+async function resolveAuthenticatedFounderUser(): Promise<
+  (typeof users.$inferSelect) | null
+> {
   await ensureDatabaseSchemaSynced();
 
   const sessionPayload = await getServerSessionCookie();
-  const adminPayload = await getAdminSessionCookie();
-
-  let foundUser: (typeof users.$inferSelect) | undefined;
-
-  // 1. Primary: Check founder HttpOnly session cookie
-  if (sessionPayload) {
-    if (UUID_REGEX.test(sessionPayload.userId)) {
-      const [byId] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, sessionPayload.userId))
-        .limit(1);
-      foundUser = byId;
-    }
-
-    if (!foundUser && sessionPayload.email) {
-      const [byEmail] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, sessionPayload.email.trim().toLowerCase()))
-        .limit(1);
-      foundUser = byEmail;
-    }
-  }
-
-  // 2. If an active Super Admin session exists in the same browser and a workspace user email is active
-  if (!foundUser && adminPayload) {
-    const targetEmail = (
-      clientContext?.email ||
-      adminPayload.email ||
-      ''
-    )
-      .trim()
-      .toLowerCase();
-    if (targetEmail) {
-      const [byAdminTarget] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, targetEmail))
-        .limit(1);
-      foundUser = byAdminTarget;
-    }
-  }
-
-  // 3. Local development fallback for seeded demo personas (never trust clientContext without cookie in production)
-  if (
-    !foundUser &&
-    process.env.NODE_ENV !== 'production' &&
-    clientContext?.email
-  ) {
-    const [byDevEmail] = await db
+  if (sessionPayload && UUID_REGEX.test(sessionPayload.userId)) {
+    const [byId] = await db
       .select()
       .from(users)
-      .where(eq(users.email, clientContext.email.trim().toLowerCase()))
+      .where(eq(users.id, sessionPayload.userId))
       .limit(1);
-    foundUser = byDevEmail;
-  }
-
-  if (!foundUser || foundUser.status !== 'ACTIVE') {
+    if (byId && byId.status === 'ACTIVE' && !byId.deletedAt) {
+      return byId;
+    }
     return null;
   }
 
-  // Ensure the founder session cookie stays synchronized with the resolved DB user
-  if (!sessionPayload || sessionPayload.userId !== foundUser.id) {
-    await setServerSessionCookie({
-      userId: foundUser.id,
-      email: foundUser.email,
-    });
+  const adminPayload = await requireVerifiedSuperAdminSession();
+  if (adminPayload && UUID_REGEX.test(adminPayload.userId)) {
+    const [byAdminId] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, adminPayload.userId))
+      .limit(1);
+    if (byAdminId && byAdminId.status === 'ACTIVE' && !byAdminId.deletedAt) {
+      return byAdminId;
+    }
   }
 
-  return foundUser;
+  return null;
 }
 
 function mapEntitlementSnapshot(
@@ -173,14 +131,11 @@ function mapEntitlementSnapshot(
   };
 }
 
-/**
- * Fetches the authenticated founder's live entitlement & redeemed voucher codes from PostgreSQL.
- */
 export async function getFounderVoucherStateAction(
-  clientContext?: FounderClientContext
+  _clientContext?: FounderClientContext
 ): Promise<FounderVoucherStateResult> {
   try {
-    const user = await resolveAuthenticatedFounderUser(clientContext);
+    const user = await resolveAuthenticatedFounderUser();
     if (!user) {
       return {
         ok: true,
@@ -237,24 +192,21 @@ export async function getFounderVoucherStateAction(
   }
 }
 
-/**
- * Redeems an AppSumo, Partner, Promo, or Institutional Cohort code for the active founder session.
- * Supports:
- * - AppSumo Lifetime Stacking (Tier 1 -> Tier 2 -> Tier 3)
- * - Partner & Promo Passes (Lifetime, Pass Solo, Pass Co-Founder with month duration)
- * - Institutional Cohort Codes (SPF-UCD-..., BMU-...)
- */
 export async function redeemVoucherOrCohortCodeAction(
   code: string,
-  clientContext?: FounderClientContext
+  _clientContext?: FounderClientContext
 ): Promise<RedeemVoucherResult> {
-  const cleanCode = (code || '').trim().toUpperCase();
+  const cleanCode =
+    typeof code === 'string' ? code.trim().toUpperCase().slice(0, 64) : '';
   if (!cleanCode) {
-    return { ok: false, error: 'Please enter a valid voucher or cohort code.' };
+    return {
+      ok: false,
+      error: 'Please enter a valid voucher or cohort code.',
+    };
   }
 
   try {
-    const user = await resolveAuthenticatedFounderUser(clientContext);
+    const user = await resolveAuthenticatedFounderUser();
     if (!user) {
       return {
         ok: false,
@@ -262,23 +214,27 @@ export async function redeemVoucherOrCohortCodeAction(
       };
     }
 
-    const rateLimit = checkRateLimit(`voucher:redeem:${user.id}`, 8, 60_000);
-    if (!rateLimit.allowed) {
+    const clientIp = await getTrustedClientIp();
+    const userLimit = checkRateLimit(`voucher:redeem:${user.id}`, 8, 60_000);
+    const ipLimit = checkRateLimit(
+      `voucher:redeem:ip:${clientIp}`,
+      12,
+      5 * 60_000
+    );
+    if (!userLimit.allowed || !ipLimit.allowed) {
+      const retryAfter = Math.max(
+        userLimit.retryAfterSeconds,
+        ipLimit.retryAfterSeconds
+      );
       return {
         ok: false,
-        error: `Too many redemption attempts. Please wait ${rateLimit.retryAfterSeconds}s.`,
+        error: `Too many redemption attempts. Please wait ${retryAfter}s.`,
       };
     }
 
-    const [currentEnt] = await db
-      .select()
-      .from(userEntitlements)
-      .where(eq(userEntitlements.userId, user.id))
-      .limit(1);
-
     const cleanAlpha = cleanCode.replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
-    // 1. Check if this is an Institutional Cohort Code (exact or hyphen-agnostic match)
+    // 1. Institutional Cohort Code Check
     const [foundCohort] = await db
       .select()
       .from(cohorts)
@@ -312,97 +268,124 @@ export async function redeemVoucherOrCohortCodeAction(
       const durationMonths = foundCohort.accessDurationMonths || 6;
       const cohortLimits = calculatePassLimits('COHORT_PASS', durationMonths);
 
-      await db
-        .update(users)
-        .set({ cohortId: foundCohort.id, updatedAt: new Date() })
-        .where(eq(users.id, user.id));
+      const { updatedEntRow, userVouchers } = await db.transaction(
+        async (tx) => {
+          if (!isAlreadyInCohort) {
+            const seatClaim = await tx
+              .update(cohorts)
+              .set({
+                seatsUsed: sql`${cohorts.seatsUsed} + 1`,
+              })
+              .where(
+                and(
+                  eq(cohorts.id, foundCohort.id),
+                  lt(cohorts.seatsUsed, foundCohort.maxSeats)
+                )
+              )
+              .returning({ id: cohorts.id });
 
-      await db
-        .update(startupPlans)
-        .set({ cohortId: foundCohort.id, updatedAt: new Date() })
-        .where(
-          and(
-            eq(startupPlans.ownerUserId, user.id),
-            isNull(startupPlans.cohortId)
-          )
-        );
+            if (seatClaim.length === 0) {
+              throw new Error('COHORT_FULL_RACE');
+            }
+          }
 
-      if (!isAlreadyInCohort) {
-        await db
-          .update(cohorts)
-          .set({
-            seatsUsed: sql`${cohorts.seatsUsed} + 1`,
-          })
-          .where(eq(cohorts.id, foundCohort.id));
-      }
+          await tx
+            .update(users)
+            .set({ cohortId: foundCohort.id, updatedAt: new Date() })
+            .where(eq(users.id, user.id));
 
-      let updatedEntRow: typeof userEntitlements.$inferSelect;
-      if (currentEnt) {
-        const [updated] = await db
-          .update(userEntitlements)
-          .set({
-            planType: 'COHORT_PASS',
-            maxStartupPlans: Math.max(
-              currentEnt.maxStartupPlans,
-              cohortLimits.maxStartupPlans
-            ),
-            maxSeatsPerPlan: Math.max(
-              currentEnt.maxSeatsPerPlan,
-              cohortLimits.maxSeatsPerPlan
-            ),
-            monthlyAiCreditsLimit: Math.max(
-              currentEnt.monthlyAiCreditsLimit,
-              cohortLimits.monthlyAiCreditsLimit
-            ),
-            accessExpiresAt:
-              foundCohort.expiresAt || cohortLimits.accessExpiresAt,
-            isVaultReadonly: false,
-            updatedAt: new Date(),
-          })
-          .where(eq(userEntitlements.id, currentEnt.id))
-          .returning();
-        updatedEntRow = updated;
-      } else {
-        const [inserted] = await db
-          .insert(userEntitlements)
-          .values({
-            userId: user.id,
-            planType: 'COHORT_PASS',
-            stackedCodesCount: 0,
-            maxStartupPlans: cohortLimits.maxStartupPlans,
-            maxSeatsPerPlan: cohortLimits.maxSeatsPerPlan,
-            monthlyAiCreditsLimit: cohortLimits.monthlyAiCreditsLimit,
-            aiCreditsUsedThisMonth: 0,
-            whiteLabelExportEnabled: false,
-            accessExpiresAt:
-              foundCohort.expiresAt || cohortLimits.accessExpiresAt,
-            isVaultReadonly: false,
-          })
-          .returning();
-        updatedEntRow = inserted;
-      }
+          await tx
+            .update(startupPlans)
+            .set({ cohortId: foundCohort.id, updatedAt: new Date() })
+            .where(
+              and(
+                eq(startupPlans.ownerUserId, user.id),
+                isNull(startupPlans.cohortId)
+              )
+            );
 
-      const userVouchers = await db
-        .select()
-        .from(vouchers)
-        .where(
-          and(
-            eq(vouchers.redeemedByUserId, user.id),
-            eq(vouchers.status, 'REDEEMED')
-          )
-        );
+          const [currentEnt] = await tx
+            .select()
+            .from(userEntitlements)
+            .where(eq(userEntitlements.userId, user.id))
+            .limit(1);
 
-      // Fire asynchronous confirmation email
+          let entRow: typeof userEntitlements.$inferSelect;
+          if (currentEnt) {
+            // Preserve lifetime APPSUMO_LTD tier so joining a cohort never downgrades a lifetime pass
+            const keepLifetime = currentEnt.planType === 'APPSUMO_LTD';
+            const [updated] = await tx
+              .update(userEntitlements)
+              .set({
+                planType: keepLifetime ? 'APPSUMO_LTD' : 'COHORT_PASS',
+                maxStartupPlans: Math.max(
+                  currentEnt.maxStartupPlans,
+                  cohortLimits.maxStartupPlans
+                ),
+                maxSeatsPerPlan: Math.max(
+                  currentEnt.maxSeatsPerPlan,
+                  cohortLimits.maxSeatsPerPlan
+                ),
+                monthlyAiCreditsLimit: Math.max(
+                  currentEnt.monthlyAiCreditsLimit,
+                  cohortLimits.monthlyAiCreditsLimit
+                ),
+                accessExpiresAt: keepLifetime
+                  ? null
+                  : foundCohort.expiresAt || cohortLimits.accessExpiresAt,
+                isVaultReadonly: false,
+                updatedAt: new Date(),
+              })
+              .where(eq(userEntitlements.id, currentEnt.id))
+              .returning();
+            entRow = updated;
+          } else {
+            const [inserted] = await tx
+              .insert(userEntitlements)
+              .values({
+                userId: user.id,
+                planType: 'COHORT_PASS',
+                stackedCodesCount: 0,
+                maxStartupPlans: cohortLimits.maxStartupPlans,
+                maxSeatsPerPlan: cohortLimits.maxSeatsPerPlan,
+                monthlyAiCreditsLimit: cohortLimits.monthlyAiCreditsLimit,
+                aiCreditsUsedThisMonth: 0,
+                whiteLabelExportEnabled: false,
+                accessExpiresAt:
+                  foundCohort.expiresAt || cohortLimits.accessExpiresAt,
+                isVaultReadonly: false,
+              })
+              .returning();
+            entRow = inserted;
+          }
+
+          const redeemedList = await tx
+            .select()
+            .from(vouchers)
+            .where(
+              and(
+                eq(vouchers.redeemedByUserId, user.id),
+                eq(vouchers.status, 'REDEEMED')
+              )
+            );
+
+          return { updatedEntRow: entRow, userVouchers: redeemedList };
+        }
+      );
+
       const cohortExpires =
         foundCohort.expiresAt || cohortLimits.accessExpiresAt;
       const cohortActivatedDate = new Intl.DateTimeFormat('en-IE', {
         dateStyle: 'long',
       }).format(new Date());
-      const cohortValidUntilDate = cohortExpires
-        ? new Intl.DateTimeFormat('en-IE', { dateStyle: 'long' }).format(
-            cohortExpires
-          )
-        : 'Active Cohort Term';
+      const cohortValidUntilDate =
+        updatedEntRow.planType === 'APPSUMO_LTD'
+          ? 'Lifetime Access (Never Expires)'
+          : cohortExpires
+            ? new Intl.DateTimeFormat('en-IE', { dateStyle: 'long' }).format(
+                cohortExpires
+              )
+            : 'Active Cohort Term';
 
       sendSystemEmail({
         to: user.email,
@@ -447,7 +430,7 @@ export async function redeemVoucherOrCohortCodeAction(
       };
     }
 
-    // 2. Look up Voucher in `vouchers` table (exact or hyphen-agnostic match)
+    // 2. Single-Use Voucher Redemption (Atomic Conditional Claim)
     const [foundVoucher] = await db
       .select()
       .from(vouchers)
@@ -472,11 +455,11 @@ export async function redeemVoucherOrCohortCodeAction(
       }
       return {
         ok: false,
-        error: `Voucher ${cleanCode} has already been claimed by another account. Individual voucher codes are single-use. If you are part of a program or testing cohort, please use your shared cohort invite code.`,
+        error: `Voucher ${cleanCode} has already been claimed by another account. Individual voucher codes are single-use.`,
       };
     }
 
-    if (foundVoucher.status === 'REFUNDED_REVOKED') {
+    if (foundVoucher.status !== 'UNCLAIMED') {
       return {
         ok: false,
         error: `Voucher ${cleanCode} has been revoked or refunded and is no longer valid.`,
@@ -484,126 +467,105 @@ export async function redeemVoucherOrCohortCodeAction(
     }
 
     const now = new Date();
-
-    // Mark voucher redeemed first so subsequent queries include it
-    await db
-      .update(vouchers)
-      .set({
-        status: 'REDEEMED',
-        redeemedByUserId: user.id,
-        redeemedAt: now,
-      })
-      .where(eq(vouchers.id, foundVoucher.id));
-
-    // Fetch all active redeemed vouchers for this user
-    const userVouchers = await db
-      .select()
-      .from(vouchers)
-      .where(
-        and(
-          eq(vouchers.redeemedByUserId, user.id),
-          eq(vouchers.status, 'REDEEMED')
-        )
-      );
-
     const rewardType = foundVoucher.rewardType || 'APPSUMO_LTD';
     const durationMonths = foundVoucher.durationMonths || 6;
 
-    if (rewardType === 'APPSUMO_LTD') {
-      const redeemedAppSumoCount = userVouchers.filter(
-        (v) => (v.rewardType || 'APPSUMO_LTD') === 'APPSUMO_LTD'
-      ).length;
+    const txResult = await db.transaction(async (tx) => {
+      const claimed = await tx
+        .update(vouchers)
+        .set({
+          status: 'REDEEMED',
+          redeemedByUserId: user.id,
+          redeemedAt: now,
+        })
+        .where(
+          and(
+            eq(vouchers.id, foundVoucher.id),
+            eq(vouchers.status, 'UNCLAIMED')
+          )
+        )
+        .returning();
 
-      const baseStacked =
-        currentEnt?.planType === 'APPSUMO_LTD'
-          ? currentEnt.stackedCodesCount || 0
-          : 0;
-      const newStacked = Math.max(baseStacked + 1, redeemedAppSumoCount, 1);
-      const limits = calculateAppSumoTierLimits(newStacked);
-
-      let updatedEntRow: typeof userEntitlements.$inferSelect;
-      if (currentEnt) {
-        const [updated] = await db
-          .update(userEntitlements)
-          .set({
-            planType: 'APPSUMO_LTD',
-            stackedCodesCount: newStacked,
-            maxStartupPlans: limits.maxStartupPlans,
-            maxSeatsPerPlan: limits.maxSeatsPerPlan,
-            monthlyAiCreditsLimit: limits.monthlyAiCreditsLimit,
-            whiteLabelExportEnabled: limits.whiteLabelExportEnabled,
-            isVaultReadonly: false,
-            accessExpiresAt: null, // Lifetime
-            updatedAt: now,
-          })
-          .where(eq(userEntitlements.id, currentEnt.id))
-          .returning();
-        updatedEntRow = updated;
-      } else {
-        const [inserted] = await db
-          .insert(userEntitlements)
-          .values({
-            userId: user.id,
-            planType: 'APPSUMO_LTD',
-            stackedCodesCount: newStacked,
-            maxStartupPlans: limits.maxStartupPlans,
-            maxSeatsPerPlan: limits.maxSeatsPerPlan,
-            monthlyAiCreditsLimit: limits.monthlyAiCreditsLimit,
-            aiCreditsUsedThisMonth: 0,
-            whiteLabelExportEnabled: limits.whiteLabelExportEnabled,
-            isVaultReadonly: false,
-          })
-          .returning();
-        updatedEntRow = inserted;
+      if (claimed.length === 0) {
+        throw new Error('VOUCHER_ALREADY_REDEEMED_RACE');
       }
 
-      const activatedDate = new Intl.DateTimeFormat('en-IE', {
-        dateStyle: 'long',
-      }).format(now);
-      const validUntilDate = 'Lifetime Access (Never Expires)';
+      const userVouchers = await tx
+        .select()
+        .from(vouchers)
+        .where(
+          and(
+            eq(vouchers.redeemedByUserId, user.id),
+            eq(vouchers.status, 'REDEEMED')
+          )
+        );
 
-      // Fire asynchronous confirmation email
-      sendSystemEmail({
-        to: user.email,
-        replyTo: 'Tom@startuppreflight.com',
-        template: 'VOUCHER_REDEEMED',
-        subject: `Pass Activated: Code ${cleanCode} Redeemed!`,
-        props: {
-          founderName: user.name || undefined,
-          recipientEmail: user.email,
-          voucherCode: cleanCode,
+      const [currentEnt] = await tx
+        .select()
+        .from(userEntitlements)
+        .where(eq(userEntitlements.userId, user.id))
+        .limit(1);
+
+      if (rewardType === 'APPSUMO_LTD') {
+        const redeemedAppSumoCount = userVouchers.filter(
+          (v) => (v.rewardType || 'APPSUMO_LTD') === 'APPSUMO_LTD'
+        ).length;
+
+        const baseStacked =
+          currentEnt?.planType === 'APPSUMO_LTD'
+            ? currentEnt.stackedCodesCount || 0
+            : 0;
+        const newStacked = Math.min(
+          10,
+          Math.max(baseStacked + 1, redeemedAppSumoCount, 1)
+        );
+        const limits = calculateAppSumoTierLimits(newStacked);
+
+        let updatedEntRow: typeof userEntitlements.$inferSelect;
+        if (currentEnt) {
+          const [updated] = await tx
+            .update(userEntitlements)
+            .set({
+              planType: 'APPSUMO_LTD',
+              stackedCodesCount: newStacked,
+              maxStartupPlans: limits.maxStartupPlans,
+              maxSeatsPerPlan: limits.maxSeatsPerPlan,
+              monthlyAiCreditsLimit: limits.monthlyAiCreditsLimit,
+              whiteLabelExportEnabled: limits.whiteLabelExportEnabled,
+              isVaultReadonly: false,
+              accessExpiresAt: null,
+              updatedAt: now,
+            })
+            .where(eq(userEntitlements.id, currentEnt.id))
+            .returning();
+          updatedEntRow = updated;
+        } else {
+          const [inserted] = await tx
+            .insert(userEntitlements)
+            .values({
+              userId: user.id,
+              planType: 'APPSUMO_LTD',
+              stackedCodesCount: newStacked,
+              maxStartupPlans: limits.maxStartupPlans,
+              maxSeatsPerPlan: limits.maxSeatsPerPlan,
+              monthlyAiCreditsLimit: limits.monthlyAiCreditsLimit,
+              aiCreditsUsedThisMonth: 0,
+              whiteLabelExportEnabled: limits.whiteLabelExportEnabled,
+              isVaultReadonly: false,
+            })
+            .returning();
+          updatedEntRow = inserted;
+        }
+
+        return {
+          mode: 'APPSUMO_LTD' as const,
+          updatedEntRow,
+          userVouchers,
+          newStacked,
           tierName: limits.tierName,
-          activatedDate,
-          validUntilDate,
-          maxPlans: limits.maxStartupPlans,
-          maxSeats: limits.maxSeatsPerPlan,
-          aiCreditsMonthly: limits.monthlyAiCreditsLimit,
-          loginUrl: `${EMAIL_DEFAULTS.appUrl}/workspace`,
-        },
-        metadata: {
-          userId: user.id,
-          trigger: 'APPSUMO_VOUCHER_REDEEMED',
-          voucherCode: cleanCode,
-          totalStacked: newStacked,
-        },
-      }).catch((e) => {
-        console.error('[SPF Email] Failed to send voucher confirmation email:', e);
-      });
+        };
+      }
 
-      return {
-        ok: true,
-        message: `Voucher ${cleanCode} redeemed! Your account is now upgraded to ${limits.tierName}.`,
-        redeemedCode: cleanCode,
-        newTierName: limits.tierName,
-        totalStackedCodes: newStacked,
-        maxStartupPlans: updatedEntRow.maxStartupPlans,
-        monthlyAiCreditsLimit: updatedEntRow.monthlyAiCreditsLimit,
-        isVaultReadonly: false,
-        entitlement: mapEntitlementSnapshot(user.id, updatedEntRow),
-        redeemedCodes: userVouchers.map((v) => v.code),
-      };
-    } else {
-      // Partner Pass (Solo or Co-Founder, time-limited)
       const passType =
         rewardType === 'PASS_COFOUNDER'
           ? 'SIX_MONTH_COFOUNDER'
@@ -612,10 +574,11 @@ export async function redeemVoucherOrCohortCodeAction(
 
       let updatedEntRow: typeof userEntitlements.$inferSelect;
       if (currentEnt) {
-        const [updated] = await db
+        const keepLifetime = currentEnt.planType === 'APPSUMO_LTD';
+        const [updated] = await tx
           .update(userEntitlements)
           .set({
-            planType: passType,
+            planType: keepLifetime ? 'APPSUMO_LTD' : passType,
             maxStartupPlans: Math.max(
               currentEnt.maxStartupPlans,
               passLimits.maxStartupPlans
@@ -628,7 +591,7 @@ export async function redeemVoucherOrCohortCodeAction(
               currentEnt.monthlyAiCreditsLimit,
               passLimits.monthlyAiCreditsLimit
             ),
-            accessExpiresAt: passLimits.accessExpiresAt,
+            accessExpiresAt: keepLifetime ? null : passLimits.accessExpiresAt,
             isVaultReadonly: false,
             updatedAt: now,
           })
@@ -636,7 +599,7 @@ export async function redeemVoucherOrCohortCodeAction(
           .returning();
         updatedEntRow = updated;
       } else {
-        const [inserted] = await db
+        const [inserted] = await tx
           .insert(userEntitlements)
           .values({
             userId: user.id,
@@ -654,21 +617,18 @@ export async function redeemVoucherOrCohortCodeAction(
         updatedEntRow = inserted;
       }
 
-      const passLabel =
-        rewardType === 'PASS_COFOUNDER'
-          ? `Partner Co-Founder Pass (${durationMonths} Months)`
-          : `Partner Solo Pass (${durationMonths} Months)`;
+      return {
+        mode: 'PARTNER_PASS' as const,
+        updatedEntRow,
+        userVouchers,
+        passLimits,
+      };
+    });
 
-      const passActivatedDate = new Intl.DateTimeFormat('en-IE', {
+    if (txResult.mode === 'APPSUMO_LTD') {
+      const activatedDate = new Intl.DateTimeFormat('en-IE', {
         dateStyle: 'long',
       }).format(now);
-      const passValidUntilDate = passLimits.accessExpiresAt
-        ? new Intl.DateTimeFormat('en-IE', { dateStyle: 'long' }).format(
-            passLimits.accessExpiresAt
-          )
-        : `${durationMonths} Months`;
-
-      // Fire asynchronous confirmation email
       sendSystemEmail({
         to: user.email,
         replyTo: 'Tom@startuppreflight.com',
@@ -678,46 +638,111 @@ export async function redeemVoucherOrCohortCodeAction(
           founderName: user.name || undefined,
           recipientEmail: user.email,
           voucherCode: cleanCode,
-          tierName: passLabel,
-          activatedDate: passActivatedDate,
-          validUntilDate: passValidUntilDate,
-          maxPlans: updatedEntRow.maxStartupPlans,
-          maxSeats: updatedEntRow.maxSeatsPerPlan,
-          aiCreditsMonthly: updatedEntRow.monthlyAiCreditsLimit,
+          tierName: txResult.tierName,
+          activatedDate,
+          validUntilDate: 'Lifetime Access (Never Expires)',
+          maxPlans: txResult.updatedEntRow.maxStartupPlans,
+          maxSeats: txResult.updatedEntRow.maxSeatsPerPlan,
+          aiCreditsMonthly: txResult.updatedEntRow.monthlyAiCreditsLimit,
           loginUrl: `${EMAIL_DEFAULTS.appUrl}/workspace`,
         },
         metadata: {
           userId: user.id,
-          trigger: 'PARTNER_PASS_REDEEMED',
+          trigger: 'APPSUMO_VOUCHER_REDEEMED',
           voucherCode: cleanCode,
+          totalStacked: txResult.newStacked,
         },
       }).catch((e) => {
-        console.error(
-          '[SPF Email] Failed to send partner pass confirmation email:',
-          e
-        );
+        console.error('[SPF Email] Failed to send voucher confirmation email:', e);
       });
 
       return {
         ok: true,
-        message: `Voucher ${cleanCode} redeemed successfully! You have unlocked ${passLabel}.`,
+        message: `Voucher ${cleanCode} redeemed! Your account is now upgraded to ${txResult.tierName}.`,
         redeemedCode: cleanCode,
-        newTierName: passLabel,
-        maxStartupPlans: updatedEntRow.maxStartupPlans,
-        monthlyAiCreditsLimit: updatedEntRow.monthlyAiCreditsLimit,
+        newTierName: txResult.tierName,
+        totalStackedCodes: txResult.newStacked,
+        maxStartupPlans: txResult.updatedEntRow.maxStartupPlans,
+        monthlyAiCreditsLimit: txResult.updatedEntRow.monthlyAiCreditsLimit,
         isVaultReadonly: false,
-        entitlement: mapEntitlementSnapshot(user.id, updatedEntRow),
-        redeemedCodes: userVouchers.map((v) => v.code),
+        entitlement: mapEntitlementSnapshot(user.id, txResult.updatedEntRow),
+        redeemedCodes: txResult.userVouchers.map((v) => v.code),
       };
     }
+
+    const passLabel =
+      rewardType === 'PASS_COFOUNDER'
+        ? `Partner Co-Founder Pass (${durationMonths} Months)`
+        : `Partner Solo Pass (${durationMonths} Months)`;
+    const passActivatedDate = new Intl.DateTimeFormat('en-IE', {
+      dateStyle: 'long',
+    }).format(now);
+    const passValidUntilDate =
+      txResult.updatedEntRow.planType === 'APPSUMO_LTD'
+        ? 'Lifetime Access (Never Expires)'
+        : txResult.passLimits.accessExpiresAt
+          ? new Intl.DateTimeFormat('en-IE', { dateStyle: 'long' }).format(
+              txResult.passLimits.accessExpiresAt
+            )
+          : `${durationMonths} Months`;
+
+    sendSystemEmail({
+      to: user.email,
+      replyTo: 'Tom@startuppreflight.com',
+      template: 'VOUCHER_REDEEMED',
+      subject: `Pass Activated: Code ${cleanCode} Redeemed!`,
+      props: {
+        founderName: user.name || undefined,
+        recipientEmail: user.email,
+        voucherCode: cleanCode,
+        tierName: passLabel,
+        activatedDate: passActivatedDate,
+        validUntilDate: passValidUntilDate,
+        maxPlans: txResult.updatedEntRow.maxStartupPlans,
+        maxSeats: txResult.updatedEntRow.maxSeatsPerPlan,
+        aiCreditsMonthly: txResult.updatedEntRow.monthlyAiCreditsLimit,
+        loginUrl: `${EMAIL_DEFAULTS.appUrl}/workspace`,
+      },
+      metadata: {
+        userId: user.id,
+        trigger: 'PARTNER_PASS_REDEEMED',
+        voucherCode: cleanCode,
+      },
+    }).catch((e) => {
+      console.error(
+        '[SPF Email] Failed to send partner pass confirmation email:',
+        e
+      );
+    });
+
+    return {
+      ok: true,
+      message: `Voucher ${cleanCode} redeemed successfully! You have unlocked ${passLabel}.`,
+      redeemedCode: cleanCode,
+      newTierName: passLabel,
+      maxStartupPlans: txResult.updatedEntRow.maxStartupPlans,
+      monthlyAiCreditsLimit: txResult.updatedEntRow.monthlyAiCreditsLimit,
+      isVaultReadonly: false,
+      entitlement: mapEntitlementSnapshot(user.id, txResult.updatedEntRow),
+      redeemedCodes: txResult.userVouchers.map((v) => v.code),
+    };
   } catch (err) {
+    if (err instanceof Error && err.message === 'VOUCHER_ALREADY_REDEEMED_RACE') {
+      return {
+        ok: false,
+        error: `Voucher ${cleanCode} has already been claimed.`,
+      };
+    }
+    if (err instanceof Error && err.message === 'COHORT_FULL_RACE') {
+      return {
+        ok: false,
+        error: 'This cohort has reached its maximum seat capacity.',
+      };
+    }
     console.error('[Voucher Redeem] Error:', err);
     return {
       ok: false,
-      error:
-        err instanceof Error
-          ? err.message
-          : 'An unexpected error occurred while redeeming your voucher.',
+      error: 'An unexpected error occurred while redeeming your voucher.',
     };
   }
 }

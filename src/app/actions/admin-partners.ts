@@ -1,7 +1,7 @@
 'use server';
 
 import crypto from 'crypto';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   db,
   ensureDatabaseSchemaSynced,
@@ -16,13 +16,15 @@ import type {
   PartnerCheckoutAddonField,
 } from '@/db/schema';
 import {
-  getAdminSessionCookie,
-  getServerSessionCookie,
+  requireVerifiedSuperAdminSession,
+  getVerifiedActiveFounderFromCookie,
+  verifyActiveSessionAndPlanOwnership,
+  getTrustedClientIp,
   checkRateLimit,
 } from '@/lib/auth/server-auth';
+import { getTrustedAppOrigin } from '@/lib/auth/oauth-helpers';
 import { resend, EMAIL_DEFAULTS } from '@/lib/email/resend';
-import { stripe } from '@/lib/stripe/client';
-import { headers } from 'next/headers';
+import { stripe, isStripeConfigured } from '@/lib/stripe/client';
 import {
   DEFAULT_PARTNER_OFFERS,
   PARTNER_SLOT_DEFINITIONS,
@@ -36,7 +38,7 @@ import {
 } from '@/lib/partners/partner-catalog-store';
 
 async function verifyAdminAuth(): Promise<boolean> {
-  const session = await getAdminSessionCookie();
+  const session = await requireVerifiedSuperAdminSession();
   return Boolean(session && session.role === 'SUPER_ADMIN');
 }
 
@@ -734,15 +736,45 @@ export async function submitPartnerWarmIntroLeadAction(input: {
   event: PartnerReferralEventRecord;
 }> {
   const nowIso = new Date().toISOString();
-  const founderSession = await getServerSessionCookie();
-  const adminSession = await getAdminSessionCookie();
-  const callerKey =
-    founderSession?.userId ||
-    adminSession?.userId ||
-    input.founderEmail?.trim().toLowerCase() ||
-    'anon';
+  const founderSession = await getVerifiedActiveFounderFromCookie();
+  const adminSession = await requireVerifiedSuperAdminSession();
+  const clientIp = await getTrustedClientIp();
 
+  const fallbackEvent: PartnerReferralEventRecord = {
+    id: `lead-${crypto.randomUUID()}`,
+    partnerId: input.partnerId,
+    partnerName: input.partnerName,
+    partnerSlug: input.partnerSlug,
+    slotKey: input.slotKey,
+    eventType: 'WARM_INTRO_LEAD',
+    planId: input.planId || null,
+    planTitle: input.planTitle || 'Startup Plan',
+    founderName: (input.founderName || '').trim(),
+    founderEmail: founderSession?.email || (input.founderEmail || '').trim(),
+    countryCode: input.countryCode || 'IE',
+    selectedDomain: input.intakeAnswers?.['desired_domain_name'] || null,
+    destinationUrl: 'mailto:partners@startuppreflight.com',
+    intakeAnswersJson: input.intakeAnswers || {},
+    leadStatus: 'INTRO_SENT',
+    estimatedBountyAmount: input.estimatedBountyAmount || null,
+    adminNotes: 'Warm intro request',
+    createdAt: nowIso,
+  };
+
+  // Require an authenticated active founder or verified Super Admin to dispatch warm intro emails
+  if (!founderSession && !adminSession) {
+    return {
+      ok: false,
+      persistedToDb: false,
+      emailSent: false,
+      event: fallbackEvent,
+    };
+  }
+
+  const callerKey = founderSession?.userId || adminSession?.userId || clientIp;
   const rl = checkRateLimit(`partner_intro:${callerKey}`, 6, 10 * 60_000);
+  const ipRl = checkRateLimit(`partner_intro_ip:${clientIp}`, 12, 10 * 60_000);
+
   // Resolve recipient strictly from verified DB/catalog partner record unless caller is Super Admin
   const recipientEmail = adminSession
     ? input.warmIntroRecipientEmail?.trim() ||
@@ -755,29 +787,10 @@ export async function submitPartnerWarmIntroLeadAction(input: {
         'partners@startuppreflight.com'
       );
   const safeFounderEmail = founderSession?.email || input.founderEmail.trim();
+  fallbackEvent.destinationUrl = `mailto:${recipientEmail}`;
+  fallbackEvent.adminNotes = `Warm intro email sent to ${recipientEmail}`;
 
-  const fallbackEvent: PartnerReferralEventRecord = {
-    id: `lead-${crypto.randomUUID()}`,
-    partnerId: input.partnerId,
-    partnerName: input.partnerName,
-    partnerSlug: input.partnerSlug,
-    slotKey: input.slotKey,
-    eventType: 'WARM_INTRO_LEAD',
-    planId: input.planId || null,
-    planTitle: input.planTitle || 'Startup Plan',
-    founderName: input.founderName.trim(),
-    founderEmail: safeFounderEmail,
-    countryCode: input.countryCode || 'IE',
-    selectedDomain: input.intakeAnswers['desired_domain_name'] || null,
-    destinationUrl: `mailto:${recipientEmail}`,
-    intakeAnswersJson: input.intakeAnswers || {},
-    leadStatus: 'INTRO_SENT',
-    estimatedBountyAmount: input.estimatedBountyAmount || null,
-    adminNotes: `Warm intro email sent to ${recipientEmail}`,
-    createdAt: nowIso,
-  };
-
-  if (!rl.allowed) {
+  if (!rl.allowed || !ipRl.allowed) {
     return {
       ok: false,
       persistedToDb: false,
@@ -975,6 +988,17 @@ export async function logPartnerAffiliateClickAction(input: {
   };
 
   try {
+    const founderSession = await getVerifiedActiveFounderFromCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
+    const clientIp = await getTrustedClientIp();
+    const clickRl = checkRateLimit(`partner_click:${founderSession?.userId || clientIp}`, 30, 60_000);
+    if ((!founderSession && !adminSession) || !clickRl.allowed) {
+      return {
+        ok: true,
+        event: fallbackEvent,
+      };
+    }
+
     await ensureDatabaseSchemaSynced();
     const inserted = await db
       .insert(partnerReferralEvents)
@@ -984,10 +1008,10 @@ export async function logPartnerAffiliateClickAction(input: {
         partnerSlug: input.partnerSlug,
         slotKey: input.slotKey,
         eventType: 'AFFILIATE_CLICK',
-        planId: input.planId || null,
+        planId: input.planId && /^[0-9a-f-]{36}$/i.test(input.planId) ? input.planId : null,
         planTitle: input.planTitle || null,
-        founderName: input.founderName || null,
-        founderEmail: input.founderEmail || null,
+        founderName: founderSession?.name || input.founderName || null,
+        founderEmail: founderSession?.email || input.founderEmail || null,
         countryCode: input.countryCode || 'IE',
         selectedDomain: input.selectedDomain || null,
         destinationUrl: input.destinationUrl,
@@ -1066,23 +1090,85 @@ export async function createPartnerConciergeStripeCheckoutAction(input: {
   sandboxFallback?: boolean;
   error?: string;
 }> {
-  const cleanCurrency = (input.currency || 'EUR').toLowerCase();
-  const baseCents = Math.max(100, Math.round(Number(input.basePriceAmount || 150) * 100));
+  const founderSession = await getVerifiedActiveFounderFromCookie();
+  const adminSession = await requireVerifiedSuperAdminSession();
+  if (!founderSession && !adminSession) {
+    return {
+      ok: false,
+      sandboxFallback: false,
+      error: 'Authentication required. Please sign in to complete your order.',
+    };
+  }
+
+  if (
+    input.planId &&
+    input.planId !== 'direct' &&
+    /^[0-9a-f-]{36}$/i.test(input.planId) &&
+    founderSession &&
+    !adminSession
+  ) {
+    const planAuth = await verifyActiveSessionAndPlanOwnership(input.planId);
+    if (!planAuth.authorized) {
+      return {
+        ok: false,
+        sandboxFallback: false,
+        error: planAuth.reason || 'Unauthorized access to startup plan.',
+      };
+    }
+  }
+
+  if (!isStripeConfigured()) {
+    return {
+      ok: false,
+      sandboxFallback: false,
+      error: 'Stripe payments are not configured on this server.',
+    };
+  }
 
   try {
-    const headerList = await headers();
-    const origin =
-      headerList.get('origin') ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      'http://localhost:3000';
+    await ensureDatabaseSchemaSynced();
+    const [dbOffer] = await db
+      .select()
+      .from(partnerOffers)
+      .where(eq(partnerOffers.slug, input.partnerSlug))
+      .limit(1);
+
+    const catalogOffer = DEFAULT_PARTNER_OFFERS.find(
+      (p) => p.slug === input.partnerSlug
+    );
+    const canonicalOffer = dbOffer ? mapDbOfferToRecord(dbOffer) : catalogOffer;
+
+    if (!canonicalOffer || !canonicalOffer.isActive) {
+      return {
+        ok: false,
+        sandboxFallback: false,
+        error: 'Selected partner package is unavailable.',
+      };
+    }
+
+    // Strictly enforce server-canonical pricing from DB/catalog (never trust client-supplied prices)
+    const canonicalCurrency = (
+      canonicalOffer.checkoutCurrency ||
+      input.currency ||
+      'EUR'
+    ).toLowerCase();
+    const canonicalBaseAmount = Number(canonicalOffer.checkoutPriceAmount ?? 150);
+    const baseCents = Math.max(100, Math.round(canonicalBaseAmount * 100));
+
+    const canonicalAddons = Array.isArray(canonicalOffer.checkoutAddonsJson)
+      ? canonicalOffer.checkoutAddonsJson
+      : [];
+    const canonicalAddonById = new Map(canonicalAddons.map((a) => [a.id, a]));
+
+    const origin = getTrustedAppOrigin();
 
     const lineItems: any[] = [
       {
         price_data: {
-          currency: cleanCurrency,
+          currency: canonicalCurrency,
           unit_amount: baseCents,
           product_data: {
-            name: `${input.partnerName} — Company Formation & Setup Package`,
+            name: `${canonicalOffer.name} — Company Formation & Setup Package`,
             description: `Startup Preflight Verified Concierge Order (${input.planTitle || 'Startup Formation'})`,
           },
         },
@@ -1090,16 +1176,18 @@ export async function createPartnerConciergeStripeCheckoutAction(input: {
       },
     ];
 
-    for (const addon of input.selectedAddons || []) {
-      const addonCents = Math.round(Number(addon.priceAmount || 0) * 100);
+    for (const requestedAddon of input.selectedAddons || []) {
+      const verifiedAddon = canonicalAddonById.get(requestedAddon.id);
+      if (!verifiedAddon) continue;
+      const addonCents = Math.round(Number(verifiedAddon.priceAmount || 0) * 100);
       if (addonCents > 0) {
         lineItems.push({
           price_data: {
-            currency: cleanCurrency,
+            currency: canonicalCurrency,
             unit_amount: addonCents,
             product_data: {
-              name: `Add-On: ${addon.label}`,
-              description: addon.description,
+              name: `Add-On: ${verifiedAddon.label}`,
+              description: verifiedAddon.description,
             },
           },
           quantity: 1,
@@ -1108,24 +1196,28 @@ export async function createPartnerConciergeStripeCheckoutAction(input: {
     }
 
     const successUrl = `${origin}/workspace?concierge_paid=true&partner_slug=${encodeURIComponent(
-      input.partnerSlug
+      canonicalOffer.slug
     )}&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${origin}/workspace?concierge_cancelled=true`;
+    const verifiedFounderEmail =
+      founderSession?.email || input.founderEmail?.trim() || undefined;
 
     const session = await stripe.checkout.sessions.create({
-      customer_email: input.founderEmail || undefined,
+      customer_email: verifiedFounderEmail,
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
       success_url: successUrl,
       cancel_url: cancelUrl,
+      client_reference_id: founderSession?.userId || adminSession?.userId || undefined,
       metadata: {
         orderType: 'PAID_STRIPE_CONCIERGE',
-        partnerSlug: input.partnerSlug,
-        partnerName: input.partnerName,
-        slotKey: input.slotKey,
+        userId: founderSession?.userId || adminSession?.userId || '',
+        partnerSlug: canonicalOffer.slug,
+        partnerName: canonicalOffer.name,
+        slotKey: canonicalOffer.slotKey,
         planId: input.planId || '',
-        founderEmail: input.founderEmail || '',
+        founderEmail: verifiedFounderEmail || '',
       },
     });
 
@@ -1137,15 +1229,14 @@ export async function createPartnerConciergeStripeCheckoutAction(input: {
     }
 
     return {
-      ok: true,
-      sandboxFallback: true,
+      ok: false,
+      sandboxFallback: false,
+      error: 'Failed to generate Stripe Checkout session URL.',
     };
   } catch (err) {
-    // If Stripe API key is not configured or in local dev without Stripe keys,
-    // gracefully signal sandboxFallback so the founder/admin can complete & test immediately.
     return {
-      ok: true,
-      sandboxFallback: true,
+      ok: false,
+      sandboxFallback: false,
       error:
         err instanceof Error
           ? err.message
@@ -1180,17 +1271,182 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
   persistedToDb: boolean;
   emailSent: boolean;
   paymentRef: string;
+  error?: string;
   event: PartnerReferralEventRecord;
 }> {
   const nowIso = new Date().toISOString();
-  const founderSession = await getServerSessionCookie();
-  const adminSession = await getAdminSessionCookie();
-  const callerKey =
-    founderSession?.userId ||
-    adminSession?.userId ||
-    input.founderEmail?.trim().toLowerCase() ||
-    'anon';
+  const founderSession = await getVerifiedActiveFounderFromCookie();
+  const adminSession = await requireVerifiedSuperAdminSession();
+  const clientIp = await getTrustedClientIp();
+
+  const rawRef = (input.stripePaymentRef || '').trim();
+  const isOfflineDevSandbox =
+    process.env.NODE_ENV === 'development' &&
+    process.env.ALLOW_OFFLINE_DEV_AUTH === 'true' &&
+    !rawRef;
+  const isAdminSandbox = Boolean(adminSession && rawRef === 'ADMIN_SANDBOX');
+
+  let verifiedCurrency = (input.currency || 'EUR').toUpperCase();
+  let verifiedTotalPaid = Number(input.totalPaidAmount || 0);
+  let paymentRef = rawRef || 'UNVERIFIED';
+
+  const fallbackEvent: PartnerReferralEventRecord = {
+    id: `order-${crypto.randomUUID()}`,
+    partnerId: input.partnerId,
+    partnerName: input.partnerName,
+    partnerSlug: input.partnerSlug,
+    slotKey: input.slotKey,
+    eventType: 'PAID_CONCIERGE_ORDER',
+    planId: input.planId && /^[0-9a-f-]{36}$/i.test(input.planId) ? input.planId : null,
+    planTitle:
+      input.intakeAnswers?.['proposed_company_name_1'] ||
+      input.planTitle ||
+      'Startup Plan',
+    founderName: (input.founderName || '').trim(),
+    founderEmail: founderSession?.email || (input.founderEmail || '').trim(),
+    countryCode: input.countryCode || 'IE',
+    selectedDomain: null,
+    destinationUrl: 'mailto:formations@companyformations.ie',
+    intakeAnswersJson: {},
+    leadStatus: 'BOUNTY_PAID',
+    estimatedBountyAmount: null,
+    adminNotes: null,
+    createdAt: nowIso,
+  };
+
+  if (!founderSession && !adminSession) {
+    return {
+      ok: false,
+      persistedToDb: false,
+      emailSent: false,
+      paymentRef,
+      error: 'Authentication required to submit a paid concierge order.',
+      event: fallbackEvent,
+    };
+  }
+
+  const callerKey = founderSession?.userId || adminSession?.userId || clientIp;
   const rl = checkRateLimit(`partner_concierge:${callerKey}`, 5, 10 * 60_000);
+  if (!rl.allowed) {
+    return {
+      ok: false,
+      persistedToDb: false,
+      emailSent: false,
+      paymentRef,
+      error: 'Too many concierge order requests. Please wait a few minutes.',
+      event: fallbackEvent,
+    };
+  }
+
+  // Verify genuine Stripe Checkout payment unless verified Super Admin sandbox test or explicit local dev mode
+  if (!isAdminSandbox && !isOfflineDevSandbox) {
+    if (!rawRef.startsWith('cs_') || rawRef.length > 200) {
+      return {
+        ok: false,
+        persistedToDb: false,
+        emailSent: false,
+        paymentRef,
+        error: 'Valid Stripe Checkout session reference is required.',
+        event: fallbackEvent,
+      };
+    }
+
+    if (!isStripeConfigured()) {
+      return {
+        ok: false,
+        persistedToDb: false,
+        emailSent: false,
+        paymentRef,
+        error: 'Stripe is not configured on this server.',
+        event: fallbackEvent,
+      };
+    }
+
+    try {
+      const checkoutSession = await stripe.checkout.sessions.retrieve(rawRef);
+      if (checkoutSession.payment_status !== 'paid') {
+        return {
+          ok: false,
+          persistedToDb: false,
+          emailSent: false,
+          paymentRef,
+          error: 'Stripe Checkout session has not been paid.',
+          event: fallbackEvent,
+        };
+      }
+      if (
+        checkoutSession.metadata?.orderType !== 'PAID_STRIPE_CONCIERGE' ||
+        checkoutSession.metadata?.partnerSlug !== input.partnerSlug
+      ) {
+        return {
+          ok: false,
+          persistedToDb: false,
+          emailSent: false,
+          paymentRef,
+          error: 'Stripe session metadata does not match this partner package.',
+          event: fallbackEvent,
+        };
+      }
+      if (
+        founderSession &&
+        !adminSession &&
+        checkoutSession.metadata?.userId &&
+        checkoutSession.metadata.userId !== founderSession.userId
+      ) {
+        return {
+          ok: false,
+          persistedToDb: false,
+          emailSent: false,
+          paymentRef,
+          error: 'This Stripe Checkout session belongs to a different account.',
+          event: fallbackEvent,
+        };
+      }
+
+      paymentRef = checkoutSession.id;
+      if (typeof checkoutSession.amount_total === 'number') {
+        verifiedTotalPaid = Math.round(checkoutSession.amount_total) / 100;
+      }
+      if (checkoutSession.currency) {
+        verifiedCurrency = checkoutSession.currency.toUpperCase();
+      }
+    } catch (stripeVerifyErr: any) {
+      return {
+        ok: false,
+        persistedToDb: false,
+        emailSent: false,
+        paymentRef,
+        error:
+          stripeVerifyErr?.message ||
+          'Unable to verify Stripe payment session.',
+        event: fallbackEvent,
+      };
+    }
+
+    // Prevent replay of an already-dispatched Stripe session ID
+    await ensureDatabaseSchemaSynced();
+    const existingDispatched = await db
+      .select()
+      .from(partnerReferralEvents)
+      .where(
+        sql`${partnerReferralEvents.adminNotes} LIKE ${'%' + paymentRef + '%'}`
+      )
+      .limit(1);
+
+    if (existingDispatched.length > 0) {
+      return {
+        ok: true,
+        persistedToDb: true,
+        emailSent: true,
+        paymentRef,
+        event: mapDbEventToRecord(existingDispatched[0]),
+      };
+    }
+  } else {
+    paymentRef = isAdminSandbox
+      ? `admin_sandbox_${crypto.randomBytes(4).toString('hex')}`
+      : `dev_sandbox_${crypto.randomBytes(4).toString('hex')}`;
+  }
 
   const recipientEmail = adminSession
     ? input.warmIntroRecipientEmail?.trim() ||
@@ -1203,10 +1459,7 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
         'formations@companyformations.ie'
       );
   const currencySymbol =
-    input.currency === 'GBP' ? '£' : input.currency === 'USD' ? '$' : '€';
-  const paymentRef =
-    input.stripePaymentRef?.trim() ||
-    `cs_paid_${crypto.randomBytes(6).toString('hex')}`;
+    verifiedCurrency === 'GBP' ? '£' : verifiedCurrency === 'USD' ? '$' : '€';
 
   const selectedAddonLabels =
     input.selectedAddons && input.selectedAddons.length > 0
@@ -1216,45 +1469,16 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
       : 'None (Base Package Only)';
 
   const enrichedAnswers: Record<string, string> = {
-    stripe_payment_status: `PAID ${currencySymbol}${input.totalPaidAmount} (${input.currency}) • Ref: ${paymentRef}`,
+    stripe_payment_status: `PAID ${currencySymbol}${verifiedTotalPaid} (${verifiedCurrency}) • Ref: ${paymentRef}`,
     base_package_price: `${currencySymbol}${input.basePriceAmount}`,
     selected_optional_addons: selectedAddonLabels,
     ...input.intakeAnswers,
   };
 
-  const fallbackEvent: PartnerReferralEventRecord = {
-    id: `order-${crypto.randomUUID()}`,
-    partnerId: input.partnerId,
-    partnerName: input.partnerName,
-    partnerSlug: input.partnerSlug,
-    slotKey: input.slotKey,
-    eventType: 'PAID_CONCIERGE_ORDER',
-    planId: input.planId || null,
-    planTitle:
-      input.intakeAnswers['proposed_company_name_1'] ||
-      input.planTitle ||
-      'Startup Plan',
-    founderName: input.founderName.trim(),
-    founderEmail: input.founderEmail.trim(),
-    countryCode: input.countryCode || 'IE',
-    selectedDomain: null,
-    destinationUrl: `mailto:${recipientEmail}`,
-    intakeAnswersJson: enrichedAnswers,
-    leadStatus: 'BOUNTY_PAID',
-    estimatedBountyAmount: `${currencySymbol}${input.totalPaidAmount} Paid via Stripe`,
-    adminNotes: `Paid Stripe Concierge Order (${paymentRef}) dispatched to ${recipientEmail}`,
-    createdAt: nowIso,
-  };
-
-  if (!rl.allowed) {
-    return {
-      ok: false,
-      persistedToDb: false,
-      emailSent: false,
-      paymentRef,
-      event: fallbackEvent,
-    };
-  }
+  fallbackEvent.destinationUrl = `mailto:${recipientEmail}`;
+  fallbackEvent.intakeAnswersJson = enrichedAnswers;
+  fallbackEvent.estimatedBountyAmount = `${currencySymbol}${verifiedTotalPaid} Paid via Stripe`;
+  fallbackEvent.adminNotes = `Paid Stripe Concierge Order (${paymentRef}) dispatched to ${recipientEmail}`;
 
   const addonRowsHtml =
     input.selectedAddons && input.selectedAddons.length > 0
@@ -1263,7 +1487,7 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
             (addon) => `
           <tr>
             <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;color:#065f46;">+ Add-On: <strong>${escapeHtml(addon.label)}</strong></td>
-            <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;font-weight:700;color:#065f46;text-align:right;">${currencySymbol}${addon.priceAmount}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;font-weight:700;color:#065f46;text-align:right;">${currencySymbol}${escapeHtml(String(addon.priceAmount))}</td>
           </tr>`
           )
           .join('')
@@ -1290,7 +1514,7 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
     input.planTitle ||
     'New Company LTD';
 
-  const subjectLine = `[PAID INCORPORATION ORDER • ${currencySymbol}${input.totalPaidAmount}] ${companyName1} — ${input.founderName}`;
+  const subjectLine = `[PAID INCORPORATION ORDER • ${currencySymbol}${verifiedTotalPaid}] ${companyName1} — ${input.founderName}`;
   const safeFounderEmail = founderSession?.email || input.founderEmail.trim();
 
   const emailHtml = `
@@ -1298,7 +1522,7 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
       <div style="background:#065f46;color:#ffffff;padding:18px 22px;border-radius:8px;margin-bottom:20px;">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#a7f3d0;font-weight:700;">Startup Preflight • Paid Stripe Formation Order</div>
         <h2 style="margin:6px 0 0;font-size:19px;font-weight:700;">New Paid Company Incorporation: ${escapeHtml(companyName1)}</h2>
-        <div style="margin-top:6px;font-size:12px;color:#ecfdf5;">Stripe Payment Verified: <strong>${currencySymbol}${input.totalPaidAmount} (${escapeHtml(input.currency)})</strong> • Ref: <code>${escapeHtml(paymentRef)}</code></div>
+        <div style="margin-top:6px;font-size:12px;color:#ecfdf5;">Stripe Payment Verified: <strong>${currencySymbol}${verifiedTotalPaid} (${escapeHtml(verifiedCurrency)})</strong> • Ref: <code>${escapeHtml(paymentRef)}</code></div>
       </div>
 
       <p style="font-size:14px;color:#334155;line-height:1.6;">
@@ -1312,12 +1536,12 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
           <tbody>
             <tr>
               <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;color:#065f46;">Base Package: <strong>${escapeHtml(input.partnerName)} Incorporation</strong></td>
-              <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;font-weight:700;color:#065f46;text-align:right;">${currencySymbol}${input.basePriceAmount}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #d1fae5;font-size:13px;font-weight:700;color:#065f46;text-align:right;">${currencySymbol}${escapeHtml(String(input.basePriceAmount))}</td>
             </tr>
             ${addonRowsHtml}
             <tr>
               <td style="padding:10px 12px;font-size:14px;font-weight:800;color:#064e3b;">Total Paid via Stripe (${escapeHtml(paymentRef)})</td>
-              <td style="padding:10px 12px;font-size:15px;font-weight:800;color:#064e3b;text-align:right;">${currencySymbol}${input.totalPaidAmount}</td>
+              <td style="padding:10px 12px;font-size:15px;font-weight:800;color:#064e3b;text-align:right;">${currencySymbol}${verifiedTotalPaid}</td>
             </tr>
           </tbody>
         </table>
@@ -1341,8 +1565,7 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
   let emailStatus = 'MOCK_DEV';
 
   try {
-    if (resend && (founderSession || adminSession || process.env.NODE_ENV !== 'production')) {
-      // 1. Send Warm Intro Dossier Email to the Partner Desk
+    if (resend) {
       const partnerSubject = subjectLine.replace(/[\r\n\t]+/g, ' ').trim();
       const response = await resend.emails.send({
         from: EMAIL_DEFAULTS.from,
@@ -1369,7 +1592,7 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
       emailSent = true;
     }
   } catch (err) {
-    console.error('❌ Error executing submitPartnerWarmIntroLeadAction:', err);
+    console.error('❌ Error executing submitPaidPartnerConciergeOrderAction:', err);
     emailStatus = 'FAILED';
   }
 
@@ -1383,14 +1606,14 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
       status: emailStatus,
       resendId,
       fromEmail: EMAIL_DEFAULTS.from,
-      replyTo: input.founderEmail || EMAIL_DEFAULTS.replyTo,
+      replyTo: safeFounderEmail || EMAIL_DEFAULTS.replyTo,
       metadataJson: {
         partnerSlug: input.partnerSlug,
         slotKey: input.slotKey,
-        founderEmail: input.founderEmail,
+        founderEmail: safeFounderEmail,
         planId: input.planId,
-        totalPaidAmount: input.totalPaidAmount,
-        currency: input.currency,
+        totalPaidAmount: verifiedTotalPaid,
+        currency: verifiedCurrency,
         paymentRef,
       },
     });
@@ -1403,16 +1626,16 @@ export async function submitPaidPartnerConciergeOrderAction(input: {
         partnerSlug: input.partnerSlug,
         slotKey: input.slotKey,
         eventType: 'PAID_CONCIERGE_ORDER',
-        planId: input.planId || null,
+        planId: input.planId && /^[0-9a-f-]{36}$/i.test(input.planId) ? input.planId : null,
         planTitle: companyName1,
         founderName: input.founderName.trim(),
-        founderEmail: input.founderEmail.trim(),
+        founderEmail: safeFounderEmail,
         countryCode: input.countryCode || 'IE',
         selectedDomain: null,
         destinationUrl: `mailto:${recipientEmail}`,
         intakeAnswersJson: enrichedAnswers,
         leadStatus: 'BOUNTY_PAID',
-        estimatedBountyAmount: `${currencySymbol}${input.totalPaidAmount} Paid via Stripe`,
+        estimatedBountyAmount: `${currencySymbol}${verifiedTotalPaid} Paid via Stripe`,
         adminNotes: `Paid Stripe Concierge Order (${paymentRef}) • Dispatched to ${recipientEmail}`,
       })
       .returning();
@@ -1498,6 +1721,8 @@ export async function getAdminQuoteRfpsAction(): Promise<{
       return { ok: true, rfps: [] };
     }
 
+    const rfpIds = rfpRows.map((r) => r.id);
+
     const responsesRows = await db
       .select({
         id: quotePartnerResponses.id,
@@ -1516,7 +1741,8 @@ export async function getAdminQuoteRfpsAction(): Promise<{
         submittedAt: quotePartnerResponses.submittedAt,
       })
       .from(quotePartnerResponses)
-      .leftJoin(partnerOffers, eq(quotePartnerResponses.partnerId, partnerOffers.id));
+      .leftJoin(partnerOffers, eq(quotePartnerResponses.partnerId, partnerOffers.id))
+      .where(inArray(quotePartnerResponses.rfpId, rfpIds));
 
     const responsesByRfp = new Map<string, typeof responsesRows>();
     for (const resp of responsesRows) {

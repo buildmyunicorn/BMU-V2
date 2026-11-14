@@ -83,7 +83,9 @@ export async function generateModuleAConceptCanvasAction(input: {
   let persistedToCloudSql = false;
 
   if (UUID_REGEX.test(input.planId)) {
-    const ownership = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const ownership = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requireWrite: true,
+    });
     if (!ownership.authorized) {
       return {
         ok: true,
@@ -181,7 +183,9 @@ export async function saveModuleACanvasEditsAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const ownership = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const ownership = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requireWrite: true,
+  });
   if (!ownership.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -302,7 +306,9 @@ export async function generateModuleAGrantPositioningAdviceAction(input: {
   let persistedToCloudSql = false;
 
   if (UUID_REGEX.test(input.planId)) {
-    const ownership = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const ownership = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requireWrite: true,
+    });
     if (ownership.authorized) {
       try {
         const existingMod = await db
@@ -394,7 +400,9 @@ export async function parkOpenQuestionAction(input: {
     return { ok: true, persistedToCloudSql: false };
   }
 
-  const ownership = await verifyActiveSessionAndPlanOwnership(input.planId);
+  const ownership = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requireWrite: true,
+  });
   if (!ownership.authorized) {
     return { ok: false, persistedToCloudSql: false };
   }
@@ -429,16 +437,13 @@ export async function deleteStartupPlanAction(input: {
   }
 
   try {
-    const ownership = await verifyActiveSessionAndPlanOwnership(input.planId);
-    if (!ownership.authorized) {
-      if (
-        ownership.reason === 'DATABASE_UNAVAILABLE' ||
-        ownership.reason === 'UNAUTHENTICATED_SESSION' ||
-        ownership.isLocalPreview
-      ) {
-        // Database offline or local session — allow workspace local cleanup
-        return { ok: true };
-      }
+    const ownership = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requireWrite: true,
+    });
+    if (
+      !ownership.authorized ||
+      (ownership.role !== 'OWNER' && !ownership.isSuperAdmin)
+    ) {
       return {
         ok: false,
         error: ownership.reason || 'You are not authorized to delete this plan.',
@@ -449,9 +454,8 @@ export async function deleteStartupPlanAction(input: {
     await db.delete(startupPlans).where(eq(startupPlans.id, input.planId));
     return { ok: true };
   } catch (err: any) {
-    console.warn('[SPF Plan Delete] Database deletion error or offline:', err);
-    // Don't trap the user in the UI if DB is offline
-    return { ok: true };
+    console.warn('[SPF Plan Delete] Database deletion error:', err);
+    return { ok: false, error: 'Database unavailable while deleting plan.' };
   }
 }
 
@@ -483,20 +487,11 @@ export async function cloneStartupPlanAction(input: {
     };
   }
 
-  const ownership = await verifyActiveSessionAndPlanOwnership(input.sourcePlanId);
+  const ownership = await verifyActiveSessionAndPlanOwnership(input.sourcePlanId, {
+    requireWrite: true,
+    requiredFeature: 'CLONE_AND_PIVOT',
+  });
   if (!ownership.authorized || !ownership.userId) {
-    if (
-      ownership.reason === 'DATABASE_UNAVAILABLE' ||
-      ownership.reason === 'UNAUTHENTICATED_SESSION' ||
-      ownership.isLocalPreview
-    ) {
-      const fallbackId = `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      return {
-        ok: true,
-        newPlanId: fallbackId,
-        newPlanTitle: input.newTitle?.trim() || 'Cloned Plan (Pivot)',
-      };
-    }
     return {
       ok: false,
       error: ownership.reason || 'You are not authorized to clone this plan.',

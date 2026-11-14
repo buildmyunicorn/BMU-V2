@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { formatRelativeTime, formatFullDateTime } from '@/lib/utils';
 import type {
   CohortStartupMasterDocumentData,
   CohortFounderPlanSummary,
@@ -386,7 +387,18 @@ export function CohortStartupMasterDocumentView({
                   <span className="font-semibold text-slate-200">
                     {data.startup.founders}
                   </span>{' '}
-                  ({data.startup.founderEmail || 'Cohort Participant'}) •{' '}
+                  ({data.startup.founderEmail || 'Cohort Participant'})
+                  {data.startup.lastActiveAt && (
+                    <>
+                      {' '}•{' '}
+                      <span title={`Full timestamp: ${formatFullDateTime(data.startup.lastActiveAt)}`}>
+                        Last active:{' '}
+                        <strong className="text-slate-200 font-mono">
+                          {formatRelativeTime(data.startup.lastActiveAt)}
+                        </strong>
+                      </span>
+                    </>
+                  )}{' '}•{' '}
                   <span>HQ: {data.facts.countryName}</span> •{' '}
                   <span className="text-emerald-400 font-mono">
                     {data.startup.surveyResponsesCount} Verified Survey Proofs

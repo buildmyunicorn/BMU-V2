@@ -304,7 +304,10 @@ export function canConsumeAiCredits(
 
   const trimmedByok = entitlement.customApiKeyEncrypted?.trim() || '';
   const hasByok = Boolean(
-    /^AIza[0-9A-Za-z_-]{31,}$/.test(trimmedByok) &&
+    (trimmedByok === 'enc_gemini_byok_active' ||
+      trimmedByok.startsWith('enc:v1:') ||
+      trimmedByok.startsWith('enc:v2:') ||
+      /^(AIza|AQ\.)[0-9A-Za-z._-]{25,}$/.test(trimmedByok)) &&
       entitlement.planType === 'APPSUMO_LTD' &&
       entitlement.stackedCodesCount >= 3
   );

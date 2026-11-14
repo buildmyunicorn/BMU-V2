@@ -2,7 +2,7 @@
 
 import { db, grantsDirectory } from '@/db';
 import { eq, desc } from 'drizzle-orm';
-import { getAdminSessionCookie } from '@/lib/auth/server-auth';
+import { requireVerifiedSuperAdminSession } from '@/lib/auth/server-auth';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ensureDefaultGrantsSeededInDb } from '@/lib/grants/ensure-grants';
 import {
@@ -68,7 +68,7 @@ export async function listAdminGrantsAction(): Promise<{
   error?: string;
 }> {
   try {
-    const adminSession = await getAdminSessionCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
     if (!adminSession) {
       return { success: false, grants: [], error: 'Unauthorized admin session' };
     }
@@ -96,7 +96,7 @@ export async function aiExtractGrantFromPromptAction(input: {
   error?: string;
 }> {
   try {
-    const adminSession = await getAdminSessionCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
     if (!adminSession || adminSession.role !== 'SUPER_ADMIN') {
       return { success: false, error: 'Unauthorized: Super Admin session required' };
     }
@@ -240,7 +240,7 @@ export async function stageExtractedGrantAction(grant: ExtractedGrantResult): Pr
   error?: string;
 }> {
   try {
-    const adminSession = await getAdminSessionCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
     if (!adminSession) {
       return { success: false, error: 'Unauthorized admin session' };
     }
@@ -296,7 +296,7 @@ export async function updateGrantStatusAction(
   newStatus: 'ACTIVE' | 'PAUSED' | 'ARCHIVED' | 'PENDING_REVIEW'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const adminSession = await getAdminSessionCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
     if (!adminSession) {
       return { success: false, error: 'Unauthorized admin session' };
     }
@@ -322,15 +322,22 @@ export async function updateGrantFieldsAction(
   updates: Partial<GrantDirectoryRecord>
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const adminSession = await getAdminSessionCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
     if (!adminSession) {
       return { success: false, error: 'Unauthorized admin session' };
     }
 
+    const {
+      id: _ignoreId,
+      createdAt: _ignoreCreatedAt,
+      updatedAt: _ignoreUpdatedAt,
+      ...safeUpdates
+    } = updates || {};
+
     await db
       .update(grantsDirectory)
       .set({
-        ...updates,
+        ...safeUpdates,
         updatedAt: new Date(),
       })
       .where(eq(grantsDirectory.id, grantId));
@@ -346,7 +353,7 @@ export async function deleteGrantPermanentlyAction(
   grantId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const adminSession = await getAdminSessionCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
     if (!adminSession) {
       return { success: false, error: 'Unauthorized admin session' };
     }

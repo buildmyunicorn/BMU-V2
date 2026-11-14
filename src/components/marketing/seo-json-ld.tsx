@@ -5,6 +5,13 @@ import {
 } from '@/components/marketing/landing-faqs';
 import type { LandingEdition } from '@/components/marketing/platform-ui-previews';
 
+function safeJsonLdStringify(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+}
+
 export function LandingSeoJsonLd({ edition }: { edition: LandingEdition }) {
   const faqs: FaqItem[] = getFaqsForEdition(edition);
 
@@ -105,15 +112,15 @@ export function LandingSeoJsonLd({ edition }: { edition: LandingEdition }) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(softwareSchema) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(faqSchema) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(orgSchema) }}
       />
     </>
   );

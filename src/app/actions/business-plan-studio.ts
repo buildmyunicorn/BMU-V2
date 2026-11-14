@@ -51,9 +51,16 @@ export async function saveBusinessPlanStudioVersionsAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_L_BUSINESS_PLAN',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return {
+        ok: false,
+        persistedToCloudSql: false,
+        error: authCheck.reason || 'Unauthorized plan access.',
+      };
     }
 
     await ensureDatabaseSchemaSynced();
@@ -146,17 +153,27 @@ export async function compileBusinessPlanSectionAction(input: {
   currentResponseText?: string;
   planContextSummary: string;
 }): Promise<GenerateModuleLStep3SectionResult> {
-  if (UUID_REGEX.test(input.planId)) {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
-    if (!authCheck.authorized) {
-      return {
-        allowed: false,
-        compiledResponseText: input.currentResponseText || '',
-        wordCount: 0,
-        aiAssessorTip: 'Session expired or plan ownership could not be verified.',
-        engineMode: 'smart-synthesizer',
-      };
-    }
+  if (!UUID_REGEX.test(input.planId)) {
+    return {
+      allowed: false,
+      compiledResponseText: input.currentResponseText || '',
+      wordCount: 0,
+      aiAssessorTip: 'A valid saved Startup Plan is required.',
+      engineMode: 'smart-synthesizer',
+    };
+  }
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+    requireWrite: true,
+  });
+  if (!authCheck.authorized) {
+    return {
+      allowed: false,
+      compiledResponseText: input.currentResponseText || '',
+      wordCount: 0,
+      aiAssessorTip: authCheck.reason || 'Session expired or plan ownership could not be verified.',
+      engineMode: 'smart-synthesizer',
+    };
   }
 
   return await generateModuleLStep3SectionViaRouter({
@@ -205,18 +222,28 @@ export async function auditBusinessPlanVersionAction(input: {
   moduleJFinanceAndCashflow?: string;
   moduleKFundingStackAndBuffer?: string;
 }): Promise<GenerateModuleLStep2AuditResult> {
-  if (UUID_REGEX.test(input.planId)) {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
-    if (!authCheck.authorized) {
-      return {
-        allowed: false,
-        overallAuditScore: 0,
-        auditItems: [],
-        preFlightDefenseSummary: 'Unauthorized session.',
-        aiAssessorTip: 'Please log in to run live assessor audits.',
-        engineMode: 'smart-synthesizer',
-      };
-    }
+  if (!UUID_REGEX.test(input.planId)) {
+    return {
+      allowed: false,
+      overallAuditScore: 0,
+      auditItems: [],
+      preFlightDefenseSummary: 'A valid saved Startup Plan is required.',
+      aiAssessorTip: 'Please save your plan before running live assessor audits.',
+      engineMode: 'smart-synthesizer',
+    };
+  }
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+  });
+  if (!authCheck.authorized) {
+    return {
+      allowed: false,
+      overallAuditScore: 0,
+      auditItems: [],
+      preFlightDefenseSummary: authCheck.reason || 'Unauthorized session.',
+      aiAssessorTip: 'Please log in with an active Paid Pass to run live assessor audits.',
+      engineMode: 'smart-synthesizer',
+    };
   }
 
   const compilerMode =
@@ -263,16 +290,25 @@ export async function polishBusinessPlanChapterAction(input: {
   hqCountryCode: string;
   baseCurrency: string;
 }): Promise<PolishBusinessPlanTextResult> {
-  if (UUID_REGEX.test(input.planId)) {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
-    if (!authCheck.authorized) {
-      return {
-        allowed: false,
-        polishedText: input.currentText,
-        summaryOfChanges: 'Session unauthorized.',
-        engineMode: 'smart-synthesizer',
-      };
-    }
+  if (!UUID_REGEX.test(input.planId)) {
+    return {
+      allowed: false,
+      polishedText: input.currentText,
+      summaryOfChanges: 'A valid saved Startup Plan is required.',
+      engineMode: 'smart-synthesizer',
+    };
+  }
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+    requireWrite: true,
+  });
+  if (!authCheck.authorized) {
+    return {
+      allowed: false,
+      polishedText: input.currentText,
+      summaryOfChanges: authCheck.reason || 'Session unauthorized.',
+      engineMode: 'smart-synthesizer',
+    };
   }
 
   return await polishBusinessPlanTextViaRouter({
@@ -314,15 +350,23 @@ export async function compileAllBusinessPlanSectionsAction(input: {
   compiledSections: { sectionNumber: number; compiledResponseText: string }[];
   error?: string;
 }> {
-  if (UUID_REGEX.test(input.planId)) {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
-    if (!authCheck.authorized) {
-      return {
-        ok: false,
-        compiledSections: [],
-        error: 'Unauthorized session.',
-      };
-    }
+  if (!UUID_REGEX.test(input.planId)) {
+    return {
+      ok: false,
+      compiledSections: [],
+      error: 'A valid saved Startup Plan is required.',
+    };
+  }
+  const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+    requireWrite: true,
+  });
+  if (!authCheck.authorized) {
+    return {
+      ok: false,
+      compiledSections: [],
+      error: authCheck.reason || 'Unauthorized session.',
+    };
   }
 
   const results: { sectionNumber: number; compiledResponseText: string }[] = [];

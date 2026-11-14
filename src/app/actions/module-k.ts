@@ -58,9 +58,12 @@ export async function saveModuleKStep1AuditAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_K_GRANTS_FUNDING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized' };
     }
 
     await ensureModuleKEnumInPostgres();
@@ -140,9 +143,12 @@ export async function saveModuleKStep2CapitalStackAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_K_GRANTS_FUNDING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized' };
     }
 
     await ensureModuleKEnumInPostgres();
@@ -221,9 +227,12 @@ export async function parkModuleKOpenQuestionAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_K_GRANTS_FUNDING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: false, error: 'Unauthorized' };
+      return { ok: false, error: authCheck.reason || 'Unauthorized' };
     }
 
     await db.insert(openQuestionsParkingLot).values({
@@ -248,7 +257,9 @@ export async function generateModuleKCapitalStackNarrativeAction(
 ): Promise<GenerateModuleKCapitalStackNarrativeResult> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
+      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+        requiredModule: 'MOD_K_GRANTS_FUNDING',
+      });
       if (!authCheck.authorized) {
         return {
           allowed: false,
@@ -273,7 +284,9 @@ export async function generateModuleKStep1AuditOverviewAction(
 ): Promise<GenerateModuleKStep1AuditOverviewResult> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
+      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+        requiredModule: 'MOD_K_GRANTS_FUNDING',
+      });
       if (!authCheck.authorized) {
         return {
           allowed: false,
@@ -303,9 +316,12 @@ export async function saveModuleKStep3ReimbursementBridgeAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_K_GRANTS_FUNDING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized' };
     }
 
     await ensureModuleKEnumInPostgres();
@@ -379,7 +395,9 @@ export async function generateModuleKStep3ReimbursementBridgeAction(
 ): Promise<GenerateModuleKStep3ReimbursementBridgeResult> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
+      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+        requiredModule: 'MOD_K_GRANTS_FUNDING',
+      });
       if (!authCheck.authorized) {
         return {
           allowed: false,
@@ -409,9 +427,12 @@ export async function saveModuleKStep4TaxReliefAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_K_GRANTS_FUNDING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized' };
     }
 
     await ensureModuleKEnumInPostgres();
@@ -485,7 +506,9 @@ export async function generateModuleKStep4TaxReliefAction(
 ): Promise<GenerateModuleKStep4TaxReliefResult> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
+      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+        requiredModule: 'MOD_K_GRANTS_FUNDING',
+      });
       if (!authCheck.authorized) {
         return {
           allowed: false,
@@ -516,9 +539,12 @@ export async function saveModuleKStep5FundingBriefAction(input: {
   }
 
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_K_GRANTS_FUNDING',
+      requireWrite: true,
+    });
     if (!authCheck.authorized) {
-      return { ok: true, persistedToCloudSql: false };
+      return { ok: false, persistedToCloudSql: false, error: authCheck.reason || 'Unauthorized' };
     }
 
     await ensureModuleKEnumInPostgres();
@@ -592,7 +618,9 @@ export async function generateModuleKStep5FundingBriefAction(
 ): Promise<GenerateModuleKStep5FundingBriefResult> {
   if (params.planId && UUID_REGEX.test(params.planId)) {
     try {
-      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId);
+      const authCheck = await verifyActiveSessionAndPlanOwnership(params.planId, {
+        requiredModule: 'MOD_K_GRANTS_FUNDING',
+      });
       if (!authCheck.authorized) {
         return {
           allowed: false,

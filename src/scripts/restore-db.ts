@@ -81,6 +81,11 @@ async function restore() {
         }
 
         const columns = Object.keys(row);
+        if (!columns.every((c) => /^[a-zA-Z0-9_]+$/.test(c))) {
+          throw new Error(
+            `Unsafe column identifier detected in backup for table "${table}".`
+          );
+        }
         const values = Object.values(row).map((v) => {
           // If object or array and not date, JSON stringify for jsonb columns
           if (v !== null && typeof v === 'object' && !(v instanceof Date)) {

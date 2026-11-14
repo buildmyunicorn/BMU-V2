@@ -1,69 +1,78 @@
 'use server';
 
-import { headers } from 'next/headers';
 import { db } from '@/db';
 import {
   surveyBoostPricingTiers,
   surveyBoostOrders,
   validationSurveys,
-  startupPlans,
-  users,
 } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { stripe, isStripeConfigured } from '@/lib/stripe/client';
 import {
   verifyActiveSessionAndPlanOwnership,
-  getServerSessionCookie,
-  getAdminSessionCookie,
+  getVerifiedActiveFounderFromCookie,
+  requireVerifiedSuperAdminSession,
+  getTrustedClientIp,
   checkRateLimit,
 } from '@/lib/auth/server-auth';
+import { getTrustedAppOrigin } from '@/lib/auth/oauth-helpers';
 import { ProlificService } from '@/lib/panels/prolific-service';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Resolves a survey's Postgres UUID primary key from either a UUID or a publicSlug/client-generated ID.
- * If not found, falls back to matching by planId or creates a persistent placeholder so orders succeed.
+ * Resolves a survey's Postgres UUID primary key scoped strictly to `planId`.
  */
 async function resolveDbSurveyRecord(
   surveyIdentifier: string,
-  planId?: string
+  planId: string,
+  allowCreatePlaceholder = false
 ): Promise<typeof validationSurveys.$inferSelect | null> {
-  if (!surveyIdentifier && !planId) return null;
-  
+  if (!planId || !UUID_REGEX.test(planId)) return null;
+
   if (surveyIdentifier && UUID_REGEX.test(surveyIdentifier)) {
     const [row] = await db
       .select()
       .from(validationSurveys)
-      .where(eq(validationSurveys.id, surveyIdentifier as any))
+      .where(
+        and(
+          eq(validationSurveys.id, surveyIdentifier as any),
+          eq(validationSurveys.planId, planId as any)
+        )
+      )
       .limit(1);
     if (row) return row;
   }
 
-  // Fallback 1: match by publicSlug
+  // Fallback 1: match by publicSlug AND planId
   if (surveyIdentifier) {
     const [rowBySlug] = await db
       .select()
       .from(validationSurveys)
-      .where(eq(validationSurveys.publicSlug, surveyIdentifier))
+      .where(
+        and(
+          eq(validationSurveys.publicSlug, surveyIdentifier),
+          eq(validationSurveys.planId, planId as any)
+        )
+      )
       .limit(1);
     if (rowBySlug) return rowBySlug;
   }
 
   // Fallback 2: match any existing survey for this plan
-  if (planId && UUID_REGEX.test(planId)) {
-    const [rowByPlan] = await db
-      .select()
-      .from(validationSurveys)
-      .where(eq(validationSurveys.planId, planId as any))
-      .limit(1);
-    if (rowByPlan) return rowByPlan;
+  const [rowByPlan] = await db
+    .select()
+    .from(validationSurveys)
+    .where(eq(validationSurveys.planId, planId as any))
+    .limit(1);
+  if (rowByPlan) return rowByPlan;
 
-    // Fallback 3: Create a placeholder survey record so the foreign key constraint succeeds
+  // Fallback 3: Create a placeholder survey record only during checkout if requested
+  if (allowCreatePlaceholder) {
     const fallbackSlug =
       surveyIdentifier && !surveyIdentifier.startsWith('survey-')
-        ? surveyIdentifier
+        ? `${surveyIdentifier}-${Date.now().toString(36)}`
         : `survey-${Date.now().toString(36)}`;
     const [created] = await db
       .insert(validationSurveys)
@@ -158,7 +167,13 @@ export async function getSurveyBoostOrdersAction(
   orders: any[];
 }> {
   try {
-    const authCheck = await verifyActiveSessionAndPlanOwnership(planId);
+    if (!planId || !UUID_REGEX.test(planId)) {
+      return { success: false, orders: [] };
+    }
+
+    const authCheck = await verifyActiveSessionAndPlanOwnership(planId, {
+      requiredModule: 'MOD_C_SURVEYS_FEEDBACK',
+    });
     if (!authCheck.authorized) {
       return { success: false, orders: [] };
     }
@@ -167,27 +182,20 @@ export async function getSurveyBoostOrdersAction(
       return { success: true, orders: [] };
     }
 
-    // Check if the parameter is already a valid UUID
-    let dbSurveyId: string | null = null;
-    if (UUID_REGEX.test(surveyIdOrSlug)) {
-      dbSurveyId = surveyIdOrSlug;
-    } else {
-      // Find the survey in Postgres by publicSlug or ID
-      const resolved = await resolveDbSurveyRecord(surveyIdOrSlug);
-      if (resolved) {
-        dbSurveyId = resolved.id;
-      }
-    }
-
-    if (!dbSurveyId) {
-      // Not yet persisted to Postgres (e.g. freshly created in-memory draft)
+    const resolved = await resolveDbSurveyRecord(surveyIdOrSlug, planId, false);
+    if (!resolved) {
       return { success: true, orders: [] };
     }
 
     const rows = await db
       .select()
       .from(surveyBoostOrders)
-      .where(eq(surveyBoostOrders.surveyId, dbSurveyId as any))
+      .where(
+        and(
+          eq(surveyBoostOrders.surveyId, resolved.id as any),
+          eq(surveyBoostOrders.planId, planId as any)
+        )
+      )
       .orderBy(desc(surveyBoostOrders.createdAt));
 
     return { success: true, orders: rows };
@@ -212,10 +220,17 @@ export async function checkSurveyBoostAvailabilityAction(input: {
   error?: string;
 }> {
   try {
-    const founderSession = await getServerSessionCookie();
-    const adminSession = await getAdminSessionCookie();
+    const founderSession = await getVerifiedActiveFounderFromCookie();
+    const adminSession = await requireVerifiedSuperAdminSession();
+    if (!founderSession && !adminSession) {
+      return {
+        success: false,
+        error: 'Authentication required to check panel availability.',
+      };
+    }
+    const clientIp = await getTrustedClientIp();
     const callerKey =
-      founderSession?.userId || adminSession?.userId || 'anon';
+      founderSession?.userId || adminSession?.userId || clientIp;
     const rl = checkRateLimit(`prolific_avail:${callerKey}`, 15, 60_000);
     if (!rl.allowed) {
       return {
@@ -297,9 +312,16 @@ export async function createSurveyBoostCheckoutAction(
       };
     }
 
-    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId);
+    if (!input.planId || !UUID_REGEX.test(input.planId)) {
+      return { success: false, error: 'Valid startup plan ID is required.' };
+    }
+
+    const authCheck = await verifyActiveSessionAndPlanOwnership(input.planId, {
+      requiredModule: 'MOD_C_SURVEYS_FEEDBACK',
+      requireWrite: true,
+    });
     if (!authCheck.authorized || !authCheck.userId) {
-      return { success: false, error: 'Unauthorized or invalid session.' };
+      return { success: false, error: authCheck.reason || 'Unauthorized or invalid session.' };
     }
 
     let [tier] = await db
@@ -335,8 +357,8 @@ export async function createSurveyBoostCheckoutAction(
       return { success: false, error: 'Selected response pack is unavailable.' };
     }
 
-    // Resolve real survey record from DB by UUID or publicSlug, falling back to planId
-    const survey = await resolveDbSurveyRecord(input.surveyId, input.planId);
+    // Resolve real survey record from DB scoped to planId
+    const survey = await resolveDbSurveyRecord(input.surveyId, input.planId, true);
 
     if (!survey) {
       return { success: false, error: 'Survey not found. Please save your survey before ordering responses.' };
@@ -381,24 +403,10 @@ export async function createSurveyBoostCheckoutAction(
       })
       .returning();
 
-    // Determine return URL origin dynamically from request headers
-    let origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    try {
-      const headerList = await headers();
-      const detectedOrigin = headerList.get('origin');
-      const host = headerList.get('host');
-      const proto = headerList.get('x-forwarded-proto') || 'http';
-      if (detectedOrigin) {
-        origin = detectedOrigin;
-      } else if (host) {
-        origin = `${proto}://${host}`;
-      }
-    } catch {
-      // Fallback in environments where headers() is unavailable
-    }
+    const origin = getTrustedAppOrigin();
 
-    const successUrl = `${origin}/workspace?planId=${input.planId}&module=MOD_C_SURVEYS_FEEDBACK&boost_success=true&order_id=${order.id}`;
-    const cancelUrl = `${origin}/workspace?planId=${input.planId}&module=MOD_C_SURVEYS_FEEDBACK&boost_canceled=true`;
+    const successUrl = `${origin}/workspace?planId=${encodeURIComponent(input.planId)}&module=MOD_C_SURVEYS_FEEDBACK&boost_success=true&order_id=${encodeURIComponent(order.id)}`;
+    const cancelUrl = `${origin}/workspace?planId=${encodeURIComponent(input.planId)}&module=MOD_C_SURVEYS_FEEDBACK&boost_canceled=true`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
