@@ -437,6 +437,39 @@ export async function parkOpenQuestionAction(input: {
 }
 
 /**
+ * Deletes / removes an item from the Open Questions Parking Lot (`open_questions_parking_lot`) in Cloud SQL.
+ */
+export async function deleteOpenQuestionAction(input: {
+  planId: string;
+  questionText: string;
+}): Promise<{ ok: boolean; deletedCount: number }> {
+  if (!UUID_REGEX.test(input.planId) || !input.questionText.trim()) {
+    return { ok: true, deletedCount: 0 };
+  }
+
+  const ownership = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requireWrite: true,
+  });
+  if (!ownership.authorized) {
+    return { ok: false, deletedCount: 0 };
+  }
+
+  try {
+    const res = await db
+      .delete(openQuestionsParkingLot)
+      .where(
+        and(
+          eq(openQuestionsParkingLot.planId, input.planId),
+          eq(openQuestionsParkingLot.questionText, input.questionText.trim())
+        )
+      );
+    return { ok: true, deletedCount: 1 };
+  } catch {
+    return { ok: true, deletedCount: 0 };
+  }
+}
+
+/**
  * Updates core plan settings in-place (`title`, `oneLinerSummary`, `hqCountryCode`, `baseCurrency`,
  * `industryCategory`, and `fundingTrackMode`) without creating a duplicate plan or hitting plan limits.
  */

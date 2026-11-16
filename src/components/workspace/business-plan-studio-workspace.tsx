@@ -580,10 +580,33 @@ export function BusinessPlanStudioWorkspace({
     return (rawVersions: BusinessPlanVersionItem[]): BusinessPlanVersionItem[] => {
       return (rawVersions || [])
         .map((ver) => {
+          const stripRoboticTelemetry = (
+            secs: ModuleLCompiledSectionItem[]
+          ): ModuleLCompiledSectionItem[] =>
+            secs.map((sec) => {
+              const txt = sec.compiledResponseText || '';
+              if (
+                txt.includes('Beachhead=') ||
+                txt.includes('BlendedNetPrice=') ||
+                txt.includes('FixedOverheads=') ||
+                txt.includes('Y1BreakevenTarget=') ||
+                txt.includes('TargetGrant=') ||
+                txt.includes('WhySwitch=') ||
+                txt.includes('HatsAssigned=')
+              ) {
+                return {
+                  ...sec,
+                  compiledResponseText: '',
+                  isCustomEdited: false,
+                };
+              }
+              return sec;
+            });
+
           // Helper to ensure sections array is always valid
           const resolveSectionsForVersion = (v: BusinessPlanVersionItem): ModuleLCompiledSectionItem[] => {
             if (Array.isArray(v.sections) && v.sections.length > 0) {
-              return v.sections;
+              return stripRoboticTelemetry(v.sections);
             }
             if (
               Array.isArray(plan.moduleLData?.step3Compiler?.sections) &&
@@ -592,7 +615,7 @@ export function BusinessPlanStudioWorkspace({
                 v.id === plan.moduleLData?.activeVersionId ||
                 v.archetype === plan.moduleLData?.step3Compiler?.modeCompiledFor)
             ) {
-              return plan.moduleLData.step3Compiler.sections;
+              return stripRoboticTelemetry(plan.moduleLData.step3Compiler.sections);
             }
             const cat =
               ARCHETYPE_CATALOG.find((c) => c.archetype === v.archetype) ||
@@ -802,6 +825,10 @@ export function BusinessPlanStudioWorkspace({
   const [isPolishing, setIsPolishing] = useState<boolean>(false);
   const [polishBanner, setPolishBanner] = useState<string | null>(null);
 
+  // Per-chapter AI Drafting State & Assessor Tips
+  const [draftingSectionNumber, setDraftingSectionNumber] = useState<number | null>(null);
+  const [chapterAssessorTips, setChapterAssessorTips] = useState<Record<number, string>>({});
+
   // Batch Generation State
   const [isCompilingAll, setIsCompilingAll] = useState(false);
   const [compileAllProgress, setCompileAllProgress] = useState<{ current: number; total: number } | null>(null);
@@ -827,6 +854,76 @@ export function BusinessPlanStudioWorkspace({
 
   // Refs for smooth scroll navigation
   const chapterRefs = useRef<{ [key: number]: HTMLElement | null }>({});
+
+  // Helper: Archetype-specific target length & depth descriptors
+  function getArchetypeLengthMeta(archetype?: BusinessPlanArchetype): {
+    shortBadge: string;
+    totalTargetRange: string;
+    chapterRangeNote: string;
+  } {
+    switch (archetype) {
+      case 'LEAN_ONE_PAGER':
+        return {
+          shortBadge: '4 Chapters • ~500–650w Target (2-Page Brief)',
+          totalTargetRange: '500–650 words total',
+          chapterRangeNote: '110–165 words per chapter (200w max)',
+        };
+      case 'INVESTOR_ANGEL_MEMO':
+        return {
+          shortBadge: '5 Chapters • ~1,100–1,400w Target (Investor Memo)',
+          totalTargetRange: '1,100–1,400 words total',
+          chapterRangeNote: '200–290 words per chapter',
+        };
+      case 'COMMERCIAL_BANK_LOAN':
+      case 'UK_START_UP_LOANS_WORKBOOK':
+        return {
+          shortBadge: '5 Chapters • ~1,200–1,600w Target (Credit Dossier)',
+          totalTargetRange: '1,200–1,600 words total',
+          chapterRangeNote: '220–320 words per chapter',
+        };
+      case 'IE_LEO_OFFICIAL_GRANT':
+        return {
+          shortBadge: '7 Chapters • ~1,800–2,400w Target (LEO / EI Form)',
+          totalTargetRange: '1,800–2,400 words total',
+          chapterRangeNote: '240–340 words per chapter',
+        };
+      case 'UK_INNOVATE_UK_9Q':
+        return {
+          shortBadge: '9 Questions • ~2,500–3,200w Target (400w/Q Cap)',
+          totalTargetRange: '2,500–3,200 words total',
+          chapterRangeNote: '260–360 words per question (strict 400w UKRI cap)',
+        };
+      case 'STANDARD_COMPREHENSIVE_PLAN':
+      default:
+        return {
+          shortBadge: '10 Chapters • ~2,200–3,000w Target (Full Plan)',
+          totalTargetRange: '2,200–3,000 words total',
+          chapterRangeNote: '210–310 words per chapter',
+        };
+    }
+  }
+
+  function getSectionTargetRangeLabel(
+    archetype?: BusinessPlanArchetype,
+    wordLimit: number = 350
+  ): string {
+    if (archetype === 'LEAN_ONE_PAGER' || wordLimit <= 220) {
+      return `110–165 words target (${wordLimit}w max)`;
+    }
+    if (archetype === 'UK_INNOVATE_UK_9Q') {
+      return `260–360 words target (strict ${wordLimit}w UKRI portal cap)`;
+    }
+    if (archetype === 'INVESTOR_ANGEL_MEMO') {
+      return `200–290 words target (${wordLimit}w max)`;
+    }
+    if (archetype === 'COMMERCIAL_BANK_LOAN' || archetype === 'UK_START_UP_LOANS_WORKBOOK') {
+      return `220–320 words target (${wordLimit}w max)`;
+    }
+    if (archetype === 'IE_LEO_OFFICIAL_GRANT') {
+      return `240–340 words target (${wordLimit}w max)`;
+    }
+    return `210–310 words target (${wordLimit}w max)`;
+  }
 
   // 3. Save helper
   async function persistVersions(newVersions: BusinessPlanVersionItem[], newActiveId?: string) {
@@ -881,6 +978,92 @@ export function BusinessPlanStudioWorkspace({
     setEditingSectionNumber(null);
   }
 
+  // 4B. Draft or Re-Draft a single chapter with AI (calibrated to the active plan archetype's length)
+  async function handleDraftSingleChapterWithAi(
+    sectionNumber: number,
+    fromDrawer: boolean = false
+  ) {
+    if (!activeVersion || isVaultReadonly) return;
+    const targetSec = (activeVersion.sections || []).find(
+      (s) => s.sectionNumber === sectionNumber
+    );
+    if (!targetSec) return;
+
+    setDraftingSectionNumber(sectionNumber);
+    if (fromDrawer) {
+      setPolishBanner(null);
+    }
+
+    const summaryFactPack = buildGroundedPlanFactPackString(
+      plan,
+      activeVersion.executiveHookStatement
+    );
+
+    try {
+      const res = await compileBusinessPlanSectionAction({
+        planId: plan.id,
+        versionId: activeVersion.id,
+        archetype: activeVersion.archetype,
+        sectionNumber: targetSec.sectionNumber,
+        sectionTitle: targetSec.title,
+        assessorPrompt: targetSec.assessorQuestionPrompt,
+        wordLimit: targetSec.wordLimit,
+        scoringWeightPercent: targetSec.scoringWeightPercent,
+        planTitle: plan.title,
+        industryCategory: plan.industryCategory,
+        hqCountryCode: effectiveCountry,
+        baseCurrency: currency,
+        targetTone: activeVersion.targetTone,
+        currentResponseText: fromDrawer
+          ? inlineEditText
+          : targetSec.isCustomEdited
+            ? targetSec.compiledResponseText
+            : '',
+        planContextSummary: summaryFactPack,
+      });
+
+      if (res.compiledResponseText) {
+        if (res.aiAssessorTip) {
+          setChapterAssessorTips((prev) => ({
+            ...prev,
+            [sectionNumber]: res.aiAssessorTip!,
+          }));
+        }
+        if (editingSectionNumber === sectionNumber) {
+          setInlineEditText(res.compiledResponseText);
+          setPolishBanner(
+            `Drafted with AI (${res.wordCount} words • calibrated for ${catalogMeta.title})`
+          );
+        }
+
+        const updatedSections = (activeVersion.sections || []).map((s) =>
+          s.sectionNumber === sectionNumber
+            ? {
+                ...s,
+                compiledResponseText: res.compiledResponseText,
+                isCustomEdited: true,
+              }
+            : s
+        );
+        const updatedVer: BusinessPlanVersionItem = {
+          ...activeVersion,
+          sections: updatedSections,
+          lastEditedAt: new Date().toISOString(),
+        };
+        const nextVersions = versions.map((v) =>
+          v.id === activeVersion.id ? updatedVer : v
+        );
+        await persistVersions(nextVersions);
+        setSaveBanner(`Chapter ${sectionNumber}.0 drafted with AI`);
+        setTimeout(() => setSaveBanner(null), 3000);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setDraftingSectionNumber(null);
+    }
+  }
+
   // 5. Option A: Inline AI Polish Action
   async function handleApplyPolish(presetInstruction?: string) {
     if (!activeVersion || editingSectionNumber === null) return;
@@ -893,6 +1076,11 @@ export function BusinessPlanStudioWorkspace({
     setIsPolishing(true);
     setPolishBanner(null);
 
+    const summaryFactPack = buildGroundedPlanFactPackString(
+      plan,
+      activeVersion.executiveHookStatement
+    );
+
     try {
       const res = await polishBusinessPlanChapterAction({
         planId: plan.id,
@@ -900,15 +1088,19 @@ export function BusinessPlanStudioWorkspace({
         currentText: inlineEditText || currentSec.compiledResponseText,
         instruction,
         targetTone: activeVersion.targetTone,
+        archetype: activeVersion.archetype,
+        wordLimit: currentSec.wordLimit,
+        assessorPrompt: currentSec.assessorQuestionPrompt,
+        planContextSummary: summaryFactPack,
         planTitle: plan.title,
         industryCategory: plan.industryCategory,
-        hqCountryCode: selectedCountry,
+        hqCountryCode: effectiveCountry,
         baseCurrency: currency,
       });
 
       if (res.polishedText) {
         setInlineEditText(res.polishedText);
-        setPolishBanner(res.summaryOfChanges || 'Prose refined with AI');
+        setPolishBanner(res.summaryOfChanges || 'Chapter refined with AI');
         setCustomPolishInstruction('');
       }
     } catch {
@@ -976,29 +1168,35 @@ export function BusinessPlanStudioWorkspace({
     };
   }, [plan.moduleFData?.step5HiringPlanData?.roles, verifiedFacts.teamMembersCount]);
 
-  // 6. One-Click Compile/Refresh Entire Document for Active Version
-  async function handleCompileAllChapters() {
-    if (!activeVersion || isVaultReadonly) return;
+  // 6. One-Click Compile/Refresh Entire Document for Active Version (or a newly created version)
+  async function handleCompileAllChapters(
+    overrideVersion?: BusinessPlanVersionItem,
+    overrideVersionsList?: BusinessPlanVersionItem[]
+  ) {
+    const targetVer = overrideVersion || activeVersion;
+    const baseVersions = overrideVersionsList || versions;
+    if (!targetVer || isVaultReadonly) return;
+
     setIsCompilingAll(true);
-    setCompileAllProgress({ current: 0, total: activeVersion.sections?.length || 0 });
+    setCompileAllProgress({ current: 0, total: targetVer.sections?.length || 0 });
 
     const summaryFactPack = buildGroundedPlanFactPackString(
       plan,
-      activeVersion.executiveHookStatement
+      targetVer.executiveHookStatement
     );
 
     try {
       const res = await compileAllBusinessPlanSectionsAction({
         planId: plan.id,
-        versionId: activeVersion.id,
-        archetype: activeVersion.archetype,
-        targetTone: activeVersion.targetTone,
+        versionId: targetVer.id,
+        archetype: targetVer.archetype,
+        targetTone: targetVer.targetTone,
         planTitle: plan.title,
         industryCategory: plan.industryCategory,
         hqCountryCode: effectiveCountry,
         baseCurrency: currency,
         planContextSummary: summaryFactPack,
-        sections: (activeVersion.sections || []).map((s) => ({
+        sections: (targetVer.sections || []).map((s) => ({
           sectionNumber: s.sectionNumber,
           title: s.title,
           assessorPrompt: s.assessorQuestionPrompt,
@@ -1009,19 +1207,35 @@ export function BusinessPlanStudioWorkspace({
       });
 
       if (res.ok && res.compiledSections.length > 0) {
-        const resultMap = new Map(res.compiledSections.map((r) => [r.sectionNumber, r.compiledResponseText]));
-        const updatedSections = (activeVersion.sections || []).map((s) => ({
+        const resultMap = new Map(
+          res.compiledSections.map((r) => [r.sectionNumber, r.compiledResponseText])
+        );
+        const tipsMap: Record<number, string> = {};
+        for (const r of res.compiledSections) {
+          if (r.aiAssessorTip) {
+            tipsMap[r.sectionNumber] = r.aiAssessorTip;
+          }
+        }
+        if (Object.keys(tipsMap).length > 0) {
+          setChapterAssessorTips((prev) => ({ ...prev, ...tipsMap }));
+        }
+
+        const updatedSections = (targetVer.sections || []).map((s) => ({
           ...s,
-          compiledResponseText: resultMap.get(s.sectionNumber) || s.compiledResponseText,
+          compiledResponseText:
+            resultMap.get(s.sectionNumber) || s.compiledResponseText,
+          isCustomEdited: true,
         }));
         const updatedVer: BusinessPlanVersionItem = {
-          ...activeVersion,
+          ...targetVer,
           sections: updatedSections,
           lastEditedAt: new Date().toISOString(),
         };
-        const nextVersions = versions.map((v) => (v.id === activeVersion.id ? updatedVer : v));
-        persistVersions(nextVersions);
-        setSaveBanner('Entire plan regenerated successfully');
+        const nextVersions = baseVersions.map((v) =>
+          v.id === targetVer.id ? updatedVer : v
+        );
+        await persistVersions(nextVersions, targetVer.id);
+        setSaveBanner('Plan drafted with AI for ' + targetVer.title);
         setTimeout(() => setSaveBanner(null), 3500);
       }
     } catch {
@@ -1033,7 +1247,7 @@ export function BusinessPlanStudioWorkspace({
   }
 
   // 7. Version Management Handlers
-  function handleCreateVersion() {
+  function handleCreateVersion(andDraftWithAi: boolean = false) {
     if (!newVersionTitle.trim()) return;
     const cat = ARCHETYPE_CATALOG.find((c) => c.archetype === selectedArchetypeForNew) || ARCHETYPE_CATALOG[0];
     const newVer: BusinessPlanVersionItem = {
@@ -1063,6 +1277,10 @@ export function BusinessPlanStudioWorkspace({
     persistVersions(next, newVer.id);
     setIsCreatingNewVersion(false);
     setNewVersionTitle('');
+
+    if (andDraftWithAi) {
+      void handleCompileAllChapters(newVer, next);
+    }
   }
 
   function handleDuplicateVersion(ver: BusinessPlanVersionItem) {
@@ -1153,15 +1371,21 @@ Generated by Startup Preflight Business Plan Studio
               <FileCheck2 className="h-5 w-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Business Plan Studio
                 </span>
-                <Badge className="border-slate-200 bg-slate-100 text-[10px] font-bold text-emerald-900">
-                  PLAN COMPILER
+                <Badge className="border-emerald-200 bg-emerald-50 text-[10px] font-bold text-emerald-900">
+                  AI PLAN COMPILER
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="border-slate-200 bg-slate-50 font-mono tabular-nums text-[10px] font-medium text-slate-600"
+                >
+                  {getArchetypeLengthMeta(activeVersion?.archetype).shortBadge}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-extrabold text-slate-900 sm:text-base">
                   {activeVersion?.title}
                 </span>
@@ -1174,22 +1398,22 @@ Generated by Startup Preflight Business Plan Studio
 
           {/* Right: Primary Document Action Controls */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Compile All Button */}
+            {/* Draft Full Plan with AI Button */}
             <Button
               size="sm"
-              onClick={handleCompileAllChapters}
+              onClick={() => handleCompileAllChapters()}
               disabled={isCompilingAll || isVaultReadonly}
               className="bg-emerald-800 text-xs font-bold text-white shadow-xs hover:bg-emerald-900 transition-all"
             >
               {isCompilingAll ? (
                 <>
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  Synthesizing Plan...
+                  Drafting Plan with AI...
                 </>
               ) : (
                 <>
                   <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
-                  Generate / Refresh Plan
+                  {compiledCount > 0 ? 'Re-Draft Plan with AI' : 'Draft Plan with AI'}
                 </>
               )}
             </Button>
@@ -1358,15 +1582,18 @@ Generated by Startup Preflight Business Plan Studio
               })}
             </nav>
 
-            {/* Audience Context Box */}
-            <div className="mt-4 rounded-lg bg-slate-50 p-2.5 border border-slate-100 text-[11px] space-y-1">
+            {/* Audience & Length Calibration Context Box */}
+            <div className="mt-4 rounded-lg bg-slate-50 p-2.5 border border-slate-100 text-[11px] space-y-1.5">
               <div className="font-bold text-slate-800 flex items-center gap-1">
                 <Target className="h-3 w-3 text-emerald-700" />
-                Target Audience Filter:
+                Target Audience &amp; Plan Length:
               </div>
               <p className="text-slate-500 leading-snug">
                 {catalogMeta.summary}
               </p>
+              <div className="pt-1 border-t border-slate-200/70 text-[10px] font-medium text-emerald-800 font-mono tabular-nums">
+                AI Target Depth: {getArchetypeLengthMeta(activeVersion?.archetype).chapterRangeNote}
+              </div>
             </div>
           </div>
         </div>
@@ -1507,7 +1734,7 @@ Generated by Startup Preflight Business Plan Studio
                   >
                     {/* Chapter Header (LivePlan Publication Heading) */}
                     <div className="border-b-2 border-slate-900 pb-2.5 avoid-page-break">
-                      <div className="flex items-baseline justify-between gap-4">
+                      <div className="flex flex-wrap items-baseline justify-between gap-3">
                         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-950 font-serif">
                           <span className="text-slate-400 mr-2 text-base sm:text-lg font-normal">
                             {sectionNumberFormatted}
@@ -1515,20 +1742,52 @@ Generated by Startup Preflight Business Plan Studio
                           {sec.title}
                         </h2>
 
-                        <div className="flex items-center gap-2 no-print print:hidden">
+                        <div className="flex flex-wrap items-center gap-2 no-print print:hidden">
+                          {hasProse && (
+                            <span className="text-[11px] font-mono tabular-nums text-slate-400">
+                              {(sec.compiledResponseText || '').trim().split(/\s+/).filter(Boolean).length} / {sec.wordLimit}w
+                            </span>
+                          )}
                           {!isVaultReadonly && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingSectionNumber(sec.sectionNumber);
-                                setInlineEditText(sec.compiledResponseText || '');
-                                setPolishBanner(null);
-                              }}
-                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-emerald-700 transition-colors py-1 px-2 rounded-md hover:bg-slate-100"
-                            >
-                              <Edit3 className="h-3.5 w-3.5" />
-                              <span>Edit Chapter</span>
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                disabled={
+                                  draftingSectionNumber === sec.sectionNumber || isCompilingAll
+                                }
+                                onClick={() =>
+                                  handleDraftSingleChapterWithAi(sec.sectionNumber, false)
+                                }
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50/80 border border-emerald-200 hover:bg-emerald-100/80 transition-colors py-1 px-2.5 rounded-md disabled:opacity-50"
+                              >
+                                {draftingSectionNumber === sec.sectionNumber ? (
+                                  <>
+                                    <RefreshCw className="h-3 w-3 animate-spin text-emerald-700" />
+                                    <span>Drafting with AI...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <SlidersHorizontal className="h-3 w-3 text-emerald-700" />
+                                    <span>
+                                      {hasProse ? 'Re-Draft with AI' : 'Draft with AI'}
+                                    </span>
+                                  </>
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingSectionNumber(sec.sectionNumber);
+                                  setInlineEditText(sec.compiledResponseText || '');
+                                  setPolishBanner(null);
+                                }}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-700 transition-colors py-1 px-2 rounded-md hover:bg-slate-100"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                                <span>Edit Chapter</span>
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -1542,13 +1801,64 @@ Generated by Startup Preflight Business Plan Studio
                       {hasProse ? (
                         sec.compiledResponseText
                       ) : (
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-6 text-center">
-                          <p className="text-xs font-semibold text-slate-600">
-                            Chapter narrative not yet drafted.
-                          </p>
-                          <p className="mt-1 text-[11px] text-slate-500 no-print print:hidden">
-                            Click &ldquo;Edit Chapter&rdquo; on the right or use &ldquo;Generate / Refresh Plan&rdquo; in the header.
-                          </p>
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-6 text-center space-y-3">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-700">
+                              Chapter narrative not yet drafted.
+                            </p>
+                            <p className="mt-1 text-[11px] text-slate-500 no-print print:hidden">
+                              Target length for {catalogMeta.title}:{' '}
+                              <span className="font-mono tabular-nums font-semibold text-slate-700">
+                                {getSectionTargetRangeLabel(
+                                  activeVersion?.archetype,
+                                  sec.wordLimit
+                                )}
+                              </span>
+                            </p>
+                          </div>
+
+                          {!isVaultReadonly && (
+                            <div className="flex flex-wrap items-center justify-center gap-2 pt-1 no-print print:hidden">
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={
+                                  draftingSectionNumber === sec.sectionNumber || isCompilingAll
+                                }
+                                onClick={() =>
+                                  handleDraftSingleChapterWithAi(sec.sectionNumber, false)
+                                }
+                                className="h-8 bg-emerald-800 text-xs font-semibold text-white hover:bg-emerald-900"
+                              >
+                                {draftingSectionNumber === sec.sectionNumber ? (
+                                  <>
+                                    <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                    Drafting Chapter with AI...
+                                  </>
+                                ) : (
+                                  <>
+                                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
+                                    Draft Chapter with AI
+                                  </>
+                                )}
+                              </Button>
+
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingSectionNumber(sec.sectionNumber);
+                                  setInlineEditText(sec.compiledResponseText || '');
+                                  setPolishBanner(null);
+                                }}
+                                className="h-8 border-slate-300 bg-white text-xs text-slate-700 hover:bg-slate-50"
+                              >
+                                <Edit3 className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+                                Write / Edit Manually
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2353,13 +2663,67 @@ Generated by Startup Preflight Business Plan Studio
 
               {/* Drawer Scrollable Body */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* 1-Click AI Chapter Draft Card (Calibrated to Plan Archetype Length) */}
+                {!isVaultReadonly && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <FileCheck2 className="h-3.5 w-3.5 text-emerald-700" />
+                        <span>AI Chapter Drafter ({catalogMeta.badge})</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600">
+                        Drafts this chapter from your saved plan facts at the target depth:{' '}
+                        <span className="font-mono tabular-nums font-semibold text-emerald-900">
+                          {getSectionTargetRangeLabel(
+                            activeVersion?.archetype,
+                            maxLimit
+                          )}
+                        </span>
+                      </p>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      type="button"
+                      disabled={
+                        draftingSectionNumber === editingSectionNumber || isPolishing
+                      }
+                      onClick={() =>
+                        handleDraftSingleChapterWithAi(editingSectionNumber, true)
+                      }
+                      className="bg-emerald-800 text-xs font-bold text-white hover:bg-emerald-900 shrink-0"
+                    >
+                      {draftingSectionNumber === editingSectionNumber ? (
+                        <>
+                          <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          Drafting with AI...
+                        </>
+                      ) : (
+                        <>
+                          <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
+                          {currentWordCount > 20
+                            ? 'Re-Draft Chapter with AI'
+                            : 'Draft Chapter with AI'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {chapterAssessorTips[editingSectionNumber] && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-700">
+                    <span className="font-bold text-emerald-800">AI Reviewer Tip: </span>
+                    {chapterAssessorTips[editingSectionNumber]}
+                  </div>
+                )}
+
                 {/* Textarea */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
                       Chapter Content
                     </label>
-                    <div className="flex items-center gap-2 text-xs">
+                    <div className="flex items-center gap-2 text-xs font-mono tabular-nums">
                       <span className={isOverWordLimit ? 'text-rose-600 font-bold' : 'text-slate-500'}>
                         {currentWordCount} / {maxLimit} words
                       </span>
@@ -2384,7 +2748,7 @@ Generated by Startup Preflight Business Plan Studio
                     rows={12}
                     value={inlineEditText}
                     onChange={(e) => setInlineEditText(e.target.value)}
-                    placeholder="Draft or paste your chapter narrative here..."
+                    placeholder="Click 'Draft Chapter with AI' above or write your chapter narrative here..."
                     className="font-sans text-base sm:text-sm leading-relaxed bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-700 rounded-xl"
                   />
                 </div>
@@ -2394,7 +2758,7 @@ Generated by Startup Preflight Business Plan Studio
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-xs font-bold text-slate-950">
                       <SlidersHorizontal className="h-4 w-4 text-emerald-700" />
-                      Refine Chapter Tone &amp; Clarity
+                      AI Chapter Polish &amp; Tone Calibration
                     </span>
                     {polishBanner && (
                       <span className="text-xs font-semibold text-emerald-700">
@@ -2465,7 +2829,7 @@ Generated by Startup Preflight Business Plan Studio
                       type="text"
                       value={customPolishInstruction}
                       onChange={(e) => setCustomPolishInstruction(e.target.value)}
-                      placeholder="Or specify custom refinement instructions..."
+                      placeholder="Or specify custom AI refinement instructions..."
                       className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                     />
                     <Button
@@ -2480,7 +2844,7 @@ Generated by Startup Preflight Business Plan Studio
                       ) : (
                         <>
                           <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
-                          Refine
+                          Polish with AI
                         </>
                       )}
                     </Button>
@@ -2557,39 +2921,48 @@ Generated by Startup Preflight Business Plan Studio
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700">Choose Audience Archetype</label>
+                <label className="text-xs font-semibold text-slate-700">Choose Audience Archetype &amp; Target Length</label>
                 <div className="mt-1.5 space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {availableArchetypes.map((cat) => (
-                    <label
-                      key={cat.archetype}
-                      className={`flex items-start gap-2.5 rounded-xl border p-3 cursor-pointer text-xs transition-all ${
-                        selectedArchetypeForNew === cat.archetype
-                          ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-600'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="archetype-select"
-                        checked={selectedArchetypeForNew === cat.archetype}
-                        onChange={() => setSelectedArchetypeForNew(cat.archetype)}
-                        className="mt-0.5 text-emerald-700"
-                      />
-                      <div>
-                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                          {cat.title}
+                  {availableArchetypes.map((cat) => {
+                    const lengthMeta = getArchetypeLengthMeta(cat.archetype);
+                    return (
+                      <label
+                        key={cat.archetype}
+                        className={`flex items-start gap-2.5 rounded-xl border p-3 cursor-pointer text-xs transition-all ${
+                          selectedArchetypeForNew === cat.archetype
+                            ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-600'
+                            : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="archetype-select"
+                          checked={selectedArchetypeForNew === cat.archetype}
+                          onChange={() => setSelectedArchetypeForNew(cat.archetype)}
+                          className="mt-0.5 text-emerald-700"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-slate-900 flex flex-wrap items-center justify-between gap-1.5">
+                            <span>{cat.title}</span>
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-200 bg-emerald-50 font-mono tabular-nums text-[10px] font-semibold text-emerald-800"
+                            >
+                              {lengthMeta.shortBadge}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+                            {cat.summary}
+                          </p>
                         </div>
-                        <p className="mt-0.5 text-[11px] text-slate-500 leading-relaxed">
-                          {cat.summary}
-                        </p>
-                      </div>
-                    </label>
-                  ))}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
               <Button
                 size="sm"
                 variant="outline"
@@ -2600,11 +2973,21 @@ Generated by Startup Preflight Business Plan Studio
               </Button>
               <Button
                 size="sm"
-                onClick={handleCreateVersion}
+                variant="outline"
+                onClick={() => handleCreateVersion(false)}
                 disabled={!newVersionTitle.trim()}
+                className="border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Create Blank Version
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleCreateVersion(true)}
+                disabled={!newVersionTitle.trim() || isVaultReadonly}
                 className="bg-emerald-800 text-xs font-bold text-white hover:bg-emerald-900"
               >
-                Create Plan Version
+                <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
+                Create &amp; Draft with AI
               </Button>
             </div>
           </div>

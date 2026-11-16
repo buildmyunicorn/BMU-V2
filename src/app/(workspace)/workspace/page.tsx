@@ -190,6 +190,7 @@ import {
   generateModuleAConceptCanvasAction,
   saveModuleACanvasEditsAction,
   parkOpenQuestionAction,
+  deleteOpenQuestionAction,
   updateStartupPlanSettingsAction,
   deleteStartupPlanAction,
   cloneStartupPlanAction,
@@ -198,6 +199,10 @@ import {
 } from '@/app/actions/module-a';
 import { askStartupPlanAction } from '@/app/actions/ask-startup';
 import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
+import {
+  FieldParkButton,
+  scrollAndHighlightElement,
+} from '@/components/workspace/field-park-button';
 import {
   isGrantCheckerSupportedForCountry,
   getDefaultGrantEligibilityCheck,
@@ -521,6 +526,164 @@ function resolveModuleFromStep(step?: string | null): ModuleCode | null {
   return null;
 }
 
+const MODULE_LETTER_TO_CODE: Record<string, ModuleCode> = {
+  A: 'MOD_A_IDEATION',
+  B: 'MOD_B_MARKET',
+  C: 'MOD_C_SURVEYS_FEEDBACK',
+  D: 'MOD_D_PRODUCT_BUILD',
+  E: 'MOD_E_OPERATIONS',
+  F: 'MOD_F_COFOUNDER_TEAM',
+  G: 'MOD_G_LAUNCHPAD',
+  H: 'MOD_H_REVENUE',
+  I: 'MOD_I_MARKETING',
+  J: 'MOD_J_FINANCE',
+  K: 'MOD_K_GRANTS_FUNDING',
+  L: 'MOD_L_BUSINESS_PLAN',
+};
+
+export interface ParsedParkedQuestion {
+  moduleCode: ModuleCode;
+  step?: number;
+  targetId?: string;
+  cleanText: string;
+  badgeLabel: string;
+}
+
+/**
+ * Parses a parked open question's text or prefix to extract target module, step number, and DOM highlight id.
+ */
+function parseParkedQuestionTarget(
+  qText: string,
+  activeModuleFallback: ModuleCode = 'MOD_A_IDEATION'
+): ParsedParkedQuestion {
+  const text = (qText || '').trim();
+
+  let targetMod: ModuleCode = activeModuleFallback;
+  let stepNum: number | undefined;
+  let targetId: string | undefined;
+
+  // 1. First priority: Check for structured bracket prefix [Module X Step Y #field-id] or [Module X ...]
+  const structuredPrefixMatch = text.match(
+    /^\[\s*Module\s*([A-L])(?:\s+Step\s+(\d+))?(?:\s+#([a-zA-Z0-9_-]+))?\s*\]\s*(.*)$/i
+  );
+
+  if (structuredPrefixMatch) {
+    const letter = structuredPrefixMatch[1].toUpperCase();
+    if (MODULE_LETTER_TO_CODE[letter]) {
+      targetMod = MODULE_LETTER_TO_CODE[letter];
+    }
+    if (structuredPrefixMatch[2]) {
+      const parsedStep = parseInt(structuredPrefixMatch[2], 10);
+      if (!Number.isNaN(parsedStep) && parsedStep >= 1 && parsedStep <= 8) {
+        stepNum = parsedStep;
+      }
+    }
+    if (structuredPrefixMatch[3]) {
+      targetId = structuredPrefixMatch[3];
+    }
+  } else {
+    // 2. Second priority: check if module letter is stated somewhere (e.g. "[Module B]" or "Module B")
+    const modLetterMatch = text.match(/\[?\bModule\s*([A-L])\b\]?/i);
+    if (modLetterMatch && modLetterMatch[1]) {
+      const letter = modLetterMatch[1].toUpperCase();
+      if (MODULE_LETTER_TO_CODE[letter]) {
+        targetMod = MODULE_LETTER_TO_CODE[letter];
+      }
+    }
+
+    // Step number
+    const stepMatch = text.match(/step\s*(\d+)/i);
+    if (stepMatch && stepMatch[1]) {
+      const parsedStep = parseInt(stepMatch[1], 10);
+      if (!Number.isNaN(parsedStep) && parsedStep >= 1 && parsedStep <= 8) {
+        stepNum = parsedStep;
+      }
+    }
+
+    // Field ID tagged with `#field-id`
+    const fieldMatch = text.match(/#([a-zA-Z0-9_-]+)/);
+    if (fieldMatch && fieldMatch[1]) {
+      targetId = fieldMatch[1];
+    }
+
+    // 3. Third priority: keyword matching only if no explicit module was found
+    if (!modLetterMatch) {
+      if (
+        /beachhead|competitor|rival|status quo|market sizing|\btam\b|\bsam\b|\bsom\b|competitive wedge|buyer model/i.test(
+          text
+        )
+      ) {
+        targetMod = 'MOD_B_MARKET';
+        if (!stepNum) {
+          if (/competitor|rival|status quo/i.test(text)) stepNum = 2;
+          else if (/market sizing|\btam\b|\bsam\b|\bsom\b/i.test(text)) stepNum = 3;
+          else if (/competitive wedge|unfair advantage|switching/i.test(text)) stepNum = 4;
+          else stepNum = 1;
+        }
+      } else if (/survey|feedback|waitlist|mom test|interview log/i.test(text)) {
+        targetMod = 'MOD_C_SURVEYS_FEEDBACK';
+      } else if (/product build|vehicle|tech stack|work package|feature filter/i.test(text)) {
+        targetMod = 'MOD_D_PRODUCT_BUILD';
+      } else if (/premises|equipment|risk register|insurance|supplier quote/i.test(text)) {
+        targetMod = 'MOD_E_OPERATIONS';
+      } else if (
+        /cofounder|co-founder|equity split|survival budget|hiring plan|role matrix/i.test(text)
+      ) {
+        targetMod = 'MOD_F_COFOUNDER_TEAM';
+      } else if (/launchpad|incorporation|bank account|cro|companies house/i.test(text)) {
+        targetMod = 'MOD_G_LAUNCHPAD';
+      } else if (/pricing|breakeven|pocket profit|sales assumption/i.test(text)) {
+        targetMod = 'MOD_H_REVENUE';
+      } else if (/marketing|brand positioning|first 10 customers|4ps/i.test(text)) {
+        targetMod = 'MOD_I_MARKETING';
+      } else if (/cashflow|sensitivity|funding gap|overhead/i.test(text)) {
+        targetMod = 'MOD_J_FINANCE';
+      } else if (/grant|leo|enterprise ireland|innovate uk|seis|eis/i.test(text)) {
+        targetMod = 'MOD_K_GRANTS_FUNDING';
+      } else if (/business plan|grant compiler|executive summary/i.test(text)) {
+        targetMod = 'MOD_L_BUSINESS_PLAN';
+      } else if (/brain dump|concept canvas|founder motivations|founder-idea fit/i.test(text)) {
+        targetMod = 'MOD_A_IDEATION';
+      }
+    }
+  }
+
+  // Handle blind-spot actions
+  if (/blind-spot|things to consider/i.test(text)) {
+    if (targetMod === 'MOD_A_IDEATION') stepNum = 7;
+    else if (targetMod === 'MOD_B_MARKET') stepNum = 5;
+    else if (targetMod === 'MOD_D_PRODUCT_BUILD') stepNum = 6;
+    else if (targetMod === 'MOD_E_OPERATIONS') stepNum = 6;
+    else if (targetMod === 'MOD_F_COFOUNDER_TEAM') stepNum = 6;
+    else if (targetMod === 'MOD_H_REVENUE') stepNum = 5;
+    else if (targetMod === 'MOD_I_MARKETING') stepNum = 5;
+  }
+
+  // Construct targetId for DOM scroll & attention-highlight fallback
+  if (!targetId && stepNum) {
+    if (targetMod === 'MOD_A_IDEATION') {
+      targetId = `mod-a-step-${stepNum}`;
+    } else if (targetMod === 'MOD_G_LAUNCHPAD') {
+      targetId = `mod-g-step-${stepNum}`;
+    } else {
+      const letter = targetMod.replace('MOD_', '').charAt(0).toLowerCase();
+      targetId = `module-${letter}-step-${stepNum}`;
+    }
+  }
+
+  // Human-readable clean text (stripping technical bracket and #field-id tags)
+  const cleanText = text
+    .replace(/^\[\s*Module\s*[A-L](?:\s+Step\s+\d+)?(?:\s+#[a-zA-Z0-9_-]+)?\s*\]\s*/i, '')
+    .replace(/#([a-zA-Z0-9_-]+)/g, '')
+    .trim();
+
+  const letterEntry = Object.entries(MODULE_LETTER_TO_CODE).find(([_, code]) => code === targetMod);
+  const letter = letterEntry ? letterEntry[0] : 'A';
+  const badgeLabel = stepNum ? `Module ${letter} · Step ${stepNum}` : `Module ${letter}`;
+
+  return { moduleCode: targetMod, step: stepNum, targetId, cleanText, badgeLabel };
+}
+
 export default function WorkspacePage() {
   const router = useRouter();
   const [session, setSession] = useState<BmuLocalSession>(() =>
@@ -686,7 +849,15 @@ export default function WorkspacePage() {
   const [moduleNavTarget, setModuleNavTarget] = useState<{
     step?: number;
     highlightTarget?: string;
+    navToken?: number;
   } | null>(null);
+
+  // Floating Park Question Toast State
+  const [parkToast, setParkToast] = useState<{
+    visible: boolean;
+    questionText: string;
+  } | null>(null);
+  const parkToastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Module A Step 2, Step 3, Step 4 & Step 5 Live State
   const [conceptCanvas, setConceptCanvas] = useState<SavedConceptCanvas | null>(
@@ -2195,12 +2366,29 @@ export default function WorkspacePage() {
     setIsBusinessPlanStudioOpen(false);
     setIsMasterDocumentOpen(false);
     setIsAskStartupOpen(false);
+    setMobileSidebarOpen(false);
     setActiveModule(modCode);
+
+    const navToken = Date.now();
     if (modCode === 'MOD_A_IDEATION') {
       setOpenStep(stepNum || 0);
     }
-    setModuleNavTarget(stepNum ? { step: stepNum, highlightTarget: highlightId } : null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setModuleNavTarget(stepNum ? { step: stepNum, highlightTarget: highlightId, navToken } : null);
+
+    // Resolve target element ID for deep-linking
+    const targetElementId = highlightId || (stepNum ? (
+      modCode === 'MOD_A_IDEATION'
+        ? `mod-a-step-${stepNum}`
+        : modCode === 'MOD_G_LAUNCHPAD'
+        ? `mod-g-step-${stepNum}`
+        : `module-${modCode.replace('MOD_', '').charAt(0).toLowerCase()}-step-${stepNum}`
+    ) : undefined);
+
+    if (targetElementId) {
+      scrollAndHighlightElement(targetElementId);
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   useEffect(() => {
@@ -2481,9 +2669,34 @@ export default function WorkspacePage() {
     }
   }
 
+  function triggerParkToast(questionText: string) {
+    if (parkToastTimerRef.current) {
+      clearTimeout(parkToastTimerRef.current);
+    }
+    setParkToast({ visible: true, questionText });
+    parkToastTimerRef.current = setTimeout(() => {
+      setParkToast(null);
+    }, 5500);
+  }
+
+  function handleScrollToOpenQuestions() {
+    setMobileSidebarOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById('open-questions-parking-lot-card');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.remove('attention-highlight');
+        void el.offsetWidth;
+        el.classList.add('attention-highlight');
+        setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+      }
+    }, 120);
+  }
+
   async function handleParkSpecificQuestion(questionText: string) {
     const clean = questionText.trim();
     if (!clean) return;
+    triggerParkToast(clean);
     if (!openQuestions.includes(clean)) {
       const next = [...openQuestions, clean];
       setOpenQuestions(next);
@@ -2500,7 +2713,8 @@ export default function WorkspacePage() {
     }
   }
 
-  function handleResolveOpenQuestion(indexToRemove: number) {
+  async function handleResolveOpenQuestion(indexToRemove: number) {
+    const questionToDelete = openQuestions[indexToRemove];
     const next = openQuestions.filter((_, idx) => idx !== indexToRemove);
     setOpenQuestions(next);
     const updatedPlans = session.plans.map((p) =>
@@ -2509,6 +2723,17 @@ export default function WorkspacePage() {
     const nextSession = { ...session, plans: updatedPlans };
     setSession(nextSession);
     saveBmuSession(nextSession);
+
+    if (questionToDelete && currentPlan?.id) {
+      try {
+        await deleteOpenQuestionAction({
+          planId: currentPlan.id,
+          questionText: questionToDelete,
+        });
+      } catch (err) {
+        console.error('Failed to delete parked question from database:', err);
+      }
+    }
   }
 
   function handleParkQuestion() {
@@ -2519,6 +2744,7 @@ export default function WorkspacePage() {
   async function handleParkModuleBQuestion(questionText: string) {
     const clean = questionText.trim();
     if (!clean) return;
+    triggerParkToast(clean);
     if (!openQuestions.includes(clean)) {
       const next = [...openQuestions, clean];
       setOpenQuestions(next);
@@ -2538,6 +2764,7 @@ export default function WorkspacePage() {
   async function handleParkModuleCQuestion(questionText: string) {
     const clean = questionText.trim();
     if (!clean) return;
+    triggerParkToast(clean);
     if (!openQuestions.includes(clean)) {
       const next = [...openQuestions, clean];
       setOpenQuestions(next);
@@ -3673,6 +3900,7 @@ export default function WorkspacePage() {
   async function handleParkModuleDQuestion(questionText: string) {
     const clean = questionText.trim();
     if (!clean) return;
+    triggerParkToast(`[Module D] ${clean}`);
     const nextQuestions = [...openQuestions, `[Module D] ${clean}`];
     setOpenQuestions(nextQuestions);
 
@@ -4137,6 +4365,7 @@ export default function WorkspacePage() {
   async function handleParkModuleEQuestion(questionText: string) {
     const clean = questionText.trim();
     if (!clean) return;
+    triggerParkToast(`[Module E] ${clean}`);
     const nextQuestions = [...openQuestions, `[Module E] ${clean}`];
     setOpenQuestions(nextQuestions);
 
@@ -6832,7 +7061,10 @@ export default function WorkspacePage() {
               </div>
 
               {/* Open Questions Parking Lot Sidebar Card */}
-              <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 shadow-xs">
+              <div
+                id="open-questions-parking-lot-card"
+                className="scroll-mt-24 rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 shadow-xs transition-colors"
+              >
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
                     <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
@@ -6858,24 +7090,55 @@ export default function WorkspacePage() {
                       {(showAllOpenQuestions
                         ? openQuestions
                         : openQuestions.slice(0, 4)
-                      ).map((q, idx) => (
-                        <li
-                          key={idx}
-                          className="group flex items-start justify-between gap-1.5 rounded-lg border border-amber-200/60 bg-white px-2.5 py-1.5 text-[11px] leading-snug"
-                        >
-                          <span>• {q}</span>
-                          {!activeEntitlement.isVaultReadonly && (
-                            <button
-                              type="button"
-                              onClick={() => handleResolveOpenQuestion(idx)}
-                              title="Mark resolved & remove from Parking Lot"
-                              className="mt-0.5 shrink-0 rounded p-0.5 text-slate-400 opacity-70 transition-opacity hover:bg-amber-100 hover:text-amber-900 group-hover:opacity-100"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          )}
-                        </li>
-                      ))}
+                      ).map((q, idx) => {
+                        const target = parseParkedQuestionTarget(q, activeModule);
+                        return (
+                          <li
+                            key={idx}
+                            onClick={() => {
+                              navigateToModuleWithHistory(
+                                target.moduleCode,
+                                target.step,
+                                target.targetId
+                              );
+                            }}
+                            title="Click to jump directly to this step in your plan"
+                            className="group flex cursor-pointer items-start justify-between gap-2 rounded-lg border border-amber-200/70 bg-white p-2 text-[11px] leading-snug transition-all hover:border-emerald-500 hover:bg-emerald-50/40 hover:shadow-xs"
+                          >
+                            <div className="flex flex-1 flex-col gap-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center rounded-sm border border-amber-300/80 bg-amber-100/80 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">
+                                  {target.badgeLabel}
+                                </span>
+                              </div>
+                              <span className="line-clamp-2 text-slate-800 group-hover:text-emerald-950 font-medium">
+                                {target.cleanText || q}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 flex shrink-0 items-center gap-1">
+                              <span
+                                className="opacity-0 transition-opacity group-hover:opacity-100 text-emerald-700"
+                                title="Jump to this step"
+                              >
+                                <ArrowRight className="h-3.5 w-3.5" />
+                              </span>
+                              {!activeEntitlement.isVaultReadonly && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleResolveOpenQuestion(idx);
+                                  }}
+                                  title="Mark resolved & permanently remove from Parking Lot"
+                                  className="rounded p-0.5 text-slate-400 opacity-70 transition-opacity hover:bg-red-100 hover:text-red-700 group-hover:opacity-100"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                     {openQuestions.length > 4 && (
                       <button
@@ -8973,6 +9236,7 @@ export default function WorkspacePage() {
               whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
               initialStep={moduleNavTarget?.step}
               highlightTarget={moduleNavTarget?.highlightTarget}
+              navToken={moduleNavTarget?.navToken}
               onSaveStep1Beachhead={handleSaveModuleBStep1}
               onSaveStep2Competitors={handleSaveModuleBStep2}
               onScoutCompetitorsWithAi={handleScoutModuleBCompetitors}
@@ -9328,15 +9592,6 @@ export default function WorkspacePage() {
                         <Lightbulb className="h-3.5 w-3.5 text-emerald-600" />
                         Example ({currentPlan.industryCategory})
                       </button>
-
-                      <ParkOpenQuestionPopover
-                        planId={currentPlan.id}
-                        moduleCode="MOD_A_IDEATION"
-                        stepNumber={1}
-                        suggestedQuestion={`Clarify with 3 potential customers in ${countryPack.countryName} how often they experience this problem and what workaround they use today.`}
-                        onParked={handleParkSpecificQuestion}
-                        disabled={activeEntitlement.isVaultReadonly}
-                      />
                     </div>
 
                     {/* Inline Jargon Pill */}
@@ -9462,10 +9717,19 @@ export default function WorkspacePage() {
                   {/* Guided Brain Dump Input */}
                   <div className="mt-5">
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <label className="text-sm font-semibold text-slate-800">
+                      <label htmlFor="brain-dump-textarea" className="text-sm font-semibold text-slate-800">
                         Your Raw Idea Brain Dump
                       </label>
                       <div className="flex items-center gap-2">
+                        <FieldParkButton
+                          moduleCode="MOD_A_IDEATION"
+                          stepNumber={1}
+                          fieldId="brain-dump-textarea"
+                          questionLabel="Your Raw Idea Brain Dump"
+                          suggestedAction="Clarify the core customer problem and current workaround in simple terms."
+                          onPark={handleParkSpecificQuestion}
+                          disabled={activeEntitlement.isVaultReadonly}
+                        />
                         {/* Layer 2: "I'm Stuck — Help Me Break This Down" */}
                         <button
                           type="button"
@@ -9501,6 +9765,7 @@ export default function WorkspacePage() {
                     )}
 
                     <textarea
+                      id="brain-dump-textarea"
                       rows={5}
                       disabled={activeEntitlement.isVaultReadonly || isSavingCanvas}
                       value={brainDumpText}
@@ -9688,14 +9953,6 @@ export default function WorkspacePage() {
                           : 'Auto-Fill / Tidy from Brain Dump'}
                       </Button>
                     )}
-                    <ParkOpenQuestionPopover
-                      planId={currentPlan.id}
-                      moduleCode="MOD_A_IDEATION"
-                      stepNumber={2}
-                      suggestedQuestion={`Test our 1-Page Concept Canvas wording and rough way of charging (${countryPack.defaultCurrency}) with 3 target customers before locking pricing.`}
-                      onParked={handleParkSpecificQuestion}
-                      disabled={activeEntitlement.isVaultReadonly}
-                    />
                   </div>
                   {showStep2WhyCard && (
                     <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-800">
@@ -9770,14 +10027,26 @@ export default function WorkspacePage() {
                   {/* Box 1: The Core Problem */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                        1. What&apos;s broken today? (The Problem)
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                          1. What&apos;s broken today? (The Problem)
+                        </div>
+                        <FieldParkButton
+                          moduleCode="MOD_A_IDEATION"
+                          stepNumber={2}
+                          fieldId="canvas-box-problem"
+                          questionLabel="1. The Problem (What's broken today?)"
+                          suggestedAction="Validate the customer pain and current costly workaround with target buyers."
+                          onPark={handleParkSpecificQuestion}
+                          disabled={activeEntitlement.isVaultReadonly}
+                        />
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
                         What frustrating problem are people dealing with, and what does it cost them?
                       </p>
                     </div>
                     <textarea
+                      id="canvas-box-problem"
                       rows={4}
                       disabled={activeEntitlement.isVaultReadonly}
                       value={effectiveCanvas.coreProblem}
@@ -9795,14 +10064,26 @@ export default function WorkspacePage() {
                   {/* Box 2: Target Customer / First Core Customer Group */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                        2. Your First Core Customer Group (Who buys first?)
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                          2. Your First Core Customer Group (Who buys first?)
+                        </div>
+                        <FieldParkButton
+                          moduleCode="MOD_A_IDEATION"
+                          stepNumber={2}
+                          fieldId="canvas-box-target-customer"
+                          questionLabel="2. First Core Customer Group (Who buys first?)"
+                          suggestedAction="Confirm the specific persona, role, or business type that feels the pain acutely."
+                          onPark={handleParkSpecificQuestion}
+                          disabled={activeEntitlement.isVaultReadonly}
+                        />
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
                         Who is the very first type of customer you want to help in {countryPack.countryName}? (A &ldquo;Beachhead&rdquo; simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
                       </p>
                     </div>
                     <textarea
+                      id="canvas-box-target-customer"
                       rows={4}
                       disabled={activeEntitlement.isVaultReadonly}
                       value={effectiveCanvas.targetCustomer}
@@ -9820,14 +10101,26 @@ export default function WorkspacePage() {
                   {/* Box 3: Your Solution */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                        3. How does your product fix it? (The Solution)
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                          3. How does your product fix it? (The Solution)
+                        </div>
+                        <FieldParkButton
+                          moduleCode="MOD_A_IDEATION"
+                          stepNumber={2}
+                          fieldId="canvas-box-solution"
+                          questionLabel="3. The Solution (How does your product fix it?)"
+                          suggestedAction="Test whether this solution directly removes the customer's frustration."
+                          onPark={handleParkSpecificQuestion}
+                          disabled={activeEntitlement.isVaultReadonly}
+                        />
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
                         In plain everyday words, what do you provide or do for the customer, and how does life get easier for them afterward?
                       </p>
                     </div>
                     <textarea
+                      id="canvas-box-solution"
                       rows={4}
                       disabled={activeEntitlement.isVaultReadonly}
                       value={effectiveCanvas.proposedSolution}
@@ -9845,14 +10138,26 @@ export default function WorkspacePage() {
                   {/* Box 4: Why You Win (Unfair Edge) */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                        4. Why pick you? (Your Edge)
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                          4. Why pick you? (Your Edge)
+                        </div>
+                        <FieldParkButton
+                          moduleCode="MOD_A_IDEATION"
+                          stepNumber={2}
+                          fieldId="canvas-box-unfair-advantage"
+                          questionLabel="4. Your Edge (Why pick you?)"
+                          suggestedAction="Clarify why customers will choose your offer over doing nothing or using spreadsheets."
+                          onPark={handleParkSpecificQuestion}
+                          disabled={activeEntitlement.isVaultReadonly}
+                        />
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
                         Why will customers choose your idea over doing nothing or using spreadsheets?
                       </p>
                     </div>
                     <textarea
+                      id="canvas-box-unfair-advantage"
                       rows={4}
                       disabled={activeEntitlement.isVaultReadonly}
                       value={effectiveCanvas.unfairAdvantage}
@@ -9870,14 +10175,26 @@ export default function WorkspacePage() {
                   {/* Box 5: Rough Idea of How You Might Charge */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 md:col-span-2 lg:col-span-2">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                        5. Rough Idea of How You Might Charge (Guesswork Welcome!)
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                          5. Rough Idea of How You Might Charge (Guesswork Welcome!)
+                        </div>
+                        <FieldParkButton
+                          moduleCode="MOD_A_IDEATION"
+                          stepNumber={2}
+                          fieldId="canvas-box-monetization"
+                          questionLabel="5. Monetization (How you might charge)"
+                          suggestedAction="Validate buyer willingness to pay and preferred pricing cadence."
+                          onPark={handleParkSpecificQuestion}
+                          disabled={activeEntitlement.isVaultReadonly}
+                        />
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
                         Who pays you and roughly how (e.g. per item, per booking, wholesale box, or monthly subscription)? Don&apos;t worry about exact prices or grants yet—we&apos;ll test those later.
                       </p>
                     </div>
                     <textarea
+                      id="canvas-box-monetization"
                       rows={4}
                       disabled={activeEntitlement.isVaultReadonly}
                       value={effectiveCanvas.revenueAndGrantFit}
@@ -10053,16 +10370,6 @@ export default function WorkspacePage() {
                   <p className="mt-1 text-xs text-slate-600">
                     We adapt our coaching to match your personal goals — whether you want a steady side-income, freedom from your 9-to-5, or a fast-growing scaleup.
                   </p>
-                  <div className="mt-2.5">
-                    <ParkOpenQuestionPopover
-                      planId={currentPlan.id}
-                      moduleCode="MOD_A_IDEATION"
-                      stepNumber={3}
-                      suggestedQuestion="Decide realistic weekly hours I can protect for this business over the next 6 months alongside existing commitments."
-                      onParked={handleParkSpecificQuestion}
-                      disabled={activeEntitlement.isVaultReadonly}
-                    />
-                  </div>
                 </div>
 
                 {openStep !== 'ALL' && (
@@ -10084,10 +10391,21 @@ export default function WorkspacePage() {
 
               <div className="mt-5 space-y-5">
                 {/* 1. Primary Motivation Cards */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    1. What is driving you to build this?
-                  </label>
+                <div id="field-primary-motivation">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      1. What is driving you to build this?
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_A_IDEATION"
+                      stepNumber={3}
+                      fieldId="field-primary-motivation"
+                      questionLabel="1. Driving Motivation"
+                      suggestedAction="Align your business ambitions and personal lifestyle goals."
+                      onPark={handleParkSpecificQuestion}
+                      disabled={activeEntitlement.isVaultReadonly}
+                    />
+                  </div>
                   <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                     {(
                       [
@@ -10197,10 +10515,21 @@ export default function WorkspacePage() {
                 </div>
 
                 {/* 2. Weekly Hours Available */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    2. How much time can you realistically give this each week?
-                  </label>
+                <div id="field-weekly-hours">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      2. How much time can you realistically give this each week?
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_A_IDEATION"
+                      stepNumber={3}
+                      fieldId="field-weekly-hours"
+                      questionLabel="2. Weekly Hours Available"
+                      suggestedAction="Protect realistic weekly founder hours alongside work and personal commitments."
+                      onPark={handleParkSpecificQuestion}
+                      disabled={activeEntitlement.isVaultReadonly}
+                    />
+                  </div>
                   <div className="mt-2 flex flex-wrap gap-2.5">
                     {(
                       [
@@ -10270,13 +10599,25 @@ export default function WorkspacePage() {
 
                 {/* 3. Personal 12-Month Success Vision */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    3. What does &ldquo;success&rdquo; look like 12 months from today?
-                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor="twelve-month-success-vision" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      3. What does &ldquo;success&rdquo; look like 12 months from today?
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_A_IDEATION"
+                      stepNumber={3}
+                      fieldId="twelve-month-success-vision"
+                      questionLabel="3. 12-Month Success Vision"
+                      suggestedAction="Quantify tangible revenue and milestone targets for your first 12 months."
+                      onPark={handleParkSpecificQuestion}
+                      disabled={activeEntitlement.isVaultReadonly}
+                    />
+                  </div>
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     Be honest with yourself — e.g., &ldquo;Making {formatPlanCurrency(4000, countryPack.defaultCurrency)}/month so I can hand in my notice&rdquo; or &ldquo;10 paying shops in {countryPack.countryName} using it weekly&rdquo;.
                   </p>
                   <textarea
+                    id="twelve-month-success-vision"
                     rows={3}
                     disabled={activeEntitlement.isVaultReadonly}
                     value={founderMotivation.twelveMonthSuccessVision}
@@ -10430,16 +10771,6 @@ export default function WorkspacePage() {
                   <p className="mt-1 text-xs text-slate-600">
                     Knowing your team setup and savings helps us recommend the right MVP build scope and verify {countryPack.countryName} grant match-funding rules.
                   </p>
-                  <div className="mt-2.5">
-                    <ParkOpenQuestionPopover
-                      planId={currentPlan.id}
-                      moduleCode="MOD_A_IDEATION"
-                      stepNumber={4}
-                      suggestedQuestion={`Confirm exact personal savings ring-fenced for V1 launch (${countryPack.defaultCurrency}) without touching household emergency reserves.`}
-                      onParked={handleParkSpecificQuestion}
-                      disabled={activeEntitlement.isVaultReadonly}
-                    />
-                  </div>
                 </div>
 
                 {openStep !== 'ALL' && (
@@ -10461,10 +10792,21 @@ export default function WorkspacePage() {
 
               <div className="mt-5 space-y-5">
               {/* 1. Team Structure Cards */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  1. Who is building this right now?
-                </label>
+              <div id="field-team-structure">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    1. Who is building this right now?
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_A_IDEATION"
+                    stepNumber={4}
+                    fieldId="field-team-structure"
+                    questionLabel="1. Team Structure"
+                    suggestedAction="Decide on co-founder search, equity vesting, or contractor arrangements."
+                    onPark={handleParkSpecificQuestion}
+                    disabled={activeEntitlement.isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {(
                     [
@@ -10580,10 +10922,21 @@ export default function WorkspacePage() {
               </div>
 
               {/* 2. In-House Skill Coverage Check */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  2. Do you have the skills in-house to build &amp; deliver Version 1?
-                </label>
+              <div id="field-skill-coverage">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    2. Do you have the skills in-house to build &amp; deliver Version 1?
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_A_IDEATION"
+                    stepNumber={4}
+                    fieldId="field-skill-coverage"
+                    questionLabel="2. In-House Skill Coverage"
+                    suggestedAction="Identify technical, marketing, or operational skill gaps needed for V1."
+                    onPark={handleParkSpecificQuestion}
+                    disabled={activeEntitlement.isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2 flex flex-wrap gap-2.5">
                   {(
                     [
@@ -10655,10 +11008,21 @@ export default function WorkspacePage() {
               </div>
 
               {/* 3. Starting Capital / Investment Buckets */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  3. How much starting money or savings do you have allocated? ({countryPack.defaultCurrency})
-                </label>
+              <div id="field-starting-budget">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    3. How much starting money or savings do you have allocated? ({countryPack.defaultCurrency})
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_A_IDEATION"
+                    stepNumber={4}
+                    fieldId="field-starting-budget"
+                    questionLabel="3. Starting Budget Bracket"
+                    suggestedAction="Ring-fence starting savings and check grant match-funding requirements."
+                    onPark={handleParkSpecificQuestion}
+                    disabled={activeEntitlement.isVaultReadonly}
+                  />
+                </div>
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   Pick the range that feels realistic for your savings — we use this to protect your cashflow and check grant match-funding rules.
                 </p>
@@ -10772,13 +11136,25 @@ export default function WorkspacePage() {
 
               {/* 4. Deeper Team & Funding Notes */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  4. Extra Team &amp; Funding Notes (Optional)
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="field-team-funding-notes" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    4. Extra Team &amp; Funding Notes (Optional)
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_A_IDEATION"
+                    stepNumber={4}
+                    fieldId="field-team-funding-notes"
+                    questionLabel="4. Team & Funding Notes"
+                    suggestedAction="Detail key advisor commitments, agency quotes, or match-funding sources."
+                    onPark={handleParkSpecificQuestion}
+                    disabled={activeEntitlement.isVaultReadonly}
+                  />
+                </div>
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   e.g., &ldquo;I have 8 years in retail operations, looking for a technical co-founder&rdquo; or &ldquo;Putting in {formatPlanCurrency(3000, countryPack.defaultCurrency)} from savings and hoping to apply for {countryGrants[0]?.grantName || 'local grants'}&rdquo;.
                 </p>
                 <textarea
+                  id="field-team-funding-notes"
                   rows={3}
                   disabled={activeEntitlement.isVaultReadonly}
                   value={teamAndBudget.teamAndFundingNotes}
@@ -10953,10 +11329,22 @@ export default function WorkspacePage() {
 
               <div className="mt-5 space-y-5">
               {/* 1. Insider Advantage & Warm Contacts ("The Monday Morning Test") */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  1. The Monday Morning Test: How well do you know this industry?
-                </label>
+              <div id="field-industry-connection">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    1. The Monday Morning Test: How well do you know this industry?
+                  </label>
+                  <FieldParkButton
+                    planId={currentPlan.id}
+                    moduleCode="MOD_A_IDEATION"
+                    stepNumber={5}
+                    fieldId="field-industry-connection"
+                    questionLabel="Industry Connection & Warm Contacts"
+                    suggestedAction="Interview 3–5 industry contacts to confirm day-to-day pain points and terminology."
+                    onParked={handleParkSpecificQuestion}
+                    disabled={activeEntitlement.isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                   {(
                     [
@@ -11054,10 +11442,22 @@ export default function WorkspacePage() {
               </div>
 
               {/* 2. Personal Income Urgency */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  2. How soon do you need this business to pay you an income?
-                </label>
+              <div id="field-personal-income-urgency">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    2. How soon do you need this business to pay you an income?
+                  </label>
+                  <FieldParkButton
+                    planId={currentPlan.id}
+                    moduleCode="MOD_A_IDEATION"
+                    stepNumber={5}
+                    fieldId="field-personal-income-urgency"
+                    questionLabel="Personal Income Timeline"
+                    suggestedAction="Calculate personal monthly runway and stress-test the income timeline against sales cycle length."
+                    onParked={handleParkSpecificQuestion}
+                    disabled={activeEntitlement.isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2 flex flex-wrap gap-2.5">
                   {(
                     [
@@ -11129,10 +11529,22 @@ export default function WorkspacePage() {
               </div>
 
               {/* 3. Lifestyle Dealbreakers / Anti-Goals (Multi-Select) */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  3. Your Dealbreakers: What do you REFUSE to do? (Select all that apply)
-                </label>
+              <div id="field-dealbreakers">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    3. Your Dealbreakers: What do you REFUSE to do? (Select all that apply)
+                  </label>
+                  <FieldParkButton
+                    planId={currentPlan.id}
+                    moduleCode="MOD_A_IDEATION"
+                    stepNumber={5}
+                    fieldId="field-dealbreakers"
+                    questionLabel="Lifestyle Dealbreakers & Anti-Goals"
+                    suggestedAction="Ensure the chosen business model does not clash with personal lifestyle boundaries or anti-goals."
+                    onParked={handleParkSpecificQuestion}
+                    disabled={activeEntitlement.isVaultReadonly}
+                  />
+                </div>
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   Set your boundaries now so our AI never nudges you into a business model you hate running.
                 </p>
@@ -11221,12 +11633,24 @@ export default function WorkspacePage() {
               </div>
 
               {/* 4. Ownership, Grants & Control Trade-Off */}
-              <div>
+              <div id="field-growth-tradeoff">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    4. Ownership &amp; Funding Philosophy
-                  </label>
-                  <JargonTooltip term="VESTING_CLIFF" label="What is 4-Year Vesting?" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      4. Ownership &amp; Funding Philosophy
+                    </label>
+                    <JargonTooltip term="VESTING_CLIFF" label="What is 4-Year Vesting?" />
+                  </div>
+                  <FieldParkButton
+                    planId={currentPlan.id}
+                    moduleCode="MOD_A_IDEATION"
+                    stepNumber={5}
+                    fieldId="field-growth-tradeoff"
+                    questionLabel="Ownership & Funding Strategy"
+                    suggestedAction="Decide between bootstrapping, non-dilutive grants, or investor backing before committing build spend."
+                    onParked={handleParkSpecificQuestion}
+                    disabled={activeEntitlement.isVaultReadonly}
+                  />
                 </div>
                 <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {(
@@ -11329,38 +11753,25 @@ export default function WorkspacePage() {
               </div>
 
               {/* 5. Your #1 Secret Worry (Honest Gut-Check) */}
-              <div>
+              <div id="field-biggest-worry">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                     5. Honest Gut-Check: What is your #1 worry right now?
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const worryMap: Record<BiggestWorryPreset, string> = {
-                        WILL_THEY_PAY: `Validate whether target buyers in ${countryPack.countryName} will actually pay ${countryPack.defaultCurrency} for this or stick with their current workaround.`,
-                        HOW_TO_BUILD:
-                          'Map out how to deliver a lean Version 1 MVP without getting stuck in an expensive technical build.',
-                        FINDING_FIRST_10: `Identify the exact channel to reach and sign our first 10 paying customers in ${countryPack.countryName}.`,
-                        COMPETITION_OR_AI:
-                          'Define our unfair advantage so a bigger competitor or generic AI tool cannot easily copy us.',
-                        TIME_AND_ENERGY:
-                          'Design a repeatable weekly workflow so we can launch without burning out or running out of cash.',
-                        OTHER:
-                          'Validate and de-risk my #1 custom worry with 5 target customers before committing major budget.',
-                      };
-                      const customText =
-                        founderRealityCheck.biggestWorryNotes.trim();
-                      const questionToPark = customText
-                        ? `Resolve #1 Founder Worry: ${customText}`
-                        : worryMap[founderRealityCheck.biggestWorryPreset];
-                      handleParkSpecificQuestion(questionToPark);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"
-                  >
-                    <BookmarkPlus className="h-3.5 w-3.5 text-amber-700" />
-                    Park My #1 Worry in Open Questions
-                  </button>
+                  <FieldParkButton
+                    planId={currentPlan.id}
+                    moduleCode="MOD_A_IDEATION"
+                    stepNumber={5}
+                    fieldId="field-biggest-worry"
+                    questionLabel="Honest Gut-Check: #1 Founder Worry"
+                    suggestedAction={
+                      founderRealityCheck.biggestWorryNotes.trim()
+                        ? `Resolve #1 Founder Worry: ${founderRealityCheck.biggestWorryNotes.trim()}`
+                        : `Validate and de-risk our #1 worry (${founderRealityCheck.biggestWorryPreset}) with real customer conversations.`
+                    }
+                    onParked={handleParkSpecificQuestion}
+                    disabled={activeEntitlement.isVaultReadonly}
+                  />
                 </div>
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   Every founder has a worry. Naming it now lets us turn it into your #1 validation test in Module B.
@@ -11682,16 +12093,6 @@ export default function WorkspacePage() {
                   <p className="mt-1 text-xs text-slate-600">
                     Live co-founder check combining your idea, budget, grant fit, and #1 worry into constructive advice.
                   </p>
-                  <div className="mt-2.5">
-                    <ParkOpenQuestionPopover
-                      planId={currentPlan.id}
-                      moduleCode="MOD_A_IDEATION"
-                      stepNumber={blindSpotStepNumber}
-                      suggestedQuestion={`Review our top Module A blind spot ("${liveThingsToConsider?.[0]?.title || 'Customer pain validation'}") during our first 5 customer conversations.`}
-                      onParked={handleParkSpecificQuestion}
-                      disabled={activeEntitlement.isVaultReadonly}
-                    />
-                  </div>
                 </div>
 
                 {openStep !== 'ALL' && (
@@ -11715,6 +12116,7 @@ export default function WorkspacePage() {
                 {liveThingsToConsider.map((item, idx) => (
                   <div
                     key={item.id || idx}
+                    id={`blindspot-card-${idx}`}
                     className={`flex flex-col justify-between rounded-xl border p-4 shadow-2xs transition-all ${
                       item.severity === 'WARNING'
                         ? 'border-amber-300 bg-amber-50/40'
@@ -11734,6 +12136,16 @@ export default function WorkspacePage() {
                             ? '⚠️ Priority Blind Spot'
                             : '💡 Co-Founder Check'}
                         </span>
+                        <FieldParkButton
+                          planId={currentPlan.id}
+                          moduleCode="MOD_A_IDEATION"
+                          stepNumber={blindSpotStepNumber}
+                          fieldId={`blindspot-card-${idx}`}
+                          questionLabel={`Blind Spot: ${item.title}`}
+                          suggestedAction={item.suggestedAction || item.explanation || 'Validate and de-risk this blind spot with target customers.'}
+                          onParked={handleParkSpecificQuestion}
+                          disabled={activeEntitlement.isVaultReadonly}
+                        />
                       </div>
                       <div className="mt-2 text-xs font-bold text-slate-900">
                         {item.title}
@@ -13082,6 +13494,61 @@ export default function WorkspacePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* FLOATING PARK QUESTION TOAST NOTIFICATION                 */}
+      {/* ========================================================= */}
+      {parkToast?.visible && (
+        <aside
+          aria-live="polite"
+          className="fixed bottom-5 right-4 z-50 flex max-w-md animate-in fade-in slide-in-from-bottom-3 duration-200 items-start gap-3 rounded-xl border border-emerald-500/40 bg-slate-900/95 p-3.5 text-white shadow-2xl backdrop-blur-md sm:right-6"
+        >
+          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-600/30 text-emerald-400">
+            <BookmarkPlus className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+              <span>Question Saved to Parking Lot</span>
+              <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-300">
+                Momentum Saved
+              </span>
+            </div>
+            <p className="mt-1 line-clamp-2 text-[11px] text-slate-300">
+              &ldquo;{parkToast.questionText}&rdquo;
+            </p>
+            <div className="mt-2.5 flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  handleScrollToOpenQuestions();
+                  setParkToast(null);
+                }}
+                className="h-6 border-slate-700 bg-slate-800/80 px-2.5 text-[11px] font-semibold text-emerald-300 hover:bg-slate-700 hover:text-white"
+              >
+                View in Parking Lot
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+              <button
+                type="button"
+                onClick={() => setParkToast(null)}
+                className="text-[11px] text-slate-400 hover:text-slate-200"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setParkToast(null)}
+            className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            title="Dismiss notification"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </aside>
       )}
 
       {/* ========================================================= */}

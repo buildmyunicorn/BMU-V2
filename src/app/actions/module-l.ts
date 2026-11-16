@@ -23,6 +23,9 @@ import {
   generateModuleLStep3SectionViaRouter,
   type GenerateModuleLStep3SectionParams,
   type GenerateModuleLStep3SectionResult,
+  generateBusinessPlanBatchViaRouter,
+  type GenerateBusinessPlanBatchParams,
+  type GenerateBusinessPlanBatchResult,
   generateModuleLStep4AuditViaRouter,
   type GenerateModuleLStep4AuditParams,
   type GenerateModuleLStep4AuditResult,
@@ -291,6 +294,30 @@ export async function generateModuleLStep3SectionAction(
   }
 
   return generateModuleLStep3SectionViaRouter(params);
+}
+
+/**
+ * Drafts all sections of the Module L Step 3 Narrative Compiler in archetype-calibrated batches.
+ */
+export async function generateModuleLStep3BatchAction(
+  params: GenerateBusinessPlanBatchParams
+): Promise<GenerateBusinessPlanBatchResult> {
+  const auth = await verifyActiveSessionAndPlanOwnership(params.planId, {
+    requiredModule: 'MOD_L_BUSINESS_PLAN',
+  });
+  if (!auth.authorized) {
+    return {
+      allowed: false,
+      compiledSections: params.sections.map((s) => ({
+        sectionNumber: s.sectionNumber,
+        compiledResponseText: s.currentResponseText || '',
+        wordCount: (s.currentResponseText || '').split(/\s+/).filter(Boolean).length,
+      })),
+      engineMode: 'smart-synthesizer',
+    };
+  }
+
+  return generateBusinessPlanBatchViaRouter(params);
 }
 
 /**

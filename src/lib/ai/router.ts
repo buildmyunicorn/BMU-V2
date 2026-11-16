@@ -293,6 +293,27 @@ function stripJsonCodeFences(rawText: string): string {
     .trim();
 }
 
+/**
+ * Ensures `thinkingBudget: 0` is applied by default so thinking-enabled models
+ * (`gemini-3.8-flash`, `gemini-2.5-flash`) do not consume ~1,900 of the 2,048
+ * `maxOutputTokens` budget on internal thoughts and truncate JSON payloads.
+ */
+function withDefaultThinkingConfig(params: any, upgradedModel?: string): any {
+  const existingConfig = params?.config || {};
+  const defaultThinkingConfig =
+    existingConfig.thinkingConfig !== undefined
+      ? existingConfig.thinkingConfig
+      : { thinkingBudget: 0 };
+  return {
+    ...params,
+    ...(upgradedModel ? { model: upgradedModel } : {}),
+    config: {
+      ...existingConfig,
+      thinkingConfig: defaultThinkingConfig,
+    },
+  };
+}
+
 export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
   let isByok = false;
   let reservedForUserId: string | null = null;
@@ -328,7 +349,8 @@ export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
       const boundGenerate = underlyingClient.models.generateContent.bind(
         underlyingClient.models
       );
-      executeRawGenerate = (params: any) => boundGenerate(params);
+      executeRawGenerate = (params: any) =>
+        boundGenerate(withDefaultThinkingConfig(params));
     } else {
       underlyingClient = new GoogleGenAI({
         vertexai: true,
@@ -338,10 +360,9 @@ export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
         underlyingClient.models
       );
       executeRawGenerate = (params: any) =>
-        boundGenerate({
-          ...params,
-          model: resolveVertexModelName(params?.model),
-        });
+        boundGenerate(
+          withDefaultThinkingConfig(params, resolveVertexModelName(params?.model))
+        );
     }
   } else {
     const useVertex =
@@ -360,7 +381,8 @@ export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
       const boundGenerate = underlyingClient.models.generateContent.bind(
         underlyingClient.models
       );
-      executeRawGenerate = (params: any) => boundGenerate(params);
+      executeRawGenerate = (params: any) =>
+        boundGenerate(withDefaultThinkingConfig(params));
     } else if (useVertex) {
       const vertexApiKey =
         resolvedKey && isVertexExpressApiKey(resolvedKey)
@@ -393,10 +415,10 @@ export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
         );
 
       executeRawGenerate = async (params: any) => {
-        const upgradedParams = {
-          ...params,
-          model: resolveVertexModelName(params?.model),
-        };
+        const upgradedParams = withDefaultThinkingConfig(
+          params,
+          resolveVertexModelName(params?.model)
+        );
         try {
           return await originalGenerateContent(upgradedParams);
         } catch (primaryErr) {
@@ -413,7 +435,8 @@ export function getGenAiClient(activeApiKey: string | null): GoogleGenAI {
       const boundGenerate = underlyingClient.models.generateContent.bind(
         underlyingClient.models
       );
-      executeRawGenerate = (params: any) => boundGenerate(params);
+      executeRawGenerate = (params: any) =>
+        boundGenerate(withDefaultThinkingConfig(params));
     }
   }
 
@@ -16222,20 +16245,157 @@ export interface GenerateModuleLStep3SectionResult {
   engineMode: "gemini-2.5-flash" | "gemini-2.5-pro" | "smart-synthesizer";
 }
 
+export interface BusinessPlanLengthAndStyleProfile {
+  planTypeLabel: string;
+  minTargetWords: number;
+  maxTargetWords: number;
+  hardLimitWords: number;
+  paragraphGuidance: string;
+  styleMandate: string;
+  isLeanBrief: boolean;
+}
+
+/**
+ * Calibrates the target word count, paragraph structure, and editorial tone
+ * based on the specific Business Plan Archetype / Compiler Mode being created.
+ */
+export function resolveBusinessPlanLengthAndStyleProfile(
+  compilerMode: string,
+  sectionWordLimit?: number
+): BusinessPlanLengthAndStyleProfile {
+  const mode = (compilerMode || "STANDARD_COMMERCIAL_PLAN").toUpperCase();
+  const limit = sectionWordLimit && sectionWordLimit > 0 ? sectionWordLimit : 400;
+
+  if (mode === "LEAN_ONE_PAGER" || limit <= 220) {
+    const hardCap = Math.min(limit, 200);
+    return {
+      planTypeLabel: "Lean 2-Page Executive Business Teaser",
+      minTargetWords: 110,
+      maxTargetWords: Math.min(165, hardCap - 15),
+      hardLimitWords: hardCap,
+      paragraphGuidance: "2 crisp, high-signal paragraphs (no fluff or filler)",
+      styleMandate:
+        "Write a succinct, board-ready 2-paragraph executive summary for this chapter. Open with a sharp 1-sentence thesis and follow immediately with concrete operational, market, and financial facts so the entire 4-chapter plan fits cleanly on a 2-page executive teaser brief.",
+      isLeanBrief: true,
+    };
+  }
+
+  if (mode === "INVESTOR_ANGEL_MEMO" || mode === "INVESTOR_SEIS_EIS_EII_PACK") {
+    return {
+      planTypeLabel: "Angel & Seed Investor Investment Memorandum",
+      minTargetWords: Math.min(200, Math.floor(limit * 0.55)),
+      maxTargetWords: Math.min(290, Math.floor(limit * 0.78)),
+      hardLimitWords: limit,
+      paragraphGuidance: "2 to 3 thesis-driven investment memo paragraphs",
+      styleMandate:
+        "Write a high-signal venture investment memorandum section for angel syndicates and seed investors. Emphasize market timing ('Why Now?'), proprietary competitive wedge, empirical customer discovery & willingness-to-pay proof, scalable unit economics, and capital efficiency.",
+      isLeanBrief: false,
+    };
+  }
+
+  if (mode === "COMMERCIAL_BANK_LOAN" || mode === "UK_START_UP_LOANS_WORKBOOK") {
+    return {
+      planTypeLabel: "Commercial Bank & Term Loan Credit Application",
+      minTargetWords: Math.min(220, Math.floor(limit * 0.6)),
+      maxTargetWords: Math.min(320, Math.floor(limit * 0.82)),
+      hardLimitWords: limit,
+      paragraphGuidance: "3 structured credit underwriting paragraphs",
+      styleMandate:
+        "Write a conservative, risk-mitigated credit underwriting section for commercial bank loan officers and Start Up Loan underwriters. Emphasize exact facility purpose, promoter personal survival budget discipline, recurring revenue visibility, operational resiliency, and 36-month cashflow trough / debt service coverage (DSCR).",
+      isLeanBrief: false,
+    };
+  }
+
+  if (mode === "UK_INNOVATE_UK_9Q") {
+    const ukriLimit = Math.min(limit, 400);
+    return {
+      planTypeLabel: "UK Innovate UK Smart Grants 9-Question IFS Application",
+      minTargetWords: 260,
+      maxTargetWords: 360,
+      hardLimitWords: ukriLimit,
+      paragraphGuidance: "3 substantive peer-review rubric paragraphs",
+      styleMandate:
+        "Write a substantive UKRI Innovate UK peer-review response addressing every sub-question in the assessor rubric (market failure, R&D technical step-change, freedom-to-operate, work packages WP1..n, risk matrix, counterfactual public funding additionality, UK economic/societal impact, and value for money). Strictly respect the 400-word IFS portal limit.",
+      isLeanBrief: false,
+    };
+  }
+
+  if (mode === "IE_LEO_OFFICIAL_GRANT" || mode === "IE_LEO_OFFICIAL_FORM") {
+    return {
+      planTypeLabel: "Irish LEO & Enterprise Ireland Official Grant Application",
+      minTargetWords: Math.min(240, Math.floor(limit * 0.62)),
+      maxTargetWords: Math.min(340, Math.floor(limit * 0.85)),
+      hardLimitWords: limit,
+      paragraphGuidance: "3 evidence-led evaluation committee paragraphs",
+      styleMandate:
+        "Write an evidence-led evaluation committee response for Local Enterprise Office (LEO) and Enterprise Ireland assessors. Emphasize promoter full-time commitment, technical innovation & work packages, bottom-up TAM/SAM/SOM & international export additionality, statutory non-displacement defense, Mom-Test customer validation, 3-quote procurement compliance (items >= €1,000), and 3-year Irish FTE job creation.",
+      isLeanBrief: false,
+    };
+  }
+
+  // STANDARD_COMPREHENSIVE_PLAN / STANDARD_COMMERCIAL_PLAN
+  return {
+    planTypeLabel: "Comprehensive 10-Chapter Master Business Plan",
+    minTargetWords: Math.min(210, Math.floor(limit * 0.6)),
+    maxTargetWords: Math.min(310, Math.floor(limit * 0.82)),
+    hardLimitWords: limit,
+    paragraphGuidance: "3 well-paced publication-grade business plan paragraphs",
+    styleMandate:
+      "Write an authoritative, well-paced chapter for a comprehensive 10-chapter master business plan. Focus strictly on this chapter's specific domain so there is zero cross-chapter repetition across the master document.",
+    isLeanBrief: false,
+  };
+}
+
 /**
  * Domain-specific Smart Synthesizer for Business Plan & Grant Compiler sections.
- * Synthesizes comprehensive, authoritative, multi-paragraph text (300+ words)
- * grounded in real plan metrics when live AI is offline or in local preview.
+ * Synthesizes appropriately sized, multi-paragraph text grounded in real plan metrics
+ * calibrated to the active plan archetype (`LEAN_ONE_PAGER` vs full grant/bank/investor/master plans).
+ */
+/**
+ * Detects whether an existing draft string contains legacy robotic key-value telemetry
+ * (e.g. `Beachhead="..."`, `BlendedNetPrice=€49`, `FixedOverheads=`) or old single-sentence placeholders
+ * so it can be purged and replaced with natural business prose.
+ */
+function isStaleRoboticOrPlaceholderDraft(text?: string): boolean {
+  if (!text) return false;
+  return (
+    text.includes("directly addresses this section through rigorous execution") ||
+    text.includes("Beachhead=") ||
+    text.includes("BlendedNetPrice=") ||
+    text.includes("Y1BreakevenTarget=") ||
+    text.includes("FixedOverheads=") ||
+    text.includes("TargetGrant=") ||
+    text.includes("WhySwitch=") ||
+    text.includes("HatsAssigned=") ||
+    text.includes("NetSurvivalBudget=") ||
+    text.includes("DedicatedIBAN=") ||
+    text.includes("First10Prospects=")
+  );
+}
+
+/**
+ * Domain-specific Smart Synthesizer for Business Plan & Grant Compiler sections.
+ * Synthesizes appropriately sized, multi-paragraph natural English prose grounded in real plan metrics
+ * and calibrated to the active plan archetype (`LEAN_ONE_PAGER` vs full grant/bank/investor/master plans).
+ * Never emits raw `Key=Value` telemetry strings.
  */
 function synthesizeBusinessPlanSectionDraft(
   params: GenerateModuleLStep3SectionParams
 ): { compiledResponseText: string; aiAssessorTip: string } {
   const isUK = params.hqCountryCode === "GB";
-  const countryName = isUK ? "the United Kingdom" : params.hqCountryCode === "IE" ? "Ireland" : params.hqCountryCode;
-  const currencySymbol = isUK ? "£" : params.hqCountryCode === "IE" ? "€" : "$";
+  const countryName =
+    isUK
+      ? "the United Kingdom"
+      : params.hqCountryCode === "IE"
+        ? "Ireland"
+        : params.hqCountryCode;
   const title = (params.sectionTitle || "").toLowerCase();
   const prompt = (params.assessorPrompt || "").toLowerCase();
   const summary = params.planContextSummary || "";
+  const profile = resolveBusinessPlanLengthAndStyleProfile(
+    params.compilerMode,
+    params.wordLimit
+  );
 
   const extractField = (key: string, defaultVal = "") => {
     const match = summary.match(new RegExp(`^\\s*${key}:\\s*([^\\n]+)`, "im"));
@@ -16245,27 +16405,56 @@ function synthesizeBusinessPlanSectionDraft(
   const extractQuotedSubfield = (line: string, subKey: string): string => {
     if (!line) return "";
     const match = line.match(new RegExp(`${subKey}="([^"]*)"`, "i"));
-    return match && match[1]?.trim() ? match[1].trim() : "";
+    const val = match && match[1]?.trim() ? match[1].trim() : "";
+    if (!val || /^(not yet entered|unset|none|none listed|pending)$/i.test(val)) {
+      return "";
+    }
+    return val;
   };
+
+  const extractPipeSubfield = (line: string, subKey: string): string => {
+    if (!line) return "";
+    const quoted = extractQuotedSubfield(line, subKey);
+    if (quoted) return quoted;
+    const match = line.match(new RegExp(`${subKey}=([^|\\n]+)`, "i"));
+    const val = match && match[1]?.trim() ? match[1].trim() : "";
+    if (!val || /^(not yet entered|unset|none|none listed|pending|unmodeled(?:\/yr)?)$/i.test(val)) {
+      return "";
+    }
+    return val;
+  };
+
+  const isPositiveMoney = (val: string): boolean => {
+    if (!val) return false;
+    const digits = val.replace(/[^0-9.]/g, "");
+    return Boolean(digits && Number(digits) > 0);
+  };
+
+  const cleanTrail = (text: string): string => text.trim().replace(/[.]+$/, "");
 
   const ventureName = params.planTitle || "The Venture";
   const industry = params.industryCategory || "Commercial Venture";
   const conceptLine = extractField("CONCEPT");
   const oneLiner = extractField("ONE_LINER");
-  const problem =
+  const problem = cleanTrail(
     extractQuotedSubfield(conceptLine, "Problem") ||
-    extractField("PROBLEM") ||
-    "documented customer workflow friction and underserved operational needs";
-  const solution =
+      extractField("PROBLEM") ||
+      "documented customer workflow friction and underserved operational needs"
+  );
+  const solution = cleanTrail(
     extractQuotedSubfield(conceptLine, "Solution") ||
-    extractField("SOLUTION") ||
-    oneLiner ||
-    "a focused, commercially viable product and service model";
-  const targetCustomer =
+      extractField("SOLUTION") ||
+      oneLiner ||
+      "a focused, commercially viable product and service model"
+  );
+  const targetCustomer = cleanTrail(
     extractQuotedSubfield(conceptLine, "TargetCustomer") ||
-    extractField("CUSTOMER") ||
-    "clearly defined initial beachhead customers";
-  const unfairAdvantage = extractQuotedSubfield(conceptLine, "UnfairAdvantage");
+      extractField("CUSTOMER") ||
+      "clearly defined initial beachhead customers"
+  );
+  const unfairAdvantage = cleanTrail(
+    extractQuotedSubfield(conceptLine, "UnfairAdvantage")
+  );
 
   const marketLine = extractField("MARKET");
   const validationLine = extractField("VALIDATION");
@@ -16279,43 +16468,289 @@ function synthesizeBusinessPlanSectionDraft(
   const grantsCapitalStackLine = extractField("GRANTS_CAPITAL_STACK");
   const defenseNotesLine = extractField("DEFENSE_NOTES");
 
-  // 1. Executive Summary & Facility / Borrowing Request
+  // Clean natural-language parsers for each fact pack line
+  const beachhead = cleanTrail(extractQuotedSubfield(marketLine, "Beachhead"));
+  const somVal = extractPipeSubfield(marketLine, "SOM");
+  const samVal = extractPipeSubfield(marketLine, "SAM");
+  const tamVal = extractPipeSubfield(marketLine, "TAM");
+  const competitorsVal = cleanTrail(extractPipeSubfield(marketLine, "Competitors"));
+  const whySwitchVal = cleanTrail(extractQuotedSubfield(marketLine, "WhySwitch"));
+
+  const buildNaturalMarketSentences = (): string => {
+    const parts: string[] = [];
+    if (beachhead) {
+      parts.push(`The primary commercial beachhead focuses on ${beachhead}.`);
+    }
+    if (isPositiveMoney(somVal) && isPositiveMoney(samVal)) {
+      parts.push(
+        `Bottom-up market sizing targets a serviceable obtainable market (SOM) of ${somVal} within a reachable market (SAM) of ${samVal}${isPositiveMoney(tamVal) ? ` and a wider total addressable market (TAM) of ${tamVal}` : ""}.`
+      );
+    }
+    if (whySwitchVal) {
+      const compPhrase =
+        competitorsVal && !/none listed/i.test(competitorsVal)
+          ? ` over alternatives such as ${competitorsVal}`
+          : "";
+      const normalizedWhy =
+        /^customers switch/i.test(whySwitchVal)
+          ? `${whySwitchVal}.`
+          : `Customers choose ${ventureName}${compPhrase} because ${whySwitchVal.charAt(0).toLowerCase() + whySwitchVal.slice(1)}.`;
+      parts.push(normalizedWhy);
+    } else if (competitorsVal && !/none listed/i.test(competitorsVal)) {
+      parts.push(
+        `Against existing alternatives including ${competitorsVal}, ${ventureName} differentiates on direct workflow fit and faster time-to-value.`
+      );
+    }
+    return (
+      parts.join(" ") ||
+      `Initial commercial entry concentrates on a well-bounded beachhead segment (${targetCustomer}) before expanding into wider regional and export tiers.`
+    );
+  };
+
+  const buildNaturalValidationSentence = (): string => {
+    if (!validationLine || /0 recorded survey responses/i.test(validationLine)) {
+      return `Primary customer discovery is structured around non-leading Mom-Test interviews and direct buyer feedback with ${targetCustomer} to validate workflow urgency and willingness to pay ahead of major capital commitments.`;
+    }
+    const insight = cleanTrail(extractQuotedSubfield(validationLine, "Insight"));
+    const base = cleanTrail(validationLine.split("|")[0] || "");
+    return `Customer validation records ${base}${insight ? `, highlighting a consistent buyer theme: "${insight}"` : ""}.`;
+  };
+
+  const buildNaturalProductSentence = (): string => {
+    if (!productVehicleLine) {
+      return `V1 product delivery focuses strictly on the core workflow needed to solve ${problem} reliably for ${targetCustomer}, deferring non-essential features to post-launch iterations.`;
+    }
+    const vehicleType = cleanTrail(productVehicleLine.split("|")[0] || "");
+    const mustHaves = cleanTrail(extractPipeSubfield(productVehicleLine, "V1MustHaves"));
+    const wpRaw = cleanTrail(extractPipeSubfield(productVehicleLine, "WorkPackages"));
+    const parts: string[] = [];
+    if (vehicleType && vehicleType !== "Configured") {
+      parts.push(`${ventureName} is delivered as a ${vehicleType}.`);
+    }
+    if (mustHaves && mustHaves !== "Core V1 scope") {
+      parts.push(`Initial V1 release scope is anchored around ${mustHaves}.`);
+    }
+    if (wpRaw && !/^0\b/.test(wpRaw)) {
+      parts.push(`Execution is structured across ${wpRaw} in milestone-gated work packages.`);
+    }
+    return (
+      parts.join(" ") ||
+      `V1 product delivery focuses strictly on the core workflow needed to solve ${problem} reliably for ${targetCustomer}.`
+    );
+  };
+
+  const buildNaturalPricingAndFinanceSentence = (): string => {
+    const revModel = cleanTrail(extractQuotedSubfield(pricingBreakevenLine, "Model"));
+    const netPrice = extractPipeSubfield(pricingBreakevenLine, "BlendedNetPrice");
+    const y1TargetRaw = extractPipeSubfield(pricingBreakevenLine, "Y1BreakevenTarget");
+    const y1CustMatch = y1TargetRaw.match(/^(\d+)\s+customers/i);
+    const y1Customers = y1CustMatch ? Number(y1CustMatch[1]) : 0;
+    const y1TurnoverMatch = y1TargetRaw.match(/\(([^)]+)\)/);
+    const y1Turnover = y1TurnoverMatch ? y1TurnoverMatch[1] : "";
+    const y2Turnover = extractPipeSubfield(pricingBreakevenLine, "Y2Turnover");
+    const y3Turnover = extractPipeSubfield(pricingBreakevenLine, "Y3Turnover");
+
+    const fixedOverheads = extractPipeSubfield(finance36mLine, "FixedOverheads");
+    const founderDrawings = extractPipeSubfield(finance36mLine, "Y1FounderDrawings");
+    const teamPayroll = extractPipeSubfield(finance36mLine, "Y1TeamPayroll");
+    const day1Cash = extractPipeSubfield(finance36mLine, "Day1Cash");
+    const externalFunding = extractPipeSubfield(finance36mLine, "ExternalFunding");
+
+    const targetGrant = cleanTrail(extractQuotedSubfield(grantsCapitalStackLine, "TargetGrant"));
+    const founderCash = extractPipeSubfield(grantsCapitalStackLine, "FounderCash");
+    const grantsAmt = extractPipeSubfield(grantsCapitalStackLine, "Grants");
+    const loansAmt = extractPipeSubfield(grantsCapitalStackLine, "Loans");
+    const equityAmt = extractPipeSubfield(grantsCapitalStackLine, "Equity");
+
+    const parts: string[] = [];
+    if (revModel || isPositiveMoney(netPrice)) {
+      const modelPhrase = revModel ? `a ${revModel.toLowerCase()} commercial model` : "a direct commercial model";
+      const pricePhrase = isPositiveMoney(netPrice) ? ` at a blended net price of ${netPrice}` : "";
+      const custPhrase =
+        y1Customers > 0
+          ? `, targeting ${y1Customers.toLocaleString()} customers to reach initial operating breakeven${isPositiveMoney(y1Turnover) ? ` (${y1Turnover})` : ""}`
+          : "";
+      parts.push(`The business operates on ${modelPhrase}${pricePhrase}${custPhrase}.`);
+    }
+    if (isPositiveMoney(y2Turnover) || isPositiveMoney(y3Turnover)) {
+      const scaleBits = [
+        isPositiveMoney(y2Turnover) ? `Year 2 net turnover of ${y2Turnover}` : "",
+        isPositiveMoney(y3Turnover) ? `Year 3 net turnover of ${y3Turnover}` : "",
+      ].filter(Boolean);
+      if (scaleBits.length > 0) {
+        parts.push(`Multi-year commercial projections target ${scaleBits.join(" and ")}.`);
+      }
+    }
+
+    const costBits: string[] = [];
+    if (isPositiveMoney(fixedOverheads)) costBits.push(`${fixedOverheads} in fixed monthly overheads`);
+    if (isPositiveMoney(founderDrawings)) costBits.push(`${founderDrawings} in disciplined Year 1 founder drawings`);
+    if (isPositiveMoney(teamPayroll)) costBits.push(`${teamPayroll} in Year 1 team payroll`);
+    if (costBits.length > 0) {
+      parts.push(`Operating cost governance budgets for ${costBits.join(", ")}.`);
+    }
+
+    const capBits: string[] = [];
+    if (isPositiveMoney(day1Cash)) capBits.push(`${day1Cash} in starting cash reserves`);
+    if (isPositiveMoney(founderCash)) capBits.push(`${founderCash} in committed founder match funding`);
+    if (isPositiveMoney(grantsAmt)) capBits.push(`${grantsAmt} in non-dilutive grant support`);
+    if (isPositiveMoney(loansAmt)) capBits.push(`${loansAmt} in loan facilities`);
+    if (isPositiveMoney(equityAmt)) capBits.push(`${equityAmt} in angel or seed equity`);
+    if (!capBits.length && isPositiveMoney(externalFunding)) {
+      capBits.push(`${externalFunding} in planned external capital`);
+    }
+    if (capBits.length > 0 || (targetGrant && !/none selected/i.test(targetGrant))) {
+      const grantClause =
+        targetGrant && !/none selected/i.test(targetGrant)
+          ? `, aligned with ${targetGrant} eligibility requirements`
+          : "";
+      parts.push(
+        `Capitalization is supported by ${capBits.length > 0 ? capBits.join(" alongside ") : "staged working capital reserves"}${grantClause}.`
+      );
+    }
+
+    return (
+      parts.join(" ") ||
+      `Financial execution pairs disciplined monthly overhead control with milestone-gated working capital deployment in ${countryName}.`
+    );
+  };
+
+  const buildNaturalTeamSentence = (): string => {
+    if (!teamHeadcountLine) {
+      return `Leadership responsibilities span product build, commercial customer acquisition, and statutory governance in ${countryName}.`;
+    }
+    const leadPosture = cleanTrail(teamHeadcountLine.split("|")[0] || "");
+    const hats = extractPipeSubfield(teamHeadcountLine, "HatsAssigned");
+    const survival = extractPipeSubfield(teamHeadcountLine, "NetSurvivalBudget");
+    const hires = cleanTrail(extractPipeSubfield(teamHeadcountLine, "PlannedHires"));
+    const parts: string[] = [];
+    if (leadPosture) {
+      parts.push(`The leadership team is structured as ${leadPosture}${hats ? `, with ${hats} core operational startup hats assigned` : ""}.`);
+    }
+    if (isPositiveMoney(survival)) {
+      parts.push(`Promoter personal survival requirements are budgeted at ${survival} net to maintain household stability alongside business cashflow.`);
+    }
+    if (hires && !/^0\b/.test(hires)) {
+      parts.push(`The 3-year hiring roadmap schedules ${hires}.`);
+    } else {
+      parts.push(`Year 1 operations remain lean and founder-led, tying future headcount additions directly to verified revenue milestones.`);
+    }
+    return parts.join(" ");
+  };
+
+  const buildNaturalOpsAndCorpSentence = (): string => {
+    const fulfillment = cleanTrail(extractQuotedSubfield(operationsLine, "Fulfillment"));
+    const premises = cleanTrail(extractQuotedSubfield(operationsLine, "Premises"));
+    const equip = cleanTrail(extractPipeSubfield(operationsLine, "Equipment"));
+    const risks = cleanTrail(extractPipeSubfield(operationsLine, "Risks"));
+    const entity = cleanTrail(extractQuotedSubfield(corporateSetupLine, "Entity"));
+    const readiness = extractPipeSubfield(corporateSetupLine, "Readiness");
+    const parts: string[] = [];
+    if (fulfillment || premises) {
+      parts.push(
+        `Day-to-day fulfillment operates via ${fulfillment || "a streamlined workflow"} from ${premises || "lean operating premises"}.`
+      );
+    }
+    if (equip && !/^0\s+item/i.test(equip)) {
+      parts.push(`Capital procurement schedules ${equip}.`);
+    }
+    if (risks && !/^0\b/.test(risks)) {
+      parts.push(`Operational resiliency is governed by ${risks} in the formal project risk register.`);
+    }
+    if (entity || readiness) {
+      parts.push(
+        `Corporate setup is structured as ${entity || "an operating entity"} (${readiness || "active"} operational readiness) with dedicated business banking and tax compliance in ${countryName}.`
+      );
+    }
+    return (
+      parts.join(" ") ||
+      `Operations are structured for lean unit fulfillment, competitive supplier procurement, and clean corporate governance in ${countryName}.`
+    );
+  };
+
+  const buildNaturalGtmSentence = (): string => {
+    const hook = cleanTrail(extractQuotedSubfield(marketingGtmLine, "Hook"));
+    const prospects = cleanTrail(extractPipeSubfield(marketingGtmLine, "First10Prospects"));
+    const mktBudget = extractPipeSubfield(marketingGtmLine, "MonthlyMarketing");
+    const cashCac = extractPipeSubfield(marketingGtmLine, "CashCAC");
+    const parts: string[] = [];
+    if (hook && hook !== "Defined") {
+      parts.push(`Brand positioning centers on "${hook}".`);
+    }
+    if (prospects && !/^0\b/.test(prospects)) {
+      parts.push(`Early pipeline tracking includes ${prospects} named first-wave prospects.`);
+    }
+    if (isPositiveMoney(mktBudget) || isPositiveMoney(cashCac)) {
+      const mktBits = [
+        isPositiveMoney(mktBudget) ? `a monthly marketing allocation of ${mktBudget}` : "",
+        isPositiveMoney(cashCac) ? `a modeled cash customer acquisition cost (CAC) of ${cashCac}` : "",
+      ].filter(Boolean);
+      parts.push(`Customer acquisition is budgeted around ${mktBits.join(" and ")}.`);
+    }
+    return (
+      parts.join(" ") ||
+      `Go-to-market execution prioritizes direct founder-led outreach, waitlist conversion, and measurable low-CAC acquisition channels tailored to ${targetCustomer}.`
+    );
+  };
+
+  const formatParagraphsForProfile = (paragraphs: string[]): string => {
+    const cleaned = paragraphs.map((p) => p.trim()).filter(Boolean);
+    if (profile.isLeanBrief) {
+      return cleaned.slice(0, 2).join("\n\n");
+    }
+    return cleaned.join("\n\n");
+  };
+
+  // 1. Executive Summary / Snapshot / Facility Request / Vision ("Why Now?")
   if (
     title.includes("executive") ||
     title.includes("summary") ||
     title.includes("snapshot") ||
     title.includes("facility") ||
+    title.includes("vision") ||
     prompt.includes("loan facility") ||
     prompt.includes("purpose of borrowing")
   ) {
-    const marketSummaryClause = marketLine
-      ? `Market analysis (${marketLine.replace(/\|/g, ";")}) establishes a focused commercial beachhead.`
-      : `Initial commercial focus prioritizes beachhead customers before wider geographic expansion.`;
-    const validationSummaryClause = validationLine
-      ? `Customer discovery records (${validationLine.replace(/\|/g, ";")}) inform product scope and commercial pricing.`
-      : `Structured customer discovery is prioritized ahead of major capital commitments.`;
-    const capitalClause = grantsCapitalStackLine || finance36mLine
-      ? `Financial and funding structure (${[pricingBreakevenLine, finance36mLine, grantsCapitalStackLine].filter(Boolean).join(" • ").replace(/\|/g, ";")}) aligns milestone execution with disciplined cashflow governance in ${countryName}.`
-      : `Capital deployment is tied to phased product delivery, early customer acquisition, and disciplined working capital management in ${countryName}.`;
-
-    const text = `${ventureName} is a ${industry} business based in ${countryName}, built to address ${problem}. By delivering ${solution}, the business serves ${targetCustomer}${unfairAdvantage ? `, supported by ${unfairAdvantage}` : ""}.
-
-${validationSummaryClause} ${marketSummaryClause}
-
-${capitalClause}${defenseNotesLine ? ` ${defenseNotesLine}` : ""}`;
+    const paragraphs = [
+      `${ventureName} is an ${countryName}-based ${industry} venture built to solve ${problem}. By delivering ${solution}, the business serves ${targetCustomer}${unfairAdvantage ? `, supported by a clear competitive advantage: ${unfairAdvantage}` : ""}.`,
+      `${buildNaturalValidationSentence()} ${buildNaturalMarketSentences()}`,
+      `${buildNaturalPricingAndFinanceSentence()}${defenseNotesLine ? ` ${ensurePeriod(defenseNotesLine)}` : ""}`,
+    ];
 
     return {
-      compiledResponseText: text,
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
       aiAssessorTip: isUK
         ? "Credit officers and Innovate UK reviewers expect a punchy summary that immediately establishes commercial credibility, market failure, and clear repayment or milestone feasibility."
         : "LEO assessors look for immediate clarity on promoter commitment, project additionality, and verified local job creation potential.",
     };
   }
 
-  // 2. Promoter / Team / Survival Budget / Roles
+  // 1B. Company Description, Mission & Statutory Structure (Chapter 2 of Master Plan)
+  if (
+    title.includes("company description") ||
+    title.includes("statutory structure") ||
+    title.includes("mission") ||
+    prompt.includes("legal entity type")
+  ) {
+    const paragraphs = [
+      `${ventureName} operates in the ${industry} sector from ${countryName} with a focused mission to solve ${problem} for ${targetCustomer}. The company delivers ${solution}${unfairAdvantage ? `, anchored by ${unfairAdvantage}` : ""}.`,
+      `${buildNaturalOpsAndCorpSentence()} Intellectual property, commercial contracts, and customer data governance are maintained directly within the operating entity to support institutional due diligence.`,
+      `${buildNaturalTeamSentence()} Operating milestones are structured across a 36-month roadmap to scale sustainably across ${countryName} and target international markets.`,
+    ];
+
+    return {
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
+      aiAssessorTip:
+        "Stakeholders and institutional partners verify that your legal entity, IP ownership, and business banking are cleanly separated from personal accounts.",
+    };
+  }
+
+  // 2. Promoter / Team / Management / Survival Budget / Roles
   if (
     title.includes("promoter") ||
     title.includes("founder") ||
+    title.includes("management") ||
+    title.includes("team") ||
     title.includes("skill") ||
     title.includes("resource") ||
     title.includes("survival") ||
@@ -16323,21 +16758,14 @@ ${capitalClause}${defenseNotesLine ? ` ${defenseNotesLine}` : ""}`;
     prompt.includes("creditworthiness") ||
     prompt.includes("track record")
   ) {
-    const teamClause = teamHeadcountLine
-      ? `Current team and survival budget profile: ${teamHeadcountLine.replace(/\|/g, ";")}.`
-      : `Leadership responsibilities cover product delivery, commercial acquisition, customer operations, and statutory governance.`;
-    const corpClause = corporateSetupLine
-      ? `Corporate and operational readiness stands as follows: ${corporateSetupLine.replace(/\|/g, ";")}.`
-      : `Founder drawings are kept disciplined during early trading to preserve company cash runway.`;
-
-    const text = `The promoter team leading ${ventureName} brings direct domain capability in ${industry} to serve ${targetCustomer}. ${teamClause}
-
-${corpClause} Household survival requirements and founder drawings are explicitly separated from business working capital so early customer revenues reinforce operational runway.
-
-As commercial milestones are achieved over the 36-month horizon, incremental hires incorporate statutory ${isUK ? "PAYE, Employer Class 1 NICs, and workplace pension contributions" : "Irish PAYE and Employer Class A PRSI (11.15%)"} within the financial forecast.`;
+    const paragraphs = [
+      `The promoter team leading ${ventureName} brings direct domain capability in ${industry} to serve ${targetCustomer}. ${buildNaturalTeamSentence()}`,
+      `${buildNaturalOpsAndCorpSentence()} Household survival requirements and founder drawings are explicitly separated from business working capital so early customer revenues reinforce operational runway.`,
+      `As commercial milestones are achieved over the 36-month horizon, incremental hires incorporate statutory ${isUK ? "PAYE, Employer Class 1 NICs, and workplace pension contributions" : "Irish PAYE and Employer Class A PRSI (11.15%)"} within the financial forecast.`,
+    ];
 
     return {
-      compiledResponseText: text,
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
       aiAssessorTip: isUK
         ? "Underwriters scrutinize the Personal Survival Budget to confirm the promoter can service living expenses without draining startup capital."
         : "Enterprise Ireland and LEO require evidence of full-time commitment and well-defined management capability to execute the project.",
@@ -16348,6 +16776,7 @@ As commercial milestones are achieved over the 36-month horizon, incremental hir
   if (
     title.includes("headcount") ||
     title.includes("employment") ||
+    title.includes("job creation") ||
     title.includes("salary") ||
     title.includes("hiring") ||
     title.includes("staffing") ||
@@ -16355,50 +16784,62 @@ As commercial milestones are achieved over the 36-month horizon, incremental hir
     prompt.includes("job creation") ||
     prompt.includes("salary plan")
   ) {
-    const hiringClause = teamHeadcountLine
-      ? `Documented staffing and headcount posture for ${ventureName}: ${teamHeadcountLine.replace(/\|/g, ";")}.`
-      : `${ventureName} operates lean founder-led execution initially, tying any future hires strictly to validated revenue capacity.`;
-
-    const text = `The 3-year staffing plan for ${ventureName} in ${countryName} is paced against verified commercial demand rather than speculative headcount expansion. ${hiringClause}
-
-All scheduled payroll costs account for statutory employer on-costs—including ${isUK ? "Employer Class 1 National Insurance Contributions (NICs) and mandatory auto-enrolment workplace pensions" : "Irish Employer Class A PRSI (11.15%) and statutory employment obligations"}. Founder remuneration remains aligned with cashflow milestones to avoid premature fixed-cost burn.
-
-Each planned role is linked to measurable delivery capacity, customer support throughput, or export growth in ${countryName}.`;
+    const paragraphs = [
+      `The 3-year staffing plan for ${ventureName} in ${countryName} is paced against verified commercial demand rather than speculative headcount expansion. ${buildNaturalTeamSentence()}`,
+      `All scheduled payroll costs account for statutory employer on-costs—including ${isUK ? "Employer Class 1 National Insurance Contributions (NICs) and mandatory auto-enrolment workplace pensions" : "Irish Employer Class A PRSI (11.15%) and statutory employment obligations"}. Founder remuneration remains aligned with cashflow milestones to avoid premature fixed-cost burn.`,
+      `Each planned role is linked to measurable delivery capacity, customer support throughput, or export growth in ${countryName}.`,
+    ];
 
     return {
-      compiledResponseText: text,
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
       aiAssessorTip: isUK
         ? "Assessor bodies and lenders examine headcount schedules to verify that statutory employer on-costs (NICs/pensions) have not been omitted from cashflow forecasts."
         : "LEO and Enterprise Ireland prioritize verifiable full-time job creation (FTEs) with competitive, sustainable regional wages.",
     };
   }
 
-  // 3. Market Opportunity / TAM-SAM-SOM / Export / Additionality
+  // 3. Competitive Wedge & State-of-the-Art Analysis (Chapter 4 of Master Plan / Q2 of Innovate UK)
+  if (
+    title.includes("competitive wedge") ||
+    title.includes("state-of-the-art") ||
+    (title.includes("wedge") && !title.includes("market")) ||
+    prompt.includes("barrier to entry") ||
+    prompt.includes("direct and indirect alternatives")
+  ) {
+    const paragraphs = [
+      `${ventureName} establishes a defensible competitive wedge in ${industry} by solving ${problem} for ${targetCustomer} through ${solution}${unfairAdvantage ? `, reinforced by ${unfairAdvantage}` : ""}.`,
+      `${buildNaturalMarketSentences()} Unlike general-purpose tools or expensive bespoke agencies, ${ventureName} reduces onboarding friction and delivers immediate, measurable operational value.`,
+      `${buildNaturalProductSentence()} Continuous customer feedback loops and disciplined V1 scope control protect both gross margins and long-term defensibility.`,
+    ];
+
+    return {
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
+      aiAssessorTip:
+        "Investors and grant reviewers look for a specific, structural reason why incumbents cannot easily replicate your wedge—such as proprietary workflow data, specialized domain compliance, or lower unit switching costs.",
+    };
+  }
+
+  // 3B. Market Opportunity / TAM-SAM-SOM / Export / Additionality / Need or Challenge
   if (
     title.includes("market") ||
+    title.includes("need or challenge") ||
     title.includes("tam") ||
     title.includes("export") ||
     title.includes("sizing") ||
     title.includes("route to") ||
     prompt.includes("tam/sam/som") ||
     prompt.includes("addressable market") ||
-    prompt.includes("export")
+    prompt.includes("export") ||
+    prompt.includes("market failed")
   ) {
-    const marketDetail = marketLine
-      ? `Bottom-up market analysis records: ${marketLine.replace(/\|/g, ";")}.`
-      : `Market sizing focuses first on a clearly bounded beachhead segment (${targetCustomer}) before expanding into wider regional and international tiers.`;
-    const gtmDetail = marketingGtmLine
-      ? `Go-to-market execution is structured around: ${marketingGtmLine.replace(/\|/g, ";")}.`
-      : `Customer acquisition prioritizes direct, measurable channels with low initial customer acquisition cost.`;
-
-    const text = `${ventureName} targets a specific market gap where ${targetCustomer} experience ${problem}. ${marketDetail}
-
-By delivering ${solution}, the venture establishes a clear competitive wedge against manual workarounds and legacy incumbents. ${gtmDetail}
-
-Commercial expansion is designed around net-new value creation and export scalability from ${countryName}, avoiding deadweight displacement of local high-street or domestic service businesses.`;
+    const paragraphs = [
+      `${ventureName} targets a clear commercial gap where ${targetCustomer} experience ${problem}. ${buildNaturalMarketSentences()}`,
+      `By delivering ${solution}, the venture establishes a practical competitive wedge against manual workarounds and high-cost legacy incumbents. ${buildNaturalGtmSentence()}`,
+      `Commercial expansion is designed around net-new value creation and export scalability from ${countryName}, avoiding deadweight displacement of local high-street or domestic service businesses.`,
+    ];
 
     return {
-      compiledResponseText: text,
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
       aiAssessorTip: isUK
         ? "Innovate UK assessors require bottom-up market sizing with defensible assumptions rather than top-down multi-billion industry citations."
         : "LEO committees strictly enforce the Non-Displacement rule: you must prove your business will not take customers from existing local small businesses.",
@@ -16415,18 +16856,14 @@ Commercial expansion is designed around net-new value creation and export scalab
     prompt.includes("willingness-to-pay") ||
     prompt.includes("customer discovery")
   ) {
-    const validationDetail = validationLine
-      ? `Recorded customer validation evidence: ${validationLine.replace(/\|/g, ";")}.`
-      : `Primary customer discovery is structured using non-leading 'Mom Test' interviews and validation surveys focused on current behavior and budget ownership.`;
-
-    const text = `Demand assumptions for ${ventureName} are grounded in primary customer discovery with ${targetCustomer} around ${problem}. Rather than asking hypothetical opinion questions, discovery focuses on existing workarounds, time lost, and real budget behavior.
-
-${validationDetail}
-
-Insights from customer discovery directly govern V1 scope prioritization and commercial pricing${pricingBreakevenLine ? ` (${pricingBreakevenLine.replace(/\|/g, ";")})` : ""}, ensuring capital is deployed only behind features customers actively value.`;
+    const paragraphs = [
+      `Demand assumptions for ${ventureName} are grounded in primary customer discovery with ${targetCustomer} around ${problem}. Rather than relying on hypothetical opinion questions, discovery focuses on existing workarounds, time lost, and real budget ownership.`,
+      `${buildNaturalValidationSentence()}`,
+      `Insights from customer discovery directly govern V1 scope prioritization and commercial pricing. ${buildNaturalPricingAndFinanceSentence()}`,
+    ];
 
     return {
-      compiledResponseText: text,
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
       aiAssessorTip: isUK
         ? "Assessor rubrics award top marks to founders who show evidence of real customer conversations and quantifiable willingness-to-pay."
         : "Evidence of customer validation provides independent proof that the proposed grant or loan will lead to genuine commercial trading.",
@@ -16444,18 +16881,14 @@ Insights from customer discovery directly govern V1 scope prioritization and com
     prompt.includes("technical step-change") ||
     prompt.includes("work packages")
   ) {
-    const productDetail = productVehicleLine
-      ? `Product build and scope parameters: ${productVehicleLine.replace(/\|/g, ";")}.`
-      : `V1 delivery prioritizes the minimum high-value product scope needed to solve ${problem} reliably for ${targetCustomer}, deferring non-essential features to post-launch phases.`;
-
-    const text = `${ventureName} is engineered to deliver ${solution} for ${targetCustomer}. ${productDetail}
-
-Execution follows a disciplined build-vs-buy posture—using proven commercial infrastructure for commodity functions while concentrating custom effort on core customer value, quality control, and proprietary IP.
-
-Delivery is gated into clear milestones with explicit verification criteria prior to scaling spend, protecting both timeline predictability and unit margins.`;
+    const paragraphs = [
+      `${ventureName} is engineered to deliver ${solution} for ${targetCustomer}. ${buildNaturalProductSentence()}`,
+      `Execution follows a disciplined build-vs-buy posture—using proven commercial infrastructure for commodity functions while concentrating custom effort on core customer value, quality control, and proprietary differentiation.`,
+      `Delivery is gated into clear milestones with explicit verification criteria prior to scaling spend, protecting both timeline predictability and unit margins.`,
+    ];
 
     return {
-      compiledResponseText: text,
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
       aiAssessorTip: isUK
         ? "Break down project delivery into distinct Work Packages (WP1, WP2, etc.) with explicit deliverable outputs and milestone dependencies."
         : "Technical merit criteria require a clear explanation of how the product is built and why it represents a practical advance over status-quo workarounds.",
@@ -16474,106 +16907,120 @@ Delivery is gated into clear milestones with explicit verification criteria prio
     prompt.includes("equipment") ||
     prompt.includes("risk register")
   ) {
-    const opsDetail = operationsLine
-      ? `Operational fulfillment, premises, and risk schedule: ${operationsLine.replace(/\|/g, ";")}.`
-      : `Fulfillment workflows and premises overheads are kept lean during V1 launch to protect unit contribution margins and working capital.`;
-    const corpDetail = corporateSetupLine
-      ? `Statutory and operational setup status: ${corporateSetupLine.replace(/\|/g, ";")}.`
-      : `Procurement governance adheres to institutional audit standards, including competitive supplier quotations where required.`;
-
-    const text = `Day-to-day fulfillment for ${ventureName} is structured for predictable unit delivery and low fixed overhead drag. ${opsDetail}
-
-${corpDetail} For capital equipment procurement in ${countryName}, ${isUK ? "asset usage and depreciation schedules are tracked against project milestones" : "3 independent written supplier quotes are maintained for any capital item of €1,000 or more, excluding general-purpose consumer laptops"}.
-
-Operational, commercial, financial, and regulatory risks are actively tracked with concrete contingency triggers so single-supplier or onboarding bottlenecks do not disrupt customer delivery.`;
+    const paragraphs = [
+      `Day-to-day fulfillment for ${ventureName} is structured for predictable unit delivery and low fixed overhead drag. ${buildNaturalOpsAndCorpSentence()}`,
+      `For capital equipment procurement in ${countryName}, ${isUK ? "asset usage and depreciation schedules are tracked against project milestones" : "three independent written supplier quotes are maintained for any capital item of €1,000 or more, excluding general-purpose consumer laptops"}.`,
+      `Operational, commercial, financial, and regulatory risks are actively tracked with concrete contingency triggers so single-supplier or onboarding bottlenecks do not disrupt customer delivery.`,
+    ];
 
     return {
-      compiledResponseText: text,
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
       aiAssessorTip: isUK
         ? "Ensure equipment procurement rules and supply chain single-point-of-failure risks are clearly mitigated."
         : "LEO requires 3 independent written quotes for every capital item of €1,000 or more, and excludes general-purpose consumer laptops.",
     };
   }
 
-  // 7. Financial Model / Breakeven / Cashflow / Debt Service / Economics
+  // 6B. Go-to-Market / Marketing / First 10 or 100 Customers Playbook (Chapter 8 of Master Plan / Chapter 4 of Angel Memo)
+  if (
+    title.includes("go-to-market") ||
+    title.includes("marketing") ||
+    title.includes("acquisition") ||
+    title.includes("first 10") ||
+    title.includes("first 100") ||
+    prompt.includes("cac") ||
+    prompt.includes("distribution channels") ||
+    prompt.includes("marketing budget")
+  ) {
+    const paragraphs = [
+      `${ventureName}'s go-to-market strategy is engineered to acquire ${targetCustomer} efficiently by addressing ${problem} with a clear, high-urgency value proposition (${solution}).`,
+      `${buildNaturalGtmSentence()} Early commercial traction prioritizes converting discovery and waitlist leads into paying reference customers before scaling paid marketing spend.`,
+      `${buildNaturalPricingAndFinanceSentence()} Channel performance is tracked against unit Customer Acquisition Cost (CAC) and payback velocity to ensure profitable, repeatable growth.`,
+    ];
+
+    return {
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
+      aiAssessorTip:
+        "Reviewers and investors favor a concrete 'First 10 to 100 Customers' playbook with named outreach channels and realistic CAC assumptions over broad brand-awareness spend.",
+    };
+  }
+
+  // 7. Financial Model / Breakeven / Cashflow / Debt Service / Economics / Costs & Value for Money
   if (
     title.includes("financial") ||
     title.includes("projection") ||
     title.includes("cashflow") ||
     title.includes("breakeven") ||
-    title.includes("economic") ||
+    title.includes("commercial model") ||
+    title.includes("unit economics") ||
+    title.includes("costs") ||
     title.includes("revenue") ||
     title.includes("debt service") ||
     prompt.includes("cashflow trough") ||
     prompt.includes("breakeven") ||
     prompt.includes("dscr")
   ) {
-    const revDetail = pricingBreakevenLine
-      ? `Commercial pricing and 3-year breakeven profile: ${pricingBreakevenLine.replace(/\|/g, ";")}.`
-      : `Unit pricing is structured to maintain positive contribution margin after direct delivery costs, payment processing, and channel fees.`;
-    const finDetail = finance36mLine
-      ? `36-month overhead and cashflow baseline: ${finance36mLine.replace(/\|/g, ";")}.`
-      : `Fixed monthly overheads and founder drawings are paced conservatively against customer cash collections.`;
-    const stackDetail = grantsCapitalStackLine
-      ? `Capital stack and liquidity bridge: ${grantsCapitalStackLine.replace(/\|/g, ";")}.`
-      : `Working capital reserves are sized to cover early operating costs and payment timing gaps.`;
-
-    const text = `Financial projections for ${ventureName} are built bottom-up from unit pricing, direct fulfillment costs, and localized statutory overheads in ${countryName}. ${revDetail}
-
-${finDetail}
-
-${stackDetail} Cashflow timing—including customer collection terms and any grant reimbursement lag—is explicitly accounted for to protect solvency across the 36-month forecast.`;
+    const paragraphs = [
+      `Financial projections for ${ventureName} are built bottom-up from unit pricing, direct fulfillment costs, and localized statutory overheads in ${countryName}.`,
+      `${buildNaturalPricingAndFinanceSentence()}`,
+      `Cashflow timing—including customer collection terms, working capital reserves, and any grant reimbursement lag—is explicitly managed to protect solvency across the 36-month forecast.`,
+    ];
 
     return {
-      compiledResponseText: text,
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
       aiAssessorTip: isUK
         ? "Credit underwriters look specifically for the Lowest Cash Trough month to verify that loan proceeds will comfortably cover working capital until cash-positive."
         : "Financial projections must reconcile exactly with the headcount plan, premises overheads, and vouched matching funding.",
     };
   }
 
-  // 8. Additionality / Public Funding / Grants / Value for Money
+  // 8. Additionality / Public Funding / Grants / Economic Impact / Funding Requirements & Milestone Roadmap
   if (
     title.includes("additionality") ||
     title.includes("public funding") ||
     title.includes("grant") ||
+    title.includes("funding requirements") ||
+    title.includes("capital ask") ||
+    title.includes("milestone") ||
+    title.includes("impact") ||
     title.includes("value for money") ||
     prompt.includes("public funding") ||
-    prompt.includes("why is public funding")
+    prompt.includes("why is public funding") ||
+    prompt.includes("sources & uses")
   ) {
-    const grantDetail = grantsCapitalStackLine
-      ? `Planned funding stack and matching liquidity: ${grantsCapitalStackLine.replace(/\|/g, ";")}.`
-      : `Co-funding and working capital reserves are structured so vouched expenditure can be cash-flowed cleanly prior to reimbursement claims.`;
-
-    const text = `External funding accelerates ${ventureName}'s path from early validation to commercial trading and export capability in ${countryName}. Without structured capital support, product delivery and market entry would be constrained to a slower self-funded timeline.
-
-${grantDetail}
-
-Economic value for money is anchored in net-new commercial revenue, export potential, and sustainable employment in ${countryName} without displacing existing local enterprises.`;
+    const paragraphs = [
+      `Structured capital deployment accelerates ${ventureName}'s path from early validation to commercial trading and export capability in ${countryName}. Without targeted funding support, product delivery and market entry would be constrained to a slower self-funded timeline.`,
+      `${buildNaturalPricingAndFinanceSentence()}`,
+      `${buildNaturalTeamSentence()} Economic value for money is anchored in net-new commercial revenue, export potential, and sustainable employment in ${countryName} without displacing existing local enterprises.`,
+    ];
 
     return {
-      compiledResponseText: text,
+      compiledResponseText: formatParagraphsForProfile(paragraphs),
       aiAssessorTip: isUK
         ? "Innovate UK assessors look for clear proof of 'additionality'—what happens with the grant vs without the grant (the counterfactual)."
         : "Public funding bodies must verify that state support produces net-new jobs and economic activity that would not happen without state assistance.",
     };
   }
 
-  // Fallback for custom or archetype-specific sections
-  const customDraft = `${ventureName} outlines a clear operational and commercial plan for ${params.sectionTitle} in ${countryName}. By delivering ${solution} for ${targetCustomer}, the business addresses ${problem} with disciplined execution.
-
-${[marketLine, validationLine, productVehicleLine, pricingBreakevenLine, finance36mLine]
-  .filter(Boolean)
-  .slice(0, 2)
-  .map((line) => line.replace(/\|/g, ";"))
-  .join(" ") || "Execution priorities, cost controls, and statutory compliance are aligned with phased commercial milestones."}`;
+  // Fallback for custom sections
+  const fallbackParagraphs = [
+    `${ventureName} outlines a clear operational and commercial plan for ${params.sectionTitle} in ${countryName}. By delivering ${solution} for ${targetCustomer}, the business addresses ${problem} with disciplined execution.`,
+    `${buildNaturalMarketSentences()} ${buildNaturalProductSentence()}`,
+    `${buildNaturalPricingAndFinanceSentence()}`,
+  ];
 
   return {
-    compiledResponseText: customDraft,
+    compiledResponseText: formatParagraphsForProfile(fallbackParagraphs),
     aiAssessorTip: isUK
       ? "Ensure all claims are substantiated by empirical references and quantitative data points."
       : "Assessor committees look for clear operational mechanics and alignment with regional enterprise priorities.",
   };
+}
+
+function ensurePeriod(text: string): string {
+  const t = text.trim();
+  if (!t) return "";
+  return /[.!?]["']?$/.test(t) ? t : `${t}.`;
 }
 
 export async function generateModuleLStep3SectionViaRouter(
@@ -16581,20 +17028,26 @@ export async function generateModuleLStep3SectionViaRouter(
 ): Promise<GenerateModuleLStep3SectionResult> {
   const isUK = params.hqCountryCode === "GB";
   const currencySymbol = isUK ? "£" : params.hqCountryCode === "IE" ? "€" : "$";
-  const limit = params.wordLimit || 400;
+  const profile = resolveBusinessPlanLengthAndStyleProfile(
+    params.compilerMode,
+    params.wordLimit
+  );
+  const limit = profile.hardLimitWords;
 
   const smartFallback = synthesizeBusinessPlanSectionDraft(params);
-  // If currentResponseText contains the old generic single-sentence placeholder, purge it so the chapter synthesizer can run
-  const isOldGenericPlaceholder =
-    params.currentResponseText &&
-    params.currentResponseText.includes('directly addresses this section through rigorous execution');
+  // Purge any old generic single-sentence placeholder or raw key=value telemetry draft
+  const isStalePlaceholder = isStaleRoboticOrPlaceholderDraft(
+    params.currentResponseText
+  );
 
-  const fallbackDraft =
+  const cleanCurrentDraft =
     params.currentResponseText &&
     params.currentResponseText.trim().length > 30 &&
-    !isOldGenericPlaceholder
+    !isStalePlaceholder
       ? params.currentResponseText.trim()
-      : smartFallback.compiledResponseText;
+      : "";
+
+  const fallbackDraft = cleanCurrentDraft || smartFallback.compiledResponseText;
 
   const fallback: GenerateModuleLStep3SectionResult = {
     allowed: true,
@@ -16615,37 +17068,39 @@ export async function generateModuleLStep3SectionViaRouter(
     try {
       const ai = getGenAiClient(authCtx.activeApiKey);
 
-      const prompt = `You are an expert Grant Assessor and Business Plan Compiler for ${params.hqCountryCode} (${compilerModeLabel}).
+      const prompt = `You are an expert Executive Business Plan Author, Credit Underwriter, and Grant Assessor for ${params.hqCountryCode} (${compilerModeLabel}).
 Startup: "${params.planTitle}"
 Industry: ${params.industryCategory || "Startup Venture"}
 Currency: ${params.baseCurrency} (${currencySymbol})
-Submission Format: ${compilerModeLabel}
+Plan Type / Submission Format: ${profile.planTypeLabel} (${compilerModeLabel})
 
-SECTION TO DRAFT/REFINE:
+SECTION TO DRAFT:
 Section Number: ${params.sectionNumber}
 Title: "${params.sectionTitle}"
-Assessor Question / Rubric Prompt: "${params.assessorPrompt}"
+Assessor / Stakeholder Prompt: "${params.assessorPrompt}"
 Scoring Weight: ${params.scoringWeightPercent || 20}%
-Word Limit: STRICT MAXIMUM OF ${limit} WORDS (Do NOT exceed ${limit} words).
+
+LENGTH & STRUCTURE MANDATE FOR THIS PLAN TYPE:
+- Target Word Count: ${profile.minTargetWords} to ${profile.maxTargetWords} words (STRICT MAXIMUM OF ${limit} WORDS — never exceed ${limit} words).
+- Paragraph Structure: ${profile.paragraphGuidance} separated by double newlines (\\n\\n).
+- Editorial Directive: ${profile.styleMandate}
 
 VERIFIED VENTURE FACTS & EVIDENCE FROM THE FOUNDER'S PLAN:
 ${sanitizePromptInput(params.planContextSummary || "", 2400)}
 
-EXISTING DRAFT (IF CUSTOM EDITED):
-${sanitizePromptInput(params.currentResponseText || "", 600)}
-
-TASK:
-Write an authoritative, evidence-backed official submission response strictly answering the assessor prompt.
+${cleanCurrentDraft ? `EXISTING DRAFT (IF CUSTOM EDITED):\n${sanitizePromptInput(cleanCurrentDraft, 600)}\n` : ""}TASK:
+Draft an authoritative, evidence-backed chapter response answering the prompt at the exact appropriate length (${profile.minTargetWords}–${profile.maxTargetWords} words) for a ${profile.planTypeLabel}.
 Rules:
-1. CLOSED-WORLD GROUNDING: Use ONLY real facts, numbers, prices, headcount, survey counts, and operational mechanics present in VERIFIED VENTURE FACTS above. Never invent survey percentages, revenue numbers, headcount figures, DSCR ratios, LOIs, or supplier quotes that are not explicitly stated.
-2. If a specific metric is marked "not yet modeled" or absent, describe the founder's conservative operating approach without fabricating numbers.
-3. ZERO INTERNAL JARGON: Never mention internal app labels like "Module A", "Module H", "/v/[slug]", or raw enum codes (e.g., IE_LEO_OFFICIAL_FORM). Write natural, human-authored business prose.
-4. Keep the length strictly under ${limit} words (ideal is 75% to 95% of the limit).
+1. NATURAL HUMAN EXECUTIVE PROSE ONLY: Write in fluent, persuasive, publication-grade business English. NEVER copy-paste key=value syntax (like \`Beachhead=...\`, \`SOM=...\`, \`BlendedNetPrice=...\`, or \`Bridge="Unset"\`) or pipe/semicolon lists from the fact pack. Weave relevant figures naturally into well-constructed sentences.
+2. OMIT ZERO OR UNSET FIELDS GRACEFULLY: If a metric in the fact pack is \`0\` (e.g. \`€0\`, \`£0\`, \`$0\`, \`0 survey responses\`) or \`Unset\` / \`Not yet entered\`, NEVER recite \`€0\` or \`Unset\` mechanically—describe the venture's practical operating approach in natural prose without fabricating numbers.
+3. CLOSED-WORLD GROUNDING: Use ONLY real facts, positive numbers, prices, headcount, and operational mechanics present in VERIFIED VENTURE FACTS above. Never invent survey percentages, revenue numbers, headcount figures, DSCR ratios, LOIs, or supplier quotes that are not explicitly stated.
+4. ZERO INTERNAL JARGON: Never mention internal app labels like "Module A", "Module H", "/v/[slug]", or raw enum codes (e.g., IE_LEO_OFFICIAL_FORM).
+5. Keep the length between ${profile.minTargetWords} and ${profile.maxTargetWords} words (strictly under ${limit} words).
 
 Return strictly a JSON object:
 {
-  "compiledResponseText": "The completed assessor-ready response text",
-  "aiAssessorTip": "1-2 sentence tip on what committee reviewers look for when scoring this specific section"
+  "compiledResponseText": "The completed chapter narrative text",
+  "aiAssessorTip": "1-2 sentence tip on what reviewers/stakeholders look for when evaluating this specific section"
 }`;
 
       const usedModel: 'gemini-2.5-flash' = 'gemini-2.5-flash';
@@ -16654,14 +17109,15 @@ Return strictly a JSON object:
         contents: prompt,
         config: {
           responseMimeType: "application/json",
-          temperature: 0.2,
+          temperature: 0.25,
           maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+          thinkingConfig: { thinkingBudget: 0 },
         },
       });
       const rawText = response.text?.trim() || "";
 
       if (rawText) {
-        const parsed = JSON.parse(rawText);
+        const parsed = JSON.parse(stripJsonCodeFences(rawText));
         if (
           parsed &&
           typeof parsed.compiledResponseText === "string" &&
@@ -16673,8 +17129,8 @@ Return strictly a JSON object:
             planId: params.planId,
             promptKey: "MOD_L_STEP3_SECTION",
             modelUsed: usedModel,
-            inputTokens: 350,
-            outputTokens: 280,
+            inputTokens: response.usageMetadata?.promptTokenCount || 350,
+            outputTokens: response.usageMetadata?.candidatesTokenCount || 280,
             usedByokKey: authCtx.usedByokKey,
             fallbackCreditsUsed: authCtx.currentCreditsUsed,
           });
@@ -16701,6 +17157,247 @@ Return strictly a JSON object:
   }
 
   return fallback;
+}
+
+export interface GenerateBusinessPlanBatchSectionInput {
+  sectionNumber: number;
+  title: string;
+  assessorPrompt: string;
+  wordLimit: number;
+  scoringWeightPercent?: number;
+  currentResponseText?: string;
+}
+
+export interface GenerateBusinessPlanBatchParams {
+  planId: string;
+  planTitle: string;
+  industryCategory?: string;
+  hqCountryCode: string;
+  baseCurrency: string;
+  compilerMode: string;
+  targetTone?: string;
+  planContextSummary: string;
+  sections: GenerateBusinessPlanBatchSectionInput[];
+}
+
+export interface GenerateBusinessPlanBatchResult {
+  allowed: boolean;
+  compiledSections: {
+    sectionNumber: number;
+    compiledResponseText: string;
+    wordCount: number;
+    aiAssessorTip?: string;
+  }[];
+  engineMode: "gemini-2.5-flash" | "smart-synthesizer";
+}
+
+/**
+ * Drafts all chapters of a Business Plan in archetype-calibrated chunks.
+ * Authorizes the session once so 7-to-10 chapter plans never trip the 8-calls/minute
+ * per-user burst rate limit, and passes the full document outline to prevent cross-chapter repetition.
+ */
+export async function generateBusinessPlanBatchViaRouter(
+  params: GenerateBusinessPlanBatchParams
+): Promise<GenerateBusinessPlanBatchResult> {
+  const isUK = params.hqCountryCode === "GB";
+  const currencySymbol = isUK ? "£" : params.hqCountryCode === "IE" ? "€" : "$";
+  const compilerModeLabel = formatCompilerModeLabel(params.compilerMode);
+  const overallProfile = resolveBusinessPlanLengthAndStyleProfile(
+    params.compilerMode,
+    params.sections[0]?.wordLimit || 400
+  );
+
+  // Build deterministic archetype-aware fallback for every section first
+  const fallbackMap = new Map<
+    number,
+    { compiledResponseText: string; aiAssessorTip: string }
+  >();
+  for (const sec of params.sections) {
+    const synthesized = synthesizeBusinessPlanSectionDraft({
+      planId: params.planId,
+      planTitle: params.planTitle,
+      hqCountryCode: params.hqCountryCode,
+      baseCurrency: params.baseCurrency,
+      compilerMode: params.compilerMode,
+      industryCategory: params.industryCategory,
+      sectionNumber: sec.sectionNumber,
+      sectionTitle: sec.title,
+      assessorPrompt: sec.assessorPrompt,
+      scoringWeightPercent: sec.scoringWeightPercent,
+      wordLimit: sec.wordLimit,
+      currentResponseText: sec.currentResponseText,
+      planContextSummary: params.planContextSummary,
+    });
+    fallbackMap.set(sec.sectionNumber, synthesized);
+  }
+
+  const authCtx = await authorizeAndPrepareGeminiCall(
+    "MOD_L_STEP3_SECTION",
+    "You are an expert Executive Business Plan Author, Credit Underwriter, and Grant Assessor."
+  );
+
+  if (!authCtx.canCallLiveGemini || !authCtx.activeApiKey) {
+    return {
+      allowed: true,
+      compiledSections: params.sections.map((sec) => {
+        const fb = fallbackMap.get(sec.sectionNumber)!;
+        const text = fb.compiledResponseText;
+        return {
+          sectionNumber: sec.sectionNumber,
+          compiledResponseText: text,
+          wordCount: text.split(/\s+/).filter(Boolean).length,
+          aiAssessorTip: fb.aiAssessorTip,
+        };
+      }),
+      engineMode: "smart-synthesizer",
+    };
+  }
+
+  // Group chapters into chunks of 2 (or 3 for lean briefs) with thinkingBudget: 0 so each chunk stays well inside MAX_OUTPUT_TOKENS_PER_CALL (2048 tokens)
+  const chunkSize = overallProfile.isLeanBrief ? 3 : 2;
+  const chunks: GenerateBusinessPlanBatchSectionInput[][] = [];
+  for (let i = 0; i < params.sections.length; i += chunkSize) {
+    chunks.push(params.sections.slice(i, i + chunkSize));
+  }
+
+  const fullOutlineText = params.sections
+    .map((s) => `${s.sectionNumber}. ${s.title}`)
+    .join(" | ");
+
+  const draftedMap = new Map<
+    number,
+    { compiledResponseText: string; aiAssessorTip?: string }
+  >();
+  let anyLiveGeminiSucceeded = false;
+
+  const ai = getGenAiClient(authCtx.activeApiKey);
+  const usedModel: "gemini-2.5-flash" = "gemini-2.5-flash";
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const sectionsSpec = chunk
+          .map((sec) => {
+            const secProfile = resolveBusinessPlanLengthAndStyleProfile(
+              params.compilerMode,
+              sec.wordLimit
+            );
+            return `- Section ${sec.sectionNumber}: "${sec.title}"
+  Prompt: "${sec.assessorPrompt}"
+  Target Length: ${secProfile.minTargetWords}–${secProfile.maxTargetWords} words (Strict Max: ${secProfile.hardLimitWords} words; ${secProfile.paragraphGuidance})`;
+          })
+          .join("\n");
+
+        const prompt = `You are an expert Executive Business Plan Author, Credit Underwriter, and Grant Assessor for ${params.hqCountryCode} (${compilerModeLabel}).
+Startup: "${params.planTitle}"
+Industry: ${params.industryCategory || "Startup Venture"}
+Currency: ${params.baseCurrency} (${currencySymbol})
+Plan Type: ${overallProfile.planTypeLabel} (${compilerModeLabel})
+Full Plan Chapter Outline (${params.sections.length} Chapters Total): ${fullOutlineText}
+
+STYLE & LENGTH MANDATE FOR THIS PLAN TYPE:
+${overallProfile.styleMandate}
+
+CHAPTERS TO DRAFT IN THIS BATCH:
+${sectionsSpec}
+
+VERIFIED VENTURE FACTS & EVIDENCE FROM THE FOUNDER'S PLAN:
+${sanitizePromptInput(params.planContextSummary || "", 2600)}
+
+TASK:
+Draft each requested chapter listed in CHAPTERS TO DRAFT IN THIS BATCH.
+Rules:
+1. NATURAL HUMAN EXECUTIVE PROSE ONLY: Write in fluent, persuasive, publication-grade business English. NEVER copy-paste key=value syntax (like \`Beachhead=...\`, \`SOM=...\`, \`BlendedNetPrice=...\`, or \`Bridge="Unset"\`) or pipe/semicolon lists from the fact pack. Weave relevant figures naturally into well-constructed sentences.
+2. OMIT ZERO OR UNSET FIELDS GRACEFULLY: If a metric in the fact pack is \`0\` (e.g. \`€0\`, \`£0\`, \`$0\`, \`0 survey responses\`) or \`Unset\` / \`Not yet entered\`, NEVER recite \`€0\` or \`Unset\` mechanically—describe the venture's practical operating approach in natural prose without fabricating numbers.
+3. APPROPRIATE LENGTH PER CHAPTER: Adhere strictly to each chapter's Target Length (${overallProfile.minTargetWords}–${overallProfile.maxTargetWords} words per chapter, never exceeding its Strict Max). Separate paragraphs with double newlines (\\n\\n).
+4. ZERO CROSS-CHAPTER REPETITION: Because these chapters belong to a ${params.sections.length}-chapter ${overallProfile.planTypeLabel} (${fullOutlineText}), keep each chapter tightly focused on its own title and prompt rather than repeating the same introductory boilerplate in every chapter.
+5. CLOSED-WORLD GROUNDING: Use ONLY real facts, positive numbers, prices, headcount, and operational mechanics present in VERIFIED VENTURE FACTS above. Never invent survey percentages, revenue numbers, headcount figures, DSCR ratios, LOIs, or supplier quotes that are not explicitly stated.
+6. ZERO INTERNAL JARGON: Never mention internal app labels like "Module A", "Module H", "/v/[slug]", or raw enum codes.
+
+Return strictly a JSON object matching this schema:
+{
+  "sections": [
+    {
+      "sectionNumber": 1,
+      "compiledResponseText": "Multi-paragraph chapter narrative text...",
+      "aiAssessorTip": "1-sentence tip for this chapter"
+    }
+  ]
+}`;
+
+        const response = await ai.models.generateContent({
+          model: usedModel,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            temperature: 0.25,
+            maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        });
+
+        const rawText = response.text?.trim() || "";
+        if (rawText) {
+          const parsed = JSON.parse(stripJsonCodeFences(rawText));
+          if (parsed && Array.isArray(parsed.sections)) {
+            let validCount = 0;
+            for (const item of parsed.sections) {
+              const num = Number(item?.sectionNumber);
+              const text =
+                typeof item?.compiledResponseText === "string"
+                  ? item.compiledResponseText.trim()
+                  : "";
+              if (Number.isFinite(num) && text.length > 30) {
+                draftedMap.set(num, {
+                  compiledResponseText: text,
+                  aiAssessorTip:
+                    typeof item?.aiAssessorTip === "string"
+                      ? item.aiAssessorTip.trim()
+                      : undefined,
+                });
+                validCount++;
+              }
+            }
+            if (validCount > 0) {
+              anyLiveGeminiSucceeded = true;
+              await recordGeminiUsageAndIncrementCredits({
+                verifiedUserId: authCtx.verifiedUserId,
+                planId: params.planId,
+                promptKey: "MOD_L_STEP3_SECTION",
+                modelUsed: usedModel,
+                inputTokens: response.usageMetadata?.promptTokenCount || 480,
+                outputTokens:
+                  response.usageMetadata?.candidatesTokenCount || 650,
+                usedByokKey: authCtx.usedByokKey,
+                fallbackCreditsUsed: authCtx.currentCreditsUsed,
+              });
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn(
+          "[AI Router] Business Plan Batch chunk fallback:",
+          err?.message || err
+        );
+      }
+    })
+  );
+
+  return {
+    allowed: true,
+    compiledSections: params.sections.map((sec) => {
+      const drafted = draftedMap.get(sec.sectionNumber);
+      const fb = fallbackMap.get(sec.sectionNumber)!;
+      const finalText = drafted?.compiledResponseText || fb.compiledResponseText;
+      return {
+        sectionNumber: sec.sectionNumber,
+        compiledResponseText: finalText,
+        wordCount: finalText.split(/\s+/).filter(Boolean).length,
+        aiAssessorTip: drafted?.aiAssessorTip || fb.aiAssessorTip,
+      };
+    }),
+    engineMode: anyLiveGeminiSucceeded ? usedModel : "smart-synthesizer",
+  };
 }
 
 
@@ -16983,6 +17680,10 @@ export interface PolishBusinessPlanTextParams {
   hqCountryCode: string;
   baseCurrency: string;
   targetTone: string;
+  archetype?: string;
+  wordLimit?: number;
+  assessorPrompt?: string;
+  planContextSummary?: string;
   chapterTitle: string;
   currentText: string;
   instruction: string;
@@ -16998,11 +17699,35 @@ export interface PolishBusinessPlanTextResult {
 export async function polishBusinessPlanTextViaRouter(
   params: PolishBusinessPlanTextParams
 ): Promise<PolishBusinessPlanTextResult> {
-  const fallbackDraft = params.currentText?.trim() || '';
+  const profile = resolveBusinessPlanLengthAndStyleProfile(
+    params.archetype || params.targetTone,
+    params.wordLimit
+  );
+  const isStaleCurrent = isStaleRoboticOrPlaceholderDraft(params.currentText);
+  const synthesizedBase =
+    !params.currentText || params.currentText.trim().length < 20 || isStaleCurrent
+      ? synthesizeBusinessPlanSectionDraft({
+          planId: params.planId || '',
+          planTitle: params.planTitle,
+          hqCountryCode: params.hqCountryCode,
+          baseCurrency: params.baseCurrency,
+          compilerMode: params.archetype || 'STANDARD_COMMERCIAL_PLAN',
+          industryCategory: params.industryCategory,
+          sectionNumber: 1,
+          sectionTitle: params.chapterTitle,
+          assessorPrompt: params.assessorPrompt || params.chapterTitle,
+          wordLimit: params.wordLimit,
+          planContextSummary: params.planContextSummary,
+        }).compiledResponseText
+      : params.currentText.trim();
+
   const fallback: PolishBusinessPlanTextResult = {
     allowed: true,
-    polishedText: fallbackDraft,
-    summaryOfChanges: 'Text preserved.',
+    polishedText: synthesizedBase,
+    summaryOfChanges:
+      !params.currentText || params.currentText.trim().length < 20 || isStaleCurrent
+        ? `Drafted for ${profile.planTypeLabel}`
+        : 'Text preserved.',
     engineMode: 'smart-synthesizer',
   };
 
@@ -17018,13 +17743,15 @@ export async function polishBusinessPlanTextViaRouter(
 Company: "${params.planTitle}"
 Industry: ${params.industryCategory || 'Startup Venture'}
 Country: ${params.hqCountryCode} (${params.baseCurrency})
+Plan Type: ${profile.planTypeLabel}
 Audience Tone / Register: ${params.targetTone}
+Target Word Count: ${profile.minTargetWords} to ${profile.maxTargetWords} words (Strict Max: ${profile.hardLimitWords} words)
 
 CHAPTER TITLE: "${params.chapterTitle}"
-
+${params.assessorPrompt ? `CHAPTER PROMPT: "${params.assessorPrompt}"\n` : ''}${params.planContextSummary ? `\nVERIFIED VENTURE FACTS:\n${sanitizePromptInput(params.planContextSummary, 1800)}\n` : ''}
 CURRENT DRAFT PROSE:
 """
-${sanitizePromptInput(params.currentText, 2500)}
+${sanitizePromptInput(synthesizedBase, 2500)}
 """
 
 EDITOR INSTRUCTION / POLISH MANDATE:
@@ -17033,9 +17760,11 @@ ${sanitizePromptInput(params.instruction, 500)}
 """
 
 TASK:
-Rewrite and polish this specific chapter's prose strictly adhering to the user's instruction and tone mandate.
-Keep all verified numbers, metric claims, and operational facts intact unless specifically asked to adjust.
-Ensure smooth, professional executive flow without generic marketing hype.
+Rewrite and polish this specific chapter's prose strictly adhering to the user's instruction, the ${profile.planTypeLabel} length (${profile.minTargetWords}–${profile.maxTargetWords} words, never exceeding ${profile.hardLimitWords} words), and tone mandate.
+Rules:
+1. Write in fluent, persuasive, human-authored business prose. NEVER output key=value pairs (like \`Beachhead=...\`, \`SOM=...\`, \`BlendedNetPrice=...\`, or \`Bridge="Unset"\`) or recite zero (\`€0\`/\`£0\`/\`$0\`) or \`Unset\` fields mechanically.
+2. Keep all verified positive numbers, metric claims, and operational facts intact unless specifically asked to adjust.
+3. Ensure smooth, professional executive flow without generic marketing hype or internal module jargon.
 
 Return strictly a JSON object:
 {
@@ -17056,7 +17785,7 @@ Return strictly a JSON object:
 
       const rawText = response.text?.trim() || '';
       if (rawText) {
-        const parsed = JSON.parse(rawText);
+        const parsed = JSON.parse(stripJsonCodeFences(rawText));
         if (
           parsed &&
           typeof parsed.polishedText === 'string' &&

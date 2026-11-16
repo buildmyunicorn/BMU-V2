@@ -1042,7 +1042,7 @@ export function ProjectDashboardView({
             </div>
           </div>
 
-          {/* Card 3: Business Plan Studio (Multi-Version) */}
+          {/* Card 3: Business Plan Studio */}
           <div
             onClick={onOpenBusinessPlanStudio}
             className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-500 hover:shadow-md"
@@ -1053,12 +1053,12 @@ export function ProjectDashboardView({
                   <FileText className="h-5 w-5" />
                 </div>
                 <Badge className="border-slate-200 bg-slate-50 text-[10px] font-bold text-emerald-900">
-                  WORKFLOW 3 • MODULE L STUDIO
+                  WORKFLOW 3 • BUSINESS PLAN STUDIO
                 </Badge>
               </div>
 
               <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-emerald-800">
-                Module L &amp; Multi-Version Studio
+                Business Plan Studio
               </h3>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
                 Compile, audit, and export tailored dossiers for IE LEO Grants, UK
@@ -1086,7 +1086,7 @@ export function ProjectDashboardView({
                 }}
                 className="w-full border-slate-300 bg-white text-xs font-bold text-emerald-900 hover:bg-slate-50"
               >
-                Open Plan Studio
+                Open Business Plan Studio
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </div>

@@ -40,6 +40,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
+  FieldParkButton,
+  scrollAndHighlightElement,
+} from '@/components/workspace/field-park-button';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -662,6 +666,7 @@ export interface ModuleBWorkspaceProps {
   onBackToModuleA: () => void;
   initialStep?: number;
   highlightTarget?: string;
+  navToken?: number;
 }
 
 export function ModuleBWorkspace({
@@ -683,6 +688,7 @@ export function ModuleBWorkspace({
   onBackToModuleA,
   initialStep,
   highlightTarget,
+  navToken,
 }: ModuleBWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
   const localGrants = getGrantsForCountry(selectedCountry);
@@ -724,19 +730,10 @@ export function ModuleBWorkspace({
   useEffect(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 6) {
       setOpenStep(initialStep);
-      setTimeout(() => {
-        const targetId = highlightTarget || `module-b-step-${initialStep}`;
-        const el = document.getElementById(targetId);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.remove('attention-highlight');
-          void el.offsetWidth;
-          el.classList.add('attention-highlight');
-          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
-        }
-      }, 250);
+      const targetId = highlightTarget || `module-b-step-${initialStep}`;
+      scrollAndHighlightElement(targetId);
     }
-  }, [initialStep, highlightTarget]);
+  }, [initialStep, highlightTarget, navToken]);
 
   const savedBeachhead = plan.moduleBData?.beachhead;
 
@@ -830,6 +827,7 @@ export function ModuleBWorkspace({
   // Saving state
   const [isSaving, setIsSaving] = useState(false);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
+  const [parkedFeedbackKey, setParkedFeedbackKey] = useState<string | null>(null);
 
   // Background Autosave States & Refs
   const [step1AutosavedAt, setStep1AutosavedAt] = useState<Date | null>(null);
@@ -2633,11 +2631,22 @@ export function ModuleBWorkspace({
           )}
 
           {/* 1. Buyer Model Selector (Multi-Select Supported) */}
-          <div>
+          <div id="field-buyer-model">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                1. Who Are Your Customer Models? (Select All That Apply)
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                  1. Who Are Your Customer Models? (Select All That Apply)
+                </label>
+                <FieldParkButton
+                  moduleCode="MOD_B_MARKET"
+                  stepNumber={1}
+                  fieldId="field-buyer-model"
+                  questionLabel="Who are our customer models (B2B, B2C, Marketplace)?"
+                  suggestedAction="Confirm whether we sell directly to individuals, businesses, or both."
+                  onPark={onParkQuestion}
+                  disabled={isVaultReadonly}
+                />
+              </div>
               <span className="text-[11px] font-medium text-emerald-700">
                 {buyerTypes.length > 1
                   ? `${buyerTypes.length} customer models selected (Hybrid / Multi-Segment)`
@@ -2718,7 +2727,7 @@ export function ModuleBWorkspace({
           </div>
 
           {/* 2. Target Customer Description */}
-          <div>
+          <div id="field-beachhead-segment">
             <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <label
@@ -2727,6 +2736,15 @@ export function ModuleBWorkspace({
                 >
                   2. Your First Core Customer Group (Who buys first?)
                 </label>
+                <FieldParkButton
+                  moduleCode="MOD_B_MARKET"
+                  stepNumber={1}
+                  fieldId="beachhead-segment-input"
+                  questionLabel="Who is our beachhead customer group (who buys first)?"
+                  suggestedAction="Interview 5 target customers to validate this specific persona."
+                  onPark={onParkQuestion}
+                  disabled={isVaultReadonly}
+                />
                 <button
                   type="button"
                   onClick={() => setShowBeachheadTooltip((prev) => !prev)}
@@ -2785,11 +2803,22 @@ export function ModuleBWorkspace({
           </div>
 
           {/* 3. End User vs Economic Buyer / Decision Maker */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <div id="field-decision-maker" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  3. User vs. Paying Buyer (Who Actually Approves the Spend?)
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    3. User vs. Paying Buyer (Who Actually Approves the Spend?)
+                  </div>
+                  <FieldParkButton
+                    moduleCode="MOD_B_MARKET"
+                    stepNumber={1}
+                    fieldId="decision-maker-input"
+                    questionLabel="Who approves the budget vs who uses the product?"
+                    suggestedAction="Confirm who holds budget authority and swiping power."
+                    onPark={onParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
                   In many businesses, the person who uses the product daily is
@@ -2883,11 +2912,24 @@ export function ModuleBWorkspace({
           </div>
 
           {/* 4. The "Hair-on-Fire" Buying Trigger ("Why Now?") */}
-          <div>
-            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
-              4. The &ldquo;Why Now?&rdquo; Trigger Moment (What Makes Them Look
-              for a Solution Today?)
-            </label>
+          <div id="field-buying-trigger">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                  4. The &ldquo;Why Now?&rdquo; Trigger Moment (What Makes Them Look
+                  for a Solution Today?)
+                </label>
+                <FieldParkButton
+                  moduleCode="MOD_B_MARKET"
+                  stepNumber={1}
+                  fieldId="buying-trigger-notes-input"
+                  questionLabel="What is the buying trigger moment (why now)?"
+                  suggestedAction="Clarify what urgent event or frustration triggers customers to search for our solution."
+                  onPark={onParkQuestion}
+                  disabled={isVaultReadonly}
+                />
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {BUYING_TRIGGER_OPTIONS.map((trig) => {
                 const selected = buyingTriggerPreset === trig.value;
@@ -2938,12 +2980,23 @@ export function ModuleBWorkspace({
           </div>
 
           {/* 5. Target Selling Geographies (Where Your Customers Live) */}
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
+          <div id="field-target-geographies" className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-950">
-                  <Globe2 className="h-4 w-4 text-emerald-700" />
-                  5. Target Selling Geographies (Where Your Customers Live)
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-950">
+                    <Globe2 className="h-4 w-4 text-emerald-700" />
+                    5. Target Selling Geographies (Where Your Customers Live)
+                  </div>
+                  <FieldParkButton
+                    moduleCode="MOD_B_MARKET"
+                    stepNumber={1}
+                    fieldId="field-target-geographies"
+                    questionLabel="Which target markets should we prioritize in Year 1–2?"
+                    suggestedAction="Confirm regulatory, tax, or localization requirements for our launch countries."
+                    onPark={onParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
                 </div>
                 <p className="mt-0.5 text-xs text-slate-600">
                   Your HQ is incorporated in{' '}
@@ -3074,26 +3127,8 @@ export function ModuleBWorkspace({
             </div>
           </div>
 
-          {/* Step 1 Action Bar: Park Question + Save Step 1 + Next */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isVaultReadonly}
-              onClick={() => {
-                onParkQuestion(
-                  `Module B Step 1: Interview 5 buyers in [${targetMarkets.join(', ')}] to confirm whether "${decisionMakerRole.slice(0, 50)}..." has budget authority.`
-                );
-                setSaveBanner(
-                  '📌 Added buyer validation question to your Open Questions Parking Lot!'
-                );
-              }}
-            >
-              <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
-              Not 100% sure who approves budget? Park in Open Questions
-            </Button>
-
+          {/* Step 1 Action Bar: Save Step 1 + Next */}
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-4">
             <div className="flex flex-wrap items-center gap-2">
               {step1AutosavedAt && !isSaving && (
                 <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
@@ -3417,12 +3452,23 @@ export function ModuleBWorkspace({
 
           <CardContent className="space-y-6 px-0 pb-0 pt-4">
           {/* PART 1: HOW CUSTOMERS DEAL WITH THIS TODAY (WORKAROUNDS) */}
-          <div>
+          <div id="field-customer-workarounds">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                1. What Do Your Customers Do Today Instead? (Select All That
-                Apply)
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                  1. What Do Your Customers Do Today Instead? (Select All That
+                  Apply)
+                </label>
+                <FieldParkButton
+                  moduleCode="MOD_B_MARKET"
+                  stepNumber={2}
+                  fieldId="workaround-frustration-input"
+                  questionLabel="What existing workarounds or habits are customers using today?"
+                  suggestedAction="Investigate the manual hacks and workarounds customers use before buying from us."
+                  onPark={onParkQuestion}
+                  disabled={isVaultReadonly}
+                />
+              </div>
               <span className="text-[11px] font-medium text-emerald-700">
                 {currentWorkarounds.length > 0
                   ? `${currentWorkarounds.length} everyday habit(s) selected`
@@ -3496,13 +3542,24 @@ export function ModuleBWorkspace({
           </div>
 
           {/* PART 2: DIRECT COMPETITORS & ALTERNATIVES (MANUAL + AI SCOUT) */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+          <div id="field-direct-competitors" className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-800">
-                  <Search className="h-4 w-4 text-emerald-700" />
-                  2. Direct Competitors &amp; Alternative Tools in{' '}
-                  {targetMarkets.join(', ')}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-800">
+                    <Search className="h-4 w-4 text-emerald-700" />
+                    2. Direct Competitors &amp; Alternative Tools in{' '}
+                    {targetMarkets.join(', ')}
+                  </div>
+                  <FieldParkButton
+                    moduleCode="MOD_B_MARKET"
+                    stepNumber={2}
+                    fieldId="field-direct-competitors"
+                    questionLabel="Who are our top direct competitors and their pricing?"
+                    suggestedAction="Check exact pricing and customer reviews for top 3 competitors."
+                    onPark={onParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
                 </div>
                 <p className="mt-0.5 text-xs text-slate-600">
                   Add competitors you already know, or click{' '}
@@ -3695,12 +3752,23 @@ export function ModuleBWorkspace({
           </div>
 
           {/* PART 3: YOUR "WHY SWITCH TO US?" EDGE */}
-          <div>
+          <div id="field-why-switch">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                3. Why Will Customers Switch to {plan.title}? (Select Your Key
-                Advantages)
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                  3. Why Will Customers Switch to {plan.title}? (Select Your Key
+                  Advantages)
+                </label>
+                <FieldParkButton
+                  moduleCode="MOD_B_MARKET"
+                  stepNumber={2}
+                  fieldId="why-switch-sentence-input"
+                  questionLabel="Why will customers switch from their current setup to us?"
+                  suggestedAction="Test switching incentives with 5 real users to verify they will migrate."
+                  onPark={onParkQuestion}
+                  disabled={isVaultReadonly}
+                />
+              </div>
               <span className="text-[11px] font-medium text-emerald-700">
                 {whySwitchEdges.length > 0
                   ? `${whySwitchEdges.length} advantage(s) selected`
@@ -3766,26 +3834,8 @@ export function ModuleBWorkspace({
             </div>
           </div>
 
-          {/* Step 2 Action Bar: Park Question + Save Step 2 + Next */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isVaultReadonly}
-              onClick={() => {
-                onParkQuestion(
-                  `Module B Step 2: Check exact pricing (${countryPack.defaultCurrency}) and biggest customer complaints for top 3 competitors in [${targetMarkets.join(', ')}].`
-                );
-                setSaveBanner(
-                  '📌 Added competitor pricing check to your Open Questions Parking Lot!'
-                );
-              }}
-            >
-              <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
-              Unsure on competitor pricing? Park in Open Questions
-            </Button>
-
+          {/* Step 2 Action Bar: Save Step 2 + Next */}
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-4">
             <div className="flex flex-wrap items-center gap-2">
               {step2AutosavedAt && !isSavingStep2 && (
                 <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
@@ -4238,13 +4288,24 @@ export function ModuleBWorkspace({
                       `Module B Step 3: Check official customer counts in [${targetMarkets.join(', ')}] to verify our ${countryPack.defaultCurrency} reachable market.`
                     );
                     setShowStep3ImStuck(false);
+                    setParkedFeedbackKey('step3_stuck');
+                    setTimeout(() => setParkedFeedbackKey((curr) => (curr === 'step3_stuck' ? null : curr)), 3000);
                     setSaveBanner(
                       '📌 Parked market count verification in your Open Questions Parking Lot!'
                     );
                   }}
                 >
-                  <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
-                  Park in Open Questions
+                  {parkedFeedbackKey === 'step3_stuck' ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      <span className="text-emerald-700 font-medium">Parked in Parking Lot!</span>
+                    </>
+                  ) : (
+                    <>
+                      <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
+                      Park in Open Questions
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -4315,10 +4376,22 @@ export function ModuleBWorkspace({
                   {/* Group Name + Billing Cadence Row */}
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
                     <div className="md:col-span-7">
-                      <label className="mb-1 block text-xs font-semibold text-slate-800">
-                        Who is in Customer Group #{index + 1}?
-                      </label>
+                      <div className="flex items-center gap-2">
+                        <label className="mb-1 block text-xs font-semibold text-slate-800">
+                          Who is in Customer Group #{index + 1}?
+                        </label>
+                        <FieldParkButton
+                          moduleCode="MOD_B_MARKET"
+                          stepNumber={3}
+                          fieldId={`market-segment-name-${seg.id}`}
+                          questionLabel={`Who is in Customer Group #${index + 1}?`}
+                          suggestedAction="Refine definition of this specific buyer persona or segment."
+                          onPark={onParkQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <input
+                        id={`market-segment-name-${seg.id}`}
                         type="text"
                         disabled={isVaultReadonly}
                         value={seg.segmentName}
@@ -4339,10 +4412,21 @@ export function ModuleBWorkspace({
                     </div>
 
                     <div className="md:col-span-5">
-                      <label className="mb-1 block text-xs font-semibold text-slate-800">
-                        How does this group pay you?
-                      </label>
-                      <div className="grid grid-cols-3 gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <label className="mb-1 block text-xs font-semibold text-slate-800">
+                          How does this group pay you?
+                        </label>
+                        <FieldParkButton
+                          moduleCode="MOD_B_MARKET"
+                          stepNumber={3}
+                          fieldId={`market-segment-cadence-${seg.id}`}
+                          questionLabel={`Pricing cadence for Customer Group #${index + 1} (${seg.segmentName || 'Group'})`}
+                          suggestedAction="Confirm subscription vs one-time vs custom billing cadence."
+                          onPark={onParkQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
+                      <div id={`market-segment-cadence-${seg.id}`} className="grid grid-cols-3 gap-1.5">
                         <button
                           type="button"
                           disabled={isVaultReadonly}
@@ -4420,13 +4504,24 @@ export function ModuleBWorkspace({
                   {/* 3 Plain-English Number Inputs */}
                   <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
                     {/* Box A: Price */}
-                    <div className="rounded-lg border border-slate-200 bg-white p-3">
-                      <label className="block text-xs font-semibold text-slate-900">
-                        A. Typical Price ({countryPack.defaultCurrency}){' '}
-                        {seg.billingCadence === 'MONTHLY_SUBSCRIPTION'
-                          ? 'per Month'
-                          : 'per Year'}
-                      </label>
+                    <div id={`box-price-${seg.id}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex items-center justify-between gap-1">
+                        <label className="block text-xs font-semibold text-slate-900">
+                          A. Typical Price ({countryPack.defaultCurrency}){' '}
+                          {seg.billingCadence === 'MONTHLY_SUBSCRIPTION'
+                            ? 'per Month'
+                            : 'per Year'}
+                        </label>
+                        <FieldParkButton
+                          moduleCode="MOD_B_MARKET"
+                          stepNumber={3}
+                          fieldId={`price-input-${seg.id}`}
+                          questionLabel={`Typical price for Customer Group #${index + 1} (${seg.segmentName || 'Group'})`}
+                          suggestedAction="Confirm willingness-to-pay and pricing benchmark."
+                          onPark={onParkQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <p className="mt-0.5 text-[11px] text-slate-500">
                         What does 1 customer in this group typically pay?
                       </p>
@@ -4435,6 +4530,7 @@ export function ModuleBWorkspace({
                           {countryPack.defaultCurrency}
                         </span>
                         <input
+                          id={`price-input-${seg.id}`}
                           type="text"
                           inputMode="decimal"
                           disabled={isVaultReadonly}
@@ -4465,15 +4561,27 @@ export function ModuleBWorkspace({
                     </div>
 
                     {/* Box B: Year 1–2 Realistic Customer Goal */}
-                    <div className="rounded-lg border border-slate-200 bg-white p-3">
-                      <label className="block text-xs font-semibold text-slate-900">
-                        B. Your Year 1–2 Customer Goal
-                      </label>
+                    <div id={`box-goal-${seg.id}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex items-center justify-between gap-1">
+                        <label className="block text-xs font-semibold text-slate-900">
+                          B. Your Year 1–2 Customer Goal
+                        </label>
+                        <FieldParkButton
+                          moduleCode="MOD_B_MARKET"
+                          stepNumber={3}
+                          fieldId={`goal-input-${seg.id}`}
+                          questionLabel={`Year 1–2 customer target for Customer Group #${index + 1} (${seg.segmentName || 'Group'})`}
+                          suggestedAction="Validate whether this customer volume is realistic given our sales bandwidth."
+                          onPark={onParkQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <p className="mt-0.5 text-[11px] text-slate-500">
                         How many paying customers in this group can you
                         realistically win in Year 1–2?
                       </p>
                       <input
+                        id={`goal-input-${seg.id}`}
                         type="text"
                         inputMode="numeric"
                         disabled={isVaultReadonly}
@@ -4503,16 +4611,28 @@ export function ModuleBWorkspace({
                     </div>
 
                     {/* Box C: Total Reachable Customers in Selected Countries */}
-                    <div className="rounded-lg border border-slate-200 bg-white p-3">
-                      <label className="block text-xs font-semibold text-slate-900">
-                        C. Total Reachable Customers in{' '}
-                        {targetMarkets.join(', ')}
-                      </label>
+                    <div id={`box-reachable-${seg.id}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex items-center justify-between gap-1">
+                        <label className="block text-xs font-semibold text-slate-900">
+                          C. Total Reachable Customers in{' '}
+                          {targetMarkets.join(', ')}
+                        </label>
+                        <FieldParkButton
+                          moduleCode="MOD_B_MARKET"
+                          stepNumber={3}
+                          fieldId={`reachable-input-${seg.id}`}
+                          questionLabel={`Total reachable customers for Customer Group #${index + 1} (${seg.segmentName || 'Group'})`}
+                          suggestedAction="Verify census/directory count of total potential customers in target markets."
+                          onPark={onParkQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <p className="mt-0.5 text-[11px] text-slate-500">
                         Roughly how many potential customers like this exist in{' '}
                         {targetMarkets.join(', ')}?
                       </p>
                       <input
+                        id={`reachable-input-${seg.id}`}
                         type="text"
                         inputMode="numeric"
                         disabled={isVaultReadonly}
@@ -4745,26 +4865,8 @@ export function ModuleBWorkspace({
             )}
           </div>
 
-          {/* Step 3 Action Bar: Park Question + Save Step 3 + Next */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isVaultReadonly}
-              onClick={() => {
-                onParkQuestion(
-                  `Module B Step 3: Double-check official customer counts in [${targetMarkets.join(', ')}] (e.g., CSO / ONS / university & business directories) to verify our ${countryPack.defaultCurrency} reachable market numbers.`
-                );
-                setSaveBanner(
-                  '📌 Added market sizing source check to your Open Questions Parking Lot!'
-                );
-              }}
-            >
-              <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
-              Unsure on exact customer counts? Park in Open Questions
-            </Button>
-
+          {/* Step 3 Action Bar: Save Step 3 + Next */}
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-4">
             <div className="flex flex-wrap items-center gap-2">
               {step3AutosavedAt && !isSavingStep3 && (
                 <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
@@ -5059,12 +5161,23 @@ export function ModuleBWorkspace({
           {/* =============================================================== */}
           {/* 4.1 SIDE-BY-SIDE COMPARISON SCORER                              */}
           {/* =============================================================== */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+          <div id="field-comparison-matrix" className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  1. Side-by-Side Comparison: How Do You Stack Up?
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900">
+                    1. Side-by-Side Comparison: How Do You Stack Up?
+                  </h3>
+                  <FieldParkButton
+                    moduleCode="MOD_B_MARKET"
+                    stepNumber={4}
+                    fieldId="field-comparison-matrix"
+                    questionLabel="How do we stack up against competitors on price, speed, and trust?"
+                    suggestedAction="Benchmark our value proposition against top 2 market alternatives."
+                    onPark={onParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <p className="text-xs text-slate-500">
                   Click <strong>Low</strong>, <strong>Medium</strong>, or{' '}
                   <strong>High</strong> on each column to compare your startup
@@ -5245,14 +5358,25 @@ export function ModuleBWorkspace({
           {/* =============================================================== */}
           {/* 4.2 MAKING IT EFFORTLESS TO SWITCH (SWITCHING FRICTION)         */}
           {/* =============================================================== */}
-          <div className="space-y-3">
-            <label className="block text-sm font-bold text-slate-900">
-              2. How Do You Make It Effortless &amp; Low-Risk for Customers to
-              Switch to You?
-              <span className="ml-1.5 text-xs font-normal text-slate-500">
-                (Select all that apply)
-              </span>
-            </label>
+          <div id="field-switching-friction" className="space-y-3">
+            <div className="flex items-center gap-2">
+              <label className="block text-sm font-bold text-slate-900">
+                2. How Do You Make It Effortless &amp; Low-Risk for Customers to
+                Switch to You?
+                <span className="ml-1.5 text-xs font-normal text-slate-500">
+                  (Select all that apply)
+                </span>
+              </label>
+              <FieldParkButton
+                moduleCode="MOD_B_MARKET"
+                stepNumber={4}
+                fieldId="switching-friction-notes-input"
+                questionLabel="How do we reduce customer switching friction and risk?"
+                suggestedAction="Determine the frictionless first step or pilot offer for new customers."
+                onPark={onParkQuestion}
+                disabled={isVaultReadonly}
+              />
+            </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {SWITCHING_FRICTION_REDUCER_OPTIONS.map((opt) => {
                 const isSelected = switchingFrictionReducers.includes(
@@ -5327,14 +5451,25 @@ export function ModuleBWorkspace({
           {/* =============================================================== */}
           {/* 4.3 YOUR UNFAIR ADVANTAGE / WHAT STOPS COPYCATS                 */}
           {/* =============================================================== */}
-          <div className="space-y-3">
-            <label className="block text-sm font-bold text-slate-900">
-              3. Your Unfair Advantage: What Stops Competitors From Easily
-              Copying You?
-              <span className="ml-1.5 text-xs font-normal text-slate-500">
-                (Select all that apply)
-              </span>
-            </label>
+          <div id="field-unfair-advantage" className="space-y-3">
+            <div className="flex items-center gap-2">
+              <label className="block text-sm font-bold text-slate-900">
+                3. Your Unfair Advantage: What Stops Competitors From Easily
+                Copying You?
+                <span className="ml-1.5 text-xs font-normal text-slate-500">
+                  (Select all that apply)
+                </span>
+              </label>
+              <FieldParkButton
+                moduleCode="MOD_B_MARKET"
+                stepNumber={4}
+                fieldId="field-unfair-advantage"
+                questionLabel="What stops competitors from easily copying us (defensive moat)?"
+                suggestedAction="Review proprietary IP, domain contracts, or regulatory speed advantages."
+                onPark={onParkQuestion}
+                disabled={isVaultReadonly}
+              />
+            </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {UNFAIR_ADVANTAGE_MOAT_OPTIONS.map((opt) => {
                 const isSelected = unfairAdvantages.includes(opt.value);
@@ -5386,16 +5521,27 @@ export function ModuleBWorkspace({
           {/* =============================================================== */}
           {/* 4.4 TWO-SENTENCE COMPETITIVE EDGE SUMMARY (FOR BUSINESS PLAN)   */}
           {/* =============================================================== */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div id="field-competitive-edge-summary" className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <label
-                  htmlFor="competitive-edge-summary-input"
-                  className="block text-sm font-bold text-slate-900"
-                >
-                  4. Your 2-Sentence Competitive Edge Summary (For Grant &amp;
-                  Investor Applications)
-                </label>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="competitive-edge-summary-input"
+                    className="block text-sm font-bold text-slate-900"
+                  >
+                    4. Your 2-Sentence Competitive Edge Summary (For Grant &amp;
+                    Investor Applications)
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_B_MARKET"
+                    stepNumber={4}
+                    fieldId="competitive-edge-summary-input"
+                    questionLabel="2-Sentence competitive edge summary for business plan"
+                    suggestedAction="Draft the definitive 2-sentence edge summary combining switching ease and moat."
+                    onPark={onParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <p className="text-xs text-slate-600">
                   Combine why customers switch to you + why competitors struggle
                   to copy you.
@@ -5510,26 +5656,8 @@ export function ModuleBWorkspace({
             />
           </div>
 
-          {/* Step 4 Action Bar: Park Question + Save Step 4 + Next */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isVaultReadonly}
-              onClick={() => {
-                onParkQuestion(
-                  `Module B Step 4: Test our "First Step" switching offer with 5 target customers in [${targetMarkets.join(', ')}] to confirm they find it effortless to switch from their current habit.`
-                );
-                setSaveBanner(
-                  '📌 Added switching-friction test to your Open Questions Parking Lot!'
-                );
-              }}
-            >
-              <BookmarkPlus className="h-3.5 w-3.5 text-amber-600" />
-              Unsure what stops copycats? Park in Open Questions
-            </Button>
-
+          {/* Step 4 Action Bar: Save Step 4 + Next */}
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-4">
             <div className="flex flex-wrap items-center gap-2">
               {step4AutosavedAt && !isSavingStep4 && (
                 <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
@@ -5694,6 +5822,7 @@ export function ModuleBWorkspace({
             {liveModuleBThingsToConsider.map((item, idx) => (
               <div
                 key={item.id || idx}
+                id={`blindspot-card-${idx}`}
                 className={`flex flex-col justify-between rounded-xl border p-4 shadow-2xs transition-all ${
                   item.severity === 'WARNING'
                     ? 'border-amber-300 bg-amber-50/40'
@@ -5728,22 +5857,15 @@ export function ModuleBWorkspace({
                 </div>
 
                 <div className="mt-3 flex justify-end border-t border-slate-100 pt-2">
-                  <button
-                    type="button"
+                  <FieldParkButton
+                    moduleCode="MOD_B_MARKET"
+                    stepNumber={5}
+                    fieldId={`blindspot-card-${idx}`}
+                    questionLabel={`Blind Spot: ${item.title}`}
+                    suggestedAction={item.suggestedAction}
+                    onPark={onParkQuestion}
                     disabled={isVaultReadonly}
-                    onClick={() => {
-                      onParkQuestion(
-                        `Module B Blind-Spot Action: ${item.suggestedAction}`
-                      );
-                      setSaveBanner(
-                        `📌 Parked "${item.title}" in your Open Questions Parking Lot!`
-                      );
-                    }}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-50"
-                  >
-                    <BookmarkPlus className="h-3 w-3" />
-                    Park in Open Questions
-                  </button>
+                  />
                 </div>
               </div>
             ))}

@@ -103,9 +103,14 @@ export function formatModuleCodeShortLabel(code?: string | null): string {
 
 export const COMPILER_MODE_LABELS: Record<string, string> = {
   IE_LEO_OFFICIAL_FORM: 'Irish LEO Official Application Form',
+  IE_LEO_OFFICIAL_GRANT: 'Irish LEO & Enterprise Ireland Official Grant Application',
   UK_INNOVATE_UK_9Q: 'UK Innovate UK 9-Question IFS Mode',
   UK_START_UP_LOANS_WORKBOOK: 'UK Start Up Loans 4-Part Workbook',
+  COMMERCIAL_BANK_LOAN: 'Commercial Bank & Term Loan Credit Application',
   INVESTOR_SEIS_EIS_EII_PACK: 'Investor SEIS / EIS / EII Advance Assurance Pack',
+  INVESTOR_ANGEL_MEMO: 'Angel & Seed Investor Investment Memorandum',
+  LEAN_ONE_PAGER: 'Lean 2-Page Executive Business Teaser',
+  STANDARD_COMPREHENSIVE_PLAN: 'Comprehensive 10-Chapter Master Business Plan',
   STANDARD_COMMERCIAL_PLAN: 'Standard Commercial Business Plan',
   STANDARD_BUSINESS_PLAN: 'Standard Commercial Business Plan',
 };

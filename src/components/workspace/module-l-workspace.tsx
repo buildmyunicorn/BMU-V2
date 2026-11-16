@@ -289,7 +289,7 @@ export function ModuleLWorkspace({
             >
               <Layers className="h-3.5 w-3.5" />
               <span>
-                Full-Document Reader &amp; Multi-Version Studio
+                Business Plan Studio
                 {plan.moduleLData?.versions && plan.moduleLData.versions.length > 0
                   ? ` (${plan.moduleLData.versions.length})`
                   : ''}

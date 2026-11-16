@@ -13,6 +13,7 @@ import { verifyActiveSessionAndPlanOwnership } from '@/lib/auth/server-auth';
 import {
   generateModuleLStep2AuditViaRouter,
   generateModuleLStep3SectionViaRouter,
+  generateBusinessPlanBatchViaRouter,
   polishBusinessPlanTextViaRouter,
   type GenerateModuleLStep3SectionResult,
   type GenerateModuleLStep2AuditResult,
@@ -135,11 +136,12 @@ export async function saveBusinessPlanStudioVersionsAction(input: {
 }
 
 /**
- * Compiles a specific section of a Business Plan Version using `gemini-2.5-pro`.
+ * Compiles a specific section of a Business Plan Version calibrated to the version's archetype and length.
  */
 export async function compileBusinessPlanSectionAction(input: {
   planId: string;
   versionId: string;
+  archetype?: BusinessPlanArchetype;
   sectionNumber: number;
   sectionTitle: string;
   assessorPrompt: string;
@@ -176,19 +178,27 @@ export async function compileBusinessPlanSectionAction(input: {
     };
   }
 
+  const resolvedCompilerMode =
+    input.archetype ||
+    (input.targetTone === 'UNDERWRITER_CONSERVATIVE'
+      ? 'COMMERCIAL_BANK_LOAN'
+      : input.targetTone === 'VENTURE_HIGH_GROWTH'
+        ? 'INVESTOR_ANGEL_MEMO'
+        : input.wordLimit <= 220
+          ? 'LEAN_ONE_PAGER'
+          : input.targetTone === 'EXECUTIVE_CRISP'
+            ? 'STANDARD_COMPREHENSIVE_PLAN'
+            : input.hqCountryCode === 'GB'
+              ? 'UK_INNOVATE_UK_9Q'
+              : 'IE_LEO_OFFICIAL_GRANT');
+
   return await generateModuleLStep3SectionViaRouter({
     planId: input.planId,
     planTitle: input.planTitle,
     industryCategory: input.industryCategory,
     hqCountryCode: input.hqCountryCode,
     baseCurrency: input.baseCurrency,
-    compilerMode: input.targetTone === 'UNDERWRITER_CONSERVATIVE'
-      ? 'UK_START_UP_LOANS_WORKBOOK'
-      : input.targetTone === 'VENTURE_HIGH_GROWTH'
-        ? 'STANDARD_COMMERCIAL_PLAN'
-        : input.hqCountryCode === 'GB'
-          ? 'UK_INNOVATE_UK_9Q'
-          : 'IE_LEO_OFFICIAL_FORM',
+    compilerMode: resolvedCompilerMode,
     sectionNumber: input.sectionNumber,
     sectionTitle: input.sectionTitle,
     assessorPrompt: input.assessorPrompt,
@@ -277,7 +287,7 @@ export async function auditBusinessPlanVersionAction(input: {
 
 /**
  * Polishes or rewrites an individual chapter's narrative in the continuous document
- * based on an inline prompt or quick preset using `gemini-2.5-pro`.
+ * based on an inline prompt or quick preset calibrated to the plan archetype.
  */
 export async function polishBusinessPlanChapterAction(input: {
   planId: string;
@@ -285,6 +295,10 @@ export async function polishBusinessPlanChapterAction(input: {
   currentText: string;
   instruction: string;
   targetTone: string;
+  archetype?: BusinessPlanArchetype;
+  wordLimit?: number;
+  assessorPrompt?: string;
+  planContextSummary?: string;
   planTitle: string;
   industryCategory?: string;
   hqCountryCode: string;
@@ -318,6 +332,10 @@ export async function polishBusinessPlanChapterAction(input: {
     hqCountryCode: input.hqCountryCode,
     baseCurrency: input.baseCurrency,
     targetTone: input.targetTone,
+    archetype: input.archetype,
+    wordLimit: input.wordLimit,
+    assessorPrompt: input.assessorPrompt,
+    planContextSummary: input.planContextSummary,
     chapterTitle: input.chapterTitle,
     currentText: input.currentText,
     instruction: input.instruction,
@@ -325,7 +343,7 @@ export async function polishBusinessPlanChapterAction(input: {
 }
 
 /**
- * Compiles/refreshes all sections of a business plan version in one unified batch using `gemini-2.5-pro`.
+ * Compiles/refreshes all sections of a business plan version in archetype-calibrated batches.
  */
 export async function compileAllBusinessPlanSectionsAction(input: {
   planId: string;
@@ -347,7 +365,13 @@ export async function compileAllBusinessPlanSectionsAction(input: {
   }[];
 }): Promise<{
   ok: boolean;
-  compiledSections: { sectionNumber: number; compiledResponseText: string }[];
+  compiledSections: {
+    sectionNumber: number;
+    compiledResponseText: string;
+    wordCount?: number;
+    aiAssessorTip?: string;
+  }[];
+  engineMode?: 'gemini-2.5-flash' | 'smart-synthesizer';
   error?: string;
 }> {
   if (!UUID_REGEX.test(input.planId)) {
@@ -369,44 +393,21 @@ export async function compileAllBusinessPlanSectionsAction(input: {
     };
   }
 
-  const results: { sectionNumber: number; compiledResponseText: string }[] = [];
+  const batchResult = await generateBusinessPlanBatchViaRouter({
+    planId: input.planId,
+    planTitle: input.planTitle,
+    industryCategory: input.industryCategory,
+    hqCountryCode: input.hqCountryCode,
+    baseCurrency: input.baseCurrency,
+    compilerMode: input.archetype,
+    targetTone: input.targetTone,
+    planContextSummary: input.planContextSummary,
+    sections: input.sections,
+  });
 
-  for (const sec of input.sections) {
-    try {
-      const res = await generateModuleLStep3SectionViaRouter({
-        planId: input.planId,
-        planTitle: input.planTitle,
-        industryCategory: input.industryCategory,
-        hqCountryCode: input.hqCountryCode,
-        baseCurrency: input.baseCurrency,
-        compilerMode:
-          input.targetTone === 'UNDERWRITER_CONSERVATIVE'
-            ? 'UK_START_UP_LOANS_WORKBOOK'
-            : input.targetTone === 'VENTURE_HIGH_GROWTH'
-              ? 'STANDARD_COMMERCIAL_PLAN'
-              : input.hqCountryCode === 'GB'
-                ? 'UK_INNOVATE_UK_9Q'
-                : 'IE_LEO_OFFICIAL_FORM',
-        sectionNumber: sec.sectionNumber,
-        sectionTitle: sec.title,
-        assessorPrompt: sec.assessorPrompt,
-        scoringWeightPercent: sec.scoringWeightPercent ?? 20,
-        wordLimit: sec.wordLimit,
-        currentResponseText: sec.currentResponseText,
-        planContextSummary: input.planContextSummary,
-      });
-
-      results.push({
-        sectionNumber: sec.sectionNumber,
-        compiledResponseText: res.compiledResponseText,
-      });
-    } catch {
-      results.push({
-        sectionNumber: sec.sectionNumber,
-        compiledResponseText: sec.currentResponseText || '',
-      });
-    }
-  }
-
-  return { ok: true, compiledSections: results };
+  return {
+    ok: true,
+    compiledSections: batchResult.compiledSections,
+    engineMode: batchResult.engineMode,
+  };
 }

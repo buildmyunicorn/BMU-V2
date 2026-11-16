@@ -33,7 +33,10 @@ import type {
   ModuleLCompiledSectionItem,
   ModuleLCompilerModeType,
 } from '@/lib/auth/session-store';
-import { generateModuleLStep3SectionAction } from '@/app/actions/module-l';
+import {
+  generateModuleLStep3SectionAction,
+  generateModuleLStep3BatchAction,
+} from '@/app/actions/module-l';
 import {
   buildGroundedPlanFactPackString,
   extractMasterDocumentVerifiedFacts,
@@ -546,32 +549,41 @@ export function ModuleLNarrativeCompilerStep({
     try {
       const planContextSummary = buildGroundedPlanFactPackString(plan, executiveHook);
 
-      const updatedSections: ModuleLCompiledSectionItem[] = [];
-      for (const section of sections) {
-        const res = await generateModuleLStep3SectionAction({
-          planId: plan.id,
-          planTitle: plan.title,
-          hqCountryCode: plan.hqCountryCode || 'IE',
-          baseCurrency: plan.baseCurrency || 'EUR',
-          compilerMode,
-          industryCategory: plan.industryCategory,
+      const batchRes = await generateModuleLStep3BatchAction({
+        planId: plan.id,
+        planTitle: plan.title,
+        hqCountryCode: plan.hqCountryCode || 'IE',
+        baseCurrency: plan.baseCurrency || 'EUR',
+        compilerMode,
+        industryCategory: plan.industryCategory,
+        planContextSummary,
+        sections: sections.map((section) => ({
           sectionNumber: section.sectionNumber,
-          sectionTitle: section.title,
+          title: section.title,
           assessorPrompt: section.assessorQuestionPrompt,
           scoringWeightPercent: section.scoringWeightPercent,
           wordLimit: section.wordLimit,
-          sourceModules: section.sourceModules,
           currentResponseText: section.isCustomEdited ? section.compiledResponseText : '',
-          planContextSummary,
-        });
+        })),
+      });
 
-        updatedSections.push({
-          ...section,
-          compiledResponseText: res.compiledResponseText || section.compiledResponseText,
-          isCustomEdited: true,
+      if (batchRes.compiledSections && batchRes.compiledSections.length > 0) {
+        const resultMap = new Map(
+          batchRes.compiledSections.map((r) => [r.sectionNumber, r])
+        );
+        const updatedSections: ModuleLCompiledSectionItem[] = sections.map((section) => {
+          const drafted = resultMap.get(section.sectionNumber);
+          return {
+            ...section,
+            compiledResponseText:
+              drafted?.compiledResponseText || section.compiledResponseText,
+            isCustomEdited: true,
+          };
         });
+        setSections(updatedSections);
+        const firstTip = batchRes.compiledSections.find((r) => r.aiAssessorTip)?.aiAssessorTip;
+        if (firstTip) setAiTip(firstTip);
       }
-      setSections(updatedSections);
     } catch (err) {
       console.error('Error compiling all sections:', err);
     } finally {
@@ -705,7 +717,7 @@ export function ModuleLNarrativeCompilerStep({
             className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-emerald-800 hover:bg-slate-100"
           >
             <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-            {isCompilingAll ? 'Synthesizing All Sections...' : 'Synthesize All Sections from Evidence'}
+            {isCompilingAll ? 'Drafting All Sections with AI...' : 'Draft All Sections with AI'}
           </Button>
         </div>
 
@@ -993,7 +1005,7 @@ export function ModuleLNarrativeCompilerStep({
                           className="h-6 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
                         >
                           <SlidersHorizontal className="mr-1 h-3 w-3 text-emerald-700" />
-                          {isCompiling ? 'Synthesizing...' : 'Synthesize from Plan Evidence'}
+                          {isCompiling ? 'Drafting with AI...' : 'Draft Section with AI'}
                         </Button>
                       </div>
                     </div>
